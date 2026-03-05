@@ -2,7 +2,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
 import { Separator } from "@/components/ui/separator";
 import type { Client } from "@/lib/types";
-import { ExternalLink, User, Building, MapPin, Phone, Mail, Calendar, AlertTriangle } from "lucide-react";
+import { ExternalLink, User, Building, MapPin, Phone, Mail, Calendar, AlertTriangle, FileDown } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 
 interface Props {
   client: Client;
@@ -136,16 +138,26 @@ export default function ClientDetailDialog({ client, open, onClose }: Props) {
           </div>
         )}
 
-        {/* Pappers link */}
-        <a
-          href={`https://www.pappers.fr/recherche?q=${client.siren.replace(/\s/g, "")}`}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex items-center gap-2 text-sm text-primary hover:underline"
-        >
-          <ExternalLink className="w-4 h-4" />
-          Consulter sur Pappers
-        </a>
+        {/* Actions */}
+        <div className="flex items-center gap-4">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => generateFicheAcceptation(client)}
+          >
+            <FileDown className="w-4 h-4" />
+            Télécharger la fiche LCB-FT (PDF)
+          </Button>
+          <a
+            href={`https://www.pappers.fr/recherche?q=${client.siren.replace(/\s/g, "")}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-sm text-primary hover:underline"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Consulter sur Pappers
+          </a>
+        </div>
       </DialogContent>
     </Dialog>
   );
