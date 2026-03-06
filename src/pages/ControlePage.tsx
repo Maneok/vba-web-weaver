@@ -5,10 +5,25 @@ import { VigilanceBadge } from "@/components/RiskBadges";
 export default function ControlePage() {
   const { clients } = useAppState();
 
-  // Simulate monthly random audit: pick 5 clients with highest risk needing review
-  const auditable = [...clients]
-    .sort((a, b) => b.scoreGlobal - a.scoreGlobal)
-    .slice(0, 5);
+  // Weighted random audit: higher risk clients have more chance of being picked
+  const auditable = (() => {
+    if (clients.length <= 5) return [...clients];
+    // Seeded shuffle based on current month for reproducibility within a month
+    const now = new Date();
+    const seed = now.getFullYear() * 100 + now.getMonth();
+    const seededRandom = (i: number) => {
+      const x = Math.sin(seed + i) * 10000;
+      return x - Math.floor(x);
+    };
+    const weighted = clients.map((c, i) => ({
+      client: c,
+      weight: c.scoreGlobal * 2 + seededRandom(i) * 30,
+    }));
+    return weighted
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 5)
+      .map(w => w.client);
+  })();
 
   return (
     <div className="p-6 space-y-6">

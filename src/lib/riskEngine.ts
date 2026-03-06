@@ -19,7 +19,7 @@ const APE_SCORES: Record<string, number> = {
   "41.10A": 30, "41.10B": 70, "41.20A": 40, "41.20B": 40, "43.99C": 40,
   "68.10Z": 80, "68.31Z": 70, "45.11Z": 50, "45.19Z": 50, "45.20A": 30,
   "46.73A": 30, "47.77Z": 80, "56.10C": 60, "56.30Z": 50,
-  "64.19Z": 50, "64.20Z": 40, "66.19B": 50, "46.77Z": 80,
+  "64.19Z": 50, "64.20Z": 40, "64.99Z": 80, "66.19B": 50, "46.77Z": 80,
   "77.11A": 40, "82.99Z": 60, "90.03B": 60, "92.00Z": 100,
   "93.29Z": 40, "96.02B": 40, "96.04Z": 40, "47.26Z": 60,
   "49.32Z": 50, "96.01B": 40, "47.91A": 25, "47.26A": 25,
@@ -43,15 +43,16 @@ const PAYS_RISQUE: string[] = [
 
 // ====== STRUCTURE SCORING ======
 function scoreStructure(forme: string): number {
-  const f = forme.toUpperCase();
+  const f = forme.toUpperCase().trim();
   if (["ENTREPRISE INDIVIDUELLE", "SNC", "ARTISAN"].some(k => f.includes(k))) return 0;
+  if (f.includes("EARL")) return 0;
   if (f.includes("SARL") || f.includes("EURL")) return 20;
-  if (["SEL", "SELAS", "SELARL", "SCP"].some(k => f.includes(k))) return 30;
+  if (["SELAS", "SELARL", "SCP"].some(k => f.includes(k))) return 30;
   if (f.includes("SCI") || f.includes("CIVILE")) return 35;
-  if (f.includes("SAS") || f.includes("SA")) return 40;
+  if (f.includes("SAS")) return 40;
+  if (f === "SA" || f.startsWith("SA ") || f.includes(" SA")) return 40;
   if (f.includes("ASSOCIATION")) return 50;
   if (["TRUST", "FIDUCIE", "FONDATION"].some(k => f.includes(k))) return 100;
-  if (f.includes("EARL")) return 0;
   return 20;
 }
 
@@ -130,11 +131,11 @@ export function calculateRiskScore(params: {
   // Average of 5 criteria
   const avg = (scoreAct + scorePays + scoreMis + scoreMat + scoreStr) / 5;
 
-  // If any criterion > 60, it forces the global score
+  // If any criterion >= 60, it forces the global score (malus always added)
   const maxCriterion = Math.max(scoreAct, scorePays, scoreMis, scoreMat, scoreStr);
   let scoreGlobal: number;
   if (maxCriterion >= 60) {
-    scoreGlobal = maxCriterion;
+    scoreGlobal = Math.round(maxCriterion + malus);
   } else {
     scoreGlobal = Math.round(avg + malus);
   }

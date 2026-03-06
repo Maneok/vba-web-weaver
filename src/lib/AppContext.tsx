@@ -23,13 +23,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addClient = useCallback((client: Client) => {
     setClients(prev => [...prev, client]);
-    addLog({
+    setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
       utilisateur: "Utilisateur",
       refClient: client.ref,
       typeAction: "CRÉATION",
       details: `Nouveau dossier créé: ${client.raisonSociale}`,
-    });
+    }, ...prev]);
   }, []);
 
   const updateClient = useCallback((ref: string, updates: Partial<Client>) => {
