@@ -1,16 +1,18 @@
+import { useState } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { VigilanceBadge } from "@/components/RiskBadges";
+import KycBadge from "@/components/KycBadge";
+import { generateRapportControle } from "@/lib/generateFichePdf";
+import { RefreshCw, FileDown } from "lucide-react";
 
 export default function ControlePage() {
   const { clients } = useAppState();
+  const [seed, setSeed] = useState(() => new Date().getFullYear() * 100 + new Date().getMonth());
 
-  // Weighted random audit: higher risk clients have more chance of being picked
   const auditable = (() => {
     if (clients.length <= 5) return [...clients];
-    // Seeded shuffle based on current month for reproducibility within a month
-    const now = new Date();
-    const seed = now.getFullYear() * 100 + now.getMonth();
     const seededRandom = (i: number) => {
       const x = Math.sin(seed + i) * 10000;
       return x - Math.floor(x);
@@ -27,9 +29,14 @@ export default function ControlePage() {
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">🔍 Contrôle Qualité Mensuel</h1>
-        <p className="text-sm text-muted-foreground mt-1">Tirage aléatoire de dossiers pour contrôle — {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Contrôle Qualité Mensuel</h1>
+          <p className="text-sm text-muted-foreground mt-1">Tirage aléatoire de dossiers pour contrôle — {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+        </div>
+        <Button variant="outline" className="gap-2" onClick={() => setSeed(s => s + 1)}>
+          <RefreshCw className="w-4 h-4" /> Nouveau tirage
+        </Button>
       </div>
 
       <Card>
@@ -45,7 +52,8 @@ export default function ControlePage() {
                     <p className="text-xs text-muted-foreground">{c.forme} · {c.siren}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                  <KycBadge completeness={c.kycCompleteness ?? 0} size="sm" />
                   <div className="text-center">
                     <p className="text-[10px] text-muted-foreground uppercase">Score</p>
                     <p className="font-mono font-bold">{c.scoreGlobal}</p>
@@ -56,6 +64,9 @@ export default function ControlePage() {
                     {c.paysRisque === "OUI" && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Pays</span>}
                     {c.atypique === "OUI" && <span className="text-xs bg-destructive/10 text-destructive px-1.5 py-0.5 rounded">Atypique</span>}
                   </div>
+                  <Button variant="ghost" size="sm" onClick={() => generateRapportControle(c)} title="Générer rapport PDF">
+                    <FileDown className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
             ))}

@@ -26,6 +26,34 @@ export type FormeJuridique =
   | "ASSOCIATION"
   | string;
 
+export type DocumentType = "KBIS" | "STATUTS" | "CNI" | "RIB" | "LETTRE_MISSION" | "FICHE_LCB" | "COMPTES_ANNUELS" | "AUTRE";
+
+export interface ClientDocument {
+  id: string;
+  type: DocumentType;
+  name: string;
+  url: string;
+  uploadDate: string;
+  expiryDate?: string;
+  version: number;
+  previousVersions?: { url: string; uploadDate: string }[];
+}
+
+export interface ScoreHistoryEntry {
+  date: string;
+  scoreGlobal: number;
+  nivVigilance: VigilanceLevel;
+  motif: string;
+  details?: {
+    scoreActivite: number;
+    scorePays: number;
+    scoreMission: number;
+    scoreMaturite: number;
+    scoreStructure: number;
+    malus: number;
+  };
+}
+
 export interface Client {
   ref: string;
   etat: EtatDossier;
@@ -69,6 +97,9 @@ export interface Client {
   scoreGlobal: number;
   nivVigilance: VigilanceLevel;
   dateCreationLigne: string;
+  lienKbis?: string;
+  lienStatuts?: string;
+  lienCni?: string;
   dateDerniereRevue: string;
   dateButoir: string;
   etatPilotage: EtatPilotage;
@@ -76,6 +107,11 @@ export interface Client {
   statut: StatutClient;
   be: string;
   dateFin?: string;
+  documents?: ClientDocument[];
+  scoreHistory?: ScoreHistoryEntry[];
+  kycCompleteness?: number;
+  ppeDetails?: string;
+  gelAvoirs?: "CLEAN" | "FLAGGED" | "UNKNOWN";
 }
 
 export interface Collaborateur {
@@ -131,4 +167,12 @@ export interface LogEntry {
   refClient: string;
   typeAction: string;
   details: string;
+}
+
+export interface CockpitAlert {
+  type: "retard" | "cni_expire" | "incoherence" | "kyc_incomplet" | "formation" | "fantome";
+  severity: "critical" | "warning" | "info";
+  message: string;
+  clientRef?: string;
+  clientName?: string;
 }

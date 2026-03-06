@@ -169,5 +169,231 @@ export function generateFicheAcceptation(client: Client) {
     );
   }
 
+  // ====== BÉNÉFICIAIRES EFFECTIFS (enhanced) ======
+  if (client.be) {
+    addTitle("7. BÉNÉFICIAIRES EFFECTIFS");
+    const beParts = client.be.split("/").map(b => b.trim());
+    beParts.forEach(be => {
+      addRow("", be);
+    });
+    y += 3;
+  }
+
+  // ====== DOCUMENTS COLLECTÉS ======
+  if (client.documents && client.documents.length > 0) {
+    addTitle("8. DOCUMENTS COLLECTÉS (GED)");
+    client.documents.forEach(d => {
+      addRow(d.type, `${d.name} — v${d.version} — ${d.uploadDate}${d.expiryDate ? ` (exp: ${d.expiryDate})` : ""}`);
+    });
+    y += 3;
+  }
+
+  // ====== SCORE HISTORY ======
+  if (client.scoreHistory && client.scoreHistory.length > 1) {
+    addTitle("9. HISTORIQUE DES SCORES");
+    client.scoreHistory.slice(-5).forEach(h => {
+      addRow(h.date, `Score: ${h.scoreGlobal} (${h.nivVigilance}) — ${h.motif}`);
+    });
+    y += 3;
+  }
+
   doc.save(`Fiche_LCB-FT_${client.ref}_${client.raisonSociale.replace(/\s/g, "_")}.pdf`);
+}
+
+// ====== LETTRE DE MISSION PDF (BLOC 4) ======
+export function generateLettreMission(client: Client) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210;
+  const marginL = 20;
+  let y = 20;
+
+  // Header
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 58, 95);
+  doc.text("LETTRE DE MISSION", W / 2, y, { align: "center" });
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text(`Cabinet Comptable — ${new Date().toLocaleDateString("fr-FR")}`, W / 2, y, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+  y += 15;
+
+  // Client info
+  doc.setFontSize(10);
+  doc.text(`Destinataire : ${client.raisonSociale}`, marginL, y); y += 5;
+  doc.text(`Représentée par : ${client.dirigeant}, ${client.forme}`, marginL, y); y += 5;
+  doc.text(`SIREN : ${client.siren}`, marginL, y); y += 5;
+  doc.text(`Adresse : ${client.adresse}, ${client.cp} ${client.ville}`, marginL, y); y += 10;
+
+  // Mission description
+  doc.setFont("helvetica", "bold");
+  doc.text("Objet de la mission", marginL, y); y += 6;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.text(`Type de mission : ${client.mission}`, marginL, y); y += 5;
+  doc.text(`Fréquence : ${client.frequence}`, marginL, y); y += 5;
+  doc.text(`Honoraires annuels HT : ${client.honoraires.toLocaleString("fr-FR")} €`, marginL, y); y += 5;
+  doc.text(`Associé signataire : ${client.associe}`, marginL, y); y += 5;
+  doc.text(`Collaborateur référent : ${client.comptable}`, marginL, y); y += 10;
+
+  // LCB-FT block (dynamic based on vigilance level)
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setFillColor(30, 58, 95);
+  doc.rect(marginL, y, W - 2 * marginL, 8, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.text("CLAUSE LCB-FT (Art. L.561-2 CMF)", marginL + 3, y + 5.5);
+  doc.setTextColor(0, 0, 0);
+  y += 12;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+
+  const lcbTexts: Record<string, string[]> = {
+    SIMPLIFIEE: [
+      "Conformément aux obligations légales (Art. L.561-2 du CMF), le cabinet a procédé aux diligences",
+      "de vigilance simplifiée à l'égard du client. Le niveau de risque identifié est FAIBLE.",
+      "Les mesures de vigilance standard s'appliquent avec un cycle de revue de 36 mois.",
+    ],
+    STANDARD: [
+      "Conformément aux obligations légales (Art. L.561-2 du CMF), le cabinet a procédé aux diligences",
+      "de vigilance standard à l'égard du client. Le niveau de risque identifié est MODÉRÉ.",
+      "Des mesures de vigilance renforcées pourront être mises en place si nécessaire.",
+      "Le cycle de revue est fixé à 24 mois.",
+    ],
+    RENFORCEE: [
+      "Conformément aux obligations légales (Art. L.561-6 du CMF), le cabinet a procédé aux diligences",
+      "de vigilance RENFORCÉE à l'égard du client. Le niveau de risque identifié est ÉLEVÉ.",
+      "Des mesures de vigilance complémentaires sont mises en œuvre :",
+      "- Examen renforcé de l'origine des fonds et de la nature des opérations",
+      "- Actualisation fréquente des données d'identification (cycle de 12 mois)",
+      "- Surveillance continue des flux financiers et des transactions inhabituelles",
+      "- Documentation systématique des diligences effectuées",
+    ],
+  };
+
+  const texts = lcbTexts[client.nivVigilance] || lcbTexts.STANDARD;
+  texts.forEach(line => {
+    doc.text(line, marginL + 2, y);
+    y += 4;
+  });
+
+  y += 5;
+  doc.setFontSize(9);
+  doc.text(`Score de risque global : ${client.scoreGlobal}/120 — Vigilance : ${client.nivVigilance}`, marginL, y);
+  y += 15;
+
+  // Signatures
+  doc.setFontSize(9);
+  doc.text("Fait en deux exemplaires,", marginL, y); y += 5;
+  doc.text(`Le ${new Date().toLocaleDateString("fr-FR")}`, marginL, y); y += 15;
+
+  doc.text("Pour le cabinet :", marginL, y);
+  doc.text("Pour le client :", W / 2 + 10, y);
+  y += 15;
+  doc.text("____________________", marginL, y);
+  doc.text("____________________", W / 2 + 10, y);
+  y += 5;
+  doc.setFontSize(8);
+  doc.text(`${client.associe} — Associé signataire`, marginL, y);
+  doc.text(`${client.dirigeant}`, W / 2 + 10, y);
+
+  doc.save(`LDM_${client.ref}_${client.raisonSociale.replace(/\s/g, "_")}.pdf`);
+}
+
+// ====== RAPPORT DE CONTRÔLE PDF (BLOC 4) ======
+export function generateRapportControle(client: Client) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210;
+  const marginL = 15;
+  let y = 15;
+
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(30, 58, 95);
+  doc.text("RAPPORT DE CONTRÔLE QUALITÉ LCB-FT", W / 2, y, { align: "center" });
+  y += 6;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(100, 100, 100);
+  doc.text(`${new Date().toLocaleDateString("fr-FR")} — ${client.ref} — ${client.raisonSociale}`, W / 2, y, { align: "center" });
+  doc.setTextColor(0, 0, 0);
+  y += 12;
+
+  const addSection = (title: string) => {
+    doc.setFillColor(30, 58, 95);
+    doc.rect(marginL, y, W - 2 * marginL, 7, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, marginL + 3, y + 5);
+    doc.setTextColor(0, 0, 0);
+    y += 10;
+  };
+
+  const addLine = (label: string, value: string, ok?: boolean) => {
+    if (y > 270) { doc.addPage(); y = 15; }
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.text(label, marginL + 2, y);
+    doc.setFont("helvetica", "normal");
+    if (ok !== undefined) {
+      doc.setTextColor(ok ? 34 : 200, ok ? 139 : 0, ok ? 34 : 0);
+    }
+    doc.text(value, marginL + 80, y);
+    doc.setTextColor(0, 0, 0);
+    y += 5;
+  };
+
+  addSection("1. IDENTIFICATION DU DOSSIER");
+  addLine("Référence", client.ref);
+  addLine("Raison sociale", client.raisonSociale);
+  addLine("SIREN", client.siren);
+  addLine("Forme juridique", client.forme);
+  addLine("Vigilance", client.nivVigilance);
+  addLine("Score global", `${client.scoreGlobal}/120`);
+  y += 3;
+
+  addSection("2. VÉRIFICATION DOCUMENTAIRE");
+  const hasKbis = !!(client.lienKbis || client.documents?.some(d => d.type === "KBIS"));
+  const hasStatuts = !!(client.lienStatuts || client.documents?.some(d => d.type === "STATUTS"));
+  const hasCni = !!(client.lienCni || client.documents?.some(d => d.type === "CNI"));
+  addLine("Extrait Kbis", hasKbis ? "PRÉSENT" : "MANQUANT", hasKbis);
+  addLine("Statuts", hasStatuts ? "PRÉSENT" : "MANQUANT", hasStatuts);
+  addLine("Pièce d'identité (CNI)", hasCni ? "PRÉSENT" : "MANQUANT", hasCni);
+  addLine("KYC Complétude", `${client.kycCompleteness ?? 0}%`, (client.kycCompleteness ?? 0) >= 80);
+  y += 3;
+
+  addSection("3. COHÉRENCE DU SCORING");
+  const facteurs = [
+    client.ppe === "OUI" && "PPE=OUI",
+    client.paysRisque === "OUI" && "PAYS_RISQUE=OUI",
+    client.atypique === "OUI" && "ATYPIQUE=OUI",
+    client.cash === "OUI" && "CASH=OUI",
+  ].filter(Boolean);
+  const isCoherent = !(client.nivVigilance === "SIMPLIFIEE" && facteurs.length > 0);
+  addLine("Facteurs de risque actifs", facteurs.length ? facteurs.join(", ") : "Aucun");
+  addLine("Cohérence scoring/vigilance", isCoherent ? "CONFORME" : "INCOHÉRENCE DÉTECTÉE", isCoherent);
+  y += 3;
+
+  addSection("4. PILOTAGE");
+  addLine("Dernière revue", client.dateDerniereRevue);
+  addLine("Date butoir", client.dateButoir);
+  addLine("État pilotage", client.etatPilotage, client.etatPilotage === "A JOUR");
+  addLine("Expiration CNI", client.dateExpCni || "Non renseignée");
+  y += 3;
+
+  addSection("5. CONCLUSION");
+  y += 2;
+  doc.setFontSize(9);
+  doc.text("☐  Dossier CONFORME — Aucune action requise", marginL + 5, y); y += 6;
+  doc.text("☐  Dossier NON CONFORME — Actions correctives nécessaires", marginL + 5, y); y += 6;
+  doc.text("☐  Dossier à SURVEILLER — Revue anticipée recommandée", marginL + 5, y); y += 12;
+
+  doc.text("Contrôleur : ____________________", marginL + 5, y);
+  doc.text("Date : ____________________", W / 2 + 10, y);
+
+  doc.save(`Controle_${client.ref}_${client.raisonSociale.replace(/\s/g, "_")}.pdf`);
 }

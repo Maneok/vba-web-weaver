@@ -1,17 +1,21 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { BarChart3, Database, Users, AlertTriangle, ClipboardCheck, FileText, Shield } from "lucide-react";
+import { BarChart3, Database, Users, AlertTriangle, ClipboardCheck, FileText, Shield, Settings, Home } from "lucide-react";
+import { useAppState } from "@/lib/AppContext";
 
 const NAV_ITEMS = [
-  { to: "/", icon: BarChart3, label: "Dashboard", emoji: "📊" },
-  { to: "/bdd", icon: Database, label: "Base Clients", emoji: "📁" },
-  { to: "/gouvernance", icon: Users, label: "Gouvernance", emoji: "👥" },
-  { to: "/controle", icon: ClipboardCheck, label: "Contrôle", emoji: "🔍" },
-  { to: "/registre", icon: AlertTriangle, label: "Registre LCB", emoji: "📒" },
-  { to: "/logs", icon: FileText, label: "Logs", emoji: "🔒" },
+  { to: "/", icon: Home, label: "Cockpit" },
+  { to: "/dashboard", icon: BarChart3, label: "Dashboard" },
+  { to: "/bdd", icon: Database, label: "Base Clients" },
+  { to: "/gouvernance", icon: Users, label: "Gouvernance" },
+  { to: "/controle", icon: ClipboardCheck, label: "Contrôle" },
+  { to: "/registre", icon: AlertTriangle, label: "Registre LCB" },
+  { to: "/logs", icon: FileText, label: "Logs" },
+  { to: "/admin", icon: Settings, label: "Paramétrage" },
 ];
 
 export default function AppSidebar() {
   const location = useLocation();
+  const { unreadAlertCount } = useAppState();
 
   return (
     <aside className="w-64 min-h-screen bg-sidebar border-r border-sidebar-border flex flex-col">
@@ -23,7 +27,7 @@ export default function AppSidebar() {
           </div>
           <div>
             <h1 className="text-sm font-bold text-sidebar-accent-foreground tracking-tight">MATRICE LCB-FT</h1>
-            <p className="text-[10px] text-sidebar-foreground opacity-60">v1.0 · Mémoire DEC 2026</p>
+            <p className="text-[10px] text-sidebar-foreground opacity-60">v2.0 · Mémoire DEC 2026</p>
           </div>
         </div>
       </div>
@@ -32,6 +36,8 @@ export default function AppSidebar() {
       <nav className="flex-1 p-3 space-y-1">
         {NAV_ITEMS.map((item) => {
           const isActive = location.pathname === item.to;
+          const Icon = item.icon;
+          const showBadge = item.to === "/" && unreadAlertCount > 0;
           return (
             <NavLink
               key={item.to}
@@ -42,8 +48,13 @@ export default function AppSidebar() {
                   : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground"
               }`}
             >
-              <span className="text-base">{item.emoji}</span>
-              <span>{item.label}</span>
+              <Icon className="w-4 h-4" />
+              <span className="flex-1">{item.label}</span>
+              {showBadge && (
+                <span className="w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                  {unreadAlertCount > 99 ? "99+" : unreadAlertCount}
+                </span>
+              )}
             </NavLink>
           );
         })}
@@ -52,7 +63,7 @@ export default function AppSidebar() {
       {/* Footer */}
       <div className="p-4 border-t border-sidebar-border">
         <p className="text-[10px] text-sidebar-foreground opacity-50 text-center">
-          NPLAB 2025 · L.561 CMF
+          NPLAB 2025 · L.561-2 CMF
         </p>
       </div>
     </aside>

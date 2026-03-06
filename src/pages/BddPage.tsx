@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Search, Plus, Eye } from "lucide-react";
 import ClientDetailDialog from "@/components/ClientDetailDialog";
 import NewClientDialog from "@/components/NewClientDialog";
+import KycBadge from "@/components/KycBadge";
 import type { Client } from "@/lib/types";
 
 export default function BddPage() {
@@ -90,6 +91,7 @@ export default function BddPage() {
               <TableHead className="text-center">Score</TableHead>
               <TableHead className="text-center">Vigilance</TableHead>
               <TableHead className="text-center">Pilotage</TableHead>
+              <TableHead className="text-center">KYC</TableHead>
               <TableHead className="text-center">Butoir</TableHead>
               <TableHead className="w-[60px]"></TableHead>
             </TableRow>
@@ -105,6 +107,7 @@ export default function BddPage() {
                 <TableCell><ScoreGauge score={client.scoreGlobal} /></TableCell>
                 <TableCell className="text-center"><VigilanceBadge level={client.nivVigilance} /></TableCell>
                 <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
+                <TableCell className="text-center"><KycBadge completeness={client.kycCompleteness ?? 0} size="sm" /></TableCell>
                 <TableCell className="text-xs text-center">{client.dateButoir}</TableCell>
                 <TableCell>
                   <Button variant="ghost" size="sm" onClick={(e) => { e.stopPropagation(); setSelectedClient(client); }}>
