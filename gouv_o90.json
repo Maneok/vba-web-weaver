@@ -1,0 +1,123 @@
+[
+  {
+    "collaborateur": "JULIEN",
+    "fonction": "ASSOCIE SIGNATAIRE",
+    "referent_lcb": "OUI",
+    "suppleant": "MAGALIE",
+    "niveau_competence": "NIVEAU 3 (EXPERT)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "",
+    "statut_formation": "⚠️ JAMAIS FORMÉ",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "BRAYAN",
+    "fonction": "SUPERVISEUR ",
+    "referent_lcb": "NON",
+    "suppleant": "JULIEN",
+    "niveau_competence": "NIVEAU 2 (CONFIRMÉ)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2026-01-16",
+    "statut_formation": "✅ A JOUR",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "DIDIER",
+    "fonction": "STAGIAIRE",
+    "referent_lcb": "NON",
+    "suppleant": "JULIEN",
+    "niveau_competence": "NIVEAU 2 (CONFIRMÉ)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2023-01-01",
+    "statut_formation": "🔴 A FORMER",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "JOSE",
+    "fonction": "ALTERNANT",
+    "referent_lcb": "NON",
+    "suppleant": "PASCAL",
+    "niveau_competence": "NIVEAU 1 (JUNIOR)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2023-01-01",
+    "statut_formation": "🔴 A FORMER",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "MAGALIE",
+    "fonction": "COLLABORATEUR",
+    "referent_lcb": "NON",
+    "suppleant": "JULIEN",
+    "niveau_competence": "NIVEAU 1 (JUNIOR)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2026-01-16",
+    "statut_formation": "✅ A JOUR",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "PASCAL",
+    "fonction": "COLLABORATEUR",
+    "referent_lcb": "NON",
+    "suppleant": "JOSE",
+    "niveau_competence": "NIVEAU 2 (CONFIRMÉ)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2026-01-16",
+    "statut_formation": "✅ A JOUR",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "SERGE",
+    "fonction": "STAGIAIRE",
+    "referent_lcb": "NON",
+    "suppleant": "JULIEN",
+    "niveau_competence": "NIVEAU 1 (JUNIOR)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2026-01-16",
+    "statut_formation": "✅ A JOUR",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "FANNY",
+    "fonction": "STAGIAIRE",
+    "referent_lcb": "NON",
+    "suppleant": "JULIEN",
+    "niveau_competence": "NIVEAU 1 (JUNIOR)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2026-01-16",
+    "statut_formation": "✅ A JOUR",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "MAGALIE",
+    "fonction": "ASSOCIE SIGNATAIRE",
+    "referent_lcb": "NON",
+    "suppleant": "SERGE",
+    "niveau_competence": "NIVEAU 3 (EXPERT)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2026-01-16",
+    "statut_formation": "✅ A JOUR",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "BRAYAN",
+    "fonction": "COLLABORATEUR",
+    "referent_lcb": "NON",
+    "suppleant": "FANNY",
+    "niveau_competence": "NIVEAU 3 (EXPERT)",
+    "date_signature_manuel": "2025-01-01",
+    "derniere_formation": "2025-12-10",
+    "statut_formation": "✅ A JOUR",
+    "email": "mail"
+  },
+  {
+    "collaborateur": "DIDIER",
+    "fonction": "",
+    "referent_lcb": "NON",
+    "suppleant": "",
+    "niveau_competence": "",
+    "date_signature_manuel": "",
+    "derniere_formation": "",
+    "statut_formation": "⚠️ JAMAIS FORMÉ",
+    "email": "mail"
+  }
+]

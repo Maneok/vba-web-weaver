@@ -1,0 +1,351 @@
+{
+  "ape_scores": [
+    {
+      "code": "41.10A",
+      "score": 30,
+      "description": "Promotion immobilière de logements"
+    },
+    {
+      "code": "41.10B",
+      "score": 70,
+      "description": "Promotion immobilière de bureaux"
+    },
+    {
+      "code": "41.20A",
+      "score": 40,
+      "description": "Construction de maisons individuelles"
+    },
+    {
+      "code": "41.20B",
+      "score": 40,
+      "description": "Construction d'autres bâtiments"
+    },
+    {
+      "code": "43.99C",
+      "score": 40,
+      "description": "Travaux de maçonnerie générale"
+    },
+    {
+      "code": "68.10Z",
+      "score": 80,
+      "description": "Marchands de biens (Blanchiment immo)"
+    },
+    {
+      "code": "68.31Z",
+      "score": 70,
+      "description": "Agences immobilières"
+    },
+    {
+      "code": "45.20A",
+      "score": 30,
+      "description": "Entretien et réparation de véhicules"
+    },
+    {
+      "code": "46.73A",
+      "score": 30,
+      "description": "Commerce gros bois/matériaux (Risque TVA)"
+    },
+    {
+      "code": "47.77Z",
+      "score": 80,
+      "description": "Horlogerie et bijouterie (Luxe/Cash)"
+    },
+    {
+      "code": "47.73Z",
+      "score": 20,
+      "description": "Pharmacie (Flux importants)"
+    },
+    {
+      "code": "55.10Z",
+      "score": 30,
+      "description": "Hôtels et hébergement"
+    },
+    {
+      "code": "56.10A",
+      "score": 30,
+      "description": "Restauration traditionnelle"
+    },
+    {
+      "code": "56.10C",
+      "score": 60,
+      "description": "Restauration rapide (Très fort risque Cash)"
+    },
+    {
+      "code": "56.30Z",
+      "score": 50,
+      "description": "Débits de boissons (Bars)"
+    },
+    {
+      "code": "64.19Z",
+      "score": 50,
+      "description": "Intermédiations monétaires"
+    },
+    {
+      "code": "64.20Z",
+      "score": 40,
+      "description": "Activités des sociétés holding"
+    },
+    {
+      "code": "66.19B",
+      "score": 50,
+      "description": "Activités auxiliaires finance"
+    },
+    {
+      "code": "45.11Z",
+      "score": 50,
+      "description": "Commerce de voitures (Risque Cash/TVA)"
+    },
+    {
+      "code": "68.20A",
+      "score": 30,
+      "description": "Location logements"
+    },
+    {
+      "code": "68.20B",
+      "score": 30,
+      "description": "Location terrains et autres"
+    },
+    {
+      "code": "45.19Z",
+      "score": 50,
+      "description": "Commerce d'autres véhicules auto"
+    },
+    {
+      "code": "70.22Z",
+      "score": 25,
+      "description": "Conseil pour les affaires (Opacité possible)"
+    },
+    {
+      "code": "77.11A",
+      "score": 40,
+      "description": "Location de voitures (Luxe)"
+    },
+    {
+      "code": "82.99Z",
+      "score": 60,
+      "description": "Autres services de soutien (Domiciliation )"
+    },
+    {
+      "code": "90.03B",
+      "score": 60,
+      "description": "Autre création artistique (Œuvres d'art)"
+    },
+    {
+      "code": "92.00Z",
+      "score": 100,
+      "description": "Jeux de hasard et d'argent"
+    },
+    {
+      "code": "93.29Z",
+      "score": 40,
+      "description": "Autres activités récréatives"
+    },
+    {
+      "code": "96.02B",
+      "score": 40,
+      "description": "Soins de beauté (Esthétique/Cash)"
+    },
+    {
+      "code": "96.04Z",
+      "score": 40,
+      "description": "Entretien corporel (Spa/Cash)"
+    },
+    {
+      "code": "47.26Z",
+      "score": 60,
+      "description": "Commerce de tabac / Presse "
+    },
+    {
+      "code": "10.71C",
+      "score": 30,
+      "description": "Boulangerie et boulangerie-pâtisserie "
+    },
+    {
+      "code": "47.11D",
+      "score": 30,
+      "description": "Supermarchés / Supérettes"
+    },
+    {
+      "code": "49.32Z",
+      "score": 50,
+      "description": "Transports de voyageurs par taxis / VTC "
+    },
+    {
+      "code": "96.01B",
+      "score": 40,
+      "description": "Blanchisserie-teinturerie de détail "
+    },
+    {
+      "code": "46.77Z",
+      "score": 80,
+      "description": "Commerce de gros de déchets / ferraille "
+    }
+  ],
+  "pays_risque": [
+    {
+      "pays": "RPDC (CORÉE DU NORD)",
+      "score": 100,
+      "categorie": "NOIRE"
+    },
+    {
+      "pays": "IRAN",
+      "score": 100,
+      "categorie": "NOIRE"
+    },
+    {
+      "pays": "MYANMAR",
+      "score": 100,
+      "categorie": "NOIRE"
+    },
+    {
+      "pays": "ALGÉRIE",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "ANGOLA",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "BOLIVIE",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "BULGARIE",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "CAMEROUN",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "CÔTE D'IVOIRE",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "RÉP. DÉM. DU CONGO",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "HAÏTI",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "KENYA",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "RÉP. DÉM. POP. LAO",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "LIBAN",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "MONACO",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "NAMIBIE",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "NÉPAL",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "SOUDAN DU SUD",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "SYRIE",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "VENEZUELA",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "VIETNAM",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "ÎLES VIERGES BRITANNIQUES",
+      "score": 75,
+      "categorie": "GRISE"
+    },
+    {
+      "pays": "YÉMEN",
+      "score": 75,
+      "categorie": "GRISE"
+    }
+  ],
+  "mission_scores": [
+    {
+      "mission": "TENUE COMPTABLE",
+      "score": 10,
+      "description": "Vision totale des flux financiers."
+    },
+    {
+      "mission": "REVISION / SURVEILLANCE",
+      "score": 30,
+      "description": "Contrôle partiel, risque de masquage."
+    },
+    {
+      "mission": "SOCIAL / PAIE SEULE",
+      "score": 10,
+      "description": "Flux normés, hors blanchiment."
+    },
+    {
+      "mission": "CONSEIL DE GESTION",
+      "score": 40,
+      "description": "Risque de prévisionnels complaisants."
+    },
+    {
+      "mission": "CONSTITUTION / CESSION",
+      "score": 60,
+      "description": "Origine des fonds critique."
+    },
+    {
+      "mission": "DOMICILIATION",
+      "score": 80,
+      "description": "Société écran, opacité totale."
+    },
+    {
+      "mission": "IRPP",
+      "score": 20,
+      "description": "Risque faible "
+    }
+  ],
+  "seuils": {
+    "SEUIL_BAS": 25,
+    "SEUIL_HAUT": 60,
+    "SEUIL_CRITIQUE": 60
+  },
+  "malus": {
+    "CTX_DISTANCIEL": 40,
+    "CTX_CASH": 30,
+    "CTX_PRESSION": 50,
+    "MALUS_ATYPIQUE": 100,
+    "SCORE_PPE": 100
+  },
+  "def_score_act": 25
+}

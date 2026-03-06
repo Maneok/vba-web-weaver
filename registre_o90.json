@@ -1,0 +1,32 @@
+[
+  {
+    "date": "2026-02-20",
+    "client": "SOCIETE TEST 16 (SCI)",
+    "categorie": "❌ ADMIN : KYC Incomplet",
+    "details": "",
+    "action": "SOUPCON CARACTERISE",
+    "responsable": "DIDIER",
+    "statut": "EN COURS",
+    "date_echeance": "2026-03-22"
+  },
+  {
+    "date": "2026-02-25",
+    "client": "SOCIETE TEST 8 (SARL)",
+    "categorie": "🔧 INTERNE : Erreur Procédure",
+    "details": "",
+    "action": "SOUPCON CARACTERISE",
+    "responsable": "JULIEN",
+    "statut": "CLÔTURÉ",
+    "date_echeance": "2026-03-27"
+  },
+  {
+    "date": "2026-02-28",
+    "client": "SOCIETE TEST 10 (SAS)",
+    "categorie": "📉 FLUX : Incohérence / Atypique",
+    "details": "",
+    "action": "DOUTE LEVE",
+    "responsable": "PASCAL",
+    "statut": "",
+    "date_echeance": "2026-03-07"
+  }
+]
