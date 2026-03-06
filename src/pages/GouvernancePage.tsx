@@ -15,7 +15,7 @@ export default function GouvernancePage() {
         <p className="text-sm text-muted-foreground mt-1">Suivi de l'équipe et des formations obligatoires</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card>
           <CardContent className="pt-6 text-center">
             <p className="text-3xl font-bold">{collaborateurs.length}</p>

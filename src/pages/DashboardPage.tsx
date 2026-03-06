@@ -10,6 +10,7 @@ export default function DashboardPage() {
   const { clients, collaborateurs, alertes } = useAppState();
 
   const totalClients = clients.length;
+  const safeTotal = totalClients || 1;
   const vigCounts = clients.reduce((acc, c) => {
     acc[c.nivVigilance] = (acc[c.nivVigilance] || 0) + 1;
     return acc;
@@ -25,14 +26,14 @@ export default function DashboardPage() {
 
   // Score moyen par critère
   const avgScores = [
-    { name: "Activité", score: Math.round(clients.reduce((s, c) => s + c.scoreActivite, 0) / totalClients) },
-    { name: "Pays", score: Math.round(clients.reduce((s, c) => s + c.scorePays, 0) / totalClients) },
-    { name: "Mission", score: Math.round(clients.reduce((s, c) => s + c.scoreMission, 0) / totalClients) },
-    { name: "Maturité", score: Math.round(clients.reduce((s, c) => s + c.scoreMaturite, 0) / totalClients) },
-    { name: "Structure", score: Math.round(clients.reduce((s, c) => s + c.scoreStructure, 0) / totalClients) },
+    { name: "Activité", score: Math.round(clients.reduce((s, c) => s + c.scoreActivite, 0) / safeTotal) },
+    { name: "Pays", score: Math.round(clients.reduce((s, c) => s + c.scorePays, 0) / safeTotal) },
+    { name: "Mission", score: Math.round(clients.reduce((s, c) => s + c.scoreMission, 0) / safeTotal) },
+    { name: "Maturité", score: Math.round(clients.reduce((s, c) => s + c.scoreMaturite, 0) / safeTotal) },
+    { name: "Structure", score: Math.round(clients.reduce((s, c) => s + c.scoreStructure, 0) / safeTotal) },
   ];
 
-  const scoreGlobalMoyen = Math.round(clients.reduce((s, c) => s + c.scoreGlobal, 0) / totalClients);
+  const scoreGlobalMoyen = Math.round(clients.reduce((s, c) => s + c.scoreGlobal, 0) / safeTotal);
 
   // Comptable distribution
   const comptableData = Object.entries(

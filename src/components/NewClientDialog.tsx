@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { useAppState } from "@/lib/AppContext";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus } from "@/lib/riskEngine";
-import type { Client, OuiNon, MissionType } from "@/lib/types";
+import type { Client, OuiNon, MissionType, EtatPilotage } from "@/lib/types";
 import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
 
 interface Props { open: boolean; onClose: () => void; }
@@ -39,9 +39,15 @@ export default function NewClientDialog({ open, onClose }: Props) {
 
   const handleSubmit = () => {
     const now = new Date().toISOString().split("T")[0];
-    const ref = `CLI-26-${String(clients.length + 1).padStart(3, "0")}`;
+    // Generate unique ref based on max existing ref number to avoid collisions
+    const existingNums = clients.map(c => {
+      const match = c.ref.match(/CLI-26-(\d+)/);
+      return match ? parseInt(match[1], 10) : 0;
+    });
+    const nextNum = Math.max(0, ...existingNums) + 1;
+    const ref = `CLI-26-${String(nextNum).padStart(3, "0")}`;
     const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
-    
+
     const newClient: Client = {
       ref, etat: "VALIDE", comptable: form.comptable, mission: form.mission,
       raisonSociale: form.raisonSociale, forme: form.forme,
@@ -53,15 +59,15 @@ export default function NewClientDialog({ open, onClose }: Props) {
       honoraires: form.honoraires, reprise: 0, juridique: 0,
       frequence: form.frequence, iban: "", bic: "",
       associe: form.associe, superviseur: form.superviseur,
-      ppe: form.ppe ? "OUI" : "NON" as OuiNon,
-      paysRisque: form.paysRisque ? "OUI" : "NON" as OuiNon,
-      atypique: form.atypique ? "OUI" : "NON" as OuiNon,
-      distanciel: form.distanciel ? "OUI" : "NON" as OuiNon,
-      cash: form.cash ? "OUI" : "NON" as OuiNon,
-      pression: form.pression ? "OUI" : "NON" as OuiNon,
+      ppe: (form.ppe ? "OUI" : "NON") as OuiNon,
+      paysRisque: (form.paysRisque ? "OUI" : "NON") as OuiNon,
+      atypique: (form.atypique ? "OUI" : "NON") as OuiNon,
+      distanciel: (form.distanciel ? "OUI" : "NON") as OuiNon,
+      cash: (form.cash ? "OUI" : "NON") as OuiNon,
+      pression: (form.pression ? "OUI" : "NON") as OuiNon,
       ...risk,
       dateCreationLigne: now, dateDerniereRevue: now,
-      dateButoir, etatPilotage: getPilotageStatus(dateButoir) as any,
+      dateButoir, etatPilotage: getPilotageStatus(dateButoir) as EtatPilotage,
       dateExpCni: "", statut: "ACTIF", be: form.be,
     };
     addClient(newClient);
@@ -140,7 +146,7 @@ export default function NewClientDialog({ open, onClose }: Props) {
 
         <div className="flex justify-end gap-3">
           <Button variant="outline" onClick={onClose}>Annuler</Button>
-          <Button onClick={handleSubmit} disabled={!form.raisonSociale || !form.siren}>Valider & Enregistrer</Button>
+          <Button onClick={handleSubmit} disabled={!form.raisonSociale || !form.siren || form.siren.replace(/\s/g, "").length !== 9}>Valider & Enregistrer</Button>
         </div>
       </DialogContent>
     </Dialog>
