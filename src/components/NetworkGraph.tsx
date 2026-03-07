@@ -7,9 +7,10 @@ interface Props {
   edges: NetworkEdge[];
   width?: number;
   height?: number;
+  onNodeClick?: (node: NetworkNode) => void;
 }
 
-export default function NetworkGraph({ nodes, edges, width = 700, height = 500 }: Props) {
+export default function NetworkGraph({ nodes, edges, width = 700, height = 500, onNodeClick }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
@@ -60,11 +61,18 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500 }
       .attr("fill", "#64748b")
       .attr("text-anchor", "middle");
 
-    // Nodes
+    // Nodes - size proportional to connections
+    const connectionCount = new Map<string, number>();
+    edges.forEach(e => {
+      connectionCount.set(e.source, (connectionCount.get(e.source) ?? 0) + 1);
+      connectionCount.set(e.target, (connectionCount.get(e.target) ?? 0) + 1);
+    });
+
     const node = g.append("g")
       .selectAll("g")
       .data(simNodes)
       .join("g")
+      .style("cursor", "pointer")
       .call(d3.drag<SVGGElement, any>()
         .on("start", (event, d) => {
           if (!event.active) simulation.alphaTarget(0.3).restart();
@@ -82,38 +90,55 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500 }
         })
       );
 
-    // Node circles
+    // Click handler
+    node.on("click", (_event, d: any) => {
+      if (onNodeClick) {
+        onNodeClick(d as NetworkNode);
+      } else {
+        // Default: open Pappers for companies
+        if (d.type === "company" && d.siren) {
+          window.open(`https://www.pappers.fr/entreprise/${d.siren}`, "_blank");
+        }
+      }
+    });
+
+    // Node circles - size proportional to connections
     node.append("circle")
-      .attr("r", d => d.isSource ? 20 : d.type === "company" ? 16 : 12)
+      .attr("r", d => {
+        const count = connectionCount.get(d.id) ?? 1;
+        if (d.isSource) return 22;
+        if (d.type === "company") return Math.min(12 + count * 2, 20);
+        return Math.min(10 + count * 2, 18);
+      })
       .attr("fill", d => {
         if (d.isSource) return "rgba(59, 130, 246, 0.3)";
         if (d.type === "company") return "rgba(16, 185, 129, 0.15)";
-        return "rgba(168, 85, 247, 0.15)";
+        return "rgba(249, 115, 22, 0.15)";
       })
       .attr("stroke", d => {
         if (d.isSource) return "#3b82f6";
         if (d.type === "company") return "#10b981";
-        return "#a855f7";
+        return "#f97316";
       })
       .attr("stroke-width", d => d.isSource ? 2.5 : 1.5);
 
-    // Node icons (text-based)
+    // Node icons
     node.append("text")
-      .text(d => d.type === "company" ? "🏢" : "👤")
+      .text(d => d.type === "company" ? "\u{1F3E2}" : "\u{1F464}")
       .attr("font-size", d => d.isSource ? "14px" : "10px")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "central");
 
     // Node labels
     node.append("text")
-      .text(d => d.label.length > 20 ? d.label.slice(0, 18) + "…" : d.label)
+      .text(d => d.label.length > 20 ? d.label.slice(0, 18) + "\u2026" : d.label)
       .attr("font-size", "9px")
       .attr("fill", "#e2e8f0")
       .attr("text-anchor", "middle")
       .attr("dy", d => (d.isSource ? 30 : d.type === "company" ? 26 : 22));
 
     // SIREN label for companies
-    node.filter(d => d.type === "company" && d.siren && !d.isSource)
+    node.filter(d => d.type === "company" && !!d.siren && !d.isSource)
       .append("text")
       .text(d => d.siren ?? "")
       .attr("font-size", "7px")
@@ -136,7 +161,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500 }
     });
 
     return () => { simulation.stop(); };
-  }, [nodes, edges, width, height]);
+  }, [nodes, edges, width, height, onNodeClick]);
 
   if (nodes.length === 0) {
     return (

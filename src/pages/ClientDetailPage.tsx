@@ -801,12 +801,20 @@ function ClientDetailContent({ client }: { client: Client }) {
                         title="Google Maps"
                       />
                     )}
-                    {!screening.google.data.mapsEmbedUrl && screening.google.data.mapsUrl && (
-                      <a href={screening.google.data.mapsUrl} target="_blank" rel="noopener noreferrer"
-                        className="flex items-center gap-2 text-sm text-blue-400 hover:underline mt-4">
-                        <MapPin className="w-4 h-4" /> Voir sur Google Maps <ExternalLink className="w-3 h-3" />
-                      </a>
-                    )}
+                    <div className="flex items-center gap-3 mt-2">
+                      {screening.google.data.mapsUrl && (
+                        <a href={screening.google.data.mapsUrl} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-blue-400 hover:underline">
+                          <MapPin className="w-3 h-3" /> Google Maps <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      {(screening.google.data as any).streetViewUrl && (
+                        <a href={(screening.google.data as any).streetViewUrl} target="_blank" rel="noopener noreferrer"
+                          className="flex items-center gap-1 text-xs text-blue-400 hover:underline">
+                          Street View <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

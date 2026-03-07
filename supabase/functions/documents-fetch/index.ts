@@ -19,6 +19,8 @@ Deno.serve(async (req) => {
 
     const cleanSiren = (siren as string).replace(/\s/g, "");
     const documents: any[] = [];
+    let beneficiaires: any[] = [];
+    let pappersData: any = null;
 
     // 1. INPI direct links (always available)
     documents.push({
@@ -27,9 +29,10 @@ Deno.serve(async (req) => {
       url: `https://data.inpi.fr/entreprises/${cleanSiren}`,
       source: "inpi",
       available: true,
+      status: "lien",
     });
 
-    // 2. Pappers API (key name is PAPPERS, not PAPPERS_API_KEY)
+    // 2. Pappers API enrichment
     const pappersKey = Deno.env.get("PAPPERS");
     if (pappersKey) {
       try {
@@ -39,53 +42,111 @@ Deno.serve(async (req) => {
         );
 
         if (res.ok) {
-          const data = await res.json();
+          pappersData = await res.json();
 
-          const pappersDocs = data.documents ?? [];
-          for (const doc of pappersDocs.slice(0, 10)) {
+          // Extrait Pappers (equivalent Kbis)
+          if (pappersData.extrait_immatriculation_url) {
             documents.push({
-              type: doc.type ?? "Document",
-              label: `${doc.type ?? "Document"} — ${doc.date_depot ?? ""}`,
-              url: doc.url ?? (doc.token ? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${doc.token}` : ""),
+              type: "KBIS",
+              label: "Extrait Kbis (Pappers)",
+              url: pappersData.extrait_immatriculation_url,
               source: "pappers",
-              available: !!doc.url || !!doc.token,
+              available: true,
+              status: "auto",
             });
           }
 
-          if (data.statuts) {
+          // Statuts
+          if (pappersData.derniers_statuts?.url) {
             documents.push({
               type: "Statuts",
-              label: `Statuts — ${data.statuts.date_depot ?? ""}`,
-              url: data.statuts.token ? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${data.statuts.token}` : "",
+              label: `Statuts — ${pappersData.derniers_statuts.date_depot ?? ""}`,
+              url: pappersData.derniers_statuts.url,
               source: "pappers",
-              available: !!data.statuts.token,
+              available: true,
+              status: "auto",
+            });
+          } else if (pappersData.derniers_statuts?.token) {
+            documents.push({
+              type: "Statuts",
+              label: `Statuts — ${pappersData.derniers_statuts.date_depot ?? ""}`,
+              url: `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${pappersData.derniers_statuts.token}`,
+              source: "pappers",
+              available: true,
+              status: "auto",
             });
           }
 
-          if (data.comptes?.length > 0) {
-            for (const compte of data.comptes.slice(0, 3)) {
+          // Actes (statuts alternatifs)
+          if (pappersData.actes?.length > 0) {
+            const acte = pappersData.actes[0];
+            if (acte.url || acte.token) {
               documents.push({
-                type: "Comptes annuels",
-                label: `Comptes ${compte.annee ?? ""} — ${compte.date_depot ?? ""}`,
-                url: compte.token ? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${compte.token}` : "",
+                type: "Actes",
+                label: `Acte — ${acte.type ?? "Dernier acte"} — ${acte.date_depot ?? ""}`,
+                url: acte.url ?? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${acte.token}`,
                 source: "pappers",
-                available: !!compte.token,
+                available: true,
+                status: "auto",
               });
             }
           }
 
-          if (data.beneficiaires_effectifs?.length > 0) {
+          // Comptes annuels
+          const comptes = pappersData.comptes ?? pappersData.derniers_comptes ? [pappersData.derniers_comptes] : [];
+          const comptesArray = pappersData.comptes ?? comptes;
+          for (const compte of (comptesArray ?? []).slice(0, 3)) {
+            if (!compte) continue;
+            if (compte.url || compte.token) {
+              documents.push({
+                type: "Comptes annuels",
+                label: `Comptes ${compte.annee ?? ""} — ${compte.date_depot ?? ""}`,
+                url: compte.url ?? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${compte.token}`,
+                source: "pappers",
+                available: true,
+                status: "auto",
+              });
+            }
+          }
+
+          // Other documents from Pappers
+          const pappersDocs = pappersData.documents ?? [];
+          for (const doc of pappersDocs.slice(0, 5)) {
+            if (doc.url || doc.token) {
+              documents.push({
+                type: doc.type ?? "Document",
+                label: `${doc.type ?? "Document"} — ${doc.date_depot ?? ""}`,
+                url: doc.url ?? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${doc.token}`,
+                source: "pappers",
+                available: true,
+                status: "auto",
+              });
+            }
+          }
+
+          // Beneficiaires effectifs (Probleme 7)
+          if (pappersData.beneficiaires_effectifs?.length > 0) {
+            beneficiaires = pappersData.beneficiaires_effectifs.map((be: any) => ({
+              nom: be.nom ?? "",
+              prenom: be.prenom ?? "",
+              date_naissance: be.date_de_naissance_formatee ?? be.date_de_naissance ?? "",
+              nationalite: be.nationalite ?? "",
+              pourcentage_parts: be.pourcentage_parts ?? 0,
+              pourcentage_votes: be.pourcentage_votes ?? 0,
+            }));
+
             documents.push({
               type: "Declaration BE",
-              label: "Declaration des beneficiaires effectifs",
+              label: `${beneficiaires.length} beneficiaire(s) effectif(s) identifies`,
               url: `https://data.inpi.fr/entreprises/${cleanSiren}#beneficiaires`,
-              source: "inpi",
+              source: "pappers",
               available: true,
+              status: "auto",
             });
           }
         }
       } catch {
-        // Pappers unavailable — continue with free sources
+        // Pappers unavailable
       }
     }
 
@@ -96,6 +157,7 @@ Deno.serve(async (req) => {
       url: `https://annuaire-entreprises.data.gouv.fr/entreprise/${cleanSiren}`,
       source: "auto",
       available: true,
+      status: "lien",
     });
 
     documents.push({
@@ -104,6 +166,7 @@ Deno.serve(async (req) => {
       url: `https://www.pappers.fr/entreprise/${cleanSiren}`,
       source: "auto",
       available: true,
+      status: "lien",
     });
 
     documents.push({
@@ -112,12 +175,20 @@ Deno.serve(async (req) => {
       url: `https://www.societe.com/societe/${cleanSiren}.html`,
       source: "auto",
       available: true,
+      status: "lien",
     });
+
+    // Required docs checklist
+    const requiredDocs = ["KBIS", "Statuts", "CNI", "RIB"];
+    const foundTypes = documents.filter((d: any) => d.status === "auto").map((d: any) => d.type);
+    const missing = requiredDocs.filter(r => !foundTypes.some(f => f.toUpperCase().includes(r.toUpperCase())));
 
     return new Response(JSON.stringify({
       documents,
+      beneficiaires_effectifs: beneficiaires,
       total: documents.length,
-      autoRecovered: documents.filter((d: any) => d.source === "pappers" || d.source === "inpi").length,
+      autoRecovered: documents.filter((d: any) => d.status === "auto").length,
+      missing,
       status: "ok",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -126,6 +197,8 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       error: (error as Error).message,
       documents: [],
+      beneficiaires_effectifs: [],
+      missing: ["KBIS", "Statuts", "CNI", "RIB"],
       status: "unavailable",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

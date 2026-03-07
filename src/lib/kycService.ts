@@ -1,5 +1,28 @@
 import { supabase } from "@/integrations/supabase/client";
 
+// ====== FORME JURIDIQUE MAPPING (Probleme 5) ======
+
+export const FORMES_JURIDIQUES: Record<string, string> = {
+  "1000": "Entrepreneur individuel",
+  "5410": "SARL", "5411": "SARL", "5422": "SARL", "5426": "SARL",
+  "5499": "EURL", "5498": "EURL",
+  "5510": "SA", "5520": "SA", "5530": "SA", "5540": "SA", "5599": "SA",
+  "5710": "SAS",
+  "5720": "SASU",
+  "6540": "SCI", "6541": "SCI", "6542": "SCI",
+  "6560": "SCP",
+  "6599": "Societe civile",
+  "5191": "SELARL", "5192": "SELAS", "5470": "SELARL",
+  "9210": "Association loi 1901",
+  "9220": "Syndicat",
+  "5610": "SNC",
+  "5800": "EARL",
+};
+
+export function getFormeJuridiqueLabel(code: string): string {
+  return FORMES_JURIDIQUES[code] || code;
+}
+
 // ====== TYPES ======
 
 export interface Dirigeant {
@@ -10,11 +33,21 @@ export interface Dirigeant {
   nationalite?: string;
 }
 
+export interface BeneficiaireEffectif {
+  nom: string;
+  prenom: string;
+  date_naissance: string;
+  nationalite: string;
+  pourcentage_parts: number;
+  pourcentage_votes: number;
+}
+
 export interface EnterpriseResult {
   siren: string;
   siret: string;
   raison_sociale: string;
   forme_juridique: string;
+  forme_juridique_code?: string;
   forme_juridique_raw: string;
   adresse: string;
   code_postal: string;
@@ -22,12 +55,18 @@ export interface EnterpriseResult {
   ape: string;
   libelle_ape: string;
   capital: number;
+  capital_source?: string;
   date_creation: string;
   effectif: string;
   dirigeant: string;
   dirigeants: Dirigeant[];
+  telephone?: string;
+  email?: string;
+  site_web?: string;
+  beneficiaires_effectifs?: BeneficiaireEffectif[];
   nombre_etablissements: number;
   etat_administratif: string;
+  complements?: Record<string, unknown>;
   etablissements: Array<{ siret: string; adresse: string; commune: string; est_siege: boolean }>;
   source: string;
 }
@@ -83,6 +122,7 @@ export interface GooglePlacesResult {
   alertes: string[];
   mapsUrl: string;
   mapsEmbedUrl: string | null;
+  streetViewUrl?: string | null;
   status: string;
 }
 
@@ -140,12 +180,15 @@ export interface DocumentInfo {
   url: string;
   source: "pappers" | "inpi" | "auto";
   available: boolean;
+  status?: "auto" | "lien" | "manquant";
 }
 
 export interface DocumentsResult {
   documents: DocumentInfo[];
+  beneficiaires_effectifs?: BeneficiaireEffectif[];
   total: number;
   autoRecovered: number;
+  missing?: string[];
   status: string;
 }
 
@@ -174,14 +217,13 @@ export const INITIAL_SCREENING: ScreeningState = {
 async function callEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) throw new Error(error.message);
-  // Edge functions always return 200 — check status field for service availability
   if (data && typeof data === "object" && (data as Record<string, unknown>).status === "unavailable") {
     throw new Error("Service indisponible");
   }
   return data as T;
 }
 
-// Direct client-side fallback for enterprise-lookup (Annuaire Entreprises is free, no CORS issues)
+// Direct client-side fallback for enterprise-lookup
 async function enterpriseFallback(mode: string, query: string): Promise<{ results: EnterpriseResult[] }> {
   const clean = query.replace(/\s/g, "");
   let url: string;
@@ -205,24 +247,38 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
       nationalite: d.nationalite ?? "",
     }));
 
+    const codeFormeJuridique = String(r.nature_juridique ?? "");
+    const formeLabel = getFormeJuridiqueLabel(codeFormeJuridique);
+
+    // Build address from components
+    const addrParts: string[] = [];
+    if (siege.numero_voie) addrParts.push(String(siege.numero_voie));
+    if (siege.type_voie) addrParts.push(String(siege.type_voie));
+    if (siege.libelle_voie) addrParts.push(String(siege.libelle_voie));
+    let adresse = addrParts.join(" ").trim();
+    if (!adresse) adresse = String(siege.geo_adresse ?? siege.adresse ?? "");
+
     return {
       siren: r.siren ? `${(r.siren as string).slice(0, 3)} ${(r.siren as string).slice(3, 6)} ${(r.siren as string).slice(6, 9)}` : "",
       siret: (siege.siret as string) ?? "",
       raison_sociale: ((r.nom_complet as string) ?? "").toUpperCase(),
-      forme_juridique: (r.nature_juridique as string) ?? "",
-      forme_juridique_raw: (r.libelle_nature_juridique as string) ?? "",
-      adresse: ((siege.adresse as string) ?? "").toUpperCase(),
+      forme_juridique: formeLabel,
+      forme_juridique_code: codeFormeJuridique,
+      forme_juridique_raw: (r.libelle_nature_juridique as string) ?? formeLabel,
+      adresse: adresse.toUpperCase(),
       code_postal: (siege.code_postal as string) ?? "",
       ville: ((siege.libelle_commune as string) ?? "").toUpperCase(),
       ape: (siege.activite_principale as string) ?? (r.activite_principale as string) ?? "",
       libelle_ape: (siege.libelle_activite_principale as string) ?? "",
       capital: (r.capital as number) ?? 0,
+      capital_source: (r.capital as number) > 0 ? "data.gouv" : "",
       date_creation: (r.date_creation as string) ?? "",
       effectif: (r.tranche_effectif_salarie as string) ?? "0 SALARIE",
       dirigeant: dirigeants.length > 0 ? `${dirigeants[0].nom} ${dirigeants[0].prenom}`.trim().toUpperCase() : "",
       dirigeants,
       nombre_etablissements: (r.nombre_etablissements as number) ?? 1,
       etat_administratif: (r.etat_administratif as string) ?? "A",
+      complements: (r.complements as Record<string, unknown>) ?? {},
       etablissements: [],
       source: "annuaire_entreprises",
     };
@@ -267,7 +323,7 @@ export async function verifyGooglePlaces(raison_sociale: string, ville?: string)
   try {
     return await callEdgeFunction<GooglePlacesResult>("google-places-verify", { raison_sociale, ville });
   } catch {
-    return { found: false, place: null, alertes: [], mapsUrl: "", mapsEmbedUrl: null, status: "unavailable" };
+    return { found: false, place: null, alertes: [], mapsUrl: "", mapsEmbedUrl: null, streetViewUrl: null, status: "unavailable" };
   }
 }
 
@@ -294,6 +350,29 @@ export async function fetchDocuments(siren: string, raison_sociale?: string): Pr
   try {
     return await callEdgeFunction<DocumentsResult>("documents-fetch", { siren, raison_sociale });
   } catch {
-    return { documents: [], total: 0, autoRecovered: 0, status: "unavailable" };
+    return { documents: [], total: 0, autoRecovered: 0, missing: ["KBIS", "Statuts", "CNI", "RIB"], status: "unavailable" };
   }
+}
+
+// ====== KYC COMPLETENESS (Probleme 10) ======
+
+export function computeKycCompleteness(
+  enterprise: EnterpriseResult | null,
+  docs: DocumentsResult | null,
+): { percent: number; missing: string[] } {
+  const fields: Array<{ label: string; ok: boolean }> = [
+    { label: "SIREN", ok: !!enterprise?.siren },
+    { label: "Raison sociale", ok: !!enterprise?.raison_sociale },
+    { label: "Adresse", ok: !!enterprise?.adresse },
+    { label: "Forme juridique", ok: !!enterprise?.forme_juridique },
+    { label: "Capital", ok: (enterprise?.capital ?? 0) > 0 },
+    { label: "Dirigeant", ok: !!enterprise?.dirigeant },
+    { label: "KBIS", ok: docs?.documents?.some(d => d.type === "KBIS" && d.status === "auto") ?? false },
+    { label: "Statuts", ok: docs?.documents?.some(d => d.type === "Statuts" && d.status === "auto") ?? false },
+    { label: "CNI", ok: false },
+    { label: "RIB", ok: false },
+  ];
+  const ok = fields.filter(f => f.ok).length;
+  const missing = fields.filter(f => !f.ok).map(f => f.label);
+  return { percent: Math.round((ok / fields.length) * 100), missing };
 }

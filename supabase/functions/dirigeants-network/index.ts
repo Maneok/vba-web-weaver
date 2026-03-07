@@ -79,8 +79,19 @@ Deno.serve(async (req) => {
             });
             edges.push({ source: personId, target: companyId, label: "Dirigeant" });
 
-            const addr = (siege.adresse ?? siege.geo_adresse ?? "").toLowerCase().trim();
-            if (addr.length > 5) {
+            // Probleme 8: Build address from components, skip [nd]
+            const addrParts: string[] = [];
+            if (siege.numero_voie) addrParts.push(siege.numero_voie);
+            if (siege.type_voie) addrParts.push(siege.type_voie);
+            if (siege.libelle_voie) addrParts.push(siege.libelle_voie);
+            if (siege.code_postal) addrParts.push(siege.code_postal);
+            if (siege.libelle_commune) addrParts.push(siege.libelle_commune);
+            let addr = addrParts.join(" ").toLowerCase().trim();
+            if (!addr || addr.length < 5) {
+              addr = (siege.geo_adresse ?? siege.adresse ?? "").toLowerCase().trim();
+            }
+            // Skip addresses containing [nd] or too short
+            if (addr.length > 5 && !addr.includes("[nd]") && !addr.includes("nd ")) {
               if (!addressCounts[addr]) addressCounts[addr] = [];
               addressCounts[addr].push(r.nom_complet ?? rSiren);
             }

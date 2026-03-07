@@ -5,9 +5,11 @@ import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCO
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments,
-  INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant,
+  INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
+  computeKycCompleteness,
 } from "@/lib/kycService";
 import ScreeningPanel from "@/components/ScreeningPanel";
+import NetworkGraph from "@/components/NetworkGraph";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
 import type { Client, OuiNon, MissionType, EtatPilotage } from "@/lib/types";
@@ -29,6 +31,7 @@ import {
 import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
+  Map, ExternalLink, Eye,
 } from "lucide-react";
 
 const FORMES = ["ENTREPRISE INDIVIDUELLE", "SARL", "EURL", "SAS", "SCI", "SCP", "SELAS", "SELARL", "EARL", "SA", "ASSOCIATION", "SNC", "TRUST", "FIDUCIE", "FONDATION"];
@@ -98,12 +101,15 @@ export default function NouveauClientPage() {
   const [dataSource, setDataSource] = useState<string>("");
   const [gelAvoirsAlert, setGelAvoirsAlert] = useState<string[]>([]);
   const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
+  const [autoFields, setAutoFields] = useState<Set<string>>(new Set());
+  const [capitalSource, setCapitalSource] = useState("");
+  const [selectedEnterprise, setSelectedEnterprise] = useState<EnterpriseResult | null>(null);
 
   // Step 2 - Form
   const [form, setForm] = useState({
-    raisonSociale: "", forme: "SARL", siren: "", capital: 0, ape: "", dirigeant: "",
+    raisonSociale: "", forme: "SARL", siren: "", siret: "", capital: 0, ape: "", dirigeant: "",
     domaine: "", effectif: "", adresse: "", cp: "", ville: "",
-    tel: "", mail: "", dateCreation: "", dateReprise: "",
+    tel: "", mail: "", siteWeb: "", dateCreation: "", dateReprise: "",
     mission: "TENUE COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
     frequence: "MENSUEL",
     comptable: "MAGALIE", associe: "DIDIER", superviseur: "SAMUEL",
@@ -197,9 +203,13 @@ export default function NouveauClientPage() {
   // KYC completeness
   const kycCompleteness = useMemo(() => {
     const required = ["KBIS", "Statuts", "CNI", "RIB"];
-    const found = required.filter(r => documents.some(d => d.type.toUpperCase().includes(r.toUpperCase())));
+    const autoDocs = screening.documents.data?.documents ?? [];
+    const found = required.filter(r =>
+      documents.some(d => d.type.toUpperCase().includes(r.toUpperCase())) ||
+      autoDocs.some(d => d.type.toUpperCase().includes(r.toUpperCase()) && d.status === "auto")
+    );
     return Math.round((found.length / required.length) * 100);
-  }, [documents]);
+  }, [documents, screening.documents.data]);
 
   // Questions validation - all OUI need comments
   const questionsValid = useMemo(() => {
@@ -225,9 +235,9 @@ export default function NouveauClientPage() {
       if (data.hasPPE) toast.warning("PPE detectee — vigilance RENFORCEE requise");
     }).catch(() => setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur" } })));
 
-    // BODACC check
+    // BODACC check (pass complements for fallback)
     setScreening(prev => ({ ...prev, bodacc: { loading: true, data: null, error: null } }));
-    checkBodacc(siren, raisonSociale).then(data => {
+    checkBodacc(siren, raisonSociale, enterprise.complements as Record<string, unknown>).then(data => {
       setScreening(prev => ({ ...prev, bodacc: { loading: false, data, error: null } }));
       if (data.hasProcedureCollective) toast.warning("Procedure collective detectee (BODACC)");
     }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur" } })));
@@ -361,30 +371,64 @@ export default function NouveauClientPage() {
 
     setSelectedResult(result);
 
-    // Populate form
+    // Find matching enterprise data for enrichment
+    const entData = screening.enterprise.data?.find(
+      e => e.siren.replace(/\s/g, "") === result.siren.replace(/\s/g, "")
+    );
+    if (entData) setSelectedEnterprise(entData);
+
+    // Populate form with enriched data
     const formeMatch = FORMES.find(f =>
       f === result.forme_juridique ||
+      f === (entData?.forme_juridique ?? "") ||
       (result.forme_juridique_raw || "").toUpperCase().includes(f)
     );
 
-    setForm(prev => ({
-      ...prev,
-      siren: result.siren,
-      raisonSociale: result.raison_sociale,
-      forme: formeMatch || result.forme_juridique || prev.forme,
-      adresse: result.adresse || prev.adresse,
-      cp: result.code_postal || prev.cp,
-      ville: result.ville || prev.ville,
-      ape: result.ape || prev.ape,
-      domaine: result.libelle_ape || prev.domaine,
-      capital: result.capital || prev.capital,
-      dateCreation: result.date_creation || prev.dateCreation,
-      effectif: result.effectif || prev.effectif,
-      dirigeant: result.dirigeant || prev.dirigeant,
-    }));
+    const newAutoFields = new Set<string>();
+    const updates: Record<string, unknown> = {};
 
-    // Parse beneficiaires from Pappers (prefer structured details)
-    if (result.beneficiaires_details && result.beneficiaires_details.length > 0) {
+    const autoSet = (key: string, val: string | number | undefined) => {
+      if (val && val !== "" && val !== 0) {
+        updates[key] = val;
+        newAutoFields.add(key);
+      }
+    };
+
+    autoSet("siren", result.siren);
+    autoSet("siret", entData?.siret);
+    autoSet("raisonSociale", result.raison_sociale);
+    autoSet("forme", formeMatch || entData?.forme_juridique || result.forme_juridique);
+    autoSet("adresse", entData?.adresse || result.adresse);
+    autoSet("cp", entData?.code_postal || result.code_postal);
+    autoSet("ville", entData?.ville || result.ville);
+    autoSet("ape", result.ape);
+    autoSet("domaine", entData?.libelle_ape || result.libelle_ape);
+    autoSet("capital", entData?.capital || result.capital);
+    autoSet("dateCreation", result.date_creation);
+    autoSet("effectif", result.effectif);
+    autoSet("dirigeant", result.dirigeant);
+    // Enriched Pappers fields
+    autoSet("tel", entData?.telephone);
+    autoSet("mail", entData?.email);
+    autoSet("siteWeb", entData?.site_web);
+
+    if (entData?.capital_source) setCapitalSource(entData.capital_source);
+
+    setForm(prev => ({ ...prev, ...updates }));
+    setAutoFields(newAutoFields);
+
+    // Parse beneficiaires from enriched data (Pappers via enterprise-lookup)
+    const enrichedBE = entData?.beneficiaires_effectifs;
+    if (enrichedBE && enrichedBE.length > 0) {
+      const parsed: Beneficiaire[] = enrichedBE.map(b => ({
+        nom: b.nom || "",
+        prenom: b.prenom || "",
+        dateNaissance: b.date_naissance || "",
+        nationalite: b.nationalite || "Francaise",
+        pourcentage: b.pourcentage_parts || 0,
+      }));
+      setBeneficiaires(parsed);
+    } else if (result.beneficiaires_details && result.beneficiaires_details.length > 0) {
       const parsed: Beneficiaire[] = result.beneficiaires_details.map(b => ({
         nom: b.nom || "",
         prenom: b.prenom || "",
@@ -717,6 +761,69 @@ export default function NouveauClientPage() {
               <ScreeningPanel screening={screening} />
             )}
 
+            {/* Google Maps embed (Probleme 3) */}
+            {screening.google.data?.mapsEmbedUrl && (
+              <div className="rounded-lg border border-white/[0.06] overflow-hidden">
+                <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Map className="w-4 h-4 text-emerald-400" />
+                    <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {screening.google.data.mapsUrl && (
+                      <a href={screening.google.data.mapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> Google Maps
+                      </a>
+                    )}
+                    {screening.google.data.streetViewUrl && (
+                      <a href={screening.google.data.streetViewUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                        <Eye className="w-3 h-3" /> Street View
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <iframe
+                  src={screening.google.data.mapsEmbedUrl}
+                  width="100%"
+                  height="250"
+                  style={{ border: 0 }}
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+            )}
+
+            {/* Network Graph preview (Probleme 9) */}
+            {screening.network.data && screening.network.data.nodes.length > 0 && (
+              <div className="rounded-lg border border-white/[0.06] overflow-hidden">
+                <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+                  <User className="w-4 h-4 text-cyan-400" />
+                  <h3 className="text-sm font-semibold text-slate-300">Reseau dirigeants</h3>
+                  <span className="text-[10px] text-slate-500 ml-auto">
+                    {screening.network.data.totalCompanies} societe(s), {screening.network.data.totalPersons} personne(s) — cliquez un noeud pour plus d'infos
+                  </span>
+                </div>
+                <div className="p-2">
+                  <NetworkGraph
+                    nodes={screening.network.data.nodes}
+                    edges={screening.network.data.edges}
+                    height={350}
+                  />
+                </div>
+                {screening.network.data.alertes.length > 0 && (
+                  <div className="px-4 py-3 border-t border-white/[0.06] space-y-1">
+                    {screening.network.data.alertes.slice(0, 5).map((a, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs">
+                        <AlertTriangle className={`w-3 h-3 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />
+                        <span className={a.severity === "red" ? "text-red-300" : "text-amber-300"}>{a.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {selectedResult && (
               <div className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
                 <div className="flex items-center gap-2 mb-3">
@@ -735,7 +842,7 @@ export default function NouveauClientPage() {
                   <div><span className="text-slate-500">SIREN</span><p className="text-slate-200 font-mono mt-0.5">{selectedResult.siren}</p></div>
                   <div><span className="text-slate-500">Forme</span><p className="text-slate-200 mt-0.5">{selectedResult.forme_juridique_raw}</p></div>
                   <div><span className="text-slate-500">APE</span><p className="text-slate-200 mt-0.5">{selectedResult.ape} - {selectedResult.libelle_ape}</p></div>
-                  <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{selectedResult.capital?.toLocaleString()} EUR</p></div>
+                  <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{(selectedEnterprise?.capital || selectedResult.capital || 0).toLocaleString()} EUR {capitalSource && <span className="text-[10px] text-slate-500">({capitalSource})</span>}</p></div>
                   <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{selectedResult.dirigeant || "—"}</p></div>
                   <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
                   <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation}</p></div>
@@ -764,25 +871,58 @@ export default function NouveauClientPage() {
           <div className="space-y-6">
             <h2 className="text-lg font-semibold text-white">Informations du client</h2>
 
+            {/* KYC Completeness indicator */}
+            {selectedEnterprise && (
+              <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                  <span className="text-xs text-slate-300">Completude KYC</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  {(() => {
+                    const kyc = computeKycCompleteness(selectedEnterprise, screening.documents.data);
+                    return (
+                      <>
+                        <Progress value={kyc.percent} className="w-32 h-2" />
+                        <span className={`text-sm font-bold ${kyc.percent >= 80 ? "text-emerald-400" : "text-amber-400"}`}>{kyc.percent}%</span>
+                        {kyc.missing.length > 0 && (
+                          <span className="text-[10px] text-slate-500">Manque : {kyc.missing.join(", ")}</span>
+                        )}
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+            )}
+
             {/* Identite */}
             <div>
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Identite</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Raison Sociale *" value={form.raisonSociale} onChange={v => set("raisonSociale", v)} error={validationErrors.raisonSociale} />
-                <FormField label="Forme Juridique *" type="select" value={form.forme} options={FORMES} onChange={v => set("forme", v)} />
-                <FormField label="SIREN *" value={form.siren} onChange={v => set("siren", v)} error={validationErrors.siren} placeholder="9 chiffres" />
-                <FormField label="Code APE *" value={form.ape} onChange={v => set("ape", v)} placeholder="Ex: 56.10A" />
-                <FormField label="Capital social" value={form.capital} onChange={v => set("capital", Number(v))} type="number" />
-                <FormField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" />
+                <FormField label="Raison Sociale *" value={form.raisonSociale} onChange={v => set("raisonSociale", v)} error={validationErrors.raisonSociale} isAuto={autoFields.has("raisonSociale")} required />
+                <FormField label="Forme Juridique *" type="select" value={form.forme} options={FORMES} onChange={v => set("forme", v)} isAuto={autoFields.has("forme")} required />
+                <FormField label="SIREN *" value={form.siren} onChange={v => set("siren", v)} error={validationErrors.siren} placeholder="9 chiffres" isAuto={autoFields.has("siren")} required />
+                <FormField label="SIRET" value={form.siret} onChange={v => set("siret", v)} placeholder="14 chiffres" isAuto={autoFields.has("siret")} />
+                <FormField label="Code APE *" value={form.ape} onChange={v => set("ape", v)} placeholder="Ex: 56.10A" isAuto={autoFields.has("ape")} required />
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-[10px] text-slate-500 uppercase">Capital social</Label>
+                    {autoFields.has("capital") && form.capital > 0 && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
+                    {capitalSource && form.capital > 0 && <span className="text-[9px] text-slate-500">({capitalSource})</span>}
+                  </div>
+                  <Input type="number" value={form.capital} onChange={e => set("capital", Number(e.target.value))} className={`bg-white/[0.03] mt-1 ${!form.capital ? "border-amber-500/50" : "border-white/[0.06]"}`} />
+                  {!form.capital && <p className="text-[10px] text-amber-400 mt-0.5">A completer manuellement</p>}
+                </div>
+                <FormField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" isAuto={autoFields.has("dateCreation")} />
               </div>
             </div>
 
             {/* Dirigeant & Domaine */}
             <div>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Dirigeant" value={form.dirigeant} onChange={v => set("dirigeant", v)} />
-                <FormField label="Domaine d'activite" value={form.domaine} onChange={v => set("domaine", v)} />
-                <FormField label="Effectif" value={form.effectif} onChange={v => set("effectif", v)} />
+                <FormField label="Dirigeant" value={form.dirigeant} onChange={v => set("dirigeant", v)} isAuto={autoFields.has("dirigeant")} />
+                <FormField label="Domaine d'activite" value={form.domaine} onChange={v => set("domaine", v)} isAuto={autoFields.has("domaine")} />
+                <FormField label="Effectif" value={form.effectif} onChange={v => set("effectif", v)} isAuto={autoFields.has("effectif")} />
               </div>
             </div>
 
@@ -790,13 +930,14 @@ export default function NouveauClientPage() {
             <div>
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Coordonnees</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Adresse" value={form.adresse} onChange={v => set("adresse", v)} />
+                <FormField label="Adresse" value={form.adresse} onChange={v => set("adresse", v)} isAuto={autoFields.has("adresse")} required />
                 <div className="grid grid-cols-2 gap-2">
-                  <FormField label="Code Postal" value={form.cp} onChange={v => set("cp", v)} />
-                  <FormField label="Ville" value={form.ville} onChange={v => set("ville", v)} />
+                  <FormField label="Code Postal" value={form.cp} onChange={v => set("cp", v)} isAuto={autoFields.has("cp")} />
+                  <FormField label="Ville" value={form.ville} onChange={v => set("ville", v)} isAuto={autoFields.has("ville")} />
                 </div>
-                <FormField label="Telephone" value={form.tel} onChange={v => set("tel", v)} error={validationErrors.tel} placeholder="0XXXXXXXXX" />
-                <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" />
+                <FormField label="Telephone" value={form.tel} onChange={v => set("tel", v)} error={validationErrors.tel} placeholder="0XXXXXXXXX" isAuto={autoFields.has("tel")} />
+                <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" isAuto={autoFields.has("mail")} />
+                <FormField label="Site web" value={form.siteWeb} onChange={v => set("siteWeb", v)} placeholder="https://..." isAuto={autoFields.has("siteWeb")} />
               </div>
             </div>
 
@@ -1115,9 +1256,36 @@ export default function NouveauClientPage() {
               </label>
             </div>
 
-            {/* Documents list */}
+            {/* Auto-recovered documents from Pappers */}
+            {screening.documents.data && screening.documents.data.documents.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-400">Documents auto-recuperes</Label>
+                {screening.documents.data.documents.filter(d => d.status === "auto").map((doc, i) => (
+                  <div key={`auto-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 text-emerald-400" />
+                      <div>
+                        <p className="text-sm text-slate-200">{doc.label}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
+                          <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Auto-recupere</Badge>
+                        </div>
+                      </div>
+                    </div>
+                    {doc.url && (
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> Ouvrir
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Uploaded documents */}
             {documents.length > 0 && (
               <div className="space-y-2">
+                <Label className="text-xs text-slate-400">Documents uploades</Label>
                 {documents.map((doc, i) => (
                   <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
                     <div className="flex items-center gap-3">
@@ -1127,16 +1295,23 @@ export default function NouveauClientPage() {
                         <div className="flex items-center gap-2 mt-0.5">
                           <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
                           {doc.fromPappers ? (
-                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Auto-recupere</Badge>
+                            <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">Disponible sur Pappers</Badge>
                           ) : (
-                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">A fournir manuellement</Badge>
+                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Upload manuel</Badge>
                           )}
                         </div>
                       </div>
                     </div>
-                    <Button variant="ghost" size="sm" onClick={() => removeDocument(i)} className="text-slate-500 hover:text-red-400 h-7 w-7 p-0">
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      {doc.url && (
+                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300">
+                          <ExternalLink className="w-3 h-3" />
+                        </a>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => removeDocument(i)} className="text-slate-500 hover:text-red-400 h-7 w-7 p-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1147,13 +1322,19 @@ export default function NouveauClientPage() {
               <h3 className="text-xs font-semibold text-slate-300 mb-3">Completude KYC</h3>
               <div className="grid grid-cols-4 gap-3">
                 {["KBIS", "Statuts", "CNI", "RIB"].map(type => {
-                  const found = documents.some(d => d.type.toUpperCase().includes(type.toUpperCase()));
+                  const autoDoc = screening.documents.data?.documents?.find(
+                    d => d.type.toUpperCase().includes(type.toUpperCase()) && d.status === "auto"
+                  );
+                  const uploadedDoc = documents.some(d => d.type.toUpperCase().includes(type.toUpperCase()));
+                  const found = !!autoDoc || uploadedDoc;
                   return (
                     <div key={type} className={`p-3 rounded-lg border text-center ${
-                      found ? "border-emerald-500/30 bg-emerald-500/5" : "border-white/[0.06]"
+                      found ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"
                     }`}>
-                      {found ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" /> : <X className="w-5 h-5 text-slate-500 mx-auto mb-1" />}
-                      <p className={`text-xs font-medium ${found ? "text-emerald-400" : "text-slate-500"}`}>{type}</p>
+                      {found ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" /> : <X className="w-5 h-5 text-red-400 mx-auto mb-1" />}
+                      <p className={`text-xs font-medium ${found ? "text-emerald-400" : "text-red-400"}`}>{type}</p>
+                      {autoDoc && <p className="text-[9px] text-emerald-500 mt-0.5">Auto-recupere</p>}
+                      {!found && <p className="text-[9px] text-red-400 mt-0.5">Manquant</p>}
                     </div>
                   );
                 })}
@@ -1245,8 +1426,8 @@ export default function NouveauClientPage() {
   }
 }
 
-// Reusable form field
-function FormField({ label, value, onChange, type = "text", error, placeholder, options }: {
+// Reusable form field with auto badge and empty indicator
+function FormField({ label, value, onChange, type = "text", error, placeholder, options, isAuto, required }: {
   label: string;
   value: string | number;
   onChange: (v: string) => void;
@@ -1254,34 +1435,47 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
   error?: string;
   placeholder?: string;
   options?: string[];
+  isAuto?: boolean;
+  required?: boolean;
 }) {
+  const isEmpty = !value || value === "" || value === 0;
+  const showOrange = required && isEmpty && !error;
+
   if (type === "select" && options) {
     return (
       <div>
-        <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
+        <div className="flex items-center gap-1.5">
+          <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
+          {isAuto && !isEmpty && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
+        </div>
         <Select value={String(value)} onValueChange={onChange}>
-          <SelectTrigger className="bg-white/[0.03] border-white/[0.06] mt-1">
+          <SelectTrigger className={`bg-white/[0.03] mt-1 ${showOrange ? "border-amber-500/50" : "border-white/[0.06]"}`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
           </SelectContent>
         </Select>
+        {showOrange && <p className="text-[10px] text-amber-400 mt-0.5">A completer manuellement</p>}
       </div>
     );
   }
 
   return (
     <div>
-      <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
+      <div className="flex items-center gap-1.5">
+        <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
+        {isAuto && !isEmpty && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
+      </div>
       <Input
         type={type}
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
-        className={`bg-white/[0.03] border-white/[0.06] mt-1 ${error ? "border-red-500/50" : ""}`}
+        className={`bg-white/[0.03] mt-1 ${error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : "border-white/[0.06]"}`}
       />
       {error && <p className="text-[10px] text-red-400 mt-0.5">{error}</p>}
+      {showOrange && !error && <p className="text-[10px] text-amber-400 mt-0.5">A completer manuellement</p>}
     </div>
   );
 }

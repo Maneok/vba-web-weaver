@@ -4,6 +4,136 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
+// Probleme 5: Mapping codes INSEE -> libelles
+const FORMES_JURIDIQUES: Record<string, string> = {
+  "1000": "Entrepreneur individuel",
+  "1100": "Entrepreneur individuel",
+  "1200": "Entrepreneur individuel",
+  "1300": "Entrepreneur individuel",
+  "5410": "SARL",
+  "5411": "SARL",
+  "5422": "SARL",
+  "5426": "SARL",
+  "5430": "SARL",
+  "5431": "SARL",
+  "5432": "SARL",
+  "5442": "SARL",
+  "5443": "SARL",
+  "5451": "SARL",
+  "5453": "SARL",
+  "5460": "SARL",
+  "5499": "EURL",
+  "5498": "EURL",
+  "5510": "SA",
+  "5511": "SA",
+  "5515": "SA",
+  "5520": "SA",
+  "5522": "SA",
+  "5525": "SA",
+  "5530": "SA",
+  "5531": "SA",
+  "5532": "SA",
+  "5538": "SA",
+  "5539": "SA",
+  "5540": "SA",
+  "5542": "SA",
+  "5543": "SA",
+  "5546": "SA",
+  "5547": "SA",
+  "5548": "SA",
+  "5551": "SA",
+  "5552": "SA",
+  "5553": "SA",
+  "5554": "SA",
+  "5555": "SA",
+  "5559": "SA",
+  "5560": "SA",
+  "5570": "SA",
+  "5585": "SA",
+  "5599": "SA",
+  "5710": "SAS",
+  "5720": "SASU",
+  "6540": "SCI",
+  "6541": "SCI",
+  "6542": "SCI",
+  "6543": "SCI",
+  "6544": "SCI",
+  "6551": "Societe civile",
+  "6554": "Societe civile",
+  "6558": "Societe civile",
+  "6560": "SCP",
+  "6561": "SCP",
+  "6562": "SCP",
+  "6563": "SCP",
+  "6564": "SCP",
+  "6565": "SCP",
+  "6566": "SCP",
+  "6577": "Societe civile",
+  "6578": "Societe civile",
+  "6585": "Societe civile",
+  "6588": "Societe civile",
+  "6589": "Societe civile",
+  "6595": "Societe civile",
+  "6596": "Societe civile",
+  "6597": "Societe civile",
+  "6598": "Societe civile",
+  "6599": "Societe civile",
+  "5191": "SELARL",
+  "5192": "SELAS",
+  "5193": "SELAFA",
+  "5194": "SELCA",
+  "5195": "SEL",
+  "5196": "SELEURL",
+  "5470": "SELARL",
+  "9210": "Association loi 1901",
+  "9220": "Syndicat",
+  "9221": "Syndicat",
+  "9222": "Syndicat",
+  "9223": "Syndicat",
+  "9224": "Syndicat",
+  "9230": "Association loi 1901",
+  "9240": "Association loi 1901",
+  "5610": "SNC",
+  "5615": "SNC",
+  "5620": "SNC",
+  "5625": "SNC",
+  "5630": "SNC",
+  "5631": "SNC",
+  "5632": "SNC",
+  "5800": "EARL",
+  "2110": "ENTREPRISE INDIVIDUELLE",
+  "2120": "ENTREPRISE INDIVIDUELLE",
+  "2210": "ENTREPRISE INDIVIDUELLE",
+  "2310": "ENTREPRISE INDIVIDUELLE",
+  "2320": "ENTREPRISE INDIVIDUELLE",
+  "2385": "ENTREPRISE INDIVIDUELLE",
+  "2400": "ENTREPRISE INDIVIDUELLE",
+  "2700": "ENTREPRISE INDIVIDUELLE",
+  "2900": "ENTREPRISE INDIVIDUELLE",
+};
+
+function buildAddress(siege: any): string {
+  // Probleme 2: Build address from components
+  const parts: string[] = [];
+  if (siege.numero_voie) parts.push(siege.numero_voie);
+  if (siege.type_voie) parts.push(siege.type_voie);
+  if (siege.libelle_voie) parts.push(siege.libelle_voie);
+
+  const streetAddress = parts.join(" ").trim();
+
+  if (streetAddress && streetAddress.length > 3) {
+    return streetAddress.toUpperCase();
+  }
+
+  // Fallback to geo_adresse or adresse
+  const fallback = siege.geo_adresse ?? siege.adresse ?? "";
+  if (fallback && !fallback.includes("[nd]")) {
+    return fallback.toUpperCase();
+  }
+
+  return "";
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -34,7 +164,11 @@ Deno.serve(async (req) => {
     }
 
     const data = await res.json();
-    const results = (data.results ?? []).slice(0, 10).map((r: any) => {
+
+    // Pappers enrichment (capital, tel, email, etc.)
+    const pappersKey = Deno.env.get("PAPPERS");
+
+    const results = await Promise.all((data.results ?? []).slice(0, 10).map(async (r: any) => {
       const siege = r.siege ?? {};
       const dirigeants = (r.dirigeants ?? []).map((d: any) => ({
         nom: d.nom ?? "",
@@ -50,22 +184,77 @@ Deno.serve(async (req) => {
 
       const siren9 = (r.siren ?? "").replace(/\s/g, "");
 
+      // Probleme 5: Map forme juridique code to label
+      const codeFormeJuridique = String(r.nature_juridique ?? "");
+      const formeLabel = FORMES_JURIDIQUES[codeFormeJuridique] ?? r.libelle_nature_juridique ?? codeFormeJuridique;
+
+      // Probleme 2: Better address parsing
+      const adresse = buildAddress(siege);
+
+      let capital = r.capital ?? 0;
+      let capitalSource = capital > 0 ? "data.gouv" : "";
+      let telephone = "";
+      let email = "";
+      let siteWeb = "";
+      let beneficiaires: any[] = [];
+
+      // Probleme 1: Pappers fallback for capital + enrichment
+      if (pappersKey && siren9) {
+        try {
+          const pRes = await fetch(
+            `https://api.pappers.fr/v2/entreprise?api_token=${pappersKey}&siren=${siren9}`,
+            { signal: AbortSignal.timeout(6000) }
+          );
+          if (pRes.ok) {
+            const pData = await pRes.json();
+            // Capital fallback
+            if ((!capital || capital === 0) && pData.capital) {
+              capital = pData.capital;
+              capitalSource = "Pappers";
+            } else if (capital > 0) {
+              capitalSource = "data.gouv";
+            }
+            // Enrichment
+            telephone = pData.telephone ?? "";
+            email = pData.email ?? "";
+            siteWeb = pData.site_web ?? "";
+            // BE
+            beneficiaires = (pData.beneficiaires_effectifs ?? []).map((be: any) => ({
+              nom: be.nom ?? "",
+              prenom: be.prenom ?? "",
+              date_naissance: be.date_de_naissance_formatee ?? be.date_de_naissance ?? "",
+              nationalite: be.nationalite ?? "",
+              pourcentage_parts: be.pourcentage_parts ?? 0,
+              pourcentage_votes: be.pourcentage_votes ?? 0,
+            }));
+          }
+        } catch {
+          // Pappers unavailable - continue with Annuaire data
+        }
+      }
+
       return {
         siren: siren9 ? `${siren9.slice(0, 3)} ${siren9.slice(3, 6)} ${siren9.slice(6, 9)}` : "",
         siret: siege.siret ?? "",
         raison_sociale: (r.nom_complet ?? r.nom_raison_sociale ?? "").toUpperCase(),
-        forme_juridique: r.nature_juridique ?? "",
-        forme_juridique_raw: r.libelle_nature_juridique ?? r.nature_juridique ?? "",
-        adresse: (siege.adresse ?? siege.geo_adresse ?? "").toUpperCase(),
+        forme_juridique: formeLabel,
+        forme_juridique_code: codeFormeJuridique,
+        forme_juridique_raw: r.libelle_nature_juridique ?? formeLabel,
+        adresse,
         code_postal: siege.code_postal ?? "",
         ville: (siege.libelle_commune ?? siege.commune ?? "").toUpperCase(),
         ape: siege.activite_principale ?? r.activite_principale ?? "",
         libelle_ape: siege.libelle_activite_principale ?? r.libelle_activite_principale ?? "",
-        capital: r.capital ?? 0,
+        capital,
+        capital_source: capitalSource,
         date_creation: r.date_creation ?? "",
         effectif: r.tranche_effectif_salarie ?? siege.tranche_effectif_salarie ?? "0 SALARIE",
         dirigeant: dirigeantPrincipal,
         dirigeants,
+        telephone,
+        email,
+        site_web: siteWeb,
+        beneficiaires_effectifs: beneficiaires,
         nombre_etablissements: r.nombre_etablissements ?? 1,
         etat_administratif: r.etat_administratif ?? "A",
         complements: r.complements ?? {},
@@ -77,7 +266,7 @@ Deno.serve(async (req) => {
         })),
         source: "annuaire_entreprises",
       };
-    });
+    }));
 
     return new Response(JSON.stringify({
       results,

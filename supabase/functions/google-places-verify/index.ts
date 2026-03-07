@@ -56,6 +56,8 @@ Deno.serve(async (req) => {
         alertes: ["Aucune presence physique detectee — risque societe ecran"],
         status: "ATTENTION",
         mapsUrl: `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`,
+        mapsEmbedUrl: `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(searchQuery)}&zoom=15`,
+        streetViewUrl: null,
       }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -96,6 +98,9 @@ Deno.serve(async (req) => {
         : `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`,
       mapsEmbedUrl: lat && lng
         ? `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${lat},${lng}&zoom=15`
+        : `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(searchQuery)}&zoom=15`,
+      streetViewUrl: lat && lng
+        ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`
         : null,
       status: alertes.length > 0 ? "ATTENTION" : "ok",
     }), {
