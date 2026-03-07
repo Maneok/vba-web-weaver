@@ -191,14 +191,17 @@ Deno.serve(async (req) => {
       // Probleme 2: Better address parsing
       const adresse = buildAddress(siege);
 
-      let capital = r.capital ?? 0;
-      let capitalSource = capital > 0 ? "data.gouv" : "";
+      let capital = 0;
+      let capitalSource = "";
       let telephone = "";
       let email = "";
       let siteWeb = "";
       let beneficiaires: any[] = [];
+      let pappersAdresse = "";
+      let pappersCp = "";
+      let pappersVille = "";
 
-      // Probleme 1: Pappers fallback for capital + enrichment
+      // CORRECTION 2: Capital priority — Pappers first, then Annuaire
       if (pappersKey && siren9) {
         try {
           const pRes = await fetch(
@@ -207,17 +210,21 @@ Deno.serve(async (req) => {
           );
           if (pRes.ok) {
             const pData = await pRes.json();
-            // Capital fallback
-            if ((!capital || capital === 0) && pData.capital) {
+            // Capital from Pappers (priority 1)
+            if (pData.capital && pData.capital > 0) {
               capital = pData.capital;
               capitalSource = "Pappers";
-            } else if (capital > 0) {
-              capitalSource = "data.gouv";
             }
             // Enrichment
             telephone = pData.telephone ?? "";
             email = pData.email ?? "";
             siteWeb = pData.site_web ?? "";
+            // Address fallback from Pappers
+            if (pData.siege) {
+              pappersAdresse = pData.siege.adresse_ligne_1 ?? "";
+              pappersCp = pData.siege.code_postal ?? "";
+              pappersVille = pData.siege.ville ?? "";
+            }
             // BE
             beneficiaires = (pData.beneficiaires_effectifs ?? []).map((be: any) => ({
               nom: be.nom ?? "",
@@ -229,8 +236,13 @@ Deno.serve(async (req) => {
             }));
           }
         } catch {
-          // Pappers unavailable - continue with Annuaire data
+          // Pappers unavailable
         }
+      }
+      // Capital fallback: Annuaire Entreprises (priority 3)
+      if (!capital && (r.capital ?? 0) > 0) {
+        capital = r.capital;
+        capitalSource = "data.gouv";
       }
 
       return {
@@ -240,9 +252,9 @@ Deno.serve(async (req) => {
         forme_juridique: formeLabel,
         forme_juridique_code: codeFormeJuridique,
         forme_juridique_raw: r.libelle_nature_juridique ?? formeLabel,
-        adresse,
-        code_postal: siege.code_postal ?? "",
-        ville: (siege.libelle_commune ?? siege.commune ?? "").toUpperCase(),
+        adresse: adresse || pappersAdresse.toUpperCase(),
+        code_postal: siege.code_postal || pappersCp || "",
+        ville: (siege.libelle_commune ?? siege.commune ?? "").toUpperCase() || pappersVille.toUpperCase(),
         ape: siege.activite_principale ?? r.activite_principale ?? "",
         libelle_ape: siege.libelle_activite_principale ?? r.libelle_activite_principale ?? "",
         capital,

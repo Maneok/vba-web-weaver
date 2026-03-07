@@ -181,6 +181,7 @@ export interface DocumentInfo {
   source: "pappers" | "inpi" | "auto";
   available: boolean;
   status?: "auto" | "lien" | "manquant";
+  storedInSupabase?: boolean;
 }
 
 export interface DocumentsResult {
@@ -192,6 +193,43 @@ export interface DocumentsResult {
   status: string;
 }
 
+export interface InpiFinancials {
+  dateCloture: string;
+  chiffreAffaires: number | null;
+  resultat: number | null;
+  capital: number | null;
+  totalBilan: number | null;
+  effectif: number | null;
+}
+
+export interface InpiCompanyData {
+  denomination: string;
+  formeJuridique: string;
+  capital: number;
+  objetSocial: string;
+  duree: string;
+  dateClotureExercice: string;
+  adresse: {
+    numVoie: string;
+    typeVoie: string;
+    voie: string;
+    codePostal: string;
+    commune: string;
+  };
+  dirigeants: Array<{ nom: string; prenom: string; qualite: string; dateNaissance: string }>;
+  beneficiaires: Array<{ nom: string; prenom: string; dateNaissance: string; nationalite: string; pourcentageParts: number }>;
+  historique: unknown[];
+}
+
+export interface InpiResult {
+  documents: DocumentInfo[];
+  companyData: InpiCompanyData | null;
+  financials: InpiFinancials | null;
+  totalDocuments: number;
+  storedCount: number;
+  status: string;
+}
+
 export interface ScreeningState {
   enterprise: { loading: boolean; data: EnterpriseResult[] | null; error: string | null };
   sanctions: { loading: boolean; data: SanctionsResult | null; error: string | null };
@@ -200,6 +238,7 @@ export interface ScreeningState {
   news: { loading: boolean; data: NewsResult | null; error: string | null };
   network: { loading: boolean; data: NetworkResult | null; error: string | null };
   documents: { loading: boolean; data: DocumentsResult | null; error: string | null };
+  inpi: { loading: boolean; data: InpiResult | null; error: string | null };
 }
 
 export const INITIAL_SCREENING: ScreeningState = {
@@ -210,6 +249,7 @@ export const INITIAL_SCREENING: ScreeningState = {
   news: { loading: false, data: null, error: null },
   network: { loading: false, data: null, error: null },
   documents: { loading: false, data: null, error: null },
+  inpi: { loading: false, data: null, error: null },
 };
 
 // ====== API CALLS ======
@@ -351,6 +391,14 @@ export async function fetchDocuments(siren: string, raison_sociale?: string): Pr
     return await callEdgeFunction<DocumentsResult>("documents-fetch", { siren, raison_sociale });
   } catch {
     return { documents: [], total: 0, autoRecovered: 0, missing: ["KBIS", "Statuts", "CNI", "RIB"], status: "unavailable" };
+  }
+}
+
+export async function fetchInpiDocuments(siren: string): Promise<InpiResult> {
+  try {
+    return await callEdgeFunction<InpiResult>("inpi-documents", { siren });
+  } catch {
+    return { documents: [], companyData: null, financials: null, totalDocuments: 0, storedCount: 0, status: "unavailable" };
   }
 }
 

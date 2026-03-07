@@ -1,4 +1,4 @@
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper, MapPin, Shield, FileText, Users } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper, MapPin, Shield, FileText, Users, Archive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { ScreeningState } from "@/lib/kycService";
 
@@ -116,6 +116,14 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       detail: screening.network.data ? `${screening.network.data.totalCompanies} societe(s), ${screening.network.data.totalPersons} personne(s)` : undefined,
       alertes: screening.network.data?.alertes.map(a => a.message),
     });
+    rows.push({
+      key: "inpi",
+      icon: <Archive className="w-4 h-4 text-indigo-400" />,
+      label: "Documents INPI (RNE)",
+      status: (screening.inpi.data?.status as Status) ?? null,
+      loading: screening.inpi.loading,
+      detail: screening.inpi.data ? `${screening.inpi.data.totalDocuments} document(s), ${screening.inpi.data.storedCount} stocke(s)` : undefined,
+    });
   }
 
   return (
@@ -123,7 +131,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
         <Shield className="w-4 h-4 text-blue-400" />
         <h3 className="text-sm font-semibold text-slate-300">Screening automatique</h3>
-        {(screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading) && (
+        {(screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading || screening.inpi.loading) && (
           <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin ml-auto" />
         )}
       </div>

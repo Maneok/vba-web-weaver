@@ -4,7 +4,7 @@ import { useAppState } from "@/lib/AppContext";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE } from "@/lib/riskEngine";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
-  searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments,
+  searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   computeKycCompleteness,
 } from "@/lib/kycService";
@@ -266,6 +266,13 @@ export default function NouveauClientPage() {
     fetchDocuments(siren, raisonSociale).then(data => {
       setScreening(prev => ({ ...prev, documents: { loading: false, data, error: null } }));
     }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })));
+
+    // INPI documents fetch
+    setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
+    fetchInpiDocuments(siren.replace(/\s/g, "")).then(data => {
+      setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: null } }));
+      if (data.totalDocuments > 0) toast.success(`${data.totalDocuments} document(s) INPI recupere(s)`);
+    }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })));
   };
 
   // Step 1: Search
@@ -1279,6 +1286,54 @@ export default function NouveauClientPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* INPI auto-recovered documents */}
+            {screening.inpi.data && screening.inpi.data.documents.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-400">Documents INPI (RNE)</Label>
+                {screening.inpi.data.documents.map((doc, i) => (
+                  <div key={`inpi-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 text-indigo-400" />
+                      <div>
+                        <p className="text-sm text-slate-200">{doc.label}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
+                          <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI — Auto-recupere</Badge>
+                          {doc.storedInSupabase && (
+                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Stocke</Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    {doc.url && (
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> Ouvrir
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* INPI Financial data */}
+            {screening.inpi.data?.financials && (
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-400">Donnees financieres INPI</Label>
+                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] grid grid-cols-2 gap-3 text-xs">
+                  <div><span className="text-slate-500">Date cloture:</span> <span className="text-slate-200">{screening.inpi.data.financials.dateCloture}</span></div>
+                  {screening.inpi.data.financials.chiffreAffaires != null && (
+                    <div><span className="text-slate-500">CA:</span> <span className="text-slate-200">{screening.inpi.data.financials.chiffreAffaires.toLocaleString("fr-FR")} EUR</span></div>
+                  )}
+                  {screening.inpi.data.financials.resultat != null && (
+                    <div><span className="text-slate-500">Resultat:</span> <span className="text-slate-200">{screening.inpi.data.financials.resultat.toLocaleString("fr-FR")} EUR</span></div>
+                  )}
+                  {screening.inpi.data.financials.totalBilan != null && (
+                    <div><span className="text-slate-500">Total bilan:</span> <span className="text-slate-200">{screening.inpi.data.financials.totalBilan.toLocaleString("fr-FR")} EUR</span></div>
+                  )}
+                </div>
               </div>
             )}
 
