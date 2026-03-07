@@ -5,9 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Plus, Eye, ArrowUpDown, ChevronDown, ChevronUp } from "lucide-react";
-import ClientDetailDialog from "@/components/ClientDetailDialog";
-import NewClientDialog from "@/components/NewClientDialog";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp } from "lucide-react";
 import type { Client } from "@/lib/types";
 
 type SortKey = "raisonSociale" | "scoreGlobal" | "nivVigilance" | "etatPilotage" | "dateButoir" | "comptable";
@@ -18,8 +16,6 @@ export default function BddPage() {
   const [search, setSearch] = useState("");
   const [filterVigilance, setFilterVigilance] = useState<string>("all");
   const [filterPilotage, setFilterPilotage] = useState<string>("all");
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [showNewClient, setShowNewClient] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("raisonSociale");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -74,9 +70,6 @@ export default function BddPage() {
           <h1 className="text-xl font-bold text-white">Base de Donnees Clients</h1>
           <p className="text-sm text-slate-500 mt-0.5">{clients.length} dossiers &middot; {filtered.length} affiches</p>
         </div>
-        <Button onClick={() => setShowNewClient(true)} className="gap-2 bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20">
-          <Plus className="w-4 h-4" /> Nouveau Client
-        </Button>
       </div>
 
       {/* Filters */}
@@ -145,7 +138,6 @@ export default function BddPage() {
                 <TableRow
                   key={client.ref}
                   className="cursor-pointer border-white/[0.04] hover:bg-white/[0.02] transition-colors"
-                  onClick={() => setSelectedClient(client)}
                 >
                   <TableCell className="font-mono text-[11px] text-slate-500">{client.ref}</TableCell>
                   <TableCell className="font-medium text-sm text-slate-200">{client.raisonSociale}</TableCell>
@@ -157,7 +149,7 @@ export default function BddPage() {
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
                   <TableCell className="text-xs text-center text-slate-400 font-mono">{client.dateButoir}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10" onClick={(e) => { e.stopPropagation(); setSelectedClient(client); }}>
+                    <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10" onClick={(e) => { e.stopPropagation(); }}>
                       <Eye className="w-4 h-4" />
                     </Button>
                   </TableCell>
@@ -175,13 +167,6 @@ export default function BddPage() {
         </div>
       </div>
 
-      {selectedClient && (
-        <ClientDetailDialog client={selectedClient} open onClose={() => setSelectedClient(null)} />
-      )}
-
-      {showNewClient && (
-        <NewClientDialog open onClose={() => setShowNewClient(false)} />
-      )}
     </div>
   );
 }
