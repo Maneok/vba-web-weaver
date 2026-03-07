@@ -12,6 +12,7 @@ import GouvernancePage from "@/pages/GouvernancePage";
 import ControlePage from "@/pages/ControlePage";
 import RegistrePage from "@/pages/RegistrePage";
 import LogsPage from "@/pages/LogsPage";
+
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,6 +30,7 @@ const App = () => (
               <Route path="controle" element={<ControlePage />} />
               <Route path="registre" element={<RegistrePage />} />
               <Route path="logs" element={<LogsPage />} />
+
               <Route path="dashboard" element={<Navigate to="/" replace />} />
             </Route>
             <Route path="*" element={<NotFound />} />

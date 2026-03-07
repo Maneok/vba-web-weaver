@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText } from "lucide-react";
+<
 import { useAppState } from "@/lib/AppContext";
 
 interface AppSidebarProps {
@@ -14,6 +14,7 @@ const MENU_ITEMS = [
   { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck },
   { to: "/registre", label: "Registre LCB-FT", icon: AlertTriangle },
   { to: "/logs", label: "Journal", icon: ScrollText },
+
 ] as const;
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
@@ -34,7 +35,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       <div className="h-16 px-4 flex items-center border-b border-white/[0.06]">
         <button
           onClick={onToggle}
-          className="w-full text-left text-sm font-semibold tracking-wide text-slate-100 hover:text-white"
+
         >
           {collapsed ? "O90" : "Cabinet O90"}
         </button>
@@ -51,7 +52,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+
                   isActive
                     ? "bg-blue-500/15 text-blue-200"
                     : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
