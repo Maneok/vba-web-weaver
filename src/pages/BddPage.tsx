@@ -74,8 +74,15 @@ export default function BddPage() {
   }, [clients, search, filterVigilance, filterPilotage, filterEtat, sortKey, sortDir]);
 
   const handleExportCSV = () => {
-    const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "Butoir"];
-    const rows = filtered.map(c => [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, c.dateButoir]);
+    const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "KYC%", "Butoir"];
+    const rows = filtered.map(c => {
+      let kyc = 0;
+      if (c.siren) kyc += 25;
+      if (c.mail) kyc += 25;
+      if (c.iban) kyc += 25;
+      if (c.adresse) kyc += 25;
+      return [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, `${kyc}%`, c.dateButoir];
+    });
     const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -171,6 +178,7 @@ export default function BddPage() {
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")}>
                   <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
                 </TableHead>
@@ -192,6 +200,17 @@ export default function BddPage() {
                   <TableCell><ScoreGauge score={client.scoreGlobal} /></TableCell>
                   <TableCell className="text-center"><VigilanceBadge level={client.nivVigilance} /></TableCell>
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
+                  <TableCell className="text-center">
+                    {(() => {
+                      let s = 0;
+                      if (client.siren) s += 25;
+                      if (client.mail) s += 25;
+                      if (client.iban) s += 25;
+                      if (client.adresse) s += 25;
+                      const color = s >= 75 ? "text-emerald-400" : s >= 50 ? "text-amber-400" : "text-red-400";
+                      return <span className={`text-xs font-mono font-semibold ${color}`}>{s}%</span>;
+                    })()}
+                  </TableCell>
                   <TableCell className="text-xs text-center text-slate-400 font-mono">{client.dateButoir}</TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -220,7 +239,7 @@ export default function BddPage() {
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-12 text-slate-500">
+                  <TableCell colSpan={11} className="text-center py-12 text-slate-500">
                     Aucun client ne correspond aux filtres
                   </TableCell>
                 </TableRow>

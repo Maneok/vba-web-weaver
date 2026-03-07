@@ -8,48 +8,80 @@ const corsHeaders = {
 
 const INPI_BASE = "https://registre-national-entreprises.inpi.fr/api";
 
-async function inpiLogin(): Promise<string | null> {
+async function inpiLogin(): Promise<{ token: string | null; error: string | null }> {
   const username = Deno.env.get("INPI_USERNAME");
   const password = Deno.env.get("INPI_PASSWORD");
-  if (!username || !password) return null;
+  if (!username || !password) {
+    return { token: null, error: "INPI_USERNAME ou INPI_PASSWORD manquant dans les secrets Supabase" };
+  }
 
   try {
+    console.log("[INPI] Authentification en cours...");
     const res = await fetch(`${INPI_BASE}/sso/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return null;
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(`[INPI] Auth failed: ${res.status} ${res.statusText} — ${body}`);
+      return { token: null, error: `INPI auth failed (${res.status}): ${body || res.statusText}` };
+    }
+
     const data = await res.json();
-    return data.token ?? null;
-  } catch {
-    return null;
+    const token = data.token ?? null;
+    if (token) {
+      console.log("[INPI] Auth OK — token obtenu");
+    } else {
+      console.error("[INPI] Auth response sans token:", JSON.stringify(data));
+      return { token: null, error: "Reponse INPI sans champ token" };
+    }
+    return { token, error: null };
+  } catch (e) {
+    const msg = (e as Error).message || String(e);
+    console.error("[INPI] Auth exception:", msg);
+    return { token: null, error: `INPI auth exception: ${msg}` };
   }
 }
 
 async function getCompanyData(token: string, siren: string): Promise<any> {
   try {
+    console.log(`[INPI] GET /companies/${siren}`);
     const res = await fetch(`${INPI_BASE}/companies/${siren}`, {
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
+    if (!res.ok) {
+      console.error(`[INPI] companies/${siren}: ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    console.log(`[INPI] Company data OK for ${siren}`);
+    return data;
+  } catch (e) {
+    console.error("[INPI] getCompanyData error:", (e as Error).message);
     return null;
   }
 }
 
 async function getAttachments(token: string, siren: string): Promise<any> {
   try {
+    console.log(`[INPI] GET /companies/${siren}/attachments`);
     const res = await fetch(`${INPI_BASE}/companies/${siren}/attachments`, {
       headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(15000),
     });
-    if (!res.ok) return null;
-    return await res.json();
-  } catch {
+    if (!res.ok) {
+      console.error(`[INPI] attachments/${siren}: ${res.status}`);
+      return null;
+    }
+    const data = await res.json();
+    console.log(`[INPI] Attachments OK — actes: ${(data.actes ?? []).length}, bilans: ${(data.bilans ?? []).length}`);
+    return data;
+  } catch (e) {
+    console.error("[INPI] getAttachments error:", (e as Error).message);
     return null;
   }
 }
@@ -61,25 +93,30 @@ async function downloadAndStore(
   storagePath: string,
 ): Promise<string | null> {
   try {
+    console.log(`[INPI] Downloading ${url}`);
     const res = await fetch(url, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(30000),
     });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error(`[INPI] Download failed: ${res.status} for ${url}`);
+      return null;
+    }
 
     const blob = await res.blob();
     const arrayBuffer = await blob.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
+    console.log(`[INPI] Downloaded ${uint8.length} bytes, uploading to ${storagePath}`);
 
     const { error } = await supabase.storage
       .from("kyc-documents")
       .upload(storagePath, uint8, {
-        contentType: "application/pdf",
+        contentType: blob.type || "application/pdf",
         upsert: true,
       });
 
     if (error) {
-      console.error("Storage upload error:", error.message);
+      console.error("[INPI] Storage upload error:", error.message);
       return null;
     }
 
@@ -87,9 +124,10 @@ async function downloadAndStore(
       .from("kyc-documents")
       .getPublicUrl(storagePath);
 
+    console.log(`[INPI] Stored OK: ${storagePath}`);
     return urlData?.publicUrl ?? null;
   } catch (e) {
-    console.error("Download error:", e);
+    console.error("[INPI] Download/store error:", (e as Error).message);
     return null;
   }
 }
@@ -102,7 +140,6 @@ function parseFinancials(bilansSaisis: any[]): any {
   const pages = data.pages ?? data;
 
   const getValue = (code: string): number | null => {
-    // Search through all pages for the code
     for (const key of Object.keys(pages)) {
       const page = pages[key];
       if (typeof page !== "object") continue;
@@ -112,7 +149,6 @@ function parseFinancials(bilansSaisis: any[]): any {
         }
       }
     }
-    // Try flat structure
     if (data[code]) return data[code]?.m1 ?? data[code]?.m3 ?? null;
     return null;
   };
@@ -135,22 +171,25 @@ Deno.serve(async (req) => {
   try {
     const { siren } = await req.json();
     if (!siren) {
-      return new Response(JSON.stringify({ error: "siren requis", status: "error" }), {
+      return new Response(JSON.stringify({ error: "siren requis", status: "error", documents: [], companyData: null, financials: null, totalDocuments: 0, storedCount: 0 }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const cleanSiren = (siren as string).replace(/\s/g, "");
+    console.log(`[INPI] === Start for SIREN ${cleanSiren} ===`);
 
     // Step A: INPI Authentication
-    const token = await inpiLogin();
+    const { token, error: authError } = await inpiLogin();
     if (!token) {
       return new Response(JSON.stringify({
         documents: [],
         companyData: null,
         financials: null,
-        status: "unavailable",
-        error: "INPI authentication failed — check INPI_USERNAME/INPI_PASSWORD secrets",
+        totalDocuments: 0,
+        storedCount: 0,
+        status: "partial",
+        error: authError || "INPI authentication failed",
       }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -230,6 +269,8 @@ Deno.serve(async (req) => {
       const bilans = attachments.bilans ?? [];
       const bilansSaisis = attachments.bilansSaisis ?? [];
 
+      console.log(`[INPI] Found ${actes.length} actes, ${bilans.length} bilans, ${bilansSaisis.length} bilansSaisis`);
+
       // Step D: Download actes
       for (const acte of actes.slice(0, 5)) {
         const acteId = acte.id;
@@ -241,7 +282,7 @@ Deno.serve(async (req) => {
         const publicUrl = await downloadAndStore(supabase, token, downloadUrl, storagePath);
 
         documents.push({
-          type: acteType.includes("statut") ? "Statuts" : "Actes",
+          type: acteType.toLowerCase().includes("statut") ? "Statuts" : "Actes",
           label: `${acteType} — ${acteDate}`,
           url: publicUrl ?? downloadUrl,
           source: "inpi",
@@ -276,6 +317,8 @@ Deno.serve(async (req) => {
       financials = parseFinancials(bilansSaisis);
     }
 
+    console.log(`[INPI] === Done: ${documents.length} docs, ${documents.filter((d: any) => d.storedInSupabase).length} stored ===`);
+
     return new Response(JSON.stringify({
       documents,
       companyData,
@@ -287,12 +330,15 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    console.error("[INPI] Unhandled error:", (error as Error).message);
     return new Response(JSON.stringify({
       error: (error as Error).message,
       documents: [],
       companyData: null,
       financials: null,
-      status: "unavailable",
+      totalDocuments: 0,
+      storedCount: 0,
+      status: "partial",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

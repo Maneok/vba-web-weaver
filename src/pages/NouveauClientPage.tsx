@@ -768,8 +768,8 @@ export default function NouveauClientPage() {
               <ScreeningPanel screening={screening} />
             )}
 
-            {/* Google Maps embed (Probleme 3) */}
-            {screening.google.data?.mapsEmbedUrl && (
+            {/* Map embed — OpenStreetMap fallback (BLOC B) */}
+            {screening.google.data && (
               <div className="rounded-lg border border-white/[0.06] overflow-hidden">
                 <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -777,11 +777,13 @@ export default function NouveauClientPage() {
                     <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
                   </div>
                   <div className="flex items-center gap-2">
-                    {screening.google.data.mapsUrl && (
-                      <a href={screening.google.data.mapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3" /> Google Maps
-                      </a>
-                    )}
+                    <a
+                      href={`https://www.google.com/maps/search/${encodeURIComponent(form.adresse ? `${form.adresse} ${form.cp} ${form.ville}` : screening.google.data.place?.address || form.raisonSociale)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                    >
+                      <ExternalLink className="w-3 h-3" /> Google Maps
+                    </a>
                     {screening.google.data.streetViewUrl && (
                       <a href={screening.google.data.streetViewUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
                         <Eye className="w-3 h-3" /> Street View
@@ -789,15 +791,25 @@ export default function NouveauClientPage() {
                     )}
                   </div>
                 </div>
-                <iframe
-                  src={screening.google.data.mapsEmbedUrl}
-                  width="100%"
-                  height="250"
-                  style={{ border: 0 }}
-                  allowFullScreen
-                  loading="lazy"
-                  referrerPolicy="no-referrer-when-downgrade"
-                />
+                {(() => {
+                  const lat = screening.google.data.place?.lat;
+                  const lng = screening.google.data.place?.lng;
+                  if (lat && lng) {
+                    return (
+                      <iframe
+                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`}
+                        width="100%" height="250" style={{ border: 0 }} loading="lazy"
+                      />
+                    );
+                  }
+                  const addr = form.adresse ? `${form.adresse} ${form.cp} ${form.ville}` : form.raisonSociale;
+                  return (
+                    <iframe
+                      src={`https://www.openstreetmap.org/export/embed.html?bbox=-5,41,10,52&layer=mapnik`}
+                      width="100%" height="200" style={{ border: 0 }} loading="lazy"
+                    />
+                  );
+                })()}
               </div>
             )}
 

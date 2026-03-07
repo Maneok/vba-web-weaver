@@ -1,5 +1,6 @@
 import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper, MapPin, Shield, FileText, Users, Archive } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ScreeningState } from "@/lib/kycService";
 
 type Status = string;
@@ -10,7 +11,7 @@ function normalizeStatus(s: string | null): string | null {
   if (upper === "OK" || upper === "AUCUN_ARTICLE") return "OK";
   if (upper === "ATTENTION" || upper === "INDISPONIBLE") return "ATTENTION";
   if (upper === "ALERTE") return "ALERTE";
-  if (upper === "UNAVAILABLE" || upper === "ERREUR" || upper === "ERROR") return "ERREUR";
+  if (upper === "UNAVAILABLE" || upper === "ERREUR" || upper === "ERROR" || upper === "PARTIAL") return "ERREUR";
   return upper;
 }
 
@@ -24,29 +25,52 @@ function StatusIcon({ status, loading }: { status: Status | null; loading: boole
   return <AlertTriangle className="w-4 h-4 text-slate-500" />;
 }
 
-function StatusBadge({ status, loading }: { status: Status | null; loading: boolean }) {
-  if (loading) return <Badge className="bg-blue-500/15 text-blue-400 border-0 text-[10px]">Verification...</Badge>;
-  const norm = normalizeStatus(status);
-  if (!norm) return <Badge className="bg-white/[0.06] text-slate-500 border-0 text-[10px]">En attente</Badge>;
-  const colors: Record<string, string> = {
-    OK: "bg-emerald-500/15 text-emerald-400",
-    ATTENTION: "bg-amber-500/15 text-amber-400",
-    ALERTE: "bg-red-500/15 text-red-400",
-    ERREUR: "bg-slate-500/15 text-slate-500",
-  };
-  const labels: Record<string, string> = {
-    OK: "Aucun match",
-    ATTENTION: "Attention",
-    ALERTE: "ALERTE",
-    ERREUR: "Service indisponible",
-  };
-  return <Badge className={`${colors[norm] ?? "bg-slate-500/15 text-slate-500"} border-0 text-[10px]`}>{labels[norm] ?? norm}</Badge>;
+function StatusBadge({ status, loading, tooltip }: { status: Status | null; loading: boolean; tooltip?: string }) {
+  const badge = (() => {
+    if (loading) return <Badge className="bg-blue-500/15 text-blue-400 border-0 text-[10px]">Verification...</Badge>;
+    const norm = normalizeStatus(status);
+    if (!norm) return <Badge className="bg-white/[0.06] text-slate-500 border-0 text-[10px]">En attente</Badge>;
+    const colors: Record<string, string> = {
+      OK: "bg-emerald-500/15 text-emerald-400",
+      ATTENTION: "bg-amber-500/15 text-amber-400",
+      ALERTE: "bg-red-500/15 text-red-400",
+      ERREUR: "bg-slate-500/15 text-slate-500",
+    };
+    const labels: Record<string, string> = {
+      OK: "Aucun match",
+      ATTENTION: "Attention",
+      ALERTE: "ALERTE",
+      ERREUR: "Service indisponible",
+    };
+    return <Badge className={`${colors[norm] ?? "bg-slate-500/15 text-slate-500"} border-0 text-[10px]`}>{labels[norm] ?? norm}</Badge>;
+  })();
+
+  if (tooltip) {
+    return (
+      <Tooltip>
+        <TooltipTrigger asChild>{badge}</TooltipTrigger>
+        <TooltipContent side="left" className="max-w-[280px] text-xs">{tooltip}</TooltipContent>
+      </Tooltip>
+    );
+  }
+  return badge;
 }
 
 interface Props {
   screening: ScreeningState;
   compact?: boolean;
 }
+
+const TOOLTIPS: Record<string, string> = {
+  enterprise: "Recherche dans l'Annuaire des Entreprises (data.gouv.fr) + enrichissement Pappers",
+  sanctions: "Verification des listes de sanctions internationales et PPE via OpenSanctions (art. L.561-10 CMF)",
+  bodacc: "Recherche d'annonces BODACC : procedures collectives, liquidations, redressements",
+  google: "Verification de l'existence physique du siege via Google Places API",
+  news: "Revue de presse automatique via Google Custom Search — detection d'articles negatifs",
+  network: "Analyse du reseau de societes des dirigeants — detection de mandats multiples et creations recentes",
+  documents: "Recuperation automatique des documents Pappers (KBIS, statuts, comptes annuels)",
+  inpi: "Recuperation des actes et bilans depuis le Registre National des Entreprises (INPI RNE)",
+};
 
 export default function ScreeningPanel({ screening, compact }: Props) {
   const rows: Array<{
@@ -117,6 +141,14 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       alertes: screening.network.data?.alertes.map(a => a.message),
     });
     rows.push({
+      key: "documents",
+      icon: <FileText className="w-4 h-4 text-amber-400" />,
+      label: "Documents Pappers",
+      status: (screening.documents.data?.status as Status) ?? null,
+      loading: screening.documents.loading,
+      detail: screening.documents.data ? `${screening.documents.data.total} document(s)` : undefined,
+    });
+    rows.push({
       key: "inpi",
       icon: <Archive className="w-4 h-4 text-indigo-400" />,
       label: "Documents INPI (RNE)",
@@ -151,7 +183,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
                 {row.detail && !row.loading && (
                   <span className="text-[10px] text-slate-500">{row.detail}</span>
                 )}
-                <StatusBadge status={row.status} loading={row.loading} />
+                <StatusBadge status={row.status} loading={row.loading} tooltip={TOOLTIPS[row.key]} />
               </div>
             </div>
 
