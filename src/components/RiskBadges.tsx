@@ -1,17 +1,12 @@
 import type { VigilanceLevel, EtatPilotage } from "@/lib/types";
 
 export function VigilanceBadge({ level }: { level: VigilanceLevel }) {
-  const cls = {
-    SIMPLIFIEE: "risk-badge-low",
-    STANDARD: "risk-badge-medium",
-    RENFORCEE: "risk-badge-high",
+  const config = {
+    SIMPLIFIEE: { cls: "risk-badge-low", label: "Simplifiee" },
+    STANDARD: { cls: "risk-badge-medium", label: "Standard" },
+    RENFORCEE: { cls: "risk-badge-high", label: "Renforcee" },
   }[level];
-  const label = {
-    SIMPLIFIEE: "Simplifiée",
-    STANDARD: "Standard",
-    RENFORCEE: "Renforcée",
-  }[level];
-  return <span className={cls}>{label}</span>;
+  return <span className={config.cls}>{config.label}</span>;
 }
 
 export function PilotageBadge({ status }: { status: EtatPilotage | string }) {
@@ -30,14 +25,27 @@ export function PilotageBadge({ status }: { status: EtatPilotage | string }) {
 }
 
 export function ScoreGauge({ score }: { score: number }) {
-  const color = score <= 25 ? "bg-risk-low" : score < 60 ? "bg-risk-medium" : "bg-risk-high";
   const pct = Math.min(score, 100);
+  const color = score <= 25
+    ? "bg-emerald-500"
+    : score < 60
+    ? "bg-amber-500"
+    : "bg-red-500";
+  const bgColor = score <= 25
+    ? "bg-emerald-500/10"
+    : score < 60
+    ? "bg-amber-500/10"
+    : "bg-red-500/10";
+
   return (
-    <div className="flex items-center gap-2">
-      <div className="w-16 h-2 rounded-full bg-muted overflow-hidden">
-        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${pct}%` }} />
+    <div className="flex items-center gap-2.5">
+      <div className={`w-16 h-1.5 rounded-full ${bgColor} overflow-hidden`}>
+        <div
+          className={`h-full rounded-full ${color} transition-all duration-500 ease-out`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
-      <span className="text-xs font-mono font-semibold">{score}</span>
+      <span className="text-xs font-mono font-semibold text-slate-300">{score}</span>
     </div>
   );
 }

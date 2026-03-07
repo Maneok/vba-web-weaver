@@ -4,105 +4,68 @@
 
 @layer base {
   :root {
-    --background: 220 20% 97%;
-    --foreground: 220 30% 10%;
+    --background: 222 47% 11%;
+    --foreground: 213 31% 91%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 220 30% 10%;
+    --card: 217 33% 17%;
+    --card-foreground: 213 31% 91%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 220 30% 10%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 213 31% 91%;
 
-    --primary: 220 60% 30%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 47% 5%;
 
-    --secondary: 215 20% 92%;
-    --secondary-foreground: 220 30% 20%;
+    --secondary: 217 33% 20%;
+    --secondary-foreground: 213 31% 91%;
 
-    --muted: 215 20% 94%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 217 33% 20%;
+    --muted-foreground: 215 20% 55%;
 
-    --accent: 215 25% 90%;
-    --accent-foreground: 220 30% 15%;
+    --accent: 217 33% 22%;
+    --accent-foreground: 213 31% 91%;
 
-    --destructive: 0 72% 51%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 20% 88%;
-    --input: 215 20% 88%;
-    --ring: 220 60% 30%;
+    --success: 142 71% 45%;
+    --success-foreground: 0 0% 100%;
 
-    --radius: 0.5rem;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 10%;
 
-    /* Risk traffic light */
-    --risk-low: 142 70% 40%;
+    --border: 217 33% 20%;
+    --input: 217 33% 22%;
+    --ring: 217 91% 60%;
+
+    --radius: 0.75rem;
+
+    --risk-low: 142 71% 45%;
     --risk-low-foreground: 0 0% 100%;
     --risk-medium: 38 92% 50%;
     --risk-medium-foreground: 0 0% 10%;
-    --risk-high: 0 72% 51%;
+    --risk-high: 0 84% 60%;
     --risk-high-foreground: 0 0% 100%;
 
-    /* Status colors */
-    --status-valid: 142 70% 40%;
+    --status-valid: 142 71% 45%;
     --status-pending: 38 92% 50%;
-    --status-late: 0 72% 51%;
+    --status-late: 0 84% 60%;
     --status-soon: 25 95% 55%;
 
-    /* Sidebar */
-    --sidebar-background: 220 30% 15%;
-    --sidebar-foreground: 215 20% 80%;
-    --sidebar-primary: 210 60% 60%;
+    --sidebar-background: 222 47% 7%;
+    --sidebar-foreground: 215 20% 65%;
+    --sidebar-primary: 217 91% 60%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 22%;
-    --sidebar-accent-foreground: 215 20% 90%;
-    --sidebar-border: 220 20% 25%;
-    --sidebar-ring: 210 60% 60%;
+    --sidebar-accent: 217 33% 14%;
+    --sidebar-accent-foreground: 213 31% 91%;
+    --sidebar-border: 217 33% 15%;
+    --sidebar-ring: 217 91% 60%;
 
-    /* Chart */
-    --chart-1: 220 60% 30%;
-    --chart-2: 142 70% 40%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 142 71% 45%;
     --chart-3: 38 92% 50%;
-    --chart-4: 0 72% 51%;
-    --chart-5: 210 60% 60%;
-  }
-
-  .dark {
-    --background: 220 25% 8%;
-    --foreground: 210 30% 92%;
-
-    --card: 220 25% 12%;
-    --card-foreground: 210 30% 92%;
-
-    --popover: 220 25% 12%;
-    --popover-foreground: 210 30% 92%;
-
-    --primary: 210 60% 60%;
-    --primary-foreground: 220 30% 8%;
-
-    --secondary: 220 20% 18%;
-    --secondary-foreground: 210 30% 85%;
-
-    --muted: 220 20% 18%;
-    --muted-foreground: 215 20% 55%;
-
-    --accent: 220 20% 20%;
-    --accent-foreground: 210 30% 90%;
-
-    --destructive: 0 62% 45%;
-    --destructive-foreground: 0 0% 100%;
-
-    --border: 220 20% 20%;
-    --input: 220 20% 20%;
-    --ring: 210 60% 60%;
-
-    --sidebar-background: 220 30% 6%;
-    --sidebar-foreground: 215 20% 75%;
-    --sidebar-primary: 210 60% 60%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 25% 14%;
-    --sidebar-accent-foreground: 215 20% 90%;
-    --sidebar-border: 220 20% 15%;
-    --sidebar-ring: 210 60% 60%;
+    --chart-4: 0 84% 60%;
+    --chart-5: 262 83% 58%;
   }
 }
 
@@ -112,31 +75,100 @@
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
     font-weight: 600;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(217 33% 25%);
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(217 33% 35%);
   }
 }
 
 @layer components {
   .risk-badge-low {
-    @apply bg-[hsl(var(--risk-low))] text-[hsl(var(--risk-low-foreground))] px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide;
+    @apply bg-emerald-500/15 text-emerald-400 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider;
   }
   .risk-badge-medium {
-    @apply bg-[hsl(var(--risk-medium))] text-[hsl(var(--risk-medium-foreground))] px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide;
+    @apply bg-amber-500/15 text-amber-400 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider;
   }
   .risk-badge-high {
-    @apply bg-[hsl(var(--risk-high))] text-[hsl(var(--risk-high-foreground))] px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wide;
+    @apply bg-red-500/15 text-red-400 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider animate-pulse-risk;
   }
+
   .status-dot {
     @apply w-2 h-2 rounded-full inline-block mr-2;
   }
-  .status-dot-valid { @apply bg-[hsl(var(--status-valid))]; }
-  .status-dot-pending { @apply bg-[hsl(var(--status-pending))]; }
-  .status-dot-late { @apply bg-[hsl(var(--status-late))]; }
-  .status-dot-soon { @apply bg-[hsl(var(--status-soon))]; }
+  .status-dot-valid { @apply bg-emerald-400; }
+  .status-dot-pending { @apply bg-amber-400; }
+  .status-dot-late { @apply bg-red-400 animate-pulse-risk; }
+  .status-dot-soon { @apply bg-orange-400; }
+
+  /* Glass card effect */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-white/[0.06] rounded-xl shadow-xl shadow-black/20;
+  }
+
+  /* Glow effect for KPI cards */
+  .kpi-glow-blue {
+    box-shadow: 0 0 30px -5px rgba(59, 130, 246, 0.15);
+  }
+  .kpi-glow-green {
+    box-shadow: 0 0 30px -5px rgba(34, 197, 94, 0.15);
+  }
+  .kpi-glow-red {
+    box-shadow: 0 0 30px -5px rgba(239, 68, 68, 0.15);
+  }
+  .kpi-glow-amber {
+    box-shadow: 0 0 30px -5px rgba(245, 158, 11, 0.15);
+  }
+}
+
+/* Fade-in animation */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+.animate-fade-in-up-delay-1 {
+  animation: fade-in-up 0.4s ease-out 0.05s forwards;
+  opacity: 0;
+}
+.animate-fade-in-up-delay-2 {
+  animation: fade-in-up 0.4s ease-out 0.1s forwards;
+  opacity: 0;
+}
+.animate-fade-in-up-delay-3 {
+  animation: fade-in-up 0.4s ease-out 0.15s forwards;
+  opacity: 0;
+}
+.animate-fade-in-up-delay-4 {
+  animation: fade-in-up 0.4s ease-out 0.2s forwards;
+  opacity: 0;
 }
