@@ -66,6 +66,9 @@ function mapClient(raw: Record<string, unknown>): Client {
     statut: ((raw.statut as string) || "ACTIF") as "ACTIF" | "RETARD" | "INACTIF",
     be: (raw.beneficiaires_effectifs as string) || "",
     dateFin: (raw.date_fin as string) || undefined,
+    lienKbis: (raw.lien_kbis as string) || "",
+    lienStatuts: (raw.lien_statuts as string) || "",
+    lienCni: (raw.lien_cni as string) || "",
   };
 }
 

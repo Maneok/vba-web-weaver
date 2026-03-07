@@ -1,6 +1,7 @@
-import { NavLink } from "react-router-dom";
-
+import { NavLink, useNavigate } from "react-router-dom";
+import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, UserPlus } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
+import { Button } from "@/components/ui/button";
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -12,19 +13,20 @@ const MENU_ITEMS = [
   { to: "/bdd", label: "Base Clients", icon: Users },
   { to: "/gouvernance", label: "Gouvernance", icon: ShieldCheck },
   { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck },
-  { to: "/registre", label: "Registre LCB-FT", icon: AlertTriangle },
-  { to: "/logs", label: "Journal", icon: ScrollText },
-
+  { to: "/registre", label: "Registre LCB", icon: AlertTriangle },
+  { to: "/logs", label: "Journal d'audit", icon: ScrollText },
 ] as const;
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { alertes, clients } = useAppState();
+  const navigate = useNavigate();
 
   const alertesEnCours = alertes.filter((a) => a.statut === "EN COURS").length;
   const retardCount = clients.filter((c) => c.etatPilotage === "RETARD").length;
 
   const badges: Record<string, number> = {
     "/": retardCount,
+    "/bdd": clients.length,
     "/registre": alertesEnCours,
   };
 
@@ -35,7 +37,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       <div className="h-16 px-4 flex items-center border-b border-white/[0.06]">
         <button
           onClick={onToggle}
-
+          className="w-full text-left text-sm font-semibold tracking-wide text-slate-100 hover:text-white"
         >
           {collapsed ? "O90" : "Cabinet O90"}
         </button>
@@ -46,6 +48,13 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           const Icon = item.icon;
           const badge = badges[item.to];
 
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.to === "/"}
+              className={({ isActive }) =>
+                `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
                   isActive
                     ? "bg-blue-500/15 text-blue-200"
                     : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
@@ -54,7 +63,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             >
               <Icon className="h-4 w-4 shrink-0" />
               {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && badge > 0 && (
+              {!collapsed && badge !== undefined && badge > 0 && (
                 <span className="ml-auto rounded-full bg-blue-500/20 px-2 py-0.5 text-[11px] font-medium text-blue-200">
                   {badge}
                 </span>
@@ -62,6 +71,17 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             </NavLink>
           );
         })}
+
+        {/* New Client button */}
+        <div className="pt-3 mt-3 border-t border-white/[0.06]">
+          <button
+            onClick={() => navigate("/nouveau-client")}
+            className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+          >
+            <UserPlus className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Nouveau Client</span>}
+          </button>
+        </div>
       </nav>
     </aside>
   );

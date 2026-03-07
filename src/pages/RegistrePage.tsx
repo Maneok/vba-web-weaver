@@ -2,13 +2,30 @@ import { useState, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, BookOpen } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Search, BookOpen, Plus } from "lucide-react";
+import { toast } from "sonner";
+
+const CATEGORIES = [
+  "ADMIN : KYC Incomplet",
+  "INTERNE : Erreur Procedure",
+  "FLUX : Incoherence / Atypique",
+  "SOUPCON : Tracfin potentiel",
+  "EXTERNE : Gel des avoirs / Sanctions",
+];
 
 export default function RegistrePage() {
-  const { alertes } = useAppState();
+  const { alertes, addAlerte, clients } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState<string>("all");
+  const [showDialog, setShowDialog] = useState(false);
+  const [newAlerte, setNewAlerte] = useState({
+    client: "", categorie: CATEGORIES[0], details: "", responsable: "", dateEcheance: "",
+  });
 
   const filtered = useMemo(() => {
     return alertes.filter(a => {
@@ -24,12 +41,36 @@ export default function RegistrePage() {
   const enCours = alertes.filter(a => a.statut === "EN COURS").length;
   const clotures = alertes.filter(a => a.statut === "CLÔTURÉ").length;
 
+  const handleAddAlerte = () => {
+    addAlerte({
+      date: new Date().toISOString().split("T")[0],
+      clientConcerne: newAlerte.client,
+      categorie: newAlerte.categorie,
+      details: newAlerte.details,
+      actionPrise: "EN INVESTIGATION",
+      responsable: newAlerte.responsable,
+      qualification: "",
+      statut: "EN COURS",
+      dateButoir: newAlerte.dateEcheance,
+      typeDecision: "",
+      validateur: "",
+    });
+    setShowDialog(false);
+    setNewAlerte({ client: "", categorie: CATEGORIES[0], details: "", responsable: "", dateEcheance: "" });
+    toast.success("Alerte ajoutee au registre");
+  };
+
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
       {/* Header */}
-      <div className="animate-fade-in-up">
-        <h1 className="text-xl font-bold text-white">Registre LCB-FT</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Registre des alertes, investigations et decisions</p>
+      <div className="flex items-center justify-between animate-fade-in-up">
+        <div>
+          <h1 className="text-xl font-bold text-white">Registre LCB-FT</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Registre des alertes, investigations et decisions</p>
+        </div>
+        <Button className="gap-1.5 bg-blue-600 hover:bg-blue-700" onClick={() => setShowDialog(true)}>
+          <Plus className="w-4 h-4" /> Nouvelle alerte
+        </Button>
       </div>
 
       {/* Stats */}
@@ -138,6 +179,55 @@ export default function RegistrePage() {
           </Table>
         </div>
       </div>
+
+      {/* New alert dialog */}
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="bg-[hsl(217,33%,14%)] border-white/[0.06]">
+          <DialogHeader>
+            <DialogTitle className="text-white">Nouvelle alerte LCB-FT</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label className="text-xs text-slate-400">Client concerne</Label>
+              <Select value={newAlerte.client} onValueChange={v => setNewAlerte(p => ({ ...p, client: v }))}>
+                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
+                <SelectContent>
+                  {clients.map(c => <SelectItem key={c.ref} value={c.raisonSociale}>{c.raisonSociale} ({c.ref})</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-400">Categorie</Label>
+              <Select value={newAlerte.categorie} onValueChange={v => setNewAlerte(p => ({ ...p, categorie: v }))}>
+                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-400">Details</Label>
+              <Textarea value={newAlerte.details} onChange={e => setNewAlerte(p => ({ ...p, details: e.target.value }))} className="bg-white/[0.03] border-white/[0.06]" placeholder="Description de l'alerte..." />
+            </div>
+            <div>
+              <Label className="text-xs text-slate-400">Responsable</Label>
+              <Select value={newAlerte.responsable} onValueChange={v => setNewAlerte(p => ({ ...p, responsable: v }))}>
+                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue placeholder="Selectionnez" /></SelectTrigger>
+                <SelectContent>
+                  {["DIDIER", "PASCAL", "KEVIN", "SAMUEL", "BRAYAN"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-xs text-slate-400">Date echeance</Label>
+              <Input type="date" value={newAlerte.dateEcheance} onChange={e => setNewAlerte(p => ({ ...p, dateEcheance: e.target.value }))} className="bg-white/[0.03] border-white/[0.06]" />
+            </div>
+            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleAddAlerte} disabled={!newAlerte.client || !newAlerte.details}>
+              Enregistrer l'alerte
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

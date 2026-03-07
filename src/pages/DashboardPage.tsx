@@ -1,10 +1,17 @@
+import { useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis,
   PolarRadiusAxis, Radar, AreaChart, Area,
 } from "recharts";
-import { Shield, AlertTriangle, Users, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Shield, AlertTriangle, Users, TrendingUp, ArrowUpRight, ArrowDownRight,
+  UserPlus, ClipboardCheck, Activity, Download, ChevronRight,
+  IdCard, FileWarning, GraduationCap, AlertCircle,
+} from "lucide-react";
 
 const COLORS_VIG: Record<string, string> = {
   SIMPLIFIEE: "#22c55e",
@@ -24,6 +31,7 @@ const CHART_TOOLTIP_STYLE = {
 
 export default function DashboardPage() {
   const { clients, collaborateurs, alertes } = useAppState();
+  const navigate = useNavigate();
 
   const totalClients = clients.length;
   const safeTotal = totalClients || 1;
@@ -52,12 +60,37 @@ export default function DashboardPage() {
     }, {} as Record<string, number>)
   ).map(([name, clients]) => ({ name, clients }));
 
-  const retardCount = clients.filter(c => c.etatPilotage === "RETARD").length;
+  const retardClients = useMemo(() => clients.filter(c => c.etatPilotage === "RETARD"), [clients]);
   const alertesEnCours = alertes.filter(a => a.statut === "EN COURS").length;
   const formationOk = collaborateurs.filter(c => c.statutFormation.includes("A JOUR")).length;
+  const formationKo = collaborateurs.filter(c => c.statutFormation.includes("FORMER") || c.statutFormation.includes("JAMAIS"));
   const tauxConformite = Math.round((formationOk / (collaborateurs.length || 1)) * 100);
 
-  // Score distribution for area chart
+  // Incoherences: Simplifie but with PPE/Pays/Cash/Atypique
+  const incoherences = useMemo(() => clients.filter(c =>
+    c.nivVigilance === "SIMPLIFIEE" && (c.ppe === "OUI" || c.paysRisque === "OUI" || c.atypique === "OUI" || c.cash === "OUI")
+  ), [clients]);
+
+  // CNI expirees
+  const cniPerimees = useMemo(() => clients.filter(c => {
+    if (!c.dateExpCni) return false;
+    return new Date(c.dateExpCni) < new Date();
+  }), [clients]);
+
+  // KYC completude
+  const kycMoyen = useMemo(() => {
+    let total = 0;
+    clients.forEach(c => {
+      let score = 0;
+      if (c.siren) score += 25;
+      if (c.mail) score += 25;
+      if (c.iban) score += 25;
+      if (c.adresse) score += 25;
+      total += score;
+    });
+    return totalClients > 0 ? Math.round(total / totalClients) : 0;
+  }, [clients, totalClients]);
+
   const scoreRanges = [
     { range: "0-20", count: clients.filter(c => c.scoreGlobal <= 20).length },
     { range: "21-40", count: clients.filter(c => c.scoreGlobal > 20 && c.scoreGlobal <= 40).length },
@@ -66,8 +99,99 @@ export default function DashboardPage() {
     { range: "81-100", count: clients.filter(c => c.scoreGlobal > 80).length },
   ];
 
+  const handleExportCSV = () => {
+    const headers = ["Ref", "Raison Sociale", "Score", "Vigilance", "Pilotage", "Comptable"];
+    const rows = clients.map(c => [c.ref, c.raisonSociale, c.scoreGlobal, c.nivVigilance, c.etatPilotage, c.comptable]);
+    const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "export_complet_lcb.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="p-6 lg:p-8 space-y-8 max-w-[1400px] mx-auto">
+      {/* Action buttons */}
+      <div className="flex flex-wrap gap-3 animate-fade-in-up">
+        <Button className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate("/nouveau-client")}>
+          <UserPlus className="w-4 h-4" /> Nouveau client
+        </Button>
+        <Button variant="outline" className="gap-1.5 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => navigate("/controle")}>
+          <ClipboardCheck className="w-4 h-4" /> Controle qualite
+        </Button>
+        <Button variant="outline" className="gap-1.5 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => navigate("/diagnostic")}>
+          <Activity className="w-4 h-4" /> Diagnostic 360
+        </Button>
+        <Button variant="outline" className="gap-1.5 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={handleExportCSV}>
+          <Download className="w-4 h-4" /> Exporter CSV
+        </Button>
+      </div>
+
+      {/* Cockpit urgences */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 animate-fade-in-up">
+        <CockpitWidget
+          icon={AlertTriangle}
+          iconColor="text-red-400"
+          iconBg="bg-red-500/10"
+          title="Revisions en retard"
+          count={retardClients.length}
+          subtitle={retardClients.length > 0 ? retardClients.slice(0, 3).map(c => c.raisonSociale).join(", ") : "Aucun retard"}
+          onClick={() => navigate("/bdd")}
+          urgent={retardClients.length > 0}
+        />
+        <CockpitWidget
+          icon={IdCard}
+          iconColor="text-amber-400"
+          iconBg="bg-amber-500/10"
+          title="CNI perimees"
+          count={cniPerimees.length}
+          subtitle={cniPerimees.length > 0 ? "Pieces d'identite a renouveler" : "Toutes les CNI sont valides"}
+          onClick={() => navigate("/bdd")}
+        />
+        <CockpitWidget
+          icon={FileWarning}
+          iconColor="text-orange-400"
+          iconBg="bg-orange-500/10"
+          title="Incoherences scoring"
+          count={incoherences.length}
+          subtitle={incoherences.length > 0 ? "Simplifie + facteur de risque" : "Aucune incoherence"}
+          onClick={() => navigate("/bdd")}
+          urgent={incoherences.length > 0}
+        />
+        <CockpitWidget
+          icon={GraduationCap}
+          iconColor="text-purple-400"
+          iconBg="bg-purple-500/10"
+          title="Formations a faire"
+          count={formationKo.length}
+          subtitle={formationKo.length > 0 ? formationKo.map(c => c.nom).join(", ") : "Tous formes"}
+          onClick={() => navigate("/gouvernance")}
+        />
+        <CockpitWidget
+          icon={AlertCircle}
+          iconColor="text-amber-400"
+          iconBg="bg-amber-500/10"
+          title="Alertes non traitees"
+          count={alertesEnCours}
+          subtitle={`${alertes.length} alertes au total`}
+          onClick={() => navigate("/registre")}
+          urgent={alertesEnCours > 0}
+        />
+        <CockpitWidget
+          icon={Shield}
+          iconColor="text-blue-400"
+          iconBg="bg-blue-500/10"
+          title="Completude KYC"
+          count={kycMoyen}
+          suffix="%"
+          subtitle={`Moyenne du portefeuille`}
+          onClick={() => navigate("/bdd")}
+        />
+      </div>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <KpiCard
@@ -95,7 +219,7 @@ export default function DashboardPage() {
         />
         <KpiCard
           label="Dossiers en retard"
-          value={retardCount}
+          value={retardClients.length}
           icon={AlertTriangle}
           trend={`sur ${totalClients} dossiers`}
           trendUp={false}
@@ -238,6 +362,37 @@ export default function DashboardPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+function CockpitWidget({ icon: Icon, iconColor, iconBg, title, count, suffix, subtitle, onClick, urgent }: {
+  icon: React.ComponentType<{ className?: string }>;
+  iconColor: string;
+  iconBg: string;
+  title: string;
+  count: number;
+  suffix?: string;
+  subtitle: string;
+  onClick: () => void;
+  urgent?: boolean;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`glass-card p-4 text-left w-full hover:bg-white/[0.03] transition-colors group ${urgent ? "ring-1 ring-red-500/30" : ""}`}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className={`w-9 h-9 rounded-lg ${iconBg} flex items-center justify-center`}>
+          <Icon className={`w-4.5 h-4.5 ${iconColor}`} />
+        </div>
+        <ChevronRight className="w-4 h-4 text-slate-600 group-hover:text-slate-400 transition-colors" />
+      </div>
+      <p className="text-2xl font-bold text-white">
+        {count}{suffix && <span className="text-base font-normal text-slate-500 ml-0.5">{suffix}</span>}
+      </p>
+      <p className="text-xs text-slate-400 mt-0.5">{title}</p>
+      <p className="text-[10px] text-slate-600 mt-1 truncate">{subtitle}</p>
+    </button>
   );
 }
 

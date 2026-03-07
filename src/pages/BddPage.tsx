@@ -1,21 +1,27 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download } from "lucide-react";
+import { generateFicheAcceptation } from "@/lib/generateFichePdf";
+import { toast } from "sonner";
 import type { Client } from "@/lib/types";
 
 type SortKey = "raisonSociale" | "scoreGlobal" | "nivVigilance" | "etatPilotage" | "dateButoir" | "comptable";
 type SortDir = "asc" | "desc";
 
 export default function BddPage() {
-  const { clients } = useAppState();
+  const { clients, updateClient } = useAppState();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterVigilance, setFilterVigilance] = useState<string>("all");
   const [filterPilotage, setFilterPilotage] = useState<string>("all");
+  const [filterEtat, setFilterEtat] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("raisonSociale");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -41,10 +47,15 @@ export default function BddPage() {
         c.raisonSociale.toLowerCase().includes(search.toLowerCase()) ||
         c.ref.toLowerCase().includes(search.toLowerCase()) ||
         c.siren.includes(search) ||
-        c.dirigeant.toLowerCase().includes(search.toLowerCase());
+        c.dirigeant.toLowerCase().includes(search.toLowerCase()) ||
+        c.comptable.toLowerCase().includes(search.toLowerCase());
       const matchVig = filterVigilance === "all" || c.nivVigilance === filterVigilance;
       const matchPil = filterPilotage === "all" || c.etatPilotage === filterPilotage;
-      return matchSearch && matchVig && matchPil;
+      const matchEtat = filterEtat === "all" ||
+        (filterEtat === "ACTIF" && c.etat === "VALIDE") ||
+        (filterEtat === "PROSPECT" && c.etat === "PROSPECT") ||
+        (filterEtat === "ARCHIVE" && c.etat === "ARCHIVE");
+      return matchSearch && matchVig && matchPil && matchEtat;
     });
 
     result.sort((a, b) => {
@@ -60,7 +71,21 @@ export default function BddPage() {
     });
 
     return result;
-  }, [clients, search, filterVigilance, filterPilotage, sortKey, sortDir]);
+  }, [clients, search, filterVigilance, filterPilotage, filterEtat, sortKey, sortDir]);
+
+  const handleExportCSV = () => {
+    const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "Butoir"];
+    const rows = filtered.map(c => [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, c.dateButoir]);
+    const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "clients_lcb.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export CSV genere");
+  };
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
@@ -68,7 +93,15 @@ export default function BddPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
         <div>
           <h1 className="text-xl font-bold text-white">Base de Donnees Clients</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{clients.length} dossiers &middot; {filtered.length} affiches</p>
+          <p className="text-sm text-slate-500 mt-0.5">{clients.length} dossiers · {filtered.length} affiches</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportCSV}>
+            <Download className="w-3.5 h-3.5" /> Export CSV
+          </Button>
+          <Button className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate("/nouveau-client")}>
+            <UserPlus className="w-4 h-4" /> Nouveau client
+          </Button>
         </div>
       </div>
 
@@ -77,7 +110,7 @@ export default function BddPage() {
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <Input
-            placeholder="Rechercher par nom, SIREN, reference..."
+            placeholder="Rechercher par nom, SIREN, reference, comptable..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
@@ -105,6 +138,17 @@ export default function BddPage() {
             <SelectItem value="BIENTÔT">Bientot</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={filterEtat} onValueChange={setFilterEtat}>
+          <SelectTrigger className="w-[150px] bg-white/[0.03] border-white/[0.06]">
+            <SelectValue placeholder="Etat" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous</SelectItem>
+            <SelectItem value="ACTIF">Actif</SelectItem>
+            <SelectItem value="PROSPECT">Prospect</SelectItem>
+            <SelectItem value="ARCHIVE">Archive</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
@@ -130,7 +174,7 @@ export default function BddPage() {
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")}>
                   <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
                 </TableHead>
-                <TableHead className="w-[50px]"></TableHead>
+                <TableHead className="w-[80px]"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -138,6 +182,7 @@ export default function BddPage() {
                 <TableRow
                   key={client.ref}
                   className="cursor-pointer border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                  onClick={() => navigate(`/client/${client.ref}`)}
                 >
                   <TableCell className="font-mono text-[11px] text-slate-500">{client.ref}</TableCell>
                   <TableCell className="font-medium text-sm text-slate-200">{client.raisonSociale}</TableCell>
@@ -149,9 +194,27 @@ export default function BddPage() {
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
                   <TableCell className="text-xs text-center text-slate-400 font-mono">{client.dateButoir}</TableCell>
                   <TableCell>
-                    <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10" onClick={(e) => { e.stopPropagation(); }}>
-                      <Eye className="w-4 h-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                        <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0">
+                          <MoreHorizontal className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/client/${client.ref}`); }}>
+                          <Eye className="w-3.5 h-3.5 mr-2" /> Voir detail
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/client/${client.ref}`); }}>
+                          <Edit3 className="w-3.5 h-3.5 mr-2" /> Modifier
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateFicheAcceptation(client); toast.success("PDF genere"); }}>
+                          <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateClient(client.ref, { etat: "ARCHIVE" }); toast.success("Client archive"); }}>
+                          <Archive className="w-3.5 h-3.5 mr-2" /> Archiver
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </TableCell>
                 </TableRow>
               ))}
@@ -166,7 +229,6 @@ export default function BddPage() {
           </Table>
         </div>
       </div>
-
     </div>
   );
 }

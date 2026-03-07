@@ -12,7 +12,9 @@ import GouvernancePage from "@/pages/GouvernancePage";
 import ControlePage from "@/pages/ControlePage";
 import RegistrePage from "@/pages/RegistrePage";
 import LogsPage from "@/pages/LogsPage";
-import SettingsPage from "@/pages/SettingsPage";
+import NouveauClientPage from "@/pages/NouveauClientPage";
+import ClientDetailPage from "@/pages/ClientDetailPage";
+import DiagnosticPage from "@/pages/DiagnosticPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,11 +28,13 @@ const App = () => (
             <Route path="/" element={<AppLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="bdd" element={<BddPage />} />
+              <Route path="nouveau-client" element={<NouveauClientPage />} />
+              <Route path="client/:ref" element={<ClientDetailPage />} />
               <Route path="gouvernance" element={<GouvernancePage />} />
               <Route path="controle" element={<ControlePage />} />
               <Route path="registre" element={<RegistrePage />} />
               <Route path="logs" element={<LogsPage />} />
-
+              <Route path="diagnostic" element={<DiagnosticPage />} />
               <Route path="dashboard" element={<Navigate to="/" replace />} />
             </Route>
             <Route path="*" element={<NotFound />} />

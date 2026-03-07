@@ -2,11 +2,17 @@ import { useState, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
-import { Search, Users, CheckCircle2, AlertCircle, Key } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Search, Users, CheckCircle2, AlertCircle, Key, Mail, UserPlus } from "lucide-react";
+import { toast } from "sonner";
 
 export default function GouvernancePage() {
   const { collaborateurs } = useAppState();
   const [search, setSearch] = useState("");
+  const [showAddDialog, setShowAddDialog] = useState(false);
 
   const formesOk = collaborateurs.filter(c => c.statutFormation.includes("A JOUR")).length;
   const formesKo = collaborateurs.filter(c => c.statutFormation.includes("FORMER") || c.statutFormation.includes("JAMAIS")).length;
@@ -19,12 +25,25 @@ export default function GouvernancePage() {
     );
   }, [collaborateurs, search]);
 
+  const handleRelance = (collab: typeof collaborateurs[0]) => {
+    if (!collab.email) {
+      toast.error(`Email manquant pour ${collab.nom}`);
+      return;
+    }
+    toast.success(`Email de relance envoye a ${collab.nom} (${collab.email})`);
+  };
+
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
       {/* Header */}
-      <div className="animate-fade-in-up">
-        <h1 className="text-xl font-bold text-white">Gouvernance LCB-FT</h1>
-        <p className="text-sm text-slate-500 mt-0.5">Suivi de l'equipe et des formations obligatoires</p>
+      <div className="flex items-center justify-between animate-fade-in-up">
+        <div>
+          <h1 className="text-xl font-bold text-white">Gouvernance LCB-FT</h1>
+          <p className="text-sm text-slate-500 mt-0.5">Suivi de l'equipe et des formations obligatoires</p>
+        </div>
+        <Button className="gap-1.5 bg-blue-600 hover:bg-blue-700" onClick={() => setShowAddDialog(true)}>
+          <UserPlus className="w-4 h-4" /> Ajouter collaborateur
+        </Button>
       </div>
 
       {/* KPI cards */}
@@ -85,6 +104,7 @@ export default function GouvernancePage() {
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Signature Manuel</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Derniere Formation</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Statut</TableHead>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Action</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -121,12 +141,53 @@ export default function GouvernancePage() {
                       {c.statutFormation}
                     </span>
                   </TableCell>
+                  <TableCell className="text-center">
+                    {(c.statutFormation.includes("FORMER") || c.statutFormation.includes("JAMAIS")) && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1 h-7 text-xs border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
+                        onClick={() => handleRelance(c)}
+                      >
+                        <Mail className="w-3 h-3" /> Relancer
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         </div>
       </div>
+
+      {/* Add collaborator dialog */}
+      <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
+        <DialogContent className="bg-[hsl(217,33%,14%)] border-white/[0.06]">
+          <DialogHeader>
+            <DialogTitle className="text-white">Ajouter un collaborateur</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div><Label className="text-xs text-slate-400">Nom</Label><Input className="bg-white/[0.03] border-white/[0.06]" placeholder="NOM Prenom" /></div>
+            <div>
+              <Label className="text-xs text-slate-400">Fonction</Label>
+              <Select defaultValue="COLLABORATEUR">
+                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ASSOCIE SIGNATAIRE">Associe signataire</SelectItem>
+                  <SelectItem value="SUPERVISEUR">Superviseur</SelectItem>
+                  <SelectItem value="COLLABORATEUR">Collaborateur</SelectItem>
+                  <SelectItem value="STAGIAIRE">Stagiaire</SelectItem>
+                  <SelectItem value="ALTERNANT">Alternant</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div><Label className="text-xs text-slate-400">Email</Label><Input className="bg-white/[0.03] border-white/[0.06]" placeholder="email@cabinet.fr" /></div>
+            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => { setShowAddDialog(false); toast.success("Collaborateur ajoute"); }}>
+              Ajouter
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

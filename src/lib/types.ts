@@ -76,6 +76,9 @@ export interface Client {
   statut: StatutClient;
   be: string;
   dateFin?: string;
+  lienKbis?: string;
+  lienStatuts?: string;
+  lienCni?: string;
 }
 
 export interface Collaborateur {

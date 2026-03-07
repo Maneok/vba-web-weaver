@@ -14,18 +14,26 @@ import {
 const PAGE_TITLES: Record<string, { title: string; breadcrumb: string[] }> = {
   "/": { title: "Dashboard", breadcrumb: ["Accueil", "Dashboard"] },
   "/bdd": { title: "Base Clients", breadcrumb: ["Accueil", "Base Clients"] },
+  "/nouveau-client": { title: "Nouveau Client", breadcrumb: ["Accueil", "Base Clients", "Nouveau Client"] },
   "/gouvernance": { title: "Gouvernance", breadcrumb: ["Accueil", "Gouvernance"] },
   "/controle": { title: "Controle Qualite", breadcrumb: ["Accueil", "Controle Qualite"] },
   "/registre": { title: "Registre LCB-FT", breadcrumb: ["Accueil", "Registre LCB-FT"] },
-  "/logs": { title: "Journal des Actions", breadcrumb: ["Accueil", "Journal"] },
-  "/parametres": { title: "Parametres", breadcrumb: ["Accueil", "Parametres"] },
+  "/logs": { title: "Journal d'audit", breadcrumb: ["Accueil", "Journal d'audit"] },
+  "/diagnostic": { title: "Diagnostic 360", breadcrumb: ["Accueil", "Diagnostic 360"] },
 };
 
 export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
-  const page = PAGE_TITLES[location.pathname] || { title: "Page", breadcrumb: ["Accueil"] };
+
+  // Dynamic breadcrumb for client detail pages
+  let page = PAGE_TITLES[location.pathname];
+  if (!page && location.pathname.startsWith("/client/")) {
+    const ref = location.pathname.split("/client/")[1];
+    page = { title: ref, breadcrumb: ["Accueil", "Base Clients", ref] };
+  }
+  if (!page) page = { title: "Page", breadcrumb: ["Accueil"] };
 
   return (
     <div className="min-h-screen bg-background">
@@ -56,13 +64,6 @@ export default function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
-            <button
-              onClick={() => navigate("/parametres")}
-              className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-xs text-slate-200 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-            >
-              <Settings className="h-3.5 w-3.5" />
-              Parametres
-            </button>
             <span className="hidden sm:inline text-[11px] text-slate-500 font-mono">
               {new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
             </span>
@@ -82,9 +83,6 @@ export default function AppLayout() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/")}>
                   <User className="mr-2 h-4 w-4" /> Profil
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/parametres")}>
-                  <Settings className="mr-2 h-4 w-4" /> Parametres
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>
