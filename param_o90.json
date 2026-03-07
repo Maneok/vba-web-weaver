@@ -347,5 +347,19 @@
     "MALUS_ATYPIQUE": 100,
     "SCORE_PPE": 100
   },
-  "def_score_act": 25
+  "def_score_act": 25,
+  "lm_lab": {
+    "SIMPLIFIEE": {
+      "titre": "Obligations LCB-FT — Vigilance Simplifiée",
+      "corps": "Conformément aux articles L.561-2 et L.561-9 du Code monétaire et financier, notre cabinet est assujetti aux obligations de lutte contre le blanchiment de capitaux et le financement du terrorisme. Dans le cadre de la vigilance simplifiée, nous procédons à l'identification du client, la vérification de son identité, l'identification du bénéficiaire effectif, et un examen périodique tous les 3 ans."
+    },
+    "STANDARD": {
+      "titre": "Obligations LCB-FT — Vigilance Standard",
+      "corps": "Conformément aux articles L.561-2 et L.561-5 à L.561-14-2 du Code monétaire et financier, notre cabinet est soumis aux obligations de vigilance standard. Nous procédons à l'identification et vérification de l'identité du client et du bénéficiaire effectif, l'exercice d'une vigilance constante incluant un examen attentif des opérations, un examen périodique tous les 2 ans, et la mise à jour régulière des éléments d'identification."
+    },
+    "RENFORCEE": {
+      "titre": "Obligations LCB-FT — Vigilance Renforcée",
+      "corps": "Conformément aux articles L.561-2, L.561-10 et L.561-10-2 du Code monétaire et financier, votre dossier fait l'objet de mesures de vigilance renforcée. Nous procédons à l'identification approfondie du client et du bénéficiaire effectif, l'obtention d'informations sur l'origine des fonds, un suivi renforcé et continu avec examen annuel minimum, et l'examen approfondi de toute opération complexe ou inhabituelle. Toute impossibilité de mise en œuvre pourra conduire à la fin de la relation d'affaires (art. L.561-8 CMF)."
+    }
+  }
 }

@@ -5,6 +5,7 @@ import type { Client } from "@/lib/types";
 import { ExternalLink, User, Building, MapPin, Phone, Mail, Calendar, AlertTriangle, FileDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
+import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
 
 interface Props {
   client: Client;
@@ -139,14 +140,22 @@ export default function ClientDetailDialog({ client, open, onClose }: Props) {
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <Button
             variant="outline"
             className="gap-2"
             onClick={() => generateFicheAcceptation(client)}
           >
             <FileDown className="w-4 h-4" />
-            Télécharger la fiche LCB-FT (PDF)
+            Fiche LCB-FT (PDF)
+          </Button>
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => generateLettreMission(client)}
+          >
+            <FileDown className="w-4 h-4" />
+            Lettre de Mission (PDF)
           </Button>
           <a
             href={`https://www.pappers.fr/recherche?q=${client.siren.replace(/\s/g, "")}`}
