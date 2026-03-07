@@ -1,14 +1,17 @@
+import { useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { VigilanceBadge } from "@/components/RiskBadges";
+import { generateRapportControle } from "@/lib/generateControlePdf";
+import { FileDown } from "lucide-react";
 
 export default function ControlePage() {
   const { clients } = useAppState();
 
   // Weighted random audit: higher risk clients have more chance of being picked
-  const auditable = (() => {
+  const auditable = useMemo(() => {
     if (clients.length <= 5) return [...clients];
-    // Seeded shuffle based on current month for reproducibility within a month
     const now = new Date();
     const seed = now.getFullYear() * 100 + now.getMonth();
     const seededRandom = (i: number) => {
@@ -23,13 +26,19 @@ export default function ControlePage() {
       .sort((a, b) => b.weight - a.weight)
       .slice(0, 5)
       .map(w => w.client);
-  })();
+  }, [clients]);
 
   return (
     <div className="p-6 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">🔍 Contrôle Qualité Mensuel</h1>
-        <p className="text-sm text-muted-foreground mt-1">Tirage aléatoire de dossiers pour contrôle — {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">🔍 Contrôle Qualité Mensuel</h1>
+          <p className="text-sm text-muted-foreground mt-1">Tirage aléatoire de dossiers pour contrôle — {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}</p>
+        </div>
+        <Button onClick={() => generateRapportControle(auditable)} variant="outline" className="gap-2">
+          <FileDown className="w-4 h-4" />
+          Rapport PDF
+        </Button>
       </div>
 
       <Card>

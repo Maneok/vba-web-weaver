@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback } from "react";
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "@/lib/types";
-import { SAMPLE_CLIENTS, SAMPLE_COLLABORATEURS, SAMPLE_ALERTES, SAMPLE_LOGS } from "@/lib/sampleData";
+import { O90_CLIENTS, O90_COLLABORATEURS, O90_ALERTES, O90_LOGS } from "@/lib/dataLoader";
 
 interface AppState {
   clients: Client[];
@@ -16,10 +16,10 @@ interface AppState {
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [clients, setClients] = useState<Client[]>(SAMPLE_CLIENTS);
-  const [collaborateurs] = useState<Collaborateur[]>(SAMPLE_COLLABORATEURS);
-  const [alertes, setAlertes] = useState<AlerteRegistre[]>(SAMPLE_ALERTES);
-  const [logs, setLogs] = useState<LogEntry[]>(SAMPLE_LOGS);
+  const [clients, setClients] = useState<Client[]>(O90_CLIENTS);
+  const [collaborateurs] = useState<Collaborateur[]>(O90_COLLABORATEURS);
+  const [alertes, setAlertes] = useState<AlerteRegistre[]>(O90_ALERTES);
+  const [logs, setLogs] = useState<LogEntry[]>(O90_LOGS);
 
   const addClient = useCallback((client: Client) => {
     setClients(prev => [...prev, client]);
