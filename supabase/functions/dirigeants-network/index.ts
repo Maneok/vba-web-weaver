@@ -1,47 +1,26 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const CORS = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-interface NetworkNode {
-  id: string;
-  label: string;
-  type: "company" | "person";
-  siren?: string;
-  isSource?: boolean;
-  dateCreation?: string;
-  ville?: string;
-}
-
-interface NetworkEdge {
-  source: string;
-  target: string;
-  label: string;
-}
-
-interface NetworkAlert {
-  type: "mandats_eleves" | "domiciliation_commune" | "creations_recentes" | "societe_fermee";
-  message: string;
-  severity: "orange" | "red";
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
     const { siren, dirigeants } = await req.json();
     if (!dirigeants || dirigeants.length === 0) {
-      return new Response(JSON.stringify({ nodes: [], edges: [], alertes: [] }), { headers: CORS });
+      return new Response(JSON.stringify({ nodes: [], edges: [], alertes: [], status: "ok" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const cleanSiren = (siren ?? "").replace(/\s/g, "");
-    const nodes: NetworkNode[] = [];
-    const edges: NetworkEdge[] = [];
-    const alertes: NetworkAlert[] = [];
+    const nodes: any[] = [];
+    const edges: any[] = [];
+    const alertes: any[] = [];
     const seenSirens = new Set<string>();
     const addressCounts: Record<string, string[]> = {};
 
@@ -55,7 +34,6 @@ serve(async (req) => {
     });
     seenSirens.add(cleanSiren);
 
-    // For each dirigeant, search other companies
     for (const dir of (dirigeants as Array<{ nom: string; prenom: string; qualite: string }>).slice(0, 5)) {
       const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
       if (!fullName || fullName.length < 3) continue;
@@ -64,7 +42,6 @@ serve(async (req) => {
       nodes.push({ id: personId, label: fullName, type: "person" });
       edges.push({ source: personId, target: `company-${cleanSiren}`, label: dir.qualite || "Dirigeant" });
 
-      // Search other companies by this person
       try {
         const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(fullName)}&page=1&per_page=20`;
         const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -80,11 +57,9 @@ serve(async (req) => {
           const rSiren = (r.siren ?? "").replace(/\s/g, "");
           if (!rSiren || rSiren === cleanSiren) continue;
 
-          // Check if this person is actually a dirigeant of this company
           const dirMatch = (r.dirigeants ?? []).some((d: any) => {
             const dName = `${d.prenom ?? ""} ${d.nom ?? ""}`.trim().toLowerCase();
-            return dName === fullName.toLowerCase() ||
-                   dName.includes(dir.nom.toLowerCase());
+            return dName === fullName.toLowerCase() || dName.includes(dir.nom.toLowerCase());
           });
           if (!dirMatch) continue;
 
@@ -104,14 +79,12 @@ serve(async (req) => {
             });
             edges.push({ source: personId, target: companyId, label: "Dirigeant" });
 
-            // Track addresses for domiciliation commune detection
             const addr = (siege.adresse ?? siege.geo_adresse ?? "").toLowerCase().trim();
             if (addr.length > 5) {
               if (!addressCounts[addr]) addressCounts[addr] = [];
               addressCounts[addr].push(r.nom_complet ?? rSiren);
             }
 
-            // Check recent creation
             if (r.date_creation) {
               const created = new Date(r.date_creation);
               const oneYearAgo = new Date();
@@ -121,7 +94,6 @@ serve(async (req) => {
               }
             }
 
-            // Check if company is closed
             if (r.etat_administratif === "F" || r.etat_administratif === "C") {
               alertes.push({
                 type: "societe_fermee",
@@ -132,7 +104,6 @@ serve(async (req) => {
           }
         }
 
-        // Alert: too many mandats
         if (mandatCount >= 10) {
           alertes.push({
             type: "mandats_eleves",
@@ -147,7 +118,6 @@ serve(async (req) => {
           });
         }
 
-        // Alert: recent creations
         if (recentCreations.length >= 2) {
           alertes.push({
             type: "creations_recentes",
@@ -160,7 +130,6 @@ serve(async (req) => {
       }
     }
 
-    // Alert: domiciliation commune
     for (const [addr, companies] of Object.entries(addressCounts)) {
       if (companies.length >= 2) {
         alertes.push({
@@ -175,17 +144,21 @@ serve(async (req) => {
       nodes,
       edges,
       alertes,
-      totalCompanies: nodes.filter(n => n.type === "company").length,
-      totalPersons: nodes.filter(n => n.type === "person").length,
-      status: alertes.some(a => a.severity === "red") ? "ALERTE" : alertes.length > 0 ? "ATTENTION" : "OK",
-    }), { headers: CORS });
-  } catch (err) {
+      totalCompanies: nodes.filter((n: any) => n.type === "company").length,
+      totalPersons: nodes.filter((n: any) => n.type === "person").length,
+      status: alertes.some((a: any) => a.severity === "red") ? "ALERTE" : alertes.length > 0 ? "ATTENTION" : "ok",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
     return new Response(JSON.stringify({
-      error: String(err),
+      error: (error as Error).message,
       nodes: [],
       edges: [],
       alertes: [],
-      status: "ERREUR",
-    }), { status: 500, headers: CORS });
+      status: "unavailable",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

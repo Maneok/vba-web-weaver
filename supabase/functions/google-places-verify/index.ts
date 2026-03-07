@@ -1,29 +1,32 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const CORS = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
     const { raison_sociale, ville, adresse } = await req.json();
     if (!raison_sociale) {
-      return new Response(JSON.stringify({ error: "raison_sociale requis" }), { status: 400, headers: CORS });
+      return new Response(JSON.stringify({ error: "raison_sociale requis", found: false, status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const apiKey = Deno.env.get("GOOGLE_MAPS_API_KEY");
+    const apiKey = Deno.env.get("GOOGLE_API_KEY");
     if (!apiKey) {
       return new Response(JSON.stringify({
         found: false,
         alertes: [],
-        status: "INDISPONIBLE",
-        error: "Cle API Google Maps non configuree",
-      }), { headers: CORS });
+        status: "unavailable",
+        error: "Cle API Google non configuree",
+      }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const searchQuery = `${raison_sociale} ${ville || ""}`.trim();
@@ -35,9 +38,12 @@ serve(async (req) => {
     if (!res.ok) {
       return new Response(JSON.stringify({
         found: false,
-        alertes: ["API Google Places indisponible"],
-        status: "ERREUR",
-      }), { headers: CORS });
+        alertes: [],
+        status: "unavailable",
+        error: `Google Places API: ${res.status}`,
+      }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const data = await res.json();
@@ -50,7 +56,9 @@ serve(async (req) => {
         alertes: ["Aucune presence physique detectee — risque societe ecran"],
         status: "ATTENTION",
         mapsUrl: `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`,
-      }), { headers: CORS });
+      }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const place = candidates[0];
@@ -89,14 +97,18 @@ serve(async (req) => {
       mapsEmbedUrl: lat && lng
         ? `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${lat},${lng}&zoom=15`
         : null,
-      status: alertes.length > 0 ? "ATTENTION" : "OK",
-    }), { headers: CORS });
-  } catch (err) {
+      status: alertes.length > 0 ? "ATTENTION" : "ok",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
     return new Response(JSON.stringify({
       found: false,
       alertes: [],
-      status: "ERREUR",
-      error: String(err),
-    }), { status: 500, headers: CORS });
+      status: "unavailable",
+      error: (error as Error).message,
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

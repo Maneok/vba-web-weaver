@@ -2,37 +2,45 @@ import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper,
 import { Badge } from "@/components/ui/badge";
 import type { ScreeningState } from "@/lib/kycService";
 
-type Status = "OK" | "ALERTE" | "ATTENTION" | "ERREUR" | "INDISPONIBLE" | "AUCUN_ARTICLE";
+type Status = string;
+
+function normalizeStatus(s: string | null): string | null {
+  if (!s) return null;
+  const upper = s.toUpperCase();
+  if (upper === "OK" || upper === "AUCUN_ARTICLE") return "OK";
+  if (upper === "ATTENTION" || upper === "INDISPONIBLE") return "ATTENTION";
+  if (upper === "ALERTE") return "ALERTE";
+  if (upper === "UNAVAILABLE" || upper === "ERREUR" || upper === "ERROR") return "ERREUR";
+  return upper;
+}
 
 function StatusIcon({ status, loading }: { status: Status | null; loading: boolean }) {
   if (loading) return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
-  if (!status) return <div className="w-4 h-4 rounded-full bg-white/[0.06]" />;
-  if (status === "OK" || status === "AUCUN_ARTICLE") return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
-  if (status === "ATTENTION" || status === "INDISPONIBLE") return <AlertTriangle className="w-4 h-4 text-amber-400" />;
-  if (status === "ALERTE") return <XCircle className="w-4 h-4 text-red-400" />;
+  const norm = normalizeStatus(status);
+  if (!norm) return <div className="w-4 h-4 rounded-full bg-white/[0.06]" />;
+  if (norm === "OK") return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
+  if (norm === "ATTENTION") return <AlertTriangle className="w-4 h-4 text-amber-400" />;
+  if (norm === "ALERTE") return <XCircle className="w-4 h-4 text-red-400" />;
   return <AlertTriangle className="w-4 h-4 text-slate-500" />;
 }
 
 function StatusBadge({ status, loading }: { status: Status | null; loading: boolean }) {
   if (loading) return <Badge className="bg-blue-500/15 text-blue-400 border-0 text-[10px]">Verification...</Badge>;
-  if (!status) return <Badge className="bg-white/[0.06] text-slate-500 border-0 text-[10px]">En attente</Badge>;
+  const norm = normalizeStatus(status);
+  if (!norm) return <Badge className="bg-white/[0.06] text-slate-500 border-0 text-[10px]">En attente</Badge>;
   const colors: Record<string, string> = {
     OK: "bg-emerald-500/15 text-emerald-400",
-    AUCUN_ARTICLE: "bg-emerald-500/15 text-emerald-400",
     ATTENTION: "bg-amber-500/15 text-amber-400",
-    INDISPONIBLE: "bg-slate-500/15 text-slate-400",
     ALERTE: "bg-red-500/15 text-red-400",
     ERREUR: "bg-slate-500/15 text-slate-500",
   };
   const labels: Record<string, string> = {
     OK: "Aucun match",
-    AUCUN_ARTICLE: "Aucun article",
     ATTENTION: "Attention",
-    INDISPONIBLE: "Indisponible",
     ALERTE: "ALERTE",
-    ERREUR: "Erreur",
+    ERREUR: "Service indisponible",
   };
-  return <Badge className={`${colors[status] ?? ""} border-0 text-[10px]`}>{labels[status] ?? status}</Badge>;
+  return <Badge className={`${colors[norm] ?? "bg-slate-500/15 text-slate-500"} border-0 text-[10px]`}>{labels[norm] ?? norm}</Badge>;
 }
 
 interface Props {
@@ -90,7 +98,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
     {
       key: "news",
       icon: <Newspaper className="w-4 h-4 text-purple-400" />,
-      label: "Revue de presse (NewsAPI)",
+      label: "Revue de presse (Google Search)",
       status: (screening.news.data?.status as Status) ?? null,
       loading: screening.news.loading,
       detail: screening.news.data ? `${screening.news.data.articles.length} article(s)` : undefined,

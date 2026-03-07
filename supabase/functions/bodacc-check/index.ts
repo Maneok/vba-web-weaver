@@ -1,83 +1,88 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const CORS = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-interface BodaccAnnonce {
-  date: string;
-  type: string;
-  description: string;
-  tribunal: string;
-  numero: string;
-  isProcedureCollective: boolean;
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
-    const { siren, raison_sociale } = await req.json();
+    const { siren, complements } = await req.json();
     if (!siren) {
-      return new Response(JSON.stringify({ error: "siren requis" }), { status: 400, headers: CORS });
+      return new Response(JSON.stringify({ error: "siren requis", annonces: [], status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const cleanSiren = (siren as string).replace(/\s/g, "");
-
-    // BODACC API via OpenDataSoft
-    const url = `https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=registre%20like%20%22${cleanSiren}%22&limit=20&order_by=dateparution%20desc`;
-
-    const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
-
-    if (!res.ok) {
-      return new Response(JSON.stringify({
-        annonces: [],
-        hasProcedureCollective: false,
-        alertes: [],
-        error: `BODACC API: ${res.status}`,
-      }), { headers: CORS });
-    }
-
-    const data = await res.json();
-    const records = data.results ?? data.records ?? [];
-
     const procedureKeywords = [
       "redressement judiciaire", "liquidation judiciaire", "liquidation",
       "sauvegarde", "plan de cession", "plan de continuation",
-      "jugement d'ouverture", "jugement de clôture",
+      "jugement d'ouverture", "jugement de cloture",
     ];
 
-    const annonces: BodaccAnnonce[] = records.map((r: any) => {
-      const fields = r.fields ?? r;
-      const description = (fields.contenu ?? fields.annonce ?? fields.description ?? "").toLowerCase();
-      const type = fields.familleavis ?? fields.typeavis ?? fields.nature ?? "";
-      const isProcedureCollective = procedureKeywords.some(kw => description.includes(kw)) ||
-        (type ?? "").toLowerCase().includes("procédure collective") ||
-        (type ?? "").toLowerCase().includes("procedure collective");
+    // Try BODACC API
+    let annonces: any[] = [];
+    let apiWorked = false;
 
-      return {
-        date: fields.dateparution ?? fields.date_parution ?? "",
-        type: type || "Annonce commerciale",
-        description: (fields.contenu ?? fields.annonce ?? fields.description ?? "").slice(0, 300),
-        tribunal: fields.tribunal ?? "",
-        numero: fields.numerodepartement ?? fields.numero ?? "",
-        isProcedureCollective,
-      };
-    });
+    try {
+      const url = `https://bodacc-datadila.opendatasoft.com/api/explore/v2.1/catalog/datasets/annonces-commerciales/records?where=registre%20like%20%22${cleanSiren}%22&limit=20&order_by=dateparution%20desc`;
+      const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
 
-    const hasProcedureCollective = annonces.some(a => a.isProcedureCollective);
+      if (res.ok) {
+        apiWorked = true;
+        const data = await res.json();
+        const records = data.results ?? data.records ?? [];
+
+        annonces = records.map((r: any) => {
+          const fields = r.fields ?? r;
+          const description = (fields.contenu ?? fields.annonce ?? fields.description ?? "").toLowerCase();
+          const type = fields.familleavis ?? fields.typeavis ?? fields.nature ?? "";
+          const isProcedureCollective = procedureKeywords.some(kw => description.includes(kw)) ||
+            (type ?? "").toLowerCase().includes("procedure collective");
+
+          return {
+            date: fields.dateparution ?? fields.date_parution ?? "",
+            type: type || "Annonce commerciale",
+            description: (fields.contenu ?? fields.annonce ?? fields.description ?? "").slice(0, 300),
+            tribunal: fields.tribunal ?? "",
+            numero: fields.numerodepartement ?? fields.numero ?? "",
+            isProcedureCollective,
+          };
+        });
+      }
+    } catch {
+      // BODACC API unavailable — fallback to complements
+    }
+
+    // Fallback: use complements.collecte_procol from enterprise-lookup
+    let hasProcedureCollective = annonces.some((a: any) => a.isProcedureCollective);
+
+    if (!apiWorked && complements) {
+      const procol = complements.collecte_procol ?? complements.est_en_procedure_collective;
+      if (procol === true || procol === "true") {
+        hasProcedureCollective = true;
+        annonces.push({
+          date: "",
+          type: "Procedure collective (source Annuaire Entreprises)",
+          description: "Procedure collective detectee via les complements Annuaire Entreprises",
+          tribunal: "",
+          numero: "",
+          isProcedureCollective: true,
+        });
+      }
+    }
 
     const alertes: string[] = [];
     if (hasProcedureCollective) {
-      const proc = annonces.find(a => a.isProcedureCollective);
+      const proc = annonces.find((a: any) => a.isProcedureCollective);
       alertes.push(`PROCEDURE COLLECTIVE DETECTEE : ${proc?.type} du ${proc?.date}`);
     }
 
-    // Check for recent ventes de fonds de commerce
-    const venteFonds = annonces.filter(a =>
+    const venteFonds = annonces.filter((a: any) =>
       a.description.includes("vente") && a.description.includes("fonds")
     );
     if (venteFonds.length > 0) {
@@ -90,15 +95,20 @@ serve(async (req) => {
       hasProcedureCollective,
       alertes,
       malus: hasProcedureCollective ? 30 : 0,
-      status: hasProcedureCollective ? "ALERTE" : alertes.length > 0 ? "ATTENTION" : "OK",
-    }), { headers: CORS });
-  } catch (err) {
+      status: hasProcedureCollective ? "ALERTE" : alertes.length > 0 ? "ATTENTION" : "ok",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
     return new Response(JSON.stringify({
-      error: String(err),
+      error: (error as Error).message,
       annonces: [],
       hasProcedureCollective: false,
       alertes: [],
-      status: "ERREUR",
-    }), { status: 500, headers: CORS });
+      malus: 0,
+      status: "unavailable",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

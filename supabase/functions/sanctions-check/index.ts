@@ -1,56 +1,41 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const CORS = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-interface PersonToCheck {
-  nom: string;
-  prenom?: string;
-  dateNaissance?: string;
-  nationalite?: string;
-}
-
-interface SanctionMatch {
-  person: string;
-  score: number;
-  datasets: string[];
-  caption: string;
-  schema: string;
-  isPPE: boolean;
-  details: string;
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
-    const { persons, siren } = await req.json() as { persons: PersonToCheck[]; siren?: string };
+    const { persons, siren } = await req.json();
 
     if (!persons || persons.length === 0) {
-      return new Response(JSON.stringify({ matches: [], checked: 0 }), { headers: CORS });
+      return new Response(JSON.stringify({ matches: [], checked: 0, status: "ok" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    const allMatches: SanctionMatch[] = [];
+    const apiKey = Deno.env.get("OPENSANCTIONS_API_KEY");
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (apiKey) {
+      headers["Authorization"] = `ApiKey ${apiKey}`;
+    }
+
+    const allMatches: any[] = [];
     let checked = 0;
 
     for (const person of persons.slice(0, 10)) {
       const fullName = `${person.prenom ?? ""} ${person.nom}`.trim();
       if (!fullName || fullName.length < 2) continue;
-
       checked++;
 
-      // Build request body for OpenSanctions match API
       const body: Record<string, unknown> = {
         schema: "Person",
-        properties: {
-          name: [fullName],
-        },
+        properties: { name: [fullName] },
       };
-
       if (person.dateNaissance) {
         body.properties = { ...(body.properties as Record<string, unknown>), birthDate: [person.dateNaissance] };
       }
@@ -61,15 +46,12 @@ serve(async (req) => {
       try {
         const res = await fetch("https://api.opensanctions.org/match/default", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(body),
           signal: AbortSignal.timeout(10000),
         });
 
-        if (!res.ok) {
-          console.error(`OpenSanctions returned ${res.status} for ${fullName}`);
-          continue;
-        }
+        if (!res.ok) continue;
 
         const data = await res.json();
         const responses = data.responses?.default ?? data.results ?? [];
@@ -82,14 +64,12 @@ serve(async (req) => {
           const schema = result.schema ?? "";
           const caption = result.caption ?? result.name ?? "";
 
-          // Determine if PPE
           const isPPE = datasets.some((d: string) =>
             d.toLowerCase().includes("pep") ||
             d.toLowerCase().includes("ppe") ||
             d.toLowerCase().includes("politically")
           ) || schema.toLowerCase().includes("pep");
 
-          // Determine sanction type
           const sanctionTypes: string[] = [];
           if (datasets.some((d: string) => d.includes("ofac") || d.includes("us_"))) sanctionTypes.push("OFAC (USA)");
           if (datasets.some((d: string) => d.includes("eu_") || d.includes("europe"))) sanctionTypes.push("UE");
@@ -108,21 +88,21 @@ serve(async (req) => {
             details: `${caption} — Sources: ${sanctionTypes.join(", ") || datasets.slice(0, 3).join(", ")} — Score: ${(matchScore * 100).toFixed(0)}%`,
           });
         }
-      } catch (e) {
-        console.error(`Error checking ${fullName}:`, e);
+      } catch {
+        // Non-blocking per person
       }
     }
 
-    // Also check company name against sanctions if siren provided
+    // Also check company by SIREN
     if (siren) {
       try {
         const companyBody = {
           schema: "Company",
-          properties: { registrationNumber: [siren.replace(/\s/g, "")] },
+          properties: { registrationNumber: [(siren as string).replace(/\s/g, "")] },
         };
         const res = await fetch("https://api.opensanctions.org/match/default", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(companyBody),
           signal: AbortSignal.timeout(8000),
         });
@@ -156,9 +136,13 @@ serve(async (req) => {
       checked,
       hasCriticalMatch,
       hasPPE,
-      status: allMatches.length > 0 ? (hasCriticalMatch ? "ALERTE" : "ATTENTION") : "OK",
-    }), { headers: CORS });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err), matches: [], checked: 0, status: "ERREUR" }), { status: 500, headers: CORS });
+      status: allMatches.length > 0 ? (hasCriticalMatch ? "ALERTE" : "ATTENTION") : "ok",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: (error as Error).message, matches: [], checked: 0, status: "unavailable" }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

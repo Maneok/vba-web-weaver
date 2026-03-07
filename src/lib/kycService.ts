@@ -46,7 +46,7 @@ export interface SanctionsResult {
   checked: number;
   hasCriticalMatch: boolean;
   hasPPE: boolean;
-  status: "OK" | "ALERTE" | "ATTENTION" | "ERREUR";
+  status: string;
 }
 
 export interface BodaccAnnonce {
@@ -62,7 +62,7 @@ export interface BodaccResult {
   hasProcedureCollective: boolean;
   alertes: string[];
   malus: number;
-  status: "OK" | "ALERTE" | "ATTENTION" | "ERREUR";
+  status: string;
 }
 
 export interface GooglePlaceInfo {
@@ -83,7 +83,7 @@ export interface GooglePlacesResult {
   alertes: string[];
   mapsUrl: string;
   mapsEmbedUrl: string | null;
-  status: "OK" | "ATTENTION" | "ERREUR" | "INDISPONIBLE";
+  status: string;
 }
 
 export interface NewsArticle {
@@ -100,7 +100,7 @@ export interface NewsResult {
   articles: NewsArticle[];
   alertes: string[];
   hasNegativeNews: boolean;
-  status: "OK" | "ALERTE" | "AUCUN_ARTICLE" | "ERREUR" | "INDISPONIBLE";
+  status: string;
 }
 
 export interface NetworkNode {
@@ -131,7 +131,7 @@ export interface NetworkResult {
   alertes: NetworkAlert[];
   totalCompanies: number;
   totalPersons: number;
-  status: "OK" | "ALERTE" | "ATTENTION" | "ERREUR";
+  status: string;
 }
 
 export interface DocumentInfo {
@@ -146,7 +146,7 @@ export interface DocumentsResult {
   documents: DocumentInfo[];
   total: number;
   autoRecovered: number;
-  status: "OK" | "ERREUR";
+  status: string;
 }
 
 export interface ScreeningState {
@@ -174,6 +174,10 @@ export const INITIAL_SCREENING: ScreeningState = {
 async function callEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke(name, { body });
   if (error) throw new Error(error.message);
+  // Edge functions always return 200 — check status field for service availability
+  if (data && typeof data === "object" && (data as Record<string, unknown>).status === "unavailable") {
+    throw new Error("Service indisponible");
+  }
   return data as T;
 }
 
@@ -247,15 +251,15 @@ export async function checkSanctions(
   try {
     return await callEdgeFunction<SanctionsResult>("sanctions-check", { persons, siren });
   } catch {
-    return { matches: [], checked: 0, hasCriticalMatch: false, hasPPE: false, status: "ERREUR" };
+    return { matches: [], checked: 0, hasCriticalMatch: false, hasPPE: false, status: "unavailable" };
   }
 }
 
-export async function checkBodacc(siren: string, raison_sociale?: string): Promise<BodaccResult> {
+export async function checkBodacc(siren: string, raison_sociale?: string, complements?: Record<string, unknown>): Promise<BodaccResult> {
   try {
-    return await callEdgeFunction<BodaccResult>("bodacc-check", { siren, raison_sociale });
+    return await callEdgeFunction<BodaccResult>("bodacc-check", { siren, raison_sociale, complements });
   } catch {
-    return { annonces: [], hasProcedureCollective: false, alertes: [], malus: 0, status: "ERREUR" };
+    return { annonces: [], hasProcedureCollective: false, alertes: [], malus: 0, status: "unavailable" };
   }
 }
 
@@ -263,7 +267,7 @@ export async function verifyGooglePlaces(raison_sociale: string, ville?: string)
   try {
     return await callEdgeFunction<GooglePlacesResult>("google-places-verify", { raison_sociale, ville });
   } catch {
-    return { found: false, place: null, alertes: [], mapsUrl: "", mapsEmbedUrl: null, status: "ERREUR" };
+    return { found: false, place: null, alertes: [], mapsUrl: "", mapsEmbedUrl: null, status: "unavailable" };
   }
 }
 
@@ -271,7 +275,7 @@ export async function checkNews(raison_sociale: string, dirigeant?: string): Pro
   try {
     return await callEdgeFunction<NewsResult>("news-check", { raison_sociale, dirigeant });
   } catch {
-    return { articles: [], alertes: [], hasNegativeNews: false, status: "ERREUR" };
+    return { articles: [], alertes: [], hasNegativeNews: false, status: "unavailable" };
   }
 }
 
@@ -282,7 +286,7 @@ export async function analyzeNetwork(
   try {
     return await callEdgeFunction<NetworkResult>("dirigeants-network", { siren, dirigeants });
   } catch {
-    return { nodes: [], edges: [], alertes: [], totalCompanies: 0, totalPersons: 0, status: "ERREUR" };
+    return { nodes: [], edges: [], alertes: [], totalCompanies: 0, totalPersons: 0, status: "unavailable" };
   }
 }
 
@@ -290,6 +294,6 @@ export async function fetchDocuments(siren: string, raison_sociale?: string): Pr
   try {
     return await callEdgeFunction<DocumentsResult>("documents-fetch", { siren, raison_sociale });
   } catch {
-    return { documents: [], total: 0, autoRecovered: 0, status: "ERREUR" };
+    return { documents: [], total: 0, autoRecovered: 0, status: "unavailable" };
   }
 }

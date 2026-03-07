@@ -1,22 +1,24 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const CORS = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
     const { mode, query } = await req.json();
-    if (!query) return new Response(JSON.stringify({ error: "query requis" }), { status: 400, headers: CORS });
+    if (!query) {
+      return new Response(JSON.stringify({ error: "query requis", results: [], status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     const clean = (query as string).replace(/\s/g, "");
 
-    // Primary: Annuaire Entreprises (free, no key, most reliable)
     let url: string;
     if (mode === "siren" && /^\d{9,14}$/.test(clean)) {
       url = `https://recherche-entreprises.api.gouv.fr/search?q=${clean.slice(0, 9)}`;
@@ -26,7 +28,9 @@ serve(async (req) => {
 
     const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
     if (!res.ok) {
-      return new Response(JSON.stringify({ error: `API Annuaire: ${res.status}`, results: [] }), { headers: CORS });
+      return new Response(JSON.stringify({ error: `API Annuaire: ${res.status}`, results: [], status: "unavailable" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const data = await res.json();
@@ -44,8 +48,10 @@ serve(async (req) => {
         ? `${dirigeants[0].nom} ${dirigeants[0].prenom}`.trim().toUpperCase()
         : "";
 
+      const siren9 = (r.siren ?? "").replace(/\s/g, "");
+
       return {
-        siren: r.siren ? `${r.siren.slice(0, 3)} ${r.siren.slice(3, 6)} ${r.siren.slice(6, 9)}` : "",
+        siren: siren9 ? `${siren9.slice(0, 3)} ${siren9.slice(3, 6)} ${siren9.slice(6, 9)}` : "",
         siret: siege.siret ?? "",
         raison_sociale: (r.nom_complet ?? r.nom_raison_sociale ?? "").toUpperCase(),
         forme_juridique: r.nature_juridique ?? "",
@@ -61,8 +67,8 @@ serve(async (req) => {
         dirigeant: dirigeantPrincipal,
         dirigeants,
         nombre_etablissements: r.nombre_etablissements ?? 1,
-        statut_diffusion: r.statut_diffusion ?? "O",
         etat_administratif: r.etat_administratif ?? "A",
+        complements: r.complements ?? {},
         etablissements: (r.matching_etablissements ?? []).slice(0, 5).map((e: any) => ({
           siret: e.siret ?? "",
           adresse: e.adresse ?? "",
@@ -73,8 +79,17 @@ serve(async (req) => {
       };
     });
 
-    return new Response(JSON.stringify({ results, total: data.total_results ?? results.length, source: "annuaire_entreprises" }), { headers: CORS });
-  } catch (err) {
-    return new Response(JSON.stringify({ error: String(err), results: [] }), { status: 500, headers: CORS });
+    return new Response(JSON.stringify({
+      results,
+      total: data.total_results ?? results.length,
+      source: "annuaire_entreprises",
+      status: "ok",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({ error: (error as Error).message, results: [], status: "unavailable" }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });

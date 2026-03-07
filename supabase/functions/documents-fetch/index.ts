@@ -1,31 +1,24 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-
-const CORS = {
+const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Content-Type": "application/json",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
 
-interface DocumentInfo {
-  type: string;
-  label: string;
-  url: string;
-  source: "pappers" | "inpi" | "auto";
-  available: boolean;
-}
-
-serve(async (req) => {
-  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
+  }
 
   try {
     const { siren, raison_sociale } = await req.json();
     if (!siren) {
-      return new Response(JSON.stringify({ error: "siren requis" }), { status: 400, headers: CORS });
+      return new Response(JSON.stringify({ error: "siren requis", documents: [], status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
     const cleanSiren = (siren as string).replace(/\s/g, "");
-    const documents: DocumentInfo[] = [];
+    const documents: any[] = [];
 
     // 1. INPI direct links (always available)
     documents.push({
@@ -36,8 +29,8 @@ serve(async (req) => {
       available: true,
     });
 
-    // 2. Pappers links (if API key available)
-    const pappersKey = Deno.env.get("PAPPERS_API_KEY");
+    // 2. Pappers API (key name is PAPPERS, not PAPPERS_API_KEY)
+    const pappersKey = Deno.env.get("PAPPERS");
     if (pappersKey) {
       try {
         const res = await fetch(
@@ -48,19 +41,17 @@ serve(async (req) => {
         if (res.ok) {
           const data = await res.json();
 
-          // Available documents from Pappers
           const pappersDocs = data.documents ?? [];
           for (const doc of pappersDocs.slice(0, 10)) {
             documents.push({
               type: doc.type ?? "Document",
               label: `${doc.type ?? "Document"} — ${doc.date_depot ?? ""}`,
-              url: doc.url ?? doc.token ? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${doc.token}` : "",
+              url: doc.url ?? (doc.token ? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${doc.token}` : ""),
               source: "pappers",
               available: !!doc.url || !!doc.token,
             });
           }
 
-          // Statuts
           if (data.statuts) {
             documents.push({
               type: "Statuts",
@@ -71,7 +62,6 @@ serve(async (req) => {
             });
           }
 
-          // Comptes annuels
           if (data.comptes?.length > 0) {
             for (const compte of data.comptes.slice(0, 3)) {
               documents.push({
@@ -84,7 +74,6 @@ serve(async (req) => {
             }
           }
 
-          // Beneficiaires effectifs declaration
           if (data.beneficiaires_effectifs?.length > 0) {
             documents.push({
               type: "Declaration BE",
@@ -100,7 +89,7 @@ serve(async (req) => {
       }
     }
 
-    // 3. Auto-generated links
+    // 3. Auto-generated free links
     documents.push({
       type: "Annuaire",
       label: "Fiche Annuaire Entreprises",
@@ -128,14 +117,18 @@ serve(async (req) => {
     return new Response(JSON.stringify({
       documents,
       total: documents.length,
-      autoRecovered: documents.filter(d => d.source === "pappers" || d.source === "inpi").length,
-      status: "OK",
-    }), { headers: CORS });
-  } catch (err) {
+      autoRecovered: documents.filter((d: any) => d.source === "pappers" || d.source === "inpi").length,
+      status: "ok",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
     return new Response(JSON.stringify({
-      error: String(err),
+      error: (error as Error).message,
       documents: [],
-      status: "ERREUR",
-    }), { status: 500, headers: CORS });
+      status: "unavailable",
+    }), {
+      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
   }
 });
