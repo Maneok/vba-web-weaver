@@ -1,9 +1,15 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES } from "@/lib/riskEngine";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
+import {
+  searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments,
+  INITIAL_SCREENING, type ScreeningState, type EnterpriseResult,
+} from "@/lib/kycService";
+import ScreeningPanel from "@/components/ScreeningPanel";
+import NetworkGraph from "@/components/NetworkGraph";
 import type { Client, OuiNon, EtatPilotage } from "@/lib/types";
 import { toast } from "sonner";
 
@@ -24,6 +30,7 @@ import {
   ArrowLeft, FileDown, Calendar, Edit3, Save, X, User, Building, MapPin,
   Phone, Mail, AlertTriangle, CheckCircle2, Clock, FileText, Shield,
   ClipboardCheck, ScrollText, Upload, Trash2, Plus, ChevronRight,
+  ExternalLink, Loader2, Newspaper, Globe, Users,
 } from "lucide-react";
 
 const DILIGENCES_MAP: Record<string, { label: string; items: string[] }> = {
@@ -55,7 +62,7 @@ interface Diligence {
 export default function ClientDetailPage() {
   const { ref } = useParams<{ ref: string }>();
   const navigate = useNavigate();
-  const { clients, updateClient, logs, collaborateurs } = useAppState();
+  const { clients, updateClient, logs } = useAppState();
 
   const client = clients.find(c => c.ref === ref);
   if (!client) {
@@ -72,10 +79,83 @@ export default function ClientDetailPage() {
 
 function ClientDetailContent({ client }: { client: Client }) {
   const navigate = useNavigate();
-  const { updateClient, logs, collaborateurs } = useAppState();
+  const { updateClient, logs } = useAppState();
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ ...client });
   const [tab, setTab] = useState("informations");
+
+  // Screening state
+  const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
+  const [screeningLaunched, setScreeningLaunched] = useState(false);
+
+  // Launch screening when Compliance or Reseau tab is opened
+  const launchComplianceScreening = useCallback(() => {
+    if (screeningLaunched) return;
+    setScreeningLaunched(true);
+
+    const siren = client.siren;
+    const raisonSociale = client.raisonSociale;
+    const ville = client.ville;
+    const dirigeant = client.dirigeant;
+
+    // Enterprise lookup to get dirigeants
+    setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
+    searchEnterprise("siren", siren.replace(/\s/g, "")).then(res => {
+      const data = res.results ?? [];
+      setScreening(prev => ({ ...prev, enterprise: { loading: false, data, error: null } }));
+
+      const ent = data[0];
+      const dirigeants = ent?.dirigeants ?? [];
+      const personsToCheck = dirigeants.length > 0
+        ? dirigeants.map(d => ({ nom: d.nom, prenom: d.prenom, dateNaissance: d.date_naissance, nationalite: d.nationalite }))
+        : [{ nom: dirigeant }];
+
+      // Sanctions
+      setScreening(prev => ({ ...prev, sanctions: { loading: true, data: null, error: null } }));
+      checkSanctions(personsToCheck, siren.replace(/\s/g, "")).then(d => {
+        setScreening(prev => ({ ...prev, sanctions: { loading: false, data: d, error: null } }));
+      }).catch(() => setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur" } })));
+
+      // BODACC
+      setScreening(prev => ({ ...prev, bodacc: { loading: true, data: null, error: null } }));
+      checkBodacc(siren, raisonSociale).then(d => {
+        setScreening(prev => ({ ...prev, bodacc: { loading: false, data: d, error: null } }));
+      }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur" } })));
+
+      // Google Places
+      setScreening(prev => ({ ...prev, google: { loading: true, data: null, error: null } }));
+      verifyGooglePlaces(raisonSociale, ville).then(d => {
+        setScreening(prev => ({ ...prev, google: { loading: false, data: d, error: null } }));
+      }).catch(() => setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur" } })));
+
+      // News
+      setScreening(prev => ({ ...prev, news: { loading: true, data: null, error: null } }));
+      checkNews(raisonSociale, dirigeant).then(d => {
+        setScreening(prev => ({ ...prev, news: { loading: false, data: d, error: null } }));
+      }).catch(() => setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur" } })));
+
+      // Network
+      if (dirigeants.length > 0) {
+        setScreening(prev => ({ ...prev, network: { loading: true, data: null, error: null } }));
+        analyzeNetwork(siren, dirigeants).then(d => {
+          setScreening(prev => ({ ...prev, network: { loading: false, data: d, error: null } }));
+        }).catch(() => setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur" } })));
+      }
+
+      // Documents
+      setScreening(prev => ({ ...prev, documents: { loading: true, data: null, error: null } }));
+      fetchDocuments(siren, raisonSociale).then(d => {
+        setScreening(prev => ({ ...prev, documents: { loading: false, data: d, error: null } }));
+      }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })));
+    }).catch(() => setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur" } })));
+  }, [screeningLaunched, client]);
+
+  // Auto-launch screening on compliance/reseau tab
+  useEffect(() => {
+    if (tab === "compliance" || tab === "reseau") {
+      launchComplianceScreening();
+    }
+  }, [tab, launchComplianceScreening]);
 
   // Diligences
   const apePrefix = client.ape.substring(0, 2);
@@ -115,7 +195,6 @@ function ClientDetailContent({ client }: { client: Client }) {
 
   const vigilanceColor = client.nivVigilance === "SIMPLIFIEE" ? "#22c55e" : client.nivVigilance === "STANDARD" ? "#f59e0b" : "#ef4444";
 
-  // Score history (simulated based on current score)
   const scoreHistory = useMemo(() => {
     const base = client.scoreGlobal;
     return [
@@ -182,8 +261,8 @@ function ClientDetailContent({ client }: { client: Client }) {
         <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateLettreMission(client); toast.success("Lettre de mission generee"); }}>
           <FileDown className="w-4 h-4" /> Lettre de mission (PDF)
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => toast.info("Revision planifiee")}>
-          <Calendar className="w-4 h-4" /> Planifier revision
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }}>
+          <Shield className="w-4 h-4" /> Lancer screening
         </Button>
       </div>
 
@@ -199,13 +278,15 @@ function ClientDetailContent({ client }: { client: Client }) {
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="bg-white/[0.03] border border-white/[0.06]">
-          <TabsTrigger value="informations" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Informations</TabsTrigger>
-          <TabsTrigger value="personnes" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Personnes</TabsTrigger>
-          <TabsTrigger value="scoring" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Scoring</TabsTrigger>
-          <TabsTrigger value="documents" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Documents</TabsTrigger>
-          <TabsTrigger value="diligences" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Diligences</TabsTrigger>
-          <TabsTrigger value="historique" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">Historique</TabsTrigger>
+        <TabsList className="bg-white/[0.03] border border-white/[0.06] flex-wrap h-auto gap-0.5 p-1">
+          <TabsTrigger value="informations" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Informations</TabsTrigger>
+          <TabsTrigger value="personnes" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Personnes</TabsTrigger>
+          <TabsTrigger value="reseau" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Reseau</TabsTrigger>
+          <TabsTrigger value="scoring" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Scoring</TabsTrigger>
+          <TabsTrigger value="documents" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Documents</TabsTrigger>
+          <TabsTrigger value="diligences" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Diligences</TabsTrigger>
+          <TabsTrigger value="compliance" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Compliance</TabsTrigger>
+          <TabsTrigger value="historique" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Historique</TabsTrigger>
         </TabsList>
 
         {/* TAB: Informations */}
@@ -277,7 +358,43 @@ function ClientDetailContent({ client }: { client: Client }) {
         {/* TAB: Personnes */}
         <TabsContent value="personnes" className="mt-4">
           <div className="glass-card p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-slate-300">Beneficiaires effectifs</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-slate-300">Beneficiaires effectifs & Screening PPE</h3>
+              {!screeningLaunched && (
+                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={launchComplianceScreening}>
+                  <Shield className="w-3.5 h-3.5" /> Verifier sanctions/PPE
+                </Button>
+              )}
+            </div>
+
+            {/* Sanctions results inline */}
+            {screening.sanctions.loading && (
+              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                <span className="text-sm text-blue-400">Verification OpenSanctions en cours...</span>
+              </div>
+            )}
+            {screening.sanctions.data && screening.sanctions.data.matches.length > 0 && (
+              <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/30 space-y-2">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <span className="text-sm font-bold text-red-400">ALERTES SANCTIONS / PPE</span>
+                </div>
+                {screening.sanctions.data.matches.map((m, i) => (
+                  <div key={i} className="ml-7 text-xs text-red-300">
+                    <span className="font-semibold">{m.person}</span> — {m.details}
+                    {m.isPPE && <Badge className="ml-2 bg-red-500/20 text-red-400 border-0 text-[9px]">PPE</Badge>}
+                  </div>
+                ))}
+              </div>
+            )}
+            {screening.sanctions.data && screening.sanctions.data.matches.length === 0 && (
+              <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20 flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-sm text-emerald-400">Aucun match sanctions/PPE detecte ({screening.sanctions.data.checked} personne(s) verifiee(s))</span>
+              </div>
+            )}
+
             {client.be ? (
               <div className="space-y-2">
                 {client.be.split(",").map((b, i) => (
@@ -300,10 +417,82 @@ function ClientDetailContent({ client }: { client: Client }) {
           </div>
         </TabsContent>
 
+        {/* TAB: Reseau (D3.js graph) */}
+        <TabsContent value="reseau" className="mt-4">
+          <div className="glass-card p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-300">Graphe relationnel des dirigeants</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Detection automatique des reseaux de societes et mandats multiples</p>
+              </div>
+              {!screeningLaunched && (
+                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={launchComplianceScreening}>
+                  <Users className="w-3.5 h-3.5" /> Analyser le reseau
+                </Button>
+              )}
+            </div>
+
+            {screening.network.loading && (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+                <span className="text-sm text-slate-400 ml-3">Analyse du reseau en cours...</span>
+              </div>
+            )}
+
+            {screening.network.data && (
+              <>
+                {/* Alertes reseau */}
+                {screening.network.data.alertes.length > 0 && (
+                  <div className="space-y-2">
+                    {screening.network.data.alertes.map((a, i) => (
+                      <div key={i} className={`p-3 rounded-lg flex items-start gap-2 ${
+                        a.severity === "red" ? "bg-red-500/10 border border-red-500/20" : "bg-amber-500/10 border border-amber-500/20"
+                      }`}>
+                        <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />
+                        <span className={`text-xs ${a.severity === "red" ? "text-red-300" : "text-amber-300"}`}>{a.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Stats */}
+                <div className="flex gap-4">
+                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] text-center flex-1">
+                    <p className="text-2xl font-bold text-white">{screening.network.data.totalCompanies}</p>
+                    <p className="text-[10px] text-slate-500">Societes detectees</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] text-center flex-1">
+                    <p className="text-2xl font-bold text-white">{screening.network.data.totalPersons}</p>
+                    <p className="text-[10px] text-slate-500">Personnes</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] text-center flex-1">
+                    <p className="text-2xl font-bold text-white">{screening.network.data.alertes.length}</p>
+                    <p className="text-[10px] text-slate-500">Alertes</p>
+                  </div>
+                </div>
+
+                {/* Graph */}
+                <NetworkGraph
+                  nodes={screening.network.data.nodes}
+                  edges={screening.network.data.edges}
+                  width={800}
+                  height={500}
+                />
+              </>
+            )}
+
+            {!screening.network.loading && !screening.network.data && !screeningLaunched && (
+              <div className="text-center py-16 text-slate-500">
+                <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">Cliquez sur "Analyser le reseau" pour lancer l'analyse</p>
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
         {/* TAB: Scoring */}
         <TabsContent value="scoring" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Radar */}
             <div className="glass-card p-6">
               <h3 className="text-sm font-semibold text-slate-300 mb-2">Radar de risque 6 axes</h3>
               <ResponsiveContainer width="100%" height={300}>
@@ -317,7 +506,6 @@ function ClientDetailContent({ client }: { client: Client }) {
               </ResponsiveContainer>
             </div>
 
-            {/* Score breakdown + gauge */}
             <div className="space-y-6">
               <div className="glass-card p-6 text-center">
                 <div className="relative w-32 h-32 mx-auto">
@@ -359,9 +547,18 @@ function ClientDetailContent({ client }: { client: Client }) {
                   ))}
                 </div>
               </div>
+
+              {/* BODACC malus indicator */}
+              {screening.bodacc.data?.hasProcedureCollective && (
+                <div className="glass-card p-3 border-amber-500/20">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-400" />
+                    <span className="text-xs text-amber-400 font-semibold">Malus BODACC : +30 (procedure collective)</span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Score history */}
             <div className="glass-card p-6 lg:col-span-2">
               <h3 className="text-sm font-semibold text-slate-300 mb-2">Historique du score</h3>
               <ResponsiveContainer width="100%" height={200}>
@@ -382,14 +579,22 @@ function ClientDetailContent({ client }: { client: Client }) {
           <div className="glass-card p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-300">Gestion documentaire</h3>
-              <label>
-                <input type="file" multiple className="hidden" onChange={() => toast.info("Upload simule")} />
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06] cursor-pointer" asChild>
-                  <span><Upload className="w-3.5 h-3.5" /> Ajouter</span>
-                </Button>
-              </label>
+              <div className="flex gap-2">
+                {!screeningLaunched && (
+                  <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={launchComplianceScreening}>
+                    <Globe className="w-3.5 h-3.5" /> Recuperer documents
+                  </Button>
+                )}
+                <label>
+                  <input type="file" multiple className="hidden" onChange={() => toast.info("Upload simule")} />
+                  <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06] cursor-pointer" asChild>
+                    <span><Upload className="w-3.5 h-3.5" /> Ajouter</span>
+                  </Button>
+                </label>
+              </div>
             </div>
 
+            {/* KYC completeness */}
             <div className="grid grid-cols-4 gap-3">
               {[
                 { type: "KBIS", linked: !!client.lienKbis },
@@ -406,6 +611,46 @@ function ClientDetailContent({ client }: { client: Client }) {
                 </div>
               ))}
             </div>
+
+            {/* Auto-recovered documents from APIs */}
+            {screening.documents.loading && (
+              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-center gap-2">
+                <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                <span className="text-sm text-blue-400">Recherche de documents en cours...</span>
+              </div>
+            )}
+            {screening.documents.data && screening.documents.data.documents.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold text-slate-400">Documents auto-recuperes ({screening.documents.data.autoRecovered})</h4>
+                {screening.documents.data.documents.map((doc, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                    <div className="flex items-center gap-3">
+                      <FileText className="w-4 h-4 text-slate-500" />
+                      <div>
+                        <p className="text-sm text-slate-200">{doc.label}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
+                          <Badge className={`text-[9px] border-0 ${
+                            doc.source === "pappers" ? "bg-emerald-500/20 text-emerald-400" :
+                            doc.source === "inpi" ? "bg-blue-500/20 text-blue-400" :
+                            "bg-amber-500/20 text-amber-400"
+                          }`}>
+                            {doc.source === "pappers" ? "Pappers" : doc.source === "inpi" ? "INPI" : "Lien auto"}
+                          </Badge>
+                        </div>
+                      </div>
+                    </div>
+                    {doc.url && (
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer">
+                        <Button variant="ghost" size="sm" className="gap-1 text-blue-400 hover:text-blue-300 h-7 text-xs">
+                          <ExternalLink className="w-3 h-3" /> Ouvrir
+                        </Button>
+                      </a>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </TabsContent>
 
@@ -446,11 +691,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                           {["MAGALIE", "JULIEN", "FANNY", "SERGE", "JOSE"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Input
-                        type="date" value={d.deadline}
-                        onChange={e => updateDiligence(i, "deadline", e.target.value)}
-                        className="w-[140px] h-8 text-xs bg-white/[0.03] border-white/[0.06]"
-                      />
+                      <Input type="date" value={d.deadline} onChange={e => updateDiligence(i, "deadline", e.target.value)} className="w-[140px] h-8 text-xs bg-white/[0.03] border-white/[0.06]" />
                       <Select value={d.statut} onValueChange={v => updateDiligence(i, "statut", v)}>
                         <SelectTrigger className={`w-[110px] h-8 text-xs ${
                           d.statut === "FAIT" ? "text-emerald-400 border-emerald-500/30" :
@@ -468,6 +709,118 @@ function ClientDetailContent({ client }: { client: Client }) {
                 </div>
               ))}
             </div>
+          </div>
+        </TabsContent>
+
+        {/* TAB: Compliance */}
+        <TabsContent value="compliance" className="mt-4">
+          <div className="space-y-6">
+            {/* Screening panel */}
+            <ScreeningPanel screening={screening} />
+
+            {/* BODACC History */}
+            {screening.bodacc.data && screening.bodacc.data.annonces.length > 0 && (
+              <div className="glass-card p-6 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-300">Historique legal (BODACC)</h3>
+                <div className="space-y-2">
+                  {screening.bodacc.data.annonces.map((a, i) => (
+                    <div key={i} className={`p-3 rounded-lg border ${
+                      a.isProcedureCollective ? "border-red-500/20 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {a.isProcedureCollective && <AlertTriangle className="w-3.5 h-3.5 text-red-400" />}
+                          <span className="text-sm text-slate-200 font-medium">{a.type}</span>
+                        </div>
+                        <span className="text-xs text-slate-500 font-mono">{a.date}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                      {a.tribunal && <p className="text-[10px] text-slate-500 mt-1">Tribunal: {a.tribunal}</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* News / Revue de presse */}
+            {screening.news.data && screening.news.data.articles.length > 0 && (
+              <div className="glass-card p-6 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <Newspaper className="w-4 h-4 text-purple-400" /> Revue de presse
+                </h3>
+                <div className="space-y-2">
+                  {screening.news.data.articles.map((a, i) => (
+                    <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
+                      className={`block p-3 rounded-lg border hover:bg-white/[0.03] transition-colors ${
+                        a.hasAlertKeyword ? "border-red-500/20 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1">
+                          <p className="text-sm text-slate-200 font-medium">{a.title}</p>
+                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <span className="text-[10px] text-slate-500">{a.source}</span>
+                            <span className="text-[10px] text-slate-500">{a.publishedAt?.split("T")[0]}</span>
+                            {a.hasAlertKeyword && (
+                              <Badge className="bg-red-500/15 text-red-400 border-0 text-[9px]">
+                                Mots-cles : {a.matchedKeywords.join(", ")}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                        <ExternalLink className="w-4 h-4 text-slate-500 shrink-0 mt-1" />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Google Places */}
+            {screening.google.data?.place && (
+              <div className="glass-card p-6 space-y-3">
+                <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-emerald-400" /> Verification Google Places
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <InfoRow label="Nom" value={screening.google.data.place.name} />
+                    <InfoRow label="Adresse" value={screening.google.data.place.address} />
+                    <InfoRow label="Statut" value={screening.google.data.place.businessStatus === "OPERATIONAL" ? "En activite" : screening.google.data.place.businessStatus} />
+                    <InfoRow label="Note" value={screening.google.data.place.rating ? `${screening.google.data.place.rating}/5 (${screening.google.data.place.totalRatings} avis)` : "Pas de note"} />
+                  </div>
+                  <div>
+                    {screening.google.data.mapsEmbedUrl && (
+                      <iframe
+                        src={screening.google.data.mapsEmbedUrl}
+                        width="100%" height="200"
+                        style={{ border: 0, borderRadius: "8px" }}
+                        allowFullScreen
+                        loading="lazy"
+                        title="Google Maps"
+                      />
+                    )}
+                    {!screening.google.data.mapsEmbedUrl && screening.google.data.mapsUrl && (
+                      <a href={screening.google.data.mapsUrl} target="_blank" rel="noopener noreferrer"
+                        className="flex items-center gap-2 text-sm text-blue-400 hover:underline mt-4">
+                        <MapPin className="w-4 h-4" /> Voir sur Google Maps <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!screeningLaunched && (
+              <div className="text-center py-16 glass-card">
+                <Shield className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-30" />
+                <p className="text-sm text-slate-500">Cliquez sur "Lancer screening" pour verifier ce client</p>
+                <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700" onClick={launchComplianceScreening}>
+                  <Shield className="w-4 h-4" /> Lancer le screening compliance
+                </Button>
+              </div>
+            )}
           </div>
         </TabsContent>
 
