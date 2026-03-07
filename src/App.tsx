@@ -12,7 +12,7 @@ import GouvernancePage from "@/pages/GouvernancePage";
 import ControlePage from "@/pages/ControlePage";
 import RegistrePage from "@/pages/RegistrePage";
 import LogsPage from "@/pages/LogsPage";
-
+import SettingsPage from "@/pages/SettingsPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();

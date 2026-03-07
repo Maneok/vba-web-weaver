@@ -56,6 +56,13 @@ export default function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <button
+              onClick={() => navigate("/parametres")}
+              className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-xs text-slate-200 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Parametres
+            </button>
             <span className="hidden sm:inline text-[11px] text-slate-500 font-mono">
               {new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
             </span>

@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-<
+
 import { useAppState } from "@/lib/AppContext";
 
 interface AppSidebarProps {
@@ -45,13 +45,6 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         {MENU_ITEMS.map((item) => {
           const Icon = item.icon;
           const badge = badges[item.to];
-
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
 
                   isActive
                     ? "bg-blue-500/15 text-blue-200"
