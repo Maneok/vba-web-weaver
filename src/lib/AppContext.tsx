@@ -27,8 +27,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
       utilisateur: "Utilisateur",
       refClient: client.ref,
-      typeAction: "CRÉATION",
-      details: `Nouveau dossier créé: ${client.raisonSociale}`,
+      typeAction: "CREATION",
+      details: `Nouveau dossier cree: ${client.raisonSociale}`,
     }, ...prev]);
   }, []);
 
@@ -39,7 +39,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       utilisateur: "Utilisateur",
       refClient: ref,
       typeAction: "REVUE/MAJ",
-      details: `Mise à jour du dossier`,
+      details: `Mise a jour du dossier`,
     }, ...prev]);
   }, []);
 
