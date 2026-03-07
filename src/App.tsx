@@ -11,6 +11,9 @@ import GouvernancePage from "@/pages/GouvernancePage";
 import ControlePage from "@/pages/ControlePage";
 import RegistrePage from "@/pages/RegistrePage";
 import LogsPage from "@/pages/LogsPage";
+import GedPage from "@/pages/GedPage";
+import PricingPage from "@/pages/PricingPage";
+import CheckoutSuccessPage from "@/pages/CheckoutSuccessPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,6 +26,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/pricing" element={<PricingPage />} />
+            <Route path="/checkout/success" element={<CheckoutSuccessPage />} />
             <Route element={<AppLayout />}>
               <Route path="/" element={<DashboardPage />} />
               <Route path="/bdd" element={<BddPage />} />
@@ -30,6 +35,7 @@ const App = () => (
               <Route path="/controle" element={<ControlePage />} />
               <Route path="/registre" element={<RegistrePage />} />
               <Route path="/logs" element={<LogsPage />} />
+              <Route path="/ged" element={<GedPage />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>

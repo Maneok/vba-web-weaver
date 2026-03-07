@@ -1,9 +1,10 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { BarChart3, Database, Users, AlertTriangle, ClipboardCheck, FileText, Shield } from "lucide-react";
+import { BarChart3, Database, Users, AlertTriangle, ClipboardCheck, FileText, Shield, FolderOpen } from "lucide-react";
 
 const NAV_ITEMS = [
   { to: "/", icon: BarChart3, label: "Dashboard", emoji: "📊" },
   { to: "/bdd", icon: Database, label: "Base Clients", emoji: "📁" },
+  { to: "/ged", icon: FolderOpen, label: "GED", emoji: "📂" },
   { to: "/gouvernance", icon: Users, label: "Gouvernance", emoji: "👥" },
   { to: "/controle", icon: ClipboardCheck, label: "Contrôle", emoji: "🔍" },
   { to: "/registre", icon: AlertTriangle, label: "Registre LCB", emoji: "📒" },
