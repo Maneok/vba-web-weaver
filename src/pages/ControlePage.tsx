@@ -1,11 +1,9 @@
+import { useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
-import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
-import { ClipboardCheck, Target, FileCheck, Shield } from "lucide-react";
 
 export default function ControlePage() {
   const { clients } = useAppState();
 
-  const auditable = (() => {
     if (clients.length <= 5) return [...clients];
     const now = new Date();
     const seed = now.getFullYear() * 100 + now.getMonth();
@@ -17,8 +15,6 @@ export default function ControlePage() {
       client: c,
       weight: c.scoreGlobal * 2 + seededRandom(i) * 30,
     }));
-    return weighted.sort((a, b) => b.weight - a.weight).slice(0, 5).map(w => w.client);
-  })();
 
   const checkpoints = [
     { icon: Shield, title: "Identite & Beneficiaires Effectifs", desc: "Verifier CNI, KBIS, RBE a jour" },
@@ -27,13 +23,7 @@ export default function ControlePage() {
   ];
 
   return (
-    <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
-      {/* Header */}
-      <div className="animate-fade-in-up">
-        <h1 className="text-xl font-bold text-white">Controle Qualite Mensuel</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Tirage aleatoire de dossiers pour controle --- {new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" })}
-        </p>
+>>>>>> main
       </div>
 
       {/* Drawn files */}

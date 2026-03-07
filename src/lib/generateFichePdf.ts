@@ -57,8 +57,20 @@ export function generateFicheAcceptation(client: Client) {
   addRow("Téléphone", client.tel, "Email", client.mail);
   addRow("Effectif", client.effectif, "Date création", client.dateCreation);
   addRow("Domaine d'activité", client.domaine);
-  if (client.be) addRow("Bénéficiaires effectifs", client.be);
   y += 3;
+
+  // === BENEFICIAIRES EFFECTIFS ===
+  if (client.be) {
+    addTitle("1b. BENEFICIAIRES EFFECTIFS (RBE)");
+    const beEntries = client.be.split("/").map(b => b.trim());
+    for (const be of beEntries) {
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.text(`  - ${be}`, marginL + 2, y);
+      y += 5;
+    }
+    y += 2;
+  }
 
   // ====== MISSION ======
   addTitle("2. NATURE DE LA MISSION");
@@ -77,51 +89,129 @@ export function generateFicheAcceptation(client: Client) {
   addRow("Espèces significatives", flag(client.cash), "Pression du client", flag(client.pression));
   y += 3;
 
-  // ====== SCORING ======
-  addTitle("4. ÉVALUATION DU RISQUE (SCORING)");
-  
-  // Score table
+  // ====== SCORING WITH RADAR ======
+  addTitle("4. EVALUATION DU RISQUE (SCORING)");
+
   const scores = [
-    { label: "Activité (APE)", value: client.scoreActivite },
+    { label: "Activite", value: client.scoreActivite },
     { label: "Pays", value: client.scorePays },
     { label: "Mission", value: client.scoreMission },
-    { label: "Maturité", value: client.scoreMaturite },
+    { label: "Maturite", value: client.scoreMaturite },
     { label: "Structure", value: client.scoreStructure },
   ];
 
-  // Header row
-  doc.setFillColor(240, 240, 240);
-  doc.rect(marginL, y - 3, marginR - marginL, 6, "F");
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  const colW = (marginR - marginL) / 6;
-  scores.forEach((s, i) => {
-    doc.text(s.label, marginL + 2 + i * colW, y);
-  });
-  doc.text("GLOBAL", marginL + 2 + 5 * colW, y);
-  y += 6;
+  // --- RADAR CHART ---
+  const radarCx = marginL + 45;
+  const radarCy = y + 38;
+  const radarR = 30;
+  const n = scores.length;
+  const angleOffset = -Math.PI / 2;
 
-  // Values row
-  doc.setFont("helvetica", "normal");
-  scores.forEach((s, i) => {
-    doc.text(String(s.value), marginL + 2 + i * colW, y);
-  });
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text(String(client.scoreGlobal), marginL + 2 + 5 * colW, y);
-  y += 5;
-
-  if (client.malus > 0) {
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(180, 0, 0);
-    doc.text(`Malus appliqué : +${client.malus} points`, marginL + 2, y);
-    doc.setTextColor(0, 0, 0);
-    y += 5;
+  // Grid circles
+  for (let ring = 1; ring <= 4; ring++) {
+    const r = (radarR * ring) / 4;
+    doc.setDrawColor(200, 200, 200);
+    doc.setLineWidth(0.2);
+    doc.circle(radarCx, radarCy, r);
   }
 
+  // Grid labels
+  doc.setFontSize(6);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(150, 150, 150);
+  for (let ring = 1; ring <= 4; ring++) {
+    doc.text(String(ring * 25), radarCx + 1, radarCy - (radarR * ring) / 4 + 1);
+  }
+
+  // Axis lines and labels
+  doc.setTextColor(30, 58, 95);
+  doc.setFontSize(7);
+  doc.setFont("helvetica", "bold");
+  const radarPoints: [number, number][] = [];
+  for (let i = 0; i < n; i++) {
+    const angle = angleOffset + (2 * Math.PI * i) / n;
+    const axX = radarCx + radarR * Math.cos(angle);
+    const axY = radarCy + radarR * Math.sin(angle);
+    doc.setDrawColor(180, 180, 180);
+    doc.setLineWidth(0.15);
+    doc.line(radarCx, radarCy, axX, axY);
+
+    // Label position
+    const lx = radarCx + (radarR + 8) * Math.cos(angle);
+    const ly = radarCy + (radarR + 8) * Math.sin(angle);
+    doc.text(scores[i].label, lx, ly, { align: "center" });
+
+    // Data point
+    const val = Math.min(scores[i].value, 100) / 100;
+    const px = radarCx + radarR * val * Math.cos(angle);
+    const py = radarCy + radarR * val * Math.sin(angle);
+    radarPoints.push([px, py]);
+  }
+
+  // Draw filled polygon
+  if (radarPoints.length > 0) {
+    doc.setFillColor(30, 58, 95);
+    doc.setDrawColor(30, 58, 95);
+    doc.setLineWidth(0.5);
+    // Manual polygon path
+    const firstPt = radarPoints[0];
+    let pathStr = `${firstPt[0]} ${firstPt[1]} m `;
+    for (let i = 1; i < radarPoints.length; i++) {
+      pathStr += `${radarPoints[i][0]} ${radarPoints[i][1]} l `;
+    }
+    // Use lines instead since jsPDF doesn't have easy polygon fill
+    for (let i = 0; i < radarPoints.length; i++) {
+      const next = radarPoints[(i + 1) % radarPoints.length];
+      doc.line(radarPoints[i][0], radarPoints[i][1], next[0], next[1]);
+    }
+    // Draw filled circles at data points
+    for (const pt of radarPoints) {
+      doc.setFillColor(30, 58, 95);
+      doc.circle(pt[0], pt[1], 1, "F");
+    }
+  }
+
+  // Score table on the right side
+  const tableX = marginL + 100;
+  let tableY = y + 5;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(0, 0, 0);
+  doc.setFillColor(240, 240, 245);
+  doc.rect(tableX, tableY - 3, 80, 6, "F");
+  doc.text("Critere", tableX + 2, tableY);
+  doc.text("Score", tableX + 50, tableY);
+  doc.text("/100", tableX + 65, tableY);
+  tableY += 6;
+
+  doc.setFont("helvetica", "normal");
+  for (const s of scores) {
+    doc.text(s.label, tableX + 2, tableY);
+    // Color-coded bar
+    const barW = (s.value / 100) * 30;
+    const barColor: [number, number, number] = s.value <= 25 ? [76, 175, 80] : s.value < 60 ? [255, 152, 0] : [244, 67, 54];
+    doc.setFillColor(barColor[0], barColor[1], barColor[2]);
+    doc.rect(tableX + 40, tableY - 2.5, barW, 3, "F");
+    doc.text(String(s.value), tableX + 72, tableY);
+    tableY += 5.5;
+  }
+
+  // Global score
+  tableY += 2;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.text(`SCORE GLOBAL : ${client.scoreGlobal}`, tableX + 2, tableY);
+  if (client.malus > 0) {
+    tableY += 5;
+    doc.setFontSize(8);
+    doc.setTextColor(200, 0, 0);
+    doc.text(`dont malus : +${client.malus}`, tableX + 2, tableY);
+    doc.setTextColor(0, 0, 0);
+  }
+
+  y = Math.max(radarCy + radarR + 15, tableY + 8);
+
   // Vigilance result
-  y += 2;
   const vigColor: Record<string, [number, number, number]> = {
     SIMPLIFIEE: [34, 139, 34],
     STANDARD: [200, 150, 0],

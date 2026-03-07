@@ -5,18 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { useAppState } from "@/lib/AppContext";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus } from "@/lib/riskEngine";
 import type { Client, OuiNon, MissionType, EtatPilotage } from "@/lib/types";
+import type { PappersResult } from "@/lib/pappersService";
 import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
-import { AlertTriangle } from "lucide-react";
 
 interface Props { open: boolean; onClose: () => void; }
 
 const MISSIONS: MissionType[] = ["TENUE COMPTABLE", "REVISION / SURVEILLANCE", "SOCIAL / PAIE SEULE", "CONSEIL DE GESTION", "CONSTITUTION / CESSION", "DOMICILIATION", "IRPP"];
-const FORMES = ["ENTREPRISE INDIVIDUELLE", "SARL", "EURL", "SAS", "SCI", "SCP", "SELAS", "EARL", "SA"];
-const EFFECTIFS = ["0 SALARIE", "1 OU 2 SALARIES", "3 A 5 SALARIES", "6 A 10 SALARIES", "11 A 50 SALARIES", "PLUS DE 50"];
-const FREQUENCES = ["MENSUEL", "TRIMESTRIEL", "ANNUEL"];
 
 export default function NewClientDialog({ open, onClose }: Props) {
   const { clients, addClient } = useAppState();
@@ -28,6 +26,7 @@ export default function NewClientDialog({ open, onClose }: Props) {
     comptable: "MAGALIE", associe: "DIDIER", superviseur: "SAMUEL",
     ppe: false, paysRisque: false, atypique: false, distanciel: false, cash: false, pression: false,
     be: "",
+    lienKbis: "", lienStatuts: "", lienCni: "",
   });
 
   const risk = calculateRiskScore({
@@ -37,6 +36,32 @@ export default function NewClientDialog({ open, onClose }: Props) {
     ppe: form.ppe, atypique: form.atypique, distanciel: form.distanciel,
     cash: form.cash, pression: form.pression,
   });
+
+  const handlePappersSelect = (result: PappersResult) => {
+    const formeMatch = FORMES.find(f =>
+      f === result.forme_juridique ||
+      result.forme_juridique_raw.toUpperCase().includes(f)
+    );
+
+    setForm(prev => ({
+      ...prev,
+      siren: result.siren,
+      raisonSociale: result.raison_sociale,
+      forme: formeMatch || result.forme_juridique || prev.forme,
+      adresse: result.adresse || prev.adresse,
+      cp: result.code_postal || prev.cp,
+      ville: result.ville || prev.ville,
+      ape: result.ape || prev.ape,
+      domaine: result.libelle_ape || prev.domaine,
+      capital: result.capital || prev.capital,
+      dateCreation: result.date_creation || prev.dateCreation,
+      effectif: result.effectif || prev.effectif,
+      dirigeant: result.dirigeant || prev.dirigeant,
+      be: result.beneficiaires_effectifs || prev.be,
+      lienKbis: result.document_urls?.["Extrait Kbis"] || result.document_urls?.["kbis"] || prev.lienKbis,
+      lienStatuts: result.document_urls?.["Statuts"] || result.document_urls?.["statuts"] || prev.lienStatuts,
+    }));
+  };
 
   const handleSubmit = () => {
     const now = new Date().toISOString().split("T")[0];
@@ -78,14 +103,16 @@ export default function NewClientDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto bg-[hsl(217,33%,14%)] border-white/[0.06]">
-        <DialogHeader>
-          <DialogTitle className="text-lg text-white">Nouveau Client</DialogTitle>
+
         </DialogHeader>
 
+        {/* Auto-KYC Pappers Search */}
+        <PappersSearch onSelect={handlePappersSelect} />
+
+        <Separator />
+
         {/* Live score preview */}
-        <div className="bg-white/[0.03] border border-white/[0.04] rounded-xl p-4 flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-300">Score en temps reel</span>
+n
           <div className="flex items-center gap-3">
             <ScoreGauge score={risk.scoreGlobal} />
             <VigilanceBadge level={risk.nivVigilance} />
@@ -99,36 +126,29 @@ export default function NewClientDialog({ open, onClose }: Props) {
             <div><Label className="text-slate-400 text-xs">Forme Juridique</Label>
               <Select value={form.forme} onValueChange={v => set("forme", v)}><SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger><SelectContent>{FORMES.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent></Select>
             </div>
-            <div><Label className="text-slate-400 text-xs">Code APE</Label><Input value={form.ape} onChange={e => set("ape", e.target.value)} placeholder="ex: 56.10A" className="bg-white/[0.03] border-white/[0.06]" /></div>
-            <div><Label className="text-slate-400 text-xs">Dirigeant</Label><Input value={form.dirigeant} onChange={e => set("dirigeant", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-            <div><Label className="text-slate-400 text-xs">Domaine d'activite</Label><Input value={form.domaine} onChange={e => set("domaine", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-            <div><Label className="text-slate-400 text-xs">Effectif</Label>
-              <Select value={form.effectif} onValueChange={v => set("effectif", v)}><SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger><SelectContent>{EFFECTIFS.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent></Select>
+>>> main
             </div>
           </div>
           <div className="space-y-3">
             <div><Label className="text-slate-400 text-xs">Mission *</Label>
               <Select value={form.mission} onValueChange={v => set("mission", v)}><SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger><SelectContent>{MISSIONS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select>
             </div>
-            <div><Label className="text-slate-400 text-xs">Honoraires (EUR)</Label><Input type="number" value={form.honoraires} onChange={e => set("honoraires", +e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-            <div><Label className="text-slate-400 text-xs">Comptable</Label><Input value={form.comptable} onChange={e => set("comptable", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-            <div><Label className="text-slate-400 text-xs">Adresse</Label><Input value={form.adresse} onChange={e => set("adresse", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+>>>>> main
             <div className="grid grid-cols-2 gap-2">
               <div><Label className="text-slate-400 text-xs">CP</Label><Input value={form.cp} onChange={e => set("cp", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
               <div><Label className="text-slate-400 text-xs">Ville</Label><Input value={form.ville} onChange={e => set("ville", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
             </div>
-            <div><Label className="text-slate-400 text-xs">Date creation societe</Label><Input type="date" value={form.dateCreation} onChange={e => set("dateCreation", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-            <div><Label className="text-slate-400 text-xs">Date reprise dossier</Label><Input type="date" value={form.dateReprise} onChange={e => set("dateReprise", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
           </div>
         </div>
 
+        {/* Contact */}
+        <div className="grid grid-cols-2 gap-4">
+          <div><Label>Telephone</Label><Input value={form.tel} onChange={e => set("tel", e.target.value)} placeholder="0XXXXXXXXX" /></div>
+          <div><Label>Email</Label><Input value={form.mail} onChange={e => set("mail", e.target.value)} placeholder="email@exemple.fr" /></div>
+        </div>
+
         {/* Risk flags */}
-        <div className="border border-white/[0.06] rounded-xl p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-amber-400" />
-            <h3 className="text-sm font-semibold text-slate-300">Facteurs de Risque</h3>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
+>>>>> main
             {[
               { key: "ppe", label: "PPE (Personne Politiquement Exposee)" },
               { key: "paysRisque", label: "Pays a risque (GAFI)" },
@@ -145,15 +165,7 @@ export default function NewClientDialog({ open, onClose }: Props) {
           </div>
         </div>
 
-        <div><Label className="text-slate-400 text-xs">Beneficiaires Effectifs</Label><Input value={form.be} onChange={e => set("be", e.target.value)} placeholder="Nom (%) / Nom (%)" className="bg-white/[0.03] border-white/[0.06]" /></div>
-
-        <div className="flex justify-end gap-3 pt-2">
-          <Button variant="outline" onClick={onClose} className="border-white/[0.06] hover:bg-white/[0.04]">Annuler</Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={!form.raisonSociale || !form.siren || form.siren.replace(/\s/g, "").length !== 9}
-            className="bg-blue-500 hover:bg-blue-600 text-white shadow-lg shadow-blue-500/20"
-          >
+>>>>>> main
             Valider & Enregistrer
           </Button>
         </div>
