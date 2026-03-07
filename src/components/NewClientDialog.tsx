@@ -11,9 +11,11 @@ import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus } from "
 import type { Client, OuiNon, MissionType, EtatPilotage } from "@/lib/types";
 import type { PappersResult } from "@/lib/pappersService";
 import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
+import PappersSearch from "@/components/PappersSearch";
 
 interface Props { open: boolean; onClose: () => void; }
 
+const FORMES = ["ENTREPRISE INDIVIDUELLE", "SARL", "EURL", "SAS", "SCI", "SCP", "SELAS", "EARL", "SA", "ASSOCIATION"];
 const MISSIONS: MissionType[] = ["TENUE COMPTABLE", "REVISION / SURVEILLANCE", "SOCIAL / PAIE SEULE", "CONSEIL DE GESTION", "CONSTITUTION / CESSION", "DOMICILIATION", "IRPP"];
 
 export default function NewClientDialog({ open, onClose }: Props) {
@@ -103,16 +105,19 @@ export default function NewClientDialog({ open, onClose }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-[hsl(217,33%,14%)] border-white/[0.06]">
+        <DialogHeader>
+          <DialogTitle className="text-white">Nouveau Dossier Client</DialogTitle>
         </DialogHeader>
 
         {/* Auto-KYC Pappers Search */}
         <PappersSearch onSelect={handlePappersSelect} />
 
-        <Separator />
+        <Separator className="bg-white/[0.06]" />
 
         {/* Live score preview */}
-n
+        <div className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03] border border-white/[0.04]">
+          <span className="text-xs text-slate-400 uppercase tracking-widest">Score en direct</span>
           <div className="flex items-center gap-3">
             <ScoreGauge score={risk.scoreGlobal} />
             <VigilanceBadge level={risk.nivVigilance} />
@@ -126,29 +131,37 @@ n
             <div><Label className="text-slate-400 text-xs">Forme Juridique</Label>
               <Select value={form.forme} onValueChange={v => set("forme", v)}><SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger><SelectContent>{FORMES.map(f => <SelectItem key={f} value={f}>{f}</SelectItem>)}</SelectContent></Select>
             </div>
->>> main
+            <div><Label className="text-slate-400 text-xs">Dirigeant</Label><Input value={form.dirigeant} onChange={e => set("dirigeant", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+            <div><Label className="text-slate-400 text-xs">APE</Label><Input value={form.ape} onChange={e => set("ape", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+            <div><Label className="text-slate-400 text-xs">Domaine d'activite</Label><Input value={form.domaine} onChange={e => set("domaine", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+            <div><Label className="text-slate-400 text-xs">Adresse</Label><Input value={form.adresse} onChange={e => set("adresse", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div><Label className="text-slate-400 text-xs">CP</Label><Input value={form.cp} onChange={e => set("cp", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+              <div><Label className="text-slate-400 text-xs">Ville</Label><Input value={form.ville} onChange={e => set("ville", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
             </div>
           </div>
           <div className="space-y-3">
             <div><Label className="text-slate-400 text-xs">Mission *</Label>
               <Select value={form.mission} onValueChange={v => set("mission", v)}><SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger><SelectContent>{MISSIONS.map(m => <SelectItem key={m} value={m}>{m}</SelectItem>)}</SelectContent></Select>
             </div>
->>>>> main
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label className="text-slate-400 text-xs">CP</Label><Input value={form.cp} onChange={e => set("cp", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-              <div><Label className="text-slate-400 text-xs">Ville</Label><Input value={form.ville} onChange={e => set("ville", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-            </div>
+            <div><Label className="text-slate-400 text-xs">Honoraires</Label><Input type="number" value={form.honoraires} onChange={e => set("honoraires", Number(e.target.value))} className="bg-white/[0.03] border-white/[0.06]" /></div>
+            <div><Label className="text-slate-400 text-xs">Capital</Label><Input type="number" value={form.capital} onChange={e => set("capital", Number(e.target.value))} className="bg-white/[0.03] border-white/[0.06]" /></div>
+            <div><Label className="text-slate-400 text-xs">Date de creation</Label><Input type="date" value={form.dateCreation} onChange={e => set("dateCreation", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+            <div><Label className="text-slate-400 text-xs">Date de reprise</Label><Input type="date" value={form.dateReprise} onChange={e => set("dateReprise", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+            <div><Label className="text-slate-400 text-xs">Beneficiaires Effectifs</Label><Input value={form.be} onChange={e => set("be", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
           </div>
         </div>
 
         {/* Contact */}
         <div className="grid grid-cols-2 gap-4">
-          <div><Label>Telephone</Label><Input value={form.tel} onChange={e => set("tel", e.target.value)} placeholder="0XXXXXXXXX" /></div>
-          <div><Label>Email</Label><Input value={form.mail} onChange={e => set("mail", e.target.value)} placeholder="email@exemple.fr" /></div>
+          <div><Label className="text-slate-400 text-xs">Telephone</Label><Input value={form.tel} onChange={e => set("tel", e.target.value)} placeholder="0XXXXXXXXX" className="bg-white/[0.03] border-white/[0.06]" /></div>
+          <div><Label className="text-slate-400 text-xs">Email</Label><Input value={form.mail} onChange={e => set("mail", e.target.value)} placeholder="email@exemple.fr" className="bg-white/[0.03] border-white/[0.06]" /></div>
         </div>
 
         {/* Risk flags */}
->>>>> main
+        <div className="p-4 rounded-xl bg-red-500/5 border border-red-500/20">
+          <h3 className="text-[10px] font-bold uppercase tracking-widest text-red-400 mb-3">Facteurs de risque</h3>
+          <div className="grid grid-cols-2 gap-3">
             {[
               { key: "ppe", label: "PPE (Personne Politiquement Exposee)" },
               { key: "paysRisque", label: "Pays a risque (GAFI)" },
@@ -165,7 +178,8 @@ n
           </div>
         </div>
 
->>>>>> main
+        <div className="flex justify-end">
+          <Button onClick={handleSubmit} className="bg-blue-600 hover:bg-blue-700 text-white">
             Valider & Enregistrer
           </Button>
         </div>

@@ -141,14 +141,14 @@ export default function ClientDetailDialog({ client, open, onClose }: Props) {
         )}
 
         {/* Actions */}
-
+        <div className="flex items-center gap-4">
           <Button
             variant="outline"
             className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30"
             onClick={() => generateFicheAcceptation(client)}
           >
             <FileDown className="w-4 h-4" />
-
+            Fiche LCB-FT
           </Button>
           <a
             href={`https://www.pappers.fr/recherche?q=${client.siren.replace(/\s/g, "")}`}
