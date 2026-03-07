@@ -20,6 +20,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: string[] }> = {
   "/registre": { title: "Registre LCB-FT", breadcrumb: ["Accueil", "Registre LCB-FT"] },
   "/logs": { title: "Journal d'audit", breadcrumb: ["Accueil", "Journal d'audit"] },
   "/diagnostic": { title: "Diagnostic 360", breadcrumb: ["Accueil", "Diagnostic 360"] },
+  "/parametres": { title: "Parametres", breadcrumb: ["Accueil", "Parametres"] },
 };
 
 export default function AppLayout() {
@@ -64,6 +65,13 @@ export default function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <button
+              onClick={() => navigate("/parametres")}
+              className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-xs text-slate-200 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            >
+              <Settings className="h-3.5 w-3.5" />
+              Parametres
+            </button>
             <span className="hidden sm:inline text-[11px] text-slate-500 font-mono">
               {new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
             </span>
@@ -83,6 +91,9 @@ export default function AppLayout() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => navigate("/")}>
                   <User className="mr-2 h-4 w-4" /> Profil
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/parametres")}>
+                  <Settings className="mr-2 h-4 w-4" /> Parametres
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem asChild>

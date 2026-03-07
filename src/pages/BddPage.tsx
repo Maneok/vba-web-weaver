@@ -42,7 +42,7 @@ export default function BddPage() {
   };
 
   const filtered = useMemo(() => {
-    let result = clients.filter(c => {
+    const result = clients.filter(c => {
       const matchSearch = !search ||
         c.raisonSociale.toLowerCase().includes(search.toLowerCase()) ||
         c.ref.toLowerCase().includes(search.toLowerCase()) ||

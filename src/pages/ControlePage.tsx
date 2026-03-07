@@ -58,12 +58,15 @@ export default function ControlePage() {
     if (tirages.length > 0) return tirages[0].dossiers;
     // Default: seeded monthly sample
     if (clients.length <= 5) return clients;
+
     const now = new Date();
     const seed = now.getFullYear() * 100 + now.getMonth();
+
     const seededRandom = (i: number) => {
       const x = Math.sin(seed + i) * 10000;
       return x - Math.floor(x);
     };
+
     return [...clients]
       .map((client, i) => ({ client, weight: client.scoreGlobal * 2 + seededRandom(i) * 30 }))
       .sort((a, b) => b.weight - a.weight)
@@ -129,11 +132,11 @@ export default function ControlePage() {
       <div className="glass-card p-6">
         <h3 className="text-sm font-semibold text-slate-300 mb-3">Points de controle</h3>
         <div className="space-y-3">
-          {checkpoints.map((cp, i) => (
+          {checkpoints.map((cp) => (
             <div key={cp.title} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4 flex items-start gap-3">
               <cp.icon className="w-4 h-4 text-blue-400 mt-0.5" />
               <div>
-                <p className="text-sm text-slate-200 font-medium">{i + 1}. {cp.title}</p>
+                <p className="text-sm text-slate-200 font-medium">{cp.title}</p>
                 <p className="text-xs text-slate-500 mt-1">{cp.desc}</p>
               </div>
             </div>

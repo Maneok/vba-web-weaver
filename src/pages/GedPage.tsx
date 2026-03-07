@@ -66,6 +66,12 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
+
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+};
+
 export default function GedPage() {
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
@@ -214,8 +220,8 @@ export default function GedPage() {
       setUploadClientRef("");
       setUploadExpiration("");
       fetchDocuments();
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de l'import");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Erreur lors de l'import"));
     } finally {
       setUploading(false);
     }
@@ -232,7 +238,7 @@ export default function GedPage() {
       .select("file_path")
       .eq("document_id", doc.id);
     if (versionData) {
-      const paths = versionData.map((v: any) => v.file_path).filter((p: string) => p !== doc.file_path);
+      const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
       if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
     }
 
@@ -309,8 +315,8 @@ export default function GedPage() {
       setVersionComment("");
       setVersionDialogOpen(false);
       fetchDocuments();
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de la mise a jour");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Erreur lors de la mise a jour"));
     } finally {
       setUploading(false);
     }

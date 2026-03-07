@@ -54,6 +54,11 @@ const PLANS = [
   },
 ];
 
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+};
+
 export default function PricingPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
@@ -80,8 +85,8 @@ export default function PricingPage() {
       } else {
         throw new Error("Pas d'URL de paiement recue");
       }
-    } catch (err: any) {
-      toast.error(err.message || "Erreur lors de la creation de la session de paiement");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Erreur lors de la creation de la session de paiement"));
     } finally {
       setLoading(null);
     }

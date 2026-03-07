@@ -146,7 +146,7 @@ export default function ClientDetailDialog({ client, open, onClose }: Props) {
             onClick={() => generateFicheAcceptation(client)}
           >
             <FileDown className="w-4 h-4" />
-
+            Télécharger la fiche LCB-FT (PDF)
           </Button>
           <a
             href={`https://www.pappers.fr/recherche?q=${client.siren.replace(/\s/g, "")}`}

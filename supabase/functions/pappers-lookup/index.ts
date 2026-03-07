@@ -225,7 +225,7 @@ Deno.serve(async (req: Request) => {
 
     const mapped = [];
     for (const company of results) {
-      let documentUrls: Record<string, string> = {};
+      const documentUrls: Record<string, string> = {};
 
       if (download_docs && company.documents && company.siren) {
         const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";

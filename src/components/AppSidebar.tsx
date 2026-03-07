@@ -1,7 +1,6 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, UserPlus } from "lucide-react";
+import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, Settings, UserPlus } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
-import { Button } from "@/components/ui/button";
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -15,6 +14,7 @@ const MENU_ITEMS = [
   { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck },
   { to: "/registre", label: "Registre LCB", icon: AlertTriangle },
   { to: "/logs", label: "Journal d'audit", icon: ScrollText },
+  { to: "/parametres", label: "Parametres", icon: Settings },
 ] as const;
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
@@ -37,7 +37,8 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       <div className="h-16 px-4 flex items-center border-b border-white/[0.06]">
         <button
           onClick={onToggle}
-          className="w-full text-left text-sm font-semibold tracking-wide text-slate-100 hover:text-white"
+          aria-label="Reduire ou etendre le menu lateral"
+          className="w-full text-left text-sm font-semibold tracking-wide text-slate-100 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
         >
           {collapsed ? "O90" : "Cabinet O90"}
         </button>
@@ -54,7 +55,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               to={item.to}
               end={item.to === "/"}
               className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors ${
+                `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
                   isActive
                     ? "bg-blue-500/15 text-blue-200"
                     : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
@@ -76,7 +77,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         <div className="pt-3 mt-3 border-t border-white/[0.06]">
           <button
             onClick={() => navigate("/nouveau-client")}
-            className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors"
+            className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
             <UserPlus className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Nouveau Client</span>}
