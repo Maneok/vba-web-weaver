@@ -30,7 +30,12 @@ export default function GouvernancePage() {
       toast.error(`Email manquant pour ${collab.nom}`);
       return;
     }
-    toast.success(`Email de relance envoye a ${collab.nom} (${collab.email})`);
+    const subject = encodeURIComponent(`Relance formation LCB-FT — ${collab.nom} — Formation expiree depuis ${collab.derniereFormation || "N/A"}`);
+    const body = encodeURIComponent(
+      `Bonjour ${collab.nom},\n\nVotre formation LCB-FT est expiree (derniere formation : ${collab.derniereFormation || "aucune"}).\n\nConformement aux obligations reglementaires (art. L.561-36 CMF), nous vous invitons a regulariser votre situation dans les meilleurs delais.\n\nCordialement,\nLe Referent LCB-FT`
+    );
+    window.open(`mailto:${collab.email}?subject=${subject}&body=${body}`, "_self");
+    toast.success(`Email de relance ouvert pour ${collab.nom}`);
   };
 
   return (

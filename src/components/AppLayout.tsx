@@ -20,6 +20,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: string[] }> = {
   "/registre": { title: "Registre LCB-FT", breadcrumb: ["Accueil", "Registre LCB-FT"] },
   "/logs": { title: "Journal d'audit", breadcrumb: ["Accueil", "Journal d'audit"] },
   "/diagnostic": { title: "Diagnostic 360", breadcrumb: ["Accueil", "Diagnostic 360"] },
+  "/ged": { title: "Documents / GED", breadcrumb: ["Accueil", "Documents / GED"] },
   "/parametres": { title: "Parametres", breadcrumb: ["Accueil", "Parametres"] },
 };
 

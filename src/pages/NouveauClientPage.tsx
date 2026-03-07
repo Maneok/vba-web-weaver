@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE } from "@/lib/riskEngine";
-import { searchPappers, type PappersResult } from "@/lib/pappersService";
+import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
 import type { Client, OuiNon, MissionType, EtatPilotage } from "@/lib/types";
@@ -89,15 +89,19 @@ export default function NouveauClientPage() {
   const [searchError, setSearchError] = useState("");
   const [selectedResult, setSelectedResult] = useState<PappersResult | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState("");
+  const [duplicateRef, setDuplicateRef] = useState("");
+  const [dataSource, setDataSource] = useState<string>("");
+  const [gelAvoirsAlert, setGelAvoirsAlert] = useState<string[]>([]);
 
   // Step 2 - Form
   const [form, setForm] = useState({
     raisonSociale: "", forme: "SARL", siren: "", capital: 0, ape: "", dirigeant: "",
     domaine: "", effectif: "", adresse: "", cp: "", ville: "",
     tel: "", mail: "", dateCreation: "", dateReprise: "",
-    mission: "TENUE COMPTABLE" as MissionType, honoraires: 0, frequence: "MENSUEL",
+    mission: "TENUE COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
+    frequence: "MENSUEL",
     comptable: "MAGALIE", associe: "DIDIER", superviseur: "SAMUEL",
-    iban: "", bic: "",
+    iban: "", bic: "", dateFin: "",
   });
 
   // Step 3 - Beneficiaires
@@ -192,15 +196,16 @@ export default function NouveauClientPage() {
     const res = await searchPappers(searchMode, searchQuery.trim());
     setSearchLoading(false);
 
-    if (res.error) {
+    if (res.error && (!res.results || res.results.length === 0)) {
       setSearchError(res.error);
       return;
     }
-    if (res.results.length === 0) {
+    if (!res.results || res.results.length === 0) {
       setSearchError("Aucun resultat trouve.");
       return;
     }
 
+    setDataSource(res.source || res.results[0]?.source || "pappers");
     setSearchResults(res.results);
     if (res.results.length === 1) {
       selectPappersResult(res.results[0]);
@@ -212,9 +217,21 @@ export default function NouveauClientPage() {
     const existing = clients.find(c => c.siren.replace(/\s/g, "") === result.siren.replace(/\s/g, ""));
     if (existing) {
       setDuplicateWarning(`Ce SIREN existe deja : ${existing.raisonSociale} (${existing.ref})`);
+      setDuplicateRef(existing.ref);
     } else {
       setDuplicateWarning("");
+      setDuplicateRef("");
     }
+
+    // Check gel des avoirs in background
+    checkGelAvoirs(result.siren, result.dirigeant).then(gel => {
+      if (gel.matched) {
+        setGelAvoirsAlert(gel.matches);
+        toast.error("ALERTE : Entite trouvee dans le registre des gels d'avoirs !");
+      } else {
+        setGelAvoirsAlert([]);
+      }
+    });
 
     setSelectedResult(result);
 
@@ -240,9 +257,18 @@ export default function NouveauClientPage() {
       dirigeant: result.dirigeant || prev.dirigeant,
     }));
 
-    // Parse beneficiaires from Pappers
-    if (result.beneficiaires_effectifs) {
-      const parts = result.beneficiaires_effectifs.split(",").map(s => s.trim()).filter(Boolean);
+    // Parse beneficiaires from Pappers (prefer structured details)
+    if (result.beneficiaires_details && result.beneficiaires_details.length > 0) {
+      const parsed: Beneficiaire[] = result.beneficiaires_details.map(b => ({
+        nom: b.nom || "",
+        prenom: b.prenom || "",
+        dateNaissance: b.date_de_naissance || "",
+        nationalite: b.nationalite || "Francaise",
+        pourcentage: b.pourcentage_parts || 0,
+      }));
+      setBeneficiaires(parsed);
+    } else if (result.beneficiaires_effectifs) {
+      const parts = result.beneficiaires_effectifs.split(/[,/]/).map(s => s.trim()).filter(Boolean);
       const parsed: Beneficiaire[] = parts.map(p => {
         const match = p.match(/^(.+?)\s*\((\d+)%?\)$/);
         if (match) {
@@ -353,8 +379,8 @@ export default function NouveauClientPage() {
       dateCreation: form.dateCreation,
       dateReprise: form.dateReprise || form.dateCreation,
       honoraires: form.honoraires,
-      reprise: 0,
-      juridique: 0,
+      reprise: form.reprise,
+      juridique: form.juridique,
       frequence: form.frequence,
       iban: form.iban,
       bic: form.bic,
@@ -375,7 +401,14 @@ export default function NouveauClientPage() {
       dateExpCni: "",
       statut: "ACTIF",
       be: beStr,
+      dateFin: form.dateFin || undefined,
     };
+
+    // Force RENFORCEE if gel des avoirs matched
+    if (gelAvoirsAlert.length > 0) {
+      newClient.nivVigilance = "RENFORCEE";
+      newClient.scoreGlobal = Math.max(newClient.scoreGlobal, 100);
+    }
 
     addClient(newClient);
     toast.success(`Client ${form.raisonSociale} cree avec succes (${ref})`);
@@ -498,10 +531,30 @@ export default function NouveauClientPage() {
               <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-400">{searchError}</div>
             )}
 
+            {gelAvoirsAlert.length > 0 && (
+              <div className="p-4 rounded-lg bg-red-500/15 border-2 border-red-500/40">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <span className="text-sm font-bold text-red-400">ALERTE : Registre des gels d'avoirs du Tresor</span>
+                </div>
+                {gelAvoirsAlert.map((msg, i) => (
+                  <p key={i} className="text-xs text-red-300 ml-7">{msg}</p>
+                ))}
+                <p className="text-xs text-red-400 mt-2 ml-7 font-semibold">Vigilance RENFORCEE obligatoire — Validation du referent LCB requise</p>
+              </div>
+            )}
+
             {duplicateWarning && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="text-sm text-amber-400">{duplicateWarning}</span>
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <span className="text-sm text-amber-400">{duplicateWarning}</span>
+                </div>
+                {duplicateRef && (
+                  <Button variant="outline" size="sm" className="gap-1 text-xs border-amber-500/30 text-amber-400 hover:bg-amber-500/10" onClick={() => navigate(`/client/${duplicateRef}`)}>
+                    Voir le client existant <ChevronRight className="w-3 h-3" />
+                  </Button>
+                )}
               </div>
             )}
 
@@ -538,7 +591,13 @@ export default function NouveauClientPage() {
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   <span className="text-sm font-semibold text-emerald-400">Donnees recuperees</span>
-                  <Badge className="bg-emerald-500/20 text-emerald-400 border-0 text-[10px]">API Pappers</Badge>
+                  <Badge className={`border-0 text-[10px] ${
+                    dataSource === "pappers" ? "bg-emerald-500/20 text-emerald-400" :
+                    dataSource === "insee" ? "bg-blue-500/20 text-blue-400" :
+                    "bg-amber-500/20 text-amber-400"
+                  }`}>
+                    {dataSource === "pappers" ? "Donnees Pappers" : dataSource === "insee" ? "Donnees INSEE" : "Donnees data.gouv"}
+                  </Badge>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div><span className="text-slate-500">Raison sociale</span><p className="text-slate-200 font-medium mt-0.5">{selectedResult.raison_sociale}</p></div>
@@ -546,10 +605,24 @@ export default function NouveauClientPage() {
                   <div><span className="text-slate-500">Forme</span><p className="text-slate-200 mt-0.5">{selectedResult.forme_juridique_raw}</p></div>
                   <div><span className="text-slate-500">APE</span><p className="text-slate-200 mt-0.5">{selectedResult.ape} - {selectedResult.libelle_ape}</p></div>
                   <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{selectedResult.capital?.toLocaleString()} EUR</p></div>
-                  <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{selectedResult.dirigeant}</p></div>
+                  <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{selectedResult.dirigeant || "—"}</p></div>
                   <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
                   <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation}</p></div>
                 </div>
+                {dataSource !== "pappers" && (
+                  <div className="mt-3 pt-3 border-t border-emerald-500/10 flex items-center gap-2 text-xs">
+                    <Info className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-amber-400">Documents et BE non disponibles via {dataSource}.</span>
+                    <a
+                      href={`https://www.pappers.fr/entreprise/${selectedResult.siren.replace(/\s/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 underline hover:text-blue-300"
+                    >
+                      Voir sur Pappers.fr
+                    </a>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -603,7 +676,10 @@ export default function NouveauClientPage() {
                 <FormField label="Type de mission *" type="select" value={form.mission} options={MISSIONS} onChange={v => set("mission", v)} />
                 <FormField label="Frequence" type="select" value={form.frequence} options={FREQUENCES} onChange={v => set("frequence", v)} />
                 <FormField label="Honoraires HT" value={form.honoraires} onChange={v => set("honoraires", Number(v))} type="number" />
+                <FormField label="Reprise (montant)" value={form.reprise} onChange={v => set("reprise", Number(v))} type="number" />
+                <FormField label="Juridique (montant)" value={form.juridique} onChange={v => set("juridique", Number(v))} type="number" />
                 <FormField label="Date de reprise" value={form.dateReprise} onChange={v => set("dateReprise", v)} type="date" />
+                <FormField label="Date de fin (optionnel)" value={form.dateFin} onChange={v => set("dateFin", v)} type="date" />
                 <FormField label="Associe signataire" type="select" value={form.associe} options={ASSOCIES} onChange={v => set("associe", v)} />
                 <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
                 <FormField label="Comptable" type="select" value={form.comptable} options={COMPTABLES} onChange={v => set("comptable", v)} />
@@ -912,7 +988,11 @@ export default function NouveauClientPage() {
                         <p className="text-sm text-slate-200">{doc.name}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                          {doc.fromPappers && <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Pappers</Badge>}
+                          {doc.fromPappers ? (
+                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Auto-recupere</Badge>
+                          ) : (
+                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">A fournir manuellement</Badge>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -1014,7 +1094,7 @@ export default function NouveauClientPage() {
       ape: form.ape, dirigeant: form.dirigeant, domaine: form.domaine, effectif: form.effectif,
       tel: form.tel, mail: form.mail, dateCreation: form.dateCreation,
       dateReprise: form.dateReprise || form.dateCreation, honoraires: form.honoraires,
-      reprise: 0, juridique: 0, frequence: form.frequence, iban: form.iban, bic: form.bic,
+      reprise: form.reprise, juridique: form.juridique, frequence: form.frequence, iban: form.iban, bic: form.bic,
       associe: form.associe, superviseur: form.superviseur,
       ppe: riskFlags.ppe ? "OUI" : "NON", paysRisque: riskFlags.paysRisque ? "OUI" : "NON",
       atypique: riskFlags.atypique ? "OUI" : "NON", distanciel: riskFlags.distanciel ? "OUI" : "NON",

@@ -10,6 +10,34 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
+interface CompanyData {
+  siren: string;
+  raison_sociale: string;
+  forme_juridique: string;
+  forme_juridique_raw: string;
+  adresse: string;
+  code_postal: string;
+  ville: string;
+  ape: string;
+  libelle_ape: string;
+  capital: number;
+  date_creation: string;
+  effectif: string;
+  dirigeant: string;
+  beneficiaires_effectifs: string;
+  beneficiaires_details: Array<{
+    nom: string;
+    prenom: string;
+    date_de_naissance: string;
+    nationalite: string;
+    pourcentage_parts: number;
+  }>;
+  representants: Array<{ nom: string; qualite: string }>;
+  documents_disponibles: Array<{ type: string; date: string; url: string }>;
+  document_urls: Record<string, string>;
+  source: "pappers" | "insee" | "datagouv";
+}
+
 interface PappersCompany {
   siren?: string;
   nom_entreprise?: string;
@@ -32,6 +60,8 @@ interface PappersCompany {
   beneficiaires_effectifs?: Array<{
     nom?: string;
     prenom?: string;
+    date_de_naissance_formatee?: string;
+    nationalite?: string;
     pourcentage_parts?: number;
     pourcentage_votes?: number;
   }>;
@@ -100,44 +130,178 @@ function buildBeneficiaires(befs: PappersCompany["beneficiaires_effectifs"]): st
     .join(" / ");
 }
 
-async function searchBySiren(siren: string): Promise<PappersCompany | null> {
-  const clean = siren.replace(/\s/g, "");
-  const res = await fetch(
-    `${PAPPERS_BASE}/entreprise?api_token=${PAPPERS_API_KEY}&siren=${clean}`
-  );
-  if (!res.ok) return null;
-  return await res.json();
+function buildBeneficiairesDetails(befs: PappersCompany["beneficiaires_effectifs"]): CompanyData["beneficiaires_details"] {
+  if (!befs || befs.length === 0) return [];
+  return befs.map((b) => ({
+    nom: (b.nom ?? "").toUpperCase(),
+    prenom: b.prenom ?? "",
+    date_de_naissance: b.date_de_naissance_formatee ?? "",
+    nationalite: b.nationalite ?? "Francaise",
+    pourcentage_parts: b.pourcentage_parts ?? b.pourcentage_votes ?? 0,
+  }));
 }
 
-async function searchByName(nom: string): Promise<PappersCompany[]> {
-  const res = await fetch(
-    `${PAPPERS_BASE}/recherche?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.resultats ?? [];
+// ======= LEVEL 1: PAPPERS API =======
+async function searchPappersBySiren(siren: string): Promise<PappersCompany | null> {
+  if (!PAPPERS_API_KEY) return null;
+  try {
+    const clean = siren.replace(/\s/g, "");
+    const res = await fetch(
+      `${PAPPERS_BASE}/entreprise?api_token=${PAPPERS_API_KEY}&siren=${clean}`
+    );
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
 }
 
-async function searchByDirigeant(nom: string): Promise<PappersCompany[]> {
-  const res = await fetch(
-    `${PAPPERS_BASE}/recherche-dirigeants?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
-  const results: PappersCompany[] = [];
-  for (const d of data.resultats ?? []) {
-    if (d.entreprises) {
-      for (const e of d.entreprises) {
-        results.push(e);
+async function searchPappersByName(nom: string): Promise<PappersCompany[]> {
+  if (!PAPPERS_API_KEY) return [];
+  try {
+    const res = await fetch(
+      `${PAPPERS_BASE}/recherche?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.resultats ?? [];
+  } catch {
+    return [];
+  }
+}
+
+async function searchPappersByDirigeant(nom: string): Promise<PappersCompany[]> {
+  if (!PAPPERS_API_KEY) return [];
+  try {
+    const res = await fetch(
+      `${PAPPERS_BASE}/recherche-dirigeants?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results: PappersCompany[] = [];
+    for (const d of data.resultats ?? []) {
+      if (d.entreprises) {
+        for (const e of d.entreprises) {
+          results.push(e);
+        }
       }
     }
+    return results.slice(0, 5);
+  } catch {
+    return [];
   }
-  return results.slice(0, 5);
 }
 
+// ======= LEVEL 2: DATA.GOUV.FR (free, no key) =======
+interface DataGouvResponse {
+  unite_legale?: {
+    siren?: string;
+    denomination?: string;
+    nom_raison_sociale?: string;
+    categorie_juridique?: string;
+    date_creation?: string;
+    tranche_effectifs?: string;
+    activite_principale?: string;
+    etablissement_siege?: {
+      geo_adresse?: string;
+      code_postal?: string;
+      libelle_commune?: string;
+      adresse_ligne_1?: string;
+    };
+    etablissements?: Array<{
+      nic?: string;
+      geo_adresse?: string;
+      code_postal?: string;
+      libelle_commune?: string;
+    }>;
+  };
+}
+
+async function searchDataGouvBySiren(siren: string): Promise<CompanyData | null> {
+  const clean = siren.replace(/\s/g, "");
+  try {
+    const res = await fetch(
+      `https://entreprise.data.gouv.fr/api/sirene/v3/unites_legales/${clean}`
+    );
+    if (!res.ok) return null;
+    const data: DataGouvResponse = await res.json();
+    const ul = data.unite_legale;
+    if (!ul) return null;
+
+    const siege = ul.etablissement_siege;
+    const catJurMap: Record<string, string> = {
+      "1000": "ENTREPRISE INDIVIDUELLE", "5410": "SARL", "5420": "SARL",
+      "5498": "EURL", "5499": "EURL", "5710": "SAS", "5720": "SAS",
+      "6540": "SCI", "6541": "SCI", "6542": "SCI",
+    };
+    const forme = catJurMap[ul.categorie_juridique ?? ""] || "SARL";
+
+    return {
+      siren: formatSiren(ul.siren ?? clean),
+      raison_sociale: (ul.denomination || ul.nom_raison_sociale || "").toUpperCase(),
+      forme_juridique: forme,
+      forme_juridique_raw: ul.categorie_juridique ?? "",
+      adresse: (siege?.geo_adresse || siege?.adresse_ligne_1 || "").toUpperCase(),
+      code_postal: siege?.code_postal ?? "",
+      ville: (siege?.libelle_commune ?? "").toUpperCase(),
+      ape: ul.activite_principale ?? "",
+      libelle_ape: "",
+      capital: 0,
+      date_creation: ul.date_creation ?? "",
+      effectif: mapEffectif(ul.tranche_effectifs),
+      dirigeant: "",
+      beneficiaires_effectifs: "",
+      beneficiaires_details: [],
+      representants: [],
+      documents_disponibles: [],
+      document_urls: {},
+      source: "datagouv",
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function searchDataGouvByName(nom: string): Promise<CompanyData[]> {
+  try {
+    const res = await fetch(
+      `https://entreprise.data.gouv.fr/api/sirene/v1/full_text/${encodeURIComponent(nom)}?per_page=5`
+    );
+    if (!res.ok) return [];
+    const data = await res.json();
+    const results: CompanyData[] = [];
+    for (const e of data.etablissement ?? []) {
+      results.push({
+        siren: formatSiren(e.siren ?? ""),
+        raison_sociale: (e.nom_raison_sociale || e.l1_normalisee || "").toUpperCase(),
+        forme_juridique: mapFormeJuridique(e.libelle_nature_juridique_entreprise),
+        forme_juridique_raw: e.libelle_nature_juridique_entreprise ?? "",
+        adresse: (e.geo_adresse || "").toUpperCase(),
+        code_postal: e.code_postal ?? "",
+        ville: (e.libelle_commune ?? "").toUpperCase(),
+        ape: e.activite_principale ?? "",
+        libelle_ape: e.libelle_activite_principale ?? "",
+        capital: 0,
+        date_creation: e.date_creation ?? "",
+        effectif: mapEffectif(e.tranche_effectifs),
+        dirigeant: "",
+        beneficiaires_effectifs: "",
+        beneficiaires_details: [],
+        representants: [],
+        documents_disponibles: [],
+        document_urls: {},
+        source: "datagouv",
+      });
+    }
+    return results.slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+// ======= DOCUMENT DOWNLOAD (Pappers only) =======
 async function downloadDocument(
   url: string,
-  _token: string,
   siren: string,
   docType: string,
   supabaseUrl: string,
@@ -173,6 +337,39 @@ async function downloadDocument(
   }
 }
 
+// ======= MAP PAPPERS COMPANY TO STANDARD FORMAT =======
+function mapPappersCompany(company: PappersCompany): CompanyData {
+  return {
+    siren: formatSiren(company.siren ?? ""),
+    raison_sociale: (company.nom_entreprise ?? company.denomination ?? "").toUpperCase(),
+    forme_juridique: mapFormeJuridique(company.forme_juridique),
+    forme_juridique_raw: company.forme_juridique ?? "",
+    adresse: (company.adresse_ligne_1 ?? "").toUpperCase(),
+    code_postal: company.code_postal ?? "",
+    ville: (company.ville ?? "").toUpperCase(),
+    ape: company.code_naf ?? "",
+    libelle_ape: company.libelle_code_naf ?? "",
+    capital: company.capital ?? 0,
+    date_creation: company.date_creation ?? "",
+    effectif: mapEffectif(company.tranche_effectif),
+    dirigeant: buildDirigeant(company.representants),
+    beneficiaires_effectifs: buildBeneficiaires(company.beneficiaires_effectifs),
+    beneficiaires_details: buildBeneficiairesDetails(company.beneficiaires_effectifs),
+    representants: (company.representants ?? []).map((r) => ({
+      nom: `${(r.nom ?? "").toUpperCase()} ${r.prenom ?? ""}`,
+      qualite: r.qualite ?? "",
+    })),
+    documents_disponibles: (company.documents ?? []).slice(0, 5).map((d) => ({
+      type: d.type ?? "",
+      date: d.date_depot ?? "",
+      url: d.url_telechargement ?? "",
+    })),
+    document_urls: {},
+    source: "pappers",
+  };
+}
+
+// ======= MAIN HANDLER =======
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -193,91 +390,87 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    if (!PAPPERS_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: "PAPPERS_API_KEY not configured. Set it in Supabase Edge Function secrets." }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    let results: CompanyData[] = [];
+    let source: "pappers" | "datagouv" = "pappers";
+
+    // ===== LEVEL 1: Try Pappers =====
+    if (PAPPERS_API_KEY) {
+      try {
+        switch (mode) {
+          case "siren": {
+            const result = await searchPappersBySiren(query);
+            if (result) results = [mapPappersCompany(result)];
+            break;
+          }
+          case "nom": {
+            const nameResults = await searchPappersByName(query);
+            results = nameResults.map(mapPappersCompany);
+            break;
+          }
+          case "dirigeant": {
+            const dirResults = await searchPappersByDirigeant(query);
+            results = dirResults.map(mapPappersCompany);
+            break;
+          }
+        }
+      } catch (e) {
+        console.error("Pappers API failed:", e);
+      }
     }
 
-    let results: PappersCompany[] = [];
-    let singleResult: PappersCompany | null = null;
-
-    switch (mode) {
-      case "siren":
-        singleResult = await searchBySiren(query);
-        if (singleResult) results = [singleResult];
-        break;
-      case "nom":
-        results = await searchByName(query);
-        break;
-      case "dirigeant":
-        results = await searchByDirigeant(query);
-        break;
+    // ===== LEVEL 2: Fallback to data.gouv.fr =====
+    if (results.length === 0) {
+      source = "datagouv";
+      try {
+        switch (mode) {
+          case "siren": {
+            const dgResult = await searchDataGouvBySiren(query);
+            if (dgResult) results = [dgResult];
+            break;
+          }
+          case "nom":
+          case "dirigeant": {
+            results = await searchDataGouvByName(query);
+            break;
+          }
+        }
+      } catch (e) {
+        console.error("data.gouv.fr API failed:", e);
+      }
     }
 
     if (results.length === 0) {
       return new Response(
-        JSON.stringify({ results: [], message: "Aucun resultat trouve" }),
+        JSON.stringify({ results: [], message: "Aucun resultat trouve", source }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const mapped = [];
-    for (const company of results) {
-      const documentUrls: Record<string, string> = {};
+    // Download documents if requested (Pappers only)
+    if (download_docs && source === "pappers" && PAPPERS_API_KEY) {
+      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
-      if (download_docs && company.documents && company.siren) {
-        const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-
-        for (const doc of company.documents.slice(0, 3)) {
-          if (doc.url_telechargement && doc.type) {
+      for (const company of results) {
+        for (const doc of company.documents_disponibles.slice(0, 3)) {
+          if (doc.url && doc.type) {
             const storedUrl = await downloadDocument(
-              doc.url_telechargement,
-              doc.token ?? "",
+              doc.url,
               company.siren,
               doc.type.toLowerCase().replace(/\s+/g, "_"),
               supabaseUrl,
               serviceKey
             );
             if (storedUrl) {
-              documentUrls[doc.type] = storedUrl;
+              company.document_urls[doc.type] = storedUrl;
             }
           }
         }
       }
-
-      mapped.push({
-        siren: formatSiren(company.siren ?? ""),
-        raison_sociale: (company.nom_entreprise ?? company.denomination ?? "").toUpperCase(),
-        forme_juridique: mapFormeJuridique(company.forme_juridique),
-        forme_juridique_raw: company.forme_juridique ?? "",
-        adresse: (company.adresse_ligne_1 ?? "").toUpperCase(),
-        code_postal: company.code_postal ?? "",
-        ville: (company.ville ?? "").toUpperCase(),
-        ape: company.code_naf ?? "",
-        libelle_ape: company.libelle_code_naf ?? "",
-        capital: company.capital ?? 0,
-        date_creation: company.date_creation ?? "",
-        effectif: mapEffectif(company.tranche_effectif),
-        dirigeant: buildDirigeant(company.representants),
-        beneficiaires_effectifs: buildBeneficiaires(company.beneficiaires_effectifs),
-        representants: (company.representants ?? []).map((r) => ({
-          nom: `${(r.nom ?? "").toUpperCase()} ${r.prenom ?? ""}`,
-          qualite: r.qualite ?? "",
-        })),
-        documents_disponibles: (company.documents ?? []).slice(0, 5).map((d) => ({
-          type: d.type ?? "",
-          date: d.date_depot ?? "",
-          url: d.url_telechargement ?? "",
-        })),
-        document_urls: documentUrls,
-      });
     }
 
     return new Response(
-      JSON.stringify({ results: mapped }),
+      JSON.stringify({ results, source }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {

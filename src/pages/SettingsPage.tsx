@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Bell, Building2, KeyRound, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
+import { Bell, Building2, KeyRound, ShieldCheck, SlidersHorizontal, Users, Target } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +33,14 @@ type SettingsState = {
   weeklyComplianceReport: boolean;
   defaultReviewer: string;
   reviewerRules: string;
+  seuilSimplifiee: number;
+  seuilRenforcee: number;
+  malusCash: number;
+  malusPression: number;
+  malusDistanciel: number;
+  scoringMissions: string;
+  scoringApe: string;
+  paysRisque: string;
 };
 
 const DEFAULT_SETTINGS: SettingsState = {
@@ -57,6 +65,14 @@ const DEFAULT_SETTINGS: SettingsState = {
   weeklyComplianceReport: true,
   defaultReviewer: "Superviseur",
   reviewerRules: "Prioriser les dossiers RENFORCEE et les clients en retard.",
+  seuilSimplifiee: 25,
+  seuilRenforcee: 60,
+  malusCash: 40,
+  malusPression: 40,
+  malusDistanciel: 30,
+  scoringMissions: "TENUE COMPTABLE:10, SOCIAL / PAIE SEULE:10, IRPP:20, REVISION / SURVEILLANCE:30, CONSEIL DE GESTION:40, CONSTITUTION / CESSION:60, DOMICILIATION:80",
+  scoringApe: "56.10A:30, 68.10Z:80, 92.00Z:100, 64.99Z:80, 47.77Z:80, 41.10B:70, 68.31Z:70",
+  paysRisque: "AFGHANISTAN, ALGERIE, ANGOLA, BIELORUSSIE, COREE DU NORD, IRAN, LIBAN, MALI, MYANMAR, RUSSIE, SOUDAN DU SUD, SYRIE, YEMEN",
 };
 
 const STORAGE_KEY = "o90.settings";
@@ -176,6 +192,62 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="glass-card border-white/10">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Target className="w-4 h-4 text-purple-400" /> Parametres de scoring</CardTitle>
+          <CardDescription>Seuils de vigilance, malus et baremes de risque editables.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Seuil SIMPLIFIEE (max)</Label>
+              <Input type="number" value={settings.seuilSimplifiee} onChange={(e) => update("seuilSimplifiee", Number(e.target.value))} />
+              <p className="text-[10px] text-slate-500">Score &le; ce seuil = vigilance SIMPLIFIEE</p>
+            </div>
+            <div className="space-y-2">
+              <Label>Seuil RENFORCEE (min)</Label>
+              <Input type="number" value={settings.seuilRenforcee} onChange={(e) => update("seuilRenforcee", Number(e.target.value))} />
+              <p className="text-[10px] text-slate-500">Score &ge; ce seuil = vigilance RENFORCEE</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-slate-400 text-xs">STANDARD</Label>
+              <p className="text-sm text-slate-300 pt-2">{settings.seuilSimplifiee + 1} &ndash; {settings.seuilRenforcee - 1}</p>
+              <p className="text-[10px] text-slate-500">Plage automatique entre les deux seuils</p>
+            </div>
+          </div>
+
+          <Separator />
+          <h4 className="text-xs font-semibold text-slate-300">Malus (points ajoutes au score)</h4>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Malus especes (cash)</Label>
+              <Input type="number" value={settings.malusCash} onChange={(e) => update("malusCash", Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Malus pression / urgence</Label>
+              <Input type="number" value={settings.malusPression} onChange={(e) => update("malusPression", Number(e.target.value))} />
+            </div>
+            <div className="space-y-2">
+              <Label>Malus distanciel</Label>
+              <Input type="number" value={settings.malusDistanciel} onChange={(e) => update("malusDistanciel", Number(e.target.value))} />
+            </div>
+          </div>
+
+          <Separator />
+          <h4 className="text-xs font-semibold text-slate-300">Baremes missions (type:score)</h4>
+          <Textarea value={settings.scoringMissions} onChange={(e) => update("scoringMissions", e.target.value)} rows={3} className="font-mono text-xs" />
+          <p className="text-[10px] text-slate-500">Format : NOM_MISSION:score, separes par des virgules</p>
+
+          <h4 className="text-xs font-semibold text-slate-300">Baremes APE principaux (code:score)</h4>
+          <Textarea value={settings.scoringApe} onChange={(e) => update("scoringApe", e.target.value)} rows={3} className="font-mono text-xs" />
+          <p className="text-[10px] text-slate-500">Codes APE a risque eleve. Default = 25 si absent.</p>
+
+          <h4 className="text-xs font-semibold text-slate-300">Pays a risque (liste GAFI/UE)</h4>
+          <Textarea value={settings.paysRisque} onChange={(e) => update("paysRisque", e.target.value)} rows={3} className="font-mono text-xs" />
+          <p className="text-[10px] text-slate-500">Noms des pays separes par des virgules</p>
+        </CardContent>
+      </Card>
 
       <Card className="glass-card border-white/10">
         <CardHeader>

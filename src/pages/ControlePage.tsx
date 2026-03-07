@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
+import { generateRapportControle } from "@/lib/generateControlePdf";
 
 interface Tirage {
   date: string;
@@ -81,6 +82,11 @@ export default function ControlePage() {
   ];
 
   const handleExportPDF = () => {
+    if (currentSample.length === 0) {
+      toast.error("Aucun dossier dans l'echantillon");
+      return;
+    }
+    generateRapportControle(currentSample);
     toast.success("Rapport de controle genere (PDF)");
   };
 
