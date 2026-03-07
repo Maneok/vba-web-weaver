@@ -30,8 +30,7 @@ const App = () => (
               <Route path="controle" element={<ControlePage />} />
               <Route path="registre" element={<RegistrePage />} />
               <Route path="logs" element={<LogsPage />} />
-              <Route path="parametres" element={<SettingsPage />} />
-              <Route path="settings" element={<Navigate to="/parametres" replace />} />
+
               <Route path="dashboard" element={<Navigate to="/" replace />} />
             </Route>
             <Route path="*" element={<NotFound />} />

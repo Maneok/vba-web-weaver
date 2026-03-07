@@ -1,5 +1,5 @@
 import { type ReactNode, useMemo, useState } from "react";
-import { toast } from "sonner";
+
 import { Bell, Building2, KeyRound, ShieldCheck, SlidersHorizontal, Users } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -81,20 +81,7 @@ export default function SettingsPage() {
     setSettings((prev) => ({ ...prev, [key]: value }));
   };
 
-  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
-  const save = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-    const stamp = new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-    setLastSavedAt(stamp);
-    toast.success("Parametres enregistres");
-  };
-
-  const reset = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    setSettings(DEFAULT_SETTINGS);
-    setLastSavedAt(null);
-    toast.message("Parametres reinitialises");
   };
 
   return (
@@ -104,13 +91,7 @@ export default function SettingsPage() {
           <h1 className="text-xl font-semibold text-slate-100">Parametres du cabinet</h1>
           <p className="text-sm text-slate-400">Configuration inspiree d&apos;un cockpit conformite type Kanta.</p>
         </div>
-        <div className="flex items-center gap-3 flex-wrap justify-end">
-          <Badge variant="secondary" className="bg-blue-500/20 text-blue-200 border border-blue-500/30">
-            Setup: {completion}%
-          </Badge>
-          <Button variant="outline" onClick={reset}>Reinitialiser</Button>
-          <Button onClick={save}>Enregistrer</Button>
-          {lastSavedAt ? <span className="text-xs text-slate-500">Derniere sauvegarde: {lastSavedAt}</span> : null}
+
         </div>
       </div>
 
@@ -142,8 +123,7 @@ export default function SettingsPage() {
             <div className="space-y-2"><Label>Relecteur par defaut</Label><Input value={settings.defaultReviewer} onChange={(e) => update("defaultReviewer", e.target.value)} /></div>
             <div className="space-y-2"><Label>Regles de priorisation</Label><Textarea value={settings.reviewerRules} onChange={(e) => update("reviewerRules", e.target.value)} rows={4} /></div>
             <Separator />
-            <ToggleRow label="Activer l'integration Pappers" description="Enrichissement des dossiers societe." checked={settings.pappersEnabled} onCheckedChange={(v) => update("pappersEnabled", v)} />
-            <ToggleRow label="Rapport conformite hebdomadaire" description="Envoi automatique au management." checked={settings.weeklyComplianceReport} onCheckedChange={(v) => update("weeklyComplianceReport", v)} />
+
           </CardContent>
         </Card>
 
@@ -155,8 +135,7 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2"><Label>Digest alertes</Label><Select value={settings.alertsDigest} onValueChange={(v) => update("alertsDigest", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="realtime">Temps reel</SelectItem><SelectItem value="daily">Quotidien</SelectItem><SelectItem value="weekly">Hebdomadaire</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label htmlFor="webhookUrl">Webhook (Slack / Teams)</Label><Input id="webhookUrl" value={settings.webhookUrl} onChange={(e) => update("webhookUrl", e.target.value)} placeholder="https://hooks..." /></div>
-            <ToggleRow label="Notifications email" description="Reception dans la boite conformite." checked={settings.emailNotif} onCheckedChange={(v) => update("emailNotif", v)} />
-            <ToggleRow label="Notifications in-app" description="Bannieres et centre de notifications." checked={settings.pushNotif} onCheckedChange={(v) => update("pushNotif", v)} />
+
           </CardContent>
         </Card>
 
@@ -167,12 +146,7 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2"><Label>Timeout session (minutes)</Label><Select value={settings.sessionTimeout} onValueChange={(v) => update("sessionTimeout", v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="15">15 min</SelectItem><SelectItem value="30">30 min</SelectItem><SelectItem value="60">60 min</SelectItem></SelectContent></Select></div>
-            <ToggleRow label="2FA obligatoire" description="Authentification forte pour tous les profils." checked={settings.twoFactorRequired} onCheckedChange={(v) => update("twoFactorRequired", v)} />
-            <ToggleRow label="Deconnexion auto inactivite" description="Protege les sessions laissees ouvertes." checked={settings.inactivityAutoLogout} onCheckedChange={(v) => update("inactivityAutoLogout", v)} />
-            <Separator />
-            <ToggleRow label="Animations reduites" description="Diminue les effets pour une meilleure lisibilite." checked={!settings.showMotionEffects} onCheckedChange={(v) => update("showMotionEffects", !v)} />
-            <ToggleRow label="Mode contraste renforce" description="Ameliore la lisibilite des interfaces." checked={settings.highContrast} onCheckedChange={(v) => update("highContrast", v)} />
-            <ToggleRow label="Tables compactes" description="Affiche plus de lignes par ecran." checked={settings.compactTables} onCheckedChange={(v) => update("compactTables", v)} />
+
           </CardContent>
         </Card>
       </div>
