@@ -129,6 +129,21 @@ export default function NouveauClientPage() {
 
   const set = useCallback((key: string, val: unknown) => setForm(prev => ({ ...prev, [key]: val })), []);
 
+  // Auto-flag PPE if sanctions screening detects it
+  const sanctionsPPE = screening.sanctions.data?.hasPPE ?? false;
+  const sanctionsCritical = screening.sanctions.data?.hasCriticalMatch ?? false;
+
+  // Auto-set questionnaire answers based on screening results
+  useMemo(() => {
+    if (sanctionsPPE) {
+      setQuestions(prev => prev.map(q =>
+        q.id === "ppe" && q.value !== "OUI"
+          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || "PPE detectee automatiquement via OpenSanctions" }
+          : q
+      ));
+    }
+  }, [sanctionsPPE]);
+
   // Risk flags derived from questionnaire
   const riskFlags = useMemo(() => ({
     ppe: questions.find(q => q.id === "ppe")?.value === "OUI",
@@ -158,8 +173,9 @@ export default function NouveauClientPage() {
       .reduce((sum, q) => sum + q.malus, 0);
   }, [questions]);
 
-  const totalMalus = risk.malus + extraMalus;
-  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus, 120);
+  const bodaccMalus = screening.bodacc.data?.malus ?? 0;
+  const totalMalus = risk.malus + extraMalus + bodaccMalus;
+  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus, 120);
 
   // Radar data
   const radarData = useMemo(() => [
@@ -1009,8 +1025,15 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
+            {/* Screening summary at scoring step */}
+            {(screening.sanctions.data || screening.bodacc.data || screening.google.data || screening.news.data) && (
+              <div className="lg:col-span-2">
+                <ScreeningPanel screening={screening} compact />
+              </div>
+            )}
+
             {/* Decision */}
-            <div className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+            <div className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.06] lg:col-span-2">
               <h3 className="text-sm font-semibold text-slate-300 mb-4">Decision</h3>
               <div className="grid grid-cols-3 gap-3">
                 <button
