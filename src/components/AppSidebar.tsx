@@ -1,20 +1,16 @@
 import { useMemo } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import { BarChart3, Database, Users, AlertTriangle, ClipboardCheck, FileText, Shield, Home, ShieldCheck } from "lucide-react";
-import { useAppState } from "@/lib/AppContext";
-import { analyzeCockpit } from "@/lib/cockpitEngine";
 
 const NAV_ITEMS = [
   { to: "/", icon: Home, label: "Cockpit", emoji: "🏠" },
   { to: "/dashboard", icon: BarChart3, label: "Dashboard", emoji: "📊" },
   { to: "/bdd", icon: Database, label: "Base Clients", emoji: "📁" },
-  { to: "/gouvernance", icon: Users, label: "Gouvernance", emoji: "👥", badgeKey: "formationsAFaire" as const },
+
   { to: "/controle", icon: ClipboardCheck, label: "Contrôle", emoji: "🔍" },
   { to: "/registre", icon: AlertTriangle, label: "Registre LCB", emoji: "📒", badgeKey: "alertesNonTraitees" as const },
   { to: "/logs", icon: FileText, label: "Logs", emoji: "🔒" },
   { to: "/diagnostic", icon: ShieldCheck, label: "Diagnostic 360°", emoji: "🛡" },
 ];
-
 type BadgeKey = "formationsAFaire" | "alertesNonTraitees";
 
 export default function AppSidebar() {
