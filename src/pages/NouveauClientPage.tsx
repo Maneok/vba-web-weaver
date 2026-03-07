@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE } from "@/lib/riskEngine";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
+import {
+  searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments,
+  INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant,
+} from "@/lib/kycService";
+import ScreeningPanel from "@/components/ScreeningPanel";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
 import type { Client, OuiNon, MissionType, EtatPilotage } from "@/lib/types";
@@ -92,6 +97,7 @@ export default function NouveauClientPage() {
   const [duplicateRef, setDuplicateRef] = useState("");
   const [dataSource, setDataSource] = useState<string>("");
   const [gelAvoirsAlert, setGelAvoirsAlert] = useState<string[]>([]);
+  const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
 
   // Step 2 - Form
   const [form, setForm] = useState({
@@ -184,6 +190,58 @@ export default function NouveauClientPage() {
     return questions.every(q => q.value !== "OUI" || q.commentaire.trim().length > 0);
   }, [questions]);
 
+  // Launch parallel screening checks
+  const launchScreening = (enterprise: EnterpriseResult) => {
+    const siren = enterprise.siren;
+    const dirigeants = enterprise.dirigeants ?? [];
+    const raisonSociale = enterprise.raison_sociale;
+    const ville = enterprise.ville;
+    const dirigeantPrincipal = enterprise.dirigeant;
+
+    // Sanctions check
+    setScreening(prev => ({ ...prev, sanctions: { loading: true, data: null, error: null } }));
+    const personsToCheck = dirigeants.map(d => ({
+      nom: d.nom, prenom: d.prenom, dateNaissance: d.date_naissance, nationalite: d.nationalite,
+    }));
+    checkSanctions(personsToCheck, siren.replace(/\s/g, "")).then(data => {
+      setScreening(prev => ({ ...prev, sanctions: { loading: false, data, error: null } }));
+      if (data.hasCriticalMatch) toast.error("ALERTE SANCTIONS : Match critique detecte !");
+      if (data.hasPPE) toast.warning("PPE detectee — vigilance RENFORCEE requise");
+    }).catch(() => setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur" } })));
+
+    // BODACC check
+    setScreening(prev => ({ ...prev, bodacc: { loading: true, data: null, error: null } }));
+    checkBodacc(siren, raisonSociale).then(data => {
+      setScreening(prev => ({ ...prev, bodacc: { loading: false, data, error: null } }));
+      if (data.hasProcedureCollective) toast.warning("Procedure collective detectee (BODACC)");
+    }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur" } })));
+
+    // Google Places
+    setScreening(prev => ({ ...prev, google: { loading: true, data: null, error: null } }));
+    verifyGooglePlaces(raisonSociale, ville).then(data => {
+      setScreening(prev => ({ ...prev, google: { loading: false, data, error: null } }));
+    }).catch(() => setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur" } })));
+
+    // News check
+    setScreening(prev => ({ ...prev, news: { loading: true, data: null, error: null } }));
+    checkNews(raisonSociale, dirigeantPrincipal).then(data => {
+      setScreening(prev => ({ ...prev, news: { loading: false, data, error: null } }));
+      if (data.hasNegativeNews) toast.error("Article negatif detecte dans la presse !");
+    }).catch(() => setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur" } })));
+
+    // Network analysis
+    setScreening(prev => ({ ...prev, network: { loading: true, data: null, error: null } }));
+    analyzeNetwork(siren, dirigeants).then(data => {
+      setScreening(prev => ({ ...prev, network: { loading: false, data, error: null } }));
+    }).catch(() => setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur" } })));
+
+    // Documents fetch
+    setScreening(prev => ({ ...prev, documents: { loading: true, data: null, error: null } }));
+    fetchDocuments(siren, raisonSociale).then(data => {
+      setScreening(prev => ({ ...prev, documents: { loading: false, data, error: null } }));
+    }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })));
+  };
+
   // Step 1: Search
   const handleSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -192,23 +250,67 @@ export default function NouveauClientPage() {
     setSearchResults([]);
     setSelectedResult(null);
     setDuplicateWarning("");
+    setScreening(INITIAL_SCREENING);
 
-    const res = await searchPappers(searchMode, searchQuery.trim());
-    setSearchLoading(false);
+    // Primary: new enterprise-lookup (Annuaire Entreprises)
+    setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
 
-    if (res.error && (!res.results || res.results.length === 0)) {
-      setSearchError(res.error);
-      return;
-    }
-    if (!res.results || res.results.length === 0) {
-      setSearchError("Aucun resultat trouve.");
-      return;
-    }
+    const entRes = await searchEnterprise(searchMode, searchQuery.trim());
 
-    setDataSource(res.source || res.results[0]?.source || "pappers");
-    setSearchResults(res.results);
-    if (res.results.length === 1) {
-      selectPappersResult(res.results[0]);
+    if (entRes.results && entRes.results.length > 0) {
+      setDataSource("annuaire_entreprises");
+      setScreening(prev => ({ ...prev, enterprise: { loading: false, data: entRes.results, error: null } }));
+
+      // Map to PappersResult format for compatibility
+      const mapped: PappersResult[] = entRes.results.map(r => ({
+        siren: r.siren,
+        raison_sociale: r.raison_sociale,
+        forme_juridique: r.forme_juridique,
+        forme_juridique_raw: r.forme_juridique_raw,
+        adresse: r.adresse,
+        code_postal: r.code_postal,
+        ville: r.ville,
+        ape: r.ape,
+        libelle_ape: r.libelle_ape,
+        capital: r.capital,
+        date_creation: r.date_creation,
+        effectif: r.effectif,
+        dirigeant: r.dirigeant,
+        beneficiaires_effectifs: "",
+        beneficiaires_details: [],
+        representants: r.dirigeants.map(d => ({ nom: `${d.prenom} ${d.nom}`, qualite: d.qualite })),
+        documents_disponibles: [],
+        document_urls: {},
+        source: "pappers" as const,
+      }));
+
+      setSearchResults(mapped);
+      setSearchLoading(false);
+
+      if (mapped.length === 1) {
+        selectPappersResult(mapped[0]);
+        launchScreening(entRes.results[0]);
+      }
+    } else {
+      // Fallback to old Pappers service
+      setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: entRes.error ?? "Aucun resultat" } }));
+      const res = await searchPappers(searchMode, searchQuery.trim());
+      setSearchLoading(false);
+
+      if (res.error && (!res.results || res.results.length === 0)) {
+        setSearchError(res.error ?? "Aucun resultat trouve.");
+        return;
+      }
+      if (!res.results || res.results.length === 0) {
+        setSearchError("Aucun resultat trouve.");
+        return;
+      }
+
+      setDataSource(res.source || res.results[0]?.source || "pappers");
+      setSearchResults(res.results);
+      if (res.results.length === 1) {
+        selectPappersResult(res.results[0]);
+      }
     }
   };
 
@@ -221,6 +323,14 @@ export default function NouveauClientPage() {
     } else {
       setDuplicateWarning("");
       setDuplicateRef("");
+    }
+
+    // Launch screening if enterprise data available
+    if (screening.enterprise.data) {
+      const ent = screening.enterprise.data.find(e => e.siren.replace(/\s/g, "") === result.siren.replace(/\s/g, ""));
+      if (ent && !screening.sanctions.data && !screening.sanctions.loading) {
+        launchScreening(ent);
+      }
     }
 
     // Check gel des avoirs in background
@@ -584,6 +694,11 @@ export default function NouveauClientPage() {
                   ))}
                 </div>
               </div>
+            )}
+
+            {/* Screening Panel */}
+            {(screening.enterprise.loading || screening.enterprise.data || screening.sanctions.loading || screening.sanctions.data) && (
+              <ScreeningPanel screening={screening} />
             )}
 
             {selectedResult && (
