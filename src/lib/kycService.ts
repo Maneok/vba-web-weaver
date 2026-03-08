@@ -68,6 +68,14 @@ export interface EnterpriseResult {
   etat_administratif: string;
   complements?: Record<string, unknown>;
   etablissements: Array<{ siret: string; adresse: string; commune: string; est_siege: boolean }>;
+  finances?: Array<{ annee: string; ca: number | null; resultat: number | null; effectif: number | null }>;
+  representants?: Array<{
+    nom: string; prenom: string; qualite: string; date_prise_de_poste: string;
+    entreprises_dirigees: Array<{
+      siren: string; denomination: string; qualite: string;
+      date_prise_de_poste: string; statut_rcs: string; date_creation: string;
+    }>;
+  }>;
   source: string;
 }
 
@@ -157,6 +165,7 @@ export interface NetworkEdge {
   source: string;
   target: string;
   label: string;
+  dateNomination?: string;
 }
 
 export interface NetworkAlert {
@@ -421,15 +430,16 @@ export function detectAmlSignals(
   return signals;
 }
 
+interface ScreeningSlot<T> { loading: boolean; data: T | null; error: string | null; timeMs?: number }
 export interface ScreeningState {
-  enterprise: { loading: boolean; data: EnterpriseResult[] | null; error: string | null };
-  sanctions: { loading: boolean; data: SanctionsResult | null; error: string | null };
-  bodacc: { loading: boolean; data: BodaccResult | null; error: string | null };
-  google: { loading: boolean; data: GooglePlacesResult | null; error: string | null };
-  news: { loading: boolean; data: NewsResult | null; error: string | null };
-  network: { loading: boolean; data: NetworkResult | null; error: string | null };
-  documents: { loading: boolean; data: DocumentsResult | null; error: string | null };
-  inpi: { loading: boolean; data: InpiResult | null; error: string | null };
+  enterprise: ScreeningSlot<EnterpriseResult[]>;
+  sanctions: ScreeningSlot<SanctionsResult>;
+  bodacc: ScreeningSlot<BodaccResult>;
+  google: ScreeningSlot<GooglePlacesResult>;
+  news: ScreeningSlot<NewsResult>;
+  network: ScreeningSlot<NetworkResult>;
+  documents: ScreeningSlot<DocumentsResult>;
+  inpi: ScreeningSlot<InpiResult>;
 }
 
 export const INITIAL_SCREENING: ScreeningState = {
@@ -490,13 +500,22 @@ async function setCachedResponse(siren: string, apiName: string, responseData: u
 
 // ====== API CALLS ======
 
+// #30: 10s timeout for all edge function calls
 async function callEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
-  const { data, error } = await supabase.functions.invoke(name, { body });
-  if (error) throw new Error(error.message);
-  if (data && typeof data === "object" && (data as Record<string, unknown>).status === "unavailable") {
-    throw new Error("Service indisponible");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const { data, error } = await supabase.functions.invoke(name, { body });
+    clearTimeout(timeout);
+    if (error) throw new Error(error.message);
+    if (data && typeof data === "object" && (data as Record<string, unknown>).status === "unavailable") {
+      throw new Error("Service indisponible");
+    }
+    return data as T;
+  } catch (e) {
+    clearTimeout(timeout);
+    throw e;
   }
-  return data as T;
 }
 
 // Direct client-side fallback for enterprise-lookup
@@ -657,6 +676,31 @@ export async function fetchInpiDocuments(siren: string): Promise<InpiResult> {
   } catch {
     return { documents: [], companyData: null, financials: [], totalDocuments: 0, storedCount: 0, status: "partial" };
   }
+}
+
+// ====== #20: Dirigeant principal by role priority ======
+
+const ROLE_PRIORITY = ["président", "president", "gérant", "gerant", "directeur général", "directeur general", "associé", "associe", "administrateur", "dirigeant"];
+
+export function pickPrincipalDirigeant(dirigeants: Dirigeant[]): string {
+  if (!dirigeants || dirigeants.length === 0) return "";
+  // Sort by role priority
+  const sorted = [...dirigeants].sort((a, b) => {
+    const aIdx = ROLE_PRIORITY.findIndex(r => (a.qualite || "").toLowerCase().includes(r));
+    const bIdx = ROLE_PRIORITY.findIndex(r => (b.qualite || "").toLowerCase().includes(r));
+    return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
+  });
+  const best = sorted[0];
+  return `${(best.nom || "").toUpperCase()} ${best.prenom || ""}`.trim();
+}
+
+// ====== #19: Date formatting helper ======
+
+export function formatDateFR(dateStr: string): string {
+  if (!dateStr) return "";
+  const parts = dateStr.split("-");
+  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+  return dateStr;
 }
 
 // ====== KYC COMPLETENESS (Probleme 10) ======

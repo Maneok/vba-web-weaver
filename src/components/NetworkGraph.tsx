@@ -43,23 +43,39 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(40));
 
+    // #14: Role-based edge coloring
+    const roleColor = (label: string): string => {
+      const l = label.toLowerCase();
+      if (l.includes("président") || l.includes("president")) return "rgba(59, 130, 246, 0.5)";
+      if (l.includes("gérant") || l.includes("gerant")) return "rgba(16, 185, 129, 0.5)";
+      if (l.includes("associé") || l.includes("associe")) return "rgba(249, 115, 22, 0.5)";
+      if (l.includes("directeur")) return "rgba(139, 92, 246, 0.5)";
+      return "rgba(148, 163, 184, 0.2)";
+    };
+
     // Edges
     const link = g.append("g")
       .selectAll("line")
       .data(simEdges)
       .join("line")
-      .attr("stroke", "rgba(148, 163, 184, 0.2)")
+      .attr("stroke", d => roleColor(d.label))
       .attr("stroke-width", 1.5);
 
-    // Edge labels
+    // Edge labels (show on hover via title)
     const linkLabel = g.append("g")
       .selectAll("text")
       .data(simEdges)
       .join("text")
-      .text(d => d.label)
+      .text(d => {
+        const parts = d.label.split(" (");
+        return parts[0];
+      })
       .attr("font-size", "8px")
-      .attr("fill", "#64748b")
+      .attr("fill", d => roleColor(d.label).replace("0.5)", "0.8)"))
       .attr("text-anchor", "middle");
+
+    // Tooltip for date nomination on edge hover
+    link.append("title").text(d => d.label);
 
     // Nodes - size proportional to connections
     const connectionCount = new Map<string, number>();

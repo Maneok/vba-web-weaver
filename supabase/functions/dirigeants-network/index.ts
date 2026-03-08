@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
 
       let mandatCount = 0;
       const recentCreations: string[] = [];
+      let matchingRepOuter: any = null;
 
       // Strategy 1: Use Pappers API if available (most reliable)
       if (pappersKey) {
@@ -70,6 +71,7 @@ Deno.serve(async (req) => {
               return rNom === normNom && rPrenom === normPrenom;
             });
 
+            matchingRepOuter = matchingRep;
             if (matchingRep?.entreprises_dirigees) {
               for (const ent of matchingRep.entreprises_dirigees) {
                 const eSiren = (ent.siren ?? "").replace(/\s/g, "");
@@ -118,101 +120,28 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Strategy 2: Fallback to Annuaire Entreprises if Pappers didn't find anything
-      if (mandatCount === 0) {
-        try {
-          const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(fullName)}&page=1&per_page=20`;
-          const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-          if (!res.ok) continue;
+      // #13: No Annuaire fallback by name — only SIREN-based Pappers links
 
-          const data = await res.json();
-          const results = data.results ?? [];
-
-          for (const r of results) {
-            const rSiren = (r.siren ?? "").replace(/\s/g, "");
-            if (!rSiren || rSiren === cleanSiren) continue;
-
-            // CORRECTION 1: Exact nom+prenom match only (no partial match)
-            const dirMatch = (r.dirigeants ?? []).some((d: any) => {
-              const dNom = normalize(d.nom ?? "");
-              const dPrenom = normalize(d.prenom ?? "");
-              return dNom === normNom && dPrenom === normPrenom;
-            });
-            if (!dirMatch) continue;
-
-            mandatCount++;
-
-            if (!seenSirens.has(rSiren)) {
-              seenSirens.add(rSiren);
-              const siege = r.siege ?? {};
-              const companyId = `company-${rSiren}`;
-              // Find the matching dirigeant for role info
-              const matchedDir = (r.dirigeants ?? []).find((d: any) => {
-                const dNom = normalize(d.nom ?? "");
-                const dPrenom = normalize(d.prenom ?? "");
-                return dNom === normNom && dPrenom === normPrenom;
-              });
-              const role = matchedDir?.qualite ?? matchedDir?.fonction ?? "Dirigeant";
-
-              nodes.push({
-                id: companyId,
-                label: (r.nom_complet ?? "").toUpperCase(),
-                type: "company",
-                siren: rSiren,
-                dateCreation: r.date_creation ?? "",
-                ville: (siege.libelle_commune ?? "").toUpperCase(),
-              });
-              edges.push({ source: personId, target: companyId, label: role });
-
-              // Address for domiciliation detection
-              const addrParts: string[] = [];
-              if (siege.numero_voie) addrParts.push(siege.numero_voie);
-              if (siege.type_voie) addrParts.push(siege.type_voie);
-              if (siege.libelle_voie) addrParts.push(siege.libelle_voie);
-              if (siege.code_postal) addrParts.push(siege.code_postal);
-              if (siege.libelle_commune) addrParts.push(siege.libelle_commune);
-              let addr = addrParts.join(" ").toLowerCase().trim();
-              if (!addr || addr.length < 5) {
-                addr = (siege.geo_adresse ?? siege.adresse ?? "").toLowerCase().trim();
-              }
-              if (addr.length > 5 && !addr.includes("[nd]") && !addr.includes("nd ")) {
-                if (!addressCounts[addr]) addressCounts[addr] = [];
-                addressCounts[addr].push(r.nom_complet ?? rSiren);
-              }
-
-              if (r.date_creation) {
-                const created = new Date(r.date_creation);
-                const oneYearAgo = new Date();
-                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-                if (created > oneYearAgo) {
-                  recentCreations.push(r.nom_complet ?? rSiren);
-                }
-              }
-
-              if (r.etat_administratif === "F" || r.etat_administratif === "C") {
-                alertes.push({
-                  type: "societe_fermee",
-                  message: `Societe fermee dans le reseau : ${r.nom_complet} (SIREN ${rSiren})`,
-                  severity: "orange",
-                });
-              }
-            }
-          }
-        } catch {
-          // Non-blocking
-        }
+      // #15: Count only active companies for mandat threshold
+      let activeMandatCount = mandatCount;
+      if (pappersKey && matchingRepOuter?.entreprises_dirigees) {
+        activeMandatCount = (matchingRepOuter.entreprises_dirigees as any[]).filter((ent: any) => {
+          const st = (ent.statut_rcs ?? "").toLowerCase();
+          const ea = (ent.etat_administratif ?? "").toUpperCase();
+          return st !== "radié" && st !== "radiée" && ea !== "F" && ea !== "C";
+        }).length;
       }
 
-      if (mandatCount >= 10) {
+      if (activeMandatCount >= 10) {
         alertes.push({
           type: "mandats_eleves",
-          message: `${fullName} dirige ${mandatCount}+ societes — nombre eleve de mandats`,
+          message: `${fullName} dirige ${activeMandatCount}+ societes actives — nombre eleve de mandats`,
           severity: "red",
         });
-      } else if (mandatCount >= 5) {
+      } else if (activeMandatCount > 5) {
         alertes.push({
           type: "mandats_eleves",
-          message: `${fullName} dirige ${mandatCount} societes`,
+          message: `${fullName} dirige ${activeMandatCount} societes actives`,
           severity: "orange",
         });
       }

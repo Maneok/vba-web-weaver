@@ -56,6 +56,27 @@ Deno.serve(async (req) => {
             });
           }
 
+          // Extrait RBE (#4)
+          if (pappersData.extrait_rbe_url) {
+            documents.push({
+              type: "Extrait RBE",
+              label: "Extrait RBE (Pappers)",
+              url: pappersData.extrait_rbe_url,
+              source: "pappers",
+              available: true,
+              status: "auto",
+            });
+          } else {
+            documents.push({
+              type: "Extrait RBE",
+              label: "Voir les beneficiaires sur Pappers.fr",
+              url: `https://www.pappers.fr/entreprise/${cleanSiren}#beneficiaires`,
+              source: "pappers",
+              available: true,
+              status: "lien",
+            });
+          }
+
           // Statuts
           if (pappersData.derniers_statuts?.url) {
             documents.push({
@@ -183,9 +204,26 @@ Deno.serve(async (req) => {
     const foundTypes = documents.filter((d: any) => d.status === "auto").map((d: any) => d.type);
     const missing = requiredDocs.filter(r => !foundTypes.some(f => f.toUpperCase().includes(r.toUpperCase())));
 
+    // Extract finances data from Pappers (#5)
+    const finances: any = {};
+    if (pappersData?.finances) {
+      const years = Object.keys(pappersData.finances).sort().reverse();
+      for (const yr of years.slice(0, 3)) {
+        const f = pappersData.finances[yr];
+        if (f) {
+          finances[yr] = {
+            ca: f.ca ?? f.chiffre_affaires ?? null,
+            resultat: f.resultat ?? null,
+            effectif: f.effectif ?? null,
+          };
+        }
+      }
+    }
+
     return new Response(JSON.stringify({
       documents,
       beneficiaires_effectifs: beneficiaires,
+      finances,
       total: documents.length,
       autoRecovered: documents.filter((d: any) => d.status === "auto").length,
       missing,

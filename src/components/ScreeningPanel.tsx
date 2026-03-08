@@ -82,6 +82,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
     loading: boolean;
     detail?: string;
     alertes?: string[];
+    timeMs?: number;
   }> = [
     {
       key: "enterprise",
@@ -90,44 +91,49 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: screening.enterprise.data ? "OK" : screening.enterprise.error ? "ERREUR" : null,
       loading: screening.enterprise.loading,
       detail: screening.enterprise.data ? `${screening.enterprise.data.length} resultat(s)` : undefined,
+      timeMs: screening.enterprise.timeMs,
     },
     {
       key: "sanctions",
       icon: <Shield className="w-4 h-4 text-red-400" />,
       label: "Sanctions / PPE (OpenSanctions)",
-      status: (screening.sanctions.data?.status as Status) ?? null,
+      status: (screening.sanctions.data?.status as Status) ?? (screening.sanctions.error ? "ERREUR" : null),
       loading: screening.sanctions.loading,
       detail: screening.sanctions.data ? `${screening.sanctions.data.checked} personne(s) verifiee(s)` : undefined,
       alertes: screening.sanctions.data?.matches.map(m => m.details),
+      timeMs: screening.sanctions.timeMs,
     },
     {
       key: "bodacc",
       icon: <AlertTriangle className="w-4 h-4 text-amber-400" />,
       label: "BODACC (procedures collectives)",
-      status: (screening.bodacc.data?.status as Status) ?? null,
+      status: (screening.bodacc.data?.status as Status) ?? (screening.bodacc.error ? "ERREUR" : null),
       loading: screening.bodacc.loading,
       detail: screening.bodacc.data ? `${screening.bodacc.data.annonces.length} annonce(s)` : undefined,
       alertes: screening.bodacc.data?.alertes,
+      timeMs: screening.bodacc.timeMs,
     },
     {
       key: "google",
       icon: <MapPin className="w-4 h-4 text-emerald-400" />,
       label: "Google Places (existence physique)",
-      status: (screening.google.data?.status as Status) ?? null,
+      status: (screening.google.data?.status as Status) ?? (screening.google.error ? "ERREUR" : null),
       loading: screening.google.loading,
       detail: screening.google.data?.place
         ? `${screening.google.data.place.name} — ${screening.google.data.place.rating ?? "N/A"}/5 (${screening.google.data.place.totalRatings} avis)`
         : undefined,
       alertes: screening.google.data?.alertes,
+      timeMs: screening.google.timeMs,
     },
     {
       key: "news",
       icon: <Newspaper className="w-4 h-4 text-purple-400" />,
       label: "Revue de presse (Google Search)",
-      status: (screening.news.data?.status as Status) ?? null,
+      status: (screening.news.data?.status as Status) ?? (screening.news.error ? "ERREUR" : null),
       loading: screening.news.loading,
       detail: screening.news.data ? `${screening.news.data.articles.length} article(s)` : undefined,
       alertes: screening.news.data?.alertes,
+      timeMs: screening.news.timeMs,
     },
   ];
 
@@ -136,26 +142,29 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       key: "network",
       icon: <Users className="w-4 h-4 text-cyan-400" />,
       label: "Reseau dirigeants",
-      status: (screening.network.data?.status as Status) ?? null,
+      status: (screening.network.data?.status as Status) ?? (screening.network.error ? "ERREUR" : null),
       loading: screening.network.loading,
       detail: screening.network.data ? `${screening.network.data.totalCompanies} societe(s), ${screening.network.data.totalPersons} personne(s)` : undefined,
       alertes: screening.network.data?.alertes.map(a => a.message),
+      timeMs: screening.network.timeMs,
     });
     rows.push({
       key: "documents",
       icon: <FileText className="w-4 h-4 text-amber-400" />,
       label: "Documents Pappers",
-      status: (screening.documents.data?.status as Status) ?? null,
+      status: (screening.documents.data?.status as Status) ?? (screening.documents.error ? "ERREUR" : null),
       loading: screening.documents.loading,
       detail: screening.documents.data ? `${screening.documents.data.total} document(s)` : undefined,
+      timeMs: screening.documents.timeMs,
     });
     rows.push({
       key: "inpi",
       icon: <Archive className="w-4 h-4 text-indigo-400" />,
       label: "Documents INPI (RNE)",
-      status: (screening.inpi.data?.status as Status) ?? null,
+      status: (screening.inpi.data?.status as Status) ?? (screening.inpi.error ? "ERREUR" : null),
       loading: screening.inpi.loading,
       detail: screening.inpi.data ? `${screening.inpi.data.totalDocuments} document(s), ${screening.inpi.data.storedCount} stocke(s)` : undefined,
+      timeMs: screening.inpi.timeMs,
     });
   }
 
@@ -181,6 +190,9 @@ export default function ScreeningPanel({ screening, compact }: Props) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {row.timeMs != null && !row.loading && (
+                  <span className="text-[9px] text-slate-600 font-mono">{(row.timeMs / 1000).toFixed(1)}s</span>
+                )}
                 {row.detail && !row.loading && (
                   <span className="text-[10px] text-slate-500">{row.detail}</span>
                 )}

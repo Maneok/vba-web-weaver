@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE } from "@/lib/riskEngine";
@@ -7,7 +7,7 @@ import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
-  computeKycCompleteness, detectAmlSignals,
+  computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant, formatDateFR,
 } from "@/lib/kycService";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
@@ -123,6 +123,7 @@ export default function NouveauClientPage() {
 
   // Step 3 - Beneficiaires
   const [beneficiaires, setBeneficiaires] = useState<Beneficiaire[]>([]);
+  const [beScreening, setBeScreening] = useState<Record<string, "loading" | "clean" | "match" | "error">>({});
 
   // Step 4 - Questionnaire
   const [questions, setQuestions] = useState<QuestionLCB[]>(
@@ -154,6 +155,31 @@ export default function NouveauClientPage() {
       ));
     }
   }, [sanctionsPPE]);
+
+  // #24: Auto-detect domiciliataire → mission DOMICILIATION
+  const inpiDomiciliataire = screening.inpi.data?.companyData?.domiciliataire;
+  useMemo(() => {
+    if (inpiDomiciliataire) {
+      set("mission", "DOMICILIATION");
+    }
+  }, [inpiDomiciliataire]);
+
+  // #25: Auto-detect pays risque from address or dirigeant nationality
+  const inpiPays = screening.inpi.data?.companyData?.adresse?.pays;
+  useMemo(() => {
+    const paysAddr = (inpiPays || "").toUpperCase();
+    const isForeignAddress = paysAddr && paysAddr !== "" && paysAddr !== "FRANCE" && paysAddr !== "FR";
+    const dirNationalites = screening.inpi.data?.companyData?.dirigeants?.map(d => (d.nationalite || "").toUpperCase()) ?? [];
+    const paysRisqueDetected = isForeignAddress && PAYS_RISQUE.some(p => paysAddr.includes(p));
+    const dirPaysRisque = dirNationalites.find(n => PAYS_RISQUE.some(p => n.includes(p)));
+    if (paysRisqueDetected || dirPaysRisque) {
+      setQuestions(prev => prev.map(q =>
+        q.id === "paysRisque" && q.value !== "OUI"
+          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Pays a risque detecte automatiquement : ${paysRisqueDetected ? paysAddr : dirPaysRisque}` }
+          : q
+      ));
+    }
+  }, [inpiPays, screening.inpi.data?.companyData?.dirigeants]);
 
   // Risk flags derived from questionnaire
   const riskFlags = useMemo(() => ({
@@ -229,53 +255,63 @@ export default function NouveauClientPage() {
     const ville = enterprise.ville;
     const dirigeantPrincipal = enterprise.dirigeant;
 
+    // #28: All screening calls launched in parallel via Promise.allSettled pattern
+    // #30: Each call tracks response time
+
     // Sanctions check
+    const t0sanctions = Date.now();
     setScreening(prev => ({ ...prev, sanctions: { loading: true, data: null, error: null } }));
     const personsToCheck = dirigeants.map(d => ({
       nom: d.nom, prenom: d.prenom, dateNaissance: d.date_naissance, nationalite: d.nationalite,
     }));
     checkSanctions(personsToCheck, siren.replace(/\s/g, "")).then(data => {
-      setScreening(prev => ({ ...prev, sanctions: { loading: false, data, error: null } }));
+      setScreening(prev => ({ ...prev, sanctions: { loading: false, data, error: null, timeMs: Date.now() - t0sanctions } }));
       if (data.hasCriticalMatch) toast.error("ALERTE SANCTIONS : Match critique detecte !");
       if (data.hasPPE) toast.warning("PPE detectee — vigilance RENFORCEE requise");
-    }).catch(() => setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur" } })));
+    }).catch(() => setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0sanctions } })));
 
-    // BODACC check (pass complements for fallback)
+    // BODACC check
+    const t0bodacc = Date.now();
     setScreening(prev => ({ ...prev, bodacc: { loading: true, data: null, error: null } }));
     checkBodacc(siren, raisonSociale, enterprise.complements as Record<string, unknown>).then(data => {
-      setScreening(prev => ({ ...prev, bodacc: { loading: false, data, error: null } }));
+      setScreening(prev => ({ ...prev, bodacc: { loading: false, data, error: null, timeMs: Date.now() - t0bodacc } }));
       if (data.hasProcedureCollective) toast.warning("Procedure collective detectee (BODACC)");
-    }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur" } })));
+    }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0bodacc } })));
 
     // Google Places
+    const t0google = Date.now();
     setScreening(prev => ({ ...prev, google: { loading: true, data: null, error: null } }));
     verifyGooglePlaces(raisonSociale, ville).then(data => {
-      setScreening(prev => ({ ...prev, google: { loading: false, data, error: null } }));
-    }).catch(() => setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur" } })));
+      setScreening(prev => ({ ...prev, google: { loading: false, data, error: null, timeMs: Date.now() - t0google } }));
+    }).catch(() => setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0google } })));
 
     // News check
+    const t0news = Date.now();
     setScreening(prev => ({ ...prev, news: { loading: true, data: null, error: null } }));
     checkNews(raisonSociale, dirigeantPrincipal).then(data => {
-      setScreening(prev => ({ ...prev, news: { loading: false, data, error: null } }));
+      setScreening(prev => ({ ...prev, news: { loading: false, data, error: null, timeMs: Date.now() - t0news } }));
       if (data.hasNegativeNews) toast.error("Article negatif detecte dans la presse !");
-    }).catch(() => setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur" } })));
+    }).catch(() => setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0news } })));
 
     // Network analysis
+    const t0network = Date.now();
     setScreening(prev => ({ ...prev, network: { loading: true, data: null, error: null } }));
     analyzeNetwork(siren, dirigeants).then(data => {
-      setScreening(prev => ({ ...prev, network: { loading: false, data, error: null } }));
-    }).catch(() => setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur" } })));
+      setScreening(prev => ({ ...prev, network: { loading: false, data, error: null, timeMs: Date.now() - t0network } }));
+    }).catch(() => setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0network } })));
 
     // Documents fetch
+    const t0docs = Date.now();
     setScreening(prev => ({ ...prev, documents: { loading: true, data: null, error: null } }));
     fetchDocuments(siren, raisonSociale).then(data => {
-      setScreening(prev => ({ ...prev, documents: { loading: false, data, error: null } }));
-    }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })));
+      setScreening(prev => ({ ...prev, documents: { loading: false, data, error: null, timeMs: Date.now() - t0docs } }));
+    }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0docs } })));
 
     // INPI documents fetch — Phase 1: INPI as priority data source
+    const t0inpi = Date.now();
     setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
     fetchInpiDocuments(siren.replace(/\s/g, "")).then(data => {
-      setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: data.error || null } }));
+      setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: data.error || null, timeMs: Date.now() - t0inpi } }));
       if (data.totalDocuments > 0) toast.success(`${data.totalDocuments} document(s) INPI recupere(s)`);
       else if (data.error) toast.warning(`INPI: ${data.error}`);
 
@@ -346,7 +382,7 @@ export default function NouveauClientPage() {
         if (inpi.domiciliataire) toast.info(`Domiciliataire detecte : ${inpi.domiciliataire}`);
         if (inpi.associeUnique) toast.warning("Associe unique detecte (INPI)");
       }
-    }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })));
+    }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0inpi } })));
   };
 
   // Step 1: Search
@@ -487,7 +523,7 @@ export default function NouveauClientPage() {
     autoSet("capital", entData?.capital || result.capital);
     autoSet("dateCreation", result.date_creation);
     autoSet("effectif", result.effectif);
-    autoSet("dirigeant", result.dirigeant);
+    autoSet("dirigeant", entData?.dirigeants ? pickPrincipalDirigeant(entData.dirigeants) : result.dirigeant);
     // Enriched Pappers fields
     autoSet("tel", entData?.telephone);
     autoSet("mail", entData?.email);
@@ -570,6 +606,30 @@ export default function NouveauClientPage() {
   const removeBeneficiaire = (idx: number) => {
     setBeneficiaires(prev => prev.filter((_, i) => i !== idx));
   };
+
+  // #22: Screen each BE via OpenSanctions
+  const screenBeneficiaires = useCallback((bList: Beneficiaire[]) => {
+    bList.forEach(b => {
+      if (!b.nom || b.nom.length < 2) return;
+      const key = `${b.nom}-${b.prenom}`;
+      if (beScreening[key]) return; // already screened
+      setBeScreening(prev => ({ ...prev, [key]: "loading" }));
+      checkSanctions([{ nom: b.nom, prenom: b.prenom, dateNaissance: b.dateNaissance, nationalite: b.nationalite }])
+        .then(result => {
+          setBeScreening(prev => ({ ...prev, [key]: result.hasCriticalMatch || result.hasPPE ? "match" : "clean" }));
+          if (result.hasCriticalMatch) toast.error(`ALERTE : ${b.prenom} ${b.nom} — match sanctions`);
+          if (result.hasPPE) toast.warning(`PPE detectee : ${b.prenom} ${b.nom}`);
+        })
+        .catch(() => setBeScreening(prev => ({ ...prev, [key]: "error" })));
+    });
+  }, [beScreening]);
+
+  // Auto-screen BE when they are first set
+  useEffect(() => {
+    if (beneficiaires.length > 0 && step === 2) {
+      screenBeneficiaires(beneficiaires);
+    }
+  }, [beneficiaires.length, step]);
 
   // Step 4: question update
   const updateQuestion = (idx: number, field: "value" | "commentaire", val: string) => {
@@ -904,49 +964,16 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* Map embed — OpenStreetMap fallback (BLOC B) */}
-            {screening.google.data && (
-              <div className="rounded-lg border border-white/[0.06] overflow-hidden">
-                <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Map className="w-4 h-4 text-emerald-400" />
-                    <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <a
-                      href={`https://www.google.com/maps/search/${encodeURIComponent(form.adresse ? `${form.adresse} ${form.cp} ${form.ville}` : screening.google.data.place?.address || form.raisonSociale)}`}
-                      target="_blank" rel="noopener noreferrer"
-                      className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                    >
-                      <ExternalLink className="w-3 h-3" /> Google Maps
-                    </a>
-                    {screening.google.data.streetViewUrl && (
-                      <a href={screening.google.data.streetViewUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                        <Eye className="w-3 h-3" /> Street View
-                      </a>
-                    )}
-                  </div>
-                </div>
-                {(() => {
-                  const lat = screening.google.data.place?.lat;
-                  const lng = screening.google.data.place?.lng;
-                  if (lat && lng) {
-                    return (
-                      <iframe
-                        src={`https://www.openstreetmap.org/export/embed.html?bbox=${lng - 0.01},${lat - 0.01},${lng + 0.01},${lat + 0.01}&layer=mapnik&marker=${lat},${lng}`}
-                        width="100%" height="250" style={{ border: 0 }} loading="lazy"
-                      />
-                    );
-                  }
-                  const addr = form.adresse ? `${form.adresse} ${form.cp} ${form.ville}` : form.raisonSociale;
-                  return (
-                    <iframe
-                      src={`https://www.openstreetmap.org/export/embed.html?bbox=-5,41,10,52&layer=mapnik`}
-                      width="100%" height="200" style={{ border: 0 }} loading="lazy"
-                    />
-                  );
-                })()}
-              </div>
+            {/* Map embed — OpenStreetMap with Nominatim geocoding fallback (#9-11) */}
+            {(screening.google.data || form.adresse) && (
+              <MapSection
+                lat={screening.google.data?.place?.lat ?? null}
+                lng={screening.google.data?.place?.lng ?? null}
+                adresse={form.adresse}
+                cp={form.cp}
+                ville={form.ville}
+                raisonSociale={form.raisonSociale}
+              />
             )}
 
             {/* Network Graph preview (Probleme 9) */}
@@ -993,10 +1020,10 @@ export default function NouveauClientPage() {
                   <div><span className="text-slate-500">SIREN</span><p className="text-slate-200 font-mono mt-0.5">{selectedResult.siren}</p></div>
                   <div><span className="text-slate-500">Forme</span><p className="text-slate-200 mt-0.5">{selectedResult.forme_juridique_raw}</p></div>
                   <div><span className="text-slate-500">APE</span><p className="text-slate-200 mt-0.5">{selectedResult.ape} - {selectedResult.libelle_ape}</p></div>
-                  <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{(selectedEnterprise?.capital || selectedResult.capital || 0).toLocaleString()} EUR {capitalSource && <span className="text-[10px] text-slate-500">({capitalSource})</span>}</p></div>
+                  <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; return cap > 0 ? `${cap.toLocaleString()} EUR` : "Non renseigne"; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-500">({capitalSource})</span>}</p></div>
                   <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{selectedResult.dirigeant || "—"}</p></div>
                   <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
-                  <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation}</p></div>
+                  <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation ? selectedResult.date_creation.split("-").reverse().join("/") : "—"}</p></div>
                 </div>
                 {dataSource !== "pappers" && (
                   <div className="mt-3 pt-3 border-t border-emerald-500/10 flex items-center gap-2 text-xs">
@@ -1054,7 +1081,7 @@ export default function NouveauClientPage() {
                 <FormField label="Forme Juridique *" type="select" value={form.forme} options={FORMES} onChange={v => set("forme", v)} isAuto={autoFields.has("forme")} required />
                 <FormField label="SIREN *" value={form.siren} onChange={v => set("siren", v)} error={validationErrors.siren} placeholder="9 chiffres" isAuto={autoFields.has("siren")} required />
                 <FormField label="SIRET" value={form.siret} onChange={v => set("siret", v)} placeholder="14 chiffres" isAuto={autoFields.has("siret")} />
-                <FormField label="Code APE *" value={form.ape} onChange={v => set("ape", v)} placeholder="Ex: 56.10A" isAuto={autoFields.has("ape")} required />
+                <FormField label="Code APE *" value={form.ape} onChange={v => set("ape", v)} placeholder="Ex: 56.10A" isAuto={autoFields.has("ape")} required hint={form.domaine ? form.domaine : undefined} />
                 <div>
                   <div className="flex items-center gap-1.5">
                     <Label className="text-[10px] text-slate-500 uppercase">Capital social</Label>
@@ -1065,10 +1092,13 @@ export default function NouveauClientPage() {
                       "bg-slate-500/20 text-slate-400"
                     }`}>{capitalSource}</span>}
                   </div>
-                  <Input type="number" value={form.capital} onChange={e => set("capital", Number(e.target.value))} className={`bg-white/[0.03] mt-1 ${!form.capital ? "border-amber-500/50" : "border-white/[0.06]"}`} />
-                  {!form.capital && <p className="text-[10px] text-amber-400 mt-0.5">A completer manuellement</p>}
+                  <Input type="number" value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="Non renseigne" className={`bg-white/[0.03] mt-1 ${!form.capital ? "border-amber-500/50" : "border-white/[0.06]"}`} />
+                  {!form.capital && <p className="text-[10px] text-amber-400 mt-0.5">Non renseigne — a completer</p>}
                 </div>
-                <FormField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" isAuto={autoFields.has("dateCreation")} />
+                <div>
+                  <FormField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" isAuto={autoFields.has("dateCreation")} />
+                  {form.dateCreation && <p className="text-[10px] text-slate-500 mt-0.5">{formatDateFR(form.dateCreation)}</p>}
+                </div>
               </div>
             </div>
 
@@ -1090,9 +1120,20 @@ export default function NouveauClientPage() {
                   <FormField label="Code Postal" value={form.cp} onChange={v => set("cp", v)} isAuto={autoFields.has("cp")} />
                   <FormField label="Ville" value={form.ville} onChange={v => set("ville", v)} isAuto={autoFields.has("ville")} />
                 </div>
-                <FormField label="Telephone" value={form.tel} onChange={v => set("tel", v)} error={validationErrors.tel} placeholder="0XXXXXXXXX" isAuto={autoFields.has("tel")} />
-                <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" isAuto={autoFields.has("mail")} />
-                <FormField label="Site web" value={form.siteWeb} onChange={v => set("siteWeb", v)} placeholder="https://..." isAuto={autoFields.has("siteWeb")} />
+                <FormField label="Telephone" value={form.tel} onChange={v => set("tel", v)} error={validationErrors.tel} placeholder="0XXXXXXXXX" isAuto={autoFields.has("tel")} needsCompletion={!!selectedResult && !form.tel} />
+                <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" isAuto={autoFields.has("mail")} needsCompletion={!!selectedResult && !form.mail} />
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <Label className="text-[10px] text-slate-500 uppercase">Site web</Label>
+                    {autoFields.has("siteWeb") && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
+                  </div>
+                  <Input value={form.siteWeb} onChange={e => set("siteWeb", e.target.value)} placeholder="https://..." className="bg-white/[0.03] mt-1 border-white/[0.06]" />
+                  {form.siteWeb && (
+                    <a href={form.siteWeb.startsWith("http") ? form.siteWeb : `https://${form.siteWeb}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 mt-0.5 inline-flex items-center gap-1">
+                      <ExternalLink className="w-3 h-3" /> Ouvrir le site
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1158,7 +1199,18 @@ export default function NouveauClientPage() {
               {beneficiaires.map((b, i) => (
                 <div key={i} className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
                   <div className="flex items-center justify-between mb-3">
-                    <span className="text-xs font-semibold text-slate-400">Beneficiaire {i + 1}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-slate-400">Beneficiaire {i + 1}</span>
+                      {(() => {
+                        const key = `${b.nom}-${b.prenom}`;
+                        const status = beScreening[key];
+                        if (status === "loading") return <Loader2 className="w-3 h-3 animate-spin text-blue-400" />;
+                        if (status === "clean") return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
+                        if (status === "match") return <AlertTriangle className="w-3.5 h-3.5 text-red-400" />;
+                        if (status === "error") return <span className="text-[9px] text-slate-500">N/A</span>;
+                        return null;
+                      })()}
+                    </div>
                     <Button variant="ghost" size="sm" onClick={() => removeBeneficiaire(i)} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 w-7 p-0">
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
@@ -1591,24 +1643,58 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* KYC completeness detail */}
+            {/* #27: Checklist documentaire complete */}
             <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
-              <h3 className="text-xs font-semibold text-slate-300 mb-3">Completude KYC</h3>
-              <div className="grid grid-cols-4 gap-3">
-                {["KBIS", "Statuts", "CNI", "RIB"].map(type => {
-                  const autoDoc = screening.documents.data?.documents?.find(
-                    d => d.type.toUpperCase().includes(type.toUpperCase()) && d.status === "auto"
-                  );
-                  const uploadedDoc = documents.some(d => d.type.toUpperCase().includes(type.toUpperCase()));
-                  const found = !!autoDoc || uploadedDoc;
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-semibold text-slate-300">Checklist documentaire</h3>
+                {(() => {
+                  const checklist = [
+                    { type: "KBIS", label: "Extrait/Kbis", autoOnly: false },
+                    { type: "Statuts", label: "Statuts a jour", autoOnly: false },
+                    { type: "CNI", label: "CNI dirigeant", autoOnly: false },
+                    { type: "RIB", label: "RIB", autoOnly: false },
+                    { type: "Comptes", label: "Comptes annuels", autoOnly: false },
+                    { type: "Justificatif", label: "Justificatif domicile", autoOnly: false },
+                  ];
+                  const found = checklist.filter(c => {
+                    const autoDoc = screening.documents.data?.documents?.find(d => d.type.toUpperCase().includes(c.type.toUpperCase()) && d.status === "auto");
+                    const inpiDoc = screening.inpi.data?.documents?.find(d => d.type.toUpperCase().includes(c.type.toUpperCase()));
+                    const uploadedDoc = documents.some(d => d.type.toUpperCase().includes(c.type.toUpperCase()));
+                    return !!autoDoc || !!inpiDoc || uploadedDoc;
+                  });
+                  const pct = Math.round((found.length / checklist.length) * 100);
                   return (
-                    <div key={type} className={`p-3 rounded-lg border text-center ${
+                    <div className="flex items-center gap-2">
+                      <Progress value={pct} className="w-24 h-2" />
+                      <span className={`text-sm font-bold ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
+                    </div>
+                  );
+                })()}
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { type: "KBIS", label: "Extrait/Kbis", manual: false },
+                  { type: "Statuts", label: "Statuts a jour", manual: false },
+                  { type: "CNI", label: "CNI dirigeant", manual: true },
+                  { type: "RIB", label: "RIB", manual: true },
+                  { type: "Comptes", label: "Comptes annuels", manual: false },
+                  { type: "Justificatif", label: "Justificatif domicile", manual: true },
+                ].map(item => {
+                  const autoDoc = screening.documents.data?.documents?.find(d => d.type.toUpperCase().includes(item.type.toUpperCase()) && d.status === "auto");
+                  const inpiDoc = screening.inpi.data?.documents?.find(d => d.type.toUpperCase().includes(item.type.toUpperCase()));
+                  const uploadedDoc = documents.some(d => d.type.toUpperCase().includes(item.type.toUpperCase()));
+                  const found = !!autoDoc || !!inpiDoc || uploadedDoc;
+                  return (
+                    <div key={item.type} className={`p-3 rounded-lg border text-center ${
                       found ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"
                     }`}>
                       {found ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" /> : <X className="w-5 h-5 text-red-400 mx-auto mb-1" />}
-                      <p className={`text-xs font-medium ${found ? "text-emerald-400" : "text-red-400"}`}>{type}</p>
+                      <p className={`text-xs font-medium ${found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
                       {autoDoc && <p className="text-[9px] text-emerald-500 mt-0.5">Auto-recupere</p>}
-                      {!found && <p className="text-[9px] text-red-400 mt-0.5">Manquant</p>}
+                      {inpiDoc && !autoDoc && <p className="text-[9px] text-indigo-400 mt-0.5">INPI</p>}
+                      {uploadedDoc && !autoDoc && !inpiDoc && <p className="text-[9px] text-amber-400 mt-0.5">Upload manuel</p>}
+                      {!found && item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manuel requis</p>}
+                      {!found && !item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manquant</p>}
                     </div>
                   );
                 })}
@@ -1701,7 +1787,66 @@ export default function NouveauClientPage() {
 }
 
 // Reusable form field with auto badge and empty indicator
-function FormField({ label, value, onChange, type = "text", error, placeholder, options, isAuto, required }: {
+function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
+  lat: number | null; lng: number | null; adresse: string; cp: string; ville: string; raisonSociale: string;
+}) {
+  const [geoLat, setGeoLat] = useState<number | null>(lat);
+  const [geoLng, setGeoLng] = useState<number | null>(lng);
+  const [geoLoading, setGeoLoading] = useState(false);
+
+  const fullAddr = [adresse, cp, ville].filter(Boolean).join(" ");
+  const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(fullAddr || raisonSociale)}`;
+
+  useEffect(() => {
+    if (lat && lng) { setGeoLat(lat); setGeoLng(lng); return; }
+    if (!fullAddr || fullAddr.length < 5) return;
+    setGeoLoading(true);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: AbortSignal.timeout(10000) })
+      .then(r => r.json())
+      .then((data: Array<{ lat: string; lon: string }>) => {
+        if (data.length > 0) { setGeoLat(parseFloat(data[0].lat)); setGeoLng(parseFloat(data[0].lon)); }
+      })
+      .catch(() => {})
+      .finally(() => setGeoLoading(false));
+  }, [lat, lng, fullAddr]);
+
+  return (
+    <div className="rounded-lg border border-white/[0.06] overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Map className="w-4 h-4 text-emerald-400" />
+          <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
+          {geoLoading && <Loader2 className="w-3 h-3 animate-spin text-blue-400" />}
+        </div>
+        <div className="flex items-center gap-2">
+          <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+            <ExternalLink className="w-3 h-3" /> Google Maps
+          </a>
+          {geoLat && geoLng && (
+            <a href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${geoLat},${geoLng}`} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+              <Eye className="w-3 h-3" /> Street View
+            </a>
+          )}
+        </div>
+      </div>
+      {geoLat && geoLng ? (
+        <iframe
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${geoLng - 0.005}%2C${geoLat - 0.005}%2C${geoLng + 0.005}%2C${geoLat + 0.005}&layer=mapnik&marker=${geoLat}%2C${geoLng}`}
+          width="100%" height="250" style={{ border: 0 }} loading="lazy"
+        />
+      ) : (
+        <div className="p-6 text-center">
+          <p className="text-sm text-slate-400">Coordonnees non disponibles</p>
+          <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 hover:text-blue-300 mt-2 inline-flex items-center gap-1">
+            <ExternalLink className="w-4 h-4" /> Voir sur Google Maps
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function FormField({ label, value, onChange, type = "text", error, placeholder, options, isAuto, required, hint, needsCompletion }: {
   label: string;
   value: string | number;
   onChange: (v: string) => void;
@@ -1711,9 +1856,11 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
   options?: string[];
   isAuto?: boolean;
   required?: boolean;
+  hint?: string;
+  needsCompletion?: boolean;
 }) {
   const isEmpty = !value || value === "" || value === 0;
-  const showOrange = required && isEmpty && !error;
+  const showOrange = (required && isEmpty && !error) || needsCompletion;
 
   if (type === "select" && options) {
     return (
@@ -1749,7 +1896,9 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
         className={`bg-white/[0.03] mt-1 ${error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : "border-white/[0.06]"}`}
       />
       {error && <p className="text-[10px] text-red-400 mt-0.5">{error}</p>}
-      {showOrange && !error && <p className="text-[10px] text-amber-400 mt-0.5">A completer manuellement</p>}
+      {needsCompletion && !error && isEmpty && <p className="text-[10px] text-amber-400 mt-0.5">A completer</p>}
+      {showOrange && !error && !needsCompletion && isEmpty && <p className="text-[10px] text-amber-400 mt-0.5">A completer manuellement</p>}
+      {hint && <p className="text-[10px] text-slate-500 mt-0.5">{hint}</p>}
     </div>
   );
 }

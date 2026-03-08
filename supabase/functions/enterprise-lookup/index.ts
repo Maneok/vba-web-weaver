@@ -197,6 +197,8 @@ Deno.serve(async (req) => {
       let email = "";
       let siteWeb = "";
       let beneficiaires: any[] = [];
+      let finances: any[] = [];
+      let representants: any[] = [];
       let pappersAdresse = "";
       let pappersCp = "";
       let pappersVille = "";
@@ -234,6 +236,39 @@ Deno.serve(async (req) => {
               pourcentage_parts: be.pourcentage_parts ?? 0,
               pourcentage_votes: be.pourcentage_votes ?? 0,
             }));
+
+            // Finances from Pappers (#5)
+            if (pData.finances && Object.keys(pData.finances).length > 0) {
+              // finances is keyed by year: { "2023": { ca, resultat, effectif, ... } }
+              const years = Object.keys(pData.finances).sort().reverse();
+              for (const yr of years.slice(0, 3)) {
+                const f = pData.finances[yr];
+                if (f) {
+                  finances.push({
+                    annee: yr,
+                    ca: f.ca ?? f.chiffre_affaires ?? null,
+                    resultat: f.resultat ?? null,
+                    effectif: f.effectif ?? null,
+                  });
+                }
+              }
+            }
+
+            // Representants with entreprises_dirigees (#12)
+            representants = (pData.representants ?? []).map((rep: any) => ({
+              nom: rep.nom ?? "",
+              prenom: rep.prenom ?? "",
+              qualite: rep.qualite ?? "",
+              date_prise_de_poste: rep.date_prise_de_poste ?? "",
+              entreprises_dirigees: (rep.entreprises_dirigees ?? []).map((ent: any) => ({
+                siren: (ent.siren ?? "").replace(/\s/g, ""),
+                denomination: ent.denomination ?? ent.nom_entreprise ?? "",
+                qualite: ent.qualite ?? "",
+                date_prise_de_poste: ent.date_prise_de_poste ?? "",
+                statut_rcs: ent.statut_rcs ?? "",
+                date_creation: ent.date_creation ?? "",
+              })),
+            }));
           }
         } catch {
           // Pappers unavailable
@@ -267,6 +302,8 @@ Deno.serve(async (req) => {
         email,
         site_web: siteWeb,
         beneficiaires_effectifs: beneficiaires,
+        finances,
+        representants,
         nombre_etablissements: r.nombre_etablissements ?? 1,
         etat_administratif: r.etat_administratif ?? "A",
         complements: r.complements ?? {},
