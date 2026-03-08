@@ -8,6 +8,7 @@ import {
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
   computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant, formatDateFR,
+  getFormeJuridiqueLabel,
 } from "@/lib/kycService";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
@@ -32,7 +33,7 @@ import {
 import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
-  Map, ExternalLink, Eye,
+  Map, ExternalLink, Eye, Clock,
 } from "lucide-react";
 
 const FORMES = ["ENTREPRISE INDIVIDUELLE", "SARL", "EURL", "SAS", "SCI", "SCP", "SELAS", "SELARL", "EARL", "SA", "ASSOCIATION", "SNC", "TRUST", "FIDUCIE", "FONDATION"];
@@ -120,6 +121,8 @@ export default function NouveauClientPage() {
     frequence: "MENSUEL",
     comptable: "MAGALIE", associe: "DIDIER", superviseur: "SAMUEL",
     iban: "", bic: "", dateFin: "",
+    // INPI enriched fields
+    objetSocial: "", duree: "", dateClotureExercice: "",
   });
 
   // Step 3 - Beneficiaires
@@ -140,33 +143,55 @@ export default function NouveauClientPage() {
   const [documents, setDocuments] = useState<UploadedDoc[]>([]);
   const [dragOver, setDragOver] = useState(false);
 
+  // Draft banner state
+  const [draftBanner, setDraftBanner] = useState<{ restoredAt: Date } | null>(null);
+
   const set = useCallback((key: string, val: unknown) => setForm(prev => ({ ...prev, [key]: val })), []);
 
-  // FIX 9: Save draft to localStorage on step change
+  // FIX 1: Scroll to top on step change
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [step]);
+
+  // FIX 9: Save draft to localStorage on step change (silent)
   useEffect(() => {
     if (step > 0 || form.siren) {
-      localStorage.setItem("draft_nouveau_client", JSON.stringify({ form, step, beneficiaires, questions, decision, motifRefus }));
+      const draftData = { form, step, beneficiaires, questions, decision, motifRefus, savedAt: Date.now() };
+      localStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
+      // Also save per-SIREN draft for multi-draft support
+      if (form.siren) {
+        const cleanSiren = form.siren.replace(/\s/g, "");
+        if (cleanSiren.length === 9) {
+          localStorage.setItem(`draft_nc_${cleanSiren}`, JSON.stringify(draftData));
+        }
+      }
     }
   }, [step, form, beneficiaires, questions, decision, motifRefus]);
 
-  // FIX 9: Restore draft on mount
+  // FIX 2: Silent draft restore — no popup
+  const restoreDraft = useCallback((draft: string) => {
+    try {
+      const data = JSON.parse(draft);
+      if (data.form?.siren) {
+        setForm(data.form);
+        setStep(data.step || 0);
+        if (data.beneficiaires) setBeneficiaires(data.beneficiaires);
+        if (data.questions) setQuestions(data.questions);
+        if (data.decision) setDecision(data.decision);
+        if (data.motifRefus) setMotifRefus(data.motifRefus);
+        setDraftBanner({ restoredAt: new Date(data.savedAt || Date.now()) });
+      }
+    } catch {}
+  }, []);
+
+  // On mount: silently restore draft if exists
   useEffect(() => {
     const draft = localStorage.getItem("draft_nouveau_client");
     if (draft) {
       try {
         const data = JSON.parse(draft);
         if (data.form?.siren) {
-          const resume = window.confirm(`Brouillon detecte : ${data.form.raisonSociale || data.form.siren}\nReprendre le brouillon ?`);
-          if (resume) {
-            setForm(data.form);
-            setStep(data.step || 0);
-            if (data.beneficiaires) setBeneficiaires(data.beneficiaires);
-            if (data.questions) setQuestions(data.questions);
-            if (data.decision) setDecision(data.decision);
-            if (data.motifRefus) setMotifRefus(data.motifRefus);
-          } else {
-            localStorage.removeItem("draft_nouveau_client");
-          }
+          restoreDraft(draft);
         }
       } catch {}
     }
@@ -372,33 +397,82 @@ export default function NouveauClientPage() {
         if (inpi.dirigeants.length > 0) {
           inpiAutoSet("dirigeant", `${inpi.dirigeants[0].nom} ${inpi.dirigeants[0].prenom}`.trim().toUpperCase());
         }
+        // FIX 4+5+6: Enrich with INPI-specific fields
+        if (inpi.objetSocial) inpiAutoSet("objetSocial", inpi.objetSocial);
+        if (inpi.duree) inpiAutoSet("duree", inpi.duree);
+        if (inpi.dateClotureExercice) inpiAutoSet("dateClotureExercice", inpi.dateClotureExercice);
+        // FIX 6: Apply forme juridique label from INPI code
+        if (inpi.formeJuridique) {
+          const formeLabel = getFormeJuridiqueLabel(inpi.formeJuridique);
+          const formeMatch = FORMES.find(f => f === formeLabel || formeLabel.toUpperCase().includes(f));
+          if (formeMatch) inpiAutoSet("forme", formeMatch);
+        }
         if (Object.keys(updates).length > 0) {
           setForm(prev => ({ ...prev, ...updates }));
           setAutoFields(prev => new Set([...prev, ...newAuto]));
         }
 
-        // Phase 4: Merge INPI BE with existing
+        // Phase 4: Merge INPI BE with existing — FIX 8: Deduplicate, prefer dirigeant version with prenom
         if (inpi.beneficiaires && inpi.beneficiaires.length > 0) {
           setBeneficiaires(prev => {
-            const existing = new Set(prev.map(b => `${b.nom.toUpperCase()}-${b.prenom.toUpperCase()}`));
-            const inpiBE = inpi.beneficiaires
-              .filter(b => !existing.has(`${b.nom.toUpperCase()}-${b.prenom.toUpperCase()}`))
-              .map(b => ({
+            // Build dirigeant lookup by nom (uppercase) for prenom enrichment
+            const dirLookup = new Map<string, { prenom: string; dateNaissance: string; nationalite: string }>();
+            (inpi.dirigeants || []).forEach((d: any) => {
+              const nomUp = (d.nom || "").toUpperCase();
+              if (nomUp && d.prenom) {
+                dirLookup.set(nomUp, { prenom: d.prenom, dateNaissance: d.dateNaissance || "", nationalite: d.nationalite || "Francaise" });
+              }
+            });
+
+            // Merge INPI BE, enriching with dirigeant prenom if missing
+            const enrichedBE = inpi.beneficiaires.map(b => {
+              const nomUp = (b.nom || "").toUpperCase();
+              const dirMatch = dirLookup.get(nomUp);
+              // FIX 8: If BE has no prenom but a dirigeant with same nom has one, use it
+              const prenom = b.prenom || (dirMatch?.prenom || "");
+              const dateNaissance = b.dateNaissance || (dirMatch?.dateNaissance || "");
+              const nationalite = b.nationalite || (dirMatch?.nationalite || "Francaise");
+              return {
                 nom: b.nom || "",
-                prenom: b.prenom || "",
-                dateNaissance: b.dateNaissance || "",
-                nationalite: b.nationalite || "Francaise",
+                prenom,
+                dateNaissance,
+                nationalite,
                 pourcentage: b.pourcentageParts || 0,
-              }));
-            return [...prev, ...inpiBE];
+              };
+            });
+
+            // Deduplicate: by nom (uppercase), keep the version with the most info
+            const deduped = new Map<string, typeof enrichedBE[0]>();
+            for (const be of enrichedBE) {
+              const key = be.nom.toUpperCase();
+              const existing = deduped.get(key);
+              if (!existing || (!existing.prenom && be.prenom) || (!existing.dateNaissance && be.dateNaissance)) {
+                deduped.set(key, be);
+              }
+            }
+
+            // Merge with previous, avoiding duplicates
+            const existingNoms = new Set(prev.map(b => b.nom.toUpperCase()));
+            const newBE = Array.from(deduped.values()).filter(b => !existingNoms.has(b.nom.toUpperCase()));
+
+            // Also update existing entries that lack prenom
+            const updated = prev.map(b => {
+              if (!b.prenom) {
+                const match = deduped.get(b.nom.toUpperCase());
+                if (match?.prenom) return { ...b, prenom: match.prenom, dateNaissance: b.dateNaissance || match.dateNaissance, nationalite: b.nationalite || match.nationalite };
+              }
+              return b;
+            });
+
+            return [...updated, ...newBE];
           });
         } else if (inpi.dirigeants && inpi.dirigeants.length > 0) {
           // No BE from INPI — pre-fill with dirigeants at 0% for manual entry
           setBeneficiaires(prev => {
             if (prev.length > 0 && prev.some(b => b.pourcentage > 0)) return prev; // Don't overwrite if already filled
-            const existing = new Set(prev.map(b => `${b.nom.toUpperCase()}-${b.prenom.toUpperCase()}`));
+            const existing = new Set(prev.map(b => b.nom.toUpperCase()));
             const dirBE = inpi.dirigeants
-              .filter((d: any) => !existing.has(`${(d.nom || "").toUpperCase()}-${(d.prenom || "").toUpperCase()}`))
+              .filter((d: any) => !existing.has((d.nom || "").toUpperCase()))
               .map((d: any) => ({
                 nom: d.nom || "",
                 prenom: d.prenom || "",
@@ -407,7 +481,15 @@ export default function NouveauClientPage() {
                 pourcentage: 0,
                 pourcentageVotes: 0,
               }));
-            return [...prev, ...dirBE];
+            // FIX 8: Also enrich existing entries that lack prenom
+            const updated = prev.map(b => {
+              if (!b.prenom) {
+                const dirMatch = inpi.dirigeants.find((d: any) => (d.nom || "").toUpperCase() === b.nom.toUpperCase() && d.prenom);
+                if (dirMatch) return { ...b, prenom: dirMatch.prenom, dateNaissance: b.dateNaissance || dirMatch.dateNaissance || "", nationalite: b.nationalite || dirMatch.nationalite || "Francaise" };
+              }
+              return b;
+            });
+            return [...updated, ...dirBE];
           });
         }
 
@@ -460,6 +542,7 @@ export default function NouveauClientPage() {
       frequence: "MENSUEL",
       comptable: "MAGALIE", associe: "DIDIER", superviseur: "SAMUEL",
       iban: "", bic: "", dateFin: "",
+      objetSocial: "", duree: "", dateClotureExercice: "",
     });
     setBeneficiaires([]);
     setBeScreening({});
@@ -474,6 +557,17 @@ export default function NouveauClientPage() {
     setMotifRefus("");
     setDataSource("");
     setQuestions(QUESTIONS_LCB.map(q => ({ ...q, value: "NON" as const, commentaire: "" })));
+
+    // FIX 2: Auto-load draft if SIREN matches
+    const cleanSearch = searchQuery.trim().replace(/\s/g, "");
+    if (searchMode === "siren" && /^\d{9,14}$/.test(cleanSearch)) {
+      const sirenKey = cleanSearch.slice(0, 9);
+      const existingDraft = localStorage.getItem(`draft_nc_${sirenKey}`);
+      if (existingDraft) {
+        restoreDraft(existingDraft);
+        // Continue with search to refresh screening data
+      }
+    }
 
     // Primary: new enterprise-lookup (Annuaire Entreprises)
     setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
@@ -576,10 +670,15 @@ export default function NouveauClientPage() {
     if (entData) setSelectedEnterprise(entData);
 
     // Populate form with enriched data
+    // FIX 6: Apply forme juridique label from code if needed
+    const rawForme = entData?.forme_juridique ?? result.forme_juridique ?? "";
+    const rawFormeCode = (entData as any)?.forme_juridique_code ?? "";
+    const resolvedForme = rawFormeCode ? getFormeJuridiqueLabel(rawFormeCode) : rawForme;
     const formeMatch = FORMES.find(f =>
-      f === result.forme_juridique ||
-      f === (entData?.forme_juridique ?? "") ||
-      (result.forme_juridique_raw || "").toUpperCase().includes(f)
+      f === resolvedForme ||
+      f === rawForme ||
+      (result.forme_juridique_raw || "").toUpperCase().includes(f) ||
+      resolvedForme.toUpperCase().includes(f)
     );
 
     const newAutoFields = new Set<string>();
@@ -792,6 +891,8 @@ export default function NouveauClientPage() {
     }
     // FIX 9: Clear draft on successful submission
     localStorage.removeItem("draft_nouveau_client");
+    const cleanSiren = form.siren?.replace(/\s/g, "");
+    if (cleanSiren && cleanSiren.length === 9) localStorage.removeItem(`draft_nc_${cleanSiren}`);
     const now = new Date().toISOString().split("T")[0];
     const existingNums = clients.map(c => {
       const match = c.ref.match(/CLI-\d{2}-(\d+)/);
@@ -940,6 +1041,42 @@ export default function NouveauClientPage() {
           })()}
         </div>
       </div>
+
+      {/* FIX 2: Draft restored banner */}
+      {draftBanner && (
+        <div className="flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 animate-fade-in-up">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-blue-400" />
+            <span className="text-sm text-blue-400">
+              Brouillon restaure — derniere modification il y a {(() => {
+                const diff = Date.now() - new Date(draftBanner.restoredAt).getTime();
+                const mins = Math.floor(diff / 60000);
+                if (mins < 1) return "quelques secondes";
+                if (mins < 60) return `${mins} min`;
+                const hours = Math.floor(mins / 60);
+                if (hours < 24) return `${hours}h`;
+                return `${Math.floor(hours / 24)}j`;
+              })()}
+            </span>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
+            onClick={() => {
+              const cleanSiren = form.siren?.replace(/\s/g, "");
+              localStorage.removeItem("draft_nouveau_client");
+              if (cleanSiren && cleanSiren.length === 9) {
+                localStorage.removeItem(`draft_nc_${cleanSiren}`);
+              }
+              setDraftBanner(null);
+              toast.success("Brouillon supprime");
+            }}
+          >
+            <Trash2 className="w-3 h-3 mr-1" /> Supprimer le brouillon
+          </Button>
+        </div>
+      )}
 
       {/* Stepper */}
       <div className="glass-card p-4">
@@ -1185,7 +1322,7 @@ export default function NouveauClientPage() {
           </div>
         )}
 
-        {/* STEP 1: INFORMATION */}
+        {/* STEP 1: INFORMATION — FIX 4: Split into 2 sections */}
         {step === 1 && (
           <div className="space-y-6">
             <h2 className="text-lg font-semibold text-white">Informations du client</h2>
@@ -1214,126 +1351,119 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* Identite */}
-            <div>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Identite</h3>
+            {/* ===== SECTION 1: Informations entreprise (auto-recuperees) ===== */}
+            <div className="p-5 rounded-lg border border-blue-500/20 bg-blue-500/[0.03]">
+              <div className="flex items-center gap-2 mb-4">
+                <Building2 className="w-4 h-4 text-blue-400" />
+                <h3 className="text-sm font-semibold text-blue-400">Informations entreprise (auto-recuperees)</h3>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
-                <FormField label={isPersonnePhysique ? "Nom du dirigeant *" : "Raison Sociale *"} value={form.raisonSociale} onChange={v => set("raisonSociale", v)} error={validationErrors.raisonSociale} isAuto={autoFields.has("raisonSociale")} required />
-                <FormField label="Forme Juridique *" type="select" value={form.forme} options={FORMES} onChange={v => set("forme", v)} isAuto={autoFields.has("forme")} required />
-                <FormField label="SIREN *" value={form.siren} onChange={v => set("siren", v)} error={validationErrors.siren} placeholder="9 chiffres" isAuto={autoFields.has("siren")} required />
-                <FormField label="SIRET" value={form.siret} onChange={v => set("siret", v)} placeholder="14 chiffres" isAuto={autoFields.has("siret")} />
-                <FormField label="Code APE *" value={form.ape} onChange={v => set("ape", v)} placeholder="Ex: 56.10A" isAuto={autoFields.has("ape")} required hint={form.domaine ? form.domaine : undefined} />
+                <SourceField label={isPersonnePhysique ? "Nom du dirigeant *" : "Raison Sociale *"} value={form.raisonSociale} onChange={v => set("raisonSociale", v)} error={validationErrors.raisonSociale} source={autoFields.has("raisonSociale") ? (screening.inpi.data?.companyData?.denomination ? "INPI" : "data.gouv") : undefined} required />
+                <SourceField label="Forme Juridique *" type="select" value={form.forme} options={FORMES} onChange={v => set("forme", v)} source={autoFields.has("forme") ? "INPI" : undefined} required />
+                <SourceField label="SIREN *" value={form.siren} onChange={v => set("siren", v)} error={validationErrors.siren} placeholder="9 chiffres" source={autoFields.has("siren") ? "data.gouv" : undefined} required />
+                <SourceField label="SIRET" value={form.siret} onChange={v => set("siret", v)} placeholder="14 chiffres" source={autoFields.has("siret") ? "data.gouv" : undefined} />
+                <SourceField label="Adresse" value={form.adresse} onChange={v => set("adresse", v)} source={autoFields.has("adresse") ? (screening.inpi.data?.companyData ? "INPI" : "data.gouv") : undefined} required />
+                <div className="grid grid-cols-2 gap-2">
+                  <SourceField label="Code Postal" value={form.cp} onChange={v => set("cp", v)} source={autoFields.has("cp") ? "INPI" : undefined} />
+                  <SourceField label="Ville" value={form.ville} onChange={v => set("ville", v)} source={autoFields.has("ville") ? "INPI" : undefined} />
+                </div>
+                <SourceField label="Code APE *" value={form.ape} onChange={v => set("ape", v)} placeholder="Ex: 56.10A" source={autoFields.has("ape") ? "data.gouv" : undefined} required hint={form.domaine ? form.domaine : undefined} />
+                <SourceField label="Domaine d'activite" value={form.domaine} onChange={v => set("domaine", v)} source={autoFields.has("domaine") ? "data.gouv" : undefined} />
                 <div>
                   <div className="flex items-center gap-1.5">
                     <Label className="text-[10px] text-slate-500 uppercase">Capital social</Label>
-                    {autoFields.has("capital") && form.capital > 0 && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
-                    {capitalSource && form.capital > 0 && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
-                      capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" :
-                      capitalSource === "Pappers" ? "bg-violet-500/20 text-violet-400" :
-                      "bg-slate-500/20 text-slate-400"
-                    }`}>{capitalSource}</span>}
+                    {capitalSource && form.capital > 0 && <Badge className={`text-[9px] border-0 ${capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-400"}`}>{capitalSource}</Badge>}
                   </div>
                   <Input type="number" value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="Non renseigne" className={`bg-white/[0.03] mt-1 ${!form.capital ? "border-amber-500/50" : "border-white/[0.06]"}`} />
                   {!form.capital && <p className="text-[10px] text-amber-400 mt-0.5">Non renseigne — a completer</p>}
                 </div>
                 <div>
-                  <FormField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" isAuto={autoFields.has("dateCreation")} />
+                  <SourceField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" source={autoFields.has("dateCreation") ? "data.gouv" : undefined} />
                   {form.dateCreation && <p className="text-[10px] text-slate-500 mt-0.5">{formatDateFR(form.dateCreation)}</p>}
                 </div>
-              </div>
-            </div>
-
-            {/* Dirigeant & Domaine */}
-            <div>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Dirigeant" value={form.dirigeant} onChange={v => set("dirigeant", v)} isAuto={autoFields.has("dirigeant")} />
-                <FormField label="Domaine d'activite" value={form.domaine} onChange={v => set("domaine", v)} isAuto={autoFields.has("domaine")} />
-                <FormField label="Effectif" value={form.effectif} onChange={v => set("effectif", v)} isAuto={autoFields.has("effectif")} />
-              </div>
-            </div>
-
-            {/* Coordonnees */}
-            <div>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Coordonnees</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <FormField label="Adresse" value={form.adresse} onChange={v => set("adresse", v)} isAuto={autoFields.has("adresse")} required />
-                <div className="grid grid-cols-2 gap-2">
-                  <FormField label="Code Postal" value={form.cp} onChange={v => set("cp", v)} isAuto={autoFields.has("cp")} />
-                  <FormField label="Ville" value={form.ville} onChange={v => set("ville", v)} isAuto={autoFields.has("ville")} />
-                </div>
-                <FormField label="Telephone" value={form.tel} onChange={v => set("tel", v)} error={validationErrors.tel} placeholder="0XXXXXXXXX" isAuto={autoFields.has("tel")} needsCompletion={!!selectedResult && !form.tel} />
-                <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" isAuto={autoFields.has("mail")} needsCompletion={!!selectedResult && !form.mail} />
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <Label className="text-[10px] text-slate-500 uppercase">Site web</Label>
-                    {autoFields.has("siteWeb") && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
+                <SourceField label="Effectif" value={form.effectif} onChange={v => set("effectif", v)} source={autoFields.has("effectif") ? "data.gouv" : undefined} />
+                <SourceField label="Dirigeant" value={form.dirigeant} onChange={v => set("dirigeant", v)} source={autoFields.has("dirigeant") ? (screening.inpi.data?.companyData?.dirigeants?.length ? "INPI" : "data.gouv") : undefined} />
+                {/* FIX 5: Date cloture formattee */}
+                {form.dateClotureExercice && (
+                  <SourceField label="Date de cloture" value={formatDateCloture(form.dateClotureExercice)} onChange={v => set("dateClotureExercice", v)} source="INPI" />
+                )}
+                {form.objetSocial && (
+                  <div className="col-span-2">
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-[10px] text-slate-500 uppercase">Objet social</Label>
+                      <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">INPI</Badge>
+                    </div>
+                    <p className="text-xs text-slate-300 mt-1 p-2 rounded bg-white/[0.02] border border-white/[0.06]">{form.objetSocial.slice(0, 300)}{form.objetSocial.length > 300 ? "..." : ""}</p>
                   </div>
-                  <Input value={form.siteWeb} onChange={e => set("siteWeb", e.target.value)} placeholder="https://..." className="bg-white/[0.03] mt-1 border-white/[0.06]" />
-                  {form.siteWeb && (
-                    <a href={form.siteWeb.startsWith("http") ? form.siteWeb : `https://${form.siteWeb}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 mt-0.5 inline-flex items-center gap-1">
-                      <ExternalLink className="w-3 h-3" /> Ouvrir le site
-                    </a>
-                  )}
-                </div>
+                )}
+                {form.duree && (
+                  <SourceField label="Duree (ans)" value={form.duree} onChange={v => set("duree", v)} source="INPI" />
+                )}
               </div>
+
+              {/* INPI badges */}
+              {screening.inpi.data?.companyData && (
+                <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-white/[0.06]">
+                  {screening.inpi.data.companyData.capitalVariable && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Capital variable</Badge>}
+                  {screening.inpi.data.companyData.ess && <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">ESS</Badge>}
+                  {screening.inpi.data.companyData.societeMission && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">Societe a mission</Badge>}
+                  {screening.inpi.data.companyData.associeUnique && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Associe unique</Badge>}
+                  {screening.inpi.data.companyData.nonDiffusible && <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0">Non diffusible</Badge>}
+                  {screening.inpi.data.companyData.domiciliataire && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Domiciliataire</Badge>}
+                </div>
+              )}
             </div>
 
-            {/* Mission */}
-            <div>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Mission</h3>
+            {/* ===== SEPARATEUR ===== */}
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.08]" /></div>
+              <div className="relative flex justify-center"><span className="bg-[hsl(217,33%,12%)] px-4 text-xs text-slate-500 uppercase tracking-widest">Informations a completer</span></div>
+            </div>
+
+            {/* ===== SECTION 2: Informations cabinet (a completer) ===== */}
+            <div className="p-5 rounded-lg border border-amber-500/20 bg-amber-500/[0.02]">
+              <div className="flex items-center gap-2 mb-4">
+                <User className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-semibold text-amber-400">Informations cabinet (a completer)</h3>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
+                <FormField label="Comptable assigne *" type="select" value={form.comptable} options={COMPTABLES} onChange={v => set("comptable", v)} />
+                <FormField label="Associe signataire *" type="select" value={form.associe} options={ASSOCIES} onChange={v => set("associe", v)} />
+                <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
                 <FormField label="Type de mission *" type="select" value={form.mission} options={MISSIONS} onChange={v => set("mission", v)} />
                 <FormField label="Frequence" type="select" value={form.frequence} options={FREQUENCES} onChange={v => set("frequence", v)} />
                 <FormField label="Honoraires HT" value={form.honoraires} onChange={v => set("honoraires", Number(v))} type="number" />
-                <FormField label="Reprise (montant)" value={form.reprise} onChange={v => set("reprise", Number(v))} type="number" />
-                <FormField label="Juridique (montant)" value={form.juridique} onChange={v => set("juridique", Number(v))} type="number" />
-                <FormField label="Date de reprise" value={form.dateReprise} onChange={v => set("dateReprise", v)} type="date" />
-                <FormField label="Date de fin (optionnel)" value={form.dateFin} onChange={v => set("dateFin", v)} type="date" />
-                <FormField label="Associe signataire" type="select" value={form.associe} options={ASSOCIES} onChange={v => set("associe", v)} />
-                <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
-                <FormField label="Comptable" type="select" value={form.comptable} options={COMPTABLES} onChange={v => set("comptable", v)} />
-              </div>
-            </div>
-
-            {/* Bancaire */}
-            <div>
-              <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Bancaire</h3>
-              <div className="grid grid-cols-2 gap-4">
+                <FormField label="Frais constitution" value={form.reprise} onChange={v => set("reprise", Number(v))} type="number" />
+                <FormField label="Honoraires juridique" value={form.juridique} onChange={v => set("juridique", Number(v))} type="number" />
                 <FormField label="IBAN" value={form.iban} onChange={v => set("iban", v)} error={validationErrors.iban} placeholder="FR76..." />
                 <FormField label="BIC" value={form.bic} onChange={v => set("bic", v)} placeholder="BNPAFRPP" />
+                <FormField label="Date de reprise" value={form.dateReprise} onChange={v => set("dateReprise", v)} type="date" />
+                <FormField label="Date de fin (optionnel)" value={form.dateFin} onChange={v => set("dateFin", v)} type="date" />
               </div>
-            </div>
 
-            {/* BUG 2: INPI company details — moved from Documents to Informations */}
-            {screening.inpi.data?.companyData && (
-              <div>
-                <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Donnees complementaires (INPI)</h3>
-                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] space-y-2 text-xs">
-                  {screening.inpi.data.companyData.objetSocial && (
-                    <div><span className="text-slate-500">Objet social:</span> <span className="text-slate-300 ml-1">{screening.inpi.data.companyData.objetSocial.slice(0, 200)}{screening.inpi.data.companyData.objetSocial.length > 200 ? "..." : ""}</span></div>
-                  )}
-                  <div className="grid grid-cols-3 gap-3">
-                    {screening.inpi.data.companyData.duree && (
-                      <div><span className="text-slate-500">Duree:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.duree} ans</span></div>
+              {/* Contact info */}
+              <div className="mt-4 pt-3 border-t border-white/[0.06]">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Contact</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField label="Telephone" value={form.tel} onChange={v => set("tel", v)} error={validationErrors.tel} placeholder="0XXXXXXXXX" isAuto={autoFields.has("tel")} needsCompletion={!!selectedResult && !form.tel} />
+                  <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" isAuto={autoFields.has("mail")} needsCompletion={!!selectedResult && !form.mail} />
+                  <div>
+                    <div className="flex items-center gap-1.5">
+                      <Label className="text-[10px] text-slate-500 uppercase">Site web</Label>
+                      {autoFields.has("siteWeb") && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
+                    </div>
+                    <Input value={form.siteWeb} onChange={e => set("siteWeb", e.target.value)} placeholder="https://..." className="bg-white/[0.03] mt-1 border-white/[0.06]" />
+                    {form.siteWeb && (
+                      <a href={form.siteWeb.startsWith("http") ? form.siteWeb : `https://${form.siteWeb}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 mt-0.5 inline-flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> Ouvrir le site
+                      </a>
                     )}
-                    {screening.inpi.data.companyData.dateClotureExercice && (
-                      <div><span className="text-slate-500">Cloture:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.dateClotureExercice}</span></div>
-                    )}
-                    {screening.inpi.data.companyData.dateImmatriculation && (
-                      <div><span className="text-slate-500">Immatriculation:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.dateImmatriculation}</span></div>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {screening.inpi.data.companyData.capitalVariable && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Capital variable</Badge>}
-                    {screening.inpi.data.companyData.ess && <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">ESS</Badge>}
-                    {screening.inpi.data.companyData.societeMission && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">Societe a mission</Badge>}
-                    {screening.inpi.data.companyData.associeUnique && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Associe unique</Badge>}
-                    {screening.inpi.data.companyData.nonDiffusible && <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0">Non diffusible</Badge>}
-                    {screening.inpi.data.companyData.domiciliataire && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Domiciliataire</Badge>}
                   </div>
                 </div>
               </div>
-            )}
+            </div>
           </div>
         )}
 
@@ -2116,6 +2246,70 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
           width="100%" height="250" style={{ border: 0 }} loading="lazy"
         />
       )}
+    </div>
+  );
+}
+
+// FIX 5: Format date cloture "3112" → "31/12"
+function formatDateCloture(val: string): string {
+  if (!val) return "";
+  const clean = val.replace(/\//g, "");
+  if (/^\d{4}$/.test(clean)) {
+    return `${clean.slice(0, 2)}/${clean.slice(2, 4)}`;
+  }
+  return val;
+}
+
+// FIX 4: FormField with source badge (INPI / data.gouv)
+function SourceField({ label, value, onChange, type = "text", error, placeholder, options, source, required, hint }: {
+  label: string;
+  value: string | number;
+  onChange: (v: string) => void;
+  type?: "text" | "number" | "date" | "select";
+  error?: string;
+  placeholder?: string;
+  options?: string[];
+  source?: string;
+  required?: boolean;
+  hint?: string;
+}) {
+  const isEmpty = !value || value === "" || value === 0;
+  const showOrange = required && isEmpty && !error;
+
+  if (type === "select" && options) {
+    return (
+      <div>
+        <div className="flex items-center gap-1.5">
+          <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
+          {source && !isEmpty && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">{source}</Badge>}
+        </div>
+        <Select value={String(value)} onValueChange={onChange}>
+          <SelectTrigger className={`bg-white/[0.03] mt-1 ${showOrange ? "border-amber-500/50" : "border-white/[0.06]"}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-1.5">
+        <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
+        {source && !isEmpty && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">{source}</Badge>}
+      </div>
+      <Input
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        placeholder={placeholder}
+        className={`bg-white/[0.03] mt-1 ${error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : "border-white/[0.06]"}`}
+      />
+      {error && <p className="text-[10px] text-red-400 mt-0.5">{error}</p>}
+      {hint && <p className="text-[10px] text-slate-500 mt-0.5">{hint}</p>}
     </div>
   );
 }

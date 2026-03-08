@@ -32,10 +32,12 @@ const OK_LABELS: Record<string, string> = {
   sanctions: "Aucune alerte sanctions",
   bodacc: "Aucune procedure collective",
   google: "Presence confirmee",
+  localisation: "Localisation confirmee",
   news: "Pas d'article negatif",
   network: "Reseau normal",
   documents: "Documents recuperes",
   inpi: "Donnees recuperees",
+  inpi_docs: "PDFs recuperes",
 };
 
 const ATTENTION_LABELS: Record<string, string> = {
@@ -43,10 +45,12 @@ const ATTENTION_LABELS: Record<string, string> = {
   sanctions: "Alerte a verifier",
   bodacc: "Annonces detectees",
   google: "Non reference Google Maps",
+  localisation: "Non reference",
   news: "Articles a verifier",
   network: "Mandats multiples",
   documents: "Documents partiels",
   inpi: "Donnees partielles",
+  inpi_docs: "Liens seulement",
 };
 
 function StatusBadge({ status, loading, tooltip, rowKey }: { status: Status | null; loading: boolean; tooltip?: string; rowKey?: string }) {
@@ -92,6 +96,8 @@ const TOOLTIPS: Record<string, string> = {
   enterprise: "Recherche INPI (source officielle) + enrichissement Pappers + Annuaire Entreprises",
   sanctions: "Verification des listes de sanctions internationales et PPE via OpenSanctions (art. L.561-10 CMF)",
   bodacc: "Recherche d'annonces BODACC : procedures collectives, liquidations, redressements",
+  localisation: "Verification de l'existence physique du siege via Google Places API",
+  inpi_docs: "Recuperation automatique des documents officiels (INPI actes/bilans + Pappers KBIS/RBE)",
   google: "Verification de l'existence physique du siege via Google Places API",
   news: "Revue de presse automatique via Google Custom Search — detection d'articles negatifs",
   network: "Analyse du reseau de societes des dirigeants — detection de mandats multiples et creations recentes",
@@ -100,8 +106,20 @@ const TOOLTIPS: Record<string, string> = {
 };
 
 export default function ScreeningPanel({ screening, compact }: Props) {
+  // FIX 3: Simplified screening — 5 lines max
+  // Merge enterprise + INPI data status
+  const enterpriseOk = !!(screening.enterprise.data || screening.inpi.data?.companyData);
+  const enterpriseLoading = screening.enterprise.loading || screening.inpi.loading;
+  const enterpriseError = !enterpriseOk && (screening.enterprise.error || screening.inpi.error);
+
+  // Merge INPI docs status
+  const inpiDocsStored = (screening.inpi.data?.storedCount ?? 0) + (screening.documents.data?.autoRecovered ?? 0);
+  const inpiDocsTotal = (screening.inpi.data?.totalDocuments ?? 0) + (screening.documents.data?.total ?? 0);
+  const inpiDocsLoading = screening.inpi.loading || screening.documents.loading;
+  const inpiDocsStatus = inpiDocsStored > 0 ? "OK" : inpiDocsTotal > 0 ? "ATTENTION" : (screening.inpi.data || screening.documents.data) ? "ATTENTION" : null;
+
   const rows: Array<{
-    key: keyof ScreeningState;
+    key: string;
     icon: React.ReactNode;
     label: string;
     status: Status | null;
@@ -114,17 +132,17 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       key: "enterprise",
       icon: <FileText className="w-4 h-4 text-blue-400" />,
       label: "Donnees entreprise",
-      status: screening.enterprise.data ? "OK" : screening.enterprise.error ? "ERREUR" : null,
-      loading: screening.enterprise.loading,
-      detail: screening.enterprise.data
-        ? `${screening.enterprise.data.length} resultat(s) — ${(screening.enterprise.data[0] as any)?.sources?.join(", ") ?? "Annuaire"}`
+      status: enterpriseOk ? "OK" : enterpriseError ? "ERREUR" : null,
+      loading: enterpriseLoading,
+      detail: enterpriseOk
+        ? `INPI${screening.enterprise.data ? " + Annuaire" : ""}`
         : undefined,
       timeMs: screening.enterprise.timeMs,
     },
     {
       key: "sanctions",
       icon: <Shield className="w-4 h-4 text-red-400" />,
-      label: "Sanctions / PPE (OpenSanctions)",
+      label: "Sanctions / PPE",
       status: (screening.sanctions.data?.status as Status) ?? (screening.sanctions.error ? "ERREUR" : null),
       loading: screening.sanctions.loading,
       detail: screening.sanctions.data ? `${screening.sanctions.data.checked} personne(s) verifiee(s)` : undefined,
@@ -132,9 +150,22 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       timeMs: screening.sanctions.timeMs,
     },
     {
+      key: "inpi_docs",
+      icon: <Archive className="w-4 h-4 text-indigo-400" />,
+      label: "Documents INPI",
+      status: inpiDocsLoading ? null : inpiDocsStatus,
+      loading: inpiDocsLoading,
+      detail: inpiDocsStored > 0
+        ? `${inpiDocsStored} PDF(s) recupere(s)`
+        : inpiDocsTotal > 0
+          ? `${inpiDocsTotal} document(s) — liens seulement`
+          : (screening.inpi.data || screening.documents.data) ? "Aucun document" : undefined,
+      timeMs: screening.inpi.timeMs,
+    },
+    {
       key: "bodacc",
       icon: <AlertTriangle className="w-4 h-4 text-amber-400" />,
-      label: "BODACC (procedures collectives)",
+      label: "Procedures collectives",
       status: (screening.bodacc.data?.status as Status) ?? (screening.bodacc.error ? "ERREUR" : null),
       loading: screening.bodacc.loading,
       detail: screening.bodacc.data
@@ -146,83 +177,20 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       timeMs: screening.bodacc.timeMs,
     },
     {
-      key: "google",
+      key: "localisation",
       icon: <MapPin className="w-4 h-4 text-emerald-400" />,
-      label: "Google Places",
+      label: "Localisation",
       status: (screening.google.data?.status as Status) ?? (screening.google.error ? "ERREUR" : null),
       loading: screening.google.loading,
       detail: screening.google.data?.place
-        ? `${screening.google.data.place.name} — ${screening.google.data.place.rating ?? "N/A"}/5 (${screening.google.data.place.totalRatings} avis)`
+        ? `${screening.google.data.place.name} — ${screening.google.data.place.rating ?? "N/A"}/5`
         : screening.google.data
           ? "Non reference sur Google Maps"
           : undefined,
       alertes: screening.google.data?.alertes,
       timeMs: screening.google.timeMs,
     },
-    {
-      key: "news",
-      icon: <Newspaper className="w-4 h-4 text-purple-400" />,
-      label: "Revue de presse",
-      status: (screening.news.data?.status as Status) ?? (screening.news.error ? "ERREUR" : null),
-      loading: screening.news.loading,
-      detail: screening.news.data
-        ? screening.news.data.articles.length > 0
-          ? `${screening.news.data.articles.length} article(s) trouve(s)`
-          : "Aucun article negatif"
-        : undefined,
-      alertes: screening.news.data?.alertes,
-      timeMs: screening.news.timeMs,
-    },
   ];
-
-  if (!compact) {
-    rows.push({
-      key: "network",
-      icon: <Users className="w-4 h-4 text-cyan-400" />,
-      label: "Reseau dirigeants",
-      status: (screening.network.data?.status as Status) ?? (screening.network.error ? "ERREUR" : null),
-      loading: screening.network.loading,
-      detail: screening.network.data
-        ? screening.network.data.alertes.length > 0
-          ? `${screening.network.data.totalCompanies} societe(s) liee(s) — alertes detectees`
-          : `${screening.network.data.totalCompanies} societe(s) liee(s), ${screening.network.data.totalPersons} dirigeant(s)`
-        : undefined,
-      alertes: screening.network.data?.alertes.map(a => a.message),
-      timeMs: screening.network.timeMs,
-    });
-    rows.push({
-      key: "documents",
-      icon: <FileText className="w-4 h-4 text-indigo-400" />,
-      label: "Documents INPI + Pappers",
-      status: (screening.documents.data?.status as Status) ?? (screening.documents.error ? "ERREUR" : null),
-      loading: screening.documents.loading,
-      detail: screening.documents.data
-        ? screening.documents.data.autoRecovered > 0
-          ? `${screening.documents.data.autoRecovered} document(s) recupere(s)`
-          : screening.documents.data.total > 0
-            ? `${screening.documents.data.total} detecte(s), telechargement echoue`
-            : "Aucun document detecte"
-        : undefined,
-      timeMs: screening.documents.timeMs,
-    });
-    rows.push({
-      key: "inpi",
-      icon: <Archive className="w-4 h-4 text-indigo-400" />,
-      label: "Donnees INPI (RNE)",
-      status: (screening.inpi.data?.status as Status) ?? (screening.inpi.error ? "ERREUR" : null),
-      loading: screening.inpi.loading,
-      detail: screening.inpi.data
-        ? screening.inpi.data.storedCount > 0
-          ? `${screening.inpi.data.storedCount} PDF stocke(s) sur ${screening.inpi.data.totalDocuments}`
-          : screening.inpi.data.totalDocuments > 0
-            ? `${screening.inpi.data.totalDocuments} doc(s) — stockage echoue`
-            : screening.inpi.data.companyData
-              ? "Donnees entreprise OK"
-              : "Aucun document"
-        : undefined,
-      timeMs: screening.inpi.timeMs,
-    });
-  }
 
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
@@ -272,7 +240,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
             )}
 
             {/* Google Places details */}
-            {row.key === "google" && screening.google.data?.place && !row.loading && (
+            {row.key === "localisation" && screening.google.data?.place && !row.loading && (
               <div className="mt-2 ml-7 flex items-center gap-3 text-xs text-slate-400">
                 <span>{screening.google.data.place.businessStatus === "OPERATIONAL" ? "Ouvert" : screening.google.data.place.businessStatus}</span>
                 {screening.google.data.place.website && (
