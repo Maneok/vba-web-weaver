@@ -1,43 +1,74 @@
-import { useRef, useState, useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
-import { Maximize2, Minimize2, Shield } from "lucide-react";
-import { loadCabinetConfig, type CabinetConfig } from "./CabinetConfigForm";
-import type { EditorState, EditorSection } from "./LettreMissionEditor";
+import { useRef, useEffect, useMemo } from "react";
+import { Shield } from "lucide-react";
+import { loadCabinetConfig } from "./CabinetConfigForm";
+import type { EditorSection } from "./LettreMissionEditor";
 import type { Client } from "@/lib/types";
 import {
   LETTRE_MISSION_TEMPLATE,
   getFormulePolitesse,
-  getCherGenre,
   CONTROLE_FISCAL_OPTIONS,
+  type Genre,
 } from "@/lib/lettreMissionContent";
 
-/* ---- Props ---- */
-interface LettreMissionPreviewV2Props {
-  state: EditorState;
-  client: Client | null;
+/* ═══════════════════════════════════════════════════════
+   Props — interface stable pour le bouton "Aperçu"
+   ═══════════════════════════════════════════════════════ */
+export interface MissionsActives {
+  sociale?: boolean;
+  juridique?: boolean;
+  controleFiscal?: boolean;
+  controleFiscalOption?: "A" | "B" | "RENONCE" | null;
+}
+
+export interface LettreMissionPreviewV2Props {
+  clientData?: Client | null;
+  sections?: EditorSection[];
+  missionsActives?: MissionsActives;
+  genre?: Genre;
+  honoraires?: {
+    honoraires?: number;
+    setup?: number;
+    honoraires_juridique?: number;
+    frequence?: "mensuel" | "trimestriel";
+  };
   activeSectionId?: string | null;
 }
 
-/* ---- Variable replacement ---- */
-function buildVariableMap(client: Client | null, cabinet: CabinetConfig, state: EditorState): Record<string, string> {
-  const c = client;
+/* ═══════════════════════════════════════════════════════
+   Variable replacement engine
+   ═══════════════════════════════════════════════════════ */
+function buildVarMap(
+  c: Client | null | undefined,
+  cabinetNom: string,
+  cabinetAdresse: string,
+  cabinetIcs: string,
+  genre: Genre,
+  honoraires?: LettreMissionPreviewV2Props["honoraires"],
+  missionsActives?: MissionsActives,
+): Record<string, string> {
   const today = new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
   const year = new Date().getFullYear().toString();
+  const freq = honoraires?.frequence ?? "mensuel";
+  const div = freq === "mensuel" ? 12 : 4;
+  const montantPeriodique = honoraires?.honoraires
+    ? (honoraires.honoraires / div).toLocaleString("fr-FR", { minimumFractionDigits: 2 })
+    : "";
+
+  const cfOpt = CONTROLE_FISCAL_OPTIONS.find((o) => o.id === missionsActives?.controleFiscalOption);
 
   return {
-    formule_politesse: getFormulePolitesse(state.genre),
-    cher_genre: getCherGenre(state.genre),
+    formule_politesse: getFormulePolitesse(genre),
     dirigeant: c?.dirigeant ?? "",
     raison_sociale: c?.raisonSociale ?? "",
     forme_juridique: c?.forme ?? "",
     capital: c?.capital ? `${Number(c.capital).toLocaleString("fr-FR")} €` : "",
     adresse: c?.adresse ?? "",
-    adresse_complete: c ? `${c.adresse}, ${c.cp} ${c.ville}` : "",
+    adresse_complete: c ? `${c?.adresse ?? ""}, ${c?.cp ?? ""} ${c?.ville ?? ""}` : "",
     cp: c?.cp ?? "",
     ville: c?.ville ?? "",
     siren: c?.siren ?? "",
     ape: c?.ape ?? "",
-    date_creation: "",
+    date_creation: c?.dateCreation ?? "",
     date_cloture: "",
     date_effet: today,
     debut_exercice: `01/01/${year}`,
@@ -46,38 +77,32 @@ function buildVariableMap(client: Client | null, cabinet: CabinetConfig, state: 
     annee: year,
     effectif: c?.effectif?.toString() ?? "",
     domaine: c?.domaine ?? "",
-    qualite_dirigeant: c?.forme === "SAS" || c?.forme === "SASU" ? "Président" : "Gérant",
+    qualite_dirigeant:
+      c?.forme === "SAS" || c?.forme === "SASU" ? "Président" : "Gérant",
     associe: c?.associe ?? "",
-    honoraires: state.honoraires.honoraires ? state.honoraires.honoraires.toLocaleString("fr-FR") : "",
-    setup: state.honoraires.setup ? state.honoraires.setup.toLocaleString("fr-FR") : "",
-    honoraires_juridique: state.honoraires.honoraires_juridique ? state.honoraires.honoraires_juridique.toLocaleString("fr-FR") : "",
-    controle_fiscal_montant: (() => {
-      const opt = CONTROLE_FISCAL_OPTIONS.find((o) => o.id === state.missions.controleFiscalOption);
-      return opt?.montant ? opt.montant.toLocaleString("fr-FR") : "";
-    })(),
-    frequence_paiement: state.honoraires.frequence === "mensuel" ? "mensuellement" : "trimestriellement",
-    montant_periodique: (() => {
-      const div = state.honoraires.frequence === "mensuel" ? 12 : 4;
-      return state.honoraires.honoraires ? (state.honoraires.honoraires / div).toLocaleString("fr-FR", { minimumFractionDigits: 2 }) : "";
-    })(),
-    cabinet_nom: cabinet.nom,
-    cabinet_adresse: `${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`,
-    cabinet_ics: cabinet.icsSepa,
+    honoraires: honoraires?.honoraires ? honoraires.honoraires.toLocaleString("fr-FR") : "",
+    setup: honoraires?.setup ? honoraires.setup.toLocaleString("fr-FR") : "",
+    honoraires_juridique: honoraires?.honoraires_juridique ? honoraires.honoraires_juridique.toLocaleString("fr-FR") : "",
+    controle_fiscal_montant: cfOpt?.montant ? cfOpt.montant.toLocaleString("fr-FR") : "",
+    frequence_paiement: freq === "mensuel" ? "mensuellement" : "trimestriellement",
+    montant_periodique: montantPeriodique,
+    cabinet_nom: cabinetNom,
+    cabinet_adresse: cabinetAdresse,
+    cabinet_ics: cabinetIcs,
     ref_client: c?.ref ?? "",
     iban: c?.iban ?? "",
     bic: c?.bic ?? "",
   };
 }
 
-function replaceVariables(text: string, vars: Record<string, string>): React.ReactNode[] {
+function replaceVars(text: string, vars: Record<string, string>): React.ReactNode[] {
+  if (!text) return [];
   const parts = text.split(/({{[^}]+}})/g);
   return parts.map((part, i) => {
     if (!part.startsWith("{{")) return <span key={i}>{part}</span>;
     const key = part.slice(2, -2).trim();
     const val = vars[key];
-    if (val) {
-      return <span key={i} style={{ fontWeight: 500 }}>{val}</span>;
-    }
+    if (val) return <span key={i} style={{ fontWeight: 500 }}>{val}</span>;
     return (
       <span
         key={i}
@@ -90,49 +115,79 @@ function replaceVariables(text: string, vars: Record<string, string>): React.Rea
           fontFamily: "monospace",
         }}
       >
-        [À COMPLÉTER]
+        [À compléter]
       </span>
     );
   });
 }
 
-/* ---- Styles ---- */
-const COLORS = {
+function renderTextBlock(text: string, vars: Record<string, string>): React.ReactNode {
+  if (!text) return null;
+  return text.split("\n").map((line, i, arr) => (
+    <span key={i}>
+      {replaceVars(line, vars)}
+      {i < arr.length - 1 && <br />}
+    </span>
+  ));
+}
+
+/* ═══════════════════════════════════════════════════════
+   Couleurs / styles
+   ═══════════════════════════════════════════════════════ */
+const C = {
   navy: "#1a1a2e",
   body: "#333333",
   lightBg: "#f0f4ff",
   accent: "#1e40af",
-  border: "#e5e7eb",
+  border: "#dddddd",
   muted: "#6b7280",
-  footerBg: "#f9fafb",
+  altRow: "#f9f9f9",
 };
 
-const SECTION_STYLE: React.CSSProperties = {
-  marginBottom: "28px",
-  scrollMarginTop: "20px",
-};
-
-const H2_STYLE: React.CSSProperties = {
+const sectionTitleStyle: React.CSSProperties = {
   fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-  fontSize: "13px",
+  fontSize: "16px",
   fontWeight: 700,
-  textTransform: "uppercase" as const,
-  letterSpacing: "0.08em",
-  color: COLORS.navy,
-  borderBottom: `2px solid ${COLORS.navy}`,
-  paddingBottom: "6px",
+  color: C.navy,
+  margin: "0 0 6px",
+  lineHeight: 1.3,
+};
+
+const thinRuleStyle: React.CSSProperties = {
+  height: "1px",
+  backgroundColor: C.navy,
+  opacity: 0.25,
   marginBottom: "14px",
 };
 
-/* ---- Component ---- */
-export default function LettreMissionPreviewV2({ state, client, activeSectionId }: LettreMissionPreviewV2Props) {
-  const containerRef = useRef<HTMLDivElement>(null);
+/* ═══════════════════════════════════════════════════════
+   Component
+   ═══════════════════════════════════════════════════════ */
+export default function LettreMissionPreviewV2({
+  clientData,
+  sections,
+  missionsActives,
+  genre = "M",
+  honoraires,
+  activeSectionId,
+}: LettreMissionPreviewV2Props) {
   const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [fullscreen, setFullscreen] = useState(false);
-
   const cabinet = useMemo(() => loadCabinetConfig(), []);
-  const vars = useMemo(() => buildVariableMap(client, cabinet, state), [client, cabinet, state]);
   const tpl = LETTRE_MISSION_TEMPLATE;
+
+  const vars = useMemo(
+    () =>
+      buildVarMap(
+        clientData,
+        cabinet?.nom ?? "",
+        `${cabinet?.adresse ?? ""}, ${cabinet?.cp ?? ""} ${cabinet?.ville ?? ""}`,
+        cabinet?.icsSepa ?? "",
+        genre,
+        honoraires,
+        missionsActives,
+      ),
+    [clientData, cabinet, genre, honoraires, missionsActives],
+  );
 
   // Scroll sync
   useEffect(() => {
@@ -144,183 +199,214 @@ export default function LettreMissionPreviewV2({ state, client, activeSectionId 
     }
   }, [activeSectionId]);
 
-  // Helper: get section by id
-  const getSection = (id: string): EditorSection | undefined =>
-    state.sections.find((s) => s.id === id);
+  // Helper: find section by id
+  const sec = (id: string): EditorSection | undefined =>
+    sections?.find((s) => s.id === id);
 
-  // Render multiline text with variable replacement
-  const renderText = (text: string) => {
-    const lines = text.split("\n");
-    return lines.map((line, i) => (
-      <span key={i}>
-        {replaceVariables(line, vars)}
-        {i < lines.length - 1 && <br />}
-      </span>
-    ));
+  const isVisible = (id: string): boolean => {
+    const s = sec(id);
+    return s ? s.visible : false;
   };
 
-  // Vigilance color
-  const vigilanceColor =
-    client?.nivVigilance === "RENFORCEE" ? "#dc2626" :
-    client?.nivVigilance === "SIMPLIFIEE" ? "#16a34a" : "#2563eb";
+  // ─── Empty state ───
+  if (!clientData && (!sections || sections.length === 0)) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          minHeight: "400px",
+          padding: "40px",
+          textAlign: "center",
+          fontFamily: "Georgia, 'Times New Roman', serif",
+          color: C.muted,
+        }}
+      >
+        <div>
+          <p style={{ fontSize: "48px", marginBottom: "16px", opacity: 0.3 }}>📄</p>
+          <p style={{ fontSize: "16px", fontWeight: 500, marginBottom: "8px", color: C.navy }}>
+            Sélectionnez un client pour voir l'aperçu
+          </p>
+          <p style={{ fontSize: "13px" }}>
+            L'aperçu du document se mettra à jour automatiquement.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
-  const scoreColor = (score: number) =>
-    score >= 70 ? "#dc2626" : score >= 40 ? "#f59e0b" : "#16a34a";
+  // Vigilance colors
+  const vigColor =
+    clientData?.nivVigilance === "RENFORCEE"
+      ? "#dc2626"
+      : clientData?.nivVigilance === "SIMPLIFIEE"
+        ? "#16a34a"
+        : "#2563eb";
+
+  const scoreColor = (s?: number) =>
+    !s ? C.muted : s >= 70 ? "#dc2626" : s >= 40 ? "#f59e0b" : "#16a34a";
+
+  const today = new Date().toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
 
   return (
-    <div
-      ref={containerRef}
-      className={`relative ${fullscreen ? "fixed inset-0 z-50 bg-slate-900/95 p-8 overflow-auto" : "h-full overflow-y-auto"}`}
-      style={{ backgroundColor: fullscreen ? undefined : "#f1f5f9" }}
-    >
-      {/* Fullscreen toggle */}
-      <Button
-        variant="outline"
-        size="icon"
-        className="absolute top-2 right-4 z-10 h-8 w-8 bg-background/80 backdrop-blur border-white/20"
-        onClick={() => setFullscreen(!fullscreen)}
-      >
-        {fullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-      </Button>
-
-      {/* A4 Paper */}
+    <div style={{ height: "100%", overflowY: "auto", backgroundColor: "#f1f5f9", padding: "16px" }}>
+      {/* ═══════ A4 DOCUMENT ═══════ */}
       <div
         style={{
           maxWidth: "800px",
           margin: "0 auto",
           backgroundColor: "#ffffff",
-          border: "1px solid #e2e8f0",
-          boxShadow: "0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+          border: "1px solid #e0e0e0",
+          boxShadow: "0 2px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.03)",
           padding: "60px 50px 40px",
           fontFamily: "Georgia, 'Times New Roman', serif",
           fontSize: "14px",
-          lineHeight: "1.6",
-          color: COLORS.body,
-          minHeight: fullscreen ? "auto" : "1100px",
+          lineHeight: 1.6,
+          color: C.body,
         }}
       >
-        {/* ═══════════════ HEADER ═══════════════ */}
-        <div ref={(el) => { sectionRefs.current["entete"] = el; }}>
-          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "16px" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
-              {cabinet.logo ? (
-                <img src={cabinet.logo} alt="Logo" style={{ height: "56px", width: "56px", objectFit: "contain" }} />
-              ) : (
-                <div style={{
-                  height: "56px", width: "56px", borderRadius: "8px",
-                  background: `linear-gradient(135deg, ${cabinet.couleurPrimaire}, ${cabinet.couleurSecondaire || "#64748b"})`,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  color: "white", fontWeight: 700, fontSize: "20px",
-                }}>
-                  {(cabinet.nom || "C").charAt(0)}
-                </div>
-              )}
-              <div>
-                <h1 style={{
-                  fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-                  fontSize: "18px", fontWeight: 800,
-                  color: cabinet.couleurPrimaire || COLORS.navy,
-                  margin: 0, lineHeight: 1.2,
-                }}>
-                  {cabinet.nom || "CABINET D'EXPERTISE COMPTABLE"}
-                </h1>
-                <p style={{ fontSize: "11px", color: COLORS.muted, margin: "4px 0 0" }}>
-                  {cabinet.adresse && `${cabinet.adresse}, `}{cabinet.cp} {cabinet.ville}
-                </p>
-                <p style={{ fontSize: "11px", color: COLORS.muted, margin: "2px 0 0" }}>
-                  {cabinet.email}{cabinet.telephone && ` — ${cabinet.telephone}`}
-                </p>
-                {cabinet.siret && (
-                  <p style={{ fontSize: "10px", color: "#9ca3af", margin: "2px 0 0" }}>
-                    SIRET : {cabinet.siret} | N° OEC : {cabinet.numeroOec}
-                  </p>
-                )}
-              </div>
-            </div>
+        {/* ═══════ 3. EN-TÊTE ═══════ */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "0" }}>
+          {/* Left: COMPTADEC */}
+          <div>
+            <h1
+              style={{
+                fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+                fontSize: "18px",
+                fontWeight: 800,
+                color: C.navy,
+                margin: 0,
+                letterSpacing: "0.04em",
+              }}
+            >
+              COMPTADEC
+            </h1>
           </div>
-          {/* Gradient divider */}
-          <div style={{
-            height: "2px", width: "100%", marginBottom: "24px",
-            background: `linear-gradient(to right, ${cabinet.couleurPrimaire || COLORS.navy}, ${cabinet.couleurSecondaire || "#94a3b8"})`,
-          }} />
+          {/* Right: coordonnées */}
+          <div style={{ textAlign: "right", fontSize: "10px", color: C.muted, lineHeight: 1.6 }}>
+            <p style={{ margin: 0 }}>{cabinet?.adresse || ""}{cabinet?.cp || cabinet?.ville ? `, ${cabinet?.cp ?? ""} ${cabinet?.ville ?? ""}` : ""}</p>
+            <p style={{ margin: 0 }}>{cabinet?.email || ""}{cabinet?.telephone ? ` — ${cabinet?.telephone}` : ""}</p>
+            {cabinet?.siret && <p style={{ margin: 0 }}>SIRET : {cabinet?.siret} | N° OEC : {cabinet?.numeroOec || ""}</p>}
+          </div>
+        </div>
+        {/* Trait horizontal bleu */}
+        <div style={{ height: "2px", backgroundColor: C.navy, margin: "12px 0 28px" }} />
+
+        {/* ═══════ 6. INFOS MISSION ═══════ */}
+        <div style={{ textAlign: "right", fontSize: "10px", color: C.muted, marginBottom: "24px", lineHeight: 1.8 }}>
+          <p style={{ margin: 0 }}>Marseille, le {today}</p>
+          <p style={{ margin: 0 }}>Réf. mission n° LM-{new Date().getFullYear()}-{(clientData?.ref ?? "XXX").slice(-3).padStart(3, "0")}</p>
+          {clientData?.mail && <p style={{ margin: 0 }}>{clientData?.mail}</p>}
+          {clientData?.tel && <p style={{ margin: 0 }}>{clientData?.tel}</p>}
         </div>
 
-        {/* ═══════════════ DESTINATAIRE ═══════════════ */}
-        {client && (
-          <div style={{ marginLeft: "auto", maxWidth: "300px", marginBottom: "32px", textAlign: "right" }}>
-            <p style={{ fontWeight: 600, fontSize: "14px", margin: 0 }}>
-              {client.raisonSociale}
+        {/* ═══════ 4. BLOC DESTINATAIRE ═══════ */}
+        {clientData && (
+          <div style={{ marginBottom: "32px", lineHeight: 1.7 }}>
+            <p style={{ margin: "0 0 4px", fontStyle: "italic" }}>
+              À l'attention de {getFormulePolitesse(genre)} {clientData?.dirigeant || "[À compléter]"},
             </p>
-            <p style={{ fontSize: "12px", color: COLORS.muted, margin: "2px 0" }}>
-              {client.forme} — SIREN {client.siren}
+            <p style={{ margin: "0 0 2px" }}>
+              Mandataire social de la société
             </p>
-            <p style={{ fontSize: "12px", color: COLORS.muted, margin: "2px 0" }}>
-              {client.adresse}
+            <p style={{ margin: "0 0 2px", fontWeight: 700 }}>
+              {clientData?.forme || ""} {clientData?.raisonSociale || ""}
             </p>
-            <p style={{ fontSize: "12px", color: COLORS.muted, margin: "2px 0" }}>
-              {client.cp} {client.ville}
+            <p style={{ margin: "0 0 2px" }}>
+              {clientData?.adresse || ""}
             </p>
-            {client.dirigeant && (
-              <p style={{ fontSize: "12px", margin: "6px 0 0" }}>
-                À l'attention de <strong>{client.dirigeant}</strong>
-              </p>
-            )}
+            <p style={{ margin: 0 }}>
+              {clientData?.cp || ""} {clientData?.ville || ""}
+            </p>
           </div>
         )}
 
-        {/* ═══════════════ TITLE ═══════════════ */}
-        <h1 style={{
-          fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-          textAlign: "center",
-          fontSize: "20px",
-          fontWeight: 800,
-          textTransform: "uppercase",
-          letterSpacing: "0.12em",
-          color: COLORS.navy,
-          marginBottom: "4px",
-        }}>
+        {/* ═══════ 5. TITRE ═══════ */}
+        <h1
+          style={{
+            textAlign: "center",
+            fontSize: "20px",
+            fontWeight: 700,
+            letterSpacing: "2px",
+            color: C.navy,
+            margin: "0 0 4px",
+            fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+            textTransform: "uppercase",
+          }}
+        >
           Lettre de Mission
         </h1>
-        <p style={{
-          fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-          textAlign: "center",
-          fontSize: "12px",
-          fontWeight: 600,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-          color: COLORS.muted,
-          marginBottom: "32px",
-        }}>
+        <p
+          style={{
+            textAlign: "center",
+            fontSize: "14px",
+            fontWeight: 600,
+            color: C.muted,
+            margin: "0 0 36px",
+            fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
+            textTransform: "uppercase",
+            letterSpacing: "1px",
+          }}
+        >
           Présentation des comptes annuels
         </p>
 
-        {/* ═══════════════ INTRODUCTION ═══════════════ */}
-        {getSection("introduction")?.visible && (
-          <div ref={(el) => { sectionRefs.current["introduction"] = el; }} style={SECTION_STYLE}>
-            <p>{renderText(getSection("introduction")!.content)}</p>
+        {/* ═══════ 7. SECTIONS DU CORPS ═══════ */}
+
+        {/* Introduction */}
+        {isVisible("introduction") && (
+          <div ref={(el) => { sectionRefs.current["introduction"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <div style={{ whiteSpace: "pre-wrap" }}>
+              {renderTextBlock(sec("introduction")?.content ?? "", vars)}
+            </div>
           </div>
         )}
 
-        {/* ═══════════════ VOTRE ENTITÉ ═══════════════ */}
-        {getSection("entite")?.visible && client && (
-          <div ref={(el) => { sectionRefs.current["entite"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>{tpl.entite.titre}</h2>
-            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+        {/* ═══════ 8. VOTRE ENTITÉ — tableau ═══════ */}
+        {isVisible("entite") && clientData && (
+          <div ref={(el) => { sectionRefs.current["entite"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.entite.titre}</h2>
+            <div style={thinRuleStyle} />
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                fontSize: "13px",
+                border: `1px solid ${C.border}`,
+              }}
+            >
               <tbody>
-                {[
-                  ["Raison sociale", client.raisonSociale],
-                  ["Forme juridique", client.forme],
-                  client.capital ? ["Capital social", `${Number(client.capital).toLocaleString("fr-FR")} €`] : null,
-                  ["Adresse du siège social", `${client.adresse}, ${client.cp} ${client.ville}`],
-                  ["N° SIREN", client.siren],
-                  client.ape ? ["Code APE / NAF", client.ape] : null,
-                  ["Dirigeant / Représentant légal", client.dirigeant],
-                  client.effectif ? ["Effectif", `${client.effectif} salarié(s)`] : null,
-                  client.domaine ? ["Domaine d'activité", client.domaine] : null,
-                ].filter(Boolean).map(([label, value], i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: "6px 12px 6px 0", color: COLORS.muted, width: "220px", verticalAlign: "top" }}>{label}</td>
-                    <td style={{ padding: "6px 0", fontWeight: 500 }}>{value || <span style={{ color: "#dc2626", fontSize: "12px" }}>[À COMPLÉTER]</span>}</td>
+                {([
+                  ["Raison sociale", clientData?.raisonSociale || ""],
+                  ["Forme juridique", clientData?.forme || ""],
+                  clientData?.capital ? ["Capital social", `${Number(clientData?.capital).toLocaleString("fr-FR")} €`] : null,
+                  ["Adresse du siège social", `${clientData?.adresse || ""}, ${clientData?.cp || ""} ${clientData?.ville || ""}`],
+                  ["N° SIREN", clientData?.siren || ""],
+                  clientData?.ape ? ["Code APE / NAF", clientData?.ape] : null,
+                  ["Dirigeant / Représentant légal", clientData?.dirigeant || ""],
+                  clientData?.effectif ? ["Effectif", `${clientData?.effectif} salarié(s)`] : null,
+                  clientData?.domaine ? ["Domaine d'activité", clientData?.domaine] : null,
+                  clientData?.dateCreation ? ["Date de création", clientData?.dateCreation] : null,
+                ].filter(Boolean) as [string, string][]).map(([label, value], i) => (
+                  <tr
+                    key={i}
+                    style={{
+                      backgroundColor: i % 2 === 1 ? C.altRow : "transparent",
+                      borderBottom: `1px solid ${C.border}`,
+                    }}
+                  >
+                    <td style={{ padding: "7px 12px", color: C.muted, width: "220px", verticalAlign: "top", borderRight: `1px solid ${C.border}` }}>
+                      {label}
+                    </td>
+                    <td style={{ padding: "7px 12px", fontWeight: 500 }}>
+                      {value || <span style={{ color: "#dc2626", fontSize: "12px" }}>[À compléter]</span>}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -328,226 +414,263 @@ export default function LettreMissionPreviewV2({ state, client, activeSectionId 
           </div>
         )}
 
-        {/* ═══════════════ LCB-FT ENCADRÉ ═══════════════ */}
-        {getSection("lcbft")?.visible && (
-          <div ref={(el) => { sectionRefs.current["lcbft"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>
+        {/* ═══════ 9. BLOC LCB-FT ═══════ */}
+        {isVisible("lcbft") && (
+          <div ref={(el) => { sectionRefs.current["lcbft"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>
               <span style={{ display: "inline-flex", alignItems: "center", gap: "8px" }}>
-                <Shield style={{ width: "16px", height: "16px", color: COLORS.accent }} />
+                <Shield style={{ width: "16px", height: "16px", color: C.accent }} />
                 {tpl.lcbft.titre}
               </span>
             </h2>
-            <p style={{ fontSize: "10px", color: COLORS.muted, fontStyle: "italic", marginBottom: "12px" }}>
+            <div style={thinRuleStyle} />
+            <p style={{ fontSize: "10px", color: C.muted, fontStyle: "italic", marginBottom: "12px" }}>
               {tpl.lcbft.soustitre}
             </p>
 
-            {/* Special encadré */}
-            <div style={{
-              backgroundColor: COLORS.lightBg,
-              border: `1px solid ${COLORS.accent}40`,
-              borderLeft: `4px solid ${COLORS.accent}`,
-              borderRadius: "6px",
-              padding: "16px 20px",
-              marginBottom: "16px",
-            }}>
-              {client && (
-                <div style={{ display: "flex", gap: "20px", marginBottom: "14px", flexWrap: "wrap" }}>
+            {/* Encadré spécial */}
+            <div
+              style={{
+                border: `2px solid ${C.navy}`,
+                borderRadius: "4px",
+                padding: "20px",
+                backgroundColor: C.lightBg,
+                marginBottom: "14px",
+              }}
+            >
+              {clientData && (
+                <div style={{ display: "flex", gap: "24px", marginBottom: "16px", flexWrap: "wrap" }}>
                   <div style={{ textAlign: "center", minWidth: "100px" }}>
-                    <p style={{ fontSize: "10px", color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Niveau de vigilance</p>
-                    <p style={{
-                      fontSize: "15px", fontWeight: 700, color: vigilanceColor,
-                      fontFamily: "'Inter', sans-serif",
-                    }}>
-                      {client.nivVigilance || "NORMALE"}
+                    <p style={{ fontSize: "10px", color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 4px" }}>
+                      Vigilance
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        color: vigColor,
+                        fontFamily: "'Inter', sans-serif",
+                        margin: 0,
+                      }}
+                    >
+                      {clientData?.nivVigilance || "STANDARD"}
                     </p>
                   </div>
                   <div style={{ textAlign: "center", minWidth: "80px" }}>
-                    <p style={{ fontSize: "10px", color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Score global</p>
-                    <p style={{
-                      fontSize: "15px", fontWeight: 700,
-                      color: scoreColor(client.scoreGlobal ?? 0),
-                      fontFamily: "'Inter', sans-serif",
-                    }}>
-                      {client.scoreGlobal ?? "—"}/100
+                    <p style={{ fontSize: "10px", color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 4px" }}>
+                      Score global
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "24px",
+                        fontWeight: 700,
+                        color: scoreColor(clientData?.scoreGlobal),
+                        fontFamily: "'Inter', sans-serif",
+                        margin: 0,
+                      }}
+                    >
+                      {clientData?.scoreGlobal ?? "—"}<span style={{ fontSize: "12px", color: C.muted }}>/100</span>
                     </p>
                   </div>
                   <div style={{ textAlign: "center", minWidth: "60px" }}>
-                    <p style={{ fontSize: "10px", color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>PPE</p>
-                    <p style={{
-                      fontSize: "15px", fontWeight: 700,
-                      color: client.ppe === "OUI" ? "#dc2626" : "#16a34a",
-                      fontFamily: "'Inter', sans-serif",
-                    }}>
-                      {client.ppe || "NON"}
+                    <p style={{ fontSize: "10px", color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 4px" }}>
+                      PPE
+                    </p>
+                    <p
+                      style={{
+                        fontSize: "15px",
+                        fontWeight: 700,
+                        color: clientData?.ppe === "OUI" ? "#dc2626" : "#16a34a",
+                        fontFamily: "'Inter', sans-serif",
+                        margin: 0,
+                      }}
+                    >
+                      {clientData?.ppe || "NON"}
                     </p>
                   </div>
-                  {client.paysRisque && (
+                  {clientData?.paysRisque && (
                     <div style={{ textAlign: "center", minWidth: "80px" }}>
-                      <p style={{ fontSize: "10px", color: COLORS.muted, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: "4px" }}>Pays à risque</p>
-                      <p style={{
-                        fontSize: "15px", fontWeight: 700,
-                        color: client.paysRisque === "OUI" ? "#dc2626" : "#16a34a",
-                        fontFamily: "'Inter', sans-serif",
-                      }}>
-                        {client.paysRisque}
+                      <p style={{ fontSize: "10px", color: C.muted, textTransform: "uppercase", letterSpacing: "0.05em", margin: "0 0 4px" }}>
+                        Pays à risque
+                      </p>
+                      <p
+                        style={{
+                          fontSize: "15px",
+                          fontWeight: 700,
+                          color: clientData?.paysRisque === "OUI" ? "#dc2626" : "#16a34a",
+                          fontFamily: "'Inter', sans-serif",
+                          margin: 0,
+                        }}
+                      >
+                        {clientData?.paysRisque}
                       </p>
                     </div>
                   )}
                 </div>
               )}
 
-              {client?.be && (
-                <p style={{ fontSize: "12px", marginBottom: "8px" }}>
-                  <strong>Bénéficiaire(s) effectif(s) :</strong> {client.be}
+              {clientData?.be && (
+                <p style={{ fontSize: "12px", marginBottom: "10px" }}>
+                  <strong>Bénéficiaire(s) effectif(s) :</strong> {clientData?.be}
                 </p>
               )}
 
-              <p style={{ fontSize: "12.5px", lineHeight: 1.6, marginBottom: "8px" }}>
+              <p style={{ fontSize: "13px", lineHeight: 1.6, margin: "0 0 10px" }}>
                 {tpl.lcbft.engagements}
               </p>
-              <p style={{ fontSize: "12px", lineHeight: 1.6, color: COLORS.muted }}>
+              <p style={{ fontSize: "12px", lineHeight: 1.6, color: C.muted, margin: 0 }}>
                 {tpl.lcbft.conservation}
               </p>
             </div>
           </div>
         )}
 
-        {/* ═══════════════ NOTRE MISSION ═══════════════ */}
-        {getSection("mission")?.visible && (
-          <div ref={(el) => { sectionRefs.current["mission"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>{tpl.mission.titre}</h2>
-            <div style={{ whiteSpace: "pre-wrap" }}>{renderText(getSection("mission")!.content)}</div>
+        {/* Mission principale */}
+        {isVisible("mission") && (
+          <div ref={(el) => { sectionRefs.current["mission"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.mission.titre}</h2>
+            <div style={thinRuleStyle} />
+            <div style={{ whiteSpace: "pre-wrap" }}>{renderTextBlock(sec("mission")?.content ?? "", vars)}</div>
           </div>
         )}
 
-        {/* ═══════════════ DURÉE ═══════════════ */}
-        {getSection("duree")?.visible && (
-          <div ref={(el) => { sectionRefs.current["duree"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>{tpl.duree.titre}</h2>
-            <div style={{ whiteSpace: "pre-wrap" }}>{renderText(getSection("duree")!.content)}</div>
+        {/* Durée */}
+        {isVisible("duree") && (
+          <div ref={(el) => { sectionRefs.current["duree"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.duree.titre}</h2>
+            <div style={thinRuleStyle} />
+            <div style={{ whiteSpace: "pre-wrap" }}>{renderTextBlock(sec("duree")?.content ?? "", vars)}</div>
           </div>
         )}
 
-        {/* ═══════════════ NATURE ET LIMITES ═══════════════ */}
-        {getSection("nature")?.visible && (
-          <div ref={(el) => { sectionRefs.current["nature"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>{tpl.nature.titre}</h2>
-            <div style={{ whiteSpace: "pre-wrap" }}>{renderText(getSection("nature")!.content)}</div>
+        {/* Nature et limites */}
+        {isVisible("nature") && (
+          <div ref={(el) => { sectionRefs.current["nature"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.nature.titre}</h2>
+            <div style={thinRuleStyle} />
+            <div style={{ whiteSpace: "pre-wrap" }}>{renderTextBlock(sec("nature")?.content ?? "", vars)}</div>
           </div>
         )}
 
-        {/* ═══════════════ MISSION SOCIALE (conditional) ═══════════════ */}
-        {state.missions.sociale && getSection("mission_sociale")?.visible && (
-          <div ref={(el) => { sectionRefs.current["mission_sociale"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>{tpl.missionSociale.titre}</h2>
-            <div style={{ whiteSpace: "pre-wrap" }}>{renderText(getSection("mission_sociale")!.content)}</div>
+        {/* ═══════ 10. SECTIONS CONDITIONNELLES ═══════ */}
+
+        {/* Mission sociale */}
+        {missionsActives?.sociale && isVisible("mission_sociale") && (
+          <div ref={(el) => { sectionRefs.current["mission_sociale"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.missionSociale.titre}</h2>
+            <div style={thinRuleStyle} />
+            <div style={{ whiteSpace: "pre-wrap" }}>{renderTextBlock(sec("mission_sociale")?.content ?? "", vars)}</div>
           </div>
         )}
 
-        {/* ═══════════════ MISSION JURIDIQUE (conditional) ═══════════════ */}
-        {state.missions.juridique && getSection("mission_juridique")?.visible && (
-          <div ref={(el) => { sectionRefs.current["mission_juridique"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>{tpl.missionJuridique.titre}</h2>
-            <div style={{ whiteSpace: "pre-wrap" }}>{renderText(getSection("mission_juridique")!.content)}</div>
+        {/* Mission juridique */}
+        {missionsActives?.juridique && isVisible("mission_juridique") && (
+          <div ref={(el) => { sectionRefs.current["mission_juridique"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.missionJuridique.titre}</h2>
+            <div style={thinRuleStyle} />
+            <div style={{ whiteSpace: "pre-wrap" }}>{renderTextBlock(sec("mission_juridique")?.content ?? "", vars)}</div>
           </div>
         )}
 
-        {/* ═══════════════ CONTRÔLE FISCAL (conditional) ═══════════════ */}
-        {state.missions.controleFiscal && getSection("mission_controle_fiscal")?.visible && (
-          <div ref={(el) => { sectionRefs.current["mission_controle_fiscal"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>{tpl.missionControleFiscal.titre}</h2>
+        {/* Contrôle fiscal */}
+        {missionsActives?.controleFiscal && isVisible("mission_controle_fiscal") && (
+          <div ref={(el) => { sectionRefs.current["mission_controle_fiscal"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.missionControleFiscal.titre}</h2>
+            <div style={thinRuleStyle} />
             <div style={{ whiteSpace: "pre-wrap", marginBottom: "16px" }}>
-              {renderText(getSection("mission_controle_fiscal")!.content)}
+              {renderTextBlock(sec("mission_controle_fiscal")?.content ?? "", vars)}
             </div>
-            {/* Selected option highlight */}
-            {state.missions.controleFiscalOption && (
-              <div style={{
-                backgroundColor: state.missions.controleFiscalOption === "RENONCE" ? "#fef2f2" : "#f0fdf4",
-                border: `1px solid ${state.missions.controleFiscalOption === "RENONCE" ? "#fecaca" : "#bbf7d0"}`,
-                borderRadius: "6px",
-                padding: "12px 16px",
-                fontSize: "12.5px",
-              }}>
-                <p style={{ fontWeight: 700, marginBottom: "8px" }}>
-                  {CONTROLE_FISCAL_OPTIONS.find((o) => o.id === state.missions.controleFiscalOption)?.label}
+            {missionsActives?.controleFiscalOption && (
+              <div
+                style={{
+                  backgroundColor: missionsActives?.controleFiscalOption === "RENONCE" ? "#fef2f2" : "#f0fdf4",
+                  border: `1px solid ${missionsActives?.controleFiscalOption === "RENONCE" ? "#fecaca" : "#bbf7d0"}`,
+                  borderRadius: "4px",
+                  padding: "14px 18px",
+                  fontSize: "13px",
+                }}
+              >
+                <p style={{ fontWeight: 700, margin: "0 0 8px" }}>
+                  {CONTROLE_FISCAL_OPTIONS.find((o) => o.id === missionsActives?.controleFiscalOption)?.label || ""}
                 </p>
                 <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.6 }}>
-                  {CONTROLE_FISCAL_OPTIONS.find((o) => o.id === state.missions.controleFiscalOption)?.texte}
+                  {CONTROLE_FISCAL_OPTIONS.find((o) => o.id === missionsActives?.controleFiscalOption)?.texte || ""}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* ═══════════════ HONORAIRES ═══════════════ */}
-        {getSection("honoraires")?.visible && (
-          <div ref={(el) => { sectionRefs.current["honoraires"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>{tpl.honoraires.titre}</h2>
+        {/* Honoraires */}
+        {isVisible("honoraires") && (
+          <div ref={(el) => { sectionRefs.current["honoraires"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.honoraires.titre}</h2>
+            <div style={thinRuleStyle} />
             <div style={{ whiteSpace: "pre-wrap", marginBottom: "16px" }}>
-              {renderText(getSection("honoraires")!.content)}
+              {renderTextBlock(sec("honoraires")?.content ?? "", vars)}
             </div>
 
-            {/* Honoraires table */}
-            <table style={{
-              width: "100%", borderCollapse: "collapse",
-              border: `1px solid ${COLORS.border}`, fontSize: "13px", marginBottom: "12px",
-            }}>
+            <table
+              style={{
+                width: "100%",
+                borderCollapse: "collapse",
+                border: `1px solid ${C.border}`,
+                fontSize: "13px",
+                marginBottom: "12px",
+              }}
+            >
               <thead>
-                <tr style={{ backgroundColor: COLORS.footerBg }}>
-                  <th style={{ textAlign: "left", padding: "8px 12px", borderBottom: `2px solid ${COLORS.border}`, color: COLORS.navy, fontWeight: 600 }}>
+                <tr style={{ backgroundColor: C.altRow }}>
+                  <th style={{ textAlign: "left", padding: "8px 12px", borderBottom: `2px solid ${C.border}`, color: C.navy, fontWeight: 600 }}>
                     Désignation
                   </th>
-                  <th style={{ textAlign: "right", padding: "8px 12px", borderBottom: `2px solid ${COLORS.border}`, color: COLORS.navy, fontWeight: 600, width: "140px" }}>
+                  <th style={{ textAlign: "right", padding: "8px 12px", borderBottom: `2px solid ${C.border}`, color: C.navy, fontWeight: 600, width: "150px" }}>
                     Montant
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {/* Comptable */}
                 {tpl.honoraires.comptable.lignes.map((l, i) => {
-                  const val = "variable" in l
-                    ? (state.honoraires as Record<string, number>)[l.variable]
-                    : l.fixe;
+                  const val = "variable" in l && l.variable
+                    ? (honoraires as Record<string, number> | undefined)?.[l.variable] ?? 0
+                    : (l as { fixe?: number }).fixe ?? 0;
                   return (
-                    <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                      <td style={{ padding: "6px 12px" }}>{l.label}</td>
-                      <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
-                        {val ? `${Number(val).toLocaleString("fr-FR")} ${l.suffixe}` : <span style={{ color: "#dc2626", fontSize: "12px" }}>[À COMPLÉTER]</span>}
+                    <tr key={`c-${i}`} style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: i % 2 === 1 ? C.altRow : "transparent" }}>
+                      <td style={{ padding: "7px 12px" }}>{l.label}</td>
+                      <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
+                        {val ? `${Number(val).toLocaleString("fr-FR")} ${l.suffixe}` : <span style={{ color: "#dc2626", fontSize: "12px" }}>[À compléter]</span>}
                       </td>
                     </tr>
                   );
                 })}
-                {/* Sociale */}
-                {state.missions.sociale && tpl.honoraires.sociale.lignes.map((l, i) => (
-                  <tr key={`soc-${i}`} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: "6px 12px" }}>{l.label}</td>
-                    <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
+                {missionsActives?.sociale && tpl.honoraires.sociale.lignes.map((l, i) => (
+                  <tr key={`s-${i}`} style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: (tpl.honoraires.comptable.lignes.length + i) % 2 === 1 ? C.altRow : "transparent" }}>
+                    <td style={{ padding: "7px 12px" }}>{l.label}</td>
+                    <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
                       {l.fixe.toLocaleString("fr-FR")} {l.suffixe}
                     </td>
                   </tr>
                 ))}
-                {/* Juridique */}
-                {state.missions.juridique && tpl.honoraires.juridique.lignes.map((l, i) => {
-                  const val = "variable" in l
-                    ? (state.honoraires as Record<string, number>)[l.variable!]
-                    : null;
+                {missionsActives?.juridique && tpl.honoraires.juridique.lignes.map((l, i) => {
+                  const val = "variable" in l && l.variable
+                    ? (honoraires as Record<string, number> | undefined)?.[l.variable] ?? 0
+                    : 0;
                   return (
-                    <tr key={`jur-${i}`} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                      <td style={{ padding: "6px 12px" }}>{l.label}</td>
-                      <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
-                        {val ? `${Number(val).toLocaleString("fr-FR")} ${l.suffixe}` : <span style={{ color: "#dc2626", fontSize: "12px" }}>[À COMPLÉTER]</span>}
+                    <tr key={`j-${i}`} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <td style={{ padding: "7px 12px" }}>{l.label}</td>
+                      <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
+                        {val ? `${Number(val).toLocaleString("fr-FR")} ${l.suffixe}` : <span style={{ color: "#dc2626", fontSize: "12px" }}>[À compléter]</span>}
                       </td>
                     </tr>
                   );
                 })}
-                {/* Contrôle fiscal */}
-                {state.missions.controleFiscal && state.missions.controleFiscalOption && state.missions.controleFiscalOption !== "RENONCE" && (
-                  <tr style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: "6px 12px" }}>
-                      Assistance contrôle fiscal — {CONTROLE_FISCAL_OPTIONS.find((o) => o.id === state.missions.controleFiscalOption)?.label}
+                {missionsActives?.controleFiscal && missionsActives?.controleFiscalOption && missionsActives?.controleFiscalOption !== "RENONCE" && (
+                  <tr style={{ borderBottom: `1px solid ${C.border}` }}>
+                    <td style={{ padding: "7px 12px" }}>
+                      Contrôle fiscal — {CONTROLE_FISCAL_OPTIONS.find((o) => o.id === missionsActives?.controleFiscalOption)?.label || ""}
                     </td>
-                    <td style={{ padding: "6px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
-                      {CONTROLE_FISCAL_OPTIONS.find((o) => o.id === state.missions.controleFiscalOption)?.montant?.toLocaleString("fr-FR")} € HT
+                    <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
+                      {CONTROLE_FISCAL_OPTIONS.find((o) => o.id === missionsActives?.controleFiscalOption)?.montant?.toLocaleString("fr-FR") || "—"} € HT
                     </td>
                   </tr>
                 )}
@@ -556,47 +679,49 @@ export default function LettreMissionPreviewV2({ state, client, activeSectionId 
           </div>
         )}
 
-        {/* ═══════════════ PAIEMENT ═══════════════ */}
-        {getSection("paiement")?.visible && (
-          <div ref={(el) => { sectionRefs.current["paiement"] = el; }} style={SECTION_STYLE}>
-            <h2 style={H2_STYLE}>MODALITÉS DE PAIEMENT</h2>
-            <div style={{ whiteSpace: "pre-wrap" }}>{renderText(getSection("paiement")!.content)}</div>
+        {/* Paiement */}
+        {isVisible("paiement") && (
+          <div ref={(el) => { sectionRefs.current["paiement"] = el; }} style={{ marginBottom: "28px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>MODALITÉS DE PAIEMENT</h2>
+            <div style={thinRuleStyle} />
+            <div style={{ whiteSpace: "pre-wrap" }}>{renderTextBlock(sec("paiement")?.content ?? "", vars)}</div>
           </div>
         )}
 
-        {/* ═══════════════ CONCLUSION + SIGNATURES ═══════════════ */}
-        {getSection("conclusion")?.visible && (
-          <div ref={(el) => { sectionRefs.current["conclusion"] = el; }} style={{ ...SECTION_STYLE, marginTop: "40px" }}>
-            <h2 style={H2_STYLE}>{tpl.conclusion.titre}</h2>
+        {/* Conclusion + Signatures */}
+        {isVisible("conclusion") && (
+          <div ref={(el) => { sectionRefs.current["conclusion"] = el; }} style={{ marginBottom: "28px", marginTop: "40px", scrollMarginTop: "20px" }}>
+            <h2 style={sectionTitleStyle}>{tpl.conclusion.titre}</h2>
+            <div style={thinRuleStyle} />
             <div style={{ whiteSpace: "pre-wrap", marginBottom: "40px" }}>
-              {renderText(getSection("conclusion")!.content)}
+              {renderTextBlock(sec("conclusion")?.content ?? "", vars)}
             </div>
 
-            {/* Signature blocks */}
+            {/* Signatures */}
             <div style={{ display: "flex", justifyContent: "space-between", marginTop: "32px" }}>
-              {/* Cabinet */}
               <div style={{ width: "45%", textAlign: "center" }}>
-                <p style={{ fontSize: "12px", fontWeight: 700, marginBottom: "4px", color: COLORS.navy }}>
+                <p style={{ fontSize: "12px", fontWeight: 700, marginBottom: "4px", color: C.navy }}>
                   {tpl.conclusion.signatureCabinet.label}
                 </p>
-                <p style={{ fontSize: "12px", color: COLORS.muted }}>{cabinet.nom}</p>
-                {cabinet.signature && (
-                  <img src={cabinet.signature} alt="Signature" style={{ height: "64px", margin: "8px auto", objectFit: "contain" }} />
+                <p style={{ fontSize: "12px", color: C.muted, margin: "0 0 4px" }}>COMPTADEC</p>
+                {cabinet?.signature && (
+                  <img src={cabinet?.signature} alt="Signature" style={{ height: "64px", margin: "8px auto", objectFit: "contain", display: "block" }} />
                 )}
-                <div style={{ marginTop: cabinet.signature ? "4px" : "60px" }}>
-                  <p style={{ fontSize: "12px" }}>{vars.associe || "[Nom de l'associé]"}</p>
-                  <p style={{ fontSize: "11px", color: COLORS.muted }}>Associé signataire</p>
+                <div style={{ marginTop: cabinet?.signature ? "4px" : "60px" }}>
+                  <p style={{ fontSize: "12px", margin: 0 }}>{clientData?.associe || "[Nom de l'associé]"}</p>
+                  <p style={{ fontSize: "11px", color: C.muted, margin: 0 }}>Associé signataire</p>
                 </div>
               </div>
-              {/* Client */}
               <div style={{ width: "45%", textAlign: "center" }}>
-                <p style={{ fontSize: "12px", fontWeight: 700, marginBottom: "4px", color: COLORS.navy }}>
+                <p style={{ fontSize: "12px", fontWeight: 700, marginBottom: "4px", color: C.navy }}>
                   {tpl.conclusion.signatureClient.label}
                 </p>
-                <p style={{ fontSize: "12px", color: COLORS.muted }}>{client?.raisonSociale || "[Raison sociale]"}</p>
+                <p style={{ fontSize: "12px", color: C.muted, margin: "0 0 4px" }}>{clientData?.raisonSociale || "[Raison sociale]"}</p>
                 <div style={{ marginTop: "60px" }}>
-                  <p style={{ fontSize: "12px" }}>{client?.dirigeant || "[Nom du dirigeant]"}</p>
-                  <p style={{ fontSize: "11px", color: COLORS.muted }}>{vars.qualite_dirigeant}</p>
+                  <p style={{ fontSize: "12px", margin: 0 }}>{clientData?.dirigeant || "[Nom du dirigeant]"}</p>
+                  <p style={{ fontSize: "11px", color: C.muted, margin: 0 }}>
+                    {clientData?.forme === "SAS" || clientData?.forme === "SASU" ? "Président" : "Gérant"}
+                  </p>
                 </div>
                 <p style={{ fontSize: "10px", color: "#9ca3af", marginTop: "8px", fontStyle: "italic" }}>
                   Signature précédée de la mention « Lu et approuvé »
@@ -606,14 +731,11 @@ export default function LettreMissionPreviewV2({ state, client, activeSectionId 
           </div>
         )}
 
-        {/* ═══════════════ ANNEXES LIST ═══════════════ */}
-        {getSection("annexes")?.visible && (
-          <div ref={(el) => { sectionRefs.current["annexes"] = el; }} style={{
-            marginTop: "40px", paddingTop: "16px",
-            borderTop: `2px solid ${COLORS.navy}`,
-          }}>
-            <h2 style={{ ...H2_STYLE, borderBottom: "none" }}>LISTE DES ANNEXES</h2>
-            <ol style={{ fontSize: "13px", lineHeight: 2, paddingLeft: "20px", color: COLORS.body }}>
+        {/* Annexes */}
+        {isVisible("annexes") && (
+          <div ref={(el) => { sectionRefs.current["annexes"] = el; }} style={{ marginTop: "40px", paddingTop: "16px", borderTop: `2px solid ${C.navy}`, scrollMarginTop: "20px" }}>
+            <h2 style={{ ...sectionTitleStyle, marginBottom: "12px" }}>LISTE DES ANNEXES</h2>
+            <ol style={{ fontSize: "13px", lineHeight: 2, paddingLeft: "20px", color: C.body, margin: 0 }}>
               <li>Répartition des travaux comptables</li>
               <li>Attestation relative au travail dissimulé</li>
               <li>Mandat de prélèvement SEPA</li>
@@ -623,22 +745,24 @@ export default function LettreMissionPreviewV2({ state, client, activeSectionId 
           </div>
         )}
 
-        {/* ═══════════════ FOOTER ═══════════════ */}
-        <div style={{
-          marginTop: "48px",
-          paddingTop: "12px",
-          borderTop: `1px solid ${COLORS.border}`,
-          textAlign: "center",
-        }}>
+        {/* ═══════ PIED DE PAGE ═══════ */}
+        <div
+          style={{
+            marginTop: "48px",
+            paddingTop: "12px",
+            borderTop: `1px solid ${C.border}`,
+            textAlign: "center",
+          }}
+        >
           <p style={{ fontSize: "9px", color: "#9ca3af", margin: 0 }}>
-            {cabinet.piedDePage || "Membre de l'Ordre des Experts-Comptables"}
+            {cabinet?.piedDePage || "Membre de l'Ordre des Experts-Comptables"}
           </p>
           <p style={{ fontSize: "9px", color: "#9ca3af", margin: "2px 0 0" }}>
-            {cabinet.nom}{cabinet.siret && ` — SIRET ${cabinet.siret}`}{cabinet.numeroOec && ` — N° OEC ${cabinet.numeroOec}`}
+            COMPTADEC{cabinet?.siret ? ` — SIRET ${cabinet?.siret}` : ""}{cabinet?.numeroOec ? ` — N° OEC ${cabinet?.numeroOec}` : ""}
           </p>
-          {cabinet.siteWeb && (
+          {cabinet?.siteWeb && (
             <p style={{ fontSize: "9px", color: "#9ca3af", margin: "2px 0 0" }}>
-              {cabinet.siteWeb}
+              {cabinet?.siteWeb}
             </p>
           )}
         </div>
