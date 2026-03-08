@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,8 +9,28 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { AlertCircle, Loader2, Shield } from "lucide-react";
 
+// Translate common Supabase auth errors to French
+function translateError(msg: string): string {
+  const map: Record<string, string> = {
+    "Invalid login credentials": "Email ou mot de passe incorrect.",
+    "Email not confirmed": "Veuillez confirmer votre email avant de vous connecter.",
+    "User already registered": "Un compte avec cet email existe deja.",
+    "Password should be at least 6 characters": "Le mot de passe doit contenir au moins 6 caracteres.",
+    "Signup requires a valid password": "Veuillez saisir un mot de passe valide.",
+    "Unable to validate email address: invalid format": "Format d'email invalide.",
+    "Email rate limit exceeded": "Trop de tentatives. Reessayez dans quelques minutes.",
+    "For security purposes, you can only request this after 60 seconds.": "Pour des raisons de securite, veuillez patienter 60 secondes.",
+  };
+  for (const [en, fr] of Object.entries(map)) {
+    if (msg.includes(en)) return fr;
+  }
+  return msg;
+}
+
 export default function AuthPage() {
   const navigate = useNavigate();
+  const { session, loading: authLoading } = useAuth();
+
   const [tab, setTab] = useState<"login" | "register">("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -25,19 +46,27 @@ export default function AuthPage() {
   const [regPassword, setRegPassword] = useState("");
   const [regCabinet, setRegCabinet] = useState("");
 
+  // Auto-redirect when session is detected (after login or if already logged in)
+  useEffect(() => {
+    if (!authLoading && session) {
+      navigate("/", { replace: true });
+    }
+  }, [session, authLoading, navigate]);
+
+  // Avoid importing supabase directly — use the AuthContext methods
+  const { signInWithEmail, signUp: authSignUp } = useAuth();
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password: loginPassword,
-      });
-      if (error) throw error;
-      navigate("/", { replace: true });
-    } catch (err: any) {
-      setError(err.message || "Erreur de connexion");
+      await signInWithEmail(loginEmail, loginPassword);
+      // Don't navigate here — the useEffect above will redirect
+      // once AuthContext picks up the session change
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erreur de connexion";
+      setError(translateError(msg));
     } finally {
       setLoading(false);
     }
@@ -62,18 +91,27 @@ export default function AuthPage() {
       if (signUpError) throw signUpError;
 
       if (authData.session) {
-        // Email confirmation disabled — redirect immediately
-        navigate("/", { replace: true });
+        // Email confirmation disabled — the useEffect will redirect
       } else if (authData.user) {
         // Email confirmation required
         setMessage("Compte cree ! Verifiez votre email pour confirmer votre inscription.");
         setTab("login");
       }
-    } catch (err: any) {
-      setError(err.message || "Erreur lors de l'inscription");
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Erreur lors de l'inscription";
+      setError(translateError(msg));
     } finally {
       setLoading(false);
     }
+  }
+
+  // Show a spinner while checking initial auth state
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+      </div>
+    );
   }
 
   return (
@@ -108,7 +146,7 @@ export default function AuthPage() {
               </div>
             )}
 
-            <Tabs value={tab} onValueChange={(v) => setTab(v as "login" | "register")}>
+            <Tabs value={tab} onValueChange={(v) => { setTab(v as "login" | "register"); setError(null); }}>
               <TabsList className="w-full mb-6 bg-white/[0.04]">
                 <TabsTrigger value="login" className="flex-1">Connexion</TabsTrigger>
                 <TabsTrigger value="register" className="flex-1">Inscription</TabsTrigger>
@@ -125,6 +163,7 @@ export default function AuthPage() {
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
+                      autoComplete="email"
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
@@ -137,6 +176,7 @@ export default function AuthPage() {
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       required
+                      autoComplete="current-password"
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
@@ -158,6 +198,7 @@ export default function AuthPage() {
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
                       required
+                      autoComplete="name"
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
@@ -170,6 +211,7 @@ export default function AuthPage() {
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
                       required
+                      autoComplete="email"
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
@@ -183,6 +225,7 @@ export default function AuthPage() {
                       onChange={(e) => setRegPassword(e.target.value)}
                       required
                       minLength={6}
+                      autoComplete="new-password"
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>

@@ -15,23 +15,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string) => {
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", userId)
-      .single();
+  // Fetch profile with retry — the handle_new_user trigger might not
+  // have finished creating the profile row yet on first signup
+  const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+    const maxRetries = 3;
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      try {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("*")
+          .eq("id", userId)
+          .single();
 
-    if (error) {
-      console.error("Error fetching profile:", error);
-      return null;
+        if (data) return data as UserProfile;
+
+        if (error && error.code !== "PGRST116") {
+          // PGRST116 = "not found" — retry. Other errors = stop.
+          console.error("[AuthContext] Profile fetch error:", error.message);
+          return null;
+        }
+      } catch (err) {
+        console.error("[AuthContext] Profile fetch exception:", err);
+        return null;
+      }
+
+      // Wait before retry (profile might be getting created by DB trigger)
+      if (attempt < maxRetries - 1) {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
     }
-    return data as UserProfile;
+    console.warn("[AuthContext] Profile not found after retries for user:", userId);
+    return null;
   }, []);
 
   const handleSignOut = useCallback(async () => {
     if (user) {
-      await logAudit({ action: "DECONNEXION" });
+      await logAudit({ action: "DECONNEXION" }).catch(() => {});
     }
     await supabase.auth.signOut();
     setUser(null);
@@ -49,6 +68,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
+    let cancelled = false;
+
     // Get initial session with timeout to prevent infinite spinner
     const initAuth = async () => {
       try {
@@ -58,52 +79,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const sessionPromise = supabase.auth.getSession();
         const { data: { session: s } } = await Promise.race([sessionPromise, timeoutPromise]);
 
+        if (cancelled) return;
+
         setSession(s);
         setUser(s?.user ?? null);
         if (s?.user) {
           const p = await fetchProfile(s.user.id);
-          setProfile(p);
+          if (!cancelled) setProfile(p);
         }
       } catch (err) {
         console.error("[AuthContext] Init error:", err);
-        setSession(null);
-        setUser(null);
-        setProfile(null);
+        if (!cancelled) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     initAuth();
 
-    // Listen for auth changes
+    // Listen for auth changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
+        if (cancelled) return;
+
         setSession(s);
         setUser(s?.user ?? null);
 
         if (s?.user) {
+          // Fetch profile — with retries for SIGNED_IN (trigger may need time)
           const p = await fetchProfile(s.user.id);
-          setProfile(p);
+          if (!cancelled) {
+            setProfile(p);
 
-          if (event === "SIGNED_IN") {
-            // Small delay to ensure profile is created by trigger
-            setTimeout(async () => {
-              const p2 = await fetchProfile(s.user.id);
-              setProfile(p2);
-              if (p2) {
-                await logAudit({ action: "CONNEXION" });
-              }
-            }, 1000);
+            if (event === "SIGNED_IN" && p) {
+              logAudit({ action: "CONNEXION" }).catch(() => {});
+            }
           }
         } else {
           setProfile(null);
         }
 
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [fetchProfile]);
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
