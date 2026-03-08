@@ -9,6 +9,7 @@ import {
 } from "@/lib/lettreMissionEngine";
 import type { CabinetConfig } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
+import type { Genre } from "@/lib/lettreMissionContent";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -75,6 +76,7 @@ export default function LettreMissionPage() {
   const contentRef = useRef<HTMLDivElement>(null);
 
   const [selectedRef, setSelectedRef] = useState<string | null>(ref ?? null);
+  const [genre, setGenre] = useState<Genre>("M");
   const [editorState, setEditorState] = useState<EditorState>(() =>
     buildDefaultEditorState(ref ? clients.find((c) => c.ref === ref) : null)
   );
@@ -102,7 +104,7 @@ export default function LettreMissionPage() {
 
   // Build options from editor state for PDF/DOCX export
   const buildOptions = useCallback(() => ({
-    genre: editorState.genre === "M" ? ("M" as const) : ("F" as const),
+    genre: genre === "M" ? ("M" as const) : ("F" as const),
     missionSociale: editorState.missions.sociale,
     missionJuridique: editorState.missions.juridique,
     missionControleFiscal: editorState.missions.controleFiscal,
@@ -121,7 +123,7 @@ export default function LettreMissionPage() {
     controleFiscalOptions: editorState.missions.controleFiscalOption
       ? [editorState.missions.controleFiscalOption]
       : [],
-  }), [editorState]);
+  }), [genre, editorState]);
 
   // Section completion status based on editor state
   const sectionStatus = useMemo(() => {
@@ -391,19 +393,13 @@ export default function LettreMissionPage() {
             </div>
 
             {/* Editor content */}
-            <div ref={contentRef} className="flex-1 overflow-hidden">
-              {!client ? (
-                <div className="flex items-center justify-center h-full text-slate-500">
-                  Sélectionnez un client pour générer une lettre de mission
-                </div>
-              ) : (
-                <LettreMissionEditor
-                  client={client}
-                  state={editorState}
-                  onChange={setEditorState}
-                  onSectionFocus={setFocusedSection}
-                />
-              )}
+            <div ref={contentRef} className="flex-1 overflow-auto">
+              <LettreMissionEditor
+                client={client}
+                genre={genre}
+                onGenreChange={setGenre}
+                onStateChange={setEditorState}
+              />
             </div>
           </div>
         )}
