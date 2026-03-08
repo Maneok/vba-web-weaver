@@ -1,5 +1,5 @@
 import jsPDF from "jspdf";
-import type { LettreMission, CabinetConfig, LettreMissionOptions } from "@/types/lettreMission";
+import type { LettreMission, CabinetConfig, LettreMissionOptions, EditorSectionSnapshot } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 
 // ──────────────────────────────────────────────
@@ -56,6 +56,7 @@ class LMPdfBuilder {
   private options: LettreMissionOptions;
   private numero: string;
   private dateLM: string;
+  private editorSections: EditorSectionSnapshot[];
 
   constructor(lm: LettreMission) {
     this.doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -65,6 +66,14 @@ class LMPdfBuilder {
     this.options = lm.options;
     this.numero = lm.numero;
     this.dateLM = lm.date;
+    this.editorSections = lm.editorSections ?? [];
+  }
+
+  /** Get content from an editor section by id, returns null if not found or not visible */
+  private getEditorContent(id: string): string | null {
+    const sec = this.editorSections.find((s) => s.id === id);
+    if (!sec || !sec.visible) return null;
+    return sec.content || null;
   }
 
   // ── Core methods ──
@@ -270,21 +279,27 @@ class LMPdfBuilder {
     this.doc.line(MARGIN_L + 30, this.y, MARGIN_R - 30, this.y);
     this.y += 8;
 
-    // Formule d'introduction
-    const politesse = opts.genre === "F" ? "Chère Madame" : "Cher Monsieur";
-    this.writeText(`${politesse} ${s(cli?.dirigeant)},`);
-    this.y += 2;
-    this.writeText(
-      `Nous vous remercions de la confiance que vous nous accordez en nous confiant la mission d'expertise comptable ` +
-      `relative à votre société ${s(cli?.raisonSociale)}. Conformément à l'article 151 du Code de déontologie des professionnels ` +
-      `de l'expertise comptable, la présente lettre de mission a pour objet de définir les termes, conditions et limites de ` +
-      `notre intervention ainsi que les droits et obligations réciproques des parties.`
-    );
-    this.y += 2;
-    this.writeText(
-      `La présente lettre de mission est établie conformément aux normes professionnelles de l'Ordre des Experts-Comptables ` +
-      `et aux dispositions du Code de déontologie de la profession.`
-    );
+    // Formule d'introduction — use editor content if available
+    const editorIntro = this.getEditorContent("introduction");
+    if (editorIntro) {
+      // User-edited content: render as-is
+      this.writeText(editorIntro);
+    } else {
+      const politesse = opts.genre === "F" ? "Chère Madame" : "Cher Monsieur";
+      this.writeText(`${politesse} ${s(cli?.dirigeant)},`);
+      this.y += 2;
+      this.writeText(
+        `Nous vous remercions de la confiance que vous nous accordez en nous confiant la mission d'expertise comptable ` +
+        `relative à votre société ${s(cli?.raisonSociale)}. Conformément à l'article 151 du Code de déontologie des professionnels ` +
+        `de l'expertise comptable, la présente lettre de mission a pour objet de définir les termes, conditions et limites de ` +
+        `notre intervention ainsi que les droits et obligations réciproques des parties.`
+      );
+      this.y += 2;
+      this.writeText(
+        `La présente lettre de mission est établie conformément aux normes professionnelles de l'Ordre des Experts-Comptables ` +
+        `et aux dispositions du Code de déontologie de la profession.`
+      );
+    }
   }
 
   // ──────────────────────────────────────────────
@@ -309,21 +324,30 @@ class LMPdfBuilder {
     this.doc.setTextColor(30, 30, 30);
     this.y += 7;
 
+    // Capital display logic: EI with 0 = "N/A", other with 0 = "0 €", positive = formatted
+    const capitalDisplay = cli?.capital != null && cli.capital > 0
+      ? formatMontant(cli.capital)
+      : cli?.capital === 0 && (cli?.forme === "ENTREPRISE INDIVIDUELLE" || cli?.typePersonne === "physique")
+        ? "N/A (entreprise individuelle)"
+        : cli?.capital === 0 ? "0 €" : "Non renseigné";
+
     const rows: [string, string][] = [
       ["Raison sociale", s(cli?.raisonSociale)],
       ["Forme juridique", s(cli?.forme)],
-      ["Activité / Objet social", s(cli?.domaine)],
+      ["Dirigeant / Représentant légal", s(cli?.dirigeant)],
+      ["Objet social / Activité", s(cli?.domaine)],
       ["Code APE", s(cli?.ape)],
       ["SIREN", s(cli?.siren)],
-      ["Capital social", formatMontant(cli?.capital)],
+      ["Capital social", capitalDisplay],
       ["Date de création", s(cli?.dateCreation)],
+      ["Date de clôture", "31/12"],
+      ["Téléphone", s(cli?.tel)],
+      ["Email", s(cli?.mail)],
       ["Expert-comptable responsable", s(cli?.associe)],
       ["Régime fiscal", s(opts?.regimeFiscal)],
       ["Exercice social", `Du ${s(opts?.exerciceDebut)} au ${s(opts?.exerciceFin)}`],
       ["Régime de TVA", s(opts?.tvaRegime)],
-      ["Commissaire aux comptes", opts?.cac ? "Oui" : "Non"],
       ["Effectif", s(cli?.effectif)],
-      ["Volume comptable", s(opts?.volumeComptable)],
       ["Type de mission", s(cli?.mission)],
     ];
 
@@ -470,24 +494,34 @@ class LMPdfBuilder {
     const cli = this.client;
     const opts = this.options;
 
-    // Section: Notre mission
+    // Section: Notre mission — use editor content if available
     this.drawSectionTitle("NOTRE MISSION");
     this.y += 2;
 
-    this.writeText(
-      `Conformément aux dispositions de l'ordonnance n° 45-2138 du 19 septembre 1945 et du décret n° 2012-432 ` +
-      `du 30 mars 2012, nous nous engageons à exécuter la mission de ${s(cli?.mission)} qui nous est confiée dans le ` +
-      `respect des normes professionnelles applicables et du Code de déontologie de la profession d'expert-comptable.`
-    );
+    const editorMission = this.getEditorContent("mission");
+    if (editorMission) {
+      this.writeText(editorMission);
+    } else {
+      this.writeText(
+        `Conformément aux dispositions de l'ordonnance n° 45-2138 du 19 septembre 1945 et du décret n° 2012-432 ` +
+        `du 30 mars 2012, nous nous engageons à exécuter la mission de ${s(cli?.mission)} qui nous est confiée dans le ` +
+        `respect des normes professionnelles applicables et du Code de déontologie de la profession d'expert-comptable.`
+      );
+    }
 
-    // Durée
+    // Durée — use editor content if available
     this.drawSubTitle("Durée de la mission");
-    this.writeText(
-      `La présente mission prend effet à compter du ${opts.exerciceDebut} pour une durée d'un exercice social ` +
-      `(du ${opts.exerciceDebut} au ${opts.exerciceFin}), renouvelable par tacite reconduction sauf dénonciation ` +
-      `par l'une des parties moyennant un préavis de trois mois avant la date d'échéance, par lettre recommandée ` +
-      `avec accusé de réception.`
-    );
+    const editorDuree = this.getEditorContent("duree");
+    if (editorDuree) {
+      this.writeText(editorDuree);
+    } else {
+      this.writeText(
+        `La présente mission prend effet à compter du ${opts.exerciceDebut} pour une durée d'un exercice social ` +
+        `(du ${opts.exerciceDebut} au ${opts.exerciceFin}), renouvelable par tacite reconduction sauf dénonciation ` +
+        `par l'une des parties moyennant un préavis de trois mois avant la date d'échéance, par lettre recommandée ` +
+        `avec accusé de réception.`
+      );
+    }
 
     // Nature et limites
     this.drawSubTitle("Nature et limites de la mission");
@@ -505,32 +539,37 @@ class LMPdfBuilder {
     if (opts.missionSociale) {
       this.y += 4;
       this.drawSubTitle("Mission sociale");
-      this.writeText(
-        "Dans le cadre de la mission sociale qui nous est confiée, nous assurons les prestations suivantes :"
-      );
-      this.writeBullet("Établissement des bulletins de paie et des déclarations sociales obligatoires (DSN)");
-      this.writeBullet("Gestion des entrées et sorties du personnel (DPAE, contrats, certificats, STC)");
-      this.writeBullet("Calcul et déclaration des charges sociales (URSSAF, retraite, prévoyance)");
-      this.writeBullet("Assistance en matière de droit social courant");
-      this.writeText(
-        "La mission sociale est exercée dans les limites des compétences de l'expert-comptable telles que définies " +
-        "par l'article 2 de l'ordonnance du 19 septembre 1945. Elle n'inclut pas la représentation devant les " +
-        "juridictions prud'homales ni le conseil juridique personnalisé relevant du monopole des avocats."
-      );
+      const editorSociale = this.getEditorContent("mission_sociale");
+      if (editorSociale) {
+        this.writeText(editorSociale);
+      } else {
+        this.writeText(
+          "Dans le cadre de la mission sociale qui nous est confiée, nous assurons les prestations suivantes :"
+        );
+        this.writeBullet("Établissement des bulletins de paie et des déclarations sociales obligatoires (DSN)");
+        this.writeBullet("Gestion des entrées et sorties du personnel (DPAE, contrats, certificats, STC)");
+        this.writeBullet("Calcul et déclaration des charges sociales (URSSAF, retraite, prévoyance)");
+        this.writeBullet("Assistance en matière de droit social courant");
+      }
     }
 
     // Mission juridique (si activée)
     if (opts.missionJuridique) {
       this.y += 4;
       this.drawSubTitle("Mission juridique");
-      this.writeText(
-        "Conformément à l'article 22 de l'ordonnance du 19 septembre 1945, nous assurons une mission juridique " +
-        "accessoire comprenant :"
-      );
-      this.writeBullet("Rédaction des procès-verbaux d'assemblées générales ordinaires et extraordinaires");
-      this.writeBullet("Formalités de modification statutaire et dépôt au greffe du tribunal de commerce");
-      this.writeBullet("Tenue des registres obligatoires (registre des assemblées, registre des mouvements de titres)");
-      this.writeBullet("Assistance à la rédaction d'actes juridiques courants liés à la vie sociale");
+      const editorJuridique = this.getEditorContent("mission_juridique");
+      if (editorJuridique) {
+        this.writeText(editorJuridique);
+      } else {
+        this.writeText(
+          "Conformément à l'article 22 de l'ordonnance du 19 septembre 1945, nous assurons une mission juridique " +
+          "accessoire comprenant :"
+        );
+        this.writeBullet("Rédaction des procès-verbaux d'assemblées générales ordinaires et extraordinaires");
+        this.writeBullet("Formalités de modification statutaire et dépôt au greffe du tribunal de commerce");
+        this.writeBullet("Tenue des registres obligatoires (registre des assemblées, registre des mouvements de titres)");
+        this.writeBullet("Assistance à la rédaction d'actes juridiques courants liés à la vie sociale");
+      }
     }
 
     // Mission contrôle fiscal (si activée)

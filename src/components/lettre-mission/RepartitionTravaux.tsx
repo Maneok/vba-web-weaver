@@ -52,36 +52,36 @@ export default function RepartitionTravaux({
 
   return (
     <div className="overflow-x-auto">
-      <h4 className="text-sm font-semibold text-gray-700 mb-3">
+      <h4 className="text-sm font-semibold text-slate-200 mb-3">
         {REPARTITION_TRAVAUX?.titre ?? "Répartition des travaux"}
       </h4>
       <table className="w-full text-sm border-collapse">
         <thead>
-          <tr className="bg-gray-100">
-            <th className="text-left py-2 px-3 border font-medium text-gray-700">
+          <tr className="bg-slate-700/30">
+            <th className="text-left py-2 px-3 border border-slate-600 font-medium text-slate-200">
               Répartition des travaux
             </th>
-            <th className="text-center py-2 px-3 border font-medium text-gray-700 w-20">
+            <th className="text-center py-2 px-3 border border-slate-600 font-medium text-slate-200 w-20">
               Cabinet
             </th>
-            <th className="text-center py-2 px-3 border font-medium text-gray-700 w-20">
+            <th className="text-center py-2 px-3 border border-slate-600 font-medium text-slate-200 w-20">
               Client
             </th>
-            <th className="text-center py-2 px-3 border font-medium text-gray-700 w-32">
+            <th className="text-center py-2 px-3 border border-slate-600 font-medium text-slate-200 w-32">
               Périodicité
             </th>
           </tr>
         </thead>
         <tbody>
           {lignes.map((ligne, i) => (
-            <tr key={ligne.id} className="hover:bg-gray-50">
-              <td className="py-1.5 px-3 border text-gray-700">
+            <tr key={ligne.id} className="hover:bg-slate-700/50">
+              <td className="py-1.5 px-3 border border-slate-600 text-slate-300">
                 {ligne.label}
               </td>
-              <td className="text-center py-1.5 px-3 border">
+              <td className="text-center py-1.5 px-3 border border-slate-600">
                 {readOnly ? (
                   ligne.cabinet ? (
-                    <span className="font-semibold text-blue-700">X</span>
+                    <span className="font-semibold text-blue-400">X</span>
                   ) : null
                 ) : (
                   <input
@@ -94,10 +94,10 @@ export default function RepartitionTravaux({
                   />
                 )}
               </td>
-              <td className="text-center py-1.5 px-3 border">
+              <td className="text-center py-1.5 px-3 border border-slate-600">
                 {readOnly ? (
                   ligne.client ? (
-                    <span className="font-semibold text-blue-700">X</span>
+                    <span className="font-semibold text-blue-400">X</span>
                   ) : null
                 ) : (
                   <input
@@ -110,9 +110,9 @@ export default function RepartitionTravaux({
                   />
                 )}
               </td>
-              <td className="text-center py-1.5 px-3 border">
+              <td className="text-center py-1.5 px-3 border border-slate-600">
                 {readOnly ? (
-                  <span className="text-gray-600">{ligne.periodicite}</span>
+                  <span className="text-slate-400">{ligne.periodicite}</span>
                 ) : (
                   <select
                     value={ligne.periodicite}
@@ -121,7 +121,7 @@ export default function RepartitionTravaux({
                         periodicite: e.target.value as Periodicite,
                       })
                     }
-                    className="border rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 w-full"
+                    className="border border-slate-600 bg-slate-700 text-slate-200 rounded px-1.5 py-0.5 text-xs focus:ring-1 focus:ring-blue-500 w-full"
                   >
                     {PERIODICITES.map((p) => (
                       <option key={p} value={p}>

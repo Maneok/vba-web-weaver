@@ -61,7 +61,11 @@ function buildVarMap(
     dirigeant: c?.dirigeant ?? "",
     raison_sociale: c?.raisonSociale ?? "",
     forme_juridique: c?.forme ?? "",
-    capital: c?.capital ? `${Number(c.capital).toLocaleString("fr-FR")} €` : "",
+    capital: c?.capital != null && c.capital > 0
+      ? `${Number(c.capital).toLocaleString("fr-FR")} €`
+      : c?.capital === 0 && (c?.forme === "ENTREPRISE INDIVIDUELLE" || c?.typePersonne === "physique")
+        ? "N/A (entreprise individuelle)"
+        : c?.capital === 0 ? "0 €" : "Non renseigné",
     adresse: c?.adresse ?? "",
     adresse_complete: c ? `${c?.adresse ?? ""}, ${c?.cp ?? ""} ${c?.ville ?? ""}` : "",
     cp: c?.cp ?? "",
@@ -385,14 +389,23 @@ export default function LettreMissionPreviewV2({
                 {([
                   ["Raison sociale", clientData?.raisonSociale || ""],
                   ["Forme juridique", clientData?.forme || ""],
-                  clientData?.capital ? ["Capital social", `${Number(clientData?.capital).toLocaleString("fr-FR")} €`] : null,
-                  ["Adresse du siège social", `${clientData?.adresse || ""}, ${clientData?.cp || ""} ${clientData?.ville || ""}`],
-                  ["N° SIREN", clientData?.siren || ""],
-                  clientData?.ape ? ["Code APE / NAF", clientData?.ape] : null,
                   ["Dirigeant / Représentant légal", clientData?.dirigeant || ""],
-                  clientData?.effectif ? ["Effectif", `${clientData?.effectif} salarié(s)`] : null,
-                  clientData?.domaine ? ["Domaine d'activité", clientData?.domaine] : null,
+                  ["Objet social / Activité", clientData?.domaine || ""],
+                  clientData?.ape ? ["Code APE / NAF", clientData?.ape] : null,
+                  ["N° SIREN", clientData?.siren || ""],
+                  ["Capital social",
+                    clientData?.capital != null && clientData.capital > 0
+                      ? `${Number(clientData.capital).toLocaleString("fr-FR")} €`
+                      : clientData?.capital === 0 && (clientData?.forme === "ENTREPRISE INDIVIDUELLE" || clientData?.typePersonne === "physique")
+                        ? "N/A (entreprise individuelle)"
+                        : clientData?.capital === 0 ? "0 €" : "Non renseigné"
+                  ],
+                  ["Adresse du siège social", `${clientData?.adresse || ""}, ${clientData?.cp || ""} ${clientData?.ville || ""}`],
                   clientData?.dateCreation ? ["Date de création", clientData?.dateCreation] : null,
+                  ["Date de clôture", "31/12"],
+                  clientData?.effectif ? ["Effectif", `${clientData?.effectif} salarié(s)`] : null,
+                  clientData?.tel ? ["Téléphone", clientData?.tel] : null,
+                  clientData?.mail ? ["Email", clientData?.mail] : null,
                 ].filter(Boolean) as [string, string][]).map(([label, value], i) => (
                   <tr
                     key={i}

@@ -55,6 +55,13 @@ export interface BlocTemplate {
   visible: boolean;
 }
 
+export interface EditorSectionSnapshot {
+  id: string;
+  title: string;
+  visible: boolean;
+  content: string;
+}
+
 export interface LettreMission {
   numero: string; // LM-2026-001
   date: string;
@@ -64,6 +71,8 @@ export interface LettreMission {
   blocs: LettreMissionBloc[];
   metadata: LettreMissionMetadata;
   options: LettreMissionOptions;
+  /** Editor sections with user-edited content (if available) */
+  editorSections?: EditorSectionSnapshot[];
 }
 
 export interface LettreMissionOptions {

@@ -162,7 +162,13 @@ function buildVariables(
     domaine: client.domaine || "",
     ape: client.ape || "",
     siren: client.siren || "",
-    capital: client.capital ? `${client.capital.toLocaleString("fr-FR")} €` : "Non renseigné",
+    capital: client.capital != null && client.capital > 0
+      ? `${client.capital.toLocaleString("fr-FR")} €`
+      : client.capital === 0 && (client.forme === "ENTREPRISE INDIVIDUELLE" || client.typePersonne === "physique")
+        ? "N/A (entreprise individuelle)"
+        : client.capital === 0
+          ? "0 €"
+          : "Non renseigné",
     date_creation: formatDateFR(client.dateCreation || ""),
     associe: client.associe || "",
     effectif: client.effectif || "",
@@ -213,9 +219,18 @@ function getVigilanceBadge(level: VigilanceLevel) {
   );
 }
 
-// Textarea common styling
-const TEXTAREA_CLS = "w-full border border-gray-700 rounded-lg px-4 py-3 bg-gray-900 text-[#e2e8f0] placeholder:text-gray-500 focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y";
-const TEXTAREA_STYLE: React.CSSProperties = { fontSize: "15px", lineHeight: "1.7" };
+// Textarea common styling — inline style guarantees visibility regardless of dark/light theme
+const TEXTAREA_CLS = "w-full rounded-lg focus:outline-none resize-y";
+const TEXTAREA_STYLE: React.CSSProperties = {
+  color: "#e2e8f0",
+  fontSize: "15px",
+  lineHeight: "1.7",
+  backgroundColor: "hsl(217, 33%, 14%)",
+  border: "1px solid hsl(217, 33%, 25%)",
+  padding: "16px",
+  borderRadius: "8px",
+  minHeight: "120px",
+};
 
 // ---------------------------------------------------------------------------
 // Sub-components
@@ -253,15 +268,15 @@ function Section({
     <div
       id={`section-${id}`}
       data-section={id === "introduction" ? 1 : id === "entite" ? 2 : id === "lcbft" ? 3 : id === "mission" ? 4 : id === "duree" ? 5 : id === "mission_sociale" || id === "mission_juridique" || id === "mission_controle_fiscal" ? 6 : id === "honoraires" ? 7 : id === "signature" ? 9 : undefined}
-      className={`border rounded-lg shadow-sm ${accentBorder ?? ""} ${
-        disabled ? "bg-gray-100 opacity-60" : "bg-white"
+      className={`border border-slate-700 rounded-lg shadow-sm ${accentBorder ?? ""} ${
+        disabled ? "bg-slate-800/50 opacity-60" : "bg-slate-800"
       }`}
     >
       <button
         type="button"
         onClick={() => !disabled && setOpen(!open)}
         className={`w-full flex items-center gap-2 px-4 py-3 text-left transition-colors ${
-          disabled ? "cursor-not-allowed" : "hover:bg-gray-50"
+          disabled ? "cursor-not-allowed" : "hover:bg-slate-700/50"
         }`}
       >
         {open && !disabled ? (
@@ -270,11 +285,11 @@ function Section({
           <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
         )}
         {icon}
-        <span className="text-sm font-semibold text-gray-800">{titre}</span>
+        <span className="text-sm font-semibold text-slate-200">{titre}</span>
         <span className="ml-auto flex items-center gap-2">
           {effectiveStatus && STATUS_DOT[effectiveStatus]}
           {disabled && !status && (
-            <span className="text-xs text-gray-400">Désactivée</span>
+            <span className="text-xs text-slate-500">Désactivée</span>
           )}
         </span>
       </button>
@@ -296,8 +311,8 @@ function EntityRow({
 }) {
   const empty = !value?.trim();
   return (
-    <tr className={even ? "bg-gray-50" : ""}>
-      <td className="py-2 px-3 text-sm font-medium text-gray-600 w-1/3 border-r">
+    <tr className={even ? "bg-slate-700/30" : ""}>
+      <td className="py-2 px-3 text-sm font-medium text-slate-400 w-1/3 border-r border-slate-600">
         {label}
       </td>
       <td className="py-1 px-2">
@@ -306,10 +321,10 @@ function EntityRow({
             type="text"
             value={value ?? ""}
             onChange={(e) => onChange(e.target.value)}
-            className={`w-full px-2 py-1.5 text-sm rounded border ${
+            className={`w-full px-2 py-1.5 text-sm rounded border bg-slate-900 text-slate-200 ${
               empty
                 ? "border-orange-400 focus:ring-orange-400"
-                : "border-gray-200 focus:ring-blue-500"
+                : "border-slate-600 focus:ring-blue-500"
             } focus:ring-1 focus:outline-none`}
           />
           {empty && (
@@ -340,7 +355,7 @@ export default function LettreMissionEditor({
   // Guard: no client selected
   if (!client) {
     return (
-      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
+      <div className="flex items-center justify-center h-64 text-slate-400 text-sm">
         Sélectionnez un client pour commencer la lettre de mission.
       </div>
     );
@@ -410,15 +425,23 @@ export default function LettreMissionEditor({
   const [entity, setEntity] = useState(() => ({
     raison_sociale: client.raisonSociale || "",
     forme_juridique: client.forme || "",
+    dirigeant: client.dirigeant || "",
     domaine: client.domaine || "",
     ape: client.ape || "",
     siren: client.siren || "",
-    capital: client.capital ? String(client.capital) : "Non renseigné",
+    capital: client.capital != null && client.capital > 0
+      ? String(client.capital)
+      : client.capital === 0 && (client.forme === "ENTREPRISE INDIVIDUELLE" || client.typePersonne === "physique")
+        ? "N/A (EI)"
+        : client.capital === 0 ? "0" : "Non renseigné",
     date_creation: formatDateFR(client.dateCreation || ""),
+    date_cloture: "31/12",
     associe: client.associe || "",
     effectif: client.effectif || "",
     mission: (client.mission as string) || "",
     frequence: client.frequence || "",
+    telephone: client.tel || "",
+    email: client.mail || "",
   }));
 
   const [missions, setMissions] = useState<MissionsConfig>({
@@ -429,6 +452,53 @@ export default function LettreMissionEditor({
   });
 
   const [missionEditable, setMissionEditable] = useState(false);
+
+  // Reset all internal state when client changes
+  useEffect(() => {
+    if (!client) return;
+    const initVars = buildVariables(client, genre, {
+      honoraires: client.honoraires || 0,
+      setup: client.reprise || 0,
+      honorairesJuridique: client.juridique || 0,
+    });
+    const s: Record<string, string> = {};
+    for (const [key, sec] of Object.entries(LETTRE_MISSION_CONTENT)) {
+      if (sec && sec.contenu) {
+        s[key] = resolveText(sec.contenu, initVars);
+      }
+    }
+    setSections(s);
+    setHonoraires({
+      honoraires: client.honoraires || 0,
+      setup: client.reprise || 0,
+      honorairesJuridique: client.juridique || 0,
+    });
+    setEntity({
+      raison_sociale: client.raisonSociale || "",
+      forme_juridique: client.forme || "",
+      dirigeant: client.dirigeant || "",
+      domaine: client.domaine || "",
+      ape: client.ape || "",
+      siren: client.siren || "",
+      capital: client.capital != null && client.capital > 0
+        ? String(client.capital)
+        : client.capital === 0 && (client.forme === "ENTREPRISE INDIVIDUELLE" || client.typePersonne === "physique")
+          ? "N/A (EI)"
+          : client.capital === 0 ? "0" : "Non renseigné",
+      date_creation: formatDateFR(client.dateCreation || ""),
+      date_cloture: "31/12",
+      associe: client.associe || "",
+      effectif: client.effectif || "",
+      mission: (client.mission as string) || "",
+      frequence: client.frequence || "",
+      telephone: client.tel || "",
+      email: client.mail || "",
+    });
+    setMissions({ sociale: false, juridique: false, controleFiscal: false, controleFiscalOption: "A" });
+    setUserEdited({});
+    setMissionEditable(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [client?.ref]);
 
   // Sync state to parent for preview
   useEffect(() => {
@@ -505,13 +575,17 @@ export default function LettreMissionEditor({
   const entityFields = [
     { key: "raison_sociale" as const, label: "Raison sociale" },
     { key: "forme_juridique" as const, label: "Forme juridique" },
-    { key: "domaine" as const, label: "Activité(s) principale(s)" },
+    { key: "dirigeant" as const, label: "Dirigeant / Représentant légal" },
+    { key: "domaine" as const, label: "Objet social / Activité" },
     { key: "ape" as const, label: "Code APE" },
     { key: "siren" as const, label: "SIREN" },
     { key: "capital" as const, label: "Capital social" },
     { key: "date_creation" as const, label: "Date de création" },
+    { key: "date_cloture" as const, label: "Date de clôture" },
     { key: "associe" as const, label: "EC responsable" },
     { key: "effectif" as const, label: "Effectif du personnel" },
+    { key: "telephone" as const, label: "Téléphone" },
+    { key: "email" as const, label: "Email" },
     { key: "mission" as const, label: "Type de mission" },
     { key: "frequence" as const, label: "Périodicité" },
   ];
@@ -556,13 +630,13 @@ export default function LettreMissionEditor({
         titre={LETTRE_MISSION_CONTENT.entite?.titre ?? "VOTRE ENTITÉ"}
         status={getSectionStatus(Object.values(entity).join(" "))}
       >
-        <table className="w-full border-collapse border rounded overflow-hidden">
+        <table className="w-full border-collapse border border-slate-600 rounded overflow-hidden">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide border-r w-1/3">
+            <tr className="bg-slate-700">
+              <th className="text-left py-2 px-3 text-xs font-semibold text-slate-300 uppercase tracking-wide border-r border-slate-600 w-1/3">
                 Champ
               </th>
-              <th className="text-left py-2 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <th className="text-left py-2 px-3 text-xs font-semibold text-slate-300 uppercase tracking-wide">
                 Valeur
               </th>
             </tr>
@@ -592,7 +666,7 @@ export default function LettreMissionEditor({
         status="complete"
       >
         {LETTRE_MISSION_CONTENT.lcbft?.soustitre && (
-          <p className="text-xs text-gray-400 mb-3 -mt-1">
+          <p className="text-xs text-slate-400 mb-3 -mt-1">
             {LETTRE_MISSION_CONTENT.lcbft.soustitre}
           </p>
         )}
@@ -647,17 +721,17 @@ export default function LettreMissionEditor({
           <div
             className={`rounded-lg p-4 mb-3 text-sm leading-relaxed border ${getScoreBorder(scoreGlobal)} ${getScoreBg(scoreGlobal)}`}
           >
-            <p className="font-bold text-gray-800 mb-2">
+            <p className="font-bold text-slate-200 mb-2">
               {vigilanceLmLab.titre}
             </p>
-            <p className="text-gray-700 whitespace-pre-line text-[13px] leading-relaxed">
+            <p className="text-slate-300 whitespace-pre-line text-[13px] leading-relaxed">
               {vigilanceLmLab.corps}
             </p>
           </div>
         )}
 
         {/* Engagements + Conservation */}
-        <div className="space-y-2 text-xs text-gray-600 leading-relaxed">
+        <div className="space-y-2 text-xs text-slate-400 leading-relaxed">
           <p>
             <strong>Engagements contractuels du client :</strong>{" "}
             Le client reconnaît avoir été informé des obligations de vigilance
@@ -693,15 +767,19 @@ export default function LettreMissionEditor({
             className={`${TEXTAREA_CLS} ${
               missionEditable
                 ? ""
-                : "!bg-gray-800 !text-gray-400 cursor-default"
+                : "cursor-default"
             }`}
+            style={{
+              ...TEXTAREA_STYLE,
+              ...(missionEditable ? {} : { backgroundColor: "hsl(217, 33%, 12%)", color: "#94a3b8" }),
+            }}
             style={TEXTAREA_STYLE}
           />
           {!missionEditable && (
             <button
               type="button"
               onClick={() => setMissionEditable(true)}
-              className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs bg-white border rounded shadow-sm text-blue-600 hover:bg-blue-50 transition-colors"
+              className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs bg-slate-700 border border-slate-600 rounded shadow-sm text-blue-400 hover:bg-slate-600 transition-colors"
             >
               <Pencil className="h-3 w-3" />
               Personnaliser
@@ -730,8 +808,8 @@ export default function LettreMissionEditor({
       {/* ============================================================ */}
       {/* SECTION 6 — MISSIONS COMPLÉMENTAIRES (toggles)               */}
       {/* ============================================================ */}
-      <div className="border rounded-lg bg-white shadow-sm p-4" data-section="6">
-        <h3 className="text-sm font-semibold text-gray-800 mb-4">
+      <div className="border border-slate-700 rounded-lg bg-slate-800 shadow-sm p-4" data-section="6">
+        <h3 className="text-sm font-semibold text-slate-200 mb-4">
           Missions complémentaires
         </h3>
         <div className="space-y-4">
@@ -834,10 +912,10 @@ export default function LettreMissionEditor({
                     className="mt-0.5 h-4 w-4 text-blue-600"
                   />
                   <div>
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-slate-200">
                       {opt.label}
                     </span>
-                    <span className="text-gray-500 ml-1 text-xs">
+                    <span className="text-slate-400 ml-1 text-xs">
                       — {opt.texte}
                     </span>
                   </div>
@@ -866,20 +944,20 @@ export default function LettreMissionEditor({
         titre={LETTRE_MISSION_CONTENT.honoraires?.titre ?? "HONORAIRES"}
         status={honoraires.honoraires > 0 ? "complete" : "warning"}
       >
-        <table className="w-full text-sm border-collapse border rounded overflow-hidden">
+        <table className="w-full text-sm border-collapse border border-slate-600 rounded overflow-hidden">
           <thead>
-            <tr className="bg-gray-100">
-              <th className="text-left py-2 px-3 font-medium text-gray-600 border-r">
+            <tr className="bg-slate-700">
+              <th className="text-left py-2 px-3 font-medium text-slate-300 border-r border-slate-600">
                 Prestation
               </th>
-              <th className="text-right py-2 px-3 font-medium text-gray-600 w-44">
+              <th className="text-right py-2 px-3 font-medium text-slate-300 w-44">
                 Montant HT
               </th>
             </tr>
           </thead>
           <tbody>
-            <tr className="border-t">
-              <td className="py-2 px-3 text-gray-700 border-r">
+            <tr className="border-t border-slate-600">
+              <td className="py-2 px-3 text-slate-300 border-r border-slate-600">
                 Forfait annuel comptable
               </td>
               <td className="py-1 px-3 text-right">
@@ -892,13 +970,13 @@ export default function LettreMissionEditor({
                       honoraires: Number(e.target.value) || 0,
                     }))
                   }
-                  className="w-28 text-right border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
+                  className="w-28 text-right border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:ring-1 focus:ring-blue-500"
                 />
-                <span className="text-xs text-gray-400 ml-1">€</span>
+                <span className="text-xs text-slate-400 ml-1">€</span>
               </td>
             </tr>
-            <tr className="border-t bg-gray-50">
-              <td className="py-2 px-3 text-gray-700 border-r">
+            <tr className="border-t border-slate-600 bg-slate-700/30">
+              <td className="py-2 px-3 text-slate-300 border-r border-slate-600">
                 Constitution du dossier
               </td>
               <td className="py-1 px-3 text-right">
@@ -911,13 +989,13 @@ export default function LettreMissionEditor({
                       setup: Number(e.target.value) || 0,
                     }))
                   }
-                  className="w-28 text-right border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
+                  className="w-28 text-right border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:ring-1 focus:ring-blue-500"
                 />
-                <span className="text-xs text-gray-400 ml-1">€</span>
+                <span className="text-xs text-slate-400 ml-1">€</span>
               </td>
             </tr>
-            <tr className="border-t">
-              <td className="py-2 px-3 text-gray-700 border-r">
+            <tr className="border-t border-slate-600">
+              <td className="py-2 px-3 text-slate-300 border-r border-slate-600">
                 Honoraires juridique
               </td>
               <td className="py-1 px-3 text-right">
@@ -930,24 +1008,24 @@ export default function LettreMissionEditor({
                       honorairesJuridique: Number(e.target.value) || 0,
                     }))
                   }
-                  className="w-28 text-right border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
+                  className="w-28 text-right border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:ring-1 focus:ring-blue-500"
                 />
-                <span className="text-xs text-gray-400 ml-1">€</span>
+                <span className="text-xs text-slate-400 ml-1">€</span>
               </td>
             </tr>
-            <tr className="border-t bg-gray-50">
-              <td className="py-2 px-3 text-gray-700 border-r">
+            <tr className="border-t border-slate-600 bg-slate-700/30">
+              <td className="py-2 px-3 text-slate-300 border-r border-slate-600">
                 Honoraires Expert-Comptable (hors forfait)
               </td>
-              <td className="py-2 px-3 text-right text-gray-600">
+              <td className="py-2 px-3 text-right text-slate-400">
                 200 € / heure
               </td>
             </tr>
-            <tr className="border-t">
-              <td className="py-2 px-3 text-gray-700 border-r">
+            <tr className="border-t border-slate-600">
+              <td className="py-2 px-3 text-slate-300 border-r border-slate-600">
                 Honoraires Collaborateur (hors forfait)
               </td>
-              <td className="py-2 px-3 text-right text-gray-600">
+              <td className="py-2 px-3 text-right text-slate-400">
                 100 € / heure
               </td>
             </tr>
@@ -958,7 +1036,7 @@ export default function LettreMissionEditor({
                 <tr className="border-t-2">
                   <td
                     colSpan={2}
-                    className="py-1.5 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-blue-50"
+                    className="py-1.5 px-3 text-xs font-semibold text-blue-300 uppercase tracking-wide bg-blue-900/30"
                   >
                     Mission sociale
                   </td>
@@ -972,12 +1050,12 @@ export default function LettreMissionEditor({
                 ].map((l, i) => (
                   <tr
                     key={l.label}
-                    className={`border-t ${i % 2 ? "bg-gray-50" : ""}`}
+                    className={`border-t border-slate-600 ${i % 2 ? "bg-slate-700/30" : ""}`}
                   >
-                    <td className="py-2 px-3 text-gray-700 border-r">
+                    <td className="py-2 px-3 text-slate-300 border-r border-slate-600">
                       {l.label}
                     </td>
-                    <td className="py-2 px-3 text-right text-gray-600">
+                    <td className="py-2 px-3 text-right text-slate-400">
                       {l.montant}
                     </td>
                   </tr>
@@ -991,13 +1069,13 @@ export default function LettreMissionEditor({
                 <tr className="border-t-2">
                   <td
                     colSpan={2}
-                    className="py-1.5 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-blue-50"
+                    className="py-1.5 px-3 text-xs font-semibold text-blue-300 uppercase tracking-wide bg-blue-900/30"
                   >
                     Mission juridique annuelle
                   </td>
                 </tr>
-                <tr className="border-t">
-                  <td className="py-2 px-3 text-gray-700 border-r">
+                <tr className="border-t border-slate-600">
+                  <td className="py-2 px-3 text-slate-300 border-r border-slate-600">
                     Forfait annuel juridique
                   </td>
                   <td className="py-1 px-3 text-right">
@@ -1010,9 +1088,9 @@ export default function LettreMissionEditor({
                           honorairesJuridique: Number(e.target.value) || 0,
                         }))
                       }
-                      className="w-28 text-right border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
+                      className="w-28 text-right border border-slate-600 rounded px-2 py-1 text-sm bg-slate-900 text-slate-200 focus:ring-1 focus:ring-blue-500"
                     />
-                    <span className="text-xs text-gray-400 ml-1">€</span>
+                    <span className="text-xs text-slate-400 ml-1">€</span>
                   </td>
                 </tr>
               </>
@@ -1025,18 +1103,18 @@ export default function LettreMissionEditor({
                   <tr className="border-t-2">
                     <td
                       colSpan={2}
-                      className="py-1.5 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wide bg-blue-50"
+                      className="py-1.5 px-3 text-xs font-semibold text-blue-300 uppercase tracking-wide bg-blue-900/30"
                     >
                       Assistance contrôle fiscal
                     </td>
                   </tr>
                   <tr className="border-t">
-                    <td className="py-2 px-3 text-gray-700 border-r">
+                    <td className="py-2 px-3 text-slate-300 border-r border-slate-600">
                       {CONTROLE_FISCAL_OPTIONS.find(
                         (o) => o.id === missions.controleFiscalOption,
                       )?.label ?? ""}
                     </td>
-                    <td className="py-2 px-3 text-right text-gray-600">
+                    <td className="py-2 px-3 text-right text-slate-400">
                       {CONTROLE_FISCAL_OPTIONS.find(
                         (o) => o.id === missions.controleFiscalOption,
                       )?.montant?.toLocaleString("fr-FR") ?? "—"}{" "}
@@ -1049,15 +1127,15 @@ export default function LettreMissionEditor({
         </table>
 
         {/* Calcul auto — selon fréquence */}
-        <div className="mt-3 bg-blue-50 rounded-lg px-4 py-3 text-center">
-          <span className="text-gray-600">Soit </span>
-          <span className="font-bold text-blue-800 text-lg">
+        <div className="mt-3 bg-blue-900/30 rounded-lg px-4 py-3 text-center">
+          <span className="text-slate-400">Soit </span>
+          <span className="font-bold text-blue-300 text-lg">
             {montantPeriodique} € HT
           </span>
-          <span className="text-gray-600"> / {periodeLabel}</span>
+          <span className="text-slate-400"> / {periodeLabel}</span>
         </div>
 
-        <div className="mt-2 text-xs text-gray-400">
+        <div className="mt-2 text-xs text-slate-500 leading-relaxed">
           Nos honoraires seront facturés{" "}
           {(client.frequence || "mensuel").toLowerCase()}lement, réglés par
           prélèvement automatique à 30 jours et révisables annuellement avec un
@@ -1073,7 +1151,7 @@ export default function LettreMissionEditor({
         titre={LETTRE_MISSION_CONTENT.signature?.titre ?? "Signatures"}
         status="complete"
       >
-        <div className="text-center text-sm text-gray-600 mb-6">
+        <div className="text-center text-sm text-slate-400 mb-6">
           Fait à Marseille, le{" "}
           {new Date().toLocaleDateString("fr-FR", {
             day: "numeric",
@@ -1084,19 +1162,19 @@ export default function LettreMissionEditor({
 
         <div className="grid grid-cols-2 gap-8">
           <div className="text-center space-y-3">
-            <p className="text-sm font-semibold text-gray-700">
+            <p className="text-sm font-semibold text-slate-200">
               L'Expert-comptable
             </p>
-            <p className="text-sm text-gray-600">{client.associe || "—"}</p>
-            <div className="border-b border-gray-300 mx-8 mt-8" />
-            <p className="text-xs text-gray-400">Signature</p>
+            <p className="text-sm text-slate-400">{client.associe || "—"}</p>
+            <div className="border-b border-slate-600 mx-8 mt-8" />
+            <p className="text-xs text-slate-500">Signature</p>
           </div>
 
           <div className="text-center space-y-3">
-            <p className="text-sm font-semibold text-gray-700">Le Client</p>
-            <p className="text-sm text-gray-600">{client.dirigeant || "—"}</p>
-            <div className="border-b border-gray-300 mx-8 mt-8" />
-            <p className="text-xs text-gray-400">Signature</p>
+            <p className="text-sm font-semibold text-slate-200">Le Client</p>
+            <p className="text-sm text-slate-400">{client.dirigeant || "—"}</p>
+            <div className="border-b border-slate-600 mx-8 mt-8" />
+            <p className="text-xs text-slate-500">Signature</p>
           </div>
         </div>
       </Section>
@@ -1104,8 +1182,8 @@ export default function LettreMissionEditor({
       {/* ============================================================ */}
       {/* SECTION 10 — ANNEXES (onglets horizontaux)                   */}
       {/* ============================================================ */}
-      <div className="border rounded-lg bg-white shadow-sm" data-section="10">
-        <div className="border-b">
+      <div className="border border-slate-700 rounded-lg bg-slate-800 shadow-sm" data-section="10">
+        <div className="border-b border-slate-700">
           <div className="flex overflow-x-auto">
             {ANNEXE_TABS.map((tab) => (
               <button
@@ -1114,8 +1192,8 @@ export default function LettreMissionEditor({
                 onClick={() => setAnnexeTab(tab.id)}
                 className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium whitespace-nowrap border-b-2 transition-colors ${
                   annexeTab === tab.id
-                    ? "border-blue-600 text-blue-700 bg-blue-50/50"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                    ? "border-blue-500 text-blue-300 bg-blue-900/30"
+                    : "border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-700/50"
                 }`}
               >
                 {tab.icon}
@@ -1157,10 +1235,10 @@ function MissionToggle({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between py-2.5 px-4 rounded-lg border hover:bg-gray-50 transition-colors">
+    <div className="flex items-center justify-between py-2.5 px-4 rounded-lg border border-slate-600 hover:bg-slate-700/50 transition-colors">
       <div className="flex items-center gap-2.5">
-        <span className="text-gray-500">{icon}</span>
-        <span className="text-sm font-medium text-gray-700">{label}</span>
+        <span className="text-slate-400">{icon}</span>
+        <span className="text-sm font-medium text-slate-200">{label}</span>
       </div>
       <button
         type="button"
@@ -1168,7 +1246,7 @@ function MissionToggle({
         aria-checked={active}
         onClick={onToggle}
         className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-          active ? "bg-blue-600" : "bg-gray-300"
+          active ? "bg-blue-600" : "bg-slate-600"
         }`}
       >
         <span

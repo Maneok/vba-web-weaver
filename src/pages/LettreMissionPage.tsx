@@ -7,6 +7,7 @@ import {
   renderToDocx,
   validateLettreMission,
 } from "@/lib/lettreMissionEngine";
+import { supabase } from "@/integrations/supabase/client";
 import type { CabinetConfig } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 import type { Genre } from "@/lib/lettreMissionContent";
@@ -84,6 +85,17 @@ export default function LettreMissionPage() {
   const [status, setStatus] = useState<LetterStatus>("brouillon");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
   const [focusedSection, setFocusedSection] = useState<string | undefined>();
+  const [lmNumero, setLmNumero] = useState<string>(() => {
+    const year = new Date().getFullYear();
+    try {
+      const stored = localStorage.getItem("lcb_lm_counter");
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.year === year) return `LM-${year}-${String(parsed.count + 1).padStart(3, "0")}`;
+      }
+    } catch { /* ignore */ }
+    return `LM-${year}-001`;
+  });
 
   const client = useMemo(
     () => clients.find((c) => c.ref === selectedRef) ?? null,
@@ -97,6 +109,24 @@ export default function LettreMissionPage() {
 
   const handleClientSelected = useCallback((c: Client) => {
     setSelectedRef(c.ref);
+    // Try to load saved draft from localStorage
+    try {
+      const saved = localStorage.getItem(`lm_draft_${c.ref}`);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.sections && parsed.missions && parsed.honoraires) {
+          setEditorState({
+            genre: parsed.genre || "M",
+            sections: parsed.sections,
+            missions: parsed.missions,
+            honoraires: parsed.honoraires,
+          });
+          setStatus("brouillon");
+          setLastSaved(parsed.savedAt ? new Date(parsed.savedAt) : null);
+          return;
+        }
+      }
+    } catch { /* ignore, use default */ }
     setEditorState(buildDefaultEditorState(c));
     setStatus("brouillon");
     setLastSaved(null);
@@ -151,12 +181,19 @@ export default function LettreMissionPage() {
     try {
       const opts = buildOptions();
       const lm = generateFromClient(client, DEFAULT_CABINET, opts);
+      // Attach editor sections so PDF uses the actual edited content
+      lm.editorSections = editorState.sections.map((s) => ({
+        id: s.id,
+        title: s.title,
+        visible: s.visible,
+        content: s.content,
+      }));
       renderToPdf(lm);
       toast.success("PDF généré avec succès");
     } catch {
       toast.error("Erreur lors de la génération du PDF");
     }
-  }, [client, validation, buildOptions]);
+  }, [client, validation, buildOptions, editorState.sections]);
 
   const handleExportDocx = useCallback(async () => {
     if (!client) return;
@@ -167,18 +204,55 @@ export default function LettreMissionPage() {
     try {
       const opts = buildOptions();
       const lm = generateFromClient(client, DEFAULT_CABINET, opts);
+      lm.editorSections = editorState.sections.map((s) => ({
+        id: s.id,
+        title: s.title,
+        visible: s.visible,
+        content: s.content,
+      }));
       await renderToDocx(lm);
       toast.success("DOCX généré avec succès");
     } catch {
       toast.error("Erreur lors de la génération du DOCX");
     }
-  }, [client, validation, buildOptions]);
+  }, [client, validation, buildOptions, editorState.sections]);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (!client) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from("lettres_mission").upsert({
+          user_id: user.id,
+          client_ref: client.ref,
+          numero: lmNumero,
+          status: "brouillon",
+          data: {
+            sections: editorState.sections,
+            missions: editorState.missions,
+            honoraires: editorState.honoraires,
+            genre,
+          },
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "client_ref,user_id" });
+      }
+    } catch (err) {
+      console.warn("[handleSave] Supabase save failed, saving locally:", err);
+    }
+    // Always save locally as fallback
+    try {
+      localStorage.setItem(`lm_draft_${client.ref}`, JSON.stringify({
+        sections: editorState.sections,
+        missions: editorState.missions,
+        honoraires: editorState.honoraires,
+        genre,
+        savedAt: new Date().toISOString(),
+      }));
+    } catch { /* ignore */ }
     setLastSaved(new Date());
     setStatus("finalisee");
     toast.success("Lettre sauvegardée");
-  }, []);
+  }, [client, editorState, genre, lmNumero]);
 
   const handleEmail = useCallback(() => {
     setStatus("envoyee");
@@ -234,6 +308,9 @@ export default function LettreMissionPage() {
               <ArrowLeft className="w-4 h-4" /> Retour
             </Button>
             <h1 className="text-sm font-semibold text-white">Lettre de Mission</h1>
+            {client && (
+              <span className="text-xs text-slate-400 font-mono">{lmNumero}</span>
+            )}
             <Badge variant="outline" className={`text-xs ${statusConf.className}`}>
               {statusConf.label}
             </Badge>
