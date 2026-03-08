@@ -17,21 +17,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
+  const fetchProfile = useCallback(async (userId: string, accessToken: string): Promise<UserProfile | null> => {
     try {
+      console.log("[Auth] fetchProfile for:", userId);
       const url = import.meta.env.VITE_SUPABASE_URL;
       const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
       if (!url || !key) {
-        if (isDev) console.error("[Auth] Missing SUPABASE env vars");
-        return null;
-      }
-
-      const { data: { session } } = await supabase.auth.getSession();
-      const token = session?.access_token;
-
-      if (!token) {
-        if (isDev) console.error("[Auth] No access token available");
+        console.error("[Auth] Missing env vars");
         return null;
       }
 
@@ -39,29 +32,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const timeout = setTimeout(() => controller.abort(), 8000);
 
       const res = await fetch(
-        `${url}/rest/v1/profiles?id=eq.${userId}&select=*`,
+        url + "/rest/v1/profiles?id=eq." + userId + "&select=*",
         {
           headers: {
-            'apikey': key,
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/vnd.pgrst.object+json',
+            "apikey": key,
+            "Authorization": "Bearer " + accessToken,
+            "Content-Type": "application/json",
+            "Accept": "application/vnd.pgrst.object+json",
           },
           signal: controller.signal,
         }
       );
-
       clearTimeout(timeout);
+      console.log("[Auth] fetch status:", res.status);
 
       if (!res.ok) {
-        if (isDev) console.error("[Auth] fetch error:", res.status);
+        const errText = await res.text();
+        console.error("[Auth] fetch error:", res.status, errText);
         return null;
       }
 
       const data = await res.json();
+      console.log("[Auth] Profile loaded:", data?.full_name || "no name");
       return data as UserProfile;
-    } catch (e: unknown) {
-      if (isDev) console.error("[Auth] fetchProfile exception:", e);
+    } catch (e: any) {
+      console.error("[Auth] fetchProfile error:", e.name, e.message);
       return null;
     }
   }, []);
@@ -95,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSession(s);
         setUser(s?.user ?? null);
 
-        if (s?.user) {
+        if (s?.user && s.access_token) {
           // Log login events
           if (event === "SIGNED_IN") {
             logAudit({
@@ -104,7 +99,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             }).catch(() => {});
           }
 
-          const p = await fetchProfile(s.user.id);
+          const p = await fetchProfile(s.user.id, s.access_token);
           if (mounted) setProfile(p);
         } else {
           if (mounted) setProfile(null);
@@ -121,8 +116,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(s);
       setUser(s?.user ?? null);
 
-      if (s?.user) {
-        const p = await fetchProfile(s.user.id);
+      if (s?.user && s.access_token) {
+        const p = await fetchProfile(s.user.id, s.access_token);
         if (mounted) setProfile(p);
       }
 
