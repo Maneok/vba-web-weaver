@@ -1,0 +1,395 @@
+import {
+  Document,
+  Packer,
+  Paragraph,
+  TextRun,
+  HeadingLevel,
+  AlignmentType,
+  BorderStyle,
+  Table,
+  TableRow,
+  TableCell,
+  WidthType,
+  ShadingType,
+  PageBreak,
+  Footer,
+  PageNumber,
+  NumberFormat,
+} from "docx";
+import { saveAs } from "file-saver";
+import type { LettreMission } from "@/types/lettreMission";
+
+const NAVY = "1A1A2E";
+const GREY = "F5F5F8";
+
+function formatMontant(n: number | undefined): string {
+  return `${(n ?? 0).toLocaleString("fr-FR")} €`;
+}
+
+function heading(text: string): Paragraph {
+  return new Paragraph({
+    heading: HeadingLevel.HEADING_2,
+    spacing: { before: 300, after: 150 },
+    shading: { type: ShadingType.SOLID, color: NAVY },
+    children: [new TextRun({ text, bold: true, size: 22, color: "FFFFFF" })],
+  });
+}
+
+function subHeading(text: string): Paragraph {
+  return new Paragraph({
+    spacing: { before: 200, after: 100 },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: NAVY } },
+    children: [new TextRun({ text, bold: true, size: 20, color: NAVY })],
+  });
+}
+
+function bodyText(text: string): Paragraph {
+  return new Paragraph({
+    spacing: { after: 80 },
+    children: [new TextRun({ text, size: 20 })],
+  });
+}
+
+function bulletItem(text: string): Paragraph {
+  return new Paragraph({
+    bullet: { level: 0 },
+    spacing: { after: 40 },
+    children: [new TextRun({ text, size: 20 })],
+  });
+}
+
+function tableRow2Col(label: string, value: string, shade: boolean): TableRow {
+  return new TableRow({
+    children: [
+      new TableCell({
+        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
+        width: { size: 40, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 18 })] })],
+      }),
+      new TableCell({
+        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
+        width: { size: 60, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ children: [new TextRun({ text: value, size: 18 })] })],
+      }),
+    ],
+  });
+}
+
+function honoRow(label: string, montant: number, shade: boolean): TableRow {
+  return new TableRow({
+    children: [
+      new TableCell({
+        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
+        children: [new Paragraph({ children: [new TextRun({ text: label, size: 20 })] })],
+      }),
+      new TableCell({
+        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
+        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: formatMontant(montant), size: 20 })] })],
+      }),
+    ],
+  });
+}
+
+function honoTotal(label: string, montant: number): TableRow {
+  return new TableRow({
+    children: [
+      new TableCell({
+        shading: { type: ShadingType.SOLID, color: "E0E5F0" },
+        children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 22 })] })],
+      }),
+      new TableCell({
+        shading: { type: ShadingType.SOLID, color: "E0E5F0" },
+        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: formatMontant(montant), bold: true, size: 22 })] })],
+      }),
+    ],
+  });
+}
+
+export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> {
+  const { client, cabinet, options: opts } = lm;
+  const children: (Paragraph | Table)[] = [];
+
+  // ── PAGE 1: Header + Destinataire + Intro ──
+  children.push(
+    new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 40 }, children: [new TextRun({ text: cabinet.nom, bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 30 }, children: [new TextRun({ text: `${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`, size: 16, color: "666666" })] }),
+    new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 30 }, children: [new TextRun({ text: `SIRET : ${cabinet.siret} — OEC : ${cabinet.numeroOEC}`, size: 16, color: "666666" })] }),
+    new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.email} — ${cabinet.telephone}`, size: 16, color: "666666" })] }),
+  );
+
+  const formule = opts.genre === "F" ? "Mme" : "M.";
+  children.push(
+    bodyText(`À l'attention de ${formule} ${client.dirigeant}`),
+    bodyText(`Mandataire social de la société ${client.forme} ${client.raisonSociale}`),
+    bodyText(`${client.adresse}, ${client.cp} ${client.ville}`),
+    new Paragraph({ spacing: { before: 200, after: 100 }, children: [] }),
+  );
+
+  children.push(
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "PRÉSENTATION DES COMPTES ANNUELS", bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.ville}, le ${lm.date}  |  Réf. ${lm.numero}`, size: 18, color: "888888" })] }),
+  );
+
+  const politesse = opts.genre === "F" ? "Chère Madame" : "Cher Monsieur";
+  children.push(
+    bodyText(`${politesse} ${client.dirigeant},`),
+    bodyText(`Nous vous remercions de la confiance que vous nous accordez en nous confiant la mission d'expertise comptable relative à votre société ${client.raisonSociale}. Conformément à l'article 151 du Code de déontologie des professionnels de l'expertise comptable, la présente lettre de mission a pour objet de définir les termes, conditions et limites de notre intervention.`),
+  );
+
+  // ── PAGE 2: Votre entité ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("VOTRE ENTITÉ"));
+
+  const entityRows: [string, string][] = [
+    ["Raison sociale", client.raisonSociale],
+    ["Forme juridique", client.forme],
+    ["Activité", client.domaine],
+    ["Code APE", client.ape],
+    ["SIREN", client.siren],
+    ["Capital social", formatMontant(client.capital)],
+    ["Date de création", client.dateCreation],
+    ["Expert-comptable", client.associe],
+    ["Régime fiscal", opts.regimeFiscal],
+    ["Exercice social", `${opts.exerciceDebut} — ${opts.exerciceFin}`],
+    ["TVA", opts.tvaRegime],
+    ["CAC", opts.cac ? "Oui" : "Non"],
+    ["Effectif", client.effectif],
+    ["Volume comptable", opts.volumeComptable],
+    ["Type de mission", client.mission],
+  ];
+
+  children.push(new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: entityRows.map(([l, v], i) => tableRow2Col(l, v, i % 2 === 0)),
+  }));
+
+  children.push(subHeading("Organisation et transmission"));
+  children.push(new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      tableRow2Col("Périodicité", opts.periodicite, true),
+      tableRow2Col("Outil comptable", opts.outilComptable, false),
+    ],
+  }));
+
+  // ── PAGE 3: LCB-FT ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("OBLIGATIONS DE VIGILANCE — LUTTE CONTRE LE BLANCHIMENT"));
+  children.push(new Paragraph({ spacing: { after: 100 }, children: [new TextRun({ text: "CMF art. L.561-1 et s. | NPLAB (arr. 13.02.2019) | Paquet AML 2024-2026", italics: true, size: 16, color: "888888" })] }));
+
+  children.push(new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [
+      tableRow2Col("Score de risque", `${client.scoreGlobal}/100`, true),
+      tableRow2Col("Niveau de vigilance", client.nivVigilance, false),
+      tableRow2Col("Statut PPE", client.ppe, true),
+      tableRow2Col("Dernière diligence KYC", client.dateDerniereRevue || "—", false),
+      tableRow2Col("Prochaine mise à jour", client.dateButoir || "—", true),
+    ],
+  }));
+
+  children.push(subHeading(`Mesures de vigilance — ${client.nivVigilance}`));
+  const vigTexts: Record<string, string> = {
+    SIMPLIFIEE: "Mesures de vigilance simplifiée appliquées conformément à l'article L.561-9 du CMF.",
+    STANDARD: "Mesures de vigilance standard appliquées conformément aux articles L.561-5 à L.561-14-2 du CMF.",
+    RENFORCEE: "Mesures de vigilance renforcée appliquées conformément aux articles L.561-10 et L.561-10-2 du CMF.",
+  };
+  children.push(bodyText(vigTexts[client.nivVigilance] ?? vigTexts.STANDARD));
+
+  children.push(subHeading("Durée de conservation (art. L.561-12 CMF)"));
+  children.push(bodyText("Les documents et informations sont conservés pendant cinq ans après la fin de la relation d'affaires."));
+
+  // ── PAGES 4-5: Missions ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("NOTRE MISSION"));
+  children.push(bodyText(`Notre cabinet s'engage à exécuter la mission de ${client.mission} conformément aux normes professionnelles et au Code de déontologie.`));
+
+  children.push(subHeading("Durée de la mission"));
+  children.push(bodyText(`La mission prend effet du ${opts.exerciceDebut} au ${opts.exerciceFin}, renouvelable par tacite reconduction avec préavis de 3 mois.`));
+
+  children.push(subHeading("Nature et limites"));
+  children.push(bodyText("Notre mission consiste en la tenue/surveillance de votre comptabilité et présentation des comptes annuels. Elle ne constitue ni un audit, ni un commissariat aux comptes."));
+
+  if (opts.missionSociale) {
+    children.push(subHeading("Mission sociale"));
+    children.push(bulletItem("Établissement des bulletins de paie et DSN"));
+    children.push(bulletItem("Gestion des entrées/sorties du personnel"));
+    children.push(bulletItem("Calcul et déclaration des charges sociales"));
+    children.push(bulletItem("Assistance en droit social courant"));
+  }
+  if (opts.missionJuridique) {
+    children.push(subHeading("Mission juridique"));
+    children.push(bulletItem("Rédaction des PV d'assemblées générales"));
+    children.push(bulletItem("Formalités de modification statutaire"));
+    children.push(bulletItem("Tenue des registres obligatoires"));
+  }
+  if (opts.missionControleFiscal) {
+    children.push(subHeading("Assistance au contrôle fiscal"));
+    children.push(bulletItem("Option 1 — Assistance à la préparation"));
+    children.push(bulletItem("Option 2 — Assistance pendant le contrôle"));
+    children.push(bulletItem("Option 3 — Assistance post-contrôle"));
+  }
+
+  // ── PAGE 6: Honoraires ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("HONORAIRES ET CONDITIONS FINANCIÈRES"));
+
+  children.push(subHeading("Mission comptable"));
+  const honoComptaRows = [honoRow("Mission comptable annuelle", client.honoraires, true)];
+  if (client.reprise > 0) honoComptaRows.push(honoRow("Reprise comptable", client.reprise, false));
+  if (opts.fraisConstitution > 0) honoComptaRows.push(honoRow("Frais de constitution", opts.fraisConstitution, true));
+  const totalCompta = (client.honoraires ?? 0) + (client.reprise ?? 0) + (opts.fraisConstitution ?? 0);
+  honoComptaRows.push(honoTotal("TOTAL COMPTABLE HT", totalCompta));
+
+  children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: honoComptaRows }));
+
+  if (opts.missionSociale && opts.honorairesSocial > 0) {
+    children.push(subHeading("Mission sociale"));
+    children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [honoRow("Mission sociale", opts.honorairesSocial, true), honoTotal("TOTAL SOCIAL HT", opts.honorairesSocial)] }));
+  }
+  if (opts.missionJuridique) {
+    const montJur = opts.honorairesJuridique > 0 ? opts.honorairesJuridique : client.juridique;
+    if (montJur > 0) {
+      children.push(subHeading("Mission juridique"));
+      children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [honoRow("Mission juridique", montJur, true), honoTotal("TOTAL JURIDIQUE HT", montJur)] }));
+    }
+  }
+
+  children.push(subHeading("Conditions de règlement"));
+  children.push(bodyText(`Honoraires payables ${client.frequence.toLowerCase()}, par prélèvement SEPA ou virement. Pénalités de retard conformément à l'article L.441-10 du Code de commerce.`));
+
+  // Signatures
+  children.push(new Paragraph({ spacing: { before: 300 }, children: [new TextRun({ text: `Fait en deux exemplaires, à ${cabinet.ville}`, size: 20 })] }));
+  children.push(new Paragraph({ spacing: { after: 300 }, children: [] }));
+  children.push(new Paragraph({ children: [new TextRun({ text: `Pour le cabinet : ${cabinet.nom}`, bold: true, size: 20 })] }));
+  children.push(new Paragraph({ children: [new TextRun({ text: `${client.associe} — Associé signataire`, size: 18 })] }));
+  children.push(new Paragraph({ spacing: { after: 200 }, children: [new TextRun({ text: "Signature : ________________", size: 18 })] }));
+  children.push(new Paragraph({ children: [new TextRun({ text: `Pour le client : ${client.raisonSociale}`, bold: true, size: 20 })] }));
+  children.push(new Paragraph({ children: [new TextRun({ text: `${client.dirigeant} — Gérant / Président`, size: 18 })] }));
+  children.push(new Paragraph({ children: [new TextRun({ text: "Signature : ________________", size: 18 })] }));
+
+  // ── PAGE 7: Répartition ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("RÉPARTITION DES TRAVAUX"));
+
+  const repartitionRows: TableRow[] = [
+    new TableRow({
+      tableHeader: true,
+      children: [
+        new TableCell({ shading: { type: ShadingType.SOLID, color: NAVY }, children: [new Paragraph({ children: [new TextRun({ text: "Tâche", bold: true, color: "FFFFFF", size: 18 })] })] }),
+        new TableCell({ shading: { type: ShadingType.SOLID, color: NAVY }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "Cabinet", bold: true, color: "FFFFFF", size: 18 })] })] }),
+        new TableCell({ shading: { type: ShadingType.SOLID, color: NAVY }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "Client", bold: true, color: "FFFFFF", size: 18 })] })] }),
+      ],
+    }),
+  ];
+  const rTasks: [string, string, string][] = [
+    ["Collecte pièces comptables", "", "X"],
+    ["Saisie comptable", "X", ""],
+    ["Rapprochement bancaire", "X", ""],
+    ["Déclarations fiscales", "X", ""],
+    ["Comptes annuels", "X", ""],
+    ["Liasse fiscale", "X", ""],
+    ["Conservation documents", "X", "X"],
+    ["Relevés bancaires", "", "X"],
+  ];
+  rTasks.forEach(([t, c, cl], i) => {
+    repartitionRows.push(new TableRow({
+      children: [
+        new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: GREY } : undefined, children: [new Paragraph({ children: [new TextRun({ text: t, size: 18 })] })] }),
+        new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: GREY } : undefined, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: c, bold: true, size: 18 })] })] }),
+        new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: GREY } : undefined, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: cl, bold: true, size: 18 })] })] }),
+      ],
+    }));
+  });
+  children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: repartitionRows }));
+
+  // ── PAGE 8: Attestation travail dissimulé ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("ATTESTATION DE VIGILANCE — TRAVAIL DISSIMULÉ"));
+  children.push(bodyText("Conformément aux articles L.8221-1 et suivants du Code du travail, le client atteste sur l'honneur :"));
+  children.push(bulletItem("Que le travail est réalisé par des salariés employés régulièrement"));
+  children.push(bulletItem("Que les déclarations sociales sont effectuées conformément à la loi"));
+  children.push(bulletItem("Que les salariés étrangers sont en possession d'un titre de travail valide"));
+  children.push(new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: `Société : ${client.raisonSociale} — SIREN : ${client.siren}`, size: 20 })] }));
+  children.push(new Paragraph({ children: [new TextRun({ text: `Représentée par : ${client.dirigeant}`, size: 20 })] }));
+  children.push(new Paragraph({ spacing: { before: 100 }, children: [new TextRun({ text: "Signature : ________________", size: 20 })] }));
+
+  // ── PAGE 9: SEPA ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("MANDAT DE PRÉLÈVEMENT SEPA"));
+  const sepaRows: [string, string][] = [
+    ["Créancier", cabinet.nom],
+    ["SIRET créancier", cabinet.siret],
+    ["Débiteur", client.raisonSociale],
+    ["IBAN", client.iban ? client.iban.replace(/(.{4})/g, "$1 ").trim() : "________________________"],
+    ["BIC", client.bic || "________________________"],
+    ["Référence (RUM)", `SEPA-${client.ref}`],
+    ["Type de paiement", "Récurrent"],
+  ];
+  children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: sepaRows.map(([l, v], i) => tableRow2Col(l, v, i % 2 === 0)) }));
+  children.push(new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Date : __________  Lieu : __________  Signature : ________________", size: 20 })] }));
+
+  // ── PAGE 10: Autorisation liasse ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("AUTORISATION DE TRANSMISSION DE LA LIASSE FISCALE"));
+  children.push(bodyText(`Je soussigné(e) ${client.dirigeant}, représentant légal de ${client.raisonSociale}, autorise le cabinet ${cabinet.nom} à :`));
+  children.push(bulletItem("Transmettre la liasse fiscale par EDI-TDFC"));
+  children.push(bulletItem("Transmettre les déclarations de TVA par EDI-TVA"));
+  children.push(bulletItem("Effectuer les télépaiements d'impôts professionnels"));
+  children.push(new Paragraph({ spacing: { before: 200 }, children: [new TextRun({ text: "Signature : ________________", size: 20 })] }));
+
+  // ── PAGES 11+: Conditions générales ──
+  children.push(new Paragraph({ children: [new PageBreak()] }));
+  children.push(heading("CONDITIONS GÉNÉRALES"));
+
+  const cgSections: [string, string][] = [
+    ["Article 1 — Objet", "Les présentes conditions définissent les modalités d'exécution de la mission d'expertise comptable."],
+    ["Article 2 — Obligations du cabinet", "Le cabinet s'engage à exécuter sa mission avec diligence et compétence. Il est soumis au secret professionnel."],
+    ["Article 3 — Obligations du client", "Le client met à disposition les documents nécessaires en temps utile. Il est responsable de leur exactitude."],
+    ["Article 4 — Honoraires", "Les honoraires sont fixés d'un commun accord. Toute prestation supplémentaire fait l'objet d'un devis préalable."],
+    ["Article 5 — Responsabilité", "La responsabilité civile du cabinet est couverte par une assurance conforme à l'article 17 de l'ordonnance de 1945."],
+    ["Article 6 — Résiliation", "Préavis de 3 mois par LRAR. Résiliation sans préavis en cas de manquement grave. Facturation au prorata."],
+    ["Article 7 — RGPD", "Traitement des données conformément au RGPD. Droits d'accès, rectification, effacement, portabilité."],
+    ["Article 8 — LCB-FT", "Le cabinet est soumis aux obligations de vigilance. Le client s'engage à coopérer."],
+    ["Article 9 — Juridiction", "Droit français. Conciliation OEC puis tribunaux compétents."],
+  ];
+  for (const [titre, texte] of cgSections) {
+    children.push(subHeading(titre));
+    children.push(bodyText(texte));
+  }
+
+  // Build document
+  const docx = new Document({
+    sections: [
+      {
+        properties: {
+          page: {
+            margin: { top: 1418, right: 1134, bottom: 1134, left: 1418 }, // 2.5cm / 2cm
+            pageNumbers: { start: 1 },
+          },
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: `${cabinet.nom} — SIRET ${cabinet.siret} — Membre de l'Ordre des Experts-Comptables — Page `, size: 14, color: "888888" }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: "888888" }),
+                  new TextRun({ text: "/", size: 14, color: "888888" }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: "888888" }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children,
+      },
+    ],
+  });
+
+  const filename = `LDM_${lm.numero}_${client.raisonSociale.replace(/\s+/g, "_")}.docx`;
+  const blob = await Packer.toBlob(docx);
+  saveAs(blob, filename);
+}

@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { Client } from "@/lib/types";
-import type { CabinetConfig, LettreMission, LettreMissionTemplate } from "@/types/lettreMission";
+import type { CabinetConfig, LettreMissionTemplate, LettreMissionOptions } from "@/types/lettreMission";
+import { DEFAULT_LM_OPTIONS } from "@/types/lettreMission";
 import { generateLettreMission, renderToPdf, renderToDocx } from "@/lib/lettreMissionEngine";
 import { Button } from "@/components/ui/button";
 import { FileDown, FileText } from "lucide-react";
@@ -9,16 +10,18 @@ interface LettreMissionPreviewProps {
   client: Client;
   template: LettreMissionTemplate;
   cabinetConfig: CabinetConfig;
+  options?: LettreMissionOptions;
 }
 
 export default function LettreMissionPreview({
   client,
   template,
   cabinetConfig,
+  options = DEFAULT_LM_OPTIONS,
 }: LettreMissionPreviewProps) {
   const lettreMission = useMemo(
-    () => generateLettreMission(client, template, cabinetConfig),
-    [client, template, cabinetConfig]
+    () => generateLettreMission(client, template, cabinetConfig, options),
+    [client, template, cabinetConfig, options]
   );
 
   const sortedBlocs = useMemo(
