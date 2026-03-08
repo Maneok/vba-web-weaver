@@ -259,10 +259,30 @@ export const LETTRE_MISSION_TEMPLATE = {
     titre: LETTRE_MISSION_CONTENT.honoraires.titre,
     introduction: LETTRE_MISSION_CONTENT.honoraires.contenu,
     paiement: `Les honoraires sont payables selon la fréquence convenue, par prélèvement SEPA ou virement bancaire.\n\nEn cas de retard de paiement, des pénalités de retard seront appliquées conformément à l'article L.441-10 du Code de commerce, au taux d'intérêt appliqué par la Banque Centrale Européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement.`,
+    comptable: {
+      lignes: [
+        { label: "Forfait annuel comptable (12 mois)", variable: "honoraires", suffixe: "€ HT" },
+        { label: "Constitution de dossier", variable: "setup", suffixe: "€ HT" },
+        { label: "Honoraires exceptionnels Expert-Comptable", fixe: 200, suffixe: "€ HT / heure" },
+        { label: "Honoraires exceptionnels Collaborateur", fixe: 100, suffixe: "€ HT / heure" },
+      ],
+    },
+    sociale: {
+      lignes: [
+        { label: "Mission sociale — forfait annuel", fixe: 0, suffixe: "€ HT" },
+      ],
+    },
+    juridique: {
+      lignes: [
+        { label: "Secrétariat juridique annuel", variable: "honoraires_juridique", suffixe: "€ HT" },
+      ],
+    },
   },
   conclusion: {
     titre: LETTRE_MISSION_CONTENT.signature.titre,
     texte: LETTRE_MISSION_CONTENT.signature.contenu,
+    signatureCabinet: { label: "L'Expert-comptable" },
+    signatureClient: { label: "Le Client" },
   },
   // Annexes (depuis lettreMissionAnnexes.ts)
   repartitionTravaux: REPARTITION_TRAVAUX,
