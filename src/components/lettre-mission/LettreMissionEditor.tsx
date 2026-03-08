@@ -1,147 +1,63 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import {
-  Save, FileDown, FileText, Mail, BookOpen,
+  Save, FileDown, FileText, Mail,
   CheckCircle2, AlertCircle, MinusCircle,
-  Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
-import { loadCabinetConfig } from "./CabinetConfigForm";
-import VariableInserter from "./VariableInserter";
-import ClauseLibrary, { type Clause } from "./ClauseLibrary";
+import { LETTRE_MISSION_TEMPLATE, getFormulePolitesse, type Genre } from "@/lib/lettreMissionContent";
+import GenreSelector from "./GenreSelector";
+import MissionsToggle, { type MissionsToggleState } from "./MissionsToggle";
+import type { HonorairesValues } from "./HonorairesTable";
+import HonorairesTable from "./HonorairesTable";
+import type { MissionsConfig } from "./MissionsSelector";
+import AnnexesPreview from "./AnnexesPreview";
 
-/* ---------- types ---------- */
-export interface LettreMissionData {
-  // En-tete
-  lieuLettre: string;
-  dateLettre: string;
-  // Destinataire
-  destinataireNom: string;
-  destinataireAdresse: string;
-  destinataireCpVille: string;
-  // Introduction
-  introduction: string;
-  // Entite
-  raisonSociale: string;
-  formeJuridique: string;
-  siren: string;
-  capital: string;
-  adresse: string;
-  cpVille: string;
-  ape: string;
-  dirigeant: string;
-  effectif: string;
-  domaine: string;
-  dateCreation: string;
-  // LCB-FT (read-only computed)
-  nivVigilance: string;
-  scoreGlobal: number;
-  ppe: string;
-  paysRisque: string;
-  be: string;
-  // Mission
-  missionPrincipale: string;
-  missionDescription: string;
-  // Missions complementaires
-  missionSocial: boolean;
-  missionJuridique: boolean;
-  missionControleFiscal: boolean;
-  // Honoraires
-  honorairesHT: string;
-  frequencePaiement: string;
-  // Modalites
-  modalites: string;
-  // Signature
-  signataireNom: string;
-  signataireFonction: string;
-  lieuSignature: string;
-  // Annexes
-  annexeRepartition: boolean;
-  annexeAttestation: boolean;
-  annexeSepa: boolean;
-  annexeLiasse: boolean;
-  annexeCgv: boolean;
-}
-
-const DEFAULT_DATA: LettreMissionData = {
-  lieuLettre: "",
-  dateLettre: new Date().toISOString().split("T")[0],
-  destinataireNom: "",
-  destinataireAdresse: "",
-  destinataireCpVille: "",
-  introduction: "Nous avons l'honneur de vous confirmer les termes et objectifs de notre mission ainsi que la nature et les limites de celle-ci.",
-  raisonSociale: "",
-  formeJuridique: "",
-  siren: "",
-  capital: "",
-  adresse: "",
-  cpVille: "",
-  ape: "",
-  dirigeant: "",
-  effectif: "",
-  domaine: "",
-  dateCreation: "",
-  nivVigilance: "",
-  scoreGlobal: 0,
-  ppe: "",
-  paysRisque: "",
-  be: "",
-  missionPrincipale: "",
-  missionDescription: "Conformement aux normes professionnelles applicables, notre mission comprend la tenue et/ou la surveillance de votre comptabilite, l'etablissement des comptes annuels et des declarations fiscales correspondantes.",
-  missionSocial: false,
-  missionJuridique: false,
-  missionControleFiscal: false,
-  honorairesHT: "",
-  frequencePaiement: "Mensuel",
-  modalites: "Les relations entre le cabinet et le client s'inscrivent dans un cadre de confiance mutuelle. Le client s'engage a fournir tous les documents et informations necessaires a la bonne execution de la mission dans les delais convenus.",
-  signataireNom: "",
-  signataireFonction: "Expert-Comptable",
-  lieuSignature: "",
-  annexeRepartition: true,
-  annexeAttestation: true,
-  annexeSepa: true,
-  annexeLiasse: false,
-  annexeCgv: true,
-};
-
-/* ---------- section defs ---------- */
-interface SectionDef {
+/* ---- Types ---- */
+export interface EditorSection {
   id: string;
   title: string;
-  required: (keyof LettreMissionData)[];
+  visible: boolean;
+  content: string;
+  editable: boolean;
 }
 
-const SECTIONS: SectionDef[] = [
-  { id: "entete", title: "En-tete et destinataire", required: ["lieuLettre", "dateLettre", "destinataireNom"] },
-  { id: "introduction", title: "Introduction", required: ["introduction"] },
-  { id: "entite", title: "Votre entite", required: ["raisonSociale", "siren", "formeJuridique", "dirigeant"] },
-  { id: "lcbft", title: "Obligations LCB-FT", required: ["nivVigilance"] },
-  { id: "mission", title: "Notre mission", required: ["missionPrincipale", "missionDescription"] },
-  { id: "complementaires", title: "Missions complementaires", required: [] },
-  { id: "honoraires", title: "Honoraires", required: ["honorairesHT", "frequencePaiement"] },
-  { id: "modalites", title: "Modalites relationnelles", required: ["modalites"] },
-  { id: "signature", title: "Signature", required: ["signataireNom"] },
-  { id: "annexes", title: "Annexes", required: [] },
-];
+export interface EditorState {
+  genre: Genre;
+  sections: EditorSection[];
+  missions: MissionsToggleState;
+  honoraires: HonorairesValues;
+}
 
-/* ---------- helpers ---------- */
-function getSectionStatus(data: LettreMissionData, section: SectionDef): "complete" | "partial" | "empty" {
-  if (section.required.length === 0) return "complete";
-  const filled = section.required.filter((k) => {
-    const v = data[k];
-    return v !== "" && v !== 0 && v !== false;
-  });
-  if (filled.length === section.required.length) return "complete";
-  if (filled.length > 0) return "partial";
-  return "empty";
+/* ---- Variable highlighting ---- */
+function HighlightedText({ text }: { text: string }) {
+  const parts = text.split(/({{[^}]+}})/g);
+  return (
+    <span>
+      {parts.map((part, i) =>
+        part.startsWith("{{") ? (
+          <span key={i} className="bg-blue-500/20 text-blue-300 rounded px-0.5 font-mono text-[11px]">
+            {part}
+          </span>
+        ) : (
+          <span key={i}>{part}</span>
+        )
+      )}
+    </span>
+  );
+}
+
+/* ---- Section status ---- */
+function getSectionStatus(content: string, visible: boolean): "complete" | "partial" | "empty" {
+  if (!visible) return "empty";
+  if (!content || content.trim().length < 10) return "partial";
+  const unresolvedVars = content.match(/{{[^}]+}}/g);
+  if (unresolvedVars && unresolvedVars.length > 5) return "partial";
+  return "complete";
 }
 
 function StatusIcon({ status }: { status: "complete" | "partial" | "empty" }) {
@@ -150,73 +66,107 @@ function StatusIcon({ status }: { status: "complete" | "partial" | "empty" }) {
   return <MinusCircle className="h-4 w-4 text-slate-500 shrink-0" />;
 }
 
-/* ---------- component ---------- */
-interface LettreMissionEditorProps {
-  data: LettreMissionData;
-  onChange: (data: LettreMissionData) => void;
-  onScrollToSection?: (sectionId: string) => void;
+/* ---- Default state builder ---- */
+export function buildDefaultEditorState(client?: Client | null): EditorState {
+  const tpl = LETTRE_MISSION_TEMPLATE;
+
+  const sections: EditorSection[] = [
+    { id: "introduction", title: "Introduction", visible: true, editable: true, content: tpl.introduction.salutation },
+    { id: "entite", title: "Votre entite", visible: true, editable: false, content: "" },
+    { id: "lcbft", title: "Obligations LCB-FT", visible: true, editable: false, content: "" },
+    { id: "mission", title: "Notre mission", visible: true, editable: true, content: tpl.mission.texte },
+    { id: "duree", title: "Duree de la mission", visible: true, editable: true, content: tpl.duree.texte },
+    { id: "nature", title: "Nature et limites de la mission", visible: true, editable: true, content: tpl.nature.texte },
+    { id: "mission_sociale", title: "Mission sociale", visible: false, editable: true, content: tpl.missionSociale.texte },
+    { id: "mission_juridique", title: "Mission juridique", visible: false, editable: true, content: tpl.missionJuridique.texte },
+    { id: "mission_controle_fiscal", title: "Assistance controle fiscal", visible: false, editable: true, content: tpl.missionControleFiscal.texte },
+    { id: "honoraires", title: "Honoraires", visible: true, editable: false, content: tpl.honoraires.introduction },
+    { id: "paiement", title: "Modalites de paiement", visible: true, editable: true, content: tpl.honoraires.paiement },
+    { id: "conclusion", title: "Conclusion et signatures", visible: true, editable: true, content: tpl.conclusion.texte },
+    { id: "annexes", title: "Annexes", visible: true, editable: false, content: "" },
+  ];
+
+  return {
+    genre: "M",
+    sections,
+    missions: {
+      sociale: false,
+      juridique: false,
+      controleFiscal: false,
+      controleFiscalOption: null,
+    },
+    honoraires: {
+      honoraires: client?.honoraires ?? 0,
+      setup: 0,
+      honoraires_juridique: client?.juridique ?? 0,
+      frequence: "mensuel",
+    },
+  };
 }
 
-export { DEFAULT_DATA };
-export type { SectionDef };
+/* ---- Main component ---- */
+interface LettreMissionEditorProps {
+  client: Client | null;
+  state: EditorState;
+  onChange: (state: EditorState) => void;
+  onSectionFocus?: (sectionId: string) => void;
+}
 
-export default function LettreMissionEditor({ data, onChange, onScrollToSection }: LettreMissionEditorProps) {
-  const [clauseLibraryOpen, setClauseLibraryOpen] = useState(false);
-  const [activeField, setActiveField] = useState<string | null>(null);
+export default function LettreMissionEditor({ client, state, onChange, onSectionFocus }: LettreMissionEditorProps) {
   const textareaRefs = useRef<Record<string, HTMLTextAreaElement | null>>({});
 
-  const update = useCallback(<K extends keyof LettreMissionData>(field: K, value: LettreMissionData[K]) => {
-    onChange({ ...data, [field]: value });
-  }, [data, onChange]);
-
-  const completeSections = SECTIONS.filter((s) => getSectionStatus(data, s) === "complete").length;
-  const totalSections = SECTIONS.length;
-  const progressPercent = Math.round((completeSections / totalSections) * 100);
-
-  const handleInsertVariable = useCallback((variable: string) => {
-    if (!activeField) return;
-    const textarea = textareaRefs.current[activeField];
-    if (!textarea) return;
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const currentValue = textarea.value;
-    const newValue = currentValue.slice(0, start) + variable + currentValue.slice(end);
-    update(activeField as keyof LettreMissionData, newValue as never);
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(start + variable.length, start + variable.length);
+  const updateSection = useCallback((id: string, updates: Partial<EditorSection>) => {
+    onChange({
+      ...state,
+      sections: state.sections.map((s) => (s.id === id ? { ...s, ...updates } : s)),
     });
-  }, [activeField, update]);
+  }, [state, onChange]);
 
-  const handleAddClause = (clause: Clause) => {
-    update("missionDescription", data.missionDescription + "\n\n" + clause.content);
-    toast.success(`Clause "${clause.title}" ajoutee`);
-  };
+  const handleMissionsChange = useCallback((missions: MissionsToggleState) => {
+    onChange({
+      ...state,
+      missions,
+      sections: state.sections.map((s) => {
+        if (s.id === "mission_sociale") return { ...s, visible: missions.sociale };
+        if (s.id === "mission_juridique") return { ...s, visible: missions.juridique };
+        if (s.id === "mission_controle_fiscal") return { ...s, visible: missions.controleFiscal };
+        return s;
+      }),
+    });
+  }, [state, onChange]);
+
+  const handleHonorairesChange = useCallback((honoraires: HonorairesValues) => {
+    onChange({ ...state, honoraires });
+  }, [state, onChange]);
+
+  const handleGenreChange = useCallback((genre: Genre) => {
+    onChange({ ...state, genre });
+  }, [state, onChange]);
+
+  // Missions config adapter for HonorairesTable
+  const missionsConfig: MissionsConfig = useMemo(() => ({
+    comptable: true as const,
+    sociale: state.missions.sociale,
+    juridique: state.missions.juridique,
+    controleFiscal: state.missions.controleFiscal,
+    controleFiscalOption: state.missions.controleFiscalOption,
+  }), [state.missions]);
+
+  // Progress
+  const visibleSections = state.sections.filter((s) => s.visible);
+  const completeSections = visibleSections.filter((s) => getSectionStatus(s.content, s.visible) === "complete").length;
+  const progressPercent = visibleSections.length > 0 ? Math.round((completeSections / visibleSections.length) * 100) : 0;
 
   const handleAccordionChange = (value: string) => {
-    if (value && onScrollToSection) {
-      onScrollToSection(value);
-    }
+    if (value) onSectionFocus?.(value);
   };
 
-  const config = loadCabinetConfig();
-
-  const renderTextarea = (field: keyof LettreMissionData, placeholder: string, rows = 3) => (
-    <Textarea
-      ref={(el) => { textareaRefs.current[field] = el; }}
-      value={data[field] as string}
-      onChange={(e) => update(field, e.target.value as never)}
-      onFocus={() => setActiveField(field)}
-      placeholder={placeholder}
-      rows={rows}
-      className="bg-background/50 border-white/10 resize-y"
-    />
-  );
+  const tpl = LETTRE_MISSION_TEMPLATE;
 
   return (
     <div className="flex flex-col h-full">
-      {/* Toolbar sticky */}
-      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-white/[0.06] px-4 py-3">
+      {/* Sticky toolbar */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur border-b border-white/[0.06] px-4 py-3 space-y-3">
         <div className="flex items-center gap-2 flex-wrap">
           <Button
             size="sm"
@@ -230,379 +180,321 @@ export default function LettreMissionEditor({ data, onChange, onScrollToSection 
             className="gap-2 bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white shadow-lg shadow-indigo-500/20"
             onClick={() => toast.info("Export PDF via le module de generation")}
           >
-            <FileDown className="h-4 w-4" /> PDF
+            <FileDown className="h-4 w-4" /> Exporter PDF
           </Button>
           <Button
             size="sm"
             className="gap-2 bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white shadow-lg shadow-violet-500/20"
             onClick={() => toast.info("Export DOCX bientot disponible")}
           >
-            <FileText className="h-4 w-4" /> DOCX
+            <FileText className="h-4 w-4" /> Exporter DOCX
           </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2"
-            onClick={() => toast.info("Envoi par email bientot disponible")}
-          >
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => toast.info("Envoi par email bientot disponible")}>
             <Mail className="h-4 w-4" /> Email
           </Button>
           <div className="flex-1" />
-          <VariableInserter onInsert={handleInsertVariable} />
-          <Button variant="outline" size="sm" className="gap-2" onClick={() => setClauseLibraryOpen(true)}>
-            <BookOpen className="h-4 w-4" /> Clauses
-          </Button>
+          <GenreSelector value={state.genre} onChange={handleGenreChange} />
         </div>
-        {/* Progress bar */}
-        <div className="flex items-center gap-3 mt-3">
-          <Progress value={progressPercent} className="flex-1 h-2" />
+        {/* Progress */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-2 bg-white/10 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500"
+              style={{ width: `${progressPercent}%` }}
+            />
+          </div>
           <span className="text-xs text-muted-foreground whitespace-nowrap">
-            {completeSections}/{totalSections} sections — {progressPercent}%
+            {completeSections}/{visibleSections.length} sections — {progressPercent}%
           </span>
         </div>
       </div>
 
       {/* Sections */}
       <div className="flex-1 overflow-y-auto p-4 space-y-2">
-        <Accordion type="single" collapsible onValueChange={handleAccordionChange} defaultValue="entete">
-          {/* 1. En-tete et destinataire */}
-          <AccordionItem value="entete" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[0])} />
-                <span className="font-medium">1. En-tete et destinataire</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2 pb-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Lieu</Label>
-                  <Input value={data.lieuLettre} onChange={(e) => update("lieuLettre", e.target.value)} placeholder={config.ville || "Paris"} className="bg-background/50 border-white/10" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Date</Label>
-                  <Input type="date" value={data.dateLettre} onChange={(e) => update("dateLettre", e.target.value)} className="bg-background/50 border-white/10" />
-                </div>
-              </div>
-              <div className="border-t border-white/[0.06] pt-4 space-y-3">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Destinataire</p>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Nom / Raison sociale</Label>
-                  <Input value={data.destinataireNom} onChange={(e) => update("destinataireNom", e.target.value)} placeholder="M. / Mme ou Societe..." className="bg-background/50 border-white/10" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Adresse</Label>
-                  <Input value={data.destinataireAdresse} onChange={(e) => update("destinataireAdresse", e.target.value)} placeholder="12 rue..." className="bg-background/50 border-white/10" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">CP, Ville</Label>
-                  <Input value={data.destinataireCpVille} onChange={(e) => update("destinataireCpVille", e.target.value)} placeholder="75001 Paris" className="bg-background/50 border-white/10" />
-                </div>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+        <Accordion type="single" collapsible onValueChange={handleAccordionChange} defaultValue="introduction">
 
-          {/* 2. Introduction */}
+          {/* Introduction */}
           <AccordionItem value="introduction" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[1])} />
-                <span className="font-medium">2. Introduction</span>
+                <StatusIcon status={getSectionStatus(state.sections[0].content, true)} />
+                <span className="font-medium">1. Introduction</span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="pt-2 pb-4">
-              {renderTextarea("introduction", "Texte d'introduction de la lettre de mission...", 4)}
+              <textarea
+                ref={(el) => { textareaRefs.current["introduction"] = el; }}
+                value={state.sections[0].content}
+                onChange={(e) => updateSection("introduction", { content: e.target.value })}
+                rows={6}
+                className="w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+              <div className="mt-2 text-xs text-muted-foreground">
+                <HighlightedText text={state.sections[0].content.slice(0, 200)} />
+                {state.sections[0].content.length > 200 && "..."}
+              </div>
             </AccordionContent>
           </AccordionItem>
 
-          {/* 3. Votre entite */}
+          {/* Entite */}
           <AccordionItem value="entite" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[2])} />
-                <span className="font-medium">3. Votre entite</span>
+                <StatusIcon status={client ? "complete" : "empty"} />
+                <span className="font-medium">2. {tpl.entite.titre}</span>
               </div>
             </AccordionTrigger>
             <AccordionContent className="pt-2 pb-4">
-              <div className="rounded-lg border border-white/10 overflow-hidden">
-                <table className="w-full text-sm">
-                  <tbody>
-                    {([
-                      ["Raison sociale", "raisonSociale", ""],
-                      ["Forme juridique", "formeJuridique", ""],
-                      ["SIREN", "siren", ""],
-                      ["Capital", "capital", "EUR"],
-                      ["Adresse", "adresse", ""],
-                      ["CP / Ville", "cpVille", ""],
-                      ["Code APE", "ape", ""],
-                      ["Dirigeant", "dirigeant", ""],
-                      ["Effectif", "effectif", "salaries"],
-                      ["Domaine d'activite", "domaine", ""],
-                      ["Date de creation", "dateCreation", ""],
-                    ] as [string, keyof LettreMissionData, string][]).map(([label, field, suffix]) => (
-                      <tr key={field} className="border-b border-white/[0.04] last:border-0">
-                        <td className="px-3 py-2 text-xs text-muted-foreground w-40">{label}</td>
-                        <td className="px-3 py-1">
-                          <div className="flex items-center gap-2">
-                            <Input
-                              value={String(data[field] || "")}
-                              onChange={(e) => update(field, e.target.value as never)}
-                              className="h-8 bg-background/50 border-white/10 text-sm"
-                            />
-                            {suffix && <span className="text-xs text-muted-foreground shrink-0">{suffix}</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              {client ? (
+                <div className="rounded-lg border border-white/10 overflow-hidden">
+                  <table className="w-full text-sm">
+                    <tbody>
+                      {([
+                        ["Raison sociale", client.raisonSociale],
+                        ["Forme juridique", client.forme],
+                        ["Capital social", `${client.capital?.toLocaleString("fr-FR") ?? "N/C"} EUR`],
+                        ["Adresse", `${client.adresse}, ${client.cp} ${client.ville}`],
+                        ["SIREN", client.siren],
+                        ["Code APE", client.ape],
+                        ["Dirigeant", client.dirigeant],
+                        ["Activite", client.domaine],
+                        ["Effectif", client.effectif],
+                        ["Date de creation", client.dateCreation],
+                        ["Mission", client.mission],
+                        ["Periodicite", client.frequence],
+                      ]).map(([label, value]) => (
+                        <tr key={label} className="border-b border-white/[0.04] last:border-0">
+                          <td className="px-3 py-2 text-xs text-muted-foreground w-40">{label}</td>
+                          <td className="px-3 py-2 text-sm font-medium">{value || "—"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic py-4 text-center">
+                  Selectionnez un client pour remplir cette section
+                </p>
+              )}
             </AccordionContent>
           </AccordionItem>
 
-          {/* 4. LCB-FT */}
+          {/* LCB-FT */}
           <AccordionItem value="lcbft" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[3])} />
-                <span className="font-medium">4. Obligations LCB-FT</span>
-                {data.nivVigilance && (
-                  <Badge variant={data.nivVigilance === "RENFORCEE" ? "destructive" : data.nivVigilance === "STANDARD" ? "default" : "secondary"} className="text-[10px]">
-                    {data.nivVigilance}
+                <StatusIcon status={client ? "complete" : "empty"} />
+                <span className="font-medium">3. {tpl.lcbft.titre}</span>
+                {client && (
+                  <Badge variant={client.nivVigilance === "RENFORCEE" ? "destructive" : client.nivVigilance === "SIMPLIFIEE" ? "secondary" : "default"} className="text-[10px]">
+                    {client.nivVigilance}
                   </Badge>
                 )}
               </div>
             </AccordionTrigger>
             <AccordionContent className="pt-2 pb-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="rounded-lg border border-white/10 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Niveau de vigilance</span>
-                    <Badge variant={data.nivVigilance === "RENFORCEE" ? "destructive" : data.nivVigilance === "STANDARD" ? "default" : "secondary"}>
-                      {data.nivVigilance || "Non defini"}
-                    </Badge>
+              <p className="text-[10px] text-muted-foreground mb-3">{tpl.lcbft.soustitre}</p>
+              {client ? (
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="rounded-lg border border-white/10 p-3 space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Score de risque</span>
+                      <span className="text-lg font-bold">{client.scoreGlobal}<span className="text-xs text-muted-foreground">/100</span></span>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Vigilance</span>
+                      <Badge variant={client.nivVigilance === "RENFORCEE" ? "destructive" : "default"}>{client.nivVigilance}</Badge>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Score global</span>
-                    <span className="text-lg font-bold">{data.scoreGlobal}<span className="text-xs text-muted-foreground">/100</span></span>
+                  <div className="rounded-lg border border-white/10 p-3 space-y-2">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">PPE</span>
+                      <Badge variant={client.ppe === "OUI" ? "destructive" : "secondary"}>{client.ppe}</Badge>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Pays a risque</span>
+                      <Badge variant={client.paysRisque === "OUI" ? "destructive" : "secondary"}>{client.paysRisque}</Badge>
+                    </div>
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">Derniere revue</span>
+                      <span>{client.dateDerniereRevue || "—"}</span>
+                    </div>
                   </div>
                 </div>
-                <div className="rounded-lg border border-white/10 p-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">PPE</span>
-                    <Badge variant={data.ppe === "OUI" ? "destructive" : "secondary"}>{data.ppe || "—"}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Pays a risque</span>
-                    <Badge variant={data.paysRisque === "OUI" ? "destructive" : "secondary"}>{data.paysRisque || "—"}</Badge>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-muted-foreground">Beneficiaire(s) effectif(s)</span>
-                    <span className="text-xs">{data.be || "—"}</span>
-                  </div>
-                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic py-4 text-center">
+                  Selectionnez un client pour voir les donnees LCB-FT
+                </p>
+              )}
+              <div className="text-xs text-muted-foreground space-y-2 mt-3">
+                <p>{tpl.lcbft.engagements}</p>
+                <p>{tpl.lcbft.conservation}</p>
               </div>
               <p className="text-xs text-muted-foreground mt-3 italic">
-                Ces valeurs sont calculees automatiquement depuis le dossier client et ne sont pas editables.
+                Ces valeurs sont calculees depuis le dossier client et ne sont pas editables.
               </p>
             </AccordionContent>
           </AccordionItem>
 
-          {/* 5. Notre mission */}
+          {/* Mission */}
           <AccordionItem value="mission" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[4])} />
-                <span className="font-medium">5. Notre mission</span>
+                <StatusIcon status={getSectionStatus(state.sections[3].content, true)} />
+                <span className="font-medium">4. {tpl.mission.titre}</span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="space-y-4 pt-2 pb-4">
-              <div>
-                <Label className="text-xs text-muted-foreground">Type de mission principal</Label>
-                <Input value={data.missionPrincipale} onChange={(e) => update("missionPrincipale", e.target.value)} placeholder="TENUE COMPTABLE" className="bg-background/50 border-white/10" />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Description de la mission</Label>
-                {renderTextarea("missionDescription", "Description detaillee de la mission...", 5)}
-              </div>
+            <AccordionContent className="pt-2 pb-4">
+              <textarea
+                value={state.sections[3].content}
+                onChange={(e) => updateSection("mission", { content: e.target.value })}
+                rows={10}
+                className="w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
             </AccordionContent>
           </AccordionItem>
 
-          {/* 6. Missions complementaires */}
-          <AccordionItem value="complementaires" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
+          {/* Duree */}
+          <AccordionItem value="duree" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[5])} />
+                <StatusIcon status={getSectionStatus(state.sections[4].content, true)} />
+                <span className="font-medium">5. {tpl.duree.titre}</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-4">
+              <textarea
+                value={state.sections[4].content}
+                onChange={(e) => updateSection("duree", { content: e.target.value })}
+                rows={5}
+                className="w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Missions complementaires */}
+          <AccordionItem value="missions_complementaires" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <StatusIcon status="complete" />
                 <span className="font-medium">6. Missions complementaires</span>
-                {(data.missionSocial || data.missionJuridique || data.missionControleFiscal) && (
+                {(state.missions.sociale || state.missions.juridique || state.missions.controleFiscal) && (
                   <Badge variant="secondary" className="text-[10px]">
-                    {[data.missionSocial && "Social", data.missionJuridique && "Juridique", data.missionControleFiscal && "Fiscal"].filter(Boolean).join(", ")}
+                    {[state.missions.sociale && "Social", state.missions.juridique && "Juridique", state.missions.controleFiscal && "Fiscal"].filter(Boolean).join(", ")}
                   </Badge>
                 )}
               </div>
             </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-4 space-y-3">
-              {([
-                ["missionSocial", "Social / Paie", "Prise en charge de la gestion sociale et de l'etablissement des bulletins de paie"],
-                ["missionJuridique", "Juridique annuel", "Approbation des comptes, PV d'AG, secretariat juridique courant"],
-                ["missionControleFiscal", "Assistance controle fiscal", "Assistance et representation en cas de controle fiscal"],
-              ] as [keyof LettreMissionData, string, string][]).map(([field, label, desc]) => (
-                <div key={field} className="flex items-start gap-3 rounded-lg border border-white/10 p-3">
-                  <Switch
-                    checked={data[field] as boolean}
-                    onCheckedChange={(v) => update(field, v as never)}
-                    className="mt-0.5"
+            <AccordionContent className="pt-2 pb-4">
+              <MissionsToggle value={state.missions} onChange={handleMissionsChange} />
+              {/* Show editable textarea for each active complementary mission */}
+              {state.missions.sociale && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Contenu mission sociale :</p>
+                  <textarea
+                    value={state.sections.find((s) => s.id === "mission_sociale")?.content ?? ""}
+                    onChange={(e) => updateSection("mission_sociale", { content: e.target.value })}
+                    rows={6}
+                    className="w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-xs text-muted-foreground">{desc}</p>
-                  </div>
                 </div>
-              ))}
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* 7. Honoraires */}
-          <AccordionItem value="honoraires" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[6])} />
-                <span className="font-medium">7. Honoraires</span>
-                {data.honorairesHT && (
-                  <Badge variant="outline" className="text-[10px]">{data.honorairesHT} EUR HT</Badge>
-                )}
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-4">
-              <div className="rounded-lg border border-white/10 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-white/10 bg-muted/30">
-                      <th className="text-left px-3 py-2 text-xs font-medium text-muted-foreground">Element</th>
-                      <th className="text-right px-3 py-2 text-xs font-medium text-muted-foreground">Montant</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-white/[0.04]">
-                      <td className="px-3 py-2 text-xs">Honoraires annuels HT</td>
-                      <td className="px-3 py-1 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Input
-                            value={data.honorairesHT}
-                            onChange={(e) => update("honorairesHT", e.target.value)}
-                            className="h-8 w-32 text-right bg-background/50 border-white/10"
-                            placeholder="0"
-                          />
-                          <span className="text-xs text-muted-foreground">EUR</span>
-                        </div>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-3 py-2 text-xs">Frequence de paiement</td>
-                      <td className="px-3 py-1 text-right">
-                        <select
-                          value={data.frequencePaiement}
-                          onChange={(e) => update("frequencePaiement", e.target.value)}
-                          className="h-8 rounded-md border border-white/10 bg-background/50 px-2 text-sm"
-                        >
-                          <option value="Mensuel">Mensuel</option>
-                          <option value="Trimestriel">Trimestriel</option>
-                          <option value="Annuel">Annuel</option>
-                        </select>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* 8. Modalites relationnelles */}
-          <AccordionItem value="modalites" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[7])} />
-                <span className="font-medium">8. Modalites relationnelles</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-4">
-              {renderTextarea("modalites", "Modalites de la relation entre le cabinet et le client...", 5)}
-            </AccordionContent>
-          </AccordionItem>
-
-          {/* 9. Signature */}
-          <AccordionItem value="signature" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
-            <AccordionTrigger className="hover:no-underline">
-              <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[8])} />
-                <span className="font-medium">9. Signature</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-4 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label className="text-xs text-muted-foreground">Nom du signataire</Label>
-                  <Input value={data.signataireNom} onChange={(e) => update("signataireNom", e.target.value)} placeholder="Nom Prenom" className="bg-background/50 border-white/10" />
+              )}
+              {state.missions.juridique && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Contenu mission juridique :</p>
+                  <textarea
+                    value={state.sections.find((s) => s.id === "mission_juridique")?.content ?? ""}
+                    onChange={(e) => updateSection("mission_juridique", { content: e.target.value })}
+                    rows={4}
+                    className="w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
                 </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Fonction</Label>
-                  <Input value={data.signataireFonction} onChange={(e) => update("signataireFonction", e.target.value)} placeholder="Expert-Comptable" className="bg-background/50 border-white/10" />
-                </div>
-                <div>
-                  <Label className="text-xs text-muted-foreground">Lieu de signature</Label>
-                  <Input value={data.lieuSignature} onChange={(e) => update("lieuSignature", e.target.value)} placeholder={config.ville || "Paris"} className="bg-background/50 border-white/10" />
-                </div>
-              </div>
-              {config.signature && (
-                <div>
-                  <Label className="text-xs text-muted-foreground">Signature numerisee</Label>
-                  <img src={config.signature} alt="Signature" className="h-16 mt-1 opacity-70" />
+              )}
+              {state.missions.controleFiscal && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold text-muted-foreground mb-2">Contenu controle fiscal :</p>
+                  <textarea
+                    value={state.sections.find((s) => s.id === "mission_controle_fiscal")?.content ?? ""}
+                    onChange={(e) => updateSection("mission_controle_fiscal", { content: e.target.value })}
+                    rows={4}
+                    className="w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
                 </div>
               )}
             </AccordionContent>
           </AccordionItem>
 
-          {/* 10. Annexes */}
+          {/* Honoraires */}
+          <AccordionItem value="honoraires" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <StatusIcon status={state.honoraires.honoraires > 0 ? "complete" : "partial"} />
+                <span className="font-medium">7. {tpl.honoraires.titre}</span>
+                {state.honoraires.honoraires > 0 && (
+                  <Badge variant="outline" className="text-[10px]">{state.honoraires.honoraires.toLocaleString("fr-FR")} EUR HT</Badge>
+                )}
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-4">
+              <HonorairesTable
+                values={state.honoraires}
+                onChange={handleHonorairesChange}
+                missions={missionsConfig}
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Paiement */}
+          <AccordionItem value="paiement" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <StatusIcon status={getSectionStatus(state.sections[10].content, true)} />
+                <span className="font-medium">8. Modalites de paiement</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-4">
+              <textarea
+                value={state.sections[10].content}
+                onChange={(e) => updateSection("paiement", { content: e.target.value })}
+                rows={6}
+                className="w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Conclusion & Signature */}
+          <AccordionItem value="conclusion" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
+            <AccordionTrigger className="hover:no-underline">
+              <div className="flex items-center gap-3">
+                <StatusIcon status={getSectionStatus(state.sections[11].content, true)} />
+                <span className="font-medium">9. Conclusion et signatures</span>
+              </div>
+            </AccordionTrigger>
+            <AccordionContent className="pt-2 pb-4">
+              <textarea
+                value={state.sections[11].content}
+                onChange={(e) => updateSection("conclusion", { content: e.target.value })}
+                rows={5}
+                className="w-full rounded-md border border-white/10 bg-background/50 px-3 py-2 text-sm resize-y focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              />
+            </AccordionContent>
+          </AccordionItem>
+
+          {/* Annexes */}
           <AccordionItem value="annexes" className="border rounded-lg bg-card/80 backdrop-blur px-4 mb-2">
             <AccordionTrigger className="hover:no-underline">
               <div className="flex items-center gap-3">
-                <StatusIcon status={getSectionStatus(data, SECTIONS[9])} />
+                <StatusIcon status="complete" />
                 <span className="font-medium">Annexes</span>
-                <Badge variant="secondary" className="text-[10px]">
-                  {[data.annexeRepartition, data.annexeAttestation, data.annexeSepa, data.annexeLiasse, data.annexeCgv].filter(Boolean).length} active(s)
-                </Badge>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="pt-2 pb-4 space-y-3">
-              {([
-                ["annexeRepartition", "Repartition des travaux", "Tableau de repartition des travaux entre le cabinet et le client"],
-                ["annexeAttestation", "Attestation de travail dissimule", "Attestation relative a la lutte contre le travail dissimule"],
-                ["annexeSepa", "Mandat de prelevement SEPA", "Autorisation de prelevement bancaire"],
-                ["annexeLiasse", "Autorisation liasse fiscale", "Mandat pour la tele-transmission de la liasse fiscale"],
-                ["annexeCgv", "Conditions generales", "Conditions generales de vente du cabinet"],
-              ] as [keyof LettreMissionData, string, string][]).map(([field, label, desc]) => (
-                <div key={field} className="flex items-start gap-3 rounded-lg border border-white/10 p-3">
-                  <Switch
-                    checked={data[field] as boolean}
-                    onCheckedChange={(v) => update(field, v as never)}
-                    className="mt-0.5"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">{label}</p>
-                    <p className="text-xs text-muted-foreground">{desc}</p>
-                  </div>
-                </div>
-              ))}
+            <AccordionContent className="pt-2 pb-4">
+              <AnnexesPreview />
             </AccordionContent>
           </AccordionItem>
+
         </Accordion>
       </div>
-
-      <ClauseLibrary
-        open={clauseLibraryOpen}
-        onOpenChange={setClauseLibraryOpen}
-        onAddClause={handleAddClause}
-      />
     </div>
   );
 }
