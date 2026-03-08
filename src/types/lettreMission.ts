@@ -36,6 +36,13 @@ export type BlocType =
   | "juridiction"
   | "signature"
   | "sepa"
+  | "repartition"
+  | "attestation_travail_dissimule"
+  | "autorisation_liasse"
+  | "conditions_generales"
+  | "social"
+  | "juridique_mission"
+  | "controle_fiscal"
   | "custom";
 
 export interface BlocTemplate {
@@ -56,14 +63,35 @@ export interface LettreMission {
   template: LettreMissionTemplate;
   blocs: LettreMissionBloc[];
   metadata: LettreMissionMetadata;
+  options: LettreMissionOptions;
+}
+
+export interface LettreMissionOptions {
+  genre: "M" | "F";
+  missionSociale: boolean;
+  missionJuridique: boolean;
+  missionControleFiscal: boolean;
+  honorairesSocial: number;
+  honorairesJuridique: number;
+  honorairesControleFiscal: number;
+  fraisConstitution: number;
+  exerciceDebut: string; // "01/01/2026"
+  exerciceFin: string;   // "31/12/2026"
+  regimeFiscal: string;
+  tvaRegime: string;
+  cac: boolean;
+  volumeComptable: string;
+  periodicite: string;
+  outilComptable: string;
+  controleFiscalOptions: string[];
 }
 
 export interface LettreMissionBloc {
   id: string;
   type: BlocType;
   titre: string;
-  contenuBrut: string; // avant remplacement variables
-  contenuRendu: string; // après remplacement variables
+  contenuBrut: string;
+  contenuRendu: string;
   ordre: number;
   visible: boolean;
 }
@@ -90,5 +118,30 @@ export interface SepaMandat {
   titulaire: string;
   dateSignature: string;
   reference: string;
-  ics: string; // Identifiant Créancier SEPA du cabinet
+  ics: string;
 }
+
+export interface LettreMissionValidation {
+  valid: boolean;
+  champsManquants: string[];
+}
+
+export const DEFAULT_LM_OPTIONS: LettreMissionOptions = {
+  genre: "M",
+  missionSociale: false,
+  missionJuridique: false,
+  missionControleFiscal: false,
+  honorairesSocial: 0,
+  honorairesJuridique: 0,
+  honorairesControleFiscal: 0,
+  fraisConstitution: 0,
+  exerciceDebut: "01/01/2026",
+  exerciceFin: "31/12/2026",
+  regimeFiscal: "IS — Impôt sur les Sociétés",
+  tvaRegime: "Réel normal",
+  cac: false,
+  volumeComptable: "< 500 écritures/an",
+  periodicite: "Mensuelle",
+  outilComptable: "Non précisé",
+  controleFiscalOptions: [],
+};

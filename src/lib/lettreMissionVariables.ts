@@ -1,7 +1,47 @@
 import type { Client } from "@/lib/types";
-import type { CabinetConfig } from "@/types/lettreMission";
+import type { CabinetConfig, LettreMissionOptions } from "@/types/lettreMission";
 
-// Mapping des 52 colonnes BDD vers variables {{...}}
+// ──────────────────────────────────────────────
+// Textes LCB-FT dynamiques selon le niveau de vigilance
+// ──────────────────────────────────────────────
+const VIGILANCE_TEXTES: Record<string, string> = {
+  SIMPLIFIEE: `Conformément aux articles L.561-2 et L.561-9 du Code monétaire et financier, notre cabinet est assujetti aux obligations de lutte contre le blanchiment de capitaux et le financement du terrorisme (LCB-FT).
+
+Dans le cadre de la vigilance simplifiée applicable à votre dossier, nous procédons à :
+- L'identification du client et la vérification de son identité sur la base d'un document officiel en cours de validité ;
+- L'identification du bénéficiaire effectif ;
+- Le recueil d'informations sur l'objet et la nature de la relation d'affaires ;
+- Un examen périodique du dossier tous les 3 ans.
+
+Les mesures de vigilance simplifiée sont appliquées en l'absence de soupçon de blanchiment et compte tenu du faible niveau de risque identifié.`,
+
+  STANDARD: `Conformément aux articles L.561-2 et L.561-5 à L.561-14-2 du Code monétaire et financier, notre cabinet est soumis aux obligations de lutte contre le blanchiment de capitaux et le financement du terrorisme (LCB-FT).
+
+Dans le cadre de la vigilance standard applicable à votre dossier, nous procédons à :
+- L'identification et la vérification de l'identité du client et, le cas échéant, du bénéficiaire effectif ;
+- Le recueil d'informations sur l'objet et la nature de la relation d'affaires ;
+- L'exercice d'une vigilance constante sur la relation d'affaires, incluant un examen attentif des opérations ;
+- Un examen périodique du dossier tous les 2 ans ;
+- La mise à jour régulière des éléments d'identification.
+
+En cas de soupçon, le cabinet est tenu de procéder à une déclaration de soupçon auprès de Tracfin (art. L.561-15 CMF).`,
+
+  RENFORCEE: `Conformément aux articles L.561-2, L.561-10 et L.561-10-2 du Code monétaire et financier, notre cabinet est soumis aux obligations renforcées de lutte contre le blanchiment de capitaux et le financement du terrorisme (LCB-FT).
+
+Votre dossier fait l'objet de mesures de vigilance renforcée en raison du niveau de risque identifié. À ce titre, nous procédons à :
+- L'identification et la vérification approfondie de l'identité du client, du bénéficiaire effectif et de la structure de contrôle ;
+- L'obtention d'informations complémentaires sur l'origine des fonds et du patrimoine ;
+- L'examen renforcé de l'objet et de la nature de la relation d'affaires ;
+- Un suivi renforcé et continu de la relation, avec un examen périodique au minimum annuel ;
+- La mise en place d'un examen approfondi de toute opération complexe, d'un montant inhabituellement élevé ou ne paraissant pas avoir de justification économique ;
+- L'information de l'associé signataire et, le cas échéant, du référent LCB-FT du cabinet.
+
+Toute impossibilité de mettre en œuvre ces mesures pourra conduire le cabinet à mettre fin à la relation d'affaires (art. L.561-8 CMF). En cas de soupçon, une déclaration sera effectuée auprès de Tracfin (art. L.561-15 CMF).`,
+};
+
+// ──────────────────────────────────────────────
+// Mapping colonnes BDD → variables {{...}}
+// ──────────────────────────────────────────────
 const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   ref: (c) => c.ref,
   raison_sociale: (c) => c.raisonSociale,
@@ -46,6 +86,7 @@ const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   date_reprise: (c) => c.dateReprise,
   date_creation_ligne: (c) => c.dateCreationLigne,
   date_derniere_revue: (c) => c.dateDerniereRevue,
+  date_revue: (c) => c.dateDerniereRevue,
   date_butoir: (c) => c.dateButoir,
   date_exp_cni: (c) => c.dateExpCni,
   etat_pilotage: (c) => c.etatPilotage,
@@ -55,6 +96,10 @@ const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   type_personne: (c) => c.typePersonne ?? "",
   adresse_complete: (c) => `${c.adresse}, ${c.cp} ${c.ville}`,
   honoraires_ttc: (c) => (c.honoraires * 1.2)?.toLocaleString("fr-FR") ?? "0",
+  hono: (c) => `${c.honoraires?.toLocaleString("fr-FR") ?? "0"} € HT`,
+  honoraires_juridique: (c) => `${c.juridique?.toLocaleString("fr-FR") ?? "0"} € HT`,
+  telephone: (c) => c.tel,
+  email: (c) => c.mail,
 };
 
 const CABINET_VARIABLE_MAP: Record<string, (cab: CabinetConfig) => string> = {
@@ -84,18 +129,42 @@ function getDateVariables(): Record<string, string> {
   };
 }
 
+function getOptionsVariables(options?: LettreMissionOptions): Record<string, string> {
+  if (!options) return {};
+  return {
+    genre: options.genre === "F" ? "Mme" : "M.",
+    formule_politesse: options.genre === "F" ? "Chère Madame" : "Cher Monsieur",
+    setup: `${options.fraisConstitution?.toLocaleString("fr-FR") ?? "0"} € HT`,
+    exercice_debut: options.exerciceDebut,
+    exercice_fin: options.exerciceFin,
+    regime_fiscal: options.regimeFiscal,
+    tva_regime: options.tvaRegime,
+    volume_comptable: options.volumeComptable,
+    periodicite: options.periodicite,
+    outil_comptable: options.outilComptable,
+    honoraires_social: `${options.honorairesSocial?.toLocaleString("fr-FR") ?? "0"} € HT`,
+    honoraires_controle_fiscal: `${options.honorairesControleFiscal?.toLocaleString("fr-FR") ?? "0"} € HT`,
+  };
+}
+
+function getVigilanceVariable(nivVigilance: string): string {
+  return VIGILANCE_TEXTES[nivVigilance] ?? VIGILANCE_TEXTES.STANDARD;
+}
+
 /**
  * Remplace toutes les {{variable}} dans un texte par les valeurs du client/cabinet.
  */
 export function replaceVariables(
   text: string,
   client: Client,
-  cabinet?: CabinetConfig
+  cabinet?: CabinetConfig,
+  options?: LettreMissionOptions
 ): string {
   if (!text) return "";
 
   let result = text;
   const dateVars = getDateVariables();
+  const optVars = getOptionsVariables(options);
 
   // Replace client variables
   for (const [key, getter] of Object.entries(CLIENT_VARIABLE_MAP)) {
@@ -125,6 +194,18 @@ export function replaceVariables(
     result = result.replace(regex, value);
   }
 
+  // Replace options variables
+  for (const [key, value] of Object.entries(optVars)) {
+    const regex = new RegExp(`\\{\\{${key}\\}\\}`, "gi");
+    result = result.replace(regex, value);
+  }
+
+  // Special: bloc_vigilance_lab
+  result = result.replace(
+    /\{\{bloc_vigilance_lab\}\}/gi,
+    getVigilanceVariable(client.nivVigilance)
+  );
+
   return result;
 }
 
@@ -133,10 +214,10 @@ export function replaceVariables(
  */
 export function getAvailableVariables(): Array<{
   key: string;
-  category: "client" | "cabinet" | "date";
+  category: "client" | "cabinet" | "date" | "options";
   description: string;
 }> {
-  const vars: Array<{ key: string; category: "client" | "cabinet" | "date"; description: string }> = [];
+  const vars: Array<{ key: string; category: "client" | "cabinet" | "date" | "options"; description: string }> = [];
 
   const clientDescriptions: Record<string, string> = {
     ref: "Référence client",
@@ -182,7 +263,8 @@ export function getAvailableVariables(): Array<{
     date_reprise: "Date de reprise",
     date_creation_ligne: "Date de création de la ligne",
     date_derniere_revue: "Date de dernière revue",
-    date_butoir: "Date butoir",
+    date_revue: "Date dernière revue LCB",
+    date_butoir: "Date butoir prochaine revue KYC",
     date_exp_cni: "Date d'expiration CNI",
     etat_pilotage: "État de pilotage",
     statut: "Statut client",
@@ -191,6 +273,10 @@ export function getAvailableVariables(): Array<{
     type_personne: "Type de personne",
     adresse_complete: "Adresse complète (rue, CP, ville)",
     honoraires_ttc: "Honoraires TTC",
+    hono: "Honoraires formatés (ex: 3 500 € HT)",
+    honoraires_juridique: "Honoraires juridique formatés",
+    telephone: "Téléphone client",
+    email: "Email client",
   };
 
   for (const key of Object.keys(CLIENT_VARIABLE_MAP)) {
@@ -226,9 +312,27 @@ export function getAvailableVariables(): Array<{
     date_debut_mission: "Date de début de mission (1er janvier)",
     date_fin_mission: "Date de fin de mission (31 décembre)",
   };
-
   for (const [key, desc] of Object.entries(dateDescriptions)) {
     vars.push({ key: `{{${key}}}`, category: "date", description: desc });
+  }
+
+  const optionsDescriptions: Record<string, string> = {
+    genre: "Genre (M. ou Mme)",
+    formule_politesse: "Formule de politesse (Cher Monsieur / Chère Madame)",
+    setup: "Frais de constitution",
+    exercice_debut: "Date début exercice social",
+    exercice_fin: "Date fin exercice social",
+    regime_fiscal: "Régime fiscal",
+    tva_regime: "Régime de TVA",
+    volume_comptable: "Volume comptable",
+    periodicite: "Périodicité de remise des documents",
+    outil_comptable: "Outil comptable utilisé",
+    honoraires_social: "Honoraires mission sociale",
+    honoraires_controle_fiscal: "Honoraires contrôle fiscal",
+    bloc_vigilance_lab: "Texte LCB-FT complet selon niv_vigilance",
+  };
+  for (const [key, desc] of Object.entries(optionsDescriptions)) {
+    vars.push({ key: `{{${key}}}`, category: "options", description: desc });
   }
 
   return vars;

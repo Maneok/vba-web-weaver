@@ -1,500 +1,1077 @@
 import jsPDF from "jspdf";
-import type { LettreMission, CabinetConfig, SepaMandat } from "@/types/lettreMission";
+import type { LettreMission, CabinetConfig, LettreMissionOptions } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 
-const MARGIN_L = 25; // 2.5cm
-const MARGIN_R = 185;
-const CONTENT_W = MARGIN_R - MARGIN_L;
+// ──────────────────────────────────────────────
+// Layout constants (A4 = 210 x 297mm)
+// ──────────────────────────────────────────────
 const PAGE_W = 210;
-const PAGE_H = 297;
-const FOOTER_Y = 282;
+const MARGIN_L = 25;   // 2.5cm left
+const MARGIN_R = 190;  // 2cm right (210 - 20)
+const MARGIN_TOP = 25; // 2.5cm top
+const FOOTER_Y = 277;  // 2cm bottom (297 - 20)
+const CONTENT_W = MARGIN_R - MARGIN_L;
 
-function addHeader(doc: jsPDF, cabinet: CabinetConfig, numero: string) {
-  const primaryColor = hexToRgb(cabinet.couleurPrimaire);
+// Colors
+const NAVY = { r: 26, g: 26, b: 46 };   // #1a1a2e
+const GREY_BG = { r: 245, g: 245, b: 248 };
+const GREY_LINE = { r: 200, g: 200, b: 200 };
+const WHITE = { r: 255, g: 255, b: 255 };
 
-  // Header bar
-  doc.setFillColor(primaryColor.r, primaryColor.g, primaryColor.b);
-  doc.rect(0, 0, PAGE_W, 32, "F");
-
-  // Logo if available
-  if (cabinet.logo) {
-    try {
-      doc.addImage(cabinet.logo, "PNG", MARGIN_L, 5, 22, 22);
-    } catch {
-      // logo invalide, on continue
-    }
-  }
-
-  // Cabinet info right side
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  const cabinetLines = [
-    cabinet.nom,
-    `${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`,
-    `SIRET : ${cabinet.siret} — OEC : ${cabinet.numeroOEC}`,
-    `${cabinet.email} — ${cabinet.telephone}`,
-  ];
-  let hy = 8;
-  for (const line of cabinetLines) {
-    doc.text(line, MARGIN_R, hy, { align: "right" });
-    hy += 4.5;
-  }
-
-  // Document title
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("LETTRE DE MISSION", PAGE_W / 2, 26, { align: "center" });
-
-  // Reference
-  doc.setTextColor(0, 0, 0);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Réf. ${numero}`, MARGIN_R, 38, { align: "right" });
-}
-
-function addFooter(doc: jsPDF, cabinet: CabinetConfig, pageNum: number, totalPages: number) {
-  doc.setDrawColor(200, 200, 200);
-  doc.line(MARGIN_L, FOOTER_Y, MARGIN_R, FOOTER_Y);
-  doc.setFontSize(7);
-  doc.setTextColor(130, 130, 130);
-  doc.text(
-    `${cabinet.nom} — Membre de l'Ordre des Experts-Comptables — SIRET ${cabinet.siret}`,
-    PAGE_W / 2,
-    FOOTER_Y + 4,
-    { align: "center" }
-  );
-  doc.text(`Page ${pageNum}/${totalPages}`, MARGIN_R, FOOTER_Y + 4, { align: "right" });
-}
-
-function checkPageBreak(doc: jsPDF, y: number, needed: number): number {
-  if (y + needed > FOOTER_Y - 5) {
-    doc.addPage();
-    return 20;
-  }
-  return y;
-}
-
-function drawSectionTitle(doc: jsPDF, title: string, y: number, cabinet: CabinetConfig): number {
-  const color = hexToRgb(cabinet.couleurPrimaire);
-  doc.setFillColor(color.r, color.g, color.b);
-  doc.rect(MARGIN_L, y - 1, CONTENT_W, 7, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(10);
-  doc.setFont("helvetica", "bold");
-  doc.text(title, MARGIN_L + 3, y + 4);
-  doc.setTextColor(0, 0, 0);
-  return y + 11;
-}
-
-function drawIdentificationBloc(doc: jsPDF, client: Client, y: number): number {
-  y = checkPageBreak(doc, y, 50);
-
-  // Grey background box
-  doc.setFillColor(245, 245, 245);
-  doc.setDrawColor(200, 200, 200);
-  doc.roundedRect(MARGIN_L, y, CONTENT_W, 42, 2, 2, "FD");
-
-  doc.setFontSize(9);
-  let by = y + 6;
-
-  const fields: [string, string][] = [
-    ["Raison sociale", client.raisonSociale],
-    ["Forme juridique", `${client.forme} — Capital : ${client.capital?.toLocaleString("fr-FR") ?? "N/C"} €`],
-    ["SIREN", client.siren],
-    ["Adresse", `${client.adresse}, ${client.cp} ${client.ville}`],
-    ["Dirigeant", client.dirigeant],
-    ["Activité", `${client.domaine} (APE ${client.ape})`],
-  ];
-
-  for (const [label, value] of fields) {
-    doc.setFont("helvetica", "bold");
-    doc.text(`${label} :`, MARGIN_L + 4, by);
-    doc.setFont("helvetica", "normal");
-    doc.text(value, MARGIN_L + 40, by);
-    by += 6;
-  }
-
-  return y + 47;
-}
-
-function drawHonorairesBloc(doc: jsPDF, client: Client, y: number): number {
-  y = checkPageBreak(doc, y, 45);
-
-  const rows: [string, string][] = [
-    ["Mission comptable", `${client.honoraires?.toLocaleString("fr-FR") ?? "0"} €`],
-    ["Reprise comptable", `${client.reprise?.toLocaleString("fr-FR") ?? "0"} €`],
-    ["Mission juridique", `${client.juridique?.toLocaleString("fr-FR") ?? "0"} €`],
-  ];
-  const total = (client.honoraires ?? 0) + (client.reprise ?? 0) + (client.juridique ?? 0);
-
-  // Table header
-  doc.setFillColor(30, 58, 95);
-  doc.rect(MARGIN_L, y, CONTENT_W, 7, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.text("Désignation", MARGIN_L + 4, y + 5);
-  doc.text("Montant HT", MARGIN_R - 4, y + 5, { align: "right" });
-  doc.setTextColor(0, 0, 0);
-  y += 7;
-
-  // Table rows with alternating colors
-  doc.setFontSize(9);
-  for (let i = 0; i < rows.length; i++) {
-    if (i % 2 === 0) {
-      doc.setFillColor(248, 248, 252);
-      doc.rect(MARGIN_L, y, CONTENT_W, 7, "F");
-    }
-    doc.setFont("helvetica", "normal");
-    doc.text(rows[i][0], MARGIN_L + 4, y + 5);
-    doc.text(rows[i][1], MARGIN_R - 4, y + 5, { align: "right" });
-    y += 7;
-  }
-
-  // Total row
-  doc.setFillColor(230, 235, 245);
-  doc.rect(MARGIN_L, y, CONTENT_W, 8, "F");
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.text("TOTAL HT", MARGIN_L + 4, y + 6);
-  doc.text(`${total.toLocaleString("fr-FR")} €`, MARGIN_R - 4, y + 6, { align: "right" });
-  y += 8;
-
-  // TTC
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Total TTC (TVA 20%) : ${(total * 1.2).toLocaleString("fr-FR")} €`, MARGIN_R - 4, y + 5, { align: "right" });
-  y += 5;
-
-  // Fréquence
-  doc.text(`Fréquence de facturation : ${client.frequence}`, MARGIN_L + 4, y + 5);
-  y += 10;
-
-  return y;
-}
-
-function drawLcbftBloc(doc: jsPDF, client: Client, y: number, cabinet: CabinetConfig): number {
-  y = checkPageBreak(doc, y, 40);
-
-  // Dark blue box
-  doc.setFillColor(20, 40, 70);
-  doc.roundedRect(MARGIN_L, y, CONTENT_W, 8, 1, 1, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "bold");
-  doc.text("🔒  Obligations LCB-FT", MARGIN_L + 4, y + 5.5);
-  doc.setTextColor(0, 0, 0);
-  y += 11;
-
-  const vigLabel: Record<string, string> = {
-    SIMPLIFIEE: "Vigilance Simplifiée",
-    STANDARD: "Vigilance Standard",
-    RENFORCEE: "Vigilance Renforcée",
-  };
-  const vigColors: Record<string, [number, number, number]> = {
-    SIMPLIFIEE: [76, 175, 80],
-    STANDARD: [255, 152, 0],
-    RENFORCEE: [244, 67, 54],
-  };
-  const vc = vigColors[client.nivVigilance] ?? [100, 100, 100];
-
-  doc.setFillColor(vc[0], vc[1], vc[2]);
-  doc.roundedRect(MARGIN_L, y, 50, 6, 1, 1, "F");
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "bold");
-  doc.text(vigLabel[client.nivVigilance] ?? client.nivVigilance, MARGIN_L + 3, y + 4.5);
-  doc.setTextColor(0, 0, 0);
-
-  doc.setFont("helvetica", "normal");
-  doc.text(`Score de risque : ${client.scoreGlobal}/100`, MARGIN_L + 55, y + 4.5);
-  y += 10;
-
-  doc.setFontSize(8);
-  const lcbText =
-    "Conformément aux articles L.561-2 et suivants du Code monétaire et financier, " +
-    "notre cabinet est assujetti aux obligations de lutte contre le blanchiment de capitaux " +
-    "et le financement du terrorisme (LCB-FT). Les mesures de vigilance applicables à votre " +
-    "dossier sont adaptées au niveau de risque identifié.";
-  const lines = doc.splitTextToSize(lcbText, CONTENT_W - 4);
-  doc.text(lines, MARGIN_L + 2, y);
-  y += lines.length * 4 + 5;
-
-  return y;
-}
-
-function drawKycBloc(doc: jsPDF, client: Client, y: number): number {
-  y = checkPageBreak(doc, y, 35);
-
-  doc.setFontSize(9);
-  const checks: [string, boolean][] = [
-    ["Pièce d'identité du dirigeant en cours de validité", client.dateExpCni ? new Date(client.dateExpCni) > new Date() : false],
-    ["Extrait Kbis / Inscription RCS de moins de 3 mois", !!client.lienKbis],
-    ["Statuts à jour", !!client.lienStatuts],
-    ["Bénéficiaires effectifs identifiés", !!client.be],
-    ["Justificatif de domicile ou siège social", !!client.adresse],
-    ["Attestation de vigilance à jour", client.etat === "VALIDE"],
-  ];
-
-  let cy = y;
-  for (const [label, done] of checks) {
-    doc.setFont("helvetica", "normal");
-    // Checkbox
-    doc.setDrawColor(150, 150, 150);
-    doc.rect(MARGIN_L + 2, cy - 3, 3.5, 3.5);
-    if (done) {
-      doc.setFont("helvetica", "bold");
-      doc.setTextColor(34, 139, 34);
-      doc.text("✓", MARGIN_L + 2.5, cy);
-      doc.setTextColor(0, 0, 0);
-    }
-    doc.setFont("helvetica", "normal");
-    doc.text(label, MARGIN_L + 9, cy);
-    cy += 6;
-  }
-
-  return cy + 3;
-}
-
-function drawSignatureBloc(doc: jsPDF, client: Client, cabinet: CabinetConfig, y: number): number {
-  y = checkPageBreak(doc, y, 55);
-
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`Fait en deux exemplaires originaux,`, MARGIN_L, y);
-  y += 5;
-  doc.text(`À ${cabinet.ville}, le ____________________`, MARGIN_L, y);
-  y += 12;
-
-  const colL = MARGIN_L;
-  const colR = MARGIN_L + CONTENT_W / 2 + 5;
-
-  // Left column - Cabinet
-  doc.setFont("helvetica", "bold");
-  doc.text("Pour le cabinet", colL, y);
-  doc.text("Pour le client", colR, y);
-  y += 6;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(cabinet.nom, colL, y);
-  doc.text(client.raisonSociale, colR, y);
-  y += 5;
-  doc.text(`Représenté par ${client.associe}`, colL, y);
-  doc.text(`Représenté par ${client.dirigeant}`, colR, y);
-  y += 5;
-  doc.text("Associé signataire", colL, y);
-  doc.text("Gérant / Président", colR, y);
-  y += 15;
-
-  // Signature lines
-  doc.setDrawColor(0, 0, 0);
-  doc.line(colL, y, colL + 60, y);
-  doc.line(colR, y, colR + 60, y);
-  y += 4;
-  doc.setFontSize(7);
-  doc.text("Signature et cachet", colL, y);
-  doc.text("Signature et cachet", colR, y);
-
-  return y + 10;
-}
-
-function drawSepaAnnexe(doc: jsPDF, client: Client, cabinet: CabinetConfig): void {
-  doc.addPage();
-  let y = 20;
-
-  doc.setFontSize(14);
-  doc.setFont("helvetica", "bold");
-  doc.text("ANNEXE — MANDAT DE PRÉLÈVEMENT SEPA", PAGE_W / 2, y, { align: "center" });
-  y += 15;
-
-  // Cadre
-  doc.setDrawColor(100, 100, 100);
-  doc.setFillColor(250, 250, 250);
-  doc.roundedRect(MARGIN_L, y, CONTENT_W, 80, 2, 2, "FD");
-
-  let sy = y + 8;
-  doc.setFontSize(9);
-
-  const sepaFields: [string, string][] = [
-    ["Créancier", cabinet.nom],
-    ["SIRET créancier", cabinet.siret],
-    ["Adresse créancier", `${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`],
-    ["", ""],
-    ["Débiteur", client.raisonSociale],
-    ["Adresse débiteur", `${client.adresse}, ${client.cp} ${client.ville}`],
-    ["IBAN", formatIban(client.iban)],
-    ["BIC", client.bic],
-    ["", ""],
-    ["Référence unique de mandat (RUM)", `SEPA-${client.ref}`],
-    ["Type de paiement", "Récurrent"],
-  ];
-
-  for (const [label, value] of sepaFields) {
-    if (!label) {
-      sy += 3;
-      continue;
-    }
-    doc.setFont("helvetica", "bold");
-    doc.text(`${label} :`, MARGIN_L + 5, sy);
-    doc.setFont("helvetica", "normal");
-    doc.text(value || "________________________", MARGIN_L + 60, sy);
-    sy += 6;
-  }
-
-  y += 90;
-
-  doc.setFontSize(8);
-  doc.setFont("helvetica", "normal");
-  const sepaText =
-    "En signant ce formulaire de mandat, vous autorisez le cabinet à envoyer des instructions " +
-    "à votre banque pour débiter votre compte, et votre banque à débiter votre compte conformément " +
-    "aux instructions du cabinet. Vous bénéficiez du droit d'être remboursé par votre banque selon " +
-    "les conditions décrites dans la convention que vous avez passée avec elle.";
-  const sepaLines = doc.splitTextToSize(sepaText, CONTENT_W - 10);
-  doc.text(sepaLines, MARGIN_L + 5, y);
-  y += sepaLines.length * 4 + 15;
-
-  // Signature
-  doc.setFontSize(9);
-  doc.text(`Date : ____________________`, MARGIN_L, y);
-  doc.text(`Lieu : ____________________`, MARGIN_L + 80, y);
-  y += 15;
-  doc.text("Signature du débiteur :", MARGIN_L, y);
-  y += 15;
-  doc.setDrawColor(0, 0, 0);
-  doc.line(MARGIN_L, y, MARGIN_L + 70, y);
-}
-
-function formatIban(iban: string): string {
-  if (!iban) return "________________________";
-  return iban.replace(/(.{4})/g, "$1 ").trim();
-}
-
+// ──────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace("#", "");
   return {
-    r: parseInt(h.substring(0, 2), 16) || 30,
-    g: parseInt(h.substring(2, 4), 16) || 58,
-    b: parseInt(h.substring(4, 6), 16) || 95,
+    r: parseInt(h.substring(0, 2), 16) || NAVY.r,
+    g: parseInt(h.substring(2, 4), 16) || NAVY.g,
+    b: parseInt(h.substring(4, 6), 16) || NAVY.b,
   };
 }
 
-/**
- * Génère un PDF professionnel haute qualité pour une Lettre de Mission.
- */
-export function renderLettreMissionPdf(lm: LettreMission): jsPDF {
-  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  const { client, cabinet } = lm;
+function formatMontant(n: number | undefined): string {
+  return `${(n ?? 0).toLocaleString("fr-FR")} €`;
+}
 
-  // === PAGE 1 ===
-  addHeader(doc, cabinet, lm.numero);
-  let y = 42;
+function formatIban(iban: string): string {
+  if (!iban) return "__ __ __ __ __ __ __";
+  return iban.replace(/(.{4})/g, "$1 ").trim();
+}
 
-  // Date
-  doc.setFontSize(9);
-  doc.setFont("helvetica", "normal");
-  doc.text(`${cabinet.ville}, le ${lm.date}`, MARGIN_R, y, { align: "right" });
-  y += 10;
+// ──────────────────────────────────────────────
+// PDF Builder class
+// ──────────────────────────────────────────────
+class LMPdfBuilder {
+  private doc: jsPDF;
+  private y: number;
+  private cabinet: CabinetConfig;
+  private client: Client;
+  private options: LettreMissionOptions;
+  private numero: string;
+  private dateLM: string;
 
-  // Render each bloc in order
-  const sortedBlocs = [...lm.blocs].filter((b) => b.visible).sort((a, b) => a.ordre - b.ordre);
-  let sectionNum = 1;
+  constructor(lm: LettreMission) {
+    this.doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    this.y = MARGIN_TOP;
+    this.cabinet = lm.cabinet;
+    this.client = lm.client;
+    this.options = lm.options;
+    this.numero = lm.numero;
+    this.dateLM = lm.date;
+  }
 
-  for (const bloc of sortedBlocs) {
-    switch (bloc.type) {
-      case "identification":
-        y = drawSectionTitle(doc, `${sectionNum++}. Identification du client`, y, cabinet);
-        y = drawIdentificationBloc(doc, client, y);
-        break;
+  // ── Core methods ──
 
-      case "mission": {
-        y = checkPageBreak(doc, y, 30);
-        y = drawSectionTitle(doc, `${sectionNum++}. ${bloc.titre}`, y, cabinet);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        const missionLines = doc.splitTextToSize(bloc.contenuRendu, CONTENT_W - 4);
-        for (const line of missionLines) {
-          y = checkPageBreak(doc, y, 6);
-          doc.text(line, MARGIN_L + 2, y);
-          y += 4.5;
-        }
-        y += 5;
-        break;
-      }
-
-      case "honoraires":
-        y = checkPageBreak(doc, y, 50);
-        y = drawSectionTitle(doc, `${sectionNum++}. Honoraires`, y, cabinet);
-        y = drawHonorairesBloc(doc, client, y);
-        break;
-
-      case "paiement": {
-        y = checkPageBreak(doc, y, 25);
-        y = drawSectionTitle(doc, `${sectionNum++}. ${bloc.titre}`, y, cabinet);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        const payLines = doc.splitTextToSize(bloc.contenuRendu, CONTENT_W - 4);
-        for (const line of payLines) {
-          y = checkPageBreak(doc, y, 6);
-          doc.text(line, MARGIN_L + 2, y);
-          y += 4.5;
-        }
-        y += 5;
-        break;
-      }
-
-      case "lcbft":
-        y = checkPageBreak(doc, y, 50);
-        y = drawSectionTitle(doc, `${sectionNum++}. Obligations LCB-FT`, y, cabinet);
-        y = drawLcbftBloc(doc, client, y, cabinet);
-        break;
-
-      case "kyc":
-        y = checkPageBreak(doc, y, 45);
-        y = drawSectionTitle(doc, `${sectionNum++}. Pièces justificatives (KYC)`, y, cabinet);
-        y = drawKycBloc(doc, client, y);
-        break;
-
-      case "resiliation":
-      case "rgpd":
-      case "juridiction":
-      case "custom": {
-        y = checkPageBreak(doc, y, 25);
-        y = drawSectionTitle(doc, `${sectionNum++}. ${bloc.titre}`, y, cabinet);
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        const textLines = doc.splitTextToSize(bloc.contenuRendu, CONTENT_W - 4);
-        for (const line of textLines) {
-          y = checkPageBreak(doc, y, 6);
-          doc.text(line, MARGIN_L + 2, y);
-          y += 4.5;
-        }
-        y += 5;
-        break;
-      }
-
-      case "signature":
-        y = drawSignatureBloc(doc, client, cabinet, y);
-        break;
-
-      case "sepa":
-        // SEPA is always on a separate page
-        break;
+  private ensureSpace(needed: number): void {
+    if (this.y + needed > FOOTER_Y - 5) {
+      this.doc.addPage();
+      this.y = MARGIN_TOP;
     }
   }
 
-  // SEPA annexe if IBAN present
-  if (client.iban) {
-    drawSepaAnnexe(doc, client, cabinet);
+  private newPage(): void {
+    this.doc.addPage();
+    this.y = MARGIN_TOP;
   }
 
-  // Add footers on all pages
-  const totalPages = doc.getNumberOfPages();
-  for (let i = 1; i <= totalPages; i++) {
-    doc.setPage(i);
-    addFooter(doc, cabinet, i, totalPages);
+  private setBody(): void {
+    this.doc.setFontSize(10);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setTextColor(30, 30, 30);
   }
 
-  return doc;
+  private setSmall(): void {
+    this.doc.setFontSize(8);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setTextColor(80, 80, 80);
+  }
+
+  private setTitle(size: number = 14): void {
+    this.doc.setFontSize(size);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+  }
+
+  private writeText(text: string, maxWidth: number = CONTENT_W): void {
+    this.setBody();
+    const lines = this.doc.splitTextToSize(text, maxWidth);
+    for (const line of lines) {
+      this.ensureSpace(5);
+      this.doc.text(line, MARGIN_L, this.y);
+      this.y += 4.5;
+    }
+    this.y += 2;
+  }
+
+  private writeBullet(text: string): void {
+    this.ensureSpace(6);
+    this.setBody();
+    this.doc.text("•", MARGIN_L + 2, this.y);
+    const lines = this.doc.splitTextToSize(text, CONTENT_W - 10);
+    this.doc.text(lines, MARGIN_L + 7, this.y);
+    this.y += lines.length * 4.5 + 1;
+  }
+
+  private drawSectionTitle(title: string): void {
+    this.ensureSpace(12);
+    this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.rect(MARGIN_L, this.y - 1, CONTENT_W, 8, "F");
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(11);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(title, MARGIN_L + 3, this.y + 4.5);
+    this.doc.setTextColor(30, 30, 30);
+    this.y += 12;
+  }
+
+  private drawSubTitle(title: string): void {
+    this.ensureSpace(8);
+    this.doc.setFontSize(10);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.text(title, MARGIN_L, this.y);
+    this.doc.setTextColor(30, 30, 30);
+    this.y += 6;
+  }
+
+  private drawTableRow(
+    label: string,
+    value: string,
+    bgColor?: { r: number; g: number; b: number },
+    labelWidth: number = 65
+  ): void {
+    this.ensureSpace(7);
+    if (bgColor) {
+      this.doc.setFillColor(bgColor.r, bgColor.g, bgColor.b);
+      this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 7, "F");
+    }
+    this.doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
+    this.doc.line(MARGIN_L, this.y + 3, MARGIN_R, this.y + 3);
+    this.doc.setFontSize(9);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setTextColor(50, 50, 50);
+    this.doc.text(label, MARGIN_L + 3, this.y);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setTextColor(30, 30, 30);
+    // Truncate value if too long
+    const maxValWidth = CONTENT_W - labelWidth - 6;
+    const truncated = this.doc.splitTextToSize(value, maxValWidth);
+    this.doc.text(truncated[0] ?? "", MARGIN_L + labelWidth, this.y);
+    this.y += 7;
+  }
+
+  private drawHonoraireTableHeader(): void {
+    this.ensureSpace(8);
+    this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 8, "F");
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(9);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Désignation", MARGIN_L + 3, this.y);
+    this.doc.text("Montant HT annuel", MARGIN_R - 3, this.y, { align: "right" });
+    this.doc.setTextColor(30, 30, 30);
+    this.y += 7;
+  }
+
+  private drawHonoraireRow(label: string, montant: number, alt: boolean): void {
+    this.ensureSpace(7);
+    if (alt) {
+      this.doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+      this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 7, "F");
+    }
+    this.doc.setFontSize(9);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text(label, MARGIN_L + 3, this.y);
+    this.doc.text(formatMontant(montant), MARGIN_R - 3, this.y, { align: "right" });
+    this.y += 7;
+  }
+
+  private drawHonoraireTotal(label: string, montant: number): void {
+    this.ensureSpace(9);
+    this.doc.setFillColor(230, 235, 245);
+    this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 9, "F");
+    this.doc.setFontSize(10);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(label, MARGIN_L + 3, this.y + 1);
+    this.doc.text(formatMontant(montant), MARGIN_R - 3, this.y + 1, { align: "right" });
+    this.y += 11;
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGE 1 — Header + Destinataire + Introduction
+  // ──────────────────────────────────────────────
+  private drawPage1(): void {
+    const cab = this.cabinet;
+    const cli = this.client;
+    const opts = this.options;
+
+    // En-tête: logo à gauche, coordonnées à droite
+    if (cab.logo) {
+      try {
+        this.doc.addImage(cab.logo, "PNG", MARGIN_L, MARGIN_TOP, 25, 25);
+      } catch { /* logo invalide */ }
+    }
+
+    // Coordonnées cabinet à droite
+    this.doc.setFontSize(10);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.text(cab.nom, MARGIN_R, MARGIN_TOP + 3, { align: "right" });
+    this.setSmall();
+    this.doc.text(`${cab.adresse}, ${cab.cp} ${cab.ville}`, MARGIN_R, MARGIN_TOP + 8, { align: "right" });
+    this.doc.text(`SIRET : ${cab.siret}`, MARGIN_R, MARGIN_TOP + 12, { align: "right" });
+    this.doc.text(`OEC n° ${cab.numeroOEC}`, MARGIN_R, MARGIN_TOP + 16, { align: "right" });
+    this.doc.text(`${cab.email} — ${cab.telephone}`, MARGIN_R, MARGIN_TOP + 20, { align: "right" });
+
+    this.y = MARGIN_TOP + 30;
+
+    // Trait séparateur
+    this.doc.setDrawColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.setLineWidth(0.5);
+    this.doc.line(MARGIN_L, this.y, MARGIN_R, this.y);
+    this.y += 8;
+
+    // Bloc destinataire
+    this.doc.setFontSize(10);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setTextColor(30, 30, 30);
+    const formule = opts.genre === "F" ? "Mme" : "M.";
+    this.doc.text(`À l'attention de ${formule} ${cli.dirigeant}`, MARGIN_L, this.y);
+    this.y += 5;
+    this.doc.text(`Mandataire social de la société ${cli.forme} ${cli.raisonSociale}`, MARGIN_L, this.y);
+    this.y += 5;
+    this.doc.text(`${cli.adresse}, ${cli.cp} ${cli.ville}`, MARGIN_L, this.y);
+    this.y += 12;
+
+    // Titre principal centré
+    this.setTitle(14);
+    this.doc.text("LETTRE DE MISSION", PAGE_W / 2, this.y, { align: "center" });
+    this.y += 6;
+    this.doc.setFontSize(11);
+    this.doc.text("PRÉSENTATION DES COMPTES ANNUELS", PAGE_W / 2, this.y, { align: "center" });
+    this.y += 10;
+
+    // Bloc info
+    this.setSmall();
+    const infoLine = `${cab.ville}, le ${this.dateLM}  |  Réf. mission n° ${this.numero}  |  ${cli.mail}  |  ${cli.tel}`;
+    this.doc.text(infoLine, PAGE_W / 2, this.y, { align: "center" });
+    this.y += 10;
+
+    // Ligne décorative
+    this.doc.setDrawColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.setLineWidth(0.3);
+    this.doc.line(MARGIN_L + 30, this.y, MARGIN_R - 30, this.y);
+    this.y += 8;
+
+    // Formule d'introduction
+    const politesse = opts.genre === "F" ? "Chère Madame" : "Cher Monsieur";
+    this.writeText(`${politesse} ${cli.dirigeant},`);
+    this.y += 2;
+    this.writeText(
+      `Nous vous remercions de la confiance que vous nous accordez en nous confiant la mission d'expertise comptable ` +
+      `relative à votre société ${cli.raisonSociale}. Conformément à l'article 151 du Code de déontologie des professionnels ` +
+      `de l'expertise comptable, la présente lettre de mission a pour objet de définir les termes, conditions et limites de ` +
+      `notre intervention ainsi que les droits et obligations réciproques des parties.`
+    );
+    this.y += 2;
+    this.writeText(
+      `La présente lettre de mission est établie conformément aux normes professionnelles de l'Ordre des Experts-Comptables ` +
+      `et aux dispositions du Code de déontologie de la profession.`
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGE 2 — Tableau "VOTRE ENTITÉ"
+  // ──────────────────────────────────────────────
+  private drawPage2(): void {
+    this.newPage();
+    const cli = this.client;
+    const opts = this.options;
+
+    this.drawSectionTitle("VOTRE ENTITÉ");
+    this.y += 2;
+
+    // Table header
+    this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 8, "F");
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(9);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Information", MARGIN_L + 3, this.y);
+    this.doc.text("Détail", MARGIN_L + 65, this.y);
+    this.doc.setTextColor(30, 30, 30);
+    this.y += 7;
+
+    const rows: [string, string][] = [
+      ["Raison sociale", cli.raisonSociale],
+      ["Forme juridique", cli.forme],
+      ["Activité / Objet social", cli.domaine],
+      ["Code APE", cli.ape],
+      ["SIREN", cli.siren],
+      ["Capital social", formatMontant(cli.capital)],
+      ["Date de création", cli.dateCreation],
+      ["Expert-comptable responsable", cli.associe],
+      ["Régime fiscal", opts.regimeFiscal],
+      ["Exercice social", `Du ${opts.exerciceDebut} au ${opts.exerciceFin}`],
+      ["Régime de TVA", opts.tvaRegime],
+      ["Commissaire aux comptes", opts.cac ? "Oui" : "Non"],
+      ["Effectif", cli.effectif],
+      ["Volume comptable", opts.volumeComptable],
+      ["Type de mission", cli.mission],
+    ];
+
+    for (let i = 0; i < rows.length; i++) {
+      const bg = i % 2 === 0 ? GREY_BG : undefined;
+      this.drawTableRow(rows[i][0], rows[i][1], bg);
+    }
+
+    this.y += 8;
+
+    // Organisation et transmission
+    this.drawSubTitle("Organisation et transmission des documents");
+    this.y += 2;
+    this.drawTableRow("Périodicité", opts.periodicite);
+    this.drawTableRow("Outil comptable", opts.outilComptable);
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGE 3 — Bloc LCB-FT
+  // ──────────────────────────────────────────────
+  private drawPage3(): void {
+    this.newPage();
+    const cli = this.client;
+
+    this.drawSectionTitle("OBLIGATIONS DE VIGILANCE — LUTTE CONTRE LE BLANCHIMENT");
+    this.y += 2;
+
+    // Sous-titre référence légale
+    this.setSmall();
+    this.doc.setFont("helvetica", "italic");
+    this.doc.text(
+      "CMF art. L.561-1 et s. | NPLAB (arr. 13.02.2019) | Paquet AML 2024-2026",
+      MARGIN_L,
+      this.y
+    );
+    this.y += 8;
+
+    // Tableau 2x2 KYC info
+    const vigColors: Record<string, { r: number; g: number; b: number }> = {
+      SIMPLIFIEE: { r: 76, g: 175, b: 80 },
+      STANDARD: { r: 255, g: 152, b: 0 },
+      RENFORCEE: { r: 244, g: 67, b: 54 },
+    };
+    const vc = vigColors[cli.nivVigilance] ?? { r: 100, g: 100, b: 100 };
+
+    // Row 1
+    this.doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+    this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W / 2, 8, "F");
+    this.doc.rect(MARGIN_L + CONTENT_W / 2, this.y - 4, CONTENT_W / 2, 8, "F");
+    this.doc.setFontSize(9);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Score de risque", MARGIN_L + 3, this.y);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text(`${cli.scoreGlobal}/100`, MARGIN_L + 45, this.y);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Niveau de vigilance", MARGIN_L + CONTENT_W / 2 + 3, this.y);
+    // Colored badge
+    const badgeX = MARGIN_L + CONTENT_W / 2 + 50;
+    this.doc.setFillColor(vc.r, vc.g, vc.b);
+    this.doc.roundedRect(badgeX, this.y - 3.5, 30, 5, 1, 1, "F");
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(7);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(cli.nivVigilance, badgeX + 15, this.y, { align: "center" });
+    this.doc.setTextColor(30, 30, 30);
+    this.y += 8;
+
+    // Row 2
+    this.doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
+    this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W / 2, 8);
+    this.doc.rect(MARGIN_L + CONTENT_W / 2, this.y - 4, CONTENT_W / 2, 8);
+    this.doc.setFontSize(9);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Statut PPE", MARGIN_L + 3, this.y);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text(cli.ppe, MARGIN_L + 45, this.y);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Dernière diligence KYC", MARGIN_L + CONTENT_W / 2 + 3, this.y);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text(cli.dateDerniereRevue || "—", MARGIN_L + CONTENT_W / 2 + 50, this.y);
+    this.y += 8;
+
+    // Row 3
+    this.doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+    this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 8, "F");
+    this.doc.setFontSize(9);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Prochaine mise à jour KYC", MARGIN_L + 3, this.y);
+    this.doc.setFont("helvetica", "normal");
+    this.doc.text(cli.dateButoir || "—", MARGIN_L + 65, this.y);
+    this.y += 12;
+
+    // Bloc vigilance dynamique
+    this.drawSubTitle(`Mesures de vigilance — ${cli.nivVigilance}`);
+    this.y += 2;
+
+    const vigTexts: Record<string, string> = {
+      SIMPLIFIEE:
+        "Compte tenu du faible niveau de risque identifié, les mesures de vigilance simplifiée sont appliquées " +
+        "conformément à l'article L.561-9 du CMF. Le cabinet procède à l'identification du client, à la vérification " +
+        "de son identité et à un examen périodique triennal du dossier.",
+      STANDARD:
+        "Les mesures de vigilance standard sont appliquées conformément aux articles L.561-5 à L.561-14-2 du CMF. " +
+        "Le cabinet procède à l'identification et la vérification de l'identité, au recueil d'informations sur l'objet " +
+        "de la relation d'affaires, et à une vigilance constante avec examen bisannuel.",
+      RENFORCEE:
+        "En raison du niveau de risque élevé identifié, des mesures de vigilance renforcée sont appliquées conformément " +
+        "aux articles L.561-10 et L.561-10-2 du CMF. Le cabinet procède à une identification approfondie, à l'obtention " +
+        "d'informations sur l'origine des fonds, et à un suivi renforcé avec examen annuel minimum. Toute impossibilité " +
+        "de mise en œuvre pourra conduire à la cessation de la relation d'affaires (art. L.561-8 CMF).",
+    };
+    this.writeText(vigTexts[cli.nivVigilance] ?? vigTexts.STANDARD);
+
+    this.y += 4;
+
+    // Engagements contractuels
+    this.drawSubTitle("Engagements contractuels du client");
+    this.y += 2;
+    this.writeText(
+      "Le client s'engage à fournir, dans les délais impartis, l'ensemble des documents et informations nécessaires " +
+      "à l'exercice des obligations de vigilance du cabinet, et notamment : pièce d'identité en cours de validité, " +
+      "extrait Kbis de moins de 3 mois, statuts à jour, liste des bénéficiaires effectifs, justificatif de siège social. " +
+      "Le refus ou l'impossibilité de fournir ces éléments pourra conduire le cabinet à refuser ou mettre fin à la " +
+      "relation d'affaires, conformément à l'article L.561-8 du Code monétaire et financier."
+    );
+
+    this.y += 4;
+
+    // Conservation
+    this.drawSubTitle("Durée de conservation des données LCB-FT");
+    this.y += 2;
+    this.writeText(
+      "Conformément à l'article L.561-12 du Code monétaire et financier, les documents et informations relatifs " +
+      "à l'identité du client et aux opérations réalisées sont conservés pendant cinq ans après la fin de la " +
+      "relation d'affaires ou après l'exécution de l'opération."
+    );
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGES 4-5 — Missions
+  // ──────────────────────────────────────────────
+  private drawPages4_5(): void {
+    this.newPage();
+    const cli = this.client;
+    const opts = this.options;
+
+    // Section: Notre mission
+    this.drawSectionTitle("NOTRE MISSION");
+    this.y += 2;
+
+    this.writeText(
+      `Conformément aux dispositions de l'ordonnance n° 45-2138 du 19 septembre 1945 et du décret n° 2012-432 ` +
+      `du 30 mars 2012, nous nous engageons à exécuter la mission de ${cli.mission} qui nous est confiée dans le ` +
+      `respect des normes professionnelles applicables et du Code de déontologie de la profession d'expert-comptable.`
+    );
+
+    // Durée
+    this.drawSubTitle("Durée de la mission");
+    this.writeText(
+      `La présente mission prend effet à compter du ${opts.exerciceDebut} pour une durée d'un exercice social ` +
+      `(du ${opts.exerciceDebut} au ${opts.exerciceFin}), renouvelable par tacite reconduction sauf dénonciation ` +
+      `par l'une des parties moyennant un préavis de trois mois avant la date d'échéance, par lettre recommandée ` +
+      `avec accusé de réception.`
+    );
+
+    // Nature et limites
+    this.drawSubTitle("Nature et limites de la mission");
+    this.writeText(
+      "Notre mission consiste en la tenue et/ou la surveillance de votre comptabilité et en la présentation de vos " +
+      "comptes annuels. Cette mission ne constitue ni un audit, ni un commissariat aux comptes, et ne saurait se " +
+      "substituer aux obligations légales et réglementaires incombant au représentant légal de l'entité."
+    );
+    this.writeText(
+      "Nos travaux ne comportent pas la recherche systématique de fraudes ou d'erreurs. Toutefois, si de telles " +
+      "anomalies venaient à être détectées dans le cadre de nos diligences, nous vous en informerions sans délai."
+    );
+
+    // Mission sociale (si activée)
+    if (opts.missionSociale) {
+      this.y += 4;
+      this.drawSubTitle("Mission sociale");
+      this.writeText(
+        "Dans le cadre de la mission sociale qui nous est confiée, nous assurons les prestations suivantes :"
+      );
+      this.writeBullet("Établissement des bulletins de paie et des déclarations sociales obligatoires (DSN)");
+      this.writeBullet("Gestion des entrées et sorties du personnel (DPAE, contrats, certificats, STC)");
+      this.writeBullet("Calcul et déclaration des charges sociales (URSSAF, retraite, prévoyance)");
+      this.writeBullet("Assistance en matière de droit social courant");
+      this.writeText(
+        "La mission sociale est exercée dans les limites des compétences de l'expert-comptable telles que définies " +
+        "par l'article 2 de l'ordonnance du 19 septembre 1945. Elle n'inclut pas la représentation devant les " +
+        "juridictions prud'homales ni le conseil juridique personnalisé relevant du monopole des avocats."
+      );
+    }
+
+    // Mission juridique (si activée)
+    if (opts.missionJuridique) {
+      this.y += 4;
+      this.drawSubTitle("Mission juridique");
+      this.writeText(
+        "Conformément à l'article 22 de l'ordonnance du 19 septembre 1945, nous assurons une mission juridique " +
+        "accessoire comprenant :"
+      );
+      this.writeBullet("Rédaction des procès-verbaux d'assemblées générales ordinaires et extraordinaires");
+      this.writeBullet("Formalités de modification statutaire et dépôt au greffe du tribunal de commerce");
+      this.writeBullet("Tenue des registres obligatoires (registre des assemblées, registre des mouvements de titres)");
+      this.writeBullet("Assistance à la rédaction d'actes juridiques courants liés à la vie sociale");
+    }
+
+    // Mission contrôle fiscal (si activée)
+    if (opts.missionControleFiscal) {
+      this.y += 4;
+      this.drawSubTitle("Mission d'assistance au contrôle fiscal");
+      this.writeText(
+        "En cas de vérification de comptabilité ou de contrôle fiscal, notre cabinet vous accompagne dans le cadre " +
+        "d'une mission spécifique comprenant :"
+      );
+      this.writeBullet(
+        "Option 1 — Assistance à la préparation : vérification préalable du dossier, analyse des points de " +
+        "vulnérabilité, préparation des réponses aux demandes de l'administration"
+      );
+      this.writeBullet(
+        "Option 2 — Assistance pendant le contrôle : présence lors des rendez-vous avec le vérificateur, " +
+        "analyse des propositions de rectification, rédaction des observations"
+      );
+      this.writeBullet(
+        "Option 3 — Assistance post-contrôle : analyse de la mise en recouvrement, assistance à la " +
+        "contestation (réclamation contentieuse, saisine du conciliateur fiscal)"
+      );
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGE 6 — Honoraires + Signatures
+  // ──────────────────────────────────────────────
+  private drawPage6(): void {
+    this.newPage();
+    const cli = this.client;
+    const opts = this.options;
+
+    this.drawSectionTitle("HONORAIRES ET CONDITIONS FINANCIÈRES");
+    this.y += 2;
+
+    // Honoraires mission comptable
+    this.drawSubTitle("Mission comptable");
+    this.drawHonoraireTableHeader();
+    this.drawHonoraireRow("Honoraires mission comptable annuelle", cli.honoraires, true);
+    if (cli.reprise > 0) {
+      this.drawHonoraireRow("Reprise comptable (exercices antérieurs)", cli.reprise, false);
+    }
+    if (opts.fraisConstitution > 0) {
+      this.drawHonoraireRow("Frais de constitution / installation", opts.fraisConstitution, true);
+    }
+    const totalCompta = (cli.honoraires ?? 0) + (cli.reprise ?? 0) + (opts.fraisConstitution ?? 0);
+    this.drawHonoraireTotal("TOTAL MISSION COMPTABLE HT", totalCompta);
+
+    // Honoraires social
+    if (opts.missionSociale && opts.honorairesSocial > 0) {
+      this.drawSubTitle("Mission sociale");
+      this.drawHonoraireTableHeader();
+      this.drawHonoraireRow("Honoraires mission sociale annuelle", opts.honorairesSocial, true);
+      this.drawHonoraireTotal("TOTAL MISSION SOCIALE HT", opts.honorairesSocial);
+    }
+
+    // Honoraires juridique
+    if (opts.missionJuridique && (cli.juridique > 0 || opts.honorairesJuridique > 0)) {
+      this.drawSubTitle("Mission juridique");
+      const montJur = opts.honorairesJuridique > 0 ? opts.honorairesJuridique : cli.juridique;
+      this.drawHonoraireTableHeader();
+      this.drawHonoraireRow("Honoraires mission juridique annuelle", montJur, true);
+      this.drawHonoraireTotal("TOTAL MISSION JURIDIQUE HT", montJur);
+    }
+
+    // Honoraires contrôle fiscal
+    if (opts.missionControleFiscal && opts.honorairesControleFiscal > 0) {
+      this.drawSubTitle("Assistance au contrôle fiscal");
+      this.drawHonoraireTableHeader();
+      this.drawHonoraireRow("Honoraires assistance contrôle fiscal", opts.honorairesControleFiscal, true);
+      this.drawHonoraireTotal("TOTAL CONTRÔLE FISCAL HT", opts.honorairesControleFiscal);
+    }
+
+    // Grand total
+    const grandTotal = totalCompta +
+      (opts.missionSociale ? opts.honorairesSocial : 0) +
+      (opts.missionJuridique ? (opts.honorairesJuridique > 0 ? opts.honorairesJuridique : cli.juridique) : 0) +
+      (opts.missionControleFiscal ? opts.honorairesControleFiscal : 0);
+
+    this.y += 4;
+    this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 10, "F");
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(11);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("TOTAL GÉNÉRAL HT", MARGIN_L + 3, this.y + 1);
+    this.doc.text(formatMontant(grandTotal), MARGIN_R - 3, this.y + 1, { align: "right" });
+    this.doc.setTextColor(30, 30, 30);
+    this.y += 12;
+
+    // TTC
+    this.setSmall();
+    this.doc.text(
+      `Total TTC (TVA 20%) : ${formatMontant(grandTotal * 1.2)}`,
+      MARGIN_R - 3,
+      this.y,
+      { align: "right" }
+    );
+    this.y += 8;
+
+    // Conditions de facturation
+    this.drawSubTitle("Conditions de facturation et de règlement");
+    this.writeText(
+      `Les honoraires sont payables ${cli.frequence.toLowerCase()}, par prélèvement SEPA ou virement bancaire, ` +
+      `à réception de la facture. En cas de retard de paiement, des pénalités seront appliquées conformément à ` +
+      `l'article L.441-10 du Code de commerce, au taux de la BCE majoré de 10 points, outre l'indemnité ` +
+      `forfaitaire de recouvrement de 40 €.`
+    );
+
+    // Formule de conclusion
+    this.y += 4;
+    this.writeText(
+      "En espérant que cette proposition retiendra votre attention, nous vous prions d'agréer, " +
+      `${opts.genre === "F" ? "Chère Madame" : "Cher Monsieur"} ${cli.dirigeant}, ` +
+      "l'expression de nos salutations distinguées."
+    );
+
+    // Signatures
+    this.drawSignatures();
+  }
+
+  private drawSignatures(): void {
+    const cli = this.client;
+    const cab = this.cabinet;
+
+    this.ensureSpace(55);
+    this.y += 6;
+
+    this.setBody();
+    this.doc.text("Fait en deux exemplaires originaux,", MARGIN_L, this.y);
+    this.y += 5;
+    this.doc.text(`À ${cab.ville}, le ____________________`, MARGIN_L, this.y);
+    this.y += 12;
+
+    const colL = MARGIN_L;
+    const colR = MARGIN_L + CONTENT_W / 2 + 5;
+
+    this.doc.setFont("helvetica", "bold");
+    this.doc.setFontSize(10);
+    this.doc.text("Pour le cabinet", colL, this.y);
+    this.doc.text("Pour le client", colR, this.y);
+    this.y += 6;
+    this.doc.setFont("helvetica", "normal");
+    this.doc.setFontSize(9);
+    this.doc.text(cab.nom, colL, this.y);
+    this.doc.text(cli.raisonSociale, colR, this.y);
+    this.y += 5;
+    this.doc.text(`${cli.associe}`, colL, this.y);
+    this.doc.text(`${cli.dirigeant}`, colR, this.y);
+    this.y += 4;
+    this.setSmall();
+    this.doc.text("Associé signataire", colL, this.y);
+    this.doc.text("Gérant / Président", colR, this.y);
+    this.y += 15;
+
+    // Signature lines
+    this.doc.setDrawColor(0, 0, 0);
+    this.doc.setLineWidth(0.3);
+    this.doc.line(colL, this.y, colL + 65, this.y);
+    this.doc.line(colR, this.y, colR + 65, this.y);
+    this.y += 4;
+    this.doc.setFontSize(7);
+    this.doc.text("Signature précédée de « Lu et approuvé »", colL, this.y);
+    this.doc.text("Signature précédée de « Lu et approuvé »", colR, this.y);
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGE 7 — Répartition des travaux
+  // ──────────────────────────────────────────────
+  private drawPage7(): void {
+    this.newPage();
+
+    this.drawSectionTitle("RÉPARTITION DES TRAVAUX");
+    this.y += 2;
+
+    this.setSmall();
+    this.doc.setFont("helvetica", "italic");
+    this.doc.text(
+      "Le tableau ci-dessous récapitule la répartition des responsabilités entre le cabinet et le client.",
+      MARGIN_L,
+      this.y
+    );
+    this.y += 8;
+
+    // Table header
+    const colW1 = CONTENT_W * 0.5;
+    const colW2 = CONTENT_W * 0.25;
+    const colW3 = CONTENT_W * 0.25;
+
+    this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 8, "F");
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(8);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("Tâche", MARGIN_L + 3, this.y);
+    this.doc.text("Cabinet", MARGIN_L + colW1 + colW2 / 2, this.y, { align: "center" });
+    this.doc.text("Client", MARGIN_L + colW1 + colW2 + colW3 / 2, this.y, { align: "center" });
+    this.doc.setTextColor(30, 30, 30);
+    this.y += 7;
+
+    const tasks: [string, boolean, boolean][] = [
+      ["Collecte et transmission des pièces comptables", false, true],
+      ["Classement et saisie des pièces comptables", true, false],
+      ["Rapprochement bancaire", true, false],
+      ["Lettrage des comptes tiers", true, false],
+      ["Déclarations fiscales (TVA, IS, CFE, CVAE)", true, false],
+      ["Établissement des comptes annuels", true, false],
+      ["Liasse fiscale", true, false],
+      ["Établissement des bulletins de paie", this.options.missionSociale, false],
+      ["Déclarations sociales (DSN)", this.options.missionSociale, false],
+      ["Gestion des entrées/sorties personnel", this.options.missionSociale, false],
+      ["PV d'assemblées générales", this.options.missionJuridique, false],
+      ["Formalités juridiques annuelles", this.options.missionJuridique, false],
+      ["Conservation des documents comptables", true, true],
+      ["Fourniture des relevés bancaires", false, true],
+      ["Communication des informations de gestion", false, true],
+      ["Information de tout changement de situation", false, true],
+    ];
+
+    for (let i = 0; i < tasks.length; i++) {
+      this.ensureSpace(7);
+      if (i % 2 === 0) {
+        this.doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+        this.doc.rect(MARGIN_L, this.y - 4, CONTENT_W, 7, "F");
+      }
+      this.doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
+      this.doc.line(MARGIN_L, this.y + 3, MARGIN_R, this.y + 3);
+
+      this.doc.setFontSize(8);
+      this.doc.setFont("helvetica", "normal");
+      this.doc.text(tasks[i][0], MARGIN_L + 3, this.y);
+      // Checkmarks
+      if (tasks[i][1]) {
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text("X", MARGIN_L + colW1 + colW2 / 2, this.y, { align: "center" });
+      }
+      if (tasks[i][2]) {
+        this.doc.setFont("helvetica", "bold");
+        this.doc.text("X", MARGIN_L + colW1 + colW2 + colW3 / 2, this.y, { align: "center" });
+      }
+      this.y += 7;
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGE 8 — Attestation travail dissimulé
+  // ──────────────────────────────────────────────
+  private drawPage8(): void {
+    this.newPage();
+    const cli = this.client;
+
+    this.drawSectionTitle("ATTESTATION DE VIGILANCE — TRAVAIL DISSIMULÉ");
+    this.y += 4;
+
+    this.writeText(
+      "Conformément aux articles L.8221-1 et suivants du Code du travail, le client atteste sur l'honneur :"
+    );
+    this.y += 2;
+
+    this.writeBullet(
+      "Que le travail est réalisé par des salariés employés régulièrement au regard des articles L.1221-10, " +
+      "L.3243-2 et R.3243-1 du Code du travail"
+    );
+    this.writeBullet(
+      "Que les déclarations sociales et le paiement des cotisations et contributions sociales sont effectués " +
+      "conformément aux dispositions légales en vigueur"
+    );
+    this.writeBullet(
+      "Que les salariés étrangers sont en possession d'un titre de travail en cours de validité"
+    );
+    this.writeBullet(
+      "Que la société n'a pas fait l'objet de condamnation pour travail dissimulé au sens des articles L.8224-1 " +
+      "à L.8224-6 du Code du travail"
+    );
+
+    this.y += 6;
+    this.writeText(
+      "En cas de sous-traitance, le client s'engage à vérifier que ses sous-traitants respectent les mêmes " +
+      "obligations, conformément à l'article L.8222-1 du Code du travail."
+    );
+
+    this.y += 10;
+
+    // Bloc signature attestation
+    this.doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+    this.doc.roundedRect(MARGIN_L, this.y, CONTENT_W, 45, 2, 2, "F");
+
+    this.y += 8;
+    this.setBody();
+    this.doc.text(`Société : ${cli.raisonSociale}`, MARGIN_L + 5, this.y);
+    this.y += 6;
+    this.doc.text(`SIREN : ${cli.siren}`, MARGIN_L + 5, this.y);
+    this.y += 6;
+    this.doc.text(`Représentée par : ${cli.dirigeant}`, MARGIN_L + 5, this.y);
+    this.y += 6;
+    this.doc.text(`Fait à : ____________________  Le : ____________________`, MARGIN_L + 5, this.y);
+    this.y += 10;
+    this.doc.text("Signature du représentant légal :", MARGIN_L + 5, this.y);
+    this.y += 15;
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGE 9 — Mandat SEPA
+  // ──────────────────────────────────────────────
+  private drawPage9(): void {
+    this.newPage();
+    const cli = this.client;
+    const cab = this.cabinet;
+
+    this.setTitle(14);
+    this.doc.text("MANDAT DE PRÉLÈVEMENT SEPA", PAGE_W / 2, this.y, { align: "center" });
+    this.y += 4;
+    this.setSmall();
+    this.doc.setFont("helvetica", "italic");
+    this.doc.text("Règlement UE n° 260/2012 — Schéma SEPA Direct Debit Core", PAGE_W / 2, this.y, { align: "center" });
+    this.y += 10;
+
+    // Créancier
+    this.doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+    this.doc.roundedRect(MARGIN_L, this.y, CONTENT_W, 30, 2, 2, "F");
+
+    this.y += 7;
+    this.drawSubTitle("Créancier");
+    this.drawTableRow("Nom", cab.nom);
+    this.drawTableRow("Adresse", `${cab.adresse}, ${cab.cp} ${cab.ville}`);
+    this.drawTableRow("SIRET", cab.siret);
+    this.y += 6;
+
+    // Débiteur
+    this.doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
+    this.doc.roundedRect(MARGIN_L, this.y, CONTENT_W, 48, 2, 2);
+
+    this.y += 7;
+    this.drawSubTitle("Débiteur");
+    this.drawTableRow("Nom / Raison sociale", cli.raisonSociale);
+    this.drawTableRow("Adresse", `${cli.adresse}, ${cli.cp} ${cli.ville}`);
+    this.drawTableRow("IBAN", formatIban(cli.iban));
+    this.drawTableRow("BIC", cli.bic || "________________________");
+    this.drawTableRow("Référence unique (RUM)", `SEPA-${cli.ref}`);
+    this.drawTableRow("Type de paiement", "Récurrent");
+    this.y += 6;
+
+    // Mention légale SEPA
+    this.setSmall();
+    const sepaText =
+      "En signant ce formulaire de mandat, vous autorisez le créancier à envoyer des instructions à votre banque " +
+      "pour débiter votre compte, et votre banque à débiter votre compte conformément aux instructions du créancier. " +
+      "Vous bénéficiez du droit d'être remboursé par votre banque selon les conditions décrites dans la convention " +
+      "que vous avez passée avec elle. Une demande de remboursement doit être présentée dans les 8 semaines suivant " +
+      "la date de débit de votre compte.";
+    const sepaLines = this.doc.splitTextToSize(sepaText, CONTENT_W - 10);
+    this.doc.text(sepaLines, MARGIN_L + 5, this.y);
+    this.y += sepaLines.length * 4 + 10;
+
+    // Signature
+    this.setBody();
+    this.doc.text("Date : ____________________", MARGIN_L, this.y);
+    this.doc.text("Lieu : ____________________", MARGIN_L + 80, this.y);
+    this.y += 12;
+    this.doc.text("Signature du débiteur :", MARGIN_L, this.y);
+    this.y += 15;
+    this.doc.setDrawColor(0, 0, 0);
+    this.doc.line(MARGIN_L, this.y, MARGIN_L + 70, this.y);
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGE 10 — Autorisation liasse fiscale
+  // ──────────────────────────────────────────────
+  private drawPage10(): void {
+    this.newPage();
+    const cli = this.client;
+    const cab = this.cabinet;
+
+    this.drawSectionTitle("AUTORISATION DE TRANSMISSION DE LA LIASSE FISCALE");
+    this.y += 4;
+
+    this.writeText(
+      `Je soussigné(e) ${cli.dirigeant}, agissant en qualité de représentant légal de la société ` +
+      `${cli.raisonSociale} (SIREN ${cli.siren}), autorise par la présente le cabinet ${cab.nom} ` +
+      `(SIRET ${cab.siret}), à :`
+    );
+
+    this.y += 4;
+    this.writeBullet(
+      "Transmettre par voie dématérialisée (procédure EDI-TDFC) la liasse fiscale et les déclarations " +
+      "de résultats aux services fiscaux compétents"
+    );
+    this.writeBullet(
+      "Transmettre par voie dématérialisée (procédure EDI-TVA) les déclarations de TVA aux services fiscaux"
+    );
+    this.writeBullet(
+      "Effectuer les télépaiements des impôts professionnels (IS, TVA, CFE, CVAE) dans la limite " +
+      "des montants préalablement validés par le client"
+    );
+
+    this.y += 6;
+    this.writeText(
+      "Cette autorisation est valable pour la durée de la mission telle que définie dans la lettre de mission. " +
+      "Elle peut être révoquée à tout moment par lettre recommandée avec accusé de réception."
+    );
+
+    this.y += 10;
+
+    // Cadre signature
+    this.doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+    this.doc.roundedRect(MARGIN_L, this.y, CONTENT_W, 40, 2, 2, "F");
+
+    this.y += 8;
+    this.setBody();
+    this.doc.text(`Fait à : ____________________  Le : ____________________`, MARGIN_L + 5, this.y);
+    this.y += 8;
+    this.doc.text(`Nom : ${cli.dirigeant}`, MARGIN_L + 5, this.y);
+    this.y += 8;
+    this.doc.text("Signature précédée de la mention « Bon pour autorisation » :", MARGIN_L + 5, this.y);
+    this.y += 15;
+  }
+
+  // ──────────────────────────────────────────────
+  // PAGES 11+ — Conditions générales
+  // ──────────────────────────────────────────────
+  private drawConditionsGenerales(): void {
+    this.newPage();
+
+    this.drawSectionTitle("CONDITIONS GÉNÉRALES");
+    this.y += 2;
+
+    const sections: [string, string][] = [
+      [
+        "Article 1 — Objet",
+        "Les présentes conditions générales ont pour objet de définir les modalités d'exécution de la mission " +
+        "d'expertise comptable confiée au cabinet par le client, conformément aux normes professionnelles et " +
+        "au Code de déontologie de la profession."
+      ],
+      [
+        "Article 2 — Obligations du cabinet",
+        "Le cabinet s'engage à exécuter sa mission avec diligence et compétence, conformément aux normes " +
+        "professionnelles applicables. Il est tenu à une obligation de moyens. Le cabinet est soumis au secret " +
+        "professionnel conformément à l'article 21 de l'ordonnance du 19 septembre 1945."
+      ],
+      [
+        "Article 3 — Obligations du client",
+        "Le client s'engage à mettre à la disposition du cabinet, en temps utile, l'ensemble des documents et " +
+        "informations nécessaires à l'exécution de la mission. Le client est responsable de l'exhaustivité et de " +
+        "l'exactitude des informations communiquées. Tout retard dans la transmission des pièces pourra entraîner " +
+        "un report des échéances et, le cas échéant, des pénalités de retard auprès de l'administration."
+      ],
+      [
+        "Article 4 — Honoraires",
+        "Les honoraires sont fixés d'un commun accord entre les parties et figurent dans le corps de la lettre de " +
+        "mission. Ils peuvent être révisés annuellement en fonction de l'évolution des indices et de la charge de " +
+        "travail. Toute prestation supplémentaire non prévue dans la lettre de mission fera l'objet d'un devis " +
+        "préalable ou d'un avenant."
+      ],
+      [
+        "Article 5 — Responsabilité",
+        "La responsabilité civile professionnelle du cabinet est couverte par une assurance conforme aux " +
+        "dispositions de l'article 17 de l'ordonnance du 19 septembre 1945. La responsabilité du cabinet ne " +
+        "saurait être engagée en cas de manquement du client à ses obligations, notamment en cas de rétention " +
+        "d'information, de transmission tardive des documents ou de fourniture d'informations erronées."
+      ],
+      [
+        "Article 6 — Résiliation",
+        "Chacune des parties peut mettre fin à la mission par lettre recommandée avec accusé de réception, " +
+        "moyennant un préavis de trois mois avant la date anniversaire. En cas de manquement grave de l'une " +
+        "des parties à ses obligations, l'autre partie pourra résilier la mission sans préavis, par lettre " +
+        "recommandée motivée. Les travaux réalisés jusqu'à la date de résiliation seront facturés au prorata."
+      ],
+      [
+        "Article 7 — Protection des données (RGPD)",
+        "Conformément au Règlement (UE) 2016/679 et à la loi Informatique et Libertés, le cabinet traite les " +
+        "données personnelles du client aux seules fins de l'exécution de la mission et du respect de ses " +
+        "obligations légales. Le client dispose des droits d'accès, de rectification, d'effacement, de limitation " +
+        "et de portabilité de ses données. Le cabinet met en œuvre les mesures techniques et organisationnelles " +
+        "appropriées pour garantir la sécurité des données."
+      ],
+      [
+        "Article 8 — Propriété intellectuelle",
+        "Les travaux réalisés par le cabinet restent sa propriété intellectuelle jusqu'au règlement intégral des " +
+        "honoraires. Le client dispose d'un droit d'utilisation non exclusif des livrables pour ses besoins propres."
+      ],
+      [
+        "Article 9 — Lutte contre le blanchiment",
+        "Conformément aux articles L.561-1 et suivants du Code monétaire et financier, le cabinet est soumis " +
+        "aux obligations de vigilance en matière de lutte contre le blanchiment de capitaux et le financement " +
+        "du terrorisme. Le client s'engage à coopérer pleinement à l'exécution de ces obligations."
+      ],
+      [
+        "Article 10 — Droit applicable et juridiction",
+        "La présente lettre de mission est régie par le droit français. Tout différend sera soumis à la " +
+        "commission de conciliation de l'Ordre des Experts-Comptables de la région compétente. À défaut de " +
+        "règlement amiable, le litige sera porté devant les tribunaux compétents du ressort du siège du cabinet."
+      ],
+    ];
+
+    for (const [titre, texte] of sections) {
+      this.ensureSpace(20);
+      this.drawSubTitle(titre);
+      this.writeText(texte);
+      this.y += 3;
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Footer on every page
+  // ──────────────────────────────────────────────
+  private addFooters(): void {
+    const totalPages = this.doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      this.doc.setPage(i);
+      this.doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
+      this.doc.setLineWidth(0.3);
+      this.doc.line(MARGIN_L, FOOTER_Y, MARGIN_R, FOOTER_Y);
+      this.doc.setFontSize(7);
+      this.doc.setTextColor(130, 130, 130);
+      this.doc.text(
+        `Page ${i}/${totalPages} — ${this.cabinet.nom} — SIRET ${this.cabinet.siret} — Membre de l'Ordre des Experts-Comptables`,
+        PAGE_W / 2,
+        FOOTER_Y + 4,
+        { align: "center" }
+      );
+    }
+  }
+
+  // ──────────────────────────────────────────────
+  // Build
+  // ──────────────────────────────────────────────
+  build(): jsPDF {
+    this.drawPage1();
+    this.drawPage2();
+    this.drawPage3();
+    this.drawPages4_5();
+    this.drawPage6();
+    this.drawPage7();
+    this.drawPage8();
+    this.drawPage9();
+    this.drawPage10();
+    this.drawConditionsGenerales();
+    this.addFooters();
+    return this.doc;
+  }
+}
+
+/**
+ * Génère un PDF professionnel complet pour une Lettre de Mission.
+ */
+export function renderLettreMissionPdf(lm: LettreMission): jsPDF {
+  const builder = new LMPdfBuilder(lm);
+  return builder.build();
 }
