@@ -1,5 +1,4 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import {
   Upload, FileText, Trash2, Download, Clock, AlertTriangle,
   Search, FolderOpen, History, Eye, Plus, X, File,
+  ChevronRight, ChevronDown, Building2, FileImage, FileCode,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -39,6 +39,24 @@ interface DocumentVersion {
   created_at: string;
 }
 
+interface StorageFile {
+  name: string;
+  id: string | null;
+  created_at: string;
+  updated_at: string;
+  metadata: {
+    size?: number;
+    mimetype?: string;
+    [key: string]: unknown;
+  } | null;
+}
+
+interface SirenFolder {
+  siren: string;
+  files: StorageFile[];
+  expanded: boolean;
+}
+
 const CATEGORIES = [
   { value: "cni", label: "CNI / Passeport" },
   { value: "kbis", label: "Kbis" },
@@ -66,6 +84,14 @@ function formatFileSize(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
 }
 
+function getFileIcon(fileName: string) {
+  const ext = fileName.split(".").pop()?.toLowerCase() || "";
+  if (ext === "pdf") return <FileText className="w-4 h-4 text-red-400 shrink-0" />;
+  if (ext === "html" || ext === "htm") return <FileCode className="w-4 h-4 text-blue-400 shrink-0" />;
+  if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return <FileImage className="w-4 h-4 text-emerald-400 shrink-0" />;
+  if (ext === "txt") return <File className="w-4 h-4 text-slate-400 shrink-0" />;
+  return <File className="w-4 h-4 text-slate-500 shrink-0" />;
+}
 
 const getErrorMessage = (err: unknown, fallback: string) => {
   if (err instanceof Error && err.message) return err.message;
@@ -96,6 +122,11 @@ export default function GedPage() {
   const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
   const [versionComment, setVersionComment] = useState("");
 
+  // Storage browser state
+  const [storageFolders, setStorageFolders] = useState<SirenFolder[]>([]);
+  const [storageLoading, setStorageLoading] = useState(true);
+  const [storageSearch, setStorageSearch] = useState("");
+
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -119,9 +150,101 @@ export default function GedPage() {
     setLoading(false);
   }, []);
 
+  const fetchStorageFiles = useCallback(async () => {
+    setStorageLoading(true);
+    try {
+      // List top-level folders (SIRENs)
+      const { data: folders, error: folderError } = await supabase.storage
+        .from("kyc-documents")
+        .list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+
+      if (folderError) {
+        console.error("Storage list error:", folderError);
+        setStorageLoading(false);
+        return;
+      }
+
+      if (!folders || folders.length === 0) {
+        setStorageFolders([]);
+        setStorageLoading(false);
+        return;
+      }
+
+      // For each folder (SIREN), list its files
+      const sirenFolders: SirenFolder[] = [];
+      for (const folder of folders) {
+        // Skip non-folder entries (files at root level)
+        if (folder.id) {
+          // This is a file, not a folder — treat root files separately
+          continue;
+        }
+
+        const { data: files } = await supabase.storage
+          .from("kyc-documents")
+          .list(folder.name, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+
+        if (files && files.length > 0) {
+          sirenFolders.push({
+            siren: folder.name,
+            files: files as StorageFile[],
+            expanded: false,
+          });
+        }
+      }
+
+      setStorageFolders(sirenFolders);
+    } catch (err) {
+      console.error("Error fetching storage:", err);
+    }
+    setStorageLoading(false);
+  }, []);
+
   useEffect(() => {
     fetchDocuments();
-  }, [fetchDocuments]);
+    fetchStorageFiles();
+  }, [fetchDocuments, fetchStorageFiles]);
+
+  const toggleFolder = (siren: string) => {
+    setStorageFolders((prev) =>
+      prev.map((f) =>
+        f.siren === siren ? { ...f, expanded: !f.expanded } : f
+      )
+    );
+  };
+
+  const downloadStorageFile = async (siren: string, fileName: string) => {
+    const filePath = `${siren}/${fileName}`;
+    const { data, error } = await supabase.storage
+      .from("kyc-documents")
+      .download(filePath);
+
+    if (error) {
+      toast.error("Erreur telechargement");
+      return;
+    }
+
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const filteredStorageFolders = storageFolders
+    .map((folder) => {
+      if (!storageSearch) return folder;
+      const searchLower = storageSearch.toLowerCase();
+      const sirenMatch = folder.siren.toLowerCase().includes(searchLower);
+      const matchingFiles = folder.files.filter((f) =>
+        f.name.toLowerCase().includes(searchLower)
+      );
+      if (sirenMatch) return { ...folder, expanded: true };
+      if (matchingFiles.length > 0)
+        return { ...folder, files: matchingFiles, expanded: true };
+      return null;
+    })
+    .filter(Boolean) as SirenFolder[];
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -139,7 +262,6 @@ export default function GedPage() {
     const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
       setPendingFiles(files);
-      // Auto-detect category from filename
       const name = files[0].name.toLowerCase();
       if (name.includes("cni") || name.includes("passeport") || name.includes("identite")) {
         setUploadCategory("cni");
@@ -202,7 +324,6 @@ export default function GedPage() {
 
         if (docError) throw docError;
 
-        // Create version 1
         await supabase.from("document_versions").insert({
           document_id: docData.id,
           version_number: 1,
@@ -232,7 +353,6 @@ export default function GedPage() {
     if (!user) return;
 
     await supabase.storage.from("documents").remove([doc.file_path]);
-    // Remove all version files
     const { data: versionData } = await supabase
       .from("document_versions")
       .select("file_path")
@@ -351,62 +471,152 @@ export default function GedPage() {
   });
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
+      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold">GED Intelligente</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Gestion electronique des documents - Upload, versionning et alertes d'expiration
+        <h1 className="text-2xl font-bold text-white">GED Intelligente</h1>
+        <p className="text-sm text-slate-400 mt-1">
+          Gestion electronique des documents — Upload, versionning et alertes d'expiration
         </p>
       </div>
 
       {/* Expiration Alerts */}
       {expiringDocs.length > 0 && (
-        <Card className="border-destructive/50 bg-destructive/5">
-          <CardContent className="pt-4 pb-4">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-destructive mt-0.5 shrink-0" />
-              <div>
-                <p className="font-medium text-sm">Alertes expiration documents</p>
-                <div className="mt-2 space-y-1">
-                  {expiringDocs.map((doc) => {
-                    const status = getExpirationStatus(doc.expiration_date);
-                    return (
-                      <div key={doc.id} className="flex items-center gap-2 text-sm">
-                        <Badge variant={status?.variant}>{status?.label}</Badge>
-                        <span className="font-medium">{doc.name}</span>
-                        {doc.client_ref && (
-                          <span className="text-muted-foreground">({doc.client_ref})</span>
-                        )}
-                        <span className="text-muted-foreground">
-                          - {CATEGORIES.find((c) => c.value === doc.category)?.label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
+        <div className="glass-card p-4 border-red-500/30 bg-red-500/10">
+          <div className="flex items-start gap-3">
+            <AlertTriangle className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
+            <div>
+              <p className="font-medium text-sm text-red-300">Alertes expiration documents</p>
+              <div className="mt-2 space-y-1">
+                {expiringDocs.map((doc) => {
+                  const status = getExpirationStatus(doc.expiration_date);
+                  return (
+                    <div key={doc.id} className="flex items-center gap-2 text-sm">
+                      <Badge variant={status?.variant}>{status?.label}</Badge>
+                      <span className="font-medium text-slate-200">{doc.name}</span>
+                      {doc.client_ref && (
+                        <span className="text-slate-400">({doc.client_ref})</span>
+                      )}
+                      <span className="text-slate-500">
+                        - {CATEGORIES.find((c) => c.value === doc.category)?.label}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      {/* Drop zone */}
+      {/* ============================================================ */}
+      {/* Supabase Storage Browser — kyc-documents bucket              */}
+      {/* ============================================================ */}
+      <div className="glass-card p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <FolderOpen className="w-5 h-5 text-blue-400" />
+            <h2 className="text-lg font-semibold text-white">Documents KYC par SIREN</h2>
+          </div>
+          <div className="relative w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Input
+              placeholder="Rechercher SIREN ou fichier..."
+              value={storageSearch}
+              onChange={(e) => setStorageSearch(e.target.value)}
+              className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
+            />
+          </div>
+        </div>
+
+        {storageLoading ? (
+          <div className="flex items-center justify-center py-10">
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-400 border-t-transparent" />
+            <span className="ml-3 text-sm text-slate-400">Chargement du stockage...</span>
+          </div>
+        ) : filteredStorageFolders.length === 0 ? (
+          <div className="text-center py-10 text-slate-500">
+            <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Aucun dossier SIREN trouve dans le bucket kyc-documents.</p>
+          </div>
+        ) : (
+          <div className="space-y-1">
+            {filteredStorageFolders.map((folder) => (
+              <div key={folder.siren}>
+                {/* Folder row */}
+                <button
+                  onClick={() => toggleFolder(folder.siren)}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-left group"
+                >
+                  {folder.expanded ? (
+                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                  ) : (
+                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                  )}
+                  <Building2 className="w-4 h-4 text-amber-400" />
+                  <span className="font-mono text-sm font-medium text-slate-200">
+                    {folder.siren}
+                  </span>
+                  <span className="text-xs text-slate-500 ml-auto">
+                    {folder.files.length} fichier{folder.files.length > 1 ? "s" : ""}
+                  </span>
+                </button>
+
+                {/* Expanded file list */}
+                {folder.expanded && (
+                  <div className="ml-6 pl-4 border-l border-white/5 space-y-0.5 mb-2">
+                    {folder.files.map((file) => (
+                      <div
+                        key={file.name}
+                        className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors group"
+                      >
+                        {getFileIcon(file.name)}
+                        <span className="text-sm text-slate-300 truncate flex-1">
+                          {file.name}
+                        </span>
+                        <span className="text-xs text-slate-500 shrink-0">
+                          {file.metadata?.size
+                            ? formatFileSize(file.metadata.size)
+                            : "—"}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => downloadStorageFile(folder.siren, file.name)}
+                        >
+                          <Download className="w-3.5 h-3.5 mr-1" />
+                          Telecharger
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ============================================================ */}
+      {/* Drop zone                                                    */}
+      {/* ============================================================ */}
       <div
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
           dragOver
-            ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50"
+            ? "border-blue-500 bg-blue-500/10"
+            : "border-white/10 hover:border-blue-500/40 hover:bg-white/[0.02]"
         }`}
       >
-        <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
-        <p className="font-medium">
+        <Upload className="w-10 h-10 mx-auto text-slate-500 mb-3" />
+        <p className="font-medium text-slate-300">
           Glissez-deposez vos documents ici
         </p>
-        <p className="text-sm text-muted-foreground mt-1">
+        <p className="text-sm text-slate-500 mt-1">
           ou cliquez pour selectionner des fichiers (PDF, images, documents)
         </p>
         <input
@@ -419,19 +629,21 @@ export default function GedPage() {
         />
       </div>
 
-      {/* Filters */}
+      {/* ============================================================ */}
+      {/* Filters                                                      */}
+      {/* ============================================================ */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <Input
             placeholder="Rechercher par nom ou ref client..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
+            className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
           />
         </div>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200">
             <SelectValue placeholder="Categorie" />
           </SelectTrigger>
           <SelectContent>
@@ -442,7 +654,7 @@ export default function GedPage() {
           </SelectContent>
         </Select>
         <Select value={filterExpiration} onValueChange={setFilterExpiration}>
-          <SelectTrigger className="w-[180px]">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200">
             <SelectValue placeholder="Expiration" />
           </SelectTrigger>
           <SelectContent>
@@ -451,132 +663,131 @@ export default function GedPage() {
             <SelectItem value="soon">Expire bientot (&lt;90j)</SelectItem>
           </SelectContent>
         </Select>
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-slate-400">
           {filtered.length} document(s)
         </div>
       </div>
 
-      {/* Documents table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Document</TableHead>
-                <TableHead>Categorie</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Taille</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Expiration</TableHead>
-                <TableHead>Modifie le</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+      {/* ============================================================ */}
+      {/* Documents table                                              */}
+      {/* ============================================================ */}
+      <div className="glass-card overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/5 hover:bg-transparent">
+              <TableHead className="text-slate-400">Document</TableHead>
+              <TableHead className="text-slate-400">Categorie</TableHead>
+              <TableHead className="text-slate-400">Client</TableHead>
+              <TableHead className="text-slate-400">Taille</TableHead>
+              <TableHead className="text-slate-400">Version</TableHead>
+              <TableHead className="text-slate-400">Expiration</TableHead>
+              <TableHead className="text-slate-400">Modifie le</TableHead>
+              <TableHead className="text-right text-slate-400">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.length === 0 ? (
+              <TableRow className="border-white/5 hover:bg-white/[0.02]">
+                <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                  <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  {documents.length === 0
+                    ? "Aucun document. Importez vos premiers fichiers ci-dessus."
+                    : "Aucun document ne correspond aux filtres."}
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                    <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    {documents.length === 0
-                      ? "Aucun document. Importez vos premiers fichiers ci-dessus."
-                      : "Aucun document ne correspond aux filtres."}
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((doc) => {
-                  const expStatus = getExpirationStatus(doc.expiration_date);
-                  return (
-                    <TableRow key={doc.id}>
-                      <TableCell>
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-                          <span className="font-medium text-sm truncate max-w-[200px]">{doc.name}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-xs">
-                          {CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}
+            ) : (
+              filtered.map((doc) => {
+                const expStatus = getExpirationStatus(doc.expiration_date);
+                return (
+                  <TableRow key={doc.id} className="border-white/5 hover:bg-white/[0.02]">
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getFileIcon(doc.name)}
+                        <span className="font-medium text-sm text-slate-200 truncate max-w-[200px]">{doc.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="text-xs border-white/10 text-slate-300">
+                        {CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-400">{doc.client_ref || "-"}</TableCell>
+                    <TableCell className="text-sm text-slate-500">
+                      {formatFileSize(doc.file_size || 0)}
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        onClick={() => openVersionDialog(doc)}
+                        className="flex items-center gap-1 text-sm text-slate-400 hover:text-blue-400 transition-colors"
+                      >
+                        <History className="w-3.5 h-3.5" />
+                        v{doc.current_version}
+                      </button>
+                    </TableCell>
+                    <TableCell>
+                      {expStatus ? (
+                        <Badge variant={expStatus.variant} className="text-xs">
+                          {expStatus.label}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-sm">{doc.client_ref || "-"}</TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {formatFileSize(doc.file_size || 0)}
-                      </TableCell>
-                      <TableCell>
-                        <button
-                          onClick={() => openVersionDialog(doc)}
-                          className="flex items-center gap-1 text-sm hover:text-primary transition-colors"
+                      ) : (
+                        <span className="text-sm text-slate-600">-</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-sm text-slate-500">
+                      {format(parseISO(doc.updated_at), "dd/MM/yyyy", { locale: fr })}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
+                          onClick={() => downloadDocument(doc.file_path, doc.name)}
+                          title="Telecharger"
                         >
-                          <History className="w-3.5 h-3.5" />
-                          v{doc.current_version}
-                        </button>
-                      </TableCell>
-                      <TableCell>
-                        {expStatus ? (
-                          <Badge variant={expStatus.variant} className="text-xs">
-                            {expStatus.label}
-                          </Badge>
-                        ) : (
-                          <span className="text-sm text-muted-foreground">-</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-sm text-muted-foreground">
-                        {format(parseISO(doc.updated_at), "dd/MM/yyyy", { locale: fr })}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => downloadDocument(doc.file_path, doc.name)}
-                            title="Telecharger"
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => openVersionDialog(doc)}
-                            title="Versions"
-                          >
-                            <History className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-destructive hover:text-destructive"
-                            onClick={() => deleteDocument(doc)}
-                            title="Supprimer"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+                          <Download className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                          onClick={() => openVersionDialog(doc)}
+                          title="Versions"
+                        >
+                          <History className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
+                          onClick={() => deleteDocument(doc)}
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent>
+        <DialogContent className="bg-slate-900 border-white/10">
           <DialogHeader>
-            <DialogTitle>Importer {pendingFiles.length} document(s)</DialogTitle>
+            <DialogTitle className="text-white">Importer {pendingFiles.length} document(s)</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* File list */}
             <div className="space-y-2">
               {pendingFiles.map((file, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm bg-muted rounded p-2">
-                  <File className="w-4 h-4 shrink-0" />
-                  <span className="truncate">{file.name}</span>
-                  <span className="text-muted-foreground ml-auto shrink-0">
+                <div key={i} className="flex items-center gap-2 text-sm bg-white/5 rounded-lg p-2.5 border border-white/5">
+                  {getFileIcon(file.name)}
+                  <span className="truncate text-slate-200">{file.name}</span>
+                  <span className="text-slate-500 ml-auto shrink-0">
                     {formatFileSize(file.size)}
                   </span>
                 </div>
@@ -584,9 +795,9 @@ export default function GedPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Categorie</Label>
+              <Label className="text-slate-300">Categorie</Label>
               <Select value={uploadCategory} onValueChange={setUploadCategory}>
-                <SelectTrigger>
+                <SelectTrigger className="bg-white/5 border-white/10 text-slate-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -598,30 +809,32 @@ export default function GedPage() {
             </div>
 
             <div className="space-y-2">
-              <Label>Reference client (optionnel)</Label>
+              <Label className="text-slate-300">Reference client (optionnel)</Label>
               <Input
                 placeholder="ex: CLI-001"
                 value={uploadClientRef}
                 onChange={(e) => setUploadClientRef(e.target.value)}
+                className="bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
               />
             </div>
 
             {EXPIRABLE_CATEGORIES.includes(uploadCategory) && (
               <div className="space-y-2">
-                <Label>Date d'expiration</Label>
+                <Label className="text-slate-300">Date d'expiration</Label>
                 <Input
                   type="date"
                   value={uploadExpiration}
                   onChange={(e) => setUploadExpiration(e.target.value)}
+                  className="bg-white/5 border-white/10 text-slate-200"
                 />
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-slate-500">
                   Vous recevrez des alertes avant l'expiration du document
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)}>
+            <Button variant="outline" onClick={() => setUploadDialogOpen(false)} className="border-white/10 text-slate-300 hover:bg-white/5">
               Annuler
             </Button>
             <Button onClick={uploadFiles} disabled={uploading}>
@@ -633,34 +846,33 @@ export default function GedPage() {
 
       {/* Version Dialog */}
       <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg bg-slate-900 border-white/10">
           <DialogHeader>
-            <DialogTitle>
-              Historique des versions - {selectedDoc?.name}
+            <DialogTitle className="text-white">
+              Historique des versions — {selectedDoc?.name}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            {/* Version list */}
             <div className="space-y-2 max-h-[250px] overflow-y-auto">
               {versions.map((v) => (
                 <div
                   key={v.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border text-sm"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-white/5 bg-white/[0.02] text-sm"
                 >
-                  <Badge variant="outline">v{v.version_number}</Badge>
+                  <Badge variant="outline" className="border-white/10 text-slate-300">v{v.version_number}</Badge>
                   <div className="flex-1 min-w-0">
-                    <p className="text-muted-foreground">
+                    <p className="text-slate-400">
                       {format(parseISO(v.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
                     </p>
-                    {v.comment && <p className="text-xs mt-0.5">{v.comment}</p>}
+                    {v.comment && <p className="text-xs text-slate-500 mt-0.5">{v.comment}</p>}
                   </div>
-                  <span className="text-muted-foreground text-xs shrink-0">
+                  <span className="text-slate-500 text-xs shrink-0">
                     {formatFileSize(v.file_size || 0)}
                   </span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7"
+                    className="h-7 w-7 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                     onClick={() => downloadDocument(v.file_path, `v${v.version_number}_${selectedDoc?.name}`)}
                   >
                     <Download className="w-3.5 h-3.5" />
@@ -669,18 +881,19 @@ export default function GedPage() {
               ))}
             </div>
 
-            {/* Upload new version */}
-            <div className="border-t pt-4 space-y-3">
-              <p className="text-sm font-medium">Ajouter une nouvelle version</p>
+            <div className="border-t border-white/5 pt-4 space-y-3">
+              <p className="text-sm font-medium text-slate-300">Ajouter une nouvelle version</p>
               <Input
                 type="file"
                 onChange={(e) => setNewVersionFile(e.target.files?.[0] || null)}
                 accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
+                className="bg-white/5 border-white/10 text-slate-200 file:text-slate-400"
               />
               <Input
                 placeholder="Commentaire (optionnel)"
                 value={versionComment}
                 onChange={(e) => setVersionComment(e.target.value)}
+                className="bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
               />
               <Button
                 onClick={uploadNewVersion}

@@ -116,6 +116,7 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
 
 export function mapDbCollaborateur(row: Record<string, unknown>): Collaborateur {
   return {
+    id: (row.id as string) || undefined,
     nom: (row.nom as string) || "",
     fonction: (row.fonction as string) || "",
     referentLcb: !!(row.referent_lcb as boolean),

@@ -94,6 +94,7 @@ export interface Client {
 }
 
 export interface Collaborateur {
+  id?: string;
   nom: string;
   fonction: string;
   referentLcb: boolean;
