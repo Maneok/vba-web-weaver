@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { LETTRE_MISSION_TEMPLATE } from "../../lib/lettreMissionContent";
+import { REPARTITION_TRAVAUX } from "../../lib/lettreMissionAnnexes";
 
 type Periodicite = "Mensuel" | "Trimestriel" | "Annuel" | "Semestriel" | "NA";
 
@@ -26,7 +26,7 @@ const PERIODICITES: Periodicite[] = [
 ];
 
 function getDefaultLignes(): LigneRepartition[] {
-  return LETTRE_MISSION_TEMPLATE.repartitionTravaux.lignes.map((l) => ({
+  return REPARTITION_TRAVAUX.lignes.map((l) => ({
     id: l.id,
     label: l.label,
     cabinet: l.defautCabinet,
@@ -53,7 +53,7 @@ export default function RepartitionTravaux({
   return (
     <div className="overflow-x-auto">
       <h4 className="text-sm font-semibold text-gray-700 mb-3">
-        {LETTRE_MISSION_TEMPLATE.repartitionTravaux.titre}
+        {REPARTITION_TRAVAUX.titre}
       </h4>
       <table className="w-full text-sm border-collapse">
         <thead>
