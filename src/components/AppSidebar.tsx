@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, Settings, UserPlus, FolderOpen, Activity } from "lucide-react";
+import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, Settings, UserPlus, FolderOpen, Activity, FileText } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 
 interface AppSidebarProps {
@@ -14,6 +14,7 @@ const MENU_ITEMS = [
   { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck },
   { to: "/registre", label: "Registre LCB", icon: AlertTriangle },
   { to: "/ged", label: "Documents / GED", icon: FolderOpen },
+  { to: "/lettre-mission", label: "Lettre de Mission", icon: FileText },
   { to: "/diagnostic", label: "Diagnostic 360", icon: Activity },
   { to: "/logs", label: "Journal d'audit", icon: ScrollText },
   { to: "/parametres", label: "Parametres", icon: Settings },

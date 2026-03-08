@@ -17,6 +17,7 @@ import ClientDetailPage from "@/pages/ClientDetailPage";
 import DiagnosticPage from "@/pages/DiagnosticPage";
 import SettingsPage from "@/pages/SettingsPage";
 import GedPage from "@/pages/GedPage";
+import LettreMissionPage from "@/pages/LettreMissionPage";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="registre" element={<RegistrePage />} />
               <Route path="logs" element={<LogsPage />} />
               <Route path="ged" element={<GedPage />} />
+              <Route path="lettre-mission" element={<LettreMissionPage />} />
               <Route path="diagnostic" element={<DiagnosticPage />} />
               <Route path="parametres" element={<SettingsPage />} />
               <Route path="settings" element={<Navigate to="/parametres" replace />} />
