@@ -508,6 +508,24 @@ Deno.serve(async (req) => {
         }));
       }
 
+      // Dédupliquer BE par nom de famille
+      const seenBE = new Set<string>();
+      beneficiaires = beneficiaires.filter((b: any) => {
+        const key = (b.nom || "").toUpperCase().trim();
+        if (!key) return true;
+        if (seenBE.has(key)) return false;
+        seenBE.add(key);
+        return true;
+      });
+
+      // Si un BE n'a pas de prénom mais qu'un dirigeant avec le même nom en a un, le compléter
+      for (const be of beneficiaires) {
+        if (!be.prenom) {
+          const dir = dirigeants.find((d: any) => (d.nom || "").toUpperCase() === (be.nom || "").toUpperCase());
+          if (dir?.prenom) be.prenom = dir.prenom;
+        }
+      }
+
       // Finances from Pappers
       const finances: any[] = [];
       if (pappersData?.finances && Object.keys(pappersData.finances).length > 0) {
