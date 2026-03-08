@@ -24,15 +24,19 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Slider } from "@/components/ui/slider";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ScoreGauge, VigilanceBadge } from "@/components/RiskBadges";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
+  PieChart, Pie, Cell,
   ResponsiveContainer, Tooltip,
 } from "recharts";
 import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
-  Map, ExternalLink, Eye,
+  Map, ExternalLink, Eye, ChevronDown,
 } from "lucide-react";
 
 const FORMES = ["ENTREPRISE INDIVIDUELLE", "SARL", "EURL", "SAS", "SCI", "SCP", "SELAS", "SELARL", "EARL", "SA", "ASSOCIATION", "SNC", "TRUST", "FIDUCIE", "FONDATION"];
@@ -139,6 +143,10 @@ export default function NouveauClientPage() {
   // Step 6 - Documents
   const [documents, setDocuments] = useState<UploadedDoc[]>([]);
   const [dragOver, setDragOver] = useState(false);
+
+  // Idee 28: Success modal state
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [createdClientRef, setCreatedClientRef] = useState("");
 
   const set = useCallback((key: string, val: unknown) => setForm(prev => ({ ...prev, [key]: val })), []);
 
@@ -280,6 +288,29 @@ export default function NouveauClientPage() {
     );
     return Math.round((found.length / required.length) * 100);
   }, [documents, screening.documents.data, screening.inpi.data]);
+
+  // Idee 18: SPEC_O90 KYC completeness — required fields
+  const specO90Kyc = useMemo(() => {
+    const requiredFields: Array<{ label: string; filled: boolean }> = [
+      { label: "Raison sociale", filled: !!form.raisonSociale },
+      { label: "Forme juridique", filled: !!form.forme },
+      { label: "SIREN", filled: !!form.siren && form.siren.replace(/\s/g, "").length === 9 },
+      { label: "Code APE", filled: !!form.ape },
+      { label: "Dirigeant", filled: !!form.dirigeant },
+      { label: "Adresse", filled: !!form.adresse },
+      { label: "Code postal", filled: !!form.cp },
+      { label: "Ville", filled: !!form.ville },
+      { label: "Capital social", filled: form.capital > 0 },
+      { label: "Date de creation", filled: !!form.dateCreation },
+      { label: "Type de mission", filled: !!form.mission },
+      { label: "Associe signataire", filled: !!form.associe },
+      { label: "Beneficiaires effectifs", filled: beneficiaires.length > 0 },
+      { label: "Decision d'acceptation", filled: decision !== "" },
+    ];
+    const filled = requiredFields.filter(f => f.filled).length;
+    const missing = requiredFields.filter(f => !f.filled).map(f => f.label);
+    return { percent: Math.round((filled / requiredFields.length) * 100), missing, total: requiredFields.length, filled };
+  }, [form, beneficiaires, decision]);
 
   // Questions validation - all OUI need comments
   const questionsValid = useMemo(() => {
@@ -876,8 +907,18 @@ export default function NouveauClientPage() {
     }
 
     addClient(newClient);
-    toast.success(`Client ${form.raisonSociale} cree avec succes (${ref})`);
-    navigate("/bdd");
+
+    // Idee 27: Auto-generate fiche PDF in background
+    try {
+      generateFicheAcceptation(newClient);
+      toast.success("Fiche LCB-FT generee automatiquement");
+    } catch {
+      toast.warning("Erreur lors de la generation automatique de la fiche PDF");
+    }
+
+    // Idee 28: Show success modal instead of navigating directly
+    setCreatedClientRef(ref);
+    setShowSuccessModal(true);
   };
 
   const canGoNext = useMemo(() => {
@@ -913,6 +954,59 @@ export default function NouveauClientPage() {
   // CORRECTION 1: Detect if EI/personne physique for adapted form labels
   const isPersonnePhysique = screening.inpi.data?.companyData?.typePersonne === "physique";
 
+  // Idee 30: Dynamic doc checklist per vigilance level
+  const vigilanceDocChecklist = useMemo(() => {
+    const base = [
+      { key: "KBIS", label: "Extrait / Kbis", types: ["KBIS", "ACTE", "ACTES", "EXTRAIT"] },
+      { key: "CNI", label: "CNI dirigeant", types: ["CNI"] },
+    ];
+    if (risk.nivVigilance === "STANDARD" || risk.nivVigilance === "RENFORCEE") {
+      base.splice(1, 0, { key: "Statuts", label: "Statuts a jour", types: ["STATUTS"] });
+      base.push({ key: "RIB", label: "RIB / IBAN", types: ["RIB"] });
+    }
+    if (risk.nivVigilance === "RENFORCEE") {
+      base.push({ key: "Justificatif", label: "Justificatif domicile", types: ["JUSTIFICATIF"] });
+      base.push({ key: "Organigramme", label: "Organigramme", types: ["ORGANIGRAMME"] });
+    }
+    return base;
+  }, [risk.nivVigilance]);
+
+  // Idee 24: Keyboard navigation
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (step > 0) setStep(s => s - 1);
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        const active = document.activeElement;
+        if (active && (active.tagName === "TEXTAREA")) return;
+        if (active && active.tagName === "INPUT") {
+          e.preventDefault();
+          if (step < 5 && canGoNext) setStep(s => s + 1);
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [step, canGoNext]);
+
+  // Idee 22: Helper to get source type for a field
+  const getFieldSource = useCallback((fieldName: string): "INPI" | "AnnuaireEntreprises" | null => {
+    if (!autoFields.has(fieldName)) return null;
+    const prov = dataProvenance.find(p => {
+      const fieldMap: Record<string, string[]> = {
+        raisonSociale: ["denomination"], siren: ["siren"], adresse: ["adresse"],
+        cp: ["codePostal"], ville: ["commune"], capital: ["capital"],
+        dirigeant: ["dirigeant"], domaine: ["domaine"], ape: ["ape"],
+        tel: ["telephone"], mail: ["email"],
+      };
+      return (fieldMap[fieldName] || [fieldName]).includes(p.field);
+    });
+    if (prov?.source === "INPI") return "INPI";
+    if (prov?.source === "AnnuaireEntreprises" || prov?.source === "Pappers") return "AnnuaireEntreprises";
+    return null;
+  }, [autoFields, dataProvenance]);
+
   const vigilanceColor = risk.nivVigilance === "SIMPLIFIEE" ? "#22c55e" : risk.nivVigilance === "STANDARD" ? "#f59e0b" : "#ef4444";
 
   return (
@@ -924,6 +1018,36 @@ export default function NouveauClientPage() {
           <p className="text-sm text-slate-500 mt-0.5">Parcours d'entree en relation</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* Idee 18: KYC progress bar */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <button className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-colors cursor-pointer ${
+                specO90Kyc.percent === 100
+                  ? "border-emerald-500/30 bg-emerald-500/10"
+                  : "border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/15"
+              }`}>
+                <span className={`text-xs font-bold ${specO90Kyc.percent === 100 ? "text-emerald-400" : "text-amber-400"}`}>
+                  KYC {specO90Kyc.percent}%
+                </span>
+                <Progress value={specO90Kyc.percent} className="w-16 h-1.5" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-72 bg-slate-900 border-white/10">
+              <h4 className="text-xs font-semibold text-slate-300 mb-2">Champs obligatoires SPEC_O90</h4>
+              <p className="text-[10px] text-slate-500 mb-3">{specO90Kyc.filled}/{specO90Kyc.total} remplis</p>
+              {specO90Kyc.missing.length > 0 ? (
+                <ul className="space-y-1">
+                  {specO90Kyc.missing.map(m => (
+                    <li key={m} className="flex items-center gap-2 text-xs text-amber-400">
+                      <X className="w-3 h-3 shrink-0" /> {m}
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3.5 h-3.5" /> Tous les champs sont remplis</p>
+              )}
+            </PopoverContent>
+          </Popover>
           <ScoreGauge score={adjustedScore} />
           <VigilanceBadge level={risk.nivVigilance} />
           {(() => {
@@ -1218,11 +1342,11 @@ export default function NouveauClientPage() {
             <div>
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Identite</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label={isPersonnePhysique ? "Nom du dirigeant *" : "Raison Sociale *"} value={form.raisonSociale} onChange={v => set("raisonSociale", v)} error={validationErrors.raisonSociale} isAuto={autoFields.has("raisonSociale")} required />
-                <FormField label="Forme Juridique *" type="select" value={form.forme} options={FORMES} onChange={v => set("forme", v)} isAuto={autoFields.has("forme")} required />
-                <FormField label="SIREN *" value={form.siren} onChange={v => set("siren", v)} error={validationErrors.siren} placeholder="9 chiffres" isAuto={autoFields.has("siren")} required />
-                <FormField label="SIRET" value={form.siret} onChange={v => set("siret", v)} placeholder="14 chiffres" isAuto={autoFields.has("siret")} />
-                <FormField label="Code APE *" value={form.ape} onChange={v => set("ape", v)} placeholder="Ex: 56.10A" isAuto={autoFields.has("ape")} required hint={form.domaine ? form.domaine : undefined} />
+                <FormField label={isPersonnePhysique ? "Nom du dirigeant *" : "Raison Sociale *"} value={form.raisonSociale} onChange={v => set("raisonSociale", v)} error={validationErrors.raisonSociale} isAuto={autoFields.has("raisonSociale")} required sourceType={getFieldSource("raisonSociale")} />
+                <FormField label="Forme Juridique *" type="select" value={form.forme} options={FORMES} onChange={v => set("forme", v)} isAuto={autoFields.has("forme")} required sourceType={getFieldSource("forme")} />
+                <FormField label="SIREN *" value={form.siren} onChange={v => set("siren", v)} error={validationErrors.siren} placeholder="9 chiffres" isAuto={autoFields.has("siren")} required sourceType={getFieldSource("siren")} />
+                <FormField label="SIRET" value={form.siret} onChange={v => set("siret", v)} placeholder="14 chiffres" isAuto={autoFields.has("siret")} sourceType={getFieldSource("siret")} />
+                <FormField label="Code APE *" value={form.ape} onChange={v => set("ape", v)} placeholder="Ex: 56.10A" isAuto={autoFields.has("ape")} required hint={form.domaine ? form.domaine : undefined} sourceType={getFieldSource("ape")} />
                 <div>
                   <div className="flex items-center gap-1.5">
                     <Label className="text-[10px] text-slate-500 uppercase">Capital social</Label>
@@ -1246,9 +1370,9 @@ export default function NouveauClientPage() {
             {/* Dirigeant & Domaine */}
             <div>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Dirigeant" value={form.dirigeant} onChange={v => set("dirigeant", v)} isAuto={autoFields.has("dirigeant")} />
-                <FormField label="Domaine d'activite" value={form.domaine} onChange={v => set("domaine", v)} isAuto={autoFields.has("domaine")} />
-                <FormField label="Effectif" value={form.effectif} onChange={v => set("effectif", v)} isAuto={autoFields.has("effectif")} />
+                <FormField label="Dirigeant" value={form.dirigeant} onChange={v => set("dirigeant", v)} isAuto={autoFields.has("dirigeant")} sourceType={getFieldSource("dirigeant")} />
+                <FormField label="Domaine d'activite" value={form.domaine} onChange={v => set("domaine", v)} isAuto={autoFields.has("domaine")} sourceType={getFieldSource("domaine")} />
+                <FormField label="Effectif" value={form.effectif} onChange={v => set("effectif", v)} isAuto={autoFields.has("effectif")} sourceType={getFieldSource("effectif")} />
               </div>
             </div>
 
@@ -1256,13 +1380,13 @@ export default function NouveauClientPage() {
             <div>
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Coordonnees</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Adresse" value={form.adresse} onChange={v => set("adresse", v)} isAuto={autoFields.has("adresse")} required />
+                <FormField label="Adresse" value={form.adresse} onChange={v => set("adresse", v)} isAuto={autoFields.has("adresse")} required sourceType={getFieldSource("adresse")} />
                 <div className="grid grid-cols-2 gap-2">
-                  <FormField label="Code Postal" value={form.cp} onChange={v => set("cp", v)} isAuto={autoFields.has("cp")} />
-                  <FormField label="Ville" value={form.ville} onChange={v => set("ville", v)} isAuto={autoFields.has("ville")} />
+                  <FormField label="Code Postal" value={form.cp} onChange={v => set("cp", v)} isAuto={autoFields.has("cp")} sourceType={getFieldSource("cp")} />
+                  <FormField label="Ville" value={form.ville} onChange={v => set("ville", v)} isAuto={autoFields.has("ville")} sourceType={getFieldSource("ville")} />
                 </div>
-                <FormField label="Telephone" value={form.tel} onChange={v => set("tel", v)} error={validationErrors.tel} placeholder="0XXXXXXXXX" isAuto={autoFields.has("tel")} needsCompletion={!!selectedResult && !form.tel} />
-                <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" isAuto={autoFields.has("mail")} needsCompletion={!!selectedResult && !form.mail} />
+                <FormField label="Telephone" value={form.tel} onChange={v => set("tel", v)} error={validationErrors.tel} placeholder="0XXXXXXXXX" isAuto={autoFields.has("tel")} needsCompletion={!!selectedResult && !form.tel} sourceType={getFieldSource("tel")} />
+                <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" isAuto={autoFields.has("mail")} needsCompletion={!!selectedResult && !form.mail} sourceType={getFieldSource("mail")} />
                 <div>
                   <div className="flex items-center gap-1.5">
                     <Label className="text-[10px] text-slate-500 uppercase">Site web</Label>
@@ -1377,6 +1501,38 @@ export default function NouveauClientPage() {
               </div>
             )}
 
+            {/* Idee 23: Mini pie chart for BE repartition */}
+            {beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && (() => {
+              const beSum = beneficiaires.reduce((s, b) => s + b.pourcentage, 0);
+              const overBudget = beSum > 100;
+              const pieData = beneficiaires.filter(b => b.pourcentage > 0).map((b, i) => ({
+                name: `${b.prenom} ${b.nom}`.trim() || `BE ${i + 1}`,
+                value: b.pourcentage,
+              }));
+              if (beSum < 100) pieData.push({ name: "Non attribue", value: 100 - beSum });
+              const COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899", "#10b981"];
+              return (
+                <div className={`p-4 rounded-lg border ${overBudget ? "border-red-500/30 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-semibold text-slate-300">Repartition du capital</h3>
+                    <span className={`text-sm font-bold font-mono ${overBudget ? "text-red-400" : beSum === 100 ? "text-emerald-400" : "text-amber-400"}`}>
+                      {beSum}%{overBudget && " — Depasse 100% !"}
+                    </span>
+                  </div>
+                  <ResponsiveContainer width="100%" height={160}>
+                    <PieChart>
+                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={30} paddingAngle={2}>
+                        {pieData.map((_, idx) => (
+                          <Cell key={idx} fill={idx === pieData.length - 1 && !overBudget && beSum < 100 ? "rgba(255,255,255,0.06)" : overBudget ? "#ef4444" : COLORS[idx % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "11px", color: "#e2e8f0" }} formatter={(v: number) => `${v}%`} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()}
+
             <div className="space-y-4">
               {beneficiaires.map((b, i) => (
                 <div key={i} className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
@@ -1397,7 +1553,7 @@ export default function NouveauClientPage() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-6 gap-3">
+                  <div className="grid grid-cols-4 gap-3">
                     <div>
                       <Label className="text-[10px] text-slate-500">Nom</Label>
                       <Input value={b.nom} onChange={e => updateBeneficiaire(i, "nom", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" />
@@ -1414,13 +1570,26 @@ export default function NouveauClientPage() {
                       <Label className="text-[10px] text-slate-500">Nationalite</Label>
                       <Input value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" />
                     </div>
+                  </div>
+                  {/* Idee 23: Slider for % parts */}
+                  <div className="grid grid-cols-2 gap-4 mt-3">
                     <div>
-                      <Label className="text-[10px] text-slate-500">% parts</Label>
-                      <Input type="number" value={b.pourcentage} onChange={e => updateBeneficiaire(i, "pourcentage", Number(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" min={0} max={100} />
+                      <Label className="text-[10px] text-slate-500">% parts — {b.pourcentage}%</Label>
+                      <Slider
+                        value={[b.pourcentage]}
+                        onValueChange={([v]) => updateBeneficiaire(i, "pourcentage", v)}
+                        min={0} max={100} step={1}
+                        className="mt-2"
+                      />
                     </div>
                     <div>
-                      <Label className="text-[10px] text-slate-500">% votes</Label>
-                      <Input type="number" value={b.pourcentageVotes ?? 0} onChange={e => updateBeneficiaire(i, "pourcentageVotes", Number(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" min={0} max={100} />
+                      <Label className="text-[10px] text-slate-500">% votes — {b.pourcentageVotes ?? 0}%</Label>
+                      <Slider
+                        value={[b.pourcentageVotes ?? 0]}
+                        onValueChange={([v]) => updateBeneficiaire(i, "pourcentageVotes", v)}
+                        min={0} max={100} step={1}
+                        className="mt-2"
+                      />
                     </div>
                   </div>
                 </div>
@@ -1631,6 +1800,44 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
+            {/* Idee 19: Recapitulatif avant validation */}
+            <Collapsible defaultOpen>
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-4 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-sm font-semibold text-slate-300">Recapitulatif</h3>
+                </div>
+                <ChevronDown className="w-4 h-4 text-slate-500" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-3">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {[
+                      { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale },
+                      { label: "SIREN", value: form.siren, ok: !!form.siren },
+                      { label: "Forme juridique", value: form.forme, ok: !!form.forme },
+                      { label: "Adresse", value: [form.adresse, form.cp, form.ville].filter(Boolean).join(", "), ok: !!(form.adresse && form.cp && form.ville) },
+                      { label: "Dirigeant", value: form.dirigeant, ok: !!form.dirigeant },
+                      { label: "Score", value: `${adjustedScore}/120`, ok: true },
+                      { label: "Vigilance", value: risk.nivVigilance, ok: true },
+                      { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0 },
+                      { label: "Documents", value: `${documents.length} doc(s)`, ok: documents.length > 0 },
+                    ].map(item => (
+                      <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-white/[0.02]">
+                        <Badge className={`text-[9px] border-0 shrink-0 mt-0.5 ${item.ok ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>
+                          {item.ok ? "OK" : "!"}
+                        </Badge>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-slate-500">{item.label}</p>
+                          <p className="text-xs text-slate-200 truncate">{item.value || "—"}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
             {/* SECTION 1: Documents INPI recuperes */}
             {(() => {
               // Merge real PDFs from documents-fetch and inpi-documents
@@ -1801,7 +2008,7 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* SECTION 2: Checklist documentaire */}
+            {/* SECTION 2: Checklist documentaire dynamique (Idee 30) */}
             {(() => {
               // Gather all real PDFs for checklist matching
               const allDocs = [
@@ -1820,29 +2027,28 @@ export default function NouveauClientPage() {
                 (d.source === "Pappers" || d.source === "pappers") && d.status === "auto"
               );
 
-              const checklist = [
-                { key: "KBIS", label: "Extrait / Kbis", types: ["KBIS", "ACTE", "ACTES"], manual: false },
-                { key: "Statuts", label: "Statuts a jour", types: ["STATUTS"], manual: false },
-                { key: "Comptes", label: "Comptes annuels", types: ["COMPTES", "BILAN"], manual: false },
-                { key: "CNI", label: "CNI dirigeant", types: ["CNI"], manual: true },
-                { key: "RIB", label: "RIB / IBAN", types: ["RIB"], manual: true },
-                { key: "Justificatif", label: "Justificatif domicile", types: ["JUSTIFICATIF"], manual: true },
-              ];
-
-              const results = checklist.map(c => ({
+              const results = vigilanceDocChecklist.map(c => ({
                 ...c,
                 hasPdf: hasStoredPdf(c.types),
                 hasUpload: hasUpload(c.types),
                 hasPappers: hasPappersLink(c.types),
                 found: hasStoredPdf(c.types) || hasUpload(c.types) || hasPappersLink(c.types),
+                manual: ["CNI", "RIB", "Justificatif", "Organigramme"].includes(c.key),
               }));
               const foundCount = results.filter(r => r.found).length;
-              const pct = Math.round((foundCount / checklist.length) * 100);
+              const pct = Math.round((foundCount / vigilanceDocChecklist.length) * 100);
 
               return (
                 <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-semibold text-slate-300">Checklist documentaire</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-semibold text-slate-300">Checklist documentaire</h3>
+                      <Badge className={`text-[9px] border-0 ${
+                        risk.nivVigilance === "SIMPLIFIEE" ? "bg-emerald-500/20 text-emerald-400" :
+                        risk.nivVigilance === "STANDARD" ? "bg-amber-500/20 text-amber-400" :
+                        "bg-red-500/20 text-red-400"
+                      }`}>{risk.nivVigilance} — {vigilanceDocChecklist.length} doc(s) requis</Badge>
+                    </div>
                     <div className="flex items-center gap-2">
                       <Progress value={pct} className="w-24 h-2" />
                       <span className={`text-sm font-bold ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
@@ -2041,6 +2247,44 @@ export default function NouveauClientPage() {
           </Button>
         )}
       </div>
+
+      {/* Idee 28: Success modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in-up">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Client cree avec succes</h2>
+              <p className="text-sm text-slate-400 mt-2">{form.raisonSociale} — {createdClientRef}</p>
+              <p className="text-xs text-slate-500 mt-1">Fiche LCB-FT generee automatiquement</p>
+            </div>
+            <div className="space-y-3">
+              <Button
+                onClick={() => navigate(`/client/${createdClientRef}`)}
+                className="w-full gap-2 bg-blue-600 hover:bg-blue-700"
+              >
+                <Eye className="w-4 h-4" /> Voir la fiche client
+              </Button>
+              <Button
+                onClick={() => navigate(`/lettre-mission/${createdClientRef}`)}
+                variant="outline"
+                className="w-full gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400"
+              >
+                <FileDown className="w-4 h-4" /> Generer la lettre de mission
+              </Button>
+              <Button
+                onClick={() => navigate("/bdd")}
+                variant="ghost"
+                className="w-full gap-2 text-slate-400 hover:text-slate-200"
+              >
+                <ArrowRight className="w-4 h-4" /> Retour a la base clients
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
@@ -2120,7 +2364,7 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
   );
 }
 
-function FormField({ label, value, onChange, type = "text", error, placeholder, options, isAuto, required, hint, needsCompletion }: {
+function FormField({ label, value, onChange, type = "text", error, placeholder, options, isAuto, required, hint, needsCompletion, sourceType }: {
   label: string;
   value: string | number;
   onChange: (v: string) => void;
@@ -2132,16 +2376,27 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
   required?: boolean;
   hint?: string;
   needsCompletion?: boolean;
+  sourceType?: "INPI" | "AnnuaireEntreprises" | null;
 }) {
   const isEmpty = !value || value === "" || value === 0;
   const showOrange = (required && isEmpty && !error) || needsCompletion;
+
+  // Idee 22: Source badge
+  const sourceBadge = (() => {
+    if (isAuto && !isEmpty && sourceType === "INPI") return <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">INPI</span>;
+    if (isAuto && !isEmpty && sourceType === "AnnuaireEntreprises") return <span className="text-[9px] bg-slate-500/20 text-slate-400 px-1.5 py-0.5 rounded-full font-medium">data.gouv</span>;
+    if (isAuto && !isEmpty) return <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>;
+    if (required && isEmpty) return <span className="text-[9px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-full font-medium">A completer</span>;
+    if (!isEmpty) return <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">✓</span>;
+    return null;
+  })();
 
   if (type === "select" && options) {
     return (
       <div>
         <div className="flex items-center gap-1.5">
           <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
-          {isAuto && !isEmpty && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
+          {sourceBadge}
         </div>
         <Select value={String(value)} onValueChange={onChange}>
           <SelectTrigger className={`bg-white/[0.03] mt-1 ${showOrange ? "border-amber-500/50" : "border-white/[0.06]"}`}>
@@ -2160,7 +2415,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
     <div>
       <div className="flex items-center gap-1.5">
         <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
-        {isAuto && !isEmpty && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
+        {sourceBadge}
       </div>
       <Input
         type={type}
