@@ -49,16 +49,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
-      setSession(s);
-      setUser(s?.user ?? null);
-      if (s?.user) {
-        const p = await fetchProfile(s.user.id);
-        setProfile(p);
+    // Get initial session with timeout to prevent infinite spinner
+    const initAuth = async () => {
+      try {
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("Auth timeout")), 8000)
+        );
+        const sessionPromise = supabase.auth.getSession();
+        const { data: { session: s } } = await Promise.race([sessionPromise, timeoutPromise]);
+
+        setSession(s);
+        setUser(s?.user ?? null);
+        if (s?.user) {
+          const p = await fetchProfile(s.user.id);
+          setProfile(p);
+        }
+      } catch (err) {
+        console.error("[AuthContext] Init error:", err);
+        setSession(null);
+        setUser(null);
+        setProfile(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
-    });
+    };
+    initAuth();
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(

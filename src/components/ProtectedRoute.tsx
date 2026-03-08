@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { PermissionAction } from "@/lib/auth/types";
@@ -10,8 +11,24 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
   const { session, profile, loading, hasPermission } = useAuth();
+  const [timedOut, setTimedOut] = useState(false);
 
-  if (loading) {
+  // Safety timeout: if still loading after 10s, stop waiting
+  useEffect(() => {
+    if (!loading) {
+      setTimedOut(false);
+      return;
+    }
+    const timer = setTimeout(() => {
+      if (loading) {
+        console.error("[ProtectedRoute] Timeout — forcing load complete");
+        setTimedOut(true);
+      }
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, [loading]);
+
+  if (loading && !timedOut) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -24,11 +41,8 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   }
 
   if (!profile) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-background">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
+    // Profile not found — redirect to auth instead of spinning forever
+    return <Navigate to="/auth" replace />;
   }
 
   if (!profile.is_active) {
