@@ -81,7 +81,7 @@ export default function LettreMissionPage() {
   const [activeTab, setActiveTab] = useState<ViewTab>("editeur");
   const [status, setStatus] = useState<LetterStatus>("brouillon");
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [slideDirection, setSlideDirection] = useState<"left" | "right">("right");
+  const [focusedSection, setFocusedSection] = useState<string | undefined>();
 
   const client = useMemo(
     () => clients.find((c) => c.ref === selectedRef) ?? null,
@@ -139,17 +139,21 @@ export default function LettreMissionPage() {
   const completedCount = sectionStatus.filter((s) => s === "green").length;
   const progressPercent = SECTIONS.length > 0 ? Math.round((completedCount / SECTIONS.length) * 100) : 0;
 
-  // ── Export handlers ──
+  // ── Export handlers with try/catch ──
   const handleExportPdf = useCallback(() => {
     if (!client) return;
     if (validation && !validation.valid) {
       toast.error(`Champs manquants : ${validation.champsManquants.join(", ")}`);
       return;
     }
-    const opts = buildOptions();
-    const lm = generateFromClient(client, DEFAULT_CABINET, opts);
-    renderToPdf(lm);
-    toast.success("PDF généré avec succès");
+    try {
+      const opts = buildOptions();
+      const lm = generateFromClient(client, DEFAULT_CABINET, opts);
+      renderToPdf(lm);
+      toast.success("PDF généré avec succès");
+    } catch {
+      toast.error("Erreur lors de la génération du PDF");
+    }
   }, [client, validation, buildOptions]);
 
   const handleExportDocx = useCallback(async () => {
@@ -158,10 +162,14 @@ export default function LettreMissionPage() {
       toast.error(`Champs manquants : ${validation.champsManquants.join(", ")}`);
       return;
     }
-    const opts = buildOptions();
-    const lm = generateFromClient(client, DEFAULT_CABINET, opts);
-    await renderToDocx(lm);
-    toast.success("DOCX généré avec succès");
+    try {
+      const opts = buildOptions();
+      const lm = generateFromClient(client, DEFAULT_CABINET, opts);
+      await renderToDocx(lm);
+      toast.success("DOCX généré avec succès");
+    } catch {
+      toast.error("Erreur lors de la génération du DOCX");
+    }
   }, [client, validation, buildOptions]);
 
   const handleSave = useCallback(() => {
@@ -173,12 +181,6 @@ export default function LettreMissionPage() {
   const handleEmail = useCallback(() => {
     setStatus("envoyee");
     toast.success("Email envoyé (simulation)");
-  }, []);
-
-  // ── Tab switching with animation ──
-  const switchTab = useCallback((tab: ViewTab) => {
-    setSlideDirection(tab === "apercu" ? "right" : "left");
-    setActiveTab(tab);
   }, []);
 
   // ── Keyboard shortcuts ──
@@ -198,11 +200,10 @@ export default function LettreMissionPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [handleSave, handleExportPdf]);
 
-  // ── Section scroll (delegates to editor accordion) ──
-  const [focusedSection, setFocusedSection] = useState<string | undefined>();
+  // ── Section scroll ──
   const scrollToSection = useCallback((sectionId: number) => {
-    const section = SECTIONS[sectionId - 1];
-    if (section) setFocusedSection(section.label.toLowerCase());
+    const el = contentRef.current?.querySelector(`[data-section="${sectionId}"]`);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }, []);
 
   // ── Time since last save ──
@@ -216,16 +217,16 @@ export default function LettreMissionPage() {
   const statusConf = STATUS_CONFIG[status];
 
   return (
-    <div className="flex flex-col h-full">
-      {/* ═══ HEADER — Sticky ═══ */}
-      <div className="sticky top-0 z-50 bg-slate-900 border-b border-white/10 shrink-0">
-        {/* Line 1 — Navigation + Tab switch + Export */}
+    <div className="flex flex-col" style={{ height: "calc(100vh - 4rem)" }}>
+      {/* ═══ TOOLBAR — Sticky within outlet ═══ */}
+      <div className="sticky top-0 z-20 bg-slate-900 border-b border-white/10 shrink-0">
+        {/* Line 1: Back + Title + Status | Tab switcher + Export */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => navigate(client ? `/client/${client.ref}` : "/bdd")}
+              onClick={() => navigate(-1)}
               className="text-slate-400 hover:text-white gap-1"
             >
               <ArrowLeft className="w-4 h-4" /> Retour
@@ -240,7 +241,7 @@ export default function LettreMissionPage() {
             {/* Tab switcher */}
             <div className="flex rounded-md border border-white/10 overflow-hidden">
               <button
-                onClick={() => switchTab("editeur")}
+                onClick={() => setActiveTab("editeur")}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   activeTab === "editeur"
                     ? "bg-white/10 text-white"
@@ -250,7 +251,7 @@ export default function LettreMissionPage() {
                 Éditeur
               </button>
               <button
-                onClick={() => switchTab("apercu")}
+                onClick={() => setActiveTab("apercu")}
                 className={`px-3 py-1.5 text-xs font-medium transition-colors ${
                   activeTab === "apercu"
                     ? "bg-white/10 text-white"
@@ -284,7 +285,7 @@ export default function LettreMissionPage() {
           </div>
         </div>
 
-        {/* Line 2 — Client selector + Validation */}
+        {/* Line 2: Client selector + Validation */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
             <ClientSelector
@@ -311,7 +312,7 @@ export default function LettreMissionPage() {
           </div>
         </div>
 
-        {/* Line 3 — Save/Email + Progress */}
+        {/* Line 3: Save + Email + last saved | Progress */}
         <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-2">
             <Button
@@ -349,72 +350,48 @@ export default function LettreMissionPage() {
       </div>
 
       {/* ═══ BODY ═══ */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Section nav sidebar — only in editor mode */}
-        {activeTab === "editeur" && (
-          <div className="w-10 shrink-0 bg-slate-900/50 border-r border-white/[0.06] sticky top-0 self-start h-full">
-            <div className="flex flex-col items-center py-3 gap-1.5">
-              {SECTIONS.map((s, i) => {
-                const st = sectionStatus[i];
-                return (
-                  <button
-                    key={s.id}
-                    onClick={() => scrollToSection(s.id)}
-                    title={s.label}
-                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all hover:scale-110 ${
-                      st === "green"
-                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                        : st === "orange"
-                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                        : "bg-slate-700/30 text-slate-500 border border-white/[0.06]"
-                    }`}
-                  >
-                    {st === "green" ? "✓" : s.id}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* Content area with slide animation */}
-        <div className="flex-1 overflow-hidden relative">
-          {/* Preview pane */}
-          <div
-            className="absolute inset-0 transition-transform duration-300 ease-in-out"
-            style={{
-              transform:
-                activeTab === "apercu"
-                  ? "translateX(0%)"
-                  : slideDirection === "left"
-                  ? "translateX(-100%)"
-                  : "translateX(100%)",
-              opacity: activeTab === "apercu" ? 1 : 0,
-              pointerEvents: activeTab === "apercu" ? "auto" : "none",
-            }}
-          >
+      <div className="flex-1 overflow-hidden">
+        {/* ── APERÇU MODE ── */}
+        {activeTab === "apercu" && (
+          <div className="h-full overflow-auto">
             <LettreMissionPreviewV2
               state={editorState}
               client={client}
               activeSectionId={focusedSection}
             />
           </div>
+        )}
 
-          {/* Editor pane */}
-          <div
-            className="absolute inset-0 transition-transform duration-300 ease-in-out"
-            style={{
-              transform:
-                activeTab === "editeur"
-                  ? "translateX(0%)"
-                  : slideDirection === "right"
-                  ? "translateX(100%)"
-                  : "translateX(-100%)",
-              opacity: activeTab === "editeur" ? 1 : 0,
-              pointerEvents: activeTab === "editeur" ? "auto" : "none",
-            }}
-          >
-            <div ref={contentRef} className="h-full overflow-hidden">
+        {/* ── ÉDITEUR MODE ── */}
+        {activeTab === "editeur" && (
+          <div className="flex h-full">
+            {/* Section nav sidebar — compact, does NOT overlap content */}
+            <div className="w-8 shrink-0 bg-slate-900/50 border-r border-white/[0.06] overflow-y-auto">
+              <div className="flex flex-col items-center py-3 gap-1.5">
+                {SECTIONS.map((s, i) => {
+                  const st = sectionStatus[i];
+                  return (
+                    <button
+                      key={s.id}
+                      onClick={() => scrollToSection(s.id)}
+                      title={s.label}
+                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold transition-all hover:scale-110 ${
+                        st === "green"
+                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                          : st === "orange"
+                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                          : "bg-slate-700/30 text-slate-500 border border-white/[0.06]"
+                      }`}
+                    >
+                      {st === "green" ? "✓" : s.id}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Editor content */}
+            <div ref={contentRef} className="flex-1 overflow-hidden">
               {!client ? (
                 <div className="flex items-center justify-center h-full text-slate-500">
                   Sélectionnez un client pour générer une lettre de mission
@@ -429,7 +406,7 @@ export default function LettreMissionPage() {
               )}
             </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
