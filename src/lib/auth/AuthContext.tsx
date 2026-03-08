@@ -17,36 +17,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     try {
-      console.log("[Auth] fetchProfile called for userId:", userId);
+      console.log("[Auth] fetchProfile via fetch() for:", userId);
+      const url = import.meta.env.VITE_SUPABASE_URL;
+      const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
-      const { data, error, status } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
-
-      console.log("[Auth] fetchProfile result — status:", status, "error:", error?.message, "data:", data ? "found" : "null");
-
-      if (error) {
-        console.error("[Auth] fetchProfile error:", error.message, "code:", error.code, "details:", error.details);
+      if (!url || !key) {
+        console.error("[Auth] Missing SUPABASE env vars! url:", !!url, "key:", !!key);
         return null;
       }
 
-      if (!data) {
-        console.warn("[Auth] No profile found, waiting 2s and retrying...");
-        await new Promise(r => setTimeout(r, 2000));
-        const { data: retry, error: retryErr } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", userId)
-          .maybeSingle();
-        console.log("[Auth] Retry result:", retry ? "found" : "null", retryErr?.message);
-        return retry as UserProfile | null;
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      if (!token) {
+        console.error("[Auth] No access token available");
+        return null;
       }
 
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 8000);
+
+      const res = await fetch(
+        `${url}/rest/v1/profiles?id=eq.${userId}&select=*`,
+        {
+          headers: {
+            'apikey': key,
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/vnd.pgrst.object+json',
+          },
+          signal: controller.signal,
+        }
+      );
+
+      clearTimeout(timeout);
+      console.log("[Auth] fetch response status:", res.status);
+
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("[Auth] fetch error:", res.status, text);
+        return null;
+      }
+
+      const data = await res.json();
+      console.log("[Auth] Profile loaded:", data?.full_name);
       return data as UserProfile;
-    } catch (e) {
-      console.error("[Auth] fetchProfile exception:", e);
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.error("[Auth] fetchProfile TIMEOUT after 8s");
+      } else {
+        console.error("[Auth] fetchProfile exception:", e);
+      }
       return null;
     }
   }, []);
