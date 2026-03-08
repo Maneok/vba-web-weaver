@@ -53,7 +53,7 @@ export default function RepartitionTravaux({
   return (
     <div className="overflow-x-auto">
       <h4 className="text-sm font-semibold text-gray-700 mb-3">
-        {REPARTITION_TRAVAUX.titre}
+        {REPARTITION_TRAVAUX?.titre ?? "Répartition des travaux"}
       </h4>
       <table className="w-full text-sm border-collapse">
         <thead>

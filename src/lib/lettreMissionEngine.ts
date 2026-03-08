@@ -319,7 +319,7 @@ export function generateFromClient(
  */
 export function renderToPdf(lettreMission: LettreMission): void {
   const doc = renderLettreMissionPdf(lettreMission);
-  const filename = `LDM_${lettreMission.numero}_${lettreMission.client.raisonSociale.replace(/\s+/g, "_")}.pdf`;
+  const filename = `LDM_${lettreMission?.numero ?? "draft"}_${(lettreMission?.client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.pdf`;
   doc.save(filename);
 }
 

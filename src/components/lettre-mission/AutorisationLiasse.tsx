@@ -10,24 +10,24 @@ export default function AutorisationLiasse({
   client,
   associe,
 }: AutorisationLiasseProps) {
-  const texte = AUTORISATION_LIASSE.texte
-    .replace(/\{\{dirigeant\}\}/g, client.dirigeant)
+  const texte = (AUTORISATION_LIASSE?.texte ?? "")
+    .replace(/\{\{dirigeant\}\}/g, client?.dirigeant ?? "")
     .replace(/\{\{qualite_dirigeant\}\}/g, "Représentant légal")
-    .replace(/\{\{raison_sociale\}\}/g, client.raisonSociale)
-    .replace(/\{\{siren\}\}/g, client.siren)
-    .replace(/\{\{adresse\}\}/g, client.adresse)
-    .replace(/\{\{cp\}\}/g, client.cp)
+    .replace(/\{\{raison_sociale\}\}/g, client?.raisonSociale ?? "")
+    .replace(/\{\{siren\}\}/g, client?.siren ?? "")
+    .replace(/\{\{adresse\}\}/g, client?.adresse ?? "")
+    .replace(/\{\{cp\}\}/g, client?.cp ?? "")
     .replace(/\{\{cabinet_nom\}\}/g, "COMPTADEC")
-    .replace(/\{\{associe\}\}/g, associe)
+    .replace(/\{\{associe\}\}/g, associe ?? "")
     .replace(/\{\{fin_exercice\}\}/g, "31/12/" + new Date().getFullYear())
-    .replace(/\{\{ville\}\}/g, client.ville)
+    .replace(/\{\{ville\}\}/g, client?.ville ?? "")
     .replace(/\{\{date\}\}/g, new Date().toLocaleDateString("fr-FR"));
 
   return (
     <div className="border rounded-lg bg-white">
       <div className="bg-gray-800 text-white px-6 py-3 rounded-t-lg">
         <h3 className="text-sm font-semibold">
-          {AUTORISATION_LIASSE.titre}
+          {AUTORISATION_LIASSE?.titre ?? "Autorisation"}
         </h3>
       </div>
       <div className="p-6 text-sm text-gray-700 leading-relaxed whitespace-pre-line">

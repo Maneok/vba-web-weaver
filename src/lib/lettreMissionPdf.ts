@@ -39,6 +39,12 @@ function formatIban(iban: string): string {
   return iban.replace(/(.{4})/g, "$1 ").trim();
 }
 
+/** Safe string coercion — prevents "undefined" from reaching jsPDF.text() */
+function s(v: unknown): string {
+  if (v === null || v === undefined) return "";
+  return String(v);
+}
+
 // ──────────────────────────────────────────────
 // PDF Builder class
 // ──────────────────────────────────────────────
@@ -207,7 +213,7 @@ class LMPdfBuilder {
     const opts = this.options;
 
     // En-tête: logo à gauche, coordonnées à droite
-    if (cab.logo) {
+    if (cab?.logo) {
       try {
         this.doc.addImage(cab.logo, "PNG", MARGIN_L, MARGIN_TOP, 25, 25);
       } catch { /* logo invalide */ }
@@ -217,12 +223,12 @@ class LMPdfBuilder {
     this.doc.setFontSize(10);
     this.doc.setFont("helvetica", "bold");
     this.doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
-    this.doc.text(cab.nom, MARGIN_R, MARGIN_TOP + 3, { align: "right" });
+    this.doc.text(s(cab?.nom), MARGIN_R, MARGIN_TOP + 3, { align: "right" });
     this.setSmall();
-    this.doc.text(`${cab.adresse}, ${cab.cp} ${cab.ville}`, MARGIN_R, MARGIN_TOP + 8, { align: "right" });
-    this.doc.text(`SIRET : ${cab.siret}`, MARGIN_R, MARGIN_TOP + 12, { align: "right" });
-    this.doc.text(`OEC n° ${cab.numeroOEC}`, MARGIN_R, MARGIN_TOP + 16, { align: "right" });
-    this.doc.text(`${cab.email} — ${cab.telephone}`, MARGIN_R, MARGIN_TOP + 20, { align: "right" });
+    this.doc.text(`${s(cab?.adresse)}, ${s(cab?.cp)} ${s(cab?.ville)}`, MARGIN_R, MARGIN_TOP + 8, { align: "right" });
+    this.doc.text(`SIRET : ${s(cab?.siret)}`, MARGIN_R, MARGIN_TOP + 12, { align: "right" });
+    this.doc.text(`OEC n° ${s(cab?.numeroOEC)}`, MARGIN_R, MARGIN_TOP + 16, { align: "right" });
+    this.doc.text(`${s(cab?.email)} — ${s(cab?.telephone)}`, MARGIN_R, MARGIN_TOP + 20, { align: "right" });
 
     this.y = MARGIN_TOP + 30;
 
@@ -236,12 +242,12 @@ class LMPdfBuilder {
     this.doc.setFontSize(10);
     this.doc.setFont("helvetica", "normal");
     this.doc.setTextColor(30, 30, 30);
-    const formule = opts.genre === "F" ? "Mme" : "M.";
-    this.doc.text(`À l'attention de ${formule} ${cli.dirigeant}`, MARGIN_L, this.y);
+    const formule = opts?.genre === "F" ? "Mme" : "M.";
+    this.doc.text(`À l'attention de ${formule} ${s(cli?.dirigeant)}`, MARGIN_L, this.y);
     this.y += 5;
-    this.doc.text(`Mandataire social de la société ${cli.forme} ${cli.raisonSociale}`, MARGIN_L, this.y);
+    this.doc.text(`Mandataire social de la société ${s(cli?.forme)} ${s(cli?.raisonSociale)}`, MARGIN_L, this.y);
     this.y += 5;
-    this.doc.text(`${cli.adresse}, ${cli.cp} ${cli.ville}`, MARGIN_L, this.y);
+    this.doc.text(`${s(cli?.adresse)}, ${s(cli?.cp)} ${s(cli?.ville)}`, MARGIN_L, this.y);
     this.y += 12;
 
     // Titre principal centré
@@ -254,7 +260,7 @@ class LMPdfBuilder {
 
     // Bloc info
     this.setSmall();
-    const infoLine = `${cab.ville}, le ${this.dateLM}  |  Réf. mission n° ${this.numero}  |  ${cli.mail}  |  ${cli.tel}`;
+    const infoLine = `${s(cab?.ville)}, le ${this.dateLM}  |  Réf. mission n° ${this.numero}  |  ${s(cli?.mail)}  |  ${s(cli?.tel)}`;
     this.doc.text(infoLine, PAGE_W / 2, this.y, { align: "center" });
     this.y += 10;
 
@@ -266,11 +272,11 @@ class LMPdfBuilder {
 
     // Formule d'introduction
     const politesse = opts.genre === "F" ? "Chère Madame" : "Cher Monsieur";
-    this.writeText(`${politesse} ${cli.dirigeant},`);
+    this.writeText(`${politesse} ${s(cli?.dirigeant)},`);
     this.y += 2;
     this.writeText(
       `Nous vous remercions de la confiance que vous nous accordez en nous confiant la mission d'expertise comptable ` +
-      `relative à votre société ${cli.raisonSociale}. Conformément à l'article 151 du Code de déontologie des professionnels ` +
+      `relative à votre société ${s(cli?.raisonSociale)}. Conformément à l'article 151 du Code de déontologie des professionnels ` +
       `de l'expertise comptable, la présente lettre de mission a pour objet de définir les termes, conditions et limites de ` +
       `notre intervention ainsi que les droits et obligations réciproques des parties.`
     );
@@ -304,21 +310,21 @@ class LMPdfBuilder {
     this.y += 7;
 
     const rows: [string, string][] = [
-      ["Raison sociale", cli.raisonSociale],
-      ["Forme juridique", cli.forme],
-      ["Activité / Objet social", cli.domaine],
-      ["Code APE", cli.ape],
-      ["SIREN", cli.siren],
-      ["Capital social", formatMontant(cli.capital)],
-      ["Date de création", cli.dateCreation],
-      ["Expert-comptable responsable", cli.associe],
-      ["Régime fiscal", opts.regimeFiscal],
-      ["Exercice social", `Du ${opts.exerciceDebut} au ${opts.exerciceFin}`],
-      ["Régime de TVA", opts.tvaRegime],
-      ["Commissaire aux comptes", opts.cac ? "Oui" : "Non"],
-      ["Effectif", cli.effectif],
-      ["Volume comptable", opts.volumeComptable],
-      ["Type de mission", cli.mission],
+      ["Raison sociale", s(cli?.raisonSociale)],
+      ["Forme juridique", s(cli?.forme)],
+      ["Activité / Objet social", s(cli?.domaine)],
+      ["Code APE", s(cli?.ape)],
+      ["SIREN", s(cli?.siren)],
+      ["Capital social", formatMontant(cli?.capital)],
+      ["Date de création", s(cli?.dateCreation)],
+      ["Expert-comptable responsable", s(cli?.associe)],
+      ["Régime fiscal", s(opts?.regimeFiscal)],
+      ["Exercice social", `Du ${s(opts?.exerciceDebut)} au ${s(opts?.exerciceFin)}`],
+      ["Régime de TVA", s(opts?.tvaRegime)],
+      ["Commissaire aux comptes", opts?.cac ? "Oui" : "Non"],
+      ["Effectif", s(cli?.effectif)],
+      ["Volume comptable", s(opts?.volumeComptable)],
+      ["Type de mission", s(cli?.mission)],
     ];
 
     for (let i = 0; i < rows.length; i++) {
@@ -361,7 +367,7 @@ class LMPdfBuilder {
       STANDARD: { r: 255, g: 152, b: 0 },
       RENFORCEE: { r: 244, g: 67, b: 54 },
     };
-    const vc = vigColors[cli.nivVigilance] ?? { r: 100, g: 100, b: 100 };
+    const vc = vigColors[cli?.nivVigilance] ?? { r: 100, g: 100, b: 100 };
 
     // Row 1
     this.doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
@@ -371,7 +377,7 @@ class LMPdfBuilder {
     this.doc.setFont("helvetica", "bold");
     this.doc.text("Score de risque", MARGIN_L + 3, this.y);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text(`${cli.scoreGlobal}/100`, MARGIN_L + 45, this.y);
+    this.doc.text(`${cli?.scoreGlobal ?? 0}/100`, MARGIN_L + 45, this.y);
     this.doc.setFont("helvetica", "bold");
     this.doc.text("Niveau de vigilance", MARGIN_L + CONTENT_W / 2 + 3, this.y);
     // Colored badge
@@ -381,7 +387,7 @@ class LMPdfBuilder {
     this.doc.setTextColor(255, 255, 255);
     this.doc.setFontSize(7);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(cli.nivVigilance, badgeX + 15, this.y, { align: "center" });
+    this.doc.text(s(cli?.nivVigilance), badgeX + 15, this.y, { align: "center" });
     this.doc.setTextColor(30, 30, 30);
     this.y += 8;
 
@@ -393,11 +399,11 @@ class LMPdfBuilder {
     this.doc.setFont("helvetica", "bold");
     this.doc.text("Statut PPE", MARGIN_L + 3, this.y);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text(cli.ppe, MARGIN_L + 45, this.y);
+    this.doc.text(s(cli?.ppe), MARGIN_L + 45, this.y);
     this.doc.setFont("helvetica", "bold");
     this.doc.text("Dernière diligence KYC", MARGIN_L + CONTENT_W / 2 + 3, this.y);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text(cli.dateDerniereRevue || "—", MARGIN_L + CONTENT_W / 2 + 50, this.y);
+    this.doc.text(cli?.dateDerniereRevue || "—", MARGIN_L + CONTENT_W / 2 + 50, this.y);
     this.y += 8;
 
     // Row 3
@@ -407,11 +413,11 @@ class LMPdfBuilder {
     this.doc.setFont("helvetica", "bold");
     this.doc.text("Prochaine mise à jour KYC", MARGIN_L + 3, this.y);
     this.doc.setFont("helvetica", "normal");
-    this.doc.text(cli.dateButoir || "—", MARGIN_L + 65, this.y);
+    this.doc.text(cli?.dateButoir || "—", MARGIN_L + 65, this.y);
     this.y += 12;
 
     // Bloc vigilance dynamique
-    this.drawSubTitle(`Mesures de vigilance — ${cli.nivVigilance}`);
+    this.drawSubTitle(`Mesures de vigilance — ${s(cli?.nivVigilance)}`);
     this.y += 2;
 
     const vigTexts: Record<string, string> = {
@@ -429,7 +435,7 @@ class LMPdfBuilder {
         "d'informations sur l'origine des fonds, et à un suivi renforcé avec examen annuel minimum. Toute impossibilité " +
         "de mise en œuvre pourra conduire à la cessation de la relation d'affaires (art. L.561-8 CMF).",
     };
-    this.writeText(vigTexts[cli.nivVigilance] ?? vigTexts.STANDARD);
+    this.writeText(vigTexts[cli?.nivVigilance] ?? vigTexts.STANDARD);
 
     this.y += 4;
 
@@ -470,7 +476,7 @@ class LMPdfBuilder {
 
     this.writeText(
       `Conformément aux dispositions de l'ordonnance n° 45-2138 du 19 septembre 1945 et du décret n° 2012-432 ` +
-      `du 30 mars 2012, nous nous engageons à exécuter la mission de ${cli.mission} qui nous est confiée dans le ` +
+      `du 30 mars 2012, nous nous engageons à exécuter la mission de ${s(cli?.mission)} qui nous est confiée dans le ` +
       `respect des normes professionnelles applicables et du Code de déontologie de la profession d'expert-comptable.`
     );
 
@@ -564,14 +570,14 @@ class LMPdfBuilder {
     // Honoraires mission comptable
     this.drawSubTitle("Mission comptable");
     this.drawHonoraireTableHeader();
-    this.drawHonoraireRow("Honoraires mission comptable annuelle", cli.honoraires, true);
-    if (cli.reprise > 0) {
-      this.drawHonoraireRow("Reprise comptable (exercices antérieurs)", cli.reprise, false);
+    this.drawHonoraireRow("Honoraires mission comptable annuelle", cli?.honoraires ?? 0, true);
+    if ((cli?.reprise ?? 0) > 0) {
+      this.drawHonoraireRow("Reprise comptable (exercices antérieurs)", cli?.reprise ?? 0, false);
     }
-    if (opts.fraisConstitution > 0) {
-      this.drawHonoraireRow("Frais de constitution / installation", opts.fraisConstitution, true);
+    if ((opts?.fraisConstitution ?? 0) > 0) {
+      this.drawHonoraireRow("Frais de constitution / installation", opts?.fraisConstitution ?? 0, true);
     }
-    const totalCompta = (cli.honoraires ?? 0) + (cli.reprise ?? 0) + (opts.fraisConstitution ?? 0);
+    const totalCompta = (cli?.honoraires ?? 0) + (cli?.reprise ?? 0) + (opts?.fraisConstitution ?? 0);
     this.drawHonoraireTotal("TOTAL MISSION COMPTABLE HT", totalCompta);
 
     // Honoraires social
@@ -583,9 +589,9 @@ class LMPdfBuilder {
     }
 
     // Honoraires juridique
-    if (opts.missionJuridique && (cli.juridique > 0 || opts.honorairesJuridique > 0)) {
+    if (opts?.missionJuridique && ((cli?.juridique ?? 0) > 0 || (opts?.honorairesJuridique ?? 0) > 0)) {
       this.drawSubTitle("Mission juridique");
-      const montJur = opts.honorairesJuridique > 0 ? opts.honorairesJuridique : cli.juridique;
+      const montJur = (opts?.honorairesJuridique ?? 0) > 0 ? opts.honorairesJuridique : (cli?.juridique ?? 0);
       this.drawHonoraireTableHeader();
       this.drawHonoraireRow("Honoraires mission juridique annuelle", montJur, true);
       this.drawHonoraireTotal("TOTAL MISSION JURIDIQUE HT", montJur);
@@ -602,7 +608,7 @@ class LMPdfBuilder {
     // Grand total
     const grandTotal = totalCompta +
       (opts.missionSociale ? opts.honorairesSocial : 0) +
-      (opts.missionJuridique ? (opts.honorairesJuridique > 0 ? opts.honorairesJuridique : cli.juridique) : 0) +
+      (opts?.missionJuridique ? ((opts?.honorairesJuridique ?? 0) > 0 ? opts.honorairesJuridique : (cli?.juridique ?? 0)) : 0) +
       (opts.missionControleFiscal ? opts.honorairesControleFiscal : 0);
 
     this.y += 4;
@@ -629,7 +635,7 @@ class LMPdfBuilder {
     // Conditions de facturation
     this.drawSubTitle("Conditions de facturation et de règlement");
     this.writeText(
-      `Les honoraires sont payables ${cli.frequence.toLowerCase()}, par prélèvement SEPA ou virement bancaire, ` +
+      `Les honoraires sont payables ${(cli?.frequence ?? "mensuel").toLowerCase()}, par prélèvement SEPA ou virement bancaire, ` +
       `à réception de la facture. En cas de retard de paiement, des pénalités seront appliquées conformément à ` +
       `l'article L.441-10 du Code de commerce, au taux de la BCE majoré de 10 points, outre l'indemnité ` +
       `forfaitaire de recouvrement de 40 €.`
@@ -639,7 +645,7 @@ class LMPdfBuilder {
     this.y += 4;
     this.writeText(
       "En espérant que cette proposition retiendra votre attention, nous vous prions d'agréer, " +
-      `${opts.genre === "F" ? "Chère Madame" : "Cher Monsieur"} ${cli.dirigeant}, ` +
+      `${opts?.genre === "F" ? "Chère Madame" : "Cher Monsieur"} ${s(cli?.dirigeant)}, ` +
       "l'expression de nos salutations distinguées."
     );
 
@@ -657,7 +663,7 @@ class LMPdfBuilder {
     this.setBody();
     this.doc.text("Fait en deux exemplaires originaux,", MARGIN_L, this.y);
     this.y += 5;
-    this.doc.text(`À ${cab.ville}, le ____________________`, MARGIN_L, this.y);
+    this.doc.text(`À ${s(cab?.ville)}, le ____________________`, MARGIN_L, this.y);
     this.y += 12;
 
     const colL = MARGIN_L;
@@ -670,11 +676,11 @@ class LMPdfBuilder {
     this.y += 6;
     this.doc.setFont("helvetica", "normal");
     this.doc.setFontSize(9);
-    this.doc.text(cab.nom, colL, this.y);
-    this.doc.text(cli.raisonSociale, colR, this.y);
+    this.doc.text(s(cab?.nom), colL, this.y);
+    this.doc.text(s(cli?.raisonSociale), colR, this.y);
     this.y += 5;
-    this.doc.text(`${cli.associe}`, colL, this.y);
-    this.doc.text(`${cli.dirigeant}`, colR, this.y);
+    this.doc.text(s(cli?.associe), colL, this.y);
+    this.doc.text(s(cli?.dirigeant), colR, this.y);
     this.y += 4;
     this.setSmall();
     this.doc.text("Associé signataire", colL, this.y);
@@ -815,11 +821,11 @@ class LMPdfBuilder {
 
     this.y += 8;
     this.setBody();
-    this.doc.text(`Société : ${cli.raisonSociale}`, MARGIN_L + 5, this.y);
+    this.doc.text(`Société : ${s(cli?.raisonSociale)}`, MARGIN_L + 5, this.y);
     this.y += 6;
-    this.doc.text(`SIREN : ${cli.siren}`, MARGIN_L + 5, this.y);
+    this.doc.text(`SIREN : ${s(cli?.siren)}`, MARGIN_L + 5, this.y);
     this.y += 6;
-    this.doc.text(`Représentée par : ${cli.dirigeant}`, MARGIN_L + 5, this.y);
+    this.doc.text(`Représentée par : ${s(cli?.dirigeant)}`, MARGIN_L + 5, this.y);
     this.y += 6;
     this.doc.text(`Fait à : ____________________  Le : ____________________`, MARGIN_L + 5, this.y);
     this.y += 10;
@@ -849,9 +855,9 @@ class LMPdfBuilder {
 
     this.y += 7;
     this.drawSubTitle("Créancier");
-    this.drawTableRow("Nom", cab.nom);
-    this.drawTableRow("Adresse", `${cab.adresse}, ${cab.cp} ${cab.ville}`);
-    this.drawTableRow("SIRET", cab.siret);
+    this.drawTableRow("Nom", s(cab?.nom));
+    this.drawTableRow("Adresse", `${s(cab?.adresse)}, ${s(cab?.cp)} ${s(cab?.ville)}`);
+    this.drawTableRow("SIRET", s(cab?.siret));
     this.y += 6;
 
     // Débiteur
@@ -860,11 +866,11 @@ class LMPdfBuilder {
 
     this.y += 7;
     this.drawSubTitle("Débiteur");
-    this.drawTableRow("Nom / Raison sociale", cli.raisonSociale);
-    this.drawTableRow("Adresse", `${cli.adresse}, ${cli.cp} ${cli.ville}`);
-    this.drawTableRow("IBAN", formatIban(cli.iban));
-    this.drawTableRow("BIC", cli.bic || "________________________");
-    this.drawTableRow("Référence unique (RUM)", `SEPA-${cli.ref}`);
+    this.drawTableRow("Nom / Raison sociale", s(cli?.raisonSociale));
+    this.drawTableRow("Adresse", `${s(cli?.adresse)}, ${s(cli?.cp)} ${s(cli?.ville)}`);
+    this.drawTableRow("IBAN", formatIban(cli?.iban ?? ""));
+    this.drawTableRow("BIC", cli?.bic || "________________________");
+    this.drawTableRow("Référence unique (RUM)", `SEPA-${s(cli?.ref)}`);
     this.drawTableRow("Type de paiement", "Récurrent");
     this.y += 6;
 
@@ -903,9 +909,9 @@ class LMPdfBuilder {
     this.y += 4;
 
     this.writeText(
-      `Je soussigné(e) ${cli.dirigeant}, agissant en qualité de représentant légal de la société ` +
-      `${cli.raisonSociale} (SIREN ${cli.siren}), autorise par la présente le cabinet ${cab.nom} ` +
-      `(SIRET ${cab.siret}), à :`
+      `Je soussigné(e) ${s(cli?.dirigeant)}, agissant en qualité de représentant légal de la société ` +
+      `${s(cli?.raisonSociale)} (SIREN ${s(cli?.siren)}), autorise par la présente le cabinet ${s(cab?.nom)} ` +
+      `(SIRET ${s(cab?.siret)}), à :`
     );
 
     this.y += 4;
@@ -937,7 +943,7 @@ class LMPdfBuilder {
     this.setBody();
     this.doc.text(`Fait à : ____________________  Le : ____________________`, MARGIN_L + 5, this.y);
     this.y += 8;
-    this.doc.text(`Nom : ${cli.dirigeant}`, MARGIN_L + 5, this.y);
+    this.doc.text(`Nom : ${s(cli?.dirigeant)}`, MARGIN_L + 5, this.y);
     this.y += 8;
     this.doc.text("Signature précédée de la mention « Bon pour autorisation » :", MARGIN_L + 5, this.y);
     this.y += 15;

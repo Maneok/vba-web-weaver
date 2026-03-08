@@ -5,17 +5,17 @@ export default function ConditionsGenerales() {
     <div className="border rounded-lg bg-white">
       <div className="bg-gray-800 text-white px-6 py-3 rounded-t-lg">
         <h3 className="text-base font-semibold">
-          {CONDITIONS_GENERALES.titre}
+          {CONDITIONS_GENERALES?.titre ?? "Conditions générales"}
         </h3>
       </div>
       <div className="p-6 max-h-[600px] overflow-y-auto space-y-6">
-        {CONDITIONS_GENERALES.sections.map((section) => (
-          <div key={section.numero}>
+        {(CONDITIONS_GENERALES?.sections ?? []).map((section) => (
+          <div key={section?.numero ?? ""}>
             <h4 className="text-sm font-bold text-gray-800 mb-2">
-              Article {section.numero} — {section.titre}
+              Article {section?.numero ?? ""} — {section?.titre ?? ""}
             </h4>
             <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-              {section.texte}
+              {section?.texte ?? ""}
             </div>
           </div>
         ))}

@@ -10,6 +10,7 @@ interface AppSidebarProps {
 const MENU_ITEMS = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
   { to: "/bdd", label: "Base Clients", icon: Users },
+  { to: "/lettre-mission", label: "Lettre de Mission", icon: FileText },
   { to: "/gouvernance", label: "Gouvernance", icon: ShieldCheck },
   { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck },
   { to: "/registre", label: "Registre LCB", icon: AlertTriangle },

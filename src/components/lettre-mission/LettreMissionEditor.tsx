@@ -64,12 +64,26 @@ export interface EditorState {
 
 export function buildDefaultEditorState(client?: Client | null): EditorState {
   const sections: EditorSection[] = Object.entries(LETTRE_MISSION_CONTENT).map(([key, sec]) => ({
-    id: sec.id,
-    title: sec.titre,
-    visible: sec.obligatoire || false,
-    content: sec.contenu,
+    id: sec?.id ?? key,
+    title: sec?.titre ?? key,
+    visible: sec?.obligatoire || false,
+    content: sec?.contenu ?? "",
     editable: true,
   }));
+
+  // Add implicit sections used by the preview but not in LETTRE_MISSION_CONTENT
+  const extraSections: EditorSection[] = [
+    { id: "nature", title: "Nature et limites", visible: true, content: "", editable: false },
+    { id: "paiement", title: "Modalités de paiement", visible: true, content: "Les honoraires sont payables selon la fréquence convenue, par prélèvement SEPA ou virement bancaire.\n\nEn cas de retard de paiement, des pénalités de retard seront appliquées conformément à l'article L.441-10 du Code de commerce.", editable: true },
+    { id: "conclusion", title: "Conclusion", visible: true, content: "", editable: false },
+    { id: "annexes", title: "Annexes", visible: true, content: "", editable: false },
+  ];
+  for (const extra of extraSections) {
+    if (!sections.find((s) => s.id === extra.id)) {
+      sections.push(extra);
+    }
+  }
+
   return {
     genre: "M",
     sections,
@@ -219,6 +233,7 @@ function Section({
   return (
     <div
       id={`section-${id}`}
+      data-section={id === "introduction" ? 1 : id === "entite" ? 2 : id === "lcbft" ? 3 : id === "mission" ? 4 : id === "duree" ? 5 : id === "mission_sociale" || id === "mission_juridique" || id === "mission_controle_fiscal" ? 6 : id === "honoraires" ? 7 : id === "signature" ? 9 : undefined}
       className={`border rounded-lg shadow-sm ${accentBorder ?? ""} ${
         disabled ? "bg-gray-100 opacity-60" : "bg-white"
       }`}
@@ -380,6 +395,18 @@ export default function LettreMissionEditor({
         editable: true,
       };
     });
+    // Add implicit sections for preview
+    const implicitSections: EditorSection[] = [
+      { id: "nature", title: "Nature et limites", visible: true, content: "", editable: false },
+      { id: "paiement", title: "Modalités de paiement", visible: true, content: "Les honoraires sont payables selon la fréquence convenue, par prélèvement SEPA ou virement bancaire.\n\nEn cas de retard de paiement, des pénalités de retard seront appliquées conformément à l'article L.441-10 du Code de commerce.", editable: false },
+      { id: "conclusion", title: "Conclusion", visible: true, content: "", editable: false },
+      { id: "annexes", title: "Annexes", visible: true, content: "", editable: false },
+    ];
+    for (const extra of implicitSections) {
+      if (!editorSections.find((s) => s.id === extra.id)) {
+        editorSections.push(extra);
+      }
+    }
     onStateChange({
       genre,
       sections: editorSections,
@@ -650,7 +677,7 @@ export default function LettreMissionEditor({
       {/* ============================================================ */}
       {/* SECTIONS 5-6-7 — MISSIONS COMPLÉMENTAIRES (toggles)          */}
       {/* ============================================================ */}
-      <div className="border rounded-lg bg-white shadow-sm p-4">
+      <div className="border rounded-lg bg-white shadow-sm p-4" data-section="6">
         <h3 className="text-sm font-semibold text-gray-800 mb-3">
           Missions complémentaires
         </h3>
@@ -996,7 +1023,7 @@ export default function LettreMissionEditor({
       {/* ============================================================ */}
       {/* SECTION 10 — ANNEXES (onglets horizontaux)                   */}
       {/* ============================================================ */}
-      <div className="border rounded-lg bg-white shadow-sm">
+      <div className="border rounded-lg bg-white shadow-sm" data-section="10">
         <div className="border-b">
           <div className="flex overflow-x-auto">
             {ANNEXE_TABS.map((tab) => (
