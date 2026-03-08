@@ -270,8 +270,9 @@ export default function NouveauClientPage() {
     // INPI documents fetch
     setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
     fetchInpiDocuments(siren.replace(/\s/g, "")).then(data => {
-      setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: null } }));
+      setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: data.error || null } }));
       if (data.totalDocuments > 0) toast.success(`${data.totalDocuments} document(s) INPI recupere(s)`);
+      else if (data.error) toast.warning(`INPI: ${data.error}`);
     }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })));
   };
 

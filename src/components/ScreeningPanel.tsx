@@ -11,7 +11,8 @@ function normalizeStatus(s: string | null): string | null {
   if (upper === "OK" || upper === "AUCUN_ARTICLE") return "OK";
   if (upper === "ATTENTION" || upper === "INDISPONIBLE") return "ATTENTION";
   if (upper === "ALERTE") return "ALERTE";
-  if (upper === "UNAVAILABLE" || upper === "ERREUR" || upper === "ERROR" || upper === "PARTIAL") return "ERREUR";
+  if (upper === "PARTIAL") return "ATTENTION";
+  if (upper === "UNAVAILABLE" || upper === "ERREUR" || upper === "ERROR") return "ERREUR";
   return upper;
 }
 

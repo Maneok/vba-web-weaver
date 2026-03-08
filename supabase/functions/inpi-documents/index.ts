@@ -27,6 +27,9 @@ async function inpiLogin(): Promise<{ token: string | null; error: string | null
     if (!res.ok) {
       const body = await res.text().catch(() => "");
       console.error(`[INPI] Auth failed: ${res.status} ${res.statusText} — ${body}`);
+      if (res.status === 403 && body.includes("connection_type_not_allowed")) {
+        return { token: null, error: "Compte INPI sans acces API. Demandez l'acces API sur data.inpi.fr" };
+      }
       return { token: null, error: `INPI auth failed (${res.status}): ${body || res.statusText}` };
     }
 

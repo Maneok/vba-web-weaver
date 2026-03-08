@@ -228,6 +228,7 @@ export interface InpiResult {
   totalDocuments: number;
   storedCount: number;
   status: string;
+  error?: string;
 }
 
 export interface ScreeningState {
@@ -398,7 +399,7 @@ export async function fetchInpiDocuments(siren: string): Promise<InpiResult> {
   try {
     return await callEdgeFunction<InpiResult>("inpi-documents", { siren });
   } catch {
-    return { documents: [], companyData: null, financials: null, totalDocuments: 0, storedCount: 0, status: "unavailable" };
+    return { documents: [], companyData: null, financials: null, totalDocuments: 0, storedCount: 0, status: "partial" };
   }
 }
 
