@@ -11,10 +11,10 @@ import { toast } from "sonner";
 
 interface ClientSelectorProps {
   selectedRef: string | null;
-  onSelect: (client: Client) => void;
+  onClientSelected: (client: Client) => void;
 }
 
-export default function ClientSelector({ selectedRef, onSelect }: ClientSelectorProps) {
+export default function ClientSelector({ selectedRef, onClientSelected }: ClientSelectorProps) {
   const { clients } = useAppState();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
@@ -27,7 +27,7 @@ export default function ClientSelector({ selectedRef, onSelect }: ClientSelector
   const handleSelect = (ref: string) => {
     const client = clients.find((c) => c.ref === ref);
     if (!client) return;
-    onSelect(client);
+    onClientSelected(client);
     setOpen(false);
     toast.success(`Donnees de ${client.raisonSociale} chargees`);
   };
@@ -40,14 +40,16 @@ export default function ClientSelector({ selectedRef, onSelect }: ClientSelector
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            className="w-[460px] justify-between h-11 bg-card/80 backdrop-blur border-white/10 hover:border-blue-500/50 transition-colors"
+            className="w-[480px] justify-between h-11 bg-card/80 backdrop-blur border-white/10 hover:border-blue-500/50 transition-colors"
           >
             {selectedClient ? (
               <div className="flex items-center gap-2 truncate">
                 <Building2 className="h-4 w-4 text-blue-400 shrink-0" />
                 <span className="font-mono text-xs text-muted-foreground">{selectedClient.ref}</span>
+                <span className="mx-1 text-muted-foreground">—</span>
                 <span className="font-medium truncate">{selectedClient.raisonSociale}</span>
-                <Badge variant="outline" className="text-[10px] shrink-0">{selectedClient.forme}</Badge>
+                <span className="mx-1 text-muted-foreground">—</span>
+                <span className="font-mono text-xs text-muted-foreground">{selectedClient.siren}</span>
               </div>
             ) : (
               <span className="text-muted-foreground">Selectionner un client...</span>
@@ -55,7 +57,7 @@ export default function ClientSelector({ selectedRef, onSelect }: ClientSelector
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[460px] p-0" align="start">
+        <PopoverContent className="w-[480px] p-0" align="start">
           <Command>
             <CommandInput placeholder="Rechercher par nom, ref ou SIREN..." />
             <CommandList>
@@ -66,7 +68,7 @@ export default function ClientSelector({ selectedRef, onSelect }: ClientSelector
                     key={client.ref}
                     value={`${client.ref} ${client.raisonSociale} ${client.siren}`}
                     onSelect={() => handleSelect(client.ref)}
-                    className="flex items-center gap-2"
+                    className="flex items-center gap-2 cursor-pointer"
                   >
                     <Check
                       className={`h-4 w-4 shrink-0 ${
@@ -74,7 +76,9 @@ export default function ClientSelector({ selectedRef, onSelect }: ClientSelector
                       }`}
                     />
                     <span className="font-mono text-xs text-muted-foreground w-16 shrink-0">{client.ref}</span>
+                    <span className="mx-1 text-muted-foreground">—</span>
                     <span className="truncate flex-1 font-medium">{client.raisonSociale}</span>
+                    <span className="mx-1 text-muted-foreground">—</span>
                     <span className="text-xs text-muted-foreground font-mono shrink-0">{client.siren}</span>
                   </CommandItem>
                 ))}
