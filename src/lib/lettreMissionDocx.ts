@@ -90,6 +90,73 @@ function honoRow(label: string, montant: number, shade: boolean): TableRow {
   });
 }
 
+function honoRow4Col(label: string, ht: number, shade: boolean): TableRow {
+  const tva = Math.round(ht * 0.2 * 100) / 100;
+  const ttc = ht + tva;
+  return new TableRow({
+    children: [
+      new TableCell({
+        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
+        width: { size: 40, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ children: [new TextRun({ text: label, size: 20 })] })],
+      }),
+      new TableCell({
+        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
+        width: { size: 20, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: formatMontant(ht), size: 20 })] })],
+      }),
+      new TableCell({
+        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
+        width: { size: 20, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: formatMontant(tva), size: 20 })] })],
+      }),
+      new TableCell({
+        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
+        width: { size: 20, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: formatMontant(ttc), size: 20 })] })],
+      }),
+    ],
+  });
+}
+
+function honoHeader4Col(): TableRow {
+  return new TableRow({
+    tableHeader: true,
+    children: ["Désignation", "HT", "TVA 20 %", "TTC"].map((text, i) =>
+      new TableCell({
+        shading: { type: ShadingType.SOLID, color: NAVY },
+        width: { size: i === 0 ? 40 : 20, type: WidthType.PERCENTAGE },
+        children: [new Paragraph({ alignment: i === 0 ? AlignmentType.LEFT : AlignmentType.RIGHT, children: [new TextRun({ text, bold: true, color: "FFFFFF", size: 18 })] })],
+      })
+    ),
+  });
+}
+
+function honoTotal4Col(label: string, ht: number): TableRow {
+  const tva = Math.round(ht * 0.2 * 100) / 100;
+  const ttc = ht + tva;
+  return new TableRow({
+    children: [
+      new TableCell({
+        shading: { type: ShadingType.SOLID, color: "E0E5F0" },
+        children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 22 })] })],
+      }),
+      new TableCell({
+        shading: { type: ShadingType.SOLID, color: "E0E5F0" },
+        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: formatMontant(ht), bold: true, size: 22 })] })],
+      }),
+      new TableCell({
+        shading: { type: ShadingType.SOLID, color: "E0E5F0" },
+        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: formatMontant(tva), bold: true, size: 22 })] })],
+      }),
+      new TableCell({
+        shading: { type: ShadingType.SOLID, color: "E0E5F0" },
+        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: formatMontant(ttc), bold: true, size: 22 })] })],
+      }),
+    ],
+  });
+}
+
 function honoTotal(label: string, montant: number): TableRow {
   return new TableRow({
     children: [
@@ -430,6 +497,9 @@ interface NewDocxParams {
     telephone: string;
   };
   variables: Record<string, string>;
+  status?: string;
+  signatureExpert?: string;
+  signatureClient?: string;
 }
 
 const REPARTITION_TASKS_DOCX: { tache: string; cabinet: boolean; client: boolean }[] = [
@@ -470,6 +540,14 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
     new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 30 }, children: [new TextRun({ text: `SIRET : ${cabinet.siret} — OEC n° ${cabinet.numeroOEC}`, size: 16, color: "666666" })] }),
     new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.email} — ${cabinet.telephone}`, size: 16, color: "666666" })] }),
   );
+
+  // Watermark for draft status
+  if (params.status === "brouillon" || params.status === "en_attente") {
+    const watermarkLabel = params.status === "brouillon" ? "BROUILLON" : "PROJET";
+    children.push(
+      new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: `— ${watermarkLabel} —`, bold: true, size: 24, color: "CC0000" })] }),
+    );
+  }
 
   // Title
   children.push(
@@ -527,17 +605,17 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
 
     if (section.content === "TABLEAU_HONORAIRES") {
       children.push(heading(section.title));
-      const honoRows: TableRow[] = [
-        honoRow("Forfait comptable annuel", honoraires.comptable, true),
-      ];
+      const honoRows: TableRow[] = [honoHeader4Col()];
+      let rowIdx = 0;
+      honoRows.push(honoRow4Col("Forfait comptable annuel", honoraires.comptable, rowIdx++ % 2 === 0));
       if (honoraires.constitution > 0) {
-        honoRows.push(honoRow("Constitution / Reprise dossier", honoraires.constitution, false));
+        honoRows.push(honoRow4Col("Constitution / Reprise dossier", honoraires.constitution, rowIdx++ % 2 === 0));
       }
       if (missions.juridique && honoraires.juridique > 0) {
-        honoRows.push(honoRow("Mission juridique annuelle", honoraires.juridique, true));
+        honoRows.push(honoRow4Col("Mission juridique annuelle", honoraires.juridique, rowIdx++ % 2 === 0));
       }
       const totalHT = honoraires.comptable + honoraires.constitution + (missions.juridique ? honoraires.juridique : 0);
-      honoRows.push(honoTotal("TOTAL HT", totalHT));
+      honoRows.push(honoTotal4Col("TOTAL", totalHT));
       children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: honoRows }));
 
       const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : "annuel";
