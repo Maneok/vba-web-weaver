@@ -90,7 +90,7 @@ export default function LogsPage() {
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center text-[9px] font-bold text-blue-400">
-                        {log.utilisateur.slice(0, 2).toUpperCase()}
+                        {(log.utilisateur || "??").slice(0, 2).toUpperCase()}
                       </div>
                       <span className="text-xs text-slate-300">{log.utilisateur}</span>
                     </div>

@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle, Loader2 } from "lucide-react";
+import { CheckCircle } from "lucide-react";
 
 export default function CheckoutSuccessPage() {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState(5);
-  const sessionId = searchParams.get("session_id");
-
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown((prev) => {

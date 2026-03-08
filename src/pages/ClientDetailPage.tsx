@@ -63,7 +63,7 @@ interface Diligence {
 export default function ClientDetailPage() {
   const { ref } = useParams<{ ref: string }>();
   const navigate = useNavigate();
-  const { clients, updateClient, logs } = useAppState();
+  const { clients } = useAppState();
 
   const client = clients.find(c => c.ref === ref);
   if (!client) {
@@ -487,8 +487,8 @@ function ClientDetailContent({ client }: { client: Client }) {
                 <NetworkGraph
                   nodes={screening.network.data.nodes}
                   edges={screening.network.data.edges}
-                  width={800}
-                  height={500}
+                  width={Math.min(800, window.innerWidth - 120)}
+                  height={450}
                 />
               </>
             )}
