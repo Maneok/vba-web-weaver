@@ -103,12 +103,17 @@ export default {
           from: { opacity: "0", transform: "translateY(8px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        "slide-down": {
+          from: { opacity: "0", maxHeight: "0" },
+          to: { opacity: "1", maxHeight: "500px" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "pulse-risk": "pulse-risk 2s ease-in-out infinite",
         "count-up": "count-up 0.5s ease-out",
+        slideDown: "slide-down 0.3s ease-out",
       },
     },
   },
