@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, Settings, UserPlus, FolderOpen, Activity, FileText, LogOut } from "lucide-react";
+import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, Settings, UserPlus, FolderOpen, Activity, FileText, LogOut, HelpCircle } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 
@@ -19,6 +19,7 @@ const MENU_ITEMS = [
   { to: "/diagnostic", label: "Diagnostic 360", icon: Activity },
   { to: "/logs", label: "Journal d'audit", icon: ScrollText },
   { to: "/parametres", label: "Parametres", icon: Settings },
+  { to: "/aide", label: "Aide", icon: HelpCircle },
 ] as const;
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
