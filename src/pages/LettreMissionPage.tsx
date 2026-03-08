@@ -357,8 +357,11 @@ export default function LettreMissionPage() {
         {activeTab === "apercu" && (
           <div className="h-full overflow-auto">
             <LettreMissionPreviewV2
-              state={editorState}
-              client={client}
+              clientData={client}
+              sections={editorState.sections}
+              missionsActives={editorState.missions}
+              genre={genre}
+              honoraires={editorState.honoraires}
               activeSectionId={focusedSection}
             />
           </div>

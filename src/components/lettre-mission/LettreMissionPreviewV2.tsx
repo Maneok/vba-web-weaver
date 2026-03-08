@@ -630,7 +630,7 @@ export default function LettreMissionPreviewV2({
                 </tr>
               </thead>
               <tbody>
-                {tpl.honoraires.comptable.lignes.map((l, i) => {
+                {(tpl.honoraires?.comptable?.lignes ?? []).map((l, i) => {
                   const val = "variable" in l && l.variable
                     ? (honoraires as Record<string, number> | undefined)?.[l.variable] ?? 0
                     : (l as { fixe?: number }).fixe ?? 0;
@@ -643,15 +643,15 @@ export default function LettreMissionPreviewV2({
                     </tr>
                   );
                 })}
-                {missionsActives?.sociale && tpl.honoraires.sociale.lignes.map((l, i) => (
-                  <tr key={`s-${i}`} style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: (tpl.honoraires.comptable.lignes.length + i) % 2 === 1 ? C.altRow : "transparent" }}>
+                {missionsActives?.sociale && (tpl.honoraires?.sociale?.lignes ?? []).map((l, i) => (
+                  <tr key={`s-${i}`} style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: ((tpl.honoraires?.comptable?.lignes ?? []).length + i) % 2 === 1 ? C.altRow : "transparent" }}>
                     <td style={{ padding: "7px 12px" }}>{l.label}</td>
                     <td style={{ padding: "7px 12px", textAlign: "right", fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>
                       {l.fixe.toLocaleString("fr-FR")} {l.suffixe}
                     </td>
                   </tr>
                 ))}
-                {missionsActives?.juridique && tpl.honoraires.juridique.lignes.map((l, i) => {
+                {missionsActives?.juridique && (tpl.honoraires?.juridique?.lignes ?? []).map((l, i) => {
                   const val = "variable" in l && l.variable
                     ? (honoraires as Record<string, number> | undefined)?.[l.variable] ?? 0
                     : 0;
@@ -742,6 +742,98 @@ export default function LettreMissionPreviewV2({
               <li>Autorisation de télétransmission de la liasse fiscale</li>
               <li>Conditions générales d'intervention</li>
             </ol>
+
+            {/* Annexe 1: Répartition des travaux */}
+            <div style={{ marginTop: "32px", pageBreakBefore: "always" }}>
+              <h3 style={{ ...sectionTitleStyle, fontSize: "14px" }}>Annexe 1 — Répartition des travaux comptables</h3>
+              <div style={thinRuleStyle} />
+              <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${C.border}`, fontSize: "12px" }}>
+                <thead>
+                  <tr style={{ backgroundColor: C.altRow }}>
+                    {(tpl.repartitionTravaux?.colonnes ?? []).map((col: string, i: number) => (
+                      <th key={i} style={{ textAlign: i === 0 ? "left" : "center", padding: "6px 10px", borderBottom: `2px solid ${C.border}`, color: C.navy, fontWeight: 600, fontSize: "11px" }}>
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {(tpl.repartitionTravaux?.lignes ?? []).map((l: any, i: number) => (
+                    <tr key={l.id ?? i} style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: i % 2 === 1 ? C.altRow : "transparent" }}>
+                      <td style={{ padding: "5px 10px" }}>{l.label}</td>
+                      <td style={{ padding: "5px 10px", textAlign: "center" }}>{l.defautCabinet ? "✓" : ""}</td>
+                      <td style={{ padding: "5px 10px", textAlign: "center" }}>{l.defautClient ? "✓" : ""}</td>
+                      <td style={{ padding: "5px 10px", textAlign: "center", color: C.muted }}>{l.periodicite}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Annexe 2: Attestation travail dissimulé */}
+            <div style={{ marginTop: "32px", pageBreakBefore: "always" }}>
+              <h3 style={{ ...sectionTitleStyle, fontSize: "14px" }}>Annexe 2 — {tpl.attestationTravailDissimule?.titre ?? "Attestation relative au travail dissimulé"}</h3>
+              <div style={thinRuleStyle} />
+              <div style={{ fontSize: "12px", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+                {renderTextBlock(tpl.attestationTravailDissimule?.texte ?? "", vars)}
+              </div>
+            </div>
+
+            {/* Annexe 3: Mandat SEPA */}
+            <div style={{ marginTop: "32px", pageBreakBefore: "always" }}>
+              <h3 style={{ ...sectionTitleStyle, fontSize: "14px" }}>Annexe 3 — {tpl.mandatSepa?.titre ?? "Mandat de prélèvement SEPA"}</h3>
+              <div style={thinRuleStyle} />
+              <div style={{ fontSize: "12px", lineHeight: 1.8, whiteSpace: "pre-wrap", marginBottom: "16px" }}>
+                {renderTextBlock(tpl.mandatSepa?.texteAutorisation ?? "", vars)}
+              </div>
+              <table style={{ width: "100%", borderCollapse: "collapse", border: `1px solid ${C.border}`, fontSize: "12px" }}>
+                <tbody>
+                  <tr style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: C.altRow }}>
+                    <td colSpan={2} style={{ padding: "6px 10px", fontWeight: 700, color: C.navy }}>Créancier</td>
+                  </tr>
+                  {(tpl.mandatSepa?.champCreancier ?? []).map((c: any) => (
+                    <tr key={c.label} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <td style={{ padding: "5px 10px", color: C.muted, width: "200px" }}>{c.label}</td>
+                      <td style={{ padding: "5px 10px", fontWeight: 500 }}>{vars[c.variable] || `[${c.label}]`}</td>
+                    </tr>
+                  ))}
+                  <tr style={{ borderBottom: `1px solid ${C.border}`, backgroundColor: C.altRow }}>
+                    <td colSpan={2} style={{ padding: "6px 10px", fontWeight: 700, color: C.navy }}>Débiteur</td>
+                  </tr>
+                  {(tpl.mandatSepa?.champDebiteur ?? []).map((c: any) => (
+                    <tr key={c.label} style={{ borderBottom: `1px solid ${C.border}` }}>
+                      <td style={{ padding: "5px 10px", color: C.muted, width: "200px" }}>{c.label}</td>
+                      <td style={{ padding: "5px 10px", fontWeight: 500 }}>{vars[c.variable] || `[${c.label}]`}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Annexe 4: Autorisation liasse fiscale */}
+            <div style={{ marginTop: "32px", pageBreakBefore: "always" }}>
+              <h3 style={{ ...sectionTitleStyle, fontSize: "14px" }}>Annexe 4 — {tpl.autorisationLiasse?.titre ?? "Autorisation de télétransmission"}</h3>
+              <div style={thinRuleStyle} />
+              <div style={{ fontSize: "12px", lineHeight: 1.8, whiteSpace: "pre-wrap" }}>
+                {renderTextBlock(tpl.autorisationLiasse?.texte ?? "", vars)}
+              </div>
+            </div>
+
+            {/* Annexe 5: CGV */}
+            <div style={{ marginTop: "32px", pageBreakBefore: "always" }}>
+              <h3 style={{ ...sectionTitleStyle, fontSize: "14px" }}>Annexe 5 — {tpl.conditionsGenerales?.titre ?? "Conditions générales d'intervention"}</h3>
+              <div style={thinRuleStyle} />
+              {(tpl.conditionsGenerales?.sections ?? []).map((section: any) => (
+                <div key={section.numero} style={{ marginBottom: "14px" }}>
+                  <p style={{ fontSize: "12px", fontWeight: 700, color: C.navy, marginBottom: "4px" }}>
+                    Article {section.numero} — {section.titre}
+                  </p>
+                  <p style={{ fontSize: "11px", lineHeight: 1.7, whiteSpace: "pre-wrap", color: C.body }}>
+                    {section.texte}
+                  </p>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

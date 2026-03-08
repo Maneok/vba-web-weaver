@@ -250,6 +250,29 @@ function parseINPICompany(raw: any): any {
   return null;
 }
 
+// ====== Geocoding via Nominatim (fallback for GPS) ======
+async function geocodeAddress(adresse: string, codePostal: string, ville: string): Promise<{ latitude: number | null; longitude: number | null }> {
+  const noGps = { latitude: null, longitude: null };
+  const q = [adresse, codePostal, ville].filter(Boolean).join(", ");
+  if (!q || q.length < 5) return noGps;
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&countrycodes=fr&limit=1&q=${encodeURIComponent(q)}`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": "LCB-FT-Matrice/1.0" },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.length > 0) {
+        return { latitude: parseFloat(data[0].lat), longitude: parseFloat(data[0].lon) };
+      }
+    }
+  } catch {
+    console.log("[Nominatim] Geocoding failed");
+  }
+  return noGps;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -263,7 +286,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const clean = (query as string).replace(/\s/g, "");
+    const clean = (query as string).replace(/[\s.\-]/g, "");
     const isSirenMode = mode === "siren" && /^\d{9,14}$/.test(clean);
     const siren9 = isSirenMode ? clean.slice(0, 9) : "";
     const pappersKey = Deno.env.get("PAPPERS");
@@ -330,9 +353,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ====== PHASE 3: Annuaire Entreprises (fallback or name search) ======
+    // ====== PHASE 3: Annuaire Entreprises (fallback, name search, or GPS enrichment) ======
     let annuaireResults: any[] = [];
-    if (!isSirenMode || (!inpiResult && !pappersData)) {
+    let annuaireGps: { latitude: number | null; longitude: number | null } = { latitude: null, longitude: null };
+    if (true) { // Always call Annuaire: as fallback, for name search, or for GPS data
       try {
         let url: string;
         if (isSirenMode) {
@@ -344,7 +368,14 @@ Deno.serve(async (req) => {
         if (res.ok) {
           const data = await res.json();
           annuaireResults = data.results ?? [];
-          if (annuaireResults.length > 0) sources.push("AnnuaireEntreprises");
+          if (annuaireResults.length > 0) {
+            if (!sources.includes("AnnuaireEntreprises")) sources.push("AnnuaireEntreprises");
+            // Extract GPS from first matching result
+            const firstSiege = annuaireResults[0]?.siege;
+            if (firstSiege?.latitude != null && firstSiege?.longitude != null) {
+              annuaireGps = { latitude: parseFloat(firstSiege.latitude), longitude: parseFloat(firstSiege.longitude) };
+            }
+          }
           console.log(`[Annuaire] ${annuaireResults.length} result(s)`);
         }
       } catch {
@@ -472,6 +503,17 @@ Deno.serve(async (req) => {
       // Effectif
       const effectif = inpiResult?.effectif ?? pappersData?.effectif ?? "0 SALARIE";
 
+      // GPS: Pappers siege, then Annuaire, then Nominatim fallback
+      let gps = { latitude: null as number | null, longitude: null as number | null };
+      if (pappersData?.siege?.latitude != null && pappersData?.siege?.longitude != null) {
+        gps = { latitude: parseFloat(pappersData.siege.latitude), longitude: parseFloat(pappersData.siege.longitude) };
+      } else if (annuaireGps.latitude != null) {
+        gps = annuaireGps;
+      }
+      if (gps.latitude == null && adresse) {
+        gps = await geocodeAddress(adresse, cp, ville);
+      }
+
       results = [{
         siren: `${siren9.slice(0, 3)} ${siren9.slice(3, 6)} ${siren9.slice(6, 9)}`,
         siret,
@@ -482,6 +524,8 @@ Deno.serve(async (req) => {
         adresse,
         code_postal: cp,
         ville,
+        latitude: gps.latitude,
+        longitude: gps.longitude,
         ape,
         libelle_ape: libelleApe,
         capital,
@@ -578,6 +622,20 @@ Deno.serve(async (req) => {
         }
         if (!capital && (r.capital ?? 0) > 0) { capital = r.capital; capitalSource = "data.gouv"; }
 
+        // GPS: Annuaire siege first, then Nominatim fallback
+        let lat: number | null = siege.latitude != null ? parseFloat(siege.latitude) : null;
+        let lon: number | null = siege.longitude != null ? parseFloat(siege.longitude) : null;
+        if (lat == null || lon == null) {
+          const finalAddr = adresse || pappersAdresse.toUpperCase();
+          const finalCp = siege.code_postal || pappersCp || "";
+          const finalVille = (siege.libelle_commune ?? siege.commune ?? "").toUpperCase() || pappersVille.toUpperCase();
+          if (finalAddr) {
+            const geo = await geocodeAddress(finalAddr, finalCp, finalVille);
+            lat = geo.latitude;
+            lon = geo.longitude;
+          }
+        }
+
         return {
           siren: siren ? `${siren.slice(0, 3)} ${siren.slice(3, 6)} ${siren.slice(6, 9)}` : "",
           siret: siege.siret ?? "",
@@ -588,6 +646,8 @@ Deno.serve(async (req) => {
           adresse: adresse || pappersAdresse.toUpperCase(),
           code_postal: siege.code_postal || pappersCp || "",
           ville: (siege.libelle_commune ?? siege.commune ?? "").toUpperCase() || pappersVille.toUpperCase(),
+          latitude: lat,
+          longitude: lon,
           ape: siege.activite_principale ?? r.activite_principale ?? "",
           libelle_ape: siege.libelle_activite_principale ?? r.libelle_activite_principale ?? "",
           capital, capital_source: capitalSource,

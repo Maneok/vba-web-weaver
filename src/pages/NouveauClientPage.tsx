@@ -142,6 +142,36 @@ export default function NouveauClientPage() {
 
   const set = useCallback((key: string, val: unknown) => setForm(prev => ({ ...prev, [key]: val })), []);
 
+  // FIX 9: Save draft to localStorage on step change
+  useEffect(() => {
+    if (step > 0 || form.siren) {
+      localStorage.setItem("draft_nouveau_client", JSON.stringify({ form, step, beneficiaires, questions, decision, motifRefus }));
+    }
+  }, [step, form, beneficiaires, questions, decision, motifRefus]);
+
+  // FIX 9: Restore draft on mount
+  useEffect(() => {
+    const draft = localStorage.getItem("draft_nouveau_client");
+    if (draft) {
+      try {
+        const data = JSON.parse(draft);
+        if (data.form?.siren) {
+          const resume = window.confirm(`Brouillon detecte : ${data.form.raisonSociale || data.form.siren}\nReprendre le brouillon ?`);
+          if (resume) {
+            setForm(data.form);
+            setStep(data.step || 0);
+            if (data.beneficiaires) setBeneficiaires(data.beneficiaires);
+            if (data.questions) setQuestions(data.questions);
+            if (data.decision) setDecision(data.decision);
+            if (data.motifRefus) setMotifRefus(data.motifRefus);
+          } else {
+            localStorage.removeItem("draft_nouveau_client");
+          }
+        }
+      } catch {}
+    }
+  }, []);
+
   // Auto-flag PPE if sanctions screening detects it
   const sanctionsPPE = screening.sanctions.data?.hasPPE ?? false;
   const sanctionsCritical = screening.sanctions.data?.hasCriticalMatch ?? false;
@@ -235,13 +265,21 @@ export default function NouveauClientPage() {
   // KYC completeness
   const kycCompleteness = useMemo(() => {
     const required = ["KBIS", "Statuts", "CNI", "RIB"];
-    const autoDocs = screening.documents.data?.documents ?? [];
+    const autoDocs = [
+      ...(screening.documents.data?.documents ?? []),
+      ...(screening.inpi.data?.documents ?? []),
+    ];
     const found = required.filter(r =>
       documents.some(d => d.type.toUpperCase().includes(r.toUpperCase())) ||
-      autoDocs.some(d => d.type.toUpperCase().includes(r.toUpperCase()) && d.status === "auto")
+      autoDocs.some(d => {
+        const typeMatch = d.type.toUpperCase().includes(r.toUpperCase());
+        // INPI "Actes" count as KBIS equivalent
+        const kbisMatch = r === "KBIS" && (d.type.toUpperCase().includes("ACTE") || d.type.toUpperCase().includes("EXTRAIT"));
+        return (typeMatch || kbisMatch) && (d.status === "auto" || (d as any).storedInSupabase);
+      })
     );
     return Math.round((found.length / required.length) * 100);
-  }, [documents, screening.documents.data]);
+  }, [documents, screening.documents.data, screening.inpi.data]);
 
   // Questions validation - all OUI need comments
   const questionsValid = useMemo(() => {
@@ -456,7 +494,7 @@ export default function NouveauClientPage() {
       setSearchLoading(false);
 
       if (mapped.length === 1) {
-        selectPappersResult(mapped[0]);
+        selectPappersResult(mapped[0], entRes.results);
         launchScreening(entRes.results[0]);
       }
     } else {
@@ -482,7 +520,7 @@ export default function NouveauClientPage() {
     }
   };
 
-  const selectPappersResult = (result: PappersResult) => {
+  const selectPappersResult = (result: PappersResult, enterpriseResults?: EnterpriseResult[]) => {
     // Check for duplicate SIREN
     const existing = clients.find(c => c.siren.replace(/\s/g, "") === result.siren.replace(/\s/g, ""));
     if (existing) {
@@ -513,8 +551,9 @@ export default function NouveauClientPage() {
 
     setSelectedResult(result);
 
-    // Find matching enterprise data for enrichment
-    const entData = screening.enterprise.data?.find(
+    // Find matching enterprise data for enrichment (use passed results to avoid stale state)
+    const entSource = enterpriseResults ?? screening.enterprise.data;
+    const entData = entSource?.find(
       e => e.siren.replace(/\s/g, "") === result.siren.replace(/\s/g, "")
     );
     if (entData) setSelectedEnterprise(entData);
@@ -611,6 +650,28 @@ export default function NouveauClientPage() {
       setBeneficiaires(parsed);
     }
 
+    // FIX 2: Fallback SASU/EURL - if no BE found and forme = SASU or EURL, dirigeant is BE at 100%
+    if (
+      !enrichedBE?.length &&
+      !result.beneficiaires_details?.length &&
+      !result.beneficiaires_effectifs &&
+      (result.dirigeant || entData?.dirigeant)
+    ) {
+      const forme = (formeMatch || entData?.forme_juridique || result.forme_juridique || "").toUpperCase();
+      if (forme.includes("SASU") || forme.includes("EURL") || forme.includes("INDIVIDUEL")) {
+        const dir = entData?.dirigeant || result.dirigeant || "";
+        const names = dir.split(" ");
+        setBeneficiaires([{
+          nom: names[0] || "",
+          prenom: names.slice(1).join(" ") || "",
+          dateNaissance: "",
+          nationalite: "Francaise",
+          pourcentage: 100,
+          pourcentageVotes: 100,
+        }]);
+      }
+    }
+
     // Auto-add Pappers docs
     if (result.documents_disponibles?.length) {
       const pDocs: UploadedDoc[] = result.documents_disponibles.map(d => ({
@@ -690,6 +751,14 @@ export default function NouveauClientPage() {
 
   // Final submission
   const handleSubmit = () => {
+    // FIX 10: Check for duplicate SIREN before creating
+    const existingSiren = clients.find(c => c.siren?.replace(/\s/g, "") === form.siren?.replace(/\s/g, ""));
+    if (existingSiren) {
+      toast.warning(`Ce client existe deja : ${existingSiren.raisonSociale} — Ref. ${existingSiren.ref}`);
+      return;
+    }
+    // FIX 9: Clear draft on successful submission
+    localStorage.removeItem("draft_nouveau_client");
     const now = new Date().toISOString().split("T")[0];
     const existingNums = clients.map(c => {
       const match = c.ref.match(/CLI-\d{2}-(\d+)/);
@@ -780,8 +849,8 @@ export default function NouveauClientPage() {
 
   const canGoNext = useMemo(() => {
     switch (step) {
-      case 0: return true; // Search is optional (can skip)
-      case 1: return form.raisonSociale && form.siren && form.forme && form.ape;
+      case 0: return true;
+      case 1: return !!(form.raisonSociale && form.siren && form.siren.replace(/\s/g, "").length === 9 && form.forme && form.ape && form.dirigeant && form.adresse && form.cp && form.ville);
       case 2: return true;
       case 3: return questionsValid;
       case 4: return decision !== "";
@@ -824,6 +893,18 @@ export default function NouveauClientPage() {
         <div className="flex items-center gap-3">
           <ScoreGauge score={adjustedScore} />
           <VigilanceBadge level={risk.nivVigilance} />
+          {(() => {
+            const reasons: string[] = [];
+            if (riskFlags.ppe) reasons.push("PPE");
+            if (riskFlags.paysRisque) reasons.push("Pays risque");
+            if (riskFlags.atypique) reasons.push("Atypique");
+            if (risk.scoreActivite > 60) reasons.push("Score activite > 60");
+            if (gelAvoirsAlert.length > 0) reasons.push("Gel avoirs");
+            if (reasons.length > 0 && risk.nivVigilance === "RENFORCEE") {
+              return <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Force : {reasons.join(", ")}</Badge>;
+            }
+            return null;
+          })()}
         </div>
       </div>
 
@@ -1853,8 +1934,26 @@ export default function NouveauClientPage() {
 
         {step < 5 ? (
           <Button
-            onClick={() => setStep(step + 1)}
-            disabled={!canGoNext}
+            onClick={() => {
+              if (!canGoNext) {
+                const missing: string[] = [];
+                if (step === 1) {
+                  if (!form.raisonSociale) missing.push("Raison sociale");
+                  if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) missing.push("SIREN (9 chiffres)");
+                  if (!form.forme) missing.push("Forme juridique");
+                  if (!form.ape) missing.push("Code APE");
+                  if (!form.dirigeant) missing.push("Dirigeant");
+                  if (!form.adresse) missing.push("Adresse");
+                  if (!form.cp) missing.push("Code postal");
+                  if (!form.ville) missing.push("Ville");
+                }
+                if (step === 3 && !questionsValid) missing.push("Commentaires obligatoires pour reponses OUI");
+                if (step === 4 && !decision) missing.push("Decision requise");
+                if (missing.length > 0) toast.warning(`Champs manquants : ${missing.join(", ")}`);
+                return;
+              }
+              setStep(step + 1);
+            }}
             className="gap-1.5 bg-blue-600 hover:bg-blue-700"
           >
             Suivant

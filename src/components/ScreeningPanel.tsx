@@ -29,10 +29,10 @@ function StatusIcon({ status, loading }: { status: Status | null; loading: boole
 // Per-key contextual badge labels
 const OK_LABELS: Record<string, string> = {
   enterprise: "Donnees recuperees",
-  sanctions: "Aucune alerte",
-  bodacc: "Aucune procedure",
+  sanctions: "Aucune alerte sanctions",
+  bodacc: "Aucune procedure collective",
   google: "Presence confirmee",
-  news: "Aucun article negatif",
+  news: "Pas d'article negatif",
   network: "Reseau normal",
   documents: "Documents recuperes",
   inpi: "Donnees recuperees",
@@ -40,9 +40,9 @@ const OK_LABELS: Record<string, string> = {
 
 const ATTENTION_LABELS: Record<string, string> = {
   enterprise: "Donnees partielles",
-  sanctions: "Attention",
+  sanctions: "Alerte a verifier",
   bodacc: "Annonces detectees",
-  google: "Non reference sur Google Maps",
+  google: "Non reference Google Maps",
   news: "Articles a verifier",
   network: "Mandats multiples",
   documents: "Documents partiels",
@@ -198,8 +198,10 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       loading: screening.documents.loading,
       detail: screening.documents.data
         ? screening.documents.data.autoRecovered > 0
-          ? `${screening.documents.data.autoRecovered} recupere(s) sur ${screening.documents.data.total}`
-          : `${screening.documents.data.total} detecte(s), 0 recupere — verifier logs`
+          ? `${screening.documents.data.autoRecovered} document(s) recupere(s)`
+          : screening.documents.data.total > 0
+            ? `${screening.documents.data.total} detecte(s), telechargement echoue`
+            : "Aucun document detecte"
         : undefined,
       timeMs: screening.documents.timeMs,
     });

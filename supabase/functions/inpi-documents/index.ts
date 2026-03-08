@@ -582,9 +582,21 @@ Deno.serve(async (req) => {
 
       for (const acte of actes.slice(0, 5)) {
         const acteId = acte.id;
-        const acteType = String(acte.typeRdd ?? acte.type ?? "Acte");
+        let acteType = "Acte";
+        if (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0) {
+          acteType = String(acte.typeRdd[0]?.typeActe || acte.typeRdd[0]?.decision || "Acte");
+        } else if (typeof acte.typeRdd === "string") {
+          acteType = acte.typeRdd;
+        } else if (acte.type) {
+          acteType = String(acte.type);
+        }
         const acteDate = String(acte.dateDepot ?? acte.date ?? "");
-        const nature = String(acte.nature ?? "");
+        let nature = "";
+        if (acte.typeRdd && Array.isArray(acte.typeRdd)) {
+          nature = acte.typeRdd.map((t: any) => String(t.decision || t.typeActe || "")).filter(Boolean).join(", ");
+        } else {
+          nature = String(acte.nature ?? "");
+        }
         const nomDoc = String(acte.nomDocument ?? "");
         const label = nature ? `${acteType} — ${nature} — ${acteDate}` : `${acteType} — ${nomDoc || "depot"} ${acteDate}`;
         const safeType = acteType.replace(/\s/g, "_");
@@ -593,6 +605,11 @@ Deno.serve(async (req) => {
         const downloadUrl = `${INPI_BASE}/actes/${acteId}/download`;
         const publicUrl = await downloadAndStore(supabase, token, downloadUrl, storagePath);
 
+        const isStatuts = (acte.typeRdd && Array.isArray(acte.typeRdd))
+          ? acte.typeRdd.some((t: any) =>
+              String(t.typeActe || "").toLowerCase().includes("statut") ||
+              String(t.decision || "").toLowerCase().includes("statut"))
+          : String(acteType).toLowerCase().includes("statut");
         const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") || nature.toLowerCase().includes("assembl");
 
         documents.push({

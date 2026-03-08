@@ -21,7 +21,7 @@ export default function AnnexesPreview({ repartition, onRepartitionChange }: Ann
 
   const [rows, setRows] = useState<RepartitionRow[]>(
     repartition ??
-    tpl.repartitionTravaux.lignes.map((l) => ({
+    (tpl.repartitionTravaux?.lignes ?? []).map((l) => ({
       id: l.id,
       label: l.label,
       cabinet: l.defautCabinet,
