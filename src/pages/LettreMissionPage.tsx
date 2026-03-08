@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import {
@@ -12,6 +12,7 @@ import type { CabinetConfig } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -19,8 +20,9 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle2,
-  Eye,
-  Edit3,
+  Save,
+  Mail,
+  Check,
 } from "lucide-react";
 import ClientSelector from "@/components/lettre-mission/ClientSelector";
 import LettreMissionEditor, {
@@ -29,6 +31,7 @@ import LettreMissionEditor, {
 } from "@/components/lettre-mission/LettreMissionEditor";
 import LettreMissionPreview from "@/components/lettre-mission/LettreMissionPreview";
 
+// ── Constants ──
 const DEFAULT_CABINET: CabinetConfig = {
   nom: "Cabinet d'Expertise Comptable",
   adresse: "1 rue de la Paix",
@@ -43,16 +46,43 @@ const DEFAULT_CABINET: CabinetConfig = {
   police: "system-ui",
 };
 
+type LetterStatus = "brouillon" | "finalisee" | "envoyee";
+type ViewTab = "editeur" | "apercu";
+
+const STATUS_CONFIG: Record<LetterStatus, { label: string; className: string }> = {
+  brouillon: { label: "Brouillon", className: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
+  finalisee: { label: "Finalisée", className: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
+  envoyee: { label: "Envoyée", className: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
+};
+
+const SECTIONS = [
+  { id: 1, label: "Introduction" },
+  { id: 2, label: "Entité" },
+  { id: 3, label: "LCB-FT" },
+  { id: 4, label: "Mission" },
+  { id: 5, label: "Durée" },
+  { id: 6, label: "Missions comp." },
+  { id: 7, label: "Honoraires" },
+  { id: 8, label: "Paiement" },
+  { id: 9, label: "Conclusion" },
+  { id: 10, label: "Annexes" },
+];
+
+// ── Main Component ──
 export default function LettreMissionPage() {
   const { ref } = useParams<{ ref: string }>();
   const navigate = useNavigate();
   const { clients } = useAppState();
+  const contentRef = useRef<HTMLDivElement>(null);
 
   const [selectedRef, setSelectedRef] = useState<string | null>(ref ?? null);
-  const [view, setView] = useState<"editor" | "preview">("editor");
   const [editorState, setEditorState] = useState<EditorState>(() =>
     buildDefaultEditorState(ref ? clients.find((c) => c.ref === ref) : null)
   );
+  const [activeTab, setActiveTab] = useState<ViewTab>("editeur");
+  const [status, setStatus] = useState<LetterStatus>("brouillon");
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [slideDirection, setSlideDirection] = useState<"left" | "right">("right");
 
   const client = useMemo(
     () => clients.find((c) => c.ref === selectedRef) ?? null,
@@ -64,14 +94,16 @@ export default function LettreMissionPage() {
     [client]
   );
 
-  const handleClientSelected = useCallback(
-    (c: Client) => {
-      setSelectedRef(c.ref);
-      setEditorState(buildDefaultEditorState(c));
-    },
-    []
-  );
+  const handleClientSelected = useCallback((c: Client) => {
+    setSelectedRef(c.ref);
+    setEditorState(buildDefaultEditorState(c));
+    setStatus("brouillon");
+    setLastSaved(null);
+  }, []);
 
+  const template = useMemo(() => getDefaultTemplate(), []);
+
+  // Build options from editor state for PDF/DOCX export
   const buildOptions = useCallback(() => ({
     genre: editorState.genre === "M" ? ("M" as const) : ("F" as const),
     missionSociale: editorState.missions.sociale,
@@ -94,14 +126,31 @@ export default function LettreMissionPage() {
       : [],
   }), [editorState]);
 
+  // Section completion status based on editor state
+  const sectionStatus = useMemo(() => {
+    if (!client) return SECTIONS.map(() => "grey" as const);
+    const s = editorState.sections;
+    return SECTIONS.map((_, i) => {
+      const section = s[i];
+      if (!section) return "green" as const;
+      if (!section.visible) return "grey" as const;
+      if (section.editable && (!section.content || section.content.trim().length < 10)) return "orange" as const;
+      return "green" as const;
+    });
+  }, [client, editorState.sections]);
+
+  const completedCount = sectionStatus.filter((s) => s === "green").length;
+  const progressPercent = SECTIONS.length > 0 ? Math.round((completedCount / SECTIONS.length) * 100) : 0;
+
+  // ── Export handlers ──
   const handleExportPdf = useCallback(() => {
     if (!client) return;
     if (validation && !validation.valid) {
       toast.error(`Champs manquants : ${validation.champsManquants.join(", ")}`);
       return;
     }
-    const options = buildOptions();
-    const lm = generateFromClient(client, DEFAULT_CABINET, options);
+    const opts = buildOptions();
+    const lm = generateFromClient(client, DEFAULT_CABINET, opts);
     renderToPdf(lm);
     toast.success("PDF généré avec succès");
   }, [client, validation, buildOptions]);
@@ -112,133 +161,281 @@ export default function LettreMissionPage() {
       toast.error(`Champs manquants : ${validation.champsManquants.join(", ")}`);
       return;
     }
-    const options = buildOptions();
-    const lm = generateFromClient(client, DEFAULT_CABINET, options);
+    const opts = buildOptions();
+    const lm = generateFromClient(client, DEFAULT_CABINET, opts);
     await renderToDocx(lm);
     toast.success("DOCX généré avec succès");
   }, [client, validation, buildOptions]);
 
+  const handleSave = useCallback(() => {
+    setLastSaved(new Date());
+    setStatus("finalisee");
+    toast.success("Lettre sauvegardée");
+  }, []);
+
+  const handleEmail = useCallback(() => {
+    setStatus("envoyee");
+    toast.success("Email envoyé (simulation)");
+  }, []);
+
+  // ── Tab switching with animation ──
+  const switchTab = useCallback((tab: ViewTab) => {
+    setSlideDirection(tab === "apercu" ? "right" : "left");
+    setActiveTab(tab);
+  }, []);
+
+  // ── Keyboard shortcuts ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+      if (mod && e.key === "p") {
+        e.preventDefault();
+        handleExportPdf();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [handleSave, handleExportPdf]);
+
+  // ── Section scroll (delegates to editor accordion) ──
+  const [focusedSection, setFocusedSection] = useState<string | undefined>();
+  const scrollToSection = useCallback((sectionId: number) => {
+    const section = SECTIONS[sectionId - 1];
+    if (section) setFocusedSection(section.label.toLowerCase());
+  }, []);
+
+  // ── Time since last save ──
+  const timeSinceSave = useMemo(() => {
+    if (!lastSaved) return null;
+    const diff = Math.round((Date.now() - lastSaved.getTime()) / 60000);
+    if (diff < 1) return "à l'instant";
+    return `il y a ${diff} min`;
+  }, [lastSaved]);
+
+  const statusConf = STATUS_CONFIG[status];
+
   return (
     <div className="flex flex-col h-full">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-4 py-3 bg-slate-900 border-b border-white/10">
-        <div className="flex items-center gap-3">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(client ? `/client/${client.ref}` : "/bdd")}
-            className="text-slate-400 hover:text-white"
-          >
-            <ArrowLeft className="w-4 h-4 mr-1" /> Retour
-          </Button>
-          <h1 className="text-sm font-semibold text-white">Lettre de Mission</h1>
-        </div>
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <div className="flex rounded-md border border-white/10 overflow-hidden mr-2">
+      {/* ═══ HEADER — Sticky ═══ */}
+      <div className="sticky top-0 z-50 bg-slate-900 border-b border-white/10 shrink-0">
+        {/* Line 1 — Navigation + Tab switch + Export */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate(client ? `/client/${client.ref}` : "/bdd")}
+              className="text-slate-400 hover:text-white gap-1"
+            >
+              <ArrowLeft className="w-4 h-4" /> Retour
+            </Button>
+            <h1 className="text-sm font-semibold text-white">Lettre de Mission</h1>
+            <Badge variant="outline" className={`text-xs ${statusConf.className}`}>
+              {statusConf.label}
+            </Badge>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {/* Tab switcher */}
+            <div className="flex rounded-md border border-white/10 overflow-hidden">
+              <button
+                onClick={() => switchTab("editeur")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  activeTab === "editeur"
+                    ? "bg-white/10 text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Éditeur
+              </button>
+              <button
+                onClick={() => switchTab("apercu")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
+                  activeTab === "apercu"
+                    ? "bg-white/10 text-white"
+                    : "text-slate-400 hover:text-white"
+                }`}
+              >
+                Aperçu
+              </button>
+            </div>
+
+            <div className="w-px h-5 bg-white/10" />
+
             <Button
               size="sm"
-              variant={view === "editor" ? "default" : "ghost"}
-              onClick={() => setView("editor")}
-              className="rounded-none gap-1 text-xs"
+              variant="outline"
+              onClick={handleExportPdf}
+              disabled={!client}
+              className="gap-1 text-xs"
             >
-              <Edit3 className="h-3 w-3" /> Éditeur
+              <FileDown className="h-3.5 w-3.5" /> PDF
             </Button>
             <Button
               size="sm"
-              variant={view === "preview" ? "default" : "ghost"}
-              onClick={() => setView("preview")}
-              className="rounded-none gap-1 text-xs"
+              variant="outline"
+              onClick={handleExportDocx}
+              disabled={!client}
+              className="gap-1 text-xs"
             >
-              <Eye className="h-3 w-3" /> Aperçu
+              <FileText className="h-3.5 w-3.5" /> DOCX
             </Button>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExportPdf}
-            disabled={!client}
-            className="gap-1"
-          >
-            <FileDown className="h-4 w-4" /> PDF
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleExportDocx}
-            disabled={!client}
-            className="gap-1"
-          >
-            <FileText className="h-4 w-4" /> DOCX
-          </Button>
         </div>
-      </div>
 
-      {/* Client selector bar */}
-      <div className="px-4 py-3 bg-slate-900/50 border-b border-white/10 flex items-center gap-4">
-        <ClientSelector
-          selectedRef={selectedRef}
-          onClientSelected={handleClientSelected}
-        />
-        {/* Validation badge */}
-        {client && validation && (
+        {/* Line 2 — Client selector + Validation */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
           <div className="flex items-center gap-2">
-            {validation.valid ? (
-              <>
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-xs text-emerald-400">Dossier complet</span>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <span className="text-xs text-amber-400">
-                  {validation.champsManquants.length} champ(s) manquant(s)
-                </span>
-                <div className="flex flex-wrap gap-1 ml-1">
-                  {validation.champsManquants.slice(0, 3).map((c) => (
-                    <Badge
-                      key={c}
-                      variant="outline"
-                      className="text-[10px] border-amber-500/30 text-amber-300"
-                    >
-                      {c}
-                    </Badge>
-                  ))}
-                  {validation.champsManquants.length > 3 && (
-                    <Badge
-                      variant="outline"
-                      className="text-[10px] border-amber-500/30 text-amber-300"
-                    >
-                      +{validation.champsManquants.length - 3}
-                    </Badge>
-                  )}
-                </div>
-              </>
+            <ClientSelector
+              selectedRef={selectedRef}
+              onClientSelected={handleClientSelected}
+            />
+
+            {validation && (
+              <Badge
+                variant="outline"
+                className={`text-xs h-6 ${
+                  validation.valid
+                    ? "border-emerald-500/30 text-emerald-400"
+                    : "border-amber-500/30 text-amber-400"
+                }`}
+              >
+                {validation.valid ? (
+                  <><CheckCircle2 className="w-3 h-3 mr-1" /> Dossier complet</>
+                ) : (
+                  <><AlertTriangle className="w-3 h-3 mr-1" /> {validation.champsManquants.length} champ(s) manquant(s)</>
+                )}
+              </Badge>
             )}
           </div>
-        )}
+        </div>
+
+        {/* Line 3 — Save/Email + Progress */}
+        <div className="flex items-center justify-between px-4 py-2">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              onClick={handleSave}
+              disabled={!client}
+              className="gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white h-7"
+            >
+              <Save className="h-3.5 w-3.5" /> Sauvegarder
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleEmail}
+              disabled={!client}
+              className="gap-1 text-xs h-7"
+            >
+              <Mail className="h-3.5 w-3.5" /> Email
+            </Button>
+            {timeSinceSave && (
+              <span className="text-[11px] text-slate-500 flex items-center gap-1">
+                <Check className="w-3 h-3 text-emerald-500" />
+                Dernière sauvegarde : {timeSinceSave}
+              </span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-slate-400">
+              {completedCount}/{SECTIONS.length} sections — {progressPercent}%
+            </span>
+            <Progress value={progressPercent} className="w-32 h-1.5" />
+          </div>
+        </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 overflow-hidden">
-        {!client && !ref ? (
-          <div className="flex items-center justify-center h-full text-slate-500">
-            Sélectionnez un client pour générer une lettre de mission
+      {/* ═══ BODY ═══ */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Section nav sidebar — only in editor mode */}
+        {activeTab === "editeur" && (
+          <div className="w-10 shrink-0 bg-slate-900/50 border-r border-white/[0.06] sticky top-0 self-start h-full">
+            <div className="flex flex-col items-center py-3 gap-1.5">
+              {SECTIONS.map((s, i) => {
+                const st = sectionStatus[i];
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => scrollToSection(s.id)}
+                    title={s.label}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold transition-all hover:scale-110 ${
+                      st === "green"
+                        ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                        : st === "orange"
+                        ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                        : "bg-slate-700/30 text-slate-500 border border-white/[0.06]"
+                    }`}
+                  >
+                    {st === "green" ? "✓" : s.id}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        ) : view === "editor" ? (
-          <LettreMissionEditor
-            client={client}
-            state={editorState}
-            onChange={setEditorState}
-          />
-        ) : (
-          <LettreMissionPreview
-            client={client!}
-            template={getDefaultTemplate()}
-            cabinetConfig={DEFAULT_CABINET}
-            options={buildOptions()}
-          />
         )}
+
+        {/* Content area with slide animation */}
+        <div className="flex-1 overflow-hidden relative">
+          {/* Preview pane */}
+          <div
+            className="absolute inset-0 transition-transform duration-300 ease-in-out"
+            style={{
+              transform:
+                activeTab === "apercu"
+                  ? "translateX(0%)"
+                  : slideDirection === "left"
+                  ? "translateX(-100%)"
+                  : "translateX(100%)",
+              opacity: activeTab === "apercu" ? 1 : 0,
+              pointerEvents: activeTab === "apercu" ? "auto" : "none",
+            }}
+          >
+            {client && (
+              <LettreMissionPreview
+                client={client}
+                template={template}
+                cabinetConfig={DEFAULT_CABINET}
+                options={buildOptions()}
+              />
+            )}
+          </div>
+
+          {/* Editor pane */}
+          <div
+            className="absolute inset-0 transition-transform duration-300 ease-in-out"
+            style={{
+              transform:
+                activeTab === "editeur"
+                  ? "translateX(0%)"
+                  : slideDirection === "right"
+                  ? "translateX(100%)"
+                  : "translateX(-100%)",
+              opacity: activeTab === "editeur" ? 1 : 0,
+              pointerEvents: activeTab === "editeur" ? "auto" : "none",
+            }}
+          >
+            <div ref={contentRef} className="h-full overflow-hidden">
+              {!client ? (
+                <div className="flex items-center justify-center h-full text-slate-500">
+                  Sélectionnez un client pour générer une lettre de mission
+                </div>
+              ) : (
+                <LettreMissionEditor
+                  client={client}
+                  state={editorState}
+                  onChange={setEditorState}
+                  onSectionFocus={setFocusedSection}
+                />
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
