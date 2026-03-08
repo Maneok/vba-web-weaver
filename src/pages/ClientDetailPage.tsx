@@ -268,6 +268,9 @@ function ClientDetailContent({ client }: { client: Client }) {
         <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateLettreMission(client); toast.success("Lettre de mission generee"); }}>
           <FileDown className="w-4 h-4" /> Lettre de mission (PDF)
         </Button>
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400" onClick={() => navigate(`/lettre-mission/${client.ref}`)}>
+          <FileText className="w-4 h-4" /> Générer lettre de mission
+        </Button>
         <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }}>
           <Shield className="w-4 h-4" /> Lancer screening
         </Button>
