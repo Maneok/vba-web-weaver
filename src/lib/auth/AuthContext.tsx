@@ -15,43 +15,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch profile with per-request timeout + retry for new signups
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
-    const maxRetries = 3;
-    const REQUEST_TIMEOUT = 5000; // 5s max per attempt
+    try {
+      console.log("[Auth] fetchProfile called for userId:", userId);
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
-      try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+      const { data, error, status } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
 
-        const { data, error } = await supabase
+      console.log("[Auth] fetchProfile result — status:", status, "error:", error?.message, "data:", data ? "found" : "null");
+
+      if (error) {
+        console.error("[Auth] fetchProfile error:", error.message, "code:", error.code, "details:", error.details);
+        return null;
+      }
+
+      if (!data) {
+        console.warn("[Auth] No profile found, waiting 2s and retrying...");
+        await new Promise(r => setTimeout(r, 2000));
+        const { data: retry, error: retryErr } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", userId)
-          .single()
-          .abortSignal(controller.signal);
-
-        clearTimeout(timer);
-
-        if (data) return data as UserProfile;
-
-        if (error) {
-          console.warn(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries}:`, error.code, error.message);
-          // PGRST116 = row not found — worth retrying (trigger may not be done)
-          if (error.code !== "PGRST116") return null;
-        }
-      } catch (err) {
-        console.warn(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries} exception:`, err);
+          .maybeSingle();
+        console.log("[Auth] Retry result:", retry ? "found" : "null", retryErr?.message);
+        return retry as UserProfile | null;
       }
 
-      // Wait before retry (trigger handle_new_user may still be running)
-      if (attempt < maxRetries - 1) {
-        await new Promise((r) => setTimeout(r, 800));
-      }
+      return data as UserProfile;
+    } catch (e) {
+      console.error("[Auth] fetchProfile exception:", e);
+      return null;
     }
-    console.error("[AuthContext] Profile not found after", maxRetries, "retries for user:", userId);
-    return null;
   }, []);
 
   const handleSignOut = useCallback(async () => {
@@ -74,82 +71,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   useEffect(() => {
-    let cancelled = false;
+    let mounted = true;
 
-    // Listen for auth changes FIRST to catch events during init
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
-        if (cancelled) return;
-        console.log("[Auth] State change:", event);
+        if (!mounted) return;
+        console.log("[Auth] onAuthStateChange:", event, s?.user?.email);
 
         setSession(s);
         setUser(s?.user ?? null);
 
         if (s?.user) {
           const p = await fetchProfile(s.user.id);
-          if (!cancelled) {
+          if (mounted) {
             setProfile(p);
-            if (event === "SIGNED_IN" && p) {
-              logAudit({ action: "CONNEXION" }).catch(() => {});
-            }
+            console.log("[Auth] Profile set:", p ? p.full_name : "null");
           }
         } else {
-          setProfile(null);
+          if (mounted) setProfile(null);
         }
 
-        if (!cancelled) setLoading(false);
+        if (mounted) setLoading(false);
       }
     );
 
-    // Then get initial session — no Promise.race timeout wrapper
-    const initAuth = async () => {
-      try {
-        const { data: { session: s }, error } = await supabase.auth.getSession();
+    // Récupérer la session initiale
+    supabase.auth.getSession().then(async ({ data: { session: s } }) => {
+      if (!mounted) return;
+      console.log("[Auth] Initial session:", s?.user?.email || "none");
 
-        if (cancelled) return;
+      setSession(s);
+      setUser(s?.user ?? null);
 
-        if (error) {
-          console.warn("[Auth] getSession error:", error.message);
-          await supabase.auth.signOut();
-          return;
+      if (s?.user) {
+        const p = await fetchProfile(s.user.id);
+        if (mounted) {
+          setProfile(p);
+          console.log("[Auth] Initial profile:", p ? p.full_name : "null");
         }
-
-        setSession(s);
-        setUser(s?.user ?? null);
-
-        if (s?.user) {
-          const p = await fetchProfile(s.user.id);
-          if (!cancelled) setProfile(p);
-        }
-      } catch (err) {
-        console.error("[Auth] Init exception:", err);
-        if (!cancelled) {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    };
-    initAuth();
 
-    // Safety net: if loading is STILL true after 10s, force it false
-    const safetyTimer = setTimeout(() => {
-      if (!cancelled) {
-        setLoading(prev => {
-          if (prev) {
-            console.warn("[Auth] Safety timeout — forcing load complete");
-            return false;
-          }
-          return prev;
-        });
-      }
-    }, 10000);
+      if (mounted) setLoading(false);
+    });
 
     return () => {
-      cancelled = true;
-      clearTimeout(safetyTimer);
+      mounted = false;
       subscription.unsubscribe();
     };
   }, [fetchProfile]);

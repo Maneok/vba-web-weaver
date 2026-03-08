@@ -13,16 +13,19 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    const profileRes = await supabase
+    const { data: profileData } = await supabase
       .from("profiles")
       .select("cabinet_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
-    if (!profileRes.data) return;
+    if (!profileData?.cabinet_id) {
+      console.warn("[Audit] No cabinet_id found, skipping audit log");
+      return;
+    }
 
     await supabase.from("audit_trail").insert({
-      cabinet_id: profileRes.data.cabinet_id,
+      cabinet_id: profileData.cabinet_id,
       user_id: user.id,
       user_email: user.email || "",
       action: entry.action,
@@ -30,10 +33,10 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       record_id: entry.record_id || null,
       old_data: entry.old_data || null,
       new_data: entry.new_data || null,
-      ip_address: null, // Set by server-side if needed
-      user_agent: navigator.userAgent,
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
     });
   } catch (err) {
-    console.error("Audit trail error:", err);
+    console.error("[Audit] Error (non-blocking):", err);
+    // NE JAMAIS throw ici — l'audit ne doit jamais bloquer l'app
   }
 }
