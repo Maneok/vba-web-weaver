@@ -24,7 +24,7 @@ type SortKey = "raisonSociale" | "scoreGlobal" | "nivVigilance" | "etatPilotage"
 type SortDir = "asc" | "desc";
 
 export default function BddPage() {
-  const { clients, updateClient } = useAppState();
+  const { clients, updateClient, isLoading } = useAppState();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterVigilance, setFilterVigilance] = useState<string>("all");
@@ -146,6 +146,17 @@ export default function BddPage() {
       toast.success("Export CSV genere");
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 lg:p-8 flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-3">
+          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-sm text-slate-500">Chargement des clients...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
