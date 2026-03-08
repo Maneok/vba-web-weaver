@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, Fragment } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   ChevronDown,
   ChevronRight,
@@ -23,6 +23,7 @@ import {
   type ControleFiscalOption,
 } from "../../lib/lettreMissionContent";
 import { LCBFT_TEMPLATES } from "../../lib/lcbftTemplates";
+import paramO90 from "../../../param_o90.json";
 import RepartitionTravaux from "./RepartitionTravaux";
 import AttestationTravailDissimule from "./AttestationTravailDissimule";
 import MandatSepa from "./MandatSepa";
@@ -71,7 +72,6 @@ export function buildDefaultEditorState(client?: Client | null): EditorState {
     editable: true,
   }));
 
-  // Add implicit sections used by the preview but not in LETTRE_MISSION_CONTENT
   const extraSections: EditorSection[] = [
     { id: "nature", title: "Nature et limites", visible: true, content: "", editable: false },
     { id: "paiement", title: "Modalités de paiement", visible: true, content: "Les honoraires sont payables selon la fréquence convenue, par prélèvement SEPA ou virement bancaire.\n\nEn cas de retard de paiement, des pénalités de retard seront appliquées conformément à l'article L.441-10 du Code de commerce.", editable: true },
@@ -122,12 +122,37 @@ export interface LettreMissionEditorProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
+/** Format ISO date "2005-03-15" → "15/03/2005" */
+function formatDateFR(dateStr: string): string {
+  if (!dateStr) return "";
+  const m = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (m) return `${m[3]}/${m[2]}/${m[1]}`;
+  return dateStr;
+}
+
+/** Replace {{variable}} placeholders with their values */
+function resolveText(text: string, vars: Record<string, string>): string {
+  return text.replace(/\{\{([a-z_]+)\}\}/g, (full, name) => vars[name] ?? full);
+}
+
+type SectionStatus = "complete" | "warning" | "disabled" | "empty";
+
+function getSectionStatus(content: string | undefined, disabled?: boolean): SectionStatus {
+  if (disabled) return "disabled";
+  if (!content?.trim()) return "empty";
+  if (/\{\{[a-z_]+\}\}/.test(content)) return "warning";
+  return "complete";
+}
+
+const lmLab = paramO90.lm_lab as Record<string, { titre: string; corps: string }>;
+
 function buildVariables(
   client: Client,
   genre: Genre,
   honoraires: HonorairesEditable,
 ): Record<string, string> {
   const fp = getFormulePolitesse(genre);
+  const vigLevel = client.nivVigilance || "STANDARD";
   return {
     formule_politesse: fp,
     formule_politesse_fin: fp,
@@ -137,8 +162,8 @@ function buildVariables(
     domaine: client.domaine || "",
     ape: client.ape || "",
     siren: client.siren || "",
-    capital: client.capital ? `${client.capital.toLocaleString("fr-FR")} €` : "",
-    date_creation: client.dateCreation || "",
+    capital: client.capital ? `${client.capital.toLocaleString("fr-FR")} €` : "Non renseigné",
+    date_creation: formatDateFR(client.dateCreation || ""),
     associe: client.associe || "",
     effectif: client.effectif || "",
     mission: client.mission || "",
@@ -149,38 +174,12 @@ function buildVariables(
     setup: honoraires.setup ? `${honoraires.setup.toLocaleString("fr-FR")} €` : "—",
     honoraires_juridique: `${honoraires.honorairesJuridique.toLocaleString("fr-FR")} €`,
     score_global: String(client.scoreGlobal ?? 0),
-    niv_vigilance: client.nivVigilance || "STANDARD",
+    niv_vigilance: vigLevel,
     ppe: client.ppe || "NON",
-    date_revue: client.dateDerniereRevue || "—",
-    date_butoir: client.dateButoir || "—",
-    bloc_vigilance_lab: LCBFT_TEMPLATES[client.nivVigilance || "STANDARD"]?.corps || "",
+    date_revue: client.dateDerniereRevue ? formatDateFR(client.dateDerniereRevue) : "—",
+    date_butoir: client.dateButoir ? formatDateFR(client.dateButoir) : "—",
+    bloc_vigilance_lab: lmLab[vigLevel]?.corps || LCBFT_TEMPLATES[vigLevel as VigilanceLevel]?.corps || "",
   };
-}
-
-function renderWithVariables(
-  text: string,
-  vars: Record<string, string>,
-): React.ReactNode[] {
-  const parts = text.split(/(\{\{[a-z_]+\}\})/g);
-  return parts.map((part, i) => {
-    const match = part.match(/^\{\{([a-z_]+)\}\}$/);
-    if (match) {
-      const val = vars[match[1]];
-      if (val) {
-        return (
-          <span key={i} className="bg-blue-100 text-blue-800 px-0.5 rounded">
-            {val}
-          </span>
-        );
-      }
-      return (
-        <span key={i} className="bg-orange-100 text-orange-600 px-0.5 rounded">
-          {part}
-        </span>
-      );
-    }
-    return <Fragment key={i}>{part}</Fragment>;
-  });
 }
 
 function getScoreColor(score: number): string {
@@ -195,22 +194,39 @@ function getScoreBg(score: number): string {
   return "bg-red-100";
 }
 
+function getScoreBorder(score: number): string {
+  if (score <= 25) return "border-green-300";
+  if (score <= 60) return "border-amber-300";
+  return "border-red-300";
+}
+
 function getVigilanceBadge(level: VigilanceLevel) {
   const cfg = {
-    SIMPLIFIEE: { bg: "bg-green-100 text-green-800", label: "Simplifiée" },
-    STANDARD: { bg: "bg-amber-100 text-amber-800", label: "Standard" },
-    RENFORCEE: { bg: "bg-red-100 text-red-800", label: "Renforcée" },
-  }[level] ?? { bg: "bg-gray-100 text-gray-800", label: level };
+    SIMPLIFIEE: { bg: "bg-green-100 text-green-800 border-green-300", label: "Simplifiée" },
+    STANDARD: { bg: "bg-amber-100 text-amber-800 border-amber-300", label: "Standard" },
+    RENFORCEE: { bg: "bg-red-100 text-red-800 border-red-300", label: "Renforcée" },
+  }[level] ?? { bg: "bg-gray-100 text-gray-800 border-gray-300", label: level };
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.bg}`}>
+    <span className={`px-3 py-1 rounded-full text-sm font-bold border ${cfg.bg}`}>
       {cfg.label}
     </span>
   );
 }
 
+// Textarea common styling
+const TEXTAREA_CLS = "w-full border border-gray-700 rounded-lg px-4 py-3 bg-gray-900 text-[#e2e8f0] placeholder:text-gray-500 focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y";
+const TEXTAREA_STYLE: React.CSSProperties = { fontSize: "15px", lineHeight: "1.7" };
+
 // ---------------------------------------------------------------------------
 // Sub-components
 // ---------------------------------------------------------------------------
+
+const STATUS_DOT: Record<SectionStatus, React.ReactNode> = {
+  complete: <span className="w-2.5 h-2.5 rounded-full bg-green-500 flex-shrink-0" title="Complet" />,
+  warning: <span className="w-2.5 h-2.5 rounded-full bg-orange-400 flex-shrink-0 animate-pulse" title="Variables non résolues" />,
+  disabled: <span className="w-2.5 h-2.5 rounded-full bg-gray-300 flex-shrink-0" title="Désactivée" />,
+  empty: <span className="w-2.5 h-2.5 rounded-full bg-gray-300 flex-shrink-0" title="Vide" />,
+};
 
 function Section({
   id,
@@ -220,6 +236,7 @@ function Section({
   icon,
   accentBorder,
   disabled,
+  status,
 }: {
   id: string;
   titre: string;
@@ -228,8 +245,10 @@ function Section({
   icon?: React.ReactNode;
   accentBorder?: string;
   disabled?: boolean;
+  status?: SectionStatus;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const effectiveStatus = status ?? (disabled ? "disabled" : undefined);
   return (
     <div
       id={`section-${id}`}
@@ -252,26 +271,14 @@ function Section({
         )}
         {icon}
         <span className="text-sm font-semibold text-gray-800">{titre}</span>
-        {disabled && (
-          <span className="ml-auto text-xs text-gray-400">Désactivée</span>
-        )}
+        <span className="ml-auto flex items-center gap-2">
+          {effectiveStatus && STATUS_DOT[effectiveStatus]}
+          {disabled && !status && (
+            <span className="text-xs text-gray-400">Désactivée</span>
+          )}
+        </span>
       </button>
       {open && !disabled && <div className="px-4 pb-4">{children}</div>}
-    </div>
-  );
-}
-
-function InlinePreview({
-  text,
-  vars,
-}: {
-  text: string;
-  vars: Record<string, string>;
-}) {
-  return (
-    <div className="mt-1.5 px-3 py-2 bg-gray-50 rounded border border-dashed border-gray-200 text-xs text-gray-500 italic leading-relaxed whitespace-pre-line">
-      <span className="text-gray-400 not-italic font-medium">Aperçu : </span>
-      {renderWithVariables(text, vars)}
     </div>
   );
 }
@@ -339,16 +346,66 @@ export default function LettreMissionEditor({
     );
   }
 
+  // --- Original templates (with {{variables}}) ---
+  const templates = useMemo(() => {
+    const t: Record<string, string> = {};
+    for (const [key, sec] of Object.entries(LETTRE_MISSION_CONTENT)) {
+      if (sec && sec.contenu) {
+        t[key] = sec.contenu;
+      }
+    }
+    return t;
+  }, []);
+
   // --- State ---
+  const [honoraires, setHonoraires] = useState<HonorairesEditable>({
+    honoraires: client.honoraires || 0,
+    setup: client.reprise || 0,
+    honorairesJuridique: client.juridique || 0,
+  });
+
+  // Build variables (needed for initial section resolution)
+  const vars = useMemo(
+    () => buildVariables(client, genre, honoraires),
+    [client, genre, honoraires],
+  );
+
+  // Track which sections user manually edited
+  const [userEdited, setUserEdited] = useState<Record<string, boolean>>({});
+
+  // Sections state: initialized with resolved text
   const [sections, setSections] = useState(() => {
+    const initVars = buildVariables(client, genre, {
+      honoraires: client.honoraires || 0,
+      setup: client.reprise || 0,
+      honorairesJuridique: client.juridique || 0,
+    });
     const s: Record<string, string> = {};
     for (const [key, sec] of Object.entries(LETTRE_MISSION_CONTENT)) {
       if (sec && sec.contenu) {
-        s[key] = sec.contenu;
+        s[key] = resolveText(sec.contenu, initVars);
       }
     }
     return s;
   });
+
+  // Re-resolve non-edited sections when variables change
+  useEffect(() => {
+    setSections((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const [key, template] of Object.entries(templates)) {
+        if (!userEdited[key]) {
+          const resolved = resolveText(template, vars);
+          if (next[key] !== resolved) {
+            next[key] = resolved;
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [vars, templates, userEdited]);
 
   const [entity, setEntity] = useState(() => ({
     raison_sociale: client.raisonSociale || "",
@@ -356,8 +413,8 @@ export default function LettreMissionEditor({
     domaine: client.domaine || "",
     ape: client.ape || "",
     siren: client.siren || "",
-    capital: client.capital ? String(client.capital) : "",
-    date_creation: client.dateCreation || "",
+    capital: client.capital ? String(client.capital) : "Non renseigné",
+    date_creation: formatDateFR(client.dateCreation || ""),
     associe: client.associe || "",
     effectif: client.effectif || "",
     mission: (client.mission as string) || "",
@@ -369,12 +426,6 @@ export default function LettreMissionEditor({
     juridique: false,
     controleFiscal: false,
     controleFiscalOption: "A",
-  });
-
-  const [honoraires, setHonoraires] = useState<HonorairesEditable>({
-    honoraires: client.honoraires || 0,
-    setup: client.reprise || 0,
-    honorairesJuridique: client.juridique || 0,
   });
 
   const [missionEditable, setMissionEditable] = useState(false);
@@ -395,7 +446,6 @@ export default function LettreMissionEditor({
         editable: true,
       };
     });
-    // Add implicit sections for preview
     const implicitSections: EditorSection[] = [
       { id: "nature", title: "Nature et limites", visible: true, content: "", editable: false },
       { id: "paiement", title: "Modalités de paiement", visible: true, content: "Les honoraires sont payables selon la fréquence convenue, par prélèvement SEPA ou virement bancaire.\n\nEn cas de retard de paiement, des pénalités de retard seront appliquées conformément à l'article L.441-10 du Code de commerce.", editable: false },
@@ -429,11 +479,6 @@ export default function LettreMissionEditor({
   const [annexeTab, setAnnexeTab] = useState<string>("repartition");
 
   // --- Derived ---
-  const vars = useMemo(
-    () => buildVariables(client, genre, honoraires),
-    [client, genre, honoraires],
-  );
-
   const freq = (client.frequence || "MENSUEL").toUpperCase();
   const periodeLabel = freq.includes("TRIMESTR") ? "trimestre" : "mois";
   const diviseur = freq.includes("TRIMESTR") ? 4 : 12;
@@ -454,6 +499,7 @@ export default function LettreMissionEditor({
 
   function updateSection(key: string, val: string) {
     setSections((s) => ({ ...s, [key]: val }));
+    setUserEdited((e) => ({ ...e, [key]: true }));
   }
 
   const entityFields = [
@@ -480,7 +526,7 @@ export default function LettreMissionEditor({
 
   const scoreGlobal = client.scoreGlobal ?? 0;
   const nivVigilance = client.nivVigilance || "STANDARD";
-  const vigilanceTemplate = LCBFT_TEMPLATES[nivVigilance];
+  const vigilanceLmLab = lmLab[nivVigilance];
 
   // --- Render ---
   return (
@@ -491,14 +537,15 @@ export default function LettreMissionEditor({
       <Section
         id="introduction"
         titre={LETTRE_MISSION_CONTENT.introduction?.titre ?? "Introduction"}
+        status={getSectionStatus(sections.introduction)}
       >
         <textarea
           value={sections.introduction ?? ""}
           onChange={(e) => updateSection("introduction", e.target.value)}
           rows={6}
-          className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
+          className={TEXTAREA_CLS}
+          style={TEXTAREA_STYLE}
         />
-        <InlinePreview text={sections.introduction ?? ""} vars={vars} />
       </Section>
 
       {/* ============================================================ */}
@@ -507,6 +554,7 @@ export default function LettreMissionEditor({
       <Section
         id="entite"
         titre={LETTRE_MISSION_CONTENT.entite?.titre ?? "VOTRE ENTITÉ"}
+        status={getSectionStatus(Object.values(entity).join(" "))}
       >
         <table className="w-full border-collapse border rounded overflow-hidden">
           <thead>
@@ -534,13 +582,14 @@ export default function LettreMissionEditor({
       </Section>
 
       {/* ============================================================ */}
-      {/* SECTION 3 — LCB-FT                                          */}
+      {/* SECTION 3 — LCB-FT (bloc visuel)                            */}
       {/* ============================================================ */}
       <Section
         id="lcbft"
         titre={LETTRE_MISSION_CONTENT.lcbft?.titre ?? "OBLIGATIONS DE VIGILANCE – LCB-FT"}
         icon={<Lock className="h-4 w-4 text-[#1a1a2e]" />}
         accentBorder="border-l-4 border-l-[#1a1a2e]"
+        status="complete"
       >
         {LETTRE_MISSION_CONTENT.lcbft?.soustitre && (
           <p className="text-xs text-gray-400 mb-3 -mt-1">
@@ -548,60 +597,61 @@ export default function LettreMissionEditor({
           </p>
         )}
 
-        {/* Score + Vigilance + PPE + KYC */}
-        <div className="bg-[#f4f4f8] rounded-lg p-4 mb-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex items-center gap-3">
-              <span
-                className={`text-[32px] font-bold leading-none ${getScoreColor(scoreGlobal)}`}
-              >
-                {scoreGlobal}
-              </span>
-              <div>
-                <div className="text-xs text-gray-400">/ 100</div>
+        {/* Score en grand format + Badge vigilance */}
+        <div className={`rounded-xl p-5 mb-4 border-2 ${getScoreBorder(scoreGlobal)} ${getScoreBg(scoreGlobal)}`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="text-center">
+                <span
+                  className={`text-[48px] font-black leading-none ${getScoreColor(scoreGlobal)}`}
+                >
+                  {scoreGlobal}
+                </span>
+                <div className="text-xs text-gray-500 font-medium mt-1">/ 100</div>
+              </div>
+              <div className="border-l border-gray-300 pl-4 space-y-2">
                 {getVigilanceBadge(nivVigilance)}
+                <div className="text-xs text-gray-500">Niveau de vigilance</div>
               </div>
             </div>
 
-            <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Statut PPE</span>
+            <div className="space-y-2 text-sm">
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500 text-xs w-28 text-right">Statut PPE</span>
                 <span
-                  className={
-                    client.ppe === "OUI"
-                      ? "font-semibold text-red-600"
-                      : "text-gray-700"
-                  }
+                  className={`font-semibold ${
+                    client.ppe === "OUI" ? "text-red-600" : "text-gray-700"
+                  }`}
                 >
                   {client.ppe || "NON"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Dernière KYC</span>
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500 text-xs w-28 text-right">Dernière KYC</span>
                 <span className="text-gray-700">
-                  {client.dateDerniereRevue || "—"}
+                  {client.dateDerniereRevue ? formatDateFR(client.dateDerniereRevue) : "—"}
                 </span>
               </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Prochaine KYC</span>
+              <div className="flex items-center gap-3">
+                <span className="text-gray-500 text-xs w-28 text-right">Prochaine KYC</span>
                 <span className="text-gray-700">
-                  {client.dateButoir || "—"}
+                  {client.dateButoir ? formatDateFR(client.dateButoir) : "—"}
                 </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Bloc vigilance dynamique — adapté au niveau */}
-        {vigilanceTemplate && (
+        {/* Bloc vigilance dynamique — texte adapté depuis param_o90.json > lm_lab */}
+        {vigilanceLmLab && (
           <div
-            className={`rounded p-3 mb-3 text-sm leading-relaxed ${getScoreBg(scoreGlobal)}`}
+            className={`rounded-lg p-4 mb-3 text-sm leading-relaxed border ${getScoreBorder(scoreGlobal)} ${getScoreBg(scoreGlobal)}`}
           >
-            <p className="font-semibold text-gray-800 mb-1">
-              {vigilanceTemplate.titre}
+            <p className="font-bold text-gray-800 mb-2">
+              {vigilanceLmLab.titre}
             </p>
-            <p className="text-gray-700 whitespace-pre-line text-xs">
-              {vigilanceTemplate.corps}
+            <p className="text-gray-700 whitespace-pre-line text-[13px] leading-relaxed">
+              {vigilanceLmLab.corps}
             </p>
           </div>
         )}
@@ -632,6 +682,7 @@ export default function LettreMissionEditor({
       <Section
         id="mission"
         titre={LETTRE_MISSION_CONTENT.mission?.titre ?? "Notre mission"}
+        status={getSectionStatus(sections.mission)}
       >
         <div className="relative">
           <textarea
@@ -639,11 +690,12 @@ export default function LettreMissionEditor({
             onChange={(e) => updateSection("mission", e.target.value)}
             readOnly={!missionEditable}
             rows={10}
-            className={`w-full border rounded px-3 py-2 text-sm leading-relaxed focus:outline-none resize-y ${
+            className={`${TEXTAREA_CLS} ${
               missionEditable
-                ? "focus:ring-1 focus:ring-blue-500 bg-white"
-                : "bg-gray-50 text-gray-600 cursor-default"
+                ? ""
+                : "!bg-gray-800 !text-gray-400 cursor-default"
             }`}
+            style={TEXTAREA_STYLE}
           />
           {!missionEditable && (
             <button
@@ -664,24 +716,25 @@ export default function LettreMissionEditor({
       <Section
         id="duree"
         titre={LETTRE_MISSION_CONTENT.duree?.titre ?? "Durée de la mission"}
+        status={getSectionStatus(sections.duree)}
       >
         <textarea
           value={sections.duree ?? ""}
           onChange={(e) => updateSection("duree", e.target.value)}
           rows={4}
-          className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
+          className={TEXTAREA_CLS}
+          style={TEXTAREA_STYLE}
         />
-        <InlinePreview text={sections.duree ?? ""} vars={vars} />
       </Section>
 
       {/* ============================================================ */}
-      {/* SECTIONS 5-6-7 — MISSIONS COMPLÉMENTAIRES (toggles)          */}
+      {/* SECTION 6 — MISSIONS COMPLÉMENTAIRES (toggles)               */}
       {/* ============================================================ */}
       <div className="border rounded-lg bg-white shadow-sm p-4" data-section="6">
-        <h3 className="text-sm font-semibold text-gray-800 mb-3">
+        <h3 className="text-sm font-semibold text-gray-800 mb-4">
           Missions complémentaires
         </h3>
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Sociale */}
           <MissionToggle
             icon={<Building2 className="h-4 w-4" />}
@@ -695,12 +748,14 @@ export default function LettreMissionEditor({
                 id="mission_sociale"
                 titre={LETTRE_MISSION_CONTENT.missionSociale?.titre ?? "Mission sociale"}
                 defaultOpen
+                status={getSectionStatus(sections.missionSociale)}
               >
                 <textarea
                   value={sections.missionSociale ?? ""}
                   onChange={(e) => updateSection("missionSociale", e.target.value)}
                   rows={8}
-                  className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
+                  className={TEXTAREA_CLS}
+                  style={TEXTAREA_STYLE}
                 />
               </Section>
             </div>
@@ -710,6 +765,7 @@ export default function LettreMissionEditor({
               titre={LETTRE_MISSION_CONTENT.missionSociale?.titre ?? "Mission sociale"}
               defaultOpen={false}
               disabled
+              status="disabled"
             >
               <div />
             </Section>
@@ -728,12 +784,14 @@ export default function LettreMissionEditor({
                 id="mission_juridique"
                 titre={LETTRE_MISSION_CONTENT.missionJuridique?.titre ?? "Mission juridique"}
                 defaultOpen
+                status={getSectionStatus(sections.missionJuridique)}
               >
                 <textarea
                   value={sections.missionJuridique ?? ""}
                   onChange={(e) => updateSection("missionJuridique", e.target.value)}
                   rows={4}
-                  className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
+                  className={TEXTAREA_CLS}
+                  style={TEXTAREA_STYLE}
                 />
               </Section>
             </div>
@@ -743,6 +801,7 @@ export default function LettreMissionEditor({
               titre={LETTRE_MISSION_CONTENT.missionJuridique?.titre ?? "Mission juridique"}
               defaultOpen={false}
               disabled
+              status="disabled"
             >
               <div />
             </Section>
@@ -791,6 +850,7 @@ export default function LettreMissionEditor({
               titre={LETTRE_MISSION_CONTENT.missionControleFiscal?.titre ?? "Contrôle fiscal"}
               defaultOpen={false}
               disabled
+              status="disabled"
             >
               <div />
             </Section>
@@ -799,11 +859,12 @@ export default function LettreMissionEditor({
       </div>
 
       {/* ============================================================ */}
-      {/* SECTION 8 — HONORAIRES (tableau)                             */}
+      {/* SECTION 7 — HONORAIRES (tableau)                             */}
       {/* ============================================================ */}
       <Section
         id="honoraires"
         titre={LETTRE_MISSION_CONTENT.honoraires?.titre ?? "HONORAIRES"}
+        status={honoraires.honoraires > 0 ? "complete" : "warning"}
       >
         <table className="w-full text-sm border-collapse border rounded overflow-hidden">
           <thead>
@@ -819,7 +880,7 @@ export default function LettreMissionEditor({
           <tbody>
             <tr className="border-t">
               <td className="py-2 px-3 text-gray-700 border-r">
-                Forfait annuel de tenue / surveillance
+                Forfait annuel comptable
               </td>
               <td className="py-1 px-3 text-right">
                 <input
@@ -838,7 +899,7 @@ export default function LettreMissionEditor({
             </tr>
             <tr className="border-t bg-gray-50">
               <td className="py-2 px-3 text-gray-700 border-r">
-                Constitution du dossier permanent
+                Constitution du dossier
               </td>
               <td className="py-1 px-3 text-right">
                 <input
@@ -857,13 +918,32 @@ export default function LettreMissionEditor({
             </tr>
             <tr className="border-t">
               <td className="py-2 px-3 text-gray-700 border-r">
+                Honoraires juridique
+              </td>
+              <td className="py-1 px-3 text-right">
+                <input
+                  type="number"
+                  value={honoraires.honorairesJuridique}
+                  onChange={(e) =>
+                    setHonoraires((h) => ({
+                      ...h,
+                      honorairesJuridique: Number(e.target.value) || 0,
+                    }))
+                  }
+                  className="w-28 text-right border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
+                />
+                <span className="text-xs text-gray-400 ml-1">€</span>
+              </td>
+            </tr>
+            <tr className="border-t bg-gray-50">
+              <td className="py-2 px-3 text-gray-700 border-r">
                 Honoraires Expert-Comptable (hors forfait)
               </td>
               <td className="py-2 px-3 text-right text-gray-600">
                 200 € / heure
               </td>
             </tr>
-            <tr className="border-t bg-gray-50">
+            <tr className="border-t">
               <td className="py-2 px-3 text-gray-700 border-r">
                 Honoraires Collaborateur (hors forfait)
               </td>
@@ -969,9 +1049,9 @@ export default function LettreMissionEditor({
         </table>
 
         {/* Calcul auto — selon fréquence */}
-        <div className="mt-3 bg-blue-50 rounded px-4 py-2 text-sm text-center">
+        <div className="mt-3 bg-blue-50 rounded-lg px-4 py-3 text-center">
           <span className="text-gray-600">Soit </span>
-          <span className="font-bold text-blue-800">
+          <span className="font-bold text-blue-800 text-lg">
             {montantPeriodique} € HT
           </span>
           <span className="text-gray-600"> / {periodeLabel}</span>
@@ -991,6 +1071,7 @@ export default function LettreMissionEditor({
       <Section
         id="signature"
         titre={LETTRE_MISSION_CONTENT.signature?.titre ?? "Signatures"}
+        status="complete"
       >
         <div className="text-center text-sm text-gray-600 mb-6">
           Fait à Marseille, le{" "}
@@ -1076,23 +1157,23 @@ function MissionToggle({
   onToggle: () => void;
 }) {
   return (
-    <div className="flex items-center justify-between py-2 px-3 rounded border hover:bg-gray-50">
-      <div className="flex items-center gap-2">
+    <div className="flex items-center justify-between py-2.5 px-4 rounded-lg border hover:bg-gray-50 transition-colors">
+      <div className="flex items-center gap-2.5">
         <span className="text-gray-500">{icon}</span>
-        <span className="text-sm text-gray-700">{label}</span>
+        <span className="text-sm font-medium text-gray-700">{label}</span>
       </div>
       <button
         type="button"
         role="switch"
         aria-checked={active}
         onClick={onToggle}
-        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
           active ? "bg-blue-600" : "bg-gray-300"
         }`}
       >
         <span
-          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${
-            active ? "translate-x-[18px]" : "translate-x-[3px]"
+          className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+            active ? "translate-x-[24px]" : "translate-x-[3px]"
           }`}
         />
       </button>
