@@ -104,54 +104,84 @@ async function getAttachments(token: string, siren: string): Promise<any> {
   }
 }
 
+// Diagnostic logs array — returned in response for debugging
+const dlLogs: string[] = [];
+
 async function downloadAndStore(
   supabase: any,
   token: string,
   url: string,
-  storagePath: string,
+  path: string,
 ): Promise<string | null> {
   try {
-    console.log(`[INPI] Downloading ${url}`);
+    dlLogs.push(`[DL] === DEBUT URL=${url} PATH=${path}`);
+    dlLogs.push(`[DL] Token prefix: ${token?.substring(0, 20)}`);
+
     const res = await fetch(url, {
       headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/pdf, application/octet-stream, */*",
+        "Authorization": "Bearer " + token,
+        "Accept": "application/pdf, application/octet-stream, */*",
       },
       redirect: "follow",
       signal: AbortSignal.timeout(60000),
     });
+
+    dlLogs.push(`[DL] HTTP ${res.status} | CT=${res.headers.get("content-type")} | CL=${res.headers.get("content-length")} | CD=${res.headers.get("content-disposition")}`);
+
     if (!res.ok) {
-      const errBody = await res.text().catch(() => "");
-      console.error(`[INPI] Download failed: ${res.status} ${res.statusText} for ${url} — ${errBody.substring(0, 200)}`);
-      if (res.status === 401) { cachedToken = null; tokenExpiry = 0; }
+      const errorBody = await res.text().catch(() => "impossible de lire le body");
+      dlLogs.push(`[DL] ERREUR HTTP ${res.status} ${res.statusText}: ${errorBody.substring(0, 200)}`);
+
+      if (res.status === 401) {
+        dlLogs.push("[DL] TOKEN EXPIRÉ");
+        cachedToken = null;
+        tokenExpiry = 0;
+      }
       return null;
     }
 
-    const blob = await res.blob();
-    const arrayBuffer = await blob.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
-    console.log(`[INPI] Downloaded ${uint8.length} bytes, uploading to ${storagePath}`);
+    const buffer = await res.arrayBuffer();
+    dlLogs.push(`[DL] Buffer: ${buffer.byteLength} bytes`);
 
-    const { error } = await supabase.storage
+    const headerBytes = new Uint8Array(buffer.slice(0, 10));
+    const headerStr = String.fromCharCode(...headerBytes);
+    dlLogs.push(`[DL] Header: "${headerStr}"`);
+
+    const isPDF = headerStr.startsWith("%PDF");
+    const isHTML = headerStr.toLowerCase().startsWith("<!doc") || headerStr.toLowerCase().startsWith("<html");
+
+    if (isHTML) {
+      const htmlContent = new TextDecoder().decode(buffer).substring(0, 300);
+      dlLogs.push(`[DL] HTML DETECTE (pas un PDF!): ${htmlContent}`);
+      return null;
+    }
+
+    if (!isPDF && buffer.byteLength < 100) {
+      dlLogs.push(`[DL] Fichier trop petit et pas PDF: ${buffer.byteLength} bytes`);
+      return null;
+    }
+
+    dlLogs.push(`[DL] Fichier valide: ${isPDF ? "PDF" : "binaire"} (${buffer.byteLength} bytes)`);
+
+    const { data, error } = await supabase.storage
       .from("kyc-documents")
-      .upload(storagePath, uint8, {
-        contentType: blob.type || "application/pdf",
+      .upload(path, new Uint8Array(buffer), {
+        contentType: "application/pdf",
         upsert: true,
       });
 
     if (error) {
-      console.error("[INPI] Storage upload error:", error.message);
+      dlLogs.push(`[DL] ERREUR STORAGE: ${JSON.stringify(error)}`);
       return null;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("kyc-documents")
-      .getPublicUrl(storagePath);
+    const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(path);
+    const publicUrl = urlData?.publicUrl || null;
+    dlLogs.push(`[DL] STOCKÉ OK: ${publicUrl}`);
+    return publicUrl;
 
-    console.log(`[INPI] Stored OK: ${storagePath}`);
-    return urlData?.publicUrl ?? null;
   } catch (e) {
-    console.error("[INPI] Download/store error:", (e as Error).message);
+    dlLogs.push(`[DL] EXCEPTION: ${(e as Error).message} | ${(e as Error).stack?.substring(0, 200)}`);
     return null;
   }
 }
@@ -636,6 +666,10 @@ Deno.serve(async (req) => {
     const documents: any[] = [];
     let financials: any[] = [];
 
+    // Track auth time for token refresh
+    const authTime = Date.now();
+    let currentToken = token;
+
     if (attachments) {
       const actes = attachments.actes ?? [];
       const bilans = attachments.bilans ?? [];
@@ -662,6 +696,20 @@ Deno.serve(async (req) => {
       const actesToProcess = [...statutsActes.slice(0, 2), ...autresActes.slice(0, 3)];
 
       for (const acte of actesToProcess) {
+        // Re-auth if token is older than 5 minutes
+        if (Date.now() - authTime > 5 * 60 * 1000) {
+          console.log("[INPI] Token potentiellement expiré, re-authentification...");
+          cachedToken = null;
+          tokenExpiry = 0;
+          const newAuth = await getINPIToken();
+          if (newAuth.token) {
+            currentToken = newAuth.token;
+            console.log("[INPI] Nouveau token obtenu");
+          } else {
+            console.error("[INPI] Re-auth failed:", newAuth.error);
+          }
+        }
+
         const acteId = acte.id;
         let acteType = "Acte";
         if (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0) {
@@ -680,11 +728,11 @@ Deno.serve(async (req) => {
         }
         const nomDoc = String(acte.nomDocument ?? "");
         const label = nature ? `${acteType} — ${nature} — ${acteDate}` : `${acteType} — ${nomDoc || "depot"} ${acteDate}`;
-        const safeType = acteType.replace(/\s/g, "_");
+        const safeType = acteType.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]/g, "_");
         const storagePath = `${cleanSiren}/${safeType}_${acteDate || acteId}.pdf`;
 
         const downloadUrl = `${INPI_BASE}/actes/${acteId}/download`;
-        const publicUrl = await downloadAndStore(supabase, token, downloadUrl, storagePath);
+        const publicUrl = await downloadAndStore(supabase, currentToken, downloadUrl, storagePath);
 
         const isStatuts = (acte.typeRdd && Array.isArray(acte.typeRdd))
           ? acte.typeRdd.some((t: any) =>
@@ -720,13 +768,25 @@ Deno.serve(async (req) => {
       }
 
       for (const bilan of bilans.slice(0, 3)) {
+        // Re-auth if token is older than 5 minutes
+        if (Date.now() - authTime > 5 * 60 * 1000) {
+          console.log("[INPI] Token potentiellement expiré (bilans), re-authentification...");
+          cachedToken = null;
+          tokenExpiry = 0;
+          const newAuth = await getINPIToken();
+          if (newAuth.token) {
+            currentToken = newAuth.token;
+            console.log("[INPI] Nouveau token obtenu");
+          }
+        }
+
         const bilanId = bilan.id;
         const dateCloture = String(bilan.dateCloture ?? bilan.date_cloture ?? "");
         const typeBilan = String(bilan.typeBilan ?? "Comptes annuels");
         const storagePath = `${cleanSiren}/comptes_${dateCloture || bilanId}.pdf`;
 
         const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;
-        const publicUrl = await downloadAndStore(supabase, token, downloadUrl, storagePath);
+        const publicUrl = await downloadAndStore(supabase, currentToken, downloadUrl, storagePath);
 
         if (publicUrl) {
           documents.push({
@@ -857,6 +917,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun b�
       totalDocuments: documents.length,
       storedCount: documents.filter((d: any) => d.storedInSupabase).length,
       status: "ok",
+      _dlLogs: dlLogs,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

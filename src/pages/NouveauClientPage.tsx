@@ -2146,48 +2146,46 @@ export default function NouveauClientPage() {
 
             {/* SECTION 1: Documents INPI recuperes */}
             {(() => {
-              // Merge real PDFs from documents-fetch and inpi-documents
-              const docsFetch = (screening.documents.data?.documents ?? []).filter(d =>
-                (d as any).storedInSupabase === true || ((d as any).downloadable && d.status === "auto")
+              // Get INPI documents (excluding kbis/extrait which has its own section)
+              const docsInpiStored = (screening.inpi.data?.documents ?? []).filter(d =>
+                d.storedInSupabase && d.type !== "kbis"
               );
-              const docsInpi = (screening.inpi.data?.documents ?? []).filter(d => d.storedInSupabase);
-              // Also get non-stored INPI docs (needsAuth fallback)
-              const docsInpiFallback = (screening.inpi.data?.documents ?? []).filter(d => !d.storedInSupabase && (d as any).needsAuth);
-              // Deduplicate by storageUrl
+              const docsInpiFallback = (screening.inpi.data?.documents ?? []).filter(d =>
+                !d.storedInSupabase && (d as any).needsAuth && d.type !== "kbis"
+              );
+              // Deduplicate
               const seen = new Set<string>();
-              const allPdfs = [...docsFetch, ...docsInpi].filter(d => {
-                const url = (d as any).storageUrl || (d as any).url || "";
+              const storedPdfs = docsInpiStored.filter(d => {
+                const url = (d as any).url || "";
                 if (seen.has(url)) return false;
                 seen.add(url);
                 return true;
               });
-              // Deduplicate fallback docs
               const fallbackDocs = docsInpiFallback.filter(d => {
                 const key = `${d.type}-${d.label}`;
                 if (seen.has(key)) return false;
                 seen.add(key);
                 return true;
               });
-              const hasAnyDocs = allPdfs.length > 0 || fallbackDocs.length > 0;
+              const hasAnyDocs = storedPdfs.length > 0 || fallbackDocs.length > 0;
               return hasAnyDocs ? (
                 <div className="space-y-2">
                   <Label className="text-xs text-slate-400">Documents recuperes automatiquement (INPI)</Label>
-                  {allPdfs.map((doc, i) => (
+                  {storedPdfs.map((doc, i) => (
                     <div key={`pdf-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
                       <div className="flex items-center gap-3">
-                        <FileText className="w-4 h-4 text-indigo-400" />
+                        <FileText className="w-4 h-4 text-emerald-400" />
                         <div>
                           <p className="text-sm text-slate-200">{doc.label}</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                            <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI</Badge>
                             <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">PDF stocke</Badge>
                           </div>
                         </div>
                       </div>
-                      {((doc as any).storageUrl || doc.url) && (
-                        <a href={(doc as any).storageUrl || doc.url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 px-2.5 py-1 rounded flex items-center gap-1">
+                      {doc.url && (
+                        <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 px-2.5 py-1 rounded flex items-center gap-1">
                           <FileDown className="w-3 h-3" /> Telecharger PDF
                         </a>
                       )}
@@ -2201,8 +2199,7 @@ export default function NouveauClientPage() {
                           <p className="text-sm text-slate-200">{doc.label}</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                            <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI</Badge>
-                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Lien direct</Badge>
+                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Non stocke</Badge>
                           </div>
                         </div>
                       </div>
@@ -2213,7 +2210,7 @@ export default function NouveauClientPage() {
                     </div>
                   ))}
                 </div>
-              ) : screening.documents.loading || screening.inpi.loading ? (
+              ) : screening.inpi.loading ? (
                 <div className="flex items-center gap-2 p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
                   <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
                   <span className="text-sm text-slate-400">Recuperation des documents INPI...</span>
@@ -2226,27 +2223,27 @@ export default function NouveauClientPage() {
               );
             })()}
 
-            {/* Pappers KBIS/RBE links (if available) */}
+            {/* Extrait RNE section */}
             {(() => {
-              const pappersLinks = (screening.documents.data?.documents ?? []).filter(d =>
-                (d.source === "Pappers" || d.source === "pappers") && d.status === "auto" && (d as any).downloadable
+              const extraitDocs = (screening.inpi.data?.documents ?? []).filter(d =>
+                d.type === "kbis" && d.storedInSupabase
               );
-              return pappersLinks.length > 0 ? (
+              return extraitDocs.length > 0 ? (
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-400">Documents Pappers</Label>
-                  {pappersLinks.map((doc, i) => (
-                    <div key={`pappers-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-purple-500/20 bg-purple-500/5">
+                  <Label className="text-xs text-slate-400">Extrait RNE (equivalent Kbis)</Label>
+                  {extraitDocs.map((doc, i) => (
+                    <div key={`rne-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
                       <div className="flex items-center gap-3">
-                        <FileText className="w-4 h-4 text-purple-400" />
+                        <FileText className="w-4 h-4 text-blue-400" />
                         <div>
                           <p className="text-sm text-slate-200">{doc.label}</p>
-                          <Badge className="text-[9px] bg-purple-500/20 text-purple-400 border-0 mt-0.5">Pappers</Badge>
+                          <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0 mt-0.5">INPI — Genere</Badge>
                         </div>
                       </div>
                       {doc.url && (
                         <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 px-2.5 py-1 rounded flex items-center gap-1">
-                          <FileDown className="w-3 h-3" /> Telecharger
+                          className="text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 px-2.5 py-1 rounded flex items-center gap-1">
+                          <ExternalLink className="w-3 h-3" /> Voir l&apos;extrait
                         </a>
                       )}
                     </div>
@@ -2373,22 +2370,17 @@ export default function NouveauClientPage() {
               ];
               const hasStoredPdf = (types: string[]) => allDocs.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t)) &&
-                ((d as any).storedInSupabase === true || ((d as any).downloadable && d.status === "auto") || (d as any).needsAuth)
+                ((d as any).storedInSupabase === true || (d as any).needsAuth)
               );
               const hasUpload = (types: string[]) => documents.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t))
-              );
-              const hasPappersLink = (types: string[]) => allDocs.some(d =>
-                types.some(t => d.type.toUpperCase().includes(t)) &&
-                (d.source === "Pappers" || d.source === "pappers") && d.status === "auto"
               );
 
               const results = vigilanceDocChecklist.map(c => ({
                 ...c,
                 hasPdf: hasStoredPdf(c.types),
                 hasUpload: hasUpload(c.types),
-                hasPappers: hasPappersLink(c.types),
-                found: hasStoredPdf(c.types) || hasUpload(c.types) || hasPappersLink(c.types),
+                found: hasStoredPdf(c.types) || hasUpload(c.types),
                 manual: ["CNI", "RIB", "Justificatif", "Organigramme"].includes(c.key),
               }));
               const foundCount = results.filter(r => r.found).length;
@@ -2418,8 +2410,7 @@ export default function NouveauClientPage() {
                         {item.found ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" /> : <X className="w-5 h-5 text-red-400 mx-auto mb-1" />}
                         <p className={`text-xs font-medium ${item.found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
                         {item.hasPdf && <p className="text-[9px] text-emerald-500 mt-0.5">PDF INPI</p>}
-                        {item.hasPappers && !item.hasPdf && <p className="text-[9px] text-purple-400 mt-0.5">Pappers</p>}
-                        {item.hasUpload && !item.hasPdf && !item.hasPappers && <p className="text-[9px] text-amber-400 mt-0.5">Upload manuel</p>}
+                        {item.hasUpload && !item.hasPdf && <p className="text-[9px] text-amber-400 mt-0.5">Upload manuel</p>}
                         {!item.found && item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manuel requis</p>}
                         {!item.found && !item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manquant</p>}
                       </div>
