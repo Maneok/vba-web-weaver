@@ -21,6 +21,7 @@ import DiagnosticPage from "@/pages/DiagnosticPage";
 import SettingsPage from "@/pages/SettingsPage";
 import GedPage from "@/pages/GedPage";
 import LettreMissionPage from "@/pages/LettreMissionPage";
+import HelpPage from "@/pages/HelpPage";
 import NotFound from "@/pages/NotFound";
 import LandingPage from "@/pages/LandingPage";
 
@@ -49,6 +50,7 @@ const App = () => (
                 <Route path="lettre-mission/:ref" element={<LettreMissionPage />} />
                 <Route path="diagnostic" element={<DiagnosticPage />} />
                 <Route path="parametres" element={<SettingsPage />} />
+                <Route path="aide" element={<HelpPage />} />
                 <Route path="settings" element={<Navigate to="/parametres" replace />} />
                 <Route path="dashboard" element={<Navigate to="/" replace />} />
               </Route>
