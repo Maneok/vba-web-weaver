@@ -14,7 +14,6 @@ const MENU_ITEMS = [
   { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck },
   { to: "/registre", label: "Registre LCB", icon: AlertTriangle },
   { to: "/ged", label: "Documents / GED", icon: FolderOpen },
-  { to: "/lettre-mission", label: "Lettre de Mission", icon: FileText },
   { to: "/diagnostic", label: "Diagnostic 360", icon: Activity },
   { to: "/logs", label: "Journal d'audit", icon: ScrollText },
   { to: "/parametres", label: "Parametres", icon: Settings },
@@ -76,14 +75,24 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           );
         })}
 
-        {/* New Client button */}
-        <div className="pt-3 mt-3 border-t border-white/[0.06]">
+        {/* Action buttons */}
+        <div className="pt-3 mt-3 border-t border-white/[0.06] space-y-2">
+          {/* Nouveau Client */}
           <button
             onClick={() => navigate("/nouveau-client")}
             className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
             <UserPlus className="h-4 w-4 shrink-0" />
             {!collapsed && <span>Nouveau Client</span>}
+          </button>
+
+          {/* Lettre de Mission */}
+          <button
+            onClick={() => navigate("/lettre-mission")}
+            className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-violet-500/20 to-blue-500/20 text-violet-300 hover:from-violet-500/30 hover:to-blue-500/30 hover:shadow-[0_0_16px_rgba(139,92,246,0.15)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          >
+            <FileText className="h-4 w-4 shrink-0" />
+            {!collapsed && <span>Lettre de Mission</span>}
           </button>
         </div>
       </nav>
