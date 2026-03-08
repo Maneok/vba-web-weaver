@@ -203,3 +203,82 @@ export function getSectionsOrdonnees(): SectionLettreMission[] {
 export function getSectionsObligatoires(): SectionLettreMission[] {
   return getSectionsOrdonnees().filter((s) => s.obligatoire);
 }
+
+// ──────────────────────────────────────────────
+// Template structuré pour l'éditeur UI et les annexes
+// ──────────────────────────────────────────────
+import {
+  REPARTITION_TRAVAUX,
+  ATTESTATION_TRAVAIL_DISSIMULE,
+  MANDAT_SEPA,
+  AUTORISATION_LIASSE,
+  CONDITIONS_GENERALES,
+} from "@/lib/lettreMissionAnnexes";
+
+export const LETTRE_MISSION_TEMPLATE = {
+  introduction: {
+    titre: LETTRE_MISSION_CONTENT.introduction.titre,
+    salutation: LETTRE_MISSION_CONTENT.introduction.contenu,
+  },
+  entite: {
+    titre: LETTRE_MISSION_CONTENT.entite.titre,
+    texte: LETTRE_MISSION_CONTENT.entite.contenu,
+  },
+  lcbft: {
+    titre: LETTRE_MISSION_CONTENT.lcbft.titre,
+    soustitre: LETTRE_MISSION_CONTENT.lcbft.soustitre ?? "",
+    texte: LETTRE_MISSION_CONTENT.lcbft.contenu,
+    engagements: "Le client reconnaît avoir été informé des obligations de vigilance qui s'appliquent au cabinet en sa qualité de professionnel assujetti. Il s'engage à répondre sans délai à toute demande de justificatif émanant du cabinet dans ce cadre.",
+    conservation: "Conformément à l'art. L.561-12 CMF, l'ensemble des pièces d'identification est conservé pendant cinq (5) ans à compter de la fin de la relation d'affaires, indépendamment des délais comptables.",
+  },
+  mission: {
+    titre: LETTRE_MISSION_CONTENT.mission.titre,
+    texte: LETTRE_MISSION_CONTENT.mission.contenu,
+  },
+  duree: {
+    titre: LETTRE_MISSION_CONTENT.duree.titre,
+    texte: LETTRE_MISSION_CONTENT.duree.contenu,
+  },
+  nature: {
+    titre: "Nature et limites de la mission",
+    texte: `La mission de présentation des comptes ne constitue ni un audit ni un examen limité des comptes de votre entreprise. Elle n'a pas pour objectif de déceler les fraudes ou les actes illégaux. Toutefois, nous vous en informerions si nous étions conduits à en avoir connaissance.`,
+  },
+  missionSociale: {
+    titre: LETTRE_MISSION_CONTENT.missionSociale.titre,
+    texte: LETTRE_MISSION_CONTENT.missionSociale.contenu,
+  },
+  missionJuridique: {
+    titre: LETTRE_MISSION_CONTENT.missionJuridique.titre,
+    texte: LETTRE_MISSION_CONTENT.missionJuridique.contenu,
+  },
+  missionControleFiscal: {
+    titre: LETTRE_MISSION_CONTENT.missionControleFiscal.titre,
+    texte: LETTRE_MISSION_CONTENT.missionControleFiscal.contenu,
+  },
+  honoraires: {
+    titre: LETTRE_MISSION_CONTENT.honoraires.titre,
+    introduction: LETTRE_MISSION_CONTENT.honoraires.contenu,
+    paiement: `Les honoraires sont payables selon la fréquence convenue, par prélèvement SEPA ou virement bancaire.\n\nEn cas de retard de paiement, des pénalités de retard seront appliquées conformément à l'article L.441-10 du Code de commerce, au taux d'intérêt appliqué par la Banque Centrale Européenne majoré de 10 points, ainsi qu'une indemnité forfaitaire de 40 € pour frais de recouvrement.`,
+  },
+  conclusion: {
+    titre: LETTRE_MISSION_CONTENT.signature.titre,
+    texte: LETTRE_MISSION_CONTENT.signature.contenu,
+  },
+  // Annexes (depuis lettreMissionAnnexes.ts)
+  repartitionTravaux: REPARTITION_TRAVAUX,
+  attestationTravailDissimule: ATTESTATION_TRAVAIL_DISSIMULE,
+  mandatSepa: {
+    titre: MANDAT_SEPA.titre,
+    texteAutorisation: MANDAT_SEPA.texteAutorisation,
+    champCreancier: [
+      { label: "Nom du créancier", variable: "cabinet_nom" },
+      { label: "Adresse du créancier", variable: "cabinet_adresse" },
+      { label: "ICS", variable: "cabinet_ics" },
+    ],
+    champDebiteur: MANDAT_SEPA.champDebiteur,
+    typePrelevement: MANDAT_SEPA.typePrelevement,
+    rum: MANDAT_SEPA.rum,
+  },
+  autorisationLiasse: AUTORISATION_LIASSE,
+  conditionsGenerales: CONDITIONS_GENERALES,
+};

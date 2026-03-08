@@ -1,17 +1,16 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import {
   generateFromClient,
+  getDefaultTemplate,
   renderToPdf,
   renderToDocx,
   validateLettreMission,
 } from "@/lib/lettreMissionEngine";
-import type { CabinetConfig, LettreMissionOptions } from "@/types/lettreMission";
-import { DEFAULT_LM_OPTIONS } from "@/types/lettreMission";
+import type { CabinetConfig } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import {
@@ -20,7 +19,15 @@ import {
   FileText,
   AlertTriangle,
   CheckCircle2,
+  Eye,
+  Edit3,
 } from "lucide-react";
+import ClientSelector from "@/components/lettre-mission/ClientSelector";
+import LettreMissionEditor, {
+  buildDefaultEditorState,
+  type EditorState,
+} from "@/components/lettre-mission/LettreMissionEditor";
+import LettreMissionPreview from "@/components/lettre-mission/LettreMissionPreview";
 
 const DEFAULT_CABINET: CabinetConfig = {
   nom: "Cabinet d'Expertise Comptable",
@@ -41,40 +48,75 @@ export default function LettreMissionPage() {
   const navigate = useNavigate();
   const { clients } = useAppState();
 
-  const [selectedRef, setSelectedRef] = useState<string>(ref ?? "");
-  const [options] = useState<LettreMissionOptions>(DEFAULT_LM_OPTIONS);
+  const [selectedRef, setSelectedRef] = useState<string | null>(ref ?? null);
+  const [view, setView] = useState<"editor" | "preview">("editor");
+  const [editorState, setEditorState] = useState<EditorState>(() =>
+    buildDefaultEditorState(ref ? clients.find((c) => c.ref === ref) : null)
+  );
 
   const client = useMemo(
-    () => clients.find((c) => c.ref === selectedRef) ?? (ref ? clients.find((c) => c.ref === ref) : undefined),
-    [clients, selectedRef, ref]
+    () => clients.find((c) => c.ref === selectedRef) ?? null,
+    [clients, selectedRef]
   );
 
   const validation = useMemo(
-    () => client ? validateLettreMission(client, DEFAULT_CABINET) : null,
+    () => (client ? validateLettreMission(client, DEFAULT_CABINET) : null),
     [client]
   );
 
-  const handleExportPdf = () => {
+  const handleClientSelected = useCallback(
+    (c: Client) => {
+      setSelectedRef(c.ref);
+      setEditorState(buildDefaultEditorState(c));
+    },
+    []
+  );
+
+  const buildOptions = useCallback(() => ({
+    genre: editorState.genre === "M" ? ("M" as const) : ("F" as const),
+    missionSociale: editorState.missions.sociale,
+    missionJuridique: editorState.missions.juridique,
+    missionControleFiscal: editorState.missions.controleFiscal,
+    honorairesSocial: 0,
+    honorairesJuridique: editorState.honoraires.honoraires_juridique,
+    honorairesControleFiscal: 0,
+    fraisConstitution: editorState.honoraires.setup,
+    exerciceDebut: "01/01/2026",
+    exerciceFin: "31/12/2026",
+    regimeFiscal: "IS — Impôt sur les Sociétés",
+    tvaRegime: "Réel normal",
+    cac: false,
+    volumeComptable: "< 500 écritures/an",
+    periodicite: editorState.honoraires.frequence === "mensuel" ? "Mensuelle" : "Trimestrielle",
+    outilComptable: "Non précisé",
+    controleFiscalOptions: editorState.missions.controleFiscalOption
+      ? [editorState.missions.controleFiscalOption]
+      : [],
+  }), [editorState]);
+
+  const handleExportPdf = useCallback(() => {
     if (!client) return;
     if (validation && !validation.valid) {
       toast.error(`Champs manquants : ${validation.champsManquants.join(", ")}`);
       return;
     }
+    const options = buildOptions();
     const lm = generateFromClient(client, DEFAULT_CABINET, options);
     renderToPdf(lm);
     toast.success("PDF généré avec succès");
-  };
+  }, [client, validation, buildOptions]);
 
-  const handleExportDocx = async () => {
+  const handleExportDocx = useCallback(async () => {
     if (!client) return;
     if (validation && !validation.valid) {
       toast.error(`Champs manquants : ${validation.champsManquants.join(", ")}`);
       return;
     }
+    const options = buildOptions();
     const lm = generateFromClient(client, DEFAULT_CABINET, options);
     await renderToDocx(lm);
     toast.success("DOCX généré avec succès");
-  };
+  }, [client, validation, buildOptions]);
 
   return (
     <div className="flex flex-col h-full">
@@ -92,6 +134,25 @@ export default function LettreMissionPage() {
           <h1 className="text-sm font-semibold text-white">Lettre de Mission</h1>
         </div>
         <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex rounded-md border border-white/10 overflow-hidden mr-2">
+            <Button
+              size="sm"
+              variant={view === "editor" ? "default" : "ghost"}
+              onClick={() => setView("editor")}
+              className="rounded-none gap-1 text-xs"
+            >
+              <Edit3 className="h-3 w-3" /> Éditeur
+            </Button>
+            <Button
+              size="sm"
+              variant={view === "preview" ? "default" : "ghost"}
+              onClick={() => setView("preview")}
+              className="rounded-none gap-1 text-xs"
+            >
+              <Eye className="h-3 w-3" /> Aperçu
+            </Button>
+          </div>
           <Button
             size="sm"
             variant="outline"
@@ -113,144 +174,71 @@ export default function LettreMissionPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto p-6 space-y-6">
-        {/* Client selector */}
-        <div className="bg-slate-800/50 border border-white/10 rounded-lg p-4">
-          <label className="block text-sm font-medium text-slate-300 mb-2">
-            Sélectionner un client
-          </label>
-          <Select value={selectedRef} onValueChange={setSelectedRef}>
-            <SelectTrigger className="w-full max-w-md">
-              <SelectValue placeholder="Choisir un client..." />
-            </SelectTrigger>
-            <SelectContent>
-              {clients.map((c) => (
-                <SelectItem key={c.ref} value={c.ref}>
-                  {c.ref} — {c.raisonSociale} ({c.forme})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Validation status */}
+      {/* Client selector bar */}
+      <div className="px-4 py-3 bg-slate-900/50 border-b border-white/10 flex items-center gap-4">
+        <ClientSelector
+          selectedRef={selectedRef}
+          onClientSelected={handleClientSelected}
+        />
+        {/* Validation badge */}
         {client && validation && (
-          <div
-            className={`rounded-lg p-4 border ${
-              validation.valid
-                ? "bg-emerald-500/5 border-emerald-500/20"
-                : "bg-amber-500/5 border-amber-500/20"
-            }`}
-          >
-            <div className="flex items-center gap-2 mb-2">
-              {validation.valid ? (
-                <>
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                  <span className="text-sm font-medium text-emerald-400">
-                    Dossier complet — prêt pour génération
-                  </span>
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm font-medium text-amber-400">
-                    Champs manquants ({validation.champsManquants.length})
-                  </span>
-                </>
-              )}
-            </div>
-            {!validation.valid && (
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                {validation.champsManquants.map((c) => (
-                  <Badge
-                    key={c}
-                    variant="outline"
-                    className="text-xs border-amber-500/30 text-amber-300"
-                  >
-                    {c}
-                  </Badge>
-                ))}
-              </div>
+          <div className="flex items-center gap-2">
+            {validation.valid ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs text-emerald-400">Dossier complet</span>
+              </>
+            ) : (
+              <>
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <span className="text-xs text-amber-400">
+                  {validation.champsManquants.length} champ(s) manquant(s)
+                </span>
+                <div className="flex flex-wrap gap-1 ml-1">
+                  {validation.champsManquants.slice(0, 3).map((c) => (
+                    <Badge
+                      key={c}
+                      variant="outline"
+                      className="text-[10px] border-amber-500/30 text-amber-300"
+                    >
+                      {c}
+                    </Badge>
+                  ))}
+                  {validation.champsManquants.length > 3 && (
+                    <Badge
+                      variant="outline"
+                      className="text-[10px] border-amber-500/30 text-amber-300"
+                    >
+                      +{validation.champsManquants.length - 3}
+                    </Badge>
+                  )}
+                </div>
+              </>
             )}
           </div>
         )}
+      </div>
 
-        {/* Preview card */}
-        {client && (
-          <PreviewCard client={client} />
-        )}
-
-        {!client && !ref && (
-          <div className="text-center text-slate-500 py-20">
+      {/* Main content */}
+      <div className="flex-1 overflow-hidden">
+        {!client && !ref ? (
+          <div className="flex items-center justify-center h-full text-slate-500">
             Sélectionnez un client pour générer une lettre de mission
           </div>
+        ) : view === "editor" ? (
+          <LettreMissionEditor
+            client={client}
+            state={editorState}
+            onChange={setEditorState}
+          />
+        ) : (
+          <LettreMissionPreview
+            client={client!}
+            template={getDefaultTemplate()}
+            cabinetConfig={DEFAULT_CABINET}
+            options={buildOptions()}
+          />
         )}
-      </div>
-    </div>
-  );
-}
-
-function PreviewCard({ client }: { client: Client }) {
-  const total = (client.honoraires ?? 0) + (client.reprise ?? 0) + (client.juridique ?? 0);
-
-  return (
-    <div className="bg-slate-800/50 border border-white/10 rounded-lg overflow-hidden">
-      <div className="px-4 py-3 bg-slate-800 border-b border-white/10">
-        <h2 className="text-sm font-semibold text-white">Aperçu de la lettre</h2>
-      </div>
-      <div className="p-4 space-y-4 text-sm">
-        {/* Identification */}
-        <div>
-          <div className="text-xs font-medium text-slate-400 uppercase mb-2">Identification</div>
-          <div className="grid grid-cols-2 gap-2 text-slate-300">
-            <div><span className="text-slate-500">Raison sociale :</span> {client.raisonSociale}</div>
-            <div><span className="text-slate-500">Forme :</span> {client.forme}</div>
-            <div><span className="text-slate-500">SIREN :</span> {client.siren}</div>
-            <div><span className="text-slate-500">Dirigeant :</span> {client.dirigeant}</div>
-            <div><span className="text-slate-500">Adresse :</span> {client.adresse}, {client.cp} {client.ville}</div>
-            <div><span className="text-slate-500">APE :</span> {client.ape} — {client.domaine}</div>
-          </div>
-        </div>
-
-        {/* Mission */}
-        <div>
-          <div className="text-xs font-medium text-slate-400 uppercase mb-2">Mission</div>
-          <div className="grid grid-cols-2 gap-2 text-slate-300">
-            <div><span className="text-slate-500">Type :</span> {client.mission}</div>
-            <div><span className="text-slate-500">Associé :</span> {client.associe}</div>
-            <div><span className="text-slate-500">Fréquence :</span> {client.frequence}</div>
-            <div><span className="text-slate-500">Comptable :</span> {client.comptable}</div>
-          </div>
-        </div>
-
-        {/* Honoraires */}
-        <div>
-          <div className="text-xs font-medium text-slate-400 uppercase mb-2">Honoraires</div>
-          <div className="grid grid-cols-3 gap-2 text-slate-300">
-            <div><span className="text-slate-500">Comptable :</span> {client.honoraires?.toLocaleString("fr-FR")} €</div>
-            <div><span className="text-slate-500">Juridique :</span> {client.juridique?.toLocaleString("fr-FR")} €</div>
-            <div className="font-semibold text-white">Total : {total.toLocaleString("fr-FR")} € HT</div>
-          </div>
-        </div>
-
-        {/* LCB-FT */}
-        <div>
-          <div className="text-xs font-medium text-slate-400 uppercase mb-2">LCB-FT</div>
-          <div className="flex items-center gap-3 text-slate-300">
-            <Badge
-              variant="outline"
-              className={
-                client.nivVigilance === "SIMPLIFIEE" ? "border-green-500/50 text-green-400" :
-                client.nivVigilance === "RENFORCEE" ? "border-red-500/50 text-red-400" :
-                "border-amber-500/50 text-amber-400"
-              }
-            >
-              {client.nivVigilance}
-            </Badge>
-            <span>Score : {client.scoreGlobal}/100</span>
-            <span>PPE : {client.ppe}</span>
-          </div>
-        </div>
       </div>
     </div>
   );
