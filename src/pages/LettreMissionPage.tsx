@@ -3,7 +3,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import {
   generateFromClient,
-  getDefaultTemplate,
   renderToPdf,
   renderToDocx,
   validateLettreMission,
@@ -29,7 +28,7 @@ import LettreMissionEditor, {
   buildDefaultEditorState,
   type EditorState,
 } from "@/components/lettre-mission/LettreMissionEditor";
-import LettreMissionPreview from "@/components/lettre-mission/LettreMissionPreview";
+import LettreMissionPreviewV2 from "@/components/lettre-mission/LettreMissionPreviewV2";
 
 // ── Constants ──
 const DEFAULT_CABINET: CabinetConfig = {
@@ -100,8 +99,6 @@ export default function LettreMissionPage() {
     setStatus("brouillon");
     setLastSaved(null);
   }, []);
-
-  const template = useMemo(() => getDefaultTemplate(), []);
 
   // Build options from editor state for PDF/DOCX export
   const buildOptions = useCallback(() => ({
@@ -396,14 +393,11 @@ export default function LettreMissionPage() {
               pointerEvents: activeTab === "apercu" ? "auto" : "none",
             }}
           >
-            {client && (
-              <LettreMissionPreview
-                client={client}
-                template={template}
-                cabinetConfig={DEFAULT_CABINET}
-                options={buildOptions()}
-              />
-            )}
+            <LettreMissionPreviewV2
+              state={editorState}
+              client={client}
+              activeSectionId={focusedSection}
+            />
           </div>
 
           {/* Editor pane */}
