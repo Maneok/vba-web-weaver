@@ -1163,6 +1163,9 @@ interface NewPdfParams {
     telephone: string;
   };
   variables: Record<string, string>;
+  status?: string;
+  signatureExpert?: string;
+  signatureClient?: string;
 }
 
 const REPARTITION_TASKS: [string, boolean, boolean][] = [
@@ -1179,7 +1182,8 @@ const REPARTITION_TASKS: [string, boolean, boolean][] = [
 ];
 
 export function renderNewLettreMissionPdf(params: NewPdfParams): void {
-  const { sections, client, genre, missions, honoraires, cabinet, variables } = params;
+  const { sections, client, genre, missions, honoraires, cabinet, variables,
+    status = "brouillon", signatureExpert, signatureClient } = params;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   let y = MARGIN_TOP;
 
@@ -1357,48 +1361,60 @@ export function renderNewLettreMissionPdf(params: NewPdfParams): void {
 
     if (section.content === "TABLEAU_HONORAIRES") {
       drawSectionTitle(section.title);
+      // 4-column table with TVA (#18)
+      const colDesig = MARGIN_L;
+      const colHT = MARGIN_L + CONTENT_W * 0.48;
+      const colTVA = MARGIN_L + CONTENT_W * 0.67;
+      const colTTC = MARGIN_R;
       // Header
       ensureSpace(8);
       doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
       doc.rect(MARGIN_L, y - 4, CONTENT_W, 8, "F");
       doc.setTextColor(255, 255, 255);
-      doc.setFontSize(9);
+      doc.setFontSize(8);
       doc.setFont("helvetica", "bold");
-      doc.text("Désignation", MARGIN_L + 3, y);
-      doc.text("Montant HT annuel", MARGIN_R - 3, y, { align: "right" });
+      doc.text("Désignation", colDesig + 3, y);
+      doc.text("Montant HT", colHT, y, { align: "right" });
+      doc.text("TVA 20%", colTVA, y, { align: "right" });
+      doc.text("Montant TTC", colTTC - 3, y, { align: "right" });
       doc.setTextColor(30, 30, 30);
       y += 7;
-      // Rows
-      function honoRow(label: string, montant: number, alt: boolean) {
+
+      function honoRow4(label: string, ht: number, alt: boolean) {
         ensureSpace(7);
-        if (alt) {
-          doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
-          doc.rect(MARGIN_L, y - 4, CONTENT_W, 7, "F");
-        }
-        doc.setFontSize(9);
-        doc.setFont("helvetica", "normal");
-        doc.text(label, MARGIN_L + 3, y);
-        doc.text(formatMontant(montant), MARGIN_R - 3, y, { align: "right" });
+        if (alt) { doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b); doc.rect(MARGIN_L, y - 4, CONTENT_W, 7, "F"); }
+        const tva = Math.round(ht * 0.20 * 100) / 100;
+        const ttc = Math.round(ht * 1.20 * 100) / 100;
+        doc.setFontSize(8); doc.setFont("helvetica", "normal");
+        doc.text(label, colDesig + 3, y);
+        doc.text(formatMontant(ht), colHT, y, { align: "right" });
+        doc.text(formatMontant(tva), colTVA, y, { align: "right" });
+        doc.text(formatMontant(ttc), colTTC - 3, y, { align: "right" });
         y += 7;
       }
-      honoRow("Forfait comptable annuel", honoraires.comptable, true);
-      if (honoraires.constitution > 0) honoRow("Constitution / Reprise dossier", honoraires.constitution, false);
-      if (missions.juridique && honoraires.juridique > 0) honoRow("Mission juridique annuelle", honoraires.juridique, true);
+
+      honoRow4("Forfait comptable annuel", honoraires.comptable, true);
+      if (honoraires.constitution > 0) honoRow4("Constitution / Reprise dossier", honoraires.constitution, false);
+      if (missions.juridique && honoraires.juridique > 0) honoRow4("Mission juridique annuelle", honoraires.juridique, true);
+
       const totalHT = honoraires.comptable + honoraires.constitution + (missions.juridique ? honoraires.juridique : 0);
-      // Total
+      const totalTVA = Math.round(totalHT * 0.20 * 100) / 100;
+      const totalTTC = Math.round(totalHT * 1.20 * 100) / 100;
+
       ensureSpace(9);
       doc.setFillColor(230, 235, 245);
       doc.rect(MARGIN_L, y - 4, CONTENT_W, 9, "F");
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.text("TOTAL HT", MARGIN_L + 3, y + 1);
-      doc.text(formatMontant(totalHT), MARGIN_R - 3, y + 1, { align: "right" });
+      doc.setFontSize(9); doc.setFont("helvetica", "bold");
+      doc.text("TOTAL", colDesig + 3, y + 1);
+      doc.text(formatMontant(totalHT), colHT, y + 1, { align: "right" });
+      doc.text(formatMontant(totalTVA), colTVA, y + 1, { align: "right" });
+      doc.text(formatMontant(totalTTC), colTTC - 3, y + 1, { align: "right" });
       y += 11;
-      // Facturation
+
       const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : "annuel";
-      const divisor = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : 1;
+      const divsr = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : 1;
       setSmall();
-      doc.text(`Facturation ${freqLabel} : ${formatMontant(Math.round((honoraires.comptable / divisor) * 100) / 100)} HT`, MARGIN_L, y);
+      doc.text(`Facturation ${freqLabel} : ${formatMontant(Math.round((honoraires.comptable / divsr) * 100) / 100)} HT`, MARGIN_L, y);
       y += 8;
       continue;
     }
@@ -1463,10 +1479,36 @@ export function renderNewLettreMissionPdf(params: NewPdfParams): void {
     y += 2;
   }
 
-  // ── Footers ──
+  // ── Signature images (#5) ──
+  if (signatureExpert || signatureClient) {
+    ensureSpace(40);
+    y += 10;
+    const colL = MARGIN_L;
+    const colR = MARGIN_L + CONTENT_W / 2 + 5;
+    if (signatureExpert) {
+      try { doc.addImage(signatureExpert, "PNG", colL, y, 50, 20); } catch { /* invalid image */ }
+    }
+    if (signatureClient) {
+      try { doc.addImage(signatureClient, "PNG", colR, y, 50, 20); } catch { /* invalid image */ }
+    }
+    y += 25;
+  }
+
+  // ── Footers with page numbers (#8) + filigrane (#3) ──
   const totalPages = doc.getNumberOfPages();
   for (let i = 1; i <= totalPages; i++) {
     doc.setPage(i);
+
+    // Filigrane PROJET (#3)
+    if (status === "brouillon" || status === "en_attente") {
+      doc.saveGraphicsState();
+      doc.setFontSize(60);
+      doc.setTextColor(200, 200, 200);
+      doc.text("PROJET", 105, 170, { align: "center", angle: 45 });
+      doc.restoreGraphicsState();
+    }
+
+    // Footer line + page numbers (#8)
     doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
     doc.setLineWidth(0.3);
     doc.line(MARGIN_L, FOOTER_Y, MARGIN_R, FOOTER_Y);
