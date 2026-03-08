@@ -11,6 +11,7 @@ import type {
 import { DEFAULT_LM_OPTIONS } from "@/types/lettreMission";
 import { replaceVariables } from "@/lib/lettreMissionVariables";
 import { renderLettreMissionPdf } from "@/lib/lettreMissionPdf";
+import { toast } from "sonner";
 
 // ──────────────────────────────────────────────
 // Numérotation automatique (localStorage)
@@ -318,9 +319,14 @@ export function generateFromClient(
  * Génère et télécharge un PDF à partir d'un objet LettreMission.
  */
 export function renderToPdf(lettreMission: LettreMission): void {
-  const doc = renderLettreMissionPdf(lettreMission);
-  const filename = `LDM_${lettreMission?.numero ?? "draft"}_${(lettreMission?.client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.pdf`;
-  doc.save(filename);
+  try {
+    const doc = renderLettreMissionPdf(lettreMission);
+    const filename = `LDM_${lettreMission?.numero ?? "draft"}_${(lettreMission?.client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.pdf`;
+    doc.save(filename);
+  } catch (err) {
+    console.error("[renderToPdf] Erreur :", err);
+    toast.error("Erreur lors de la génération du PDF. Veuillez réessayer.");
+  }
 }
 
 /**

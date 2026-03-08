@@ -146,7 +146,7 @@ const C = {
 
 const sectionTitleStyle: React.CSSProperties = {
   fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-  fontSize: "16px",
+  fontSize: "18px",
   fontWeight: 700,
   color: C.navy,
   margin: "0 0 6px",
@@ -262,9 +262,9 @@ export default function LettreMissionPreviewV2({
           maxWidth: "800px",
           margin: "0 auto",
           backgroundColor: "#ffffff",
-          border: "1px solid #e0e0e0",
-          boxShadow: "0 2px 16px rgba(0,0,0,0.06), 0 1px 4px rgba(0,0,0,0.03)",
-          padding: "60px 50px 40px",
+          border: "1px solid #dddddd",
+          boxShadow: "0 2px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04)",
+          padding: "60px",
           fontFamily: "Georgia, 'Times New Roman', serif",
           fontSize: "14px",
           lineHeight: 1.6,
@@ -278,7 +278,7 @@ export default function LettreMissionPreviewV2({
             <h1
               style={{
                 fontFamily: "'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif",
-                fontSize: "18px",
+                fontSize: "20px",
                 fontWeight: 800,
                 color: C.navy,
                 margin: 0,
@@ -299,7 +299,7 @@ export default function LettreMissionPreviewV2({
         <div style={{ height: "2px", backgroundColor: C.navy, margin: "12px 0 28px" }} />
 
         {/* ═══════ 6. INFOS MISSION ═══════ */}
-        <div style={{ textAlign: "right", fontSize: "10px", color: C.muted, marginBottom: "24px", lineHeight: 1.8 }}>
+        <div style={{ textAlign: "right", fontSize: "11px", color: C.muted, marginBottom: "24px", lineHeight: 1.8 }}>
           <p style={{ margin: 0 }}>Marseille, le {today}</p>
           <p style={{ margin: 0 }}>Réf. mission n° LM-{new Date().getFullYear()}-{(clientData?.ref ?? "XXX").slice(-3).padStart(3, "0")}</p>
           {clientData?.mail && <p style={{ margin: 0 }}>{clientData?.mail}</p>}
@@ -331,7 +331,7 @@ export default function LettreMissionPreviewV2({
         <h1
           style={{
             textAlign: "center",
-            fontSize: "20px",
+            fontSize: "22px",
             fontWeight: 700,
             letterSpacing: "2px",
             color: C.navy,
@@ -345,7 +345,7 @@ export default function LettreMissionPreviewV2({
         <p
           style={{
             textAlign: "center",
-            fontSize: "14px",
+            fontSize: "16px",
             fontWeight: 600,
             color: C.muted,
             margin: "0 0 36px",
