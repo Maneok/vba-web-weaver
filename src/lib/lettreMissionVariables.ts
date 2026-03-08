@@ -94,6 +94,7 @@ const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   beneficiaires_effectifs: (c) => c.be ?? "",
   date_fin: (c) => c.dateFin ?? "",
   type_personne: (c) => c.typePersonne ?? "",
+  code_postal: (c) => c.cp,
   adresse_complete: (c) => `${c.adresse}, ${c.cp} ${c.ville}`,
   honoraires_ttc: (c) => (c.honoraires * 1.2)?.toLocaleString("fr-FR") ?? "0",
   hono: (c) => `${c.honoraires?.toLocaleString("fr-FR") ?? "0"} € HT`,
