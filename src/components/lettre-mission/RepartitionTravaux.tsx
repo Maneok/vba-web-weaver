@@ -26,7 +26,7 @@ const PERIODICITES: Periodicite[] = [
 ];
 
 function getDefaultLignes(): LigneRepartition[] {
-  return REPARTITION_TRAVAUX.lignes.map((l) => ({
+  return (REPARTITION_TRAVAUX?.lignes || []).map((l) => ({
     id: l.id,
     label: l.label,
     cabinet: l.defautCabinet,

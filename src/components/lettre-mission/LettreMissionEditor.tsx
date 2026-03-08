@@ -12,6 +12,7 @@ import {
   ScrollText,
   BookOpen,
   ClipboardCheck,
+  Pencil,
 } from "lucide-react";
 import type { Client, VigilanceLevel } from "../../lib/types";
 import {
@@ -32,7 +33,7 @@ import ConditionsGenerales from "./ConditionsGenerales";
 // Types
 // ---------------------------------------------------------------------------
 
-interface MissionsConfig {
+export interface MissionsConfig {
   sociale: boolean;
   juridique: boolean;
   controleFiscal: boolean;
@@ -45,11 +46,10 @@ interface HonorairesEditable {
   honorairesJuridique: number;
 }
 
-interface LettreMissionEditorProps {
-  client: Client;
+export interface LettreMissionEditorProps {
+  client: Client | null;
   genre: Genre;
   onGenreChange?: (g: Genre) => void;
-  /** Notifie le parent des sections actives (pour griser la sidebar) */
   onMissionsChange?: (m: MissionsConfig) => void;
 }
 
@@ -57,7 +57,6 @@ interface LettreMissionEditorProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Build a variable map from client data */
 function buildVariables(
   client: Client,
   genre: Genre,
@@ -67,33 +66,32 @@ function buildVariables(
   return {
     formule_politesse: fp,
     formule_politesse_fin: fp,
-    dirigeant: client.dirigeant,
-    raison_sociale: client.raisonSociale,
-    forme_juridique: client.forme,
-    domaine: client.domaine,
-    ape: client.ape,
-    siren: client.siren,
+    dirigeant: client.dirigeant || "",
+    raison_sociale: client.raisonSociale || "",
+    forme_juridique: client.forme || "",
+    domaine: client.domaine || "",
+    ape: client.ape || "",
+    siren: client.siren || "",
     capital: client.capital ? `${client.capital.toLocaleString("fr-FR")} €` : "",
-    date_creation: client.dateCreation,
-    associe: client.associe,
-    effectif: client.effectif,
-    mission: client.mission,
-    frequence: client.frequence,
+    date_creation: client.dateCreation || "",
+    associe: client.associe || "",
+    effectif: client.effectif || "",
+    mission: client.mission || "",
+    frequence: client.frequence || "",
     exercice_debut: "01/01/" + new Date().getFullYear(),
     exercice_fin: "31/12/" + new Date().getFullYear(),
     honoraires: `${honoraires.honoraires.toLocaleString("fr-FR")} €`,
     setup: honoraires.setup ? `${honoraires.setup.toLocaleString("fr-FR")} €` : "—",
     honoraires_juridique: `${honoraires.honorairesJuridique.toLocaleString("fr-FR")} €`,
-    score_global: String(client.scoreGlobal),
-    niv_vigilance: client.nivVigilance,
-    ppe: client.ppe,
+    score_global: String(client.scoreGlobal ?? 0),
+    niv_vigilance: client.nivVigilance || "STANDARD",
+    ppe: client.ppe || "NON",
     date_revue: client.dateDerniereRevue || "—",
     date_butoir: client.dateButoir || "—",
-    bloc_vigilance_lab: LCBFT_TEMPLATES[client.nivVigilance].corps,
+    bloc_vigilance_lab: LCBFT_TEMPLATES[client.nivVigilance || "STANDARD"]?.corps || "",
   };
 }
 
-/** Replace {{var}} in text, returning React nodes with highlights */
 function renderWithVariables(
   text: string,
   vars: Record<string, string>,
@@ -137,7 +135,7 @@ function getVigilanceBadge(level: VigilanceLevel) {
     SIMPLIFIEE: { bg: "bg-green-100 text-green-800", label: "Simplifiée" },
     STANDARD: { bg: "bg-amber-100 text-amber-800", label: "Standard" },
     RENFORCEE: { bg: "bg-red-100 text-red-800", label: "Renforcée" },
-  }[level];
+  }[level] ?? { bg: "bg-gray-100 text-gray-800", label: level };
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cfg.bg}`}>
       {cfg.label}
@@ -149,7 +147,6 @@ function getVigilanceBadge(level: VigilanceLevel) {
 // Sub-components
 // ---------------------------------------------------------------------------
 
-/** Collapsible section card */
 function Section({
   id,
   titre,
@@ -157,6 +154,7 @@ function Section({
   defaultOpen = true,
   icon,
   accentBorder,
+  disabled,
 }: {
   id: string;
   titre: string;
@@ -164,32 +162,39 @@ function Section({
   defaultOpen?: boolean;
   icon?: React.ReactNode;
   accentBorder?: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <div
       id={`section-${id}`}
-      className={`border rounded-lg bg-white shadow-sm ${accentBorder ?? ""}`}
+      className={`border rounded-lg shadow-sm ${accentBorder ?? ""} ${
+        disabled ? "bg-gray-100 opacity-60" : "bg-white"
+      }`}
     >
       <button
         type="button"
-        onClick={() => setOpen(!open)}
-        className="w-full flex items-center gap-2 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+        onClick={() => !disabled && setOpen(!open)}
+        className={`w-full flex items-center gap-2 px-4 py-3 text-left transition-colors ${
+          disabled ? "cursor-not-allowed" : "hover:bg-gray-50"
+        }`}
       >
-        {open ? (
+        {open && !disabled ? (
           <ChevronDown className="h-4 w-4 text-gray-400 flex-shrink-0" />
         ) : (
           <ChevronRight className="h-4 w-4 text-gray-400 flex-shrink-0" />
         )}
         {icon}
         <span className="text-sm font-semibold text-gray-800">{titre}</span>
+        {disabled && (
+          <span className="ml-auto text-xs text-gray-400">Désactivée</span>
+        )}
       </button>
-      {open && <div className="px-4 pb-4">{children}</div>}
+      {open && !disabled && <div className="px-4 pb-4">{children}</div>}
     </div>
   );
 }
 
-/** Preview inline under a textarea */
 function InlinePreview({
   text,
   vars,
@@ -205,7 +210,6 @@ function InlinePreview({
   );
 }
 
-/** Entity table row */
 function EntityRow({
   label,
   value,
@@ -217,7 +221,7 @@ function EntityRow({
   onChange: (v: string) => void;
   even: boolean;
 }) {
-  const empty = !value.trim();
+  const empty = !value?.trim();
   return (
     <tr className={even ? "bg-gray-50" : ""}>
       <td className="py-2 px-3 text-sm font-medium text-gray-600 w-1/3 border-r">
@@ -227,7 +231,7 @@ function EntityRow({
         <div className="relative">
           <input
             type="text"
-            value={value}
+            value={value ?? ""}
             onChange={(e) => onChange(e.target.value)}
             className={`w-full px-2 py-1.5 text-sm rounded border ${
               empty
@@ -259,26 +263,38 @@ export default function LettreMissionEditor({
   onGenreChange,
   onMissionsChange,
 }: LettreMissionEditorProps) {
+  // Guard: no client selected
+  if (!client) {
+    return (
+      <div className="flex items-center justify-center h-64 text-gray-400 text-sm">
+        Sélectionnez un client pour commencer la lettre de mission.
+      </div>
+    );
+  }
+
   // --- State ---
   const [sections, setSections] = useState(() => {
     const s: Record<string, string> = {};
     for (const [key, sec] of Object.entries(LETTRE_MISSION_CONTENT)) {
-      s[key] = sec.contenu;
+      if (sec && sec.contenu) {
+        s[key] = sec.contenu;
+      }
     }
     return s;
   });
 
   const [entity, setEntity] = useState(() => ({
-    raison_sociale: client.raisonSociale,
-    forme_juridique: client.forme,
-    domaine: client.domaine,
-    ape: client.ape,
-    siren: client.siren,
+    raison_sociale: client.raisonSociale || "",
+    forme_juridique: client.forme || "",
+    domaine: client.domaine || "",
+    ape: client.ape || "",
+    siren: client.siren || "",
     capital: client.capital ? String(client.capital) : "",
-    date_creation: client.dateCreation,
-    associe: client.associe,
-    effectif: client.effectif,
-    mission: client.mission as string,
+    date_creation: client.dateCreation || "",
+    associe: client.associe || "",
+    effectif: client.effectif || "",
+    mission: (client.mission as string) || "",
+    frequence: client.frequence || "",
   }));
 
   const [missions, setMissions] = useState<MissionsConfig>({
@@ -294,6 +310,7 @@ export default function LettreMissionEditor({
     honorairesJuridique: client.juridique || 0,
   });
 
+  const [missionEditable, setMissionEditable] = useState(false);
   const [annexeTab, setAnnexeTab] = useState<string>("repartition");
 
   // --- Derived ---
@@ -302,21 +319,16 @@ export default function LettreMissionEditor({
     [client, genre, honoraires],
   );
 
-  const mensuel = useMemo(
+  const freq = (client.frequence || "MENSUEL").toUpperCase();
+  const periodeLabel = freq.includes("TRIMESTR") ? "trimestre" : "mois";
+  const diviseur = freq.includes("TRIMESTR") ? 4 : 12;
+  const montantPeriodique = useMemo(
     () =>
-      (honoraires.honoraires / 12).toLocaleString("fr-FR", {
+      (honoraires.honoraires / diviseur).toLocaleString("fr-FR", {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
       }),
-    [honoraires.honoraires],
-  );
-  const trimestriel = useMemo(
-    () =>
-      (honoraires.honoraires / 4).toLocaleString("fr-FR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
-    [honoraires.honoraires],
+    [honoraires.honoraires, diviseur],
   );
 
   function toggleMission(key: keyof Omit<MissionsConfig, "controleFiscalOption">) {
@@ -330,17 +342,18 @@ export default function LettreMissionEditor({
   }
 
   const entityFields = [
-    { key: "raison_sociale", label: "Raison sociale" },
-    { key: "forme_juridique", label: "Forme juridique" },
-    { key: "domaine", label: "Activité(s) principale(s)" },
-    { key: "ape", label: "Code APE" },
-    { key: "siren", label: "SIREN" },
-    { key: "capital", label: "Capital social" },
-    { key: "date_creation", label: "Date de création" },
-    { key: "associe", label: "EC responsable" },
-    { key: "effectif", label: "Effectif du personnel" },
-    { key: "mission", label: "Type de mission" },
-  ] as const;
+    { key: "raison_sociale" as const, label: "Raison sociale" },
+    { key: "forme_juridique" as const, label: "Forme juridique" },
+    { key: "domaine" as const, label: "Activité(s) principale(s)" },
+    { key: "ape" as const, label: "Code APE" },
+    { key: "siren" as const, label: "SIREN" },
+    { key: "capital" as const, label: "Capital social" },
+    { key: "date_creation" as const, label: "Date de création" },
+    { key: "associe" as const, label: "EC responsable" },
+    { key: "effectif" as const, label: "Effectif du personnel" },
+    { key: "mission" as const, label: "Type de mission" },
+    { key: "frequence" as const, label: "Périodicité" },
+  ];
 
   const ANNEXE_TABS = [
     { id: "repartition", label: "Répartition travaux", icon: <ClipboardCheck className="h-3.5 w-3.5" /> },
@@ -350,26 +363,36 @@ export default function LettreMissionEditor({
     { id: "cgv", label: "CGV", icon: <BookOpen className="h-3.5 w-3.5" /> },
   ];
 
+  const scoreGlobal = client.scoreGlobal ?? 0;
+  const nivVigilance = client.nivVigilance || "STANDARD";
+  const vigilanceTemplate = LCBFT_TEMPLATES[nivVigilance];
+
   // --- Render ---
   return (
     <div className="space-y-4">
       {/* ============================================================ */}
-      {/* 1. INTRODUCTION */}
+      {/* SECTION 1 — INTRODUCTION                                     */}
       {/* ============================================================ */}
-      <Section id="introduction" titre={LETTRE_MISSION_CONTENT.introduction.titre}>
+      <Section
+        id="introduction"
+        titre={LETTRE_MISSION_CONTENT.introduction?.titre ?? "Introduction"}
+      >
         <textarea
-          value={sections.introduction}
+          value={sections.introduction ?? ""}
           onChange={(e) => updateSection("introduction", e.target.value)}
           rows={6}
           className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
         />
-        <InlinePreview text={sections.introduction} vars={vars} />
+        <InlinePreview text={sections.introduction ?? ""} vars={vars} />
       </Section>
 
       {/* ============================================================ */}
-      {/* 2. VOTRE ENTITÉ — Tableau éditable */}
+      {/* SECTION 2 — VOTRE ENTITÉ (tableau éditable)                  */}
       {/* ============================================================ */}
-      <Section id="entite" titre={LETTRE_MISSION_CONTENT.entite.titre}>
+      <Section
+        id="entite"
+        titre={LETTRE_MISSION_CONTENT.entite?.titre ?? "VOTRE ENTITÉ"}
+      >
         <table className="w-full border-collapse border rounded overflow-hidden">
           <thead>
             <tr className="bg-gray-100">
@@ -386,50 +409,45 @@ export default function LettreMissionEditor({
               <EntityRow
                 key={f.key}
                 label={f.label}
-                value={entity[f.key]}
+                value={entity[f.key] ?? ""}
                 onChange={(v) => setEntity((prev) => ({ ...prev, [f.key]: v }))}
                 even={i % 2 === 0}
               />
             ))}
           </tbody>
         </table>
-        <div className="mt-2 text-xs text-gray-400">
-          Périodicité : {client.frequence} – Avant le J+10
-        </div>
       </Section>
 
       {/* ============================================================ */}
-      {/* 3. LCB-FT — Bloc amélioré */}
+      {/* SECTION 3 — LCB-FT                                          */}
       {/* ============================================================ */}
       <Section
         id="lcbft"
-        titre={LETTRE_MISSION_CONTENT.lcbft.titre}
+        titre={LETTRE_MISSION_CONTENT.lcbft?.titre ?? "OBLIGATIONS DE VIGILANCE – LCB-FT"}
         icon={<Lock className="h-4 w-4 text-[#1a1a2e]" />}
         accentBorder="border-l-4 border-l-[#1a1a2e]"
       >
-        {LETTRE_MISSION_CONTENT.lcbft.soustitre && (
+        {LETTRE_MISSION_CONTENT.lcbft?.soustitre && (
           <p className="text-xs text-gray-400 mb-3 -mt-1">
             {LETTRE_MISSION_CONTENT.lcbft.soustitre}
           </p>
         )}
 
-        {/* Score + Vigilance + PPE + KYC dates */}
+        {/* Score + Vigilance + PPE + KYC */}
         <div className="bg-[#f4f4f8] rounded-lg p-4 mb-4">
           <div className="grid grid-cols-2 gap-4">
-            {/* Score global */}
             <div className="flex items-center gap-3">
               <span
-                className={`text-[32px] font-bold leading-none ${getScoreColor(client.scoreGlobal)}`}
+                className={`text-[32px] font-bold leading-none ${getScoreColor(scoreGlobal)}`}
               >
-                {client.scoreGlobal}
+                {scoreGlobal}
               </span>
               <div>
                 <div className="text-xs text-gray-400">/ 100</div>
-                {getVigilanceBadge(client.nivVigilance)}
+                {getVigilanceBadge(nivVigilance)}
               </div>
             </div>
 
-            {/* PPE + Dates */}
             <div className="space-y-1.5 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-500">Statut PPE</span>
@@ -440,7 +458,7 @@ export default function LettreMissionEditor({
                       : "text-gray-700"
                   }
                 >
-                  {client.ppe}
+                  {client.ppe || "NON"}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -459,15 +477,19 @@ export default function LettreMissionEditor({
           </div>
         </div>
 
-        {/* Bloc vigilance dynamique */}
-        <div className={`rounded p-3 mb-3 text-sm leading-relaxed ${getScoreBg(client.scoreGlobal)}`}>
-          <p className="font-semibold text-gray-800 mb-1">
-            {LCBFT_TEMPLATES[client.nivVigilance].titre}
-          </p>
-          <p className="text-gray-700 whitespace-pre-line text-xs">
-            {LCBFT_TEMPLATES[client.nivVigilance].corps}
-          </p>
-        </div>
+        {/* Bloc vigilance dynamique — adapté au niveau */}
+        {vigilanceTemplate && (
+          <div
+            className={`rounded p-3 mb-3 text-sm leading-relaxed ${getScoreBg(scoreGlobal)}`}
+          >
+            <p className="font-semibold text-gray-800 mb-1">
+              {vigilanceTemplate.titre}
+            </p>
+            <p className="text-gray-700 whitespace-pre-line text-xs">
+              {vigilanceTemplate.corps}
+            </p>
+          </div>
+        )}
 
         {/* Engagements + Conservation */}
         <div className="space-y-2 text-xs text-gray-600 leading-relaxed">
@@ -490,32 +512,55 @@ export default function LettreMissionEditor({
       </Section>
 
       {/* ============================================================ */}
-      {/* 4. NOTRE MISSION */}
+      {/* SECTION 4 — NOTRE MISSION (lecture seule + Personnaliser)     */}
       {/* ============================================================ */}
-      <Section id="mission" titre={LETTRE_MISSION_CONTENT.mission.titre}>
-        <textarea
-          value={sections.mission}
-          onChange={(e) => updateSection("mission", e.target.value)}
-          rows={10}
-          className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
-        />
+      <Section
+        id="mission"
+        titre={LETTRE_MISSION_CONTENT.mission?.titre ?? "Notre mission"}
+      >
+        <div className="relative">
+          <textarea
+            value={sections.mission ?? ""}
+            onChange={(e) => updateSection("mission", e.target.value)}
+            readOnly={!missionEditable}
+            rows={10}
+            className={`w-full border rounded px-3 py-2 text-sm leading-relaxed focus:outline-none resize-y ${
+              missionEditable
+                ? "focus:ring-1 focus:ring-blue-500 bg-white"
+                : "bg-gray-50 text-gray-600 cursor-default"
+            }`}
+          />
+          {!missionEditable && (
+            <button
+              type="button"
+              onClick={() => setMissionEditable(true)}
+              className="absolute top-2 right-2 flex items-center gap-1 px-2 py-1 text-xs bg-white border rounded shadow-sm text-blue-600 hover:bg-blue-50 transition-colors"
+            >
+              <Pencil className="h-3 w-3" />
+              Personnaliser
+            </button>
+          )}
+        </div>
       </Section>
 
       {/* ============================================================ */}
-      {/* 5. DURÉE DE LA MISSION */}
+      {/* SECTION 5 — DURÉE DE LA MISSION                              */}
       {/* ============================================================ */}
-      <Section id="duree" titre={LETTRE_MISSION_CONTENT.duree.titre}>
+      <Section
+        id="duree"
+        titre={LETTRE_MISSION_CONTENT.duree?.titre ?? "Durée de la mission"}
+      >
         <textarea
-          value={sections.duree}
+          value={sections.duree ?? ""}
           onChange={(e) => updateSection("duree", e.target.value)}
           rows={4}
           className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
         />
-        <InlinePreview text={sections.duree} vars={vars} />
+        <InlinePreview text={sections.duree ?? ""} vars={vars} />
       </Section>
 
       {/* ============================================================ */}
-      {/* TOGGLE MISSIONS COMPLÉMENTAIRES */}
+      {/* SECTIONS 5-6-7 — MISSIONS COMPLÉMENTAIRES (toggles)          */}
       {/* ============================================================ */}
       <div className="border rounded-lg bg-white shadow-sm p-4">
         <h3 className="text-sm font-semibold text-gray-800 mb-3">
@@ -529,21 +574,30 @@ export default function LettreMissionEditor({
             active={missions.sociale}
             onToggle={() => toggleMission("sociale")}
           />
-          {missions.sociale && (
+          {missions.sociale ? (
             <div className="ml-8 animate-slideDown">
               <Section
                 id="mission_sociale"
-                titre={LETTRE_MISSION_CONTENT.missionSociale.titre}
+                titre={LETTRE_MISSION_CONTENT.missionSociale?.titre ?? "Mission sociale"}
                 defaultOpen
               >
                 <textarea
-                  value={sections.missionSociale}
+                  value={sections.missionSociale ?? ""}
                   onChange={(e) => updateSection("missionSociale", e.target.value)}
                   rows={8}
                   className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
                 />
               </Section>
             </div>
+          ) : (
+            <Section
+              id="mission_sociale"
+              titre={LETTRE_MISSION_CONTENT.missionSociale?.titre ?? "Mission sociale"}
+              defaultOpen={false}
+              disabled
+            >
+              <div />
+            </Section>
           )}
 
           {/* Juridique */}
@@ -553,21 +607,30 @@ export default function LettreMissionEditor({
             active={missions.juridique}
             onToggle={() => toggleMission("juridique")}
           />
-          {missions.juridique && (
+          {missions.juridique ? (
             <div className="ml-8 animate-slideDown">
               <Section
                 id="mission_juridique"
-                titre={LETTRE_MISSION_CONTENT.missionJuridique.titre}
+                titre={LETTRE_MISSION_CONTENT.missionJuridique?.titre ?? "Mission juridique"}
                 defaultOpen
               >
                 <textarea
-                  value={sections.missionJuridique}
+                  value={sections.missionJuridique ?? ""}
                   onChange={(e) => updateSection("missionJuridique", e.target.value)}
                   rows={4}
                   className="w-full border rounded px-3 py-2 text-sm leading-relaxed focus:ring-1 focus:ring-blue-500 focus:outline-none resize-y"
                 />
               </Section>
             </div>
+          ) : (
+            <Section
+              id="mission_juridique"
+              titre={LETTRE_MISSION_CONTENT.missionJuridique?.titre ?? "Mission juridique"}
+              defaultOpen={false}
+              disabled
+            >
+              <div />
+            </Section>
           )}
 
           {/* Contrôle fiscal */}
@@ -577,7 +640,7 @@ export default function LettreMissionEditor({
             active={missions.controleFiscal}
             onToggle={() => toggleMission("controleFiscal")}
           />
-          {missions.controleFiscal && (
+          {missions.controleFiscal ? (
             <div className="ml-8 space-y-2 animate-slideDown">
               {CONTROLE_FISCAL_OPTIONS.map((opt) => (
                 <label
@@ -597,22 +660,36 @@ export default function LettreMissionEditor({
                     className="mt-0.5 h-4 w-4 text-blue-600"
                   />
                   <div>
-                    <span className="font-medium text-gray-700">{opt.label}</span>
+                    <span className="font-medium text-gray-700">
+                      {opt.label}
+                    </span>
                     <span className="text-gray-500 ml-1 text-xs">
-                      {opt.texte}
+                      — {opt.texte}
                     </span>
                   </div>
                 </label>
               ))}
             </div>
+          ) : (
+            <Section
+              id="mission_controle_fiscal"
+              titre={LETTRE_MISSION_CONTENT.missionControleFiscal?.titre ?? "Contrôle fiscal"}
+              defaultOpen={false}
+              disabled
+            >
+              <div />
+            </Section>
           )}
         </div>
       </div>
 
       {/* ============================================================ */}
-      {/* 6. HONORAIRES — Tableau */}
+      {/* SECTION 8 — HONORAIRES (tableau)                             */}
       {/* ============================================================ */}
-      <Section id="honoraires" titre={LETTRE_MISSION_CONTENT.honoraires.titre}>
+      <Section
+        id="honoraires"
+        titre={LETTRE_MISSION_CONTENT.honoraires?.titre ?? "HONORAIRES"}
+      >
         <table className="w-full text-sm border-collapse border rounded overflow-hidden">
           <thead>
             <tr className="bg-gray-100">
@@ -625,7 +702,6 @@ export default function LettreMissionEditor({
             </tr>
           </thead>
           <tbody>
-            {/* Comptable */}
             <tr className="border-t">
               <td className="py-2 px-3 text-gray-700 border-r">
                 Forfait annuel de tenue / surveillance
@@ -699,8 +775,13 @@ export default function LettreMissionEditor({
                   { label: "Entrée salarié (DPAE + dossier)", montant: "30 €" },
                   { label: "Attestation maladie / AT", montant: "30 €" },
                 ].map((l, i) => (
-                  <tr key={l.label} className={`border-t ${i % 2 ? "bg-gray-50" : ""}`}>
-                    <td className="py-2 px-3 text-gray-700 border-r">{l.label}</td>
+                  <tr
+                    key={l.label}
+                    className={`border-t ${i % 2 ? "bg-gray-50" : ""}`}
+                  >
+                    <td className="py-2 px-3 text-gray-700 border-r">
+                      {l.label}
+                    </td>
                     <td className="py-2 px-3 text-right text-gray-600">
                       {l.montant}
                     </td>
@@ -763,8 +844,7 @@ export default function LettreMissionEditor({
                     <td className="py-2 px-3 text-right text-gray-600">
                       {CONTROLE_FISCAL_OPTIONS.find(
                         (o) => o.id === missions.controleFiscalOption,
-                      )
-                        ?.montant?.toLocaleString("fr-FR")}{" "}
+                      )?.montant?.toLocaleString("fr-FR") ?? "—"}{" "}
                       €
                     </td>
                   </tr>
@@ -773,31 +853,30 @@ export default function LettreMissionEditor({
           </tbody>
         </table>
 
-        {/* Calcul auto */}
-        <div className="mt-3 flex gap-4 text-xs">
-          <div className="bg-blue-50 rounded px-3 py-2 flex-1 text-center">
-            <span className="text-gray-500">Mensuel : </span>
-            <span className="font-semibold text-blue-800">{mensuel} € HT</span>
-          </div>
-          <div className="bg-blue-50 rounded px-3 py-2 flex-1 text-center">
-            <span className="text-gray-500">Trimestriel : </span>
-            <span className="font-semibold text-blue-800">
-              {trimestriel} € HT
-            </span>
-          </div>
+        {/* Calcul auto — selon fréquence */}
+        <div className="mt-3 bg-blue-50 rounded px-4 py-2 text-sm text-center">
+          <span className="text-gray-600">Soit </span>
+          <span className="font-bold text-blue-800">
+            {montantPeriodique} € HT
+          </span>
+          <span className="text-gray-600"> / {periodeLabel}</span>
         </div>
 
         <div className="mt-2 text-xs text-gray-400">
-          Nos honoraires seront facturés {client.frequence?.toLowerCase()}lement,
-          réglés par prélèvement automatique à 30 jours et révisables
-          annuellement avec un minimum forfaitaire de 3 %.
+          Nos honoraires seront facturés{" "}
+          {(client.frequence || "mensuel").toLowerCase()}lement, réglés par
+          prélèvement automatique à 30 jours et révisables annuellement avec un
+          minimum forfaitaire de 3 %.
         </div>
       </Section>
 
       {/* ============================================================ */}
-      {/* 7. SIGNATURE */}
+      {/* SECTION 9 — SIGNATURE                                        */}
       {/* ============================================================ */}
-      <Section id="signature" titre={LETTRE_MISSION_CONTENT.signature.titre}>
+      <Section
+        id="signature"
+        titre={LETTRE_MISSION_CONTENT.signature?.titre ?? "Signatures"}
+      >
         <div className="text-center text-sm text-gray-600 mb-6">
           Fait à Marseille, le{" "}
           {new Date().toLocaleDateString("fr-FR", {
@@ -808,20 +887,18 @@ export default function LettreMissionEditor({
         </div>
 
         <div className="grid grid-cols-2 gap-8">
-          {/* Cabinet */}
           <div className="text-center space-y-3">
             <p className="text-sm font-semibold text-gray-700">
               L'Expert-comptable
             </p>
-            <p className="text-sm text-gray-600">{client.associe}</p>
+            <p className="text-sm text-gray-600">{client.associe || "—"}</p>
             <div className="border-b border-gray-300 mx-8 mt-8" />
             <p className="text-xs text-gray-400">Signature</p>
           </div>
 
-          {/* Client */}
           <div className="text-center space-y-3">
             <p className="text-sm font-semibold text-gray-700">Le Client</p>
-            <p className="text-sm text-gray-600">{client.dirigeant}</p>
+            <p className="text-sm text-gray-600">{client.dirigeant || "—"}</p>
             <div className="border-b border-gray-300 mx-8 mt-8" />
             <p className="text-xs text-gray-400">Signature</p>
           </div>
@@ -829,7 +906,7 @@ export default function LettreMissionEditor({
       </Section>
 
       {/* ============================================================ */}
-      {/* 8. ANNEXES — Onglets horizontaux */}
+      {/* SECTION 10 — ANNEXES (onglets horizontaux)                   */}
       {/* ============================================================ */}
       <div className="border rounded-lg bg-white shadow-sm">
         <div className="border-b">
@@ -859,7 +936,7 @@ export default function LettreMissionEditor({
           )}
           {annexeTab === "sepa" && <MandatSepa client={client} />}
           {annexeTab === "liasse" && (
-            <AutorisationLiasse client={client} associe={client.associe} />
+            <AutorisationLiasse client={client} associe={client.associe || ""} />
           )}
           {annexeTab === "cgv" && <ConditionsGenerales />}
         </div>
@@ -884,7 +961,7 @@ function MissionToggle({
   onToggle: () => void;
 }) {
   return (
-    <label className="flex items-center justify-between py-2 px-3 rounded border hover:bg-gray-50 cursor-pointer">
+    <div className="flex items-center justify-between py-2 px-3 rounded border hover:bg-gray-50">
       <div className="flex items-center gap-2">
         <span className="text-gray-500">{icon}</span>
         <span className="text-sm text-gray-700">{label}</span>
@@ -904,6 +981,6 @@ function MissionToggle({
           }`}
         />
       </button>
-    </label>
+    </div>
   );
 }
