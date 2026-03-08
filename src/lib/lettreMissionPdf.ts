@@ -1047,7 +1047,7 @@ class LMPdfBuilder {
       this.doc.setFontSize(7);
       this.doc.setTextColor(130, 130, 130);
       this.doc.text(
-        `Page ${i}/${totalPages} — ${this.cabinet.nom} — SIRET ${this.cabinet.siret} — Membre de l'Ordre des Experts-Comptables`,
+        `Page ${i} — COMPTADEC`,
         PAGE_W / 2,
         FOOTER_Y + 4,
         { align: "center" }
@@ -1078,6 +1078,19 @@ class LMPdfBuilder {
  * Génère un PDF professionnel complet pour une Lettre de Mission.
  */
 export function renderLettreMissionPdf(lm: LettreMission): jsPDF {
-  const builder = new LMPdfBuilder(lm);
-  return builder.build();
+  try {
+    const builder = new LMPdfBuilder(lm);
+    return builder.build();
+  } catch (err) {
+    console.error("[lettreMissionPdf] Erreur lors de la génération du PDF :", err);
+    // Return a minimal error PDF so callers never get undefined
+    const fallback = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    fallback.setFontSize(14);
+    fallback.setTextColor(220, 38, 38);
+    fallback.text("Erreur lors de la génération du PDF.", 25, 40);
+    fallback.setFontSize(10);
+    fallback.setTextColor(80, 80, 80);
+    fallback.text(String(err), 25, 50);
+    return fallback;
+  }
 }
