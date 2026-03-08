@@ -13,13 +13,13 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   const { session, profile, loading, hasPermission, signOut } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
 
-  // Safety timeout: if still loading after 10s, stop waiting
+  // Safety timeout: if still loading after 6s, stop waiting
   useEffect(() => {
     if (!loading) {
       setTimedOut(false);
       return;
     }
-    const timer = setTimeout(() => setTimedOut(true), 10000);
+    const timer = setTimeout(() => setTimedOut(true), 6000);
     return () => clearTimeout(timer);
   }, [loading]);
 

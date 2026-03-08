@@ -15,36 +15,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch profile with retry — the handle_new_user trigger might not
-  // have finished creating the profile row yet on first signup
+  // Fetch profile with per-request timeout + retry for new signups
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     const maxRetries = 3;
+    const REQUEST_TIMEOUT = 5000; // 5s max per attempt
+
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
+
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", userId)
-          .single();
+          .single()
+          .abortSignal(controller.signal);
+
+        clearTimeout(timer);
 
         if (data) return data as UserProfile;
 
-        if (error && error.code !== "PGRST116") {
-          // PGRST116 = "not found" — retry. Other errors = stop.
-          console.error("[AuthContext] Profile fetch error:", error.message);
-          return null;
+        if (error) {
+          console.warn(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries}:`, error.code, error.message);
+          // PGRST116 = row not found — worth retrying (trigger may not be done)
+          if (error.code !== "PGRST116") return null;
         }
       } catch (err) {
-        console.error("[AuthContext] Profile fetch exception:", err);
-        return null;
+        console.warn(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries} exception:`, err);
       }
 
-      // Wait before retry (profile might be getting created by DB trigger)
+      // Wait before retry (trigger handle_new_user may still be running)
       if (attempt < maxRetries - 1) {
-        await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, 800));
       }
     }
-    console.warn("[AuthContext] Profile not found after retries for user:", userId);
+    console.error("[AuthContext] Profile not found after", maxRetries, "retries for user:", userId);
     return null;
   }, []);
 
