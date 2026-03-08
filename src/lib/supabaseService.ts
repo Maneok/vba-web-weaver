@@ -2,14 +2,23 @@ import { supabase } from "@/integrations/supabase/client";
 
 // Helper: get current user's cabinet_id from profile
 async function getCabinetId(): Promise<string | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
-  const { data } = await supabase
-    .from("profiles")
-    .select("cabinet_id")
-    .eq("id", user.id)
-    .single();
-  return data?.cabinet_id || null;
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("cabinet_id")
+      .eq("id", user.id)
+      .single();
+    if (error) {
+      console.error("[DB] getCabinetId error:", error);
+      return null;
+    }
+    return data?.cabinet_id || null;
+  } catch (e) {
+    console.error("[DB] getCabinetId exception:", e);
+    return null;
+  }
 }
 
 // ===== CLIENTS =====

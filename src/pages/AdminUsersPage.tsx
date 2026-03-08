@@ -32,12 +32,14 @@ export default function AdminUsersPage() {
   const [inviting, setInviting] = useState(false);
 
   const loadUsers = useCallback(async () => {
+    if (!profile?.cabinet_id) return;
     const { data } = await supabase
       .from("profiles")
       .select("*")
+      .eq("cabinet_id", profile.cabinet_id)
       .order("created_at", { ascending: true });
     if (data) setUsers(data as UserProfile[]);
-  }, []);
+  }, [profile?.cabinet_id]);
 
   useEffect(() => {
     loadUsers();
