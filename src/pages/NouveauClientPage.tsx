@@ -6,7 +6,8 @@ import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappers
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
-  computeKycCompleteness,
+  type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
+  computeKycCompleteness, detectAmlSignals,
 } from "@/lib/kycService";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
@@ -104,6 +105,10 @@ export default function NouveauClientPage() {
   const [autoFields, setAutoFields] = useState<Set<string>>(new Set());
   const [capitalSource, setCapitalSource] = useState("");
   const [selectedEnterprise, setSelectedEnterprise] = useState<EnterpriseResult | null>(null);
+  // CORRECTION 3: Data provenance tracking
+  const [dataProvenance, setDataProvenance] = useState<DataProvenance[]>([]);
+  // CORRECTION 7: AML structural signals
+  const [amlSignals, setAmlSignals] = useState<AmlSignal[]>([]);
 
   // Step 2 - Form
   const [form, setForm] = useState({
@@ -267,12 +272,80 @@ export default function NouveauClientPage() {
       setScreening(prev => ({ ...prev, documents: { loading: false, data, error: null } }));
     }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })));
 
-    // INPI documents fetch
+    // INPI documents fetch — Phase 1: INPI as priority data source
     setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
     fetchInpiDocuments(siren.replace(/\s/g, "")).then(data => {
       setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: data.error || null } }));
       if (data.totalDocuments > 0) toast.success(`${data.totalDocuments} document(s) INPI recupere(s)`);
       else if (data.error) toast.warning(`INPI: ${data.error}`);
+
+      // Phase 1: Enrich form with INPI data (highest priority)
+      if (data.companyData) {
+        const inpi = data.companyData;
+        const updates: Record<string, unknown> = {};
+        const newAuto = new Set<string>();
+        const inpiAutoSet = (key: string, val: string | number | undefined | null) => {
+          if (val && val !== "" && val !== 0) { updates[key] = val; newAuto.add(key); }
+        };
+        // INPI priority fields
+        if (inpi.capital > 0) { inpiAutoSet("capital", inpi.capital); setCapitalSource("INPI"); }
+        if (inpi.denomination) inpiAutoSet("raisonSociale", inpi.denomination.toUpperCase());
+        const addr = [inpi.adresse.numVoie, inpi.adresse.typeVoie, inpi.adresse.voie].filter(Boolean).join(" ").toUpperCase();
+        if (addr) inpiAutoSet("adresse", addr);
+        if (inpi.adresse.codePostal) inpiAutoSet("cp", inpi.adresse.codePostal);
+        if (inpi.adresse.commune) inpiAutoSet("ville", inpi.adresse.commune.toUpperCase());
+        if (inpi.dirigeants.length > 0) {
+          inpiAutoSet("dirigeant", `${inpi.dirigeants[0].nom} ${inpi.dirigeants[0].prenom}`.trim().toUpperCase());
+        }
+        if (Object.keys(updates).length > 0) {
+          setForm(prev => ({ ...prev, ...updates }));
+          setAutoFields(prev => new Set([...prev, ...newAuto]));
+        }
+
+        // Phase 4: Merge INPI BE with existing
+        if (inpi.beneficiaires && inpi.beneficiaires.length > 0) {
+          setBeneficiaires(prev => {
+            const existing = new Set(prev.map(b => `${b.nom.toUpperCase()}-${b.prenom.toUpperCase()}`));
+            const inpiBE = inpi.beneficiaires
+              .filter(b => !existing.has(`${b.nom.toUpperCase()}-${b.prenom.toUpperCase()}`))
+              .map(b => ({
+                nom: b.nom || "",
+                prenom: b.prenom || "",
+                dateNaissance: b.dateNaissance || "",
+                nationalite: b.nationalite || "Francaise",
+                pourcentage: b.pourcentageParts || 0,
+              }));
+            return [...prev, ...inpiBE];
+          });
+        }
+
+        // CORRECTION 3: Build provenance records
+        const now = new Date().toISOString();
+        const prov: DataProvenance[] = [];
+        if (inpi.denomination) prov.push({ field: "denomination", value: inpi.denomination, source: "INPI", retrievedAt: now, confidence: "single_source" });
+        if (inpi.capital > 0) prov.push({ field: "capital", value: inpi.capital, source: "INPI", retrievedAt: now, confidence: "single_source" });
+        if (inpi.formeJuridique) prov.push({ field: "formeJuridique", value: inpi.formeJuridique, source: "INPI", retrievedAt: now, confidence: "single_source" });
+        if (inpi.objetSocial) prov.push({ field: "objetSocial", value: inpi.objetSocial, source: "INPI", retrievedAt: now, confidence: "single_source" });
+        if (inpi.adresse.commune) prov.push({ field: "adresse", value: `${inpi.adresse.numVoie} ${inpi.adresse.typeVoie} ${inpi.adresse.voie}`.trim(), source: "INPI", retrievedAt: now, confidence: "single_source" });
+        setDataProvenance(prev => [...prev, ...prov]);
+
+        // CORRECTION 7: Detect AML signals
+        const signals = detectAmlSignals(inpi, selectedEnterprise, data.financials);
+        if (signals.length > 0) {
+          setAmlSignals(signals);
+          signals.forEach(s => {
+            if (s.severity === "red") toast.error(`AML: ${s.message}`);
+            else if (s.severity === "orange") toast.warning(`AML: ${s.message}`);
+          });
+        }
+
+        // CORRECTION 6: RGPD non-diffusion alert
+        if (inpi.nonDiffusible) {
+          toast.warning("Entreprise non-diffusible — donnees soumises a restriction de diffusion (art. R.123-320 C.com)");
+        }
+        if (inpi.domiciliataire) toast.info(`Domiciliataire detecte : ${inpi.domiciliataire}`);
+        if (inpi.associeUnique) toast.warning("Associe unique detecte (INPI)");
+      }
     }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })));
   };
 
@@ -424,6 +497,17 @@ export default function NouveauClientPage() {
 
     setForm(prev => ({ ...prev, ...updates }));
     setAutoFields(newAutoFields);
+
+    // CORRECTION 3: Track provenance from enterprise-lookup (Annuaire + Pappers)
+    const now = new Date().toISOString();
+    const src = (entData?.capital_source === "Pappers" ? "Pappers" : "AnnuaireEntreprises") as DataProvenance["source"];
+    const provEntries: DataProvenance[] = [];
+    if (result.siren) provEntries.push({ field: "siren", value: result.siren, source: "AnnuaireEntreprises", retrievedAt: now, confidence: "single_source" });
+    if (result.raison_sociale) provEntries.push({ field: "denomination", value: result.raison_sociale, source: "AnnuaireEntreprises", retrievedAt: now, confidence: "single_source" });
+    if (entData?.capital && entData.capital > 0) provEntries.push({ field: "capital", value: entData.capital, source: src, retrievedAt: now, confidence: "single_source" });
+    if (entData?.telephone) provEntries.push({ field: "telephone", value: entData.telephone, source: "Pappers", retrievedAt: now, confidence: "single_source" });
+    if (entData?.email) provEntries.push({ field: "email", value: entData.email, source: "Pappers", retrievedAt: now, confidence: "single_source" });
+    setDataProvenance(prev => [...prev, ...provEntries]);
 
     // Parse beneficiaires from enriched data (Pappers via enterprise-lookup)
     const enrichedBE = entData?.beneficiaires_effectifs;
@@ -580,12 +664,26 @@ export default function NouveauClientPage() {
       statut: "ACTIF",
       be: beStr,
       dateFin: form.dateFin || undefined,
+      // CORRECTION 3: Store provenance
+      dataProvenance: dataProvenance.length > 0 ? dataProvenance : undefined,
+      // CORRECTION 6: RGPD flag
+      nonDiffusible: screening.inpi.data?.companyData?.nonDiffusible ?? false,
+      // CORRECTION 1: Person type
+      typePersonne: screening.inpi.data?.companyData?.typePersonne,
     };
 
     // Force RENFORCEE if gel des avoirs matched
     if (gelAvoirsAlert.length > 0) {
       newClient.nivVigilance = "RENFORCEE";
       newClient.scoreGlobal = Math.max(newClient.scoreGlobal, 100);
+    }
+
+    // CORRECTION 7: Apply AML structural malus
+    const amlMalus = amlSignals.reduce((sum, s) => sum + s.malus, 0);
+    if (amlMalus > 0) {
+      newClient.scoreGlobal = Math.min(newClient.scoreGlobal + amlMalus, 120);
+      if (newClient.scoreGlobal >= 60) newClient.nivVigilance = "RENFORCEE";
+      else if (newClient.scoreGlobal >= 25) newClient.nivVigilance = "STANDARD";
     }
 
     addClient(newClient);
@@ -622,6 +720,9 @@ export default function NouveauClientPage() {
     }
     return errors;
   }, [step, form]);
+
+  // CORRECTION 1: Detect if EI/personne physique for adapted form labels
+  const isPersonnePhysique = screening.inpi.data?.companyData?.typePersonne === "physique";
 
   const vigilanceColor = risk.nivVigilance === "SIMPLIFIEE" ? "#22c55e" : risk.nivVigilance === "STANDARD" ? "#f59e0b" : "#ef4444";
 
@@ -769,6 +870,40 @@ export default function NouveauClientPage() {
               <ScreeningPanel screening={screening} />
             )}
 
+            {/* CORRECTION 7: AML Structural Signals */}
+            {amlSignals.length > 0 && (
+              <div className="space-y-2">
+                {amlSignals.map((signal, i) => (
+                  <div key={i} className={`p-3 rounded-lg flex items-start gap-2 ${
+                    signal.severity === "red" ? "bg-red-500/10 border border-red-500/20" :
+                    signal.severity === "orange" ? "bg-amber-500/10 border border-amber-500/20" :
+                    "bg-blue-500/10 border border-blue-500/20"
+                  }`}>
+                    <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${
+                      signal.severity === "red" ? "text-red-400" : signal.severity === "orange" ? "text-amber-400" : "text-blue-400"
+                    }`} />
+                    <div>
+                      <span className={`text-xs font-semibold ${
+                        signal.severity === "red" ? "text-red-400" : signal.severity === "orange" ? "text-amber-400" : "text-blue-400"
+                      }`}>{signal.message}</span>
+                      {signal.malus > 0 && <span className="text-[10px] text-slate-500 ml-2">(malus +{signal.malus})</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* CORRECTION 6: RGPD non-diffusion banner */}
+            {screening.inpi.data?.companyData?.nonDiffusible && (
+              <div className="p-4 rounded-lg bg-amber-500/10 border-2 border-amber-500/30">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  <span className="text-sm font-bold text-amber-400">Donnees soumises a restriction de diffusion</span>
+                </div>
+                <p className="text-xs text-amber-300 mt-1 ml-7">Art. R.123-320 C.com — Les donnees de cette entreprise ne doivent pas figurer dans les exports CSV ni les rapports partages. Stockage autorise pour obligations LCB-FT (art. L.561-5 CMF).</p>
+              </div>
+            )}
+
             {/* Map embed — OpenStreetMap fallback (BLOC B) */}
             {screening.google.data && (
               <div className="rounded-lg border border-white/[0.06] overflow-hidden">
@@ -849,13 +984,9 @@ export default function NouveauClientPage() {
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   <span className="text-sm font-semibold text-emerald-400">Donnees recuperees</span>
-                  <Badge className={`border-0 text-[10px] ${
-                    dataSource === "pappers" ? "bg-emerald-500/20 text-emerald-400" :
-                    dataSource === "insee" ? "bg-blue-500/20 text-blue-400" :
-                    "bg-amber-500/20 text-amber-400"
-                  }`}>
-                    {dataSource === "pappers" ? "Donnees Pappers" : dataSource === "insee" ? "Donnees INSEE" : "Donnees data.gouv"}
-                  </Badge>
+                  <Badge className="border-0 text-[10px] bg-slate-500/20 text-slate-400">{dataSource === "pappers" ? "Pappers" : "data.gouv"}</Badge>
+                  {screening.inpi.data?.companyData && <Badge className="border-0 text-[10px] bg-blue-500/20 text-blue-400">INPI</Badge>}
+                  {screening.inpi.data?.companyData && capitalSource === "INPI" && <Badge className="border-0 text-[10px] bg-emerald-500/20 text-emerald-400">Verifie</Badge>}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div><span className="text-slate-500">Raison sociale</span><p className="text-slate-200 font-medium mt-0.5">{selectedResult.raison_sociale}</p></div>
@@ -919,7 +1050,7 @@ export default function NouveauClientPage() {
             <div>
               <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Identite</h3>
               <div className="grid grid-cols-2 gap-4">
-                <FormField label="Raison Sociale *" value={form.raisonSociale} onChange={v => set("raisonSociale", v)} error={validationErrors.raisonSociale} isAuto={autoFields.has("raisonSociale")} required />
+                <FormField label={isPersonnePhysique ? "Nom du dirigeant *" : "Raison Sociale *"} value={form.raisonSociale} onChange={v => set("raisonSociale", v)} error={validationErrors.raisonSociale} isAuto={autoFields.has("raisonSociale")} required />
                 <FormField label="Forme Juridique *" type="select" value={form.forme} options={FORMES} onChange={v => set("forme", v)} isAuto={autoFields.has("forme")} required />
                 <FormField label="SIREN *" value={form.siren} onChange={v => set("siren", v)} error={validationErrors.siren} placeholder="9 chiffres" isAuto={autoFields.has("siren")} required />
                 <FormField label="SIRET" value={form.siret} onChange={v => set("siret", v)} placeholder="14 chiffres" isAuto={autoFields.has("siret")} />
@@ -928,7 +1059,11 @@ export default function NouveauClientPage() {
                   <div className="flex items-center gap-1.5">
                     <Label className="text-[10px] text-slate-500 uppercase">Capital social</Label>
                     {autoFields.has("capital") && form.capital > 0 && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
-                    {capitalSource && form.capital > 0 && <span className="text-[9px] text-slate-500">({capitalSource})</span>}
+                    {capitalSource && form.capital > 0 && <span className={`text-[9px] px-1.5 py-0.5 rounded-full font-medium ${
+                      capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" :
+                      capitalSource === "Pappers" ? "bg-violet-500/20 text-violet-400" :
+                      "bg-slate-500/20 text-slate-400"
+                    }`}>{capitalSource}</span>}
                   </div>
                   <Input type="number" value={form.capital} onChange={e => set("capital", Number(e.target.value))} className={`bg-white/[0.03] mt-1 ${!form.capital ? "border-amber-500/50" : "border-white/[0.06]"}`} />
                   {!form.capital && <p className="text-[10px] text-amber-400 mt-0.5">A completer manuellement</p>}
@@ -1331,21 +1466,92 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* INPI Financial data */}
-            {screening.inpi.data?.financials && (
+            {/* INPI Financial data — Phase 2: multi-year */}
+            {screening.inpi.data?.financials && screening.inpi.data.financials.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Donnees financieres INPI</Label>
-                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] grid grid-cols-2 gap-3 text-xs">
-                  <div><span className="text-slate-500">Date cloture:</span> <span className="text-slate-200">{screening.inpi.data.financials.dateCloture}</span></div>
-                  {screening.inpi.data.financials.chiffreAffaires != null && (
-                    <div><span className="text-slate-500">CA:</span> <span className="text-slate-200">{screening.inpi.data.financials.chiffreAffaires.toLocaleString("fr-FR")} EUR</span></div>
+                <Label className="text-xs text-slate-400">Donnees financieres INPI ({screening.inpi.data.financials.length} exercice(s))</Label>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-white/[0.06]">
+                        <th className="text-left py-2 text-slate-500 font-medium">Indicateur</th>
+                        {screening.inpi.data.financials.map((f, i) => (
+                          <th key={i} className="text-right py-2 text-slate-500 font-medium px-3">{f.dateCloture || `Exercice ${i + 1}`}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: "Chiffre d'affaires", key: "chiffreAffaires" as const },
+                        { label: "Resultat net", key: "resultat" as const },
+                        { label: "Total bilan", key: "totalBilan" as const },
+                        { label: "Capitaux propres", key: "capitauxPropres" as const },
+                        { label: "Dettes", key: "dettes" as const },
+                        { label: "Effectif", key: "effectif" as const },
+                      ].map(row => {
+                        const hasData = screening.inpi.data!.financials.some(f => f[row.key] != null);
+                        if (!hasData) return null;
+                        return (
+                          <tr key={row.key} className="border-b border-white/[0.04]">
+                            <td className="py-2 text-slate-400">{row.label}</td>
+                            {screening.inpi.data!.financials.map((f, i) => {
+                              const val = f[row.key];
+                              const isNeg = typeof val === "number" && val < 0;
+                              return (
+                                <td key={i} className={`text-right py-2 px-3 font-mono ${isNeg ? "text-red-400" : "text-slate-200"}`}>
+                                  {val != null ? (row.key === "effectif" ? val : `${val.toLocaleString("fr-FR")} EUR`) : "—"}
+                                </td>
+                              );
+                            })}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                {/* Phase 3: Alerts for negative results */}
+                {screening.inpi.data.financials.some(f => f.resultat != null && f.resultat < 0) && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-red-500/10 border border-red-500/20">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                    <span className="text-xs text-red-400">Resultat net negatif detecte — vigilance recommandee</span>
+                  </div>
+                )}
+                {screening.inpi.data.financials.some(f => f.capitauxPropres != null && f.capitauxPropres < 0) && (
+                  <div className="flex items-center gap-2 p-2 rounded bg-red-500/10 border border-red-500/20">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                    <span className="text-xs text-red-400">Capitaux propres negatifs — alerte financiere</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Phase 3: INPI company details */}
+            {screening.inpi.data?.companyData && (
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-400">Informations complementaires INPI</Label>
+                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] space-y-2 text-xs">
+                  {screening.inpi.data.companyData.objetSocial && (
+                    <div><span className="text-slate-500">Objet social:</span> <span className="text-slate-300 ml-1">{screening.inpi.data.companyData.objetSocial.slice(0, 200)}{screening.inpi.data.companyData.objetSocial.length > 200 ? "..." : ""}</span></div>
                   )}
-                  {screening.inpi.data.financials.resultat != null && (
-                    <div><span className="text-slate-500">Resultat:</span> <span className="text-slate-200">{screening.inpi.data.financials.resultat.toLocaleString("fr-FR")} EUR</span></div>
-                  )}
-                  {screening.inpi.data.financials.totalBilan != null && (
-                    <div><span className="text-slate-500">Total bilan:</span> <span className="text-slate-200">{screening.inpi.data.financials.totalBilan.toLocaleString("fr-FR")} EUR</span></div>
-                  )}
+                  <div className="grid grid-cols-3 gap-3">
+                    {screening.inpi.data.companyData.duree && (
+                      <div><span className="text-slate-500">Duree:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.duree} ans</span></div>
+                    )}
+                    {screening.inpi.data.companyData.dateClotureExercice && (
+                      <div><span className="text-slate-500">Cloture:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.dateClotureExercice}</span></div>
+                    )}
+                    {screening.inpi.data.companyData.dateImmatriculation && (
+                      <div><span className="text-slate-500">Immatriculation:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.dateImmatriculation}</span></div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {screening.inpi.data.companyData.capitalVariable && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Capital variable</Badge>}
+                    {screening.inpi.data.companyData.ess && <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">ESS</Badge>}
+                    {screening.inpi.data.companyData.societeMission && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">Societe a mission</Badge>}
+                    {screening.inpi.data.companyData.associeUnique && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Associe unique</Badge>}
+                    {screening.inpi.data.companyData.nonDiffusible && <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0">Non diffusible</Badge>}
+                    {screening.inpi.data.companyData.domiciliataire && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Domiciliataire</Badge>}
+                  </div>
                 </div>
               </div>
             )}

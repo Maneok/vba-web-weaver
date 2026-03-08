@@ -75,7 +75,10 @@ export default function BddPage() {
 
   const handleExportCSV = () => {
     const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "KYC%", "Butoir"];
-    const rows = filtered.map(c => {
+    // CORRECTION 6: Exclude non-diffusible clients from CSV export
+    const exportable = filtered.filter(c => !c.nonDiffusible);
+    const excluded = filtered.length - exportable.length;
+    const rows = exportable.map(c => {
       let kyc = 0;
       if (c.siren) kyc += 25;
       if (c.mail) kyc += 25;
@@ -91,7 +94,11 @@ export default function BddPage() {
     a.download = "clients_lcb.csv";
     a.click();
     URL.revokeObjectURL(url);
-    toast.success("Export CSV genere");
+    if (excluded > 0) {
+      toast.warning(`Export CSV genere — ${excluded} client(s) non-diffusible(s) exclus (art. R.123-320 C.com)`);
+    } else {
+      toast.success("Export CSV genere");
+    }
   };
 
   return (

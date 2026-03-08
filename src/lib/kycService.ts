@@ -200,35 +200,225 @@ export interface InpiFinancials {
   capital: number | null;
   totalBilan: number | null;
   effectif: number | null;
+  dettes: number | null;
+  capitauxPropres: number | null;
+}
+
+export interface InpiHistoryEvent {
+  date: string;
+  type: string;
+  description: string;
+  detail: string;
 }
 
 export interface InpiCompanyData {
+  typePersonne: "morale" | "physique" | "exploitation" | "unknown";
   denomination: string;
+  sigle: string;
   formeJuridique: string;
+  formeJuridiqueLabel: string;
   capital: number;
+  deviseCapital: string;
+  capitalVariable: boolean;
   objetSocial: string;
   duree: string;
   dateClotureExercice: string;
+  dateImmatriculation: string;
+  dateDebutActivite: string;
+  ess: boolean;
+  societeMission: boolean;
+  associeUnique: boolean;
+  natureGerance: string;
+  activitePrincipale: string;
   adresse: {
     numVoie: string;
     typeVoie: string;
     voie: string;
     codePostal: string;
     commune: string;
+    codeInsee: string;
+    pays: string;
+    complement: string;
   };
-  dirigeants: Array<{ nom: string; prenom: string; qualite: string; dateNaissance: string }>;
-  beneficiaires: Array<{ nom: string; prenom: string; dateNaissance: string; nationalite: string; pourcentageParts: number }>;
-  historique: unknown[];
+  domiciliataire: string | null;
+  diffusionCommerciale: boolean;
+  nonDiffusible: boolean;
+  dirigeants: Array<{ nom: string; prenom: string; qualite: string; dateNaissance: string; nationalite: string; lieuNaissance: string }>;
+  beneficiaires: Array<{ nom: string; prenom: string; dateNaissance: string; nationalite: string; pourcentageParts: number; pourcentageVotes: number; modalitesControle: string }>;
+  etablissements: Array<{ siret: string; adresse: string; codePostal: string; commune: string; estSiege: boolean; activite: string; enseigne: string }>;
+  historique: InpiHistoryEvent[];
+  eirl: boolean;
 }
 
 export interface InpiResult {
   documents: DocumentInfo[];
   companyData: InpiCompanyData | null;
-  financials: InpiFinancials | null;
+  financials: InpiFinancials[];
   totalDocuments: number;
   storedCount: number;
   status: string;
   error?: string;
+}
+
+// ====== CORRECTION 3: Data Provenance ======
+
+export type DataSource = "INPI" | "Pappers" | "AnnuaireEntreprises" | "BODACC" | "Manuel";
+export type DataConfidence = "verified" | "single_source" | "divergent";
+
+export interface DataProvenance {
+  field: string;
+  value: unknown;
+  source: DataSource;
+  retrievedAt: string;
+  confidence: DataConfidence;
+}
+
+// ====== CORRECTION 5: Source Priority per field ======
+
+export const SOURCE_PRIORITY: Record<string, DataSource[]> = {
+  denomination: ["INPI", "Pappers", "AnnuaireEntreprises"],
+  formeJuridique: ["INPI", "Pappers", "AnnuaireEntreprises"],
+  capital: ["INPI", "Pappers", "AnnuaireEntreprises"],
+  objetSocial: ["INPI"],
+  duree: ["INPI"],
+  dirigeants: ["Pappers", "INPI", "AnnuaireEntreprises"],
+  beneficiairesEffectifs: ["Pappers", "INPI"],
+  adresse: ["AnnuaireEntreprises", "INPI", "Pappers"],
+  codeAPE: ["AnnuaireEntreprises", "INPI"],
+  effectif: ["AnnuaireEntreprises", "INPI"],
+  procedures: ["BODACC", "AnnuaireEntreprises"],
+  telephone: ["Pappers"],
+  email: ["Pappers"],
+  siteWeb: ["Pappers"],
+  statuts: ["INPI", "Pappers"],
+  comptes: ["INPI", "Pappers"],
+  actes: ["INPI"],
+};
+
+export function resolveSourceValue<T>(
+  fieldName: string,
+  sources: Array<{ source: DataSource; value: T | null | undefined }>,
+): { value: T | null; source: DataSource | null; confidence: DataConfidence; divergences: Array<{ source: DataSource; value: T }> } {
+  const priority = SOURCE_PRIORITY[fieldName] ?? [];
+  const available = sources.filter(s => s.value != null && s.value !== "" && s.value !== 0);
+  if (available.length === 0) return { value: null, source: null, confidence: "single_source", divergences: [] };
+
+  // Check for divergences
+  const uniqueValues = new Set(available.map(s => JSON.stringify(s.value)));
+  const isDivergent = uniqueValues.size > 1;
+
+  // Pick by priority
+  for (const prioritySource of priority) {
+    const match = available.find(s => s.source === prioritySource);
+    if (match) {
+      return {
+        value: match.value as T,
+        source: match.source,
+        confidence: isDivergent ? "divergent" : available.length >= 2 ? "verified" : "single_source",
+        divergences: isDivergent ? available.map(s => ({ source: s.source, value: s.value as T })) : [],
+      };
+    }
+  }
+
+  // Fallback to first available
+  return {
+    value: available[0].value as T,
+    source: available[0].source,
+    confidence: available.length >= 2 && !isDivergent ? "verified" : "single_source",
+    divergences: isDivergent ? available.map(s => ({ source: s.source, value: s.value as T })) : [],
+  };
+}
+
+// ====== CORRECTION 7: AML Structural Signals ======
+
+export interface AmlSignal {
+  type: string;
+  message: string;
+  severity: "red" | "orange" | "info";
+  malus: number;
+}
+
+export function detectAmlSignals(
+  inpiData: InpiCompanyData | null,
+  enterpriseData: EnterpriseResult | null,
+  financials: InpiFinancials[] | null,
+): AmlSignal[] {
+  const signals: AmlSignal[] = [];
+  if (!inpiData && !enterpriseData) return signals;
+
+  const capital = inpiData?.capital ?? enterpriseData?.capital ?? 0;
+  const forme = (inpiData?.formeJuridique ?? enterpriseData?.forme_juridique ?? "").toUpperCase();
+  const effectif = enterpriseData?.effectif ?? "";
+  const dateCreation = inpiData?.dateImmatriculation ?? inpiData?.dateDebutActivite ?? enterpriseData?.date_creation ?? "";
+
+  // Domiciliataire = auto malus DOMICILIATION (80)
+  if (inpiData?.domiciliataire) {
+    signals.push({
+      type: "domiciliataire",
+      message: `Domiciliataire detecte (${inpiData.domiciliataire}) — risque equivalent mission DOMICILIATION`,
+      severity: "orange",
+      malus: 80,
+    });
+  }
+
+  // Capital < 1000 EUR for SAS/SARL
+  if (capital > 0 && capital < 1000 && (forme.includes("SAS") || forme.includes("SARL") || forme.includes("EURL"))) {
+    signals.push({
+      type: "capital_faible",
+      message: `Capital anormalement faible (${capital} EUR) pour une ${forme}`,
+      severity: "orange",
+      malus: 15,
+    });
+  }
+
+  // Effectif = 0 and CA > 500k
+  const latestCA = financials?.[0]?.chiffreAffaires;
+  const hasZeroEmployees = effectif.includes("0") && !effectif.includes("10") && !effectif.includes("20");
+  if (hasZeroEmployees && latestCA && latestCA > 500000) {
+    signals.push({
+      type: "ca_sans_salaries",
+      message: `CA eleve (${latestCA.toLocaleString()} EUR) sans salaries — risque societe de facturation`,
+      severity: "orange",
+      malus: 20,
+    });
+  }
+
+  // Creation < 12 months
+  if (dateCreation) {
+    const created = new Date(dateCreation);
+    const now = new Date();
+    const diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+    if (diffMonths < 12 && diffMonths >= 0) {
+      signals.push({
+        type: "societe_recente",
+        message: `Societe creee il y a ${diffMonths} mois (< 1 an) — maturite tres faible`,
+        severity: "orange",
+        malus: 10,
+      });
+    }
+  }
+
+  // Associe unique + capital variable
+  if (inpiData?.associeUnique && inpiData?.capitalVariable) {
+    signals.push({
+      type: "opacite_structure",
+      message: "Associe unique + capital variable — structure a risque d'opacite",
+      severity: "orange",
+      malus: 15,
+    });
+  }
+
+  // CORRECTION 6: Non diffusible INSEE
+  if (inpiData?.nonDiffusible) {
+    signals.push({
+      type: "non_diffusible",
+      message: "Entreprise non diffusible INSEE — donnees limitees, signal de risque potentiel",
+      severity: "orange",
+      malus: 15,
+    });
+  }
+
+  return signals;
 }
 
 export interface ScreeningState {
@@ -252,6 +442,51 @@ export const INITIAL_SCREENING: ScreeningState = {
   documents: { loading: false, data: null, error: null },
   inpi: { loading: false, data: null, error: null },
 };
+
+// ====== CORRECTION 4: API Cache ======
+
+const CACHE_TTL: Record<string, number> = {
+  inpi: 24 * 60 * 60 * 1000,        // 24h
+  pappers: 24 * 60 * 60 * 1000,     // 24h
+  annuaire: 24 * 60 * 60 * 1000,    // 24h
+  opensanctions: 7 * 24 * 60 * 60 * 1000, // 7d
+  bodacc: 24 * 60 * 60 * 1000,      // 24h
+  google: 7 * 24 * 60 * 60 * 1000,  // 7d
+  documents: 7 * 24 * 60 * 60 * 1000, // 7d
+};
+
+async function getCachedResponse<T>(siren: string, apiName: string): Promise<T | null> {
+  try {
+    const { data } = await supabase
+      .from("api_cache")
+      .select("response_data, expires_at")
+      .eq("siren", siren.replace(/\s/g, ""))
+      .eq("api_name", apiName)
+      .single();
+    if (data && new Date(data.expires_at) > new Date()) {
+      return data.response_data as T;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+async function setCachedResponse(siren: string, apiName: string, responseData: unknown): Promise<void> {
+  const ttl = CACHE_TTL[apiName] ?? 24 * 60 * 60 * 1000;
+  const expiresAt = new Date(Date.now() + ttl).toISOString();
+  try {
+    await supabase.from("api_cache").upsert({
+      siren: siren.replace(/\s/g, ""),
+      api_name: apiName,
+      response_data: responseData,
+      cached_at: new Date().toISOString(),
+      expires_at: expiresAt,
+    }, { onConflict: "siren,api_name" });
+  } catch {
+    // Cache write failure is non-critical
+  }
+}
 
 // ====== API CALLS ======
 
@@ -329,8 +564,17 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
 }
 
 export async function searchEnterprise(mode: string, query: string): Promise<{ results: EnterpriseResult[]; error?: string }> {
+  // CORRECTION 4: Cache for SIREN lookups
+  const clean = query.replace(/\s/g, "");
+  if (mode === "siren" && /^\d{9,14}$/.test(clean)) {
+    const cached = await getCachedResponse<{ results: EnterpriseResult[] }>(clean.slice(0, 9), "annuaire");
+    if (cached && cached.results?.length > 0) return cached;
+  }
   try {
     const data = await callEdgeFunction<{ results: EnterpriseResult[] }>("enterprise-lookup", { mode, query });
+    if (mode === "siren" && /^\d{9,14}$/.test(clean) && data.results?.length > 0) {
+      await setCachedResponse(clean.slice(0, 9), "annuaire", data);
+    }
     return data;
   } catch {
     try {
@@ -345,8 +589,14 @@ export async function checkSanctions(
   persons: Array<{ nom: string; prenom?: string; dateNaissance?: string; nationalite?: string }>,
   siren?: string
 ): Promise<SanctionsResult> {
+  if (siren) {
+    const cached = await getCachedResponse<SanctionsResult>(siren.replace(/\s/g, ""), "opensanctions");
+    if (cached) return cached;
+  }
   try {
-    return await callEdgeFunction<SanctionsResult>("sanctions-check", { persons, siren });
+    const result = await callEdgeFunction<SanctionsResult>("sanctions-check", { persons, siren });
+    if (siren && result.status !== "unavailable") await setCachedResponse(siren.replace(/\s/g, ""), "opensanctions", result);
+    return result;
   } catch {
     return { matches: [], checked: 0, hasCriticalMatch: false, hasPPE: false, status: "unavailable" };
   }
@@ -396,10 +646,16 @@ export async function fetchDocuments(siren: string, raison_sociale?: string): Pr
 }
 
 export async function fetchInpiDocuments(siren: string): Promise<InpiResult> {
+  const cleanSiren = siren.replace(/\s/g, "");
+  // CORRECTION 4: Check cache first
+  const cached = await getCachedResponse<InpiResult>(cleanSiren, "inpi");
+  if (cached && cached.status === "ok") return cached;
   try {
-    return await callEdgeFunction<InpiResult>("inpi-documents", { siren });
+    const result = await callEdgeFunction<InpiResult>("inpi-documents", { siren });
+    if (result.status === "ok") await setCachedResponse(cleanSiren, "inpi", result);
+    return result;
   } catch {
-    return { documents: [], companyData: null, financials: null, totalDocuments: 0, storedCount: 0, status: "partial" };
+    return { documents: [], companyData: null, financials: [], totalDocuments: 0, storedCount: 0, status: "partial" };
   }
 }
 

@@ -79,6 +79,18 @@ export interface Client {
   lienKbis?: string;
   lienStatuts?: string;
   lienCni?: string;
+  // CORRECTION 3: Data provenance
+  dataProvenance?: Array<{
+    field: string;
+    value: unknown;
+    source: "INPI" | "Pappers" | "AnnuaireEntreprises" | "BODACC" | "Manuel";
+    retrievedAt: string;
+    confidence: "verified" | "single_source" | "divergent";
+  }>;
+  // CORRECTION 6: RGPD non-diffusion
+  nonDiffusible?: boolean;
+  // CORRECTION 1: EI type
+  typePersonne?: "morale" | "physique" | "exploitation" | "unknown";
 }
 
 export interface Collaborateur {

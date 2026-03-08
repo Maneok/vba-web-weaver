@@ -5,7 +5,7 @@ import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCO
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
 import {
-  searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments,
+  searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult,
 } from "@/lib/kycService";
 import ScreeningPanel from "@/components/ScreeningPanel";
@@ -25,12 +25,13 @@ import { ScoreGauge, VigilanceBadge, PilotageBadge } from "@/components/RiskBadg
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
   ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  BarChart, Bar,
 } from "recharts";
 import {
   ArrowLeft, FileDown, Calendar, Edit3, Save, X, User, Building, MapPin,
   Phone, Mail, AlertTriangle, CheckCircle2, Clock, FileText, Shield,
   ClipboardCheck, ScrollText, Upload, Trash2, Plus, ChevronRight,
-  ExternalLink, Loader2, Newspaper, Globe, Users,
+  ExternalLink, Loader2, Newspaper, Globe, Users, Archive, TrendingUp,
 } from "lucide-react";
 
 const DILIGENCES_MAP: Record<string, { label: string; items: string[] }> = {
@@ -147,12 +148,18 @@ function ClientDetailContent({ client }: { client: Client }) {
       fetchDocuments(siren, raisonSociale).then(d => {
         setScreening(prev => ({ ...prev, documents: { loading: false, data: d, error: null } }));
       }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })));
+
+      // INPI
+      setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
+      fetchInpiDocuments(siren.replace(/\s/g, "")).then(d => {
+        setScreening(prev => ({ ...prev, inpi: { loading: false, data: d, error: d.error || null } }));
+      }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })));
     }).catch(() => setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur" } })));
   }, [screeningLaunched, client]);
 
-  // Auto-launch screening on compliance/reseau tab
+  // Auto-launch screening on compliance/reseau/financier/historique_legal tab
   useEffect(() => {
-    if (tab === "compliance" || tab === "reseau") {
+    if (tab === "compliance" || tab === "reseau" || tab === "financier" || tab === "historique_legal") {
       launchComplianceScreening();
     }
   }, [tab, launchComplianceScreening]);
@@ -285,8 +292,10 @@ function ClientDetailContent({ client }: { client: Client }) {
           <TabsTrigger value="scoring" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Scoring</TabsTrigger>
           <TabsTrigger value="documents" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Documents</TabsTrigger>
           <TabsTrigger value="diligences" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Diligences</TabsTrigger>
+          <TabsTrigger value="financier" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Financier</TabsTrigger>
           <TabsTrigger value="compliance" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Compliance</TabsTrigger>
-          <TabsTrigger value="historique" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Historique</TabsTrigger>
+          <TabsTrigger value="historique_legal" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Hist. Legal</TabsTrigger>
+          <TabsTrigger value="historique" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Audit</TabsTrigger>
         </TabsList>
 
         {/* TAB: Informations */}
@@ -574,6 +583,139 @@ function ClientDetailContent({ client }: { client: Client }) {
           </div>
         </TabsContent>
 
+        {/* TAB: Financier — Phase 3 */}
+        <TabsContent value="financier" className="mt-4">
+          <div className="space-y-6">
+            {screening.inpi.loading && (
+              <div className="glass-card p-6 flex items-center justify-center gap-2">
+                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                <span className="text-sm text-slate-400">Recuperation des donnees financieres INPI...</span>
+              </div>
+            )}
+
+            {screening.inpi.data?.financials && screening.inpi.data.financials.length > 0 ? (
+              <>
+                {/* Financial table */}
+                <div className="glass-card p-6">
+                  <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    Donnees financieres ({screening.inpi.data.financials.length} exercice(s))
+                    <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0 ml-2">Source INPI</Badge>
+                  </h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/[0.08]">
+                          <th className="text-left py-3 text-slate-500 font-medium text-xs">Indicateur</th>
+                          {screening.inpi.data.financials.map((f, i) => (
+                            <th key={i} className="text-right py-3 text-slate-500 font-medium text-xs px-4">{f.dateCloture || `Exercice ${i + 1}`}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { label: "Chiffre d'affaires", key: "chiffreAffaires" as const, unit: "EUR" },
+                          { label: "Resultat net", key: "resultat" as const, unit: "EUR" },
+                          { label: "Total bilan", key: "totalBilan" as const, unit: "EUR" },
+                          { label: "Capitaux propres", key: "capitauxPropres" as const, unit: "EUR" },
+                          { label: "Dettes", key: "dettes" as const, unit: "EUR" },
+                          { label: "Effectif", key: "effectif" as const, unit: "" },
+                        ].map(row => {
+                          const hasData = screening.inpi.data!.financials.some(f => f[row.key] != null);
+                          if (!hasData) return null;
+                          return (
+                            <tr key={row.key} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
+                              <td className="py-3 text-slate-300 text-xs">{row.label}</td>
+                              {screening.inpi.data!.financials.map((f, i) => {
+                                const val = f[row.key];
+                                const isNeg = typeof val === "number" && val < 0;
+                                return (
+                                  <td key={i} className={`text-right py-3 px-4 font-mono text-xs ${isNeg ? "text-red-400 font-semibold" : "text-slate-200"}`}>
+                                    {val != null ? `${val.toLocaleString("fr-FR")}${row.unit ? ` ${row.unit}` : ""}` : "—"}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* CA Bar Chart */}
+                {screening.inpi.data.financials.some(f => f.chiffreAffaires != null) && (
+                  <div className="glass-card p-6">
+                    <h3 className="text-sm font-semibold text-slate-300 mb-4">Evolution du chiffre d'affaires</h3>
+                    <ResponsiveContainer width="100%" height={250}>
+                      <BarChart data={screening.inpi.data.financials.filter(f => f.chiffreAffaires != null).reverse().map(f => ({
+                        date: f.dateCloture || "N/A",
+                        ca: f.chiffreAffaires,
+                        resultat: f.resultat,
+                      }))}>
+                        <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" />
+                        <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} formatter={(v: number) => `${v.toLocaleString("fr-FR")} EUR`} />
+                        <Bar dataKey="ca" name="CA" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="resultat" name="Resultat" fill="#22c55e" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                )}
+
+                {/* Financial alerts */}
+                <div className="glass-card p-6 space-y-2">
+                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Alertes financieres</h3>
+                  {screening.inpi.data.financials.some(f => f.resultat != null && f.resultat < 0) && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <AlertTriangle className="w-4 h-4 text-red-400" />
+                      <span className="text-xs text-red-300">Resultat net negatif detecte</span>
+                    </div>
+                  )}
+                  {screening.inpi.data.financials.some(f => f.capitauxPropres != null && f.capitauxPropres < 0) && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+                      <AlertTriangle className="w-4 h-4 text-red-400" />
+                      <span className="text-xs text-red-300">Capitaux propres negatifs — risque de cessation de paiement</span>
+                    </div>
+                  )}
+                  {(() => {
+                    const fin = screening.inpi.data!.financials;
+                    if (fin.length >= 2 && fin[0].chiffreAffaires != null && fin[1].chiffreAffaires != null && fin[1].chiffreAffaires > 0) {
+                      const variation = ((fin[0].chiffreAffaires - fin[1].chiffreAffaires) / fin[1].chiffreAffaires) * 100;
+                      if (variation < -30) return (
+                        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                          <AlertTriangle className="w-4 h-4 text-amber-400" />
+                          <span className="text-xs text-amber-300">Baisse du CA de {Math.abs(variation).toFixed(0)}% — surveiller</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  {client.honoraires > 0 && screening.inpi.data.financials[0]?.chiffreAffaires != null && screening.inpi.data.financials[0].chiffreAffaires > 0 && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                      <FileText className="w-4 h-4 text-blue-400" />
+                      <span className="text-xs text-slate-300">Ratio honoraires/CA : {((client.honoraires / screening.inpi.data.financials[0].chiffreAffaires) * 100).toFixed(2)}%</span>
+                    </div>
+                  )}
+                  {!screening.inpi.data.financials.some(f => f.resultat != null && f.resultat < 0) && !screening.inpi.data.financials.some(f => f.capitauxPropres != null && f.capitauxPropres < 0) && (
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span className="text-xs text-emerald-300">Aucune alerte financiere majeure detectee</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            ) : !screening.inpi.loading ? (
+              <div className="glass-card p-6 text-center py-16">
+                <TrendingUp className="w-10 h-10 mx-auto mb-3 text-slate-500 opacity-30" />
+                <p className="text-sm text-slate-500">Aucune donnee financiere disponible</p>
+                <p className="text-xs text-slate-600 mt-1">Les bilans seront recuperes depuis l'INPI lors du screening</p>
+              </div>
+            ) : null}
+          </div>
+        </TabsContent>
+
         {/* TAB: Documents */}
         <TabsContent value="documents" className="mt-4">
           <div className="glass-card p-6 space-y-4">
@@ -832,7 +974,151 @@ function ClientDetailContent({ client }: { client: Client }) {
           </div>
         </TabsContent>
 
-        {/* TAB: Historique */}
+        {/* TAB: Historique Legal — Phase 5 */}
+        <TabsContent value="historique_legal" className="mt-4">
+          <div className="space-y-6">
+            {screening.inpi.loading && (
+              <div className="glass-card p-6 flex items-center justify-center gap-2">
+                <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
+                <span className="text-sm text-slate-400">Chargement de l'historique legal...</span>
+              </div>
+            )}
+
+            {/* Phase 5 Alerts */}
+            {screening.inpi.data?.companyData && (() => {
+              const alerts: Array<{ msg: string; severity: "red" | "orange" }> = [];
+              const hist = screening.inpi.data.companyData.historique || [];
+              const now = new Date();
+
+              // Company age < 1 year
+              const dateImmat = screening.inpi.data.companyData.dateImmatriculation || screening.inpi.data.companyData.dateDebutActivite;
+              if (dateImmat) {
+                const d = new Date(dateImmat);
+                const diffMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                if (diffMonths < 12) alerts.push({ msg: `Societe creee il y a ${diffMonths} mois (< 1 an) — risque de societe ephemere`, severity: "orange" });
+              }
+
+              // Recent dirigeant change < 12 months
+              const dirChanges = hist.filter((h: any) => h.type?.toLowerCase().includes("dirig") || h.description?.toLowerCase().includes("dirig"));
+              dirChanges.forEach((h: any) => {
+                if (h.date) {
+                  const d = new Date(h.date);
+                  const diffMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                  if (diffMonths < 12) alerts.push({ msg: `Changement de dirigeant le ${h.date} (< 12 mois)`, severity: "orange" });
+                }
+              });
+
+              // Recent statuts change < 6 months
+              const statutChanges = hist.filter((h: any) => h.type?.toLowerCase().includes("statut") || h.description?.toLowerCase().includes("statut"));
+              statutChanges.forEach((h: any) => {
+                if (h.date) {
+                  const d = new Date(h.date);
+                  const diffMonths = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+                  if (diffMonths < 6) alerts.push({ msg: `Modification des statuts le ${h.date} (< 6 mois)`, severity: "orange" });
+                }
+              });
+
+              // Capital decrease
+              const capChanges = hist.filter((h: any) => h.description?.toLowerCase().includes("capital") && h.description?.toLowerCase().includes("diminu"));
+              capChanges.forEach((h: any) => {
+                alerts.push({ msg: `Diminution de capital detectee le ${h.date || "date inconnue"}`, severity: "red" });
+              });
+
+              if (alerts.length === 0) return null;
+
+              return (
+                <div className="glass-card p-4 space-y-2">
+                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-400" /> Alertes historiques
+                  </h3>
+                  {alerts.map((a, i) => (
+                    <div key={i} className={`flex items-start gap-2 p-3 rounded-lg ${
+                      a.severity === "red" ? "bg-red-500/10 border border-red-500/20" : "bg-amber-500/10 border border-amber-500/20"
+                    }`}>
+                      <AlertTriangle className={`w-3.5 h-3.5 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />
+                      <span className={`text-xs ${a.severity === "red" ? "text-red-300" : "text-amber-300"}`}>{a.msg}</span>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* INPI History Timeline */}
+            {screening.inpi.data?.companyData?.historique && screening.inpi.data.companyData.historique.length > 0 && (
+              <div className="glass-card p-6">
+                <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+                  <Archive className="w-4 h-4 text-indigo-400" /> Historique INPI (RNE)
+                  <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0 ml-2">INPI</Badge>
+                </h3>
+                <div className="relative pl-6 space-y-3">
+                  <div className="absolute left-2 top-2 bottom-2 w-px bg-white/[0.08]" />
+                  {screening.inpi.data.companyData.historique.map((h, i) => (
+                    <div key={i} className="relative flex items-start gap-3">
+                      <div className="absolute left-[-18px] w-3 h-3 rounded-full bg-indigo-500/30 border border-indigo-500/50 mt-1" />
+                      <div className="flex-1 p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-medium text-slate-200">{h.type || h.description}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">{h.date}</span>
+                        </div>
+                        {h.description && h.type && h.description !== h.type && (
+                          <p className="text-[11px] text-slate-400 mt-1">{h.description}</p>
+                        )}
+                        {h.detail && <p className="text-[10px] text-slate-500 mt-0.5">{h.detail}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* BODACC annonces in the same timeline */}
+            {screening.bodacc.data && screening.bodacc.data.annonces.length > 0 && (
+              <div className="glass-card p-6">
+                <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+                  <ScrollText className="w-4 h-4 text-amber-400" /> Annonces BODACC
+                  <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0 ml-2">BODACC</Badge>
+                </h3>
+                <div className="relative pl-6 space-y-3">
+                  <div className="absolute left-2 top-2 bottom-2 w-px bg-white/[0.08]" />
+                  {screening.bodacc.data.annonces.map((a, i) => (
+                    <div key={i} className="relative flex items-start gap-3">
+                      <div className={`absolute left-[-18px] w-3 h-3 rounded-full mt-1 ${
+                        a.isProcedureCollective ? "bg-red-500/50 border-red-500" : "bg-amber-500/30 border-amber-500/50"
+                      } border`} />
+                      <div className={`flex-1 p-3 rounded-lg border ${
+                        a.isProcedureCollective ? "border-red-500/20 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"
+                      }`}>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            {a.isProcedureCollective && <AlertTriangle className="w-3.5 h-3.5 text-red-400" />}
+                            <span className="text-xs font-medium text-slate-200">{a.type}</span>
+                          </div>
+                          <span className="text-[10px] text-slate-500 font-mono">{a.date}</span>
+                        </div>
+                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                        {a.tribunal && <p className="text-[10px] text-slate-500 mt-1">Tribunal: {a.tribunal}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!screening.inpi.loading && !screening.inpi.data?.companyData?.historique?.length && !screening.bodacc.data?.annonces?.length && (
+              <div className="glass-card p-6 text-center py-16">
+                <Clock className="w-10 h-10 mx-auto mb-3 text-slate-500 opacity-30" />
+                <p className="text-sm text-slate-500">Aucun historique legal disponible</p>
+                {!screeningLaunched && (
+                  <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700" onClick={launchComplianceScreening}>
+                    <Shield className="w-4 h-4" /> Lancer le screening
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* TAB: Historique (Audit) */}
         <TabsContent value="historique" className="mt-4">
           <div className="glass-card p-6 space-y-4">
             <h3 className="text-sm font-semibold text-slate-300">Journal d'audit</h3>
