@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, Settings, UserPlus, FolderOpen, Activity, FileText } from "lucide-react";
+import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, Settings, UserPlus, FolderOpen, Activity, FileText, LogOut } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 
 interface AppSidebarProps {
   collapsed: boolean;
@@ -22,7 +23,13 @@ const MENU_ITEMS = [
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { alertes, clients } = useAppState();
+  const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
 
   const alertesEnCours = alertes.filter((a) => a.statut === "EN COURS").length;
   const retardCount = clients.filter((c) => c.etatPilotage === "RETARD").length;
@@ -97,6 +104,23 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           </button>
         </div>
       </nav>
+
+      {/* User info + logout */}
+      <div className="absolute bottom-0 left-0 right-0 border-t border-white/[0.06] p-3">
+        {profile && !collapsed && (
+          <div className="mb-2 px-3">
+            <p className="text-sm font-medium text-slate-200 truncate">{profile.full_name}</p>
+            <p className="text-xs text-slate-500 truncate">{profile.email}</p>
+          </div>
+        )}
+        <button
+          onClick={handleSignOut}
+          className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Deconnexion</span>}
+        </button>
+      </div>
     </aside>
   );
 }

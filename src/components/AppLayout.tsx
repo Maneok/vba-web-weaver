@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
-import { ChevronRight, LogOut, Menu, Settings, User } from "lucide-react";
+import { ChevronRight, LogOut, Menu, ScrollText, Settings, User } from "lucide-react";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { useAppState } from "@/lib/AppContext";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,6 +31,17 @@ export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
+  const { profile, signOut, session } = useAuth();
+  const { isOnline } = useAppState();
+
+  const userInitials = profile?.full_name
+    ? profile.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+    : "U";
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/auth", { replace: true });
+  };
 
   // Dynamic breadcrumb for client detail pages
   let page = PAGE_TITLES[location.pathname];
@@ -89,7 +102,7 @@ export default function AppLayout() {
                   aria-label="Ouvrir le menu utilisateur"
                   className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-[11px] font-bold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 >
-                  EC
+                  {userInitials}
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
@@ -101,16 +114,28 @@ export default function AppLayout() {
                 <DropdownMenuItem onClick={() => navigate("/parametres")}>
                   <Settings className="mr-2 h-4 w-4" /> Parametres
                 </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/logs")}>
+                  <ScrollText className="mr-2 h-4 w-4" /> Journal & securite
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem asChild>
-                  <Link to="/logs">
-                    <LogOut className="mr-2 h-4 w-4" /> Journal & securite
-                  </Link>
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-400 focus:text-red-300">
+                  <LogOut className="mr-2 h-4 w-4" /> Deconnexion
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </header>
+
+        {!isOnline && session && (
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 text-center text-sm text-amber-300">
+            Mode demonstration — Les donnees ne sont pas sauvegardees dans Supabase
+          </div>
+        )}
+        {!session && (
+          <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 text-center text-sm text-amber-300">
+            Mode demonstration — <button onClick={() => navigate("/auth")} className="underline hover:text-amber-200">Connectez-vous</button> pour sauvegarder
+          </div>
+        )}
 
         <main id="main-content" className="overflow-auto" aria-label={`Contenu ${page.title}`}>
           <Outlet />

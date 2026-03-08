@@ -20,7 +20,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   }
 
   if (!session) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/auth" replace />;
   }
 
   if (!profile) {
