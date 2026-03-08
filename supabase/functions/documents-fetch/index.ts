@@ -78,71 +78,55 @@ Deno.serve(async (req) => {
           }
 
           // Statuts
-          if (pappersData.derniers_statuts?.url) {
+          if (pappersData.derniers_statuts?.date_depot) {
             documents.push({
               type: "Statuts",
               label: `Statuts — ${pappersData.derniers_statuts.date_depot ?? ""}`,
-              url: pappersData.derniers_statuts.url,
+              url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
               source: "pappers",
               available: true,
-              status: "auto",
-            });
-          } else if (pappersData.derniers_statuts?.token) {
-            documents.push({
-              type: "Statuts",
-              label: `Statuts — ${pappersData.derniers_statuts.date_depot ?? ""}`,
-              url: `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${pappersData.derniers_statuts.token}`,
-              source: "pappers",
-              available: true,
-              status: "auto",
+              status: "lien",
             });
           }
 
           // Actes (statuts alternatifs)
           if (pappersData.actes?.length > 0) {
             const acte = pappersData.actes[0];
-            if (acte.url || acte.token) {
-              documents.push({
-                type: "Actes",
-                label: `Acte — ${acte.type ?? "Dernier acte"} — ${acte.date_depot ?? ""}`,
-                url: acte.url ?? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${acte.token}`,
-                source: "pappers",
-                available: true,
-                status: "auto",
-              });
-            }
+            documents.push({
+              type: "Actes",
+              label: `Acte — ${acte.type ?? "Dernier acte"} — ${acte.date_depot ?? ""}`,
+              url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
+              source: "pappers",
+              available: true,
+              status: "lien",
+            });
           }
 
           // Comptes annuels
-          const comptes = pappersData.comptes ?? pappersData.derniers_comptes ? [pappersData.derniers_comptes] : [];
+          const comptes = pappersData.comptes ?? (pappersData.derniers_comptes ? [pappersData.derniers_comptes] : []);
           const comptesArray = pappersData.comptes ?? comptes;
-          for (const compte of (comptesArray ?? []).slice(0, 3)) {
-            if (!compte) continue;
-            if (compte.url || compte.token) {
-              documents.push({
-                type: "Comptes annuels",
-                label: `Comptes ${compte.annee ?? ""} — ${compte.date_depot ?? ""}`,
-                url: compte.url ?? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${compte.token}`,
-                source: "pappers",
-                available: true,
-                status: "auto",
-              });
-            }
+          if ((comptesArray ?? []).length > 0) {
+            documents.push({
+              type: "Comptes annuels",
+              label: `Comptes annuels (${(comptesArray ?? []).filter(Boolean).length} exercice(s))`,
+              url: `https://www.pappers.fr/entreprise/${cleanSiren}#finances`,
+              source: "pappers",
+              available: true,
+              status: "lien",
+            });
           }
 
           // Other documents from Pappers
           const pappersDocs = pappersData.documents ?? [];
-          for (const doc of pappersDocs.slice(0, 5)) {
-            if (doc.url || doc.token) {
-              documents.push({
-                type: doc.type ?? "Document",
-                label: `${doc.type ?? "Document"} — ${doc.date_depot ?? ""}`,
-                url: doc.url ?? `https://api.pappers.fr/v2/document/telechargement?api_token=${pappersKey}&token=${doc.token}`,
-                source: "pappers",
-                available: true,
-                status: "auto",
-              });
-            }
+          if (pappersDocs.length > 0) {
+            documents.push({
+              type: "Documents",
+              label: `${pappersDocs.length} document(s) disponible(s) sur Pappers`,
+              url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
+              source: "pappers",
+              available: true,
+              status: "lien",
+            });
           }
 
           // Beneficiaires effectifs (Probleme 7)

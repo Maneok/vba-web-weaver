@@ -6,6 +6,7 @@ export interface BeneficiaireDetail {
   date_de_naissance: string;
   nationalite: string;
   pourcentage_parts: number;
+  pourcentage_votes?: number;
 }
 
 export interface PappersResult {

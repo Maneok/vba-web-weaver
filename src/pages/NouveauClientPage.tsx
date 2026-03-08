@@ -50,6 +50,7 @@ interface Beneficiaire {
   dateNaissance: string;
   nationalite: string;
   pourcentage: number;
+  pourcentageVotes?: number;
 }
 
 interface QuestionLCB {
@@ -393,7 +394,31 @@ export default function NouveauClientPage() {
     setSearchResults([]);
     setSelectedResult(null);
     setDuplicateWarning("");
+    setDuplicateRef("");
     setScreening(INITIAL_SCREENING);
+    // BUG 1: Full state reset when user searches a new SIREN
+    setForm({
+      raisonSociale: "", forme: "SARL", siren: "", siret: "", capital: 0, ape: "", dirigeant: "",
+      domaine: "", effectif: "", adresse: "", cp: "", ville: "",
+      tel: "", mail: "", siteWeb: "", dateCreation: "", dateReprise: "",
+      mission: "TENUE COMPTABLE" as MissionType, honoraires: 0, reprise: 0, juridique: 0,
+      frequence: "MENSUEL",
+      comptable: "MAGALIE", associe: "DIDIER", superviseur: "SAMUEL",
+      iban: "", bic: "", dateFin: "",
+    });
+    setBeneficiaires([]);
+    setBeScreening({});
+    setDocuments([]);
+    setAmlSignals([]);
+    setDataProvenance([]);
+    setCapitalSource("");
+    setAutoFields(new Set());
+    setSelectedEnterprise(null);
+    setGelAvoirsAlert([]);
+    setDecision("");
+    setMotifRefus("");
+    setDataSource("");
+    setQuestions(QUESTIONS_LCB.map(q => ({ ...q, value: "NON" as const, commentaire: "" })));
 
     // Primary: new enterprise-lookup (Annuaire Entreprises)
     setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
@@ -554,6 +579,7 @@ export default function NouveauClientPage() {
         dateNaissance: b.date_naissance || "",
         nationalite: b.nationalite || "Francaise",
         pourcentage: b.pourcentage_parts || 0,
+        pourcentageVotes: b.pourcentage_votes || 0,
       }));
       setBeneficiaires(parsed);
     } else if (result.beneficiaires_details && result.beneficiaires_details.length > 0) {
@@ -563,6 +589,7 @@ export default function NouveauClientPage() {
         dateNaissance: b.date_de_naissance || "",
         nationalite: b.nationalite || "Francaise",
         pourcentage: b.pourcentage_parts || 0,
+        pourcentageVotes: b.pourcentage_votes || 0,
       }));
       setBeneficiaires(parsed);
     } else if (result.beneficiaires_effectifs) {
@@ -1162,6 +1189,37 @@ export default function NouveauClientPage() {
                 <FormField label="BIC" value={form.bic} onChange={v => set("bic", v)} placeholder="BNPAFRPP" />
               </div>
             </div>
+
+            {/* BUG 2: INPI company details — moved from Documents to Informations */}
+            {screening.inpi.data?.companyData && (
+              <div>
+                <h3 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Donnees complementaires (INPI)</h3>
+                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] space-y-2 text-xs">
+                  {screening.inpi.data.companyData.objetSocial && (
+                    <div><span className="text-slate-500">Objet social:</span> <span className="text-slate-300 ml-1">{screening.inpi.data.companyData.objetSocial.slice(0, 200)}{screening.inpi.data.companyData.objetSocial.length > 200 ? "..." : ""}</span></div>
+                  )}
+                  <div className="grid grid-cols-3 gap-3">
+                    {screening.inpi.data.companyData.duree && (
+                      <div><span className="text-slate-500">Duree:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.duree} ans</span></div>
+                    )}
+                    {screening.inpi.data.companyData.dateClotureExercice && (
+                      <div><span className="text-slate-500">Cloture:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.dateClotureExercice}</span></div>
+                    )}
+                    {screening.inpi.data.companyData.dateImmatriculation && (
+                      <div><span className="text-slate-500">Immatriculation:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.dateImmatriculation}</span></div>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {screening.inpi.data.companyData.capitalVariable && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Capital variable</Badge>}
+                    {screening.inpi.data.companyData.ess && <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">ESS</Badge>}
+                    {screening.inpi.data.companyData.societeMission && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">Societe a mission</Badge>}
+                    {screening.inpi.data.companyData.associeUnique && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Associe unique</Badge>}
+                    {screening.inpi.data.companyData.nonDiffusible && <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0">Non diffusible</Badge>}
+                    {screening.inpi.data.companyData.domiciliataire && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Domiciliataire</Badge>}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -1215,7 +1273,7 @@ export default function NouveauClientPage() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-5 gap-3">
+                  <div className="grid grid-cols-6 gap-3">
                     <div>
                       <Label className="text-[10px] text-slate-500">Nom</Label>
                       <Input value={b.nom} onChange={e => updateBeneficiaire(i, "nom", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" />
@@ -1233,8 +1291,12 @@ export default function NouveauClientPage() {
                       <Input value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" />
                     </div>
                     <div>
-                      <Label className="text-[10px] text-slate-500">% detention</Label>
+                      <Label className="text-[10px] text-slate-500">% parts</Label>
                       <Input type="number" value={b.pourcentage} onChange={e => updateBeneficiaire(i, "pourcentage", Number(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" min={0} max={100} />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] text-slate-500">% votes</Label>
+                      <Input type="number" value={b.pourcentageVotes ?? 0} onChange={e => updateBeneficiaire(i, "pourcentageVotes", Number(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" min={0} max={100} />
                     </div>
                   </div>
                 </div>
@@ -1574,37 +1636,6 @@ export default function NouveauClientPage() {
                     <span className="text-xs text-red-400">Capitaux propres negatifs — alerte financiere</span>
                   </div>
                 )}
-              </div>
-            )}
-
-            {/* Phase 3: INPI company details */}
-            {screening.inpi.data?.companyData && (
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Informations complementaires INPI</Label>
-                <div className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] space-y-2 text-xs">
-                  {screening.inpi.data.companyData.objetSocial && (
-                    <div><span className="text-slate-500">Objet social:</span> <span className="text-slate-300 ml-1">{screening.inpi.data.companyData.objetSocial.slice(0, 200)}{screening.inpi.data.companyData.objetSocial.length > 200 ? "..." : ""}</span></div>
-                  )}
-                  <div className="grid grid-cols-3 gap-3">
-                    {screening.inpi.data.companyData.duree && (
-                      <div><span className="text-slate-500">Duree:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.duree} ans</span></div>
-                    )}
-                    {screening.inpi.data.companyData.dateClotureExercice && (
-                      <div><span className="text-slate-500">Cloture:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.dateClotureExercice}</span></div>
-                    )}
-                    {screening.inpi.data.companyData.dateImmatriculation && (
-                      <div><span className="text-slate-500">Immatriculation:</span> <span className="text-slate-200 ml-1">{screening.inpi.data.companyData.dateImmatriculation}</span></div>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {screening.inpi.data.companyData.capitalVariable && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Capital variable</Badge>}
-                    {screening.inpi.data.companyData.ess && <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">ESS</Badge>}
-                    {screening.inpi.data.companyData.societeMission && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">Societe a mission</Badge>}
-                    {screening.inpi.data.companyData.associeUnique && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Associe unique</Badge>}
-                    {screening.inpi.data.companyData.nonDiffusible && <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0">Non diffusible</Badge>}
-                    {screening.inpi.data.companyData.domiciliataire && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Domiciliataire</Badge>}
-                  </div>
-                </div>
               </div>
             )}
 
