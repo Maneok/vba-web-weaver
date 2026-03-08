@@ -1,4 +1,6 @@
-const ENCRYPTION_KEY = "lcb-ft-data-protection-key-2025";
+// Clé lue depuis variable d'environnement — ne JAMAIS hardcoder
+const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || "lcb-ft-data-protection-key-2025";
+const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT || "lcb-salt";
 
 async function getKey(): Promise<CryptoKey> {
   const encoder = new TextEncoder();
@@ -10,7 +12,7 @@ async function getKey(): Promise<CryptoKey> {
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: encoder.encode("lcb-salt"), iterations: 100000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: encoder.encode(ENCRYPTION_SALT), iterations: 600000, hash: "SHA-256" },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,

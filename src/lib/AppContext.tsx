@@ -4,6 +4,7 @@ import { O90_CLIENTS, O90_COLLABORATEURS, O90_ALERTES, O90_LOGS } from "@/lib/da
 import { clientsService, collaborateursService, registreService, logsService } from "@/lib/supabaseService";
 import { mapDbClient, mapClientToDb, mapDbCollaborateur, mapDbAlerte, mapAlerteToDb, mapDbLog } from "@/lib/dbMappers";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface AppState {
   clients: Client[];
@@ -23,6 +24,16 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
+// Timeout wrapper for Promise.all
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
+    ),
+  ]);
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
@@ -37,7 +48,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        // No auth session: use local JSON data
         setClients(O90_CLIENTS);
         setCollaborateurs(O90_COLLABORATEURS);
         setAlertes(O90_ALERTES);
@@ -47,15 +57,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Authenticated: load from Supabase
-      const [dbClients, dbCollabs, dbAlertes, dbLogs] = await Promise.all([
-        clientsService.getAll(),
-        collaborateursService.getAll(),
-        registreService.getAll(),
-        logsService.getAll(),
-      ]);
+      // Authenticated: load from Supabase with 15s timeout
+      const [dbClients, dbCollabs, dbAlertes, dbLogs] = await withTimeout(
+        Promise.all([
+          clientsService.getAll(),
+          collaborateursService.getAll(),
+          registreService.getAll(),
+          logsService.getAll(),
+        ]),
+        15000
+      );
 
-      // Authenticated: always use Supabase data (even if 0 rows — new cabinet)
       setIsOnline(true);
       setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
       setCollaborateurs(dbCollabs.map((r: Record<string, unknown>) => mapDbCollaborateur(r)));
@@ -78,7 +90,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     initialized.current = true;
     loadData();
 
-    // Re-load when auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       loadData();
     });
@@ -87,8 +98,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshClients = useCallback(async () => {
     if (!isOnline) return;
-    const dbClients = await clientsService.getAll();
-    setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
+    try {
+      const dbClients = await clientsService.getAll();
+      setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
+    } catch (err) {
+      console.error("[AppContext] refreshClients error:", err);
+    }
   }, [isOnline]);
 
   const refreshAll = useCallback(async () => {
@@ -99,19 +114,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Optimistic update
     setClients(prev => [client, ...prev]);
 
-    // Persist to Supabase in background
     if (isOnline) {
       const dbRow = mapClientToDb(client);
       clientsService.create(dbRow).then((result) => {
         if (!result) {
-          console.error("[AppContext] Failed to persist client to Supabase");
+          // Rollback on failure
+          setClients(prev => prev.filter(c => c.ref !== client.ref));
+          toast.error("Erreur lors de la sauvegarde du client");
+          return;
         }
-        // Log creation
-        logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients");
+        logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients").catch(() => {});
+      }).catch((err) => {
+        setClients(prev => prev.filter(c => c.ref !== client.ref));
+        toast.error("Erreur lors de la sauvegarde du client");
+        console.error("[AppContext] addClient error:", err);
       });
     }
 
-    // Local log entry
     setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
       utilisateur: "Utilisateur",
@@ -122,17 +141,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
 
   const updateClient = useCallback((ref: string, updates: Partial<Client>) => {
-    // Optimistic update
+    // Save previous state for rollback
+    const previousClients = clients;
     setClients(prev => prev.map(c => c.ref === ref ? { ...c, ...updates } : c));
 
-    // Persist to Supabase
     if (isOnline) {
       const dbUpdates = mapClientToDb(updates);
       clientsService.updateByRef(ref, dbUpdates).then((result) => {
         if (!result) {
-          console.error("[AppContext] Failed to update client in Supabase");
+          setClients(previousClients);
+          toast.error("Erreur lors de la mise a jour du client");
+          return;
         }
-        logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients");
+        logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients").catch(() => {});
+      }).catch((err) => {
+        setClients(previousClients);
+        toast.error("Erreur lors de la mise a jour du client");
+        console.error("[AppContext] updateClient error:", err);
       });
     }
 
@@ -143,19 +168,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       typeAction: "REVUE/MAJ",
       details: `Mise a jour du dossier`,
     }, ...prev]);
-  }, [isOnline]);
+  }, [isOnline, clients]);
 
   const deleteClient = useCallback((ref: string) => {
     const client = clients.find(c => c.ref === ref);
+    const previousClients = clients;
     setClients(prev => prev.filter(c => c.ref !== ref));
 
     if (isOnline && client) {
-      // Find client by ref to get id, then delete
-      clientsService.getByRef(ref).then((dbClient) => {
-        if (dbClient?.id) {
-          clientsService.delete(dbClient.id as string);
-          logsService.add("SUPPRESSION", `Dossier supprime: ${client.raisonSociale}`, ref, "clients");
+      clientsService.deleteByRef(ref).then((success) => {
+        if (!success) {
+          setClients(previousClients);
+          toast.error("Erreur lors de la suppression du client");
+          return;
         }
+        logsService.add("SUPPRESSION", `Dossier supprime: ${client.raisonSociale}`, ref, "clients").catch(() => {});
+      }).catch((err) => {
+        setClients(previousClients);
+        toast.error("Erreur lors de la suppression du client");
+        console.error("[AppContext] deleteClient error:", err);
       });
     }
   }, [isOnline, clients]);
@@ -164,7 +195,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLogs(prev => [log, ...prev]);
 
     if (isOnline) {
-      logsService.add(log.typeAction, log.details, log.refClient, "");
+      logsService.add(log.typeAction, log.details, log.refClient, "").catch(() => {});
     }
   }, [isOnline]);
 
@@ -173,8 +204,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (isOnline) {
       const dbRow = mapAlerteToDb(alerte);
-      registreService.create(dbRow);
-      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre");
+      registreService.create(dbRow).catch((err) => {
+        console.error("[AppContext] addAlerte error:", err);
+        toast.error("Erreur lors de la sauvegarde de l'alerte");
+      });
+      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre").catch(() => {});
     }
   }, [isOnline]);
 

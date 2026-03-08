@@ -30,7 +30,8 @@ export const clientsService = {
       .from("clients")
       .select("*")
       .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(500);
     if (error) {
       console.error("[DB] clients getAll:", error);
       return [];
@@ -86,7 +87,26 @@ export const clientsService = {
 
   async delete(id: string) {
     const { error } = await supabase.from("clients").delete().eq("id", id);
-    if (error) console.error("[DB] clients delete:", error);
+    if (error) {
+      console.error("[DB] clients delete:", error);
+      return false;
+    }
+    return true;
+  },
+
+  async deleteByRef(ref: string) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return false;
+    const { error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("cabinet_id", cabinetId)
+      .eq("ref", ref);
+    if (error) {
+      console.error("[DB] clients deleteByRef:", error);
+      return false;
+    }
+    return true;
   },
 
   async getByRef(ref: string) {
@@ -124,7 +144,8 @@ export const collaborateursService = {
       .from("collaborateurs")
       .select("*")
       .eq("cabinet_id", cabinetId)
-      .order("nom");
+      .order("nom")
+      .limit(200);
     return data || [];
   },
 
@@ -144,17 +165,23 @@ export const collaborateursService = {
   },
 
   async update(id: string, updates: Record<string, unknown>) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("collaborateurs")
       .update(updates)
       .eq("id", id)
       .select()
       .maybeSingle();
+    if (error) console.error("[DB] collab update:", error);
     return data;
   },
 
   async delete(id: string) {
-    await supabase.from("collaborateurs").delete().eq("id", id);
+    const { error } = await supabase.from("collaborateurs").delete().eq("id", id);
+    if (error) {
+      console.error("[DB] collab delete:", error);
+      return false;
+    }
+    return true;
   },
 };
 
@@ -167,7 +194,8 @@ export const registreService = {
       .from("alertes_registre")
       .select("*")
       .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(500);
     return data || [];
   },
 
@@ -187,12 +215,13 @@ export const registreService = {
   },
 
   async update(id: string, updates: Record<string, unknown>) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("alertes_registre")
       .update(updates)
       .eq("id", id)
       .select()
       .maybeSingle();
+    if (error) console.error("[DB] alerte update:", error);
     return data;
   },
 };
@@ -200,19 +229,24 @@ export const registreService = {
 // ===== AUDIT TRAIL (LOGS) =====
 export const logsService = {
   async add(action: string, details: string, recordId?: string, tableName?: string) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const cabinetId = await getCabinetId();
-    if (!cabinetId) return;
-    await supabase.from("audit_trail").insert({
-      cabinet_id: cabinetId,
-      user_id: user.id,
-      user_email: user.email || "",
-      action,
-      table_name: tableName || "",
-      record_id: recordId || "",
-      new_data: { details },
-    });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const cabinetId = await getCabinetId();
+      if (!cabinetId) return;
+      const { error } = await supabase.from("audit_trail").insert({
+        cabinet_id: cabinetId,
+        user_id: user.id,
+        user_email: user.email || "",
+        action,
+        table_name: tableName || "",
+        record_id: recordId || "",
+        new_data: { details },
+      });
+      if (error) console.error("[DB] audit insert error:", error);
+    } catch (err) {
+      console.error("[DB] logsService.add exception:", err);
+    }
   },
 
   async getAll() {
@@ -237,7 +271,8 @@ export const controlesService = {
       .from("controles_qualite")
       .select("*")
       .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(200);
     return data || [];
   },
 
@@ -272,29 +307,40 @@ export const brouillonsService = {
   },
 
   async save(siren: string, formData: unknown, step: number) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const clean = siren.replace(/\s/g, "");
-    const existing = await this.getBySiren(clean);
-    if (existing) {
-      await supabase
-        .from("brouillons")
-        .update({ data: formData, step, updated_at: new Date().toISOString() })
-        .eq("id", existing.id);
-    } else {
-      await supabase
-        .from("brouillons")
-        .insert({ user_id: user.id, siren: clean, data: formData, step });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const clean = siren.replace(/\s/g, "");
+      const existing = await this.getBySiren(clean);
+      if (existing) {
+        const { error } = await supabase
+          .from("brouillons")
+          .update({ data: formData, step, updated_at: new Date().toISOString() })
+          .eq("id", existing.id);
+        if (error) console.error("[DB] brouillon update:", error);
+      } else {
+        const { error } = await supabase
+          .from("brouillons")
+          .insert({ user_id: user.id, siren: clean, data: formData, step });
+        if (error) console.error("[DB] brouillon insert:", error);
+      }
+    } catch (err) {
+      console.error("[DB] brouillon save exception:", err);
     }
   },
 
   async delete(siren: string) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    await supabase
-      .from("brouillons")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("siren", siren.replace(/\s/g, ""));
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { error } = await supabase
+        .from("brouillons")
+        .delete()
+        .eq("user_id", user.id)
+        .eq("siren", siren.replace(/\s/g, ""));
+      if (error) console.error("[DB] brouillon delete:", error);
+    } catch (err) {
+      console.error("[DB] brouillon delete exception:", err);
+    }
   },
 };

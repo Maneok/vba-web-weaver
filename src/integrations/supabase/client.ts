@@ -15,7 +15,7 @@ export const supabase = createClient(
   SUPABASE_PUBLISHABLE_KEY || 'placeholder',
   {
     auth: {
-      storage: typeof window !== 'undefined' ? localStorage : undefined,
+      storage: typeof window !== 'undefined' ? sessionStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
     },

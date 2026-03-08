@@ -43,20 +43,24 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadParametres() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
 
-      const { data } = await supabase
-        .from("parametres")
-        .select("valeur")
-        .eq("cle", "lcbft_config")
-        .maybeSingle();
+        const { data } = await supabase
+          .from("parametres")
+          .select("valeur")
+          .eq("cle", "lcbft_config")
+          .maybeSingle();
 
-      if (data?.valeur) {
-        const valeur = data.valeur as Record<string, unknown>;
-        if (valeur.date_derniere_formation) {
-          setDerniereFormation(valeur.date_derniere_formation as string);
+        if (data?.valeur) {
+          const valeur = data.valeur as Record<string, unknown>;
+          if (valeur.date_derniere_formation) {
+            setDerniereFormation(valeur.date_derniere_formation as string);
+          }
         }
+      } catch (err) {
+        console.error("[Dashboard] loadParametres error:", err);
       }
     }
     loadParametres();

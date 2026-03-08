@@ -7,6 +7,8 @@ import { useSessionTimeout } from "./useSessionTimeout";
 import { logAudit } from "./auditTrail";
 import { toast } from "sonner";
 
+const isDev = import.meta.env.DEV;
+
 const AuthContext = createContext<AuthState | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -17,12 +19,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string): Promise<UserProfile | null> => {
     try {
-      console.log("[Auth] fetchProfile via fetch() for:", userId);
       const url = import.meta.env.VITE_SUPABASE_URL;
       const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
       if (!url || !key) {
-        console.error("[Auth] Missing SUPABASE env vars! url:", !!url, "key:", !!key);
+        if (isDev) console.error("[Auth] Missing SUPABASE env vars");
         return null;
       }
 
@@ -30,7 +31,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = session?.access_token;
 
       if (!token) {
-        console.error("[Auth] No access token available");
+        if (isDev) console.error("[Auth] No access token available");
         return null;
       }
 
@@ -51,23 +52,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
 
       clearTimeout(timeout);
-      console.log("[Auth] fetch response status:", res.status);
 
       if (!res.ok) {
-        const text = await res.text();
-        console.error("[Auth] fetch error:", res.status, text);
+        if (isDev) console.error("[Auth] fetch error:", res.status);
         return null;
       }
 
       const data = await res.json();
-      console.log("[Auth] Profile loaded:", data?.full_name);
       return data as UserProfile;
-    } catch (e: any) {
-      if (e.name === 'AbortError') {
-        console.error("[Auth] fetchProfile TIMEOUT after 8s");
-      } else {
-        console.error("[Auth] fetchProfile exception:", e);
-      }
+    } catch (e: unknown) {
+      if (isDev) console.error("[Auth] fetchProfile exception:", e);
       return null;
     }
   }, []);
@@ -82,10 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   }, [user]);
 
-  // Session timeout after 30 minutes of inactivity
+  // Session timeout after 15 minutes of inactivity (conformité LCB-FT)
   useSessionTimeout(
     useCallback(() => {
-      toast.warning("Session expiree apres 30 minutes d'inactivite");
+      toast.warning("Session expiree apres 15 minutes d'inactivite");
       handleSignOut();
     }, [handleSignOut]),
     !!session
@@ -97,17 +91,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (!mounted) return;
-        console.log("[Auth] onAuthStateChange:", event, s?.user?.email);
 
         setSession(s);
         setUser(s?.user ?? null);
 
         if (s?.user) {
-          const p = await fetchProfile(s.user.id);
-          if (mounted) {
-            setProfile(p);
-            console.log("[Auth] Profile set:", p ? p.full_name : "null");
+          // Log login events
+          if (event === "SIGNED_IN") {
+            logAudit({
+              action: "CONNEXION",
+              new_data: { email: s.user.email, provider: s.user.app_metadata?.provider || "email" },
+            }).catch(() => {});
           }
+
+          const p = await fetchProfile(s.user.id);
+          if (mounted) setProfile(p);
         } else {
           if (mounted) setProfile(null);
         }
@@ -119,17 +117,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Récupérer la session initiale
     supabase.auth.getSession().then(async ({ data: { session: s } }) => {
       if (!mounted) return;
-      console.log("[Auth] Initial session:", s?.user?.email || "none");
 
       setSession(s);
       setUser(s?.user ?? null);
 
       if (s?.user) {
         const p = await fetchProfile(s.user.id);
-        if (mounted) {
-          setProfile(p);
-          console.log("[Auth] Initial profile:", p ? p.full_name : "null");
-        }
+        if (mounted) setProfile(p);
       }
 
       if (mounted) setLoading(false);
@@ -143,7 +137,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      // Log failed login attempt
+      logAudit({
+        action: "CONNEXION_ECHOUEE",
+        new_data: { email, error: error.message },
+      }).catch(() => {});
+      throw error;
+    }
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
