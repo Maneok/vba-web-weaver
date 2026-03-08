@@ -150,20 +150,24 @@ export default function ScreeningPanel({ screening, compact }: Props) {
     });
     rows.push({
       key: "documents",
-      icon: <FileText className="w-4 h-4 text-amber-400" />,
-      label: "Documents Pappers",
+      icon: <FileText className="w-4 h-4 text-indigo-400" />,
+      label: "Documents INPI + Pappers",
       status: (screening.documents.data?.status as Status) ?? (screening.documents.error ? "ERREUR" : null),
       loading: screening.documents.loading,
-      detail: screening.documents.data ? `${screening.documents.data.total} document(s)` : undefined,
+      detail: screening.documents.data
+        ? `${screening.documents.data.autoRecovered} recupere(s) / ${screening.documents.data.total} total`
+        : undefined,
       timeMs: screening.documents.timeMs,
     });
     rows.push({
       key: "inpi",
       icon: <Archive className="w-4 h-4 text-indigo-400" />,
-      label: "Documents INPI (RNE)",
+      label: "Donnees INPI (RNE)",
       status: (screening.inpi.data?.status as Status) ?? (screening.inpi.error ? "ERREUR" : null),
       loading: screening.inpi.loading,
-      detail: screening.inpi.data ? `${screening.inpi.data.totalDocuments} document(s), ${screening.inpi.data.storedCount} stocke(s)` : undefined,
+      detail: screening.inpi.data
+        ? `${screening.inpi.data.storedCount} stocke(s) sur ${screening.inpi.data.totalDocuments}`
+        : undefined,
       timeMs: screening.inpi.timeMs,
     });
   }

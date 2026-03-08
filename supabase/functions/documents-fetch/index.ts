@@ -1,8 +1,91 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
   "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
 };
+
+const INPI_BASE = "https://registre-national-entreprises.inpi.fr/api";
+
+// ====== INPI Auth with token cache ======
+let cachedToken: string | null = null;
+let tokenExpiry = 0;
+
+async function getINPIToken(): Promise<string | null> {
+  if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+  const username = Deno.env.get("INPI_USERNAME");
+  const password = Deno.env.get("INPI_PASSWORD");
+  if (!username || !password) { console.log("[docs] No INPI credentials"); return null; }
+
+  try {
+    const res = await fetch(`${INPI_BASE}/sso/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ username, password }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) { console.error(`[docs] INPI auth failed: ${res.status}`); return null; }
+    const data = await res.json();
+    if (data.token) {
+      cachedToken = data.token;
+      tokenExpiry = Date.now() + 8 * 60 * 1000;
+      console.log("[docs] INPI auth OK");
+      return data.token;
+    }
+    return null;
+  } catch (e) {
+    console.error("[docs] INPI auth error:", (e as Error).message);
+    return null;
+  }
+}
+
+// Download PDF from INPI and store in Supabase Storage
+async function downloadAndStore(
+  supabaseClient: any,
+  token: string,
+  url: string,
+  storagePath: string,
+): Promise<string | null> {
+  try {
+    console.log(`[docs] Downloading ${url}`);
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(30000),
+    });
+    if (!res.ok) {
+      console.error(`[docs] Download failed: ${res.status} for ${url}`);
+      return null;
+    }
+
+    const blob = await res.blob();
+    const arrayBuffer = await blob.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    console.log(`[docs] Downloaded ${uint8.length} bytes → ${storagePath}`);
+
+    const { error } = await supabaseClient.storage
+      .from("kyc-documents")
+      .upload(storagePath, uint8, {
+        contentType: blob.type || "application/pdf",
+        upsert: true,
+      });
+
+    if (error) {
+      console.error("[docs] Storage upload error:", error.message);
+      return null;
+    }
+
+    const { data: urlData } = supabaseClient.storage
+      .from("kyc-documents")
+      .getPublicUrl(storagePath);
+
+    console.log(`[docs] Stored OK: ${storagePath}`);
+    return urlData?.publicUrl ?? null;
+  } catch (e) {
+    console.error("[docs] Download/store error:", (e as Error).message);
+    return null;
+  }
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -20,19 +103,105 @@ Deno.serve(async (req) => {
     const cleanSiren = (siren as string).replace(/\s/g, "");
     const documents: any[] = [];
     let beneficiaires: any[] = [];
-    let pappersData: any = null;
+    const sources: string[] = [];
+    let inpiSuccess = false;
 
-    // 1. INPI direct links (always available)
-    documents.push({
-      type: "KBIS",
-      label: "Extrait INPI (RNE)",
-      url: `https://data.inpi.fr/entreprises/${cleanSiren}`,
-      source: "inpi",
-      available: true,
-      status: "lien",
-    });
+    // Initialize Supabase client for storage
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // 2. Pappers API enrichment
+    // Ensure bucket exists
+    try {
+      await supabaseClient.storage.createBucket("kyc-documents", { public: true });
+    } catch { /* Bucket may already exist */ }
+
+    // ====== PHASE 1: INPI Documents (primary source) ======
+    const token = await getINPIToken();
+    if (token) {
+      try {
+        console.log(`[docs] GET /companies/${cleanSiren}/attachments`);
+        const res = await fetch(`${INPI_BASE}/companies/${cleanSiren}/attachments`, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: AbortSignal.timeout(15000),
+        });
+
+        if (res.ok) {
+          const attachments = await res.json();
+          const actes = attachments.actes ?? [];
+          const bilans = attachments.bilans ?? [];
+          console.log(`[docs] INPI attachments: ${actes.length} actes, ${bilans.length} bilans`);
+
+          // Process actes (statuts, PV, decisions)
+          for (const acte of actes.slice(0, 5)) {
+            const acteId = acte.id;
+            const acteType = acte.typeRdd ?? acte.type ?? "Acte";
+            const acteDate = acte.dateDepot ?? acte.date ?? "";
+            const nature = acte.nature ?? "";
+            const nomDoc = acte.nomDocument ?? "";
+            const label = nature
+              ? `${acteType} — ${nature} — ${acteDate}`
+              : `${acteType} — ${nomDoc || "depot"} ${acteDate}`;
+            const storagePath = `${cleanSiren}/${acteType.replace(/\s/g, "_")}_${acteDate || acteId}.pdf`;
+
+            const downloadUrl = `${INPI_BASE}/actes/${acteId}/download`;
+            const publicUrl = await downloadAndStore(supabaseClient, token, downloadUrl, storagePath);
+
+            const isStatuts = acteType.toLowerCase().includes("statut") || nature.toLowerCase().includes("statut") || nomDoc.toLowerCase().includes("statut");
+            const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") || nature.toLowerCase().includes("assembl");
+
+            documents.push({
+              type: isStatuts ? "Statuts" : isPV ? "PV AG" : "Actes",
+              label,
+              url: publicUrl ?? `https://data.inpi.fr/entreprises/${cleanSiren}`,
+              source: "INPI",
+              available: true,
+              status: publicUrl ? "auto" : "lien",
+              storedInSupabase: !!publicUrl,
+              downloadable: !!publicUrl,
+              dateDepot: acteDate,
+              storageUrl: publicUrl,
+            });
+          }
+
+          // Process bilans (comptes annuels)
+          for (const bilan of bilans.slice(0, 3)) {
+            const bilanId = bilan.id;
+            const dateCloture = bilan.dateCloture ?? bilan.date_cloture ?? "";
+            const typeBilan = bilan.typeBilan ?? "Comptes annuels";
+            const storagePath = `${cleanSiren}/comptes_${dateCloture || bilanId}.pdf`;
+
+            const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;
+            const publicUrl = await downloadAndStore(supabaseClient, token, downloadUrl, storagePath);
+
+            documents.push({
+              type: "Comptes annuels",
+              label: `${typeBilan} — Cloture ${dateCloture}`,
+              url: publicUrl ?? `https://data.inpi.fr/entreprises/${cleanSiren}`,
+              source: "INPI",
+              available: true,
+              status: publicUrl ? "auto" : "lien",
+              storedInSupabase: !!publicUrl,
+              downloadable: !!publicUrl,
+              dateCloture,
+              storageUrl: publicUrl,
+            });
+          }
+
+          if (actes.length > 0 || bilans.length > 0) {
+            inpiSuccess = true;
+            sources.push("INPI");
+          }
+        } else {
+          console.error(`[docs] INPI attachments: ${res.status}`);
+          if (res.status === 401) { cachedToken = null; tokenExpiry = 0; }
+        }
+      } catch (e) {
+        console.error("[docs] INPI attachments error:", (e as Error).message);
+      }
+    }
+
+    // ====== PHASE 2: Pappers fallback (if INPI returned no documents) ======
     const pappersKey = Deno.env.get("PAPPERS");
     if (pappersKey) {
       try {
@@ -42,94 +211,82 @@ Deno.serve(async (req) => {
         );
 
         if (res.ok) {
-          pappersData = await res.json();
+          const pappersData = await res.json();
+          sources.push("Pappers");
 
-          // Extrait Pappers (equivalent Kbis)
+          // Extrait Kbis (Pappers)
           if (pappersData.extrait_immatriculation_url) {
             documents.push({
               type: "KBIS",
               label: "Extrait Kbis (Pappers)",
               url: pappersData.extrait_immatriculation_url,
-              source: "pappers",
+              source: "Pappers",
               available: true,
               status: "auto",
+              downloadable: true,
+              storageUrl: null,
             });
           }
 
-          // Extrait RBE (#4)
+          // Extrait RBE
           if (pappersData.extrait_rbe_url) {
             documents.push({
               type: "Extrait RBE",
               label: "Extrait RBE (Pappers)",
               url: pappersData.extrait_rbe_url,
-              source: "pappers",
+              source: "Pappers",
               available: true,
               status: "auto",
-            });
-          } else {
-            documents.push({
-              type: "Extrait RBE",
-              label: "Voir les beneficiaires sur Pappers.fr",
-              url: `https://www.pappers.fr/entreprise/${cleanSiren}#beneficiaires`,
-              source: "pappers",
-              available: true,
-              status: "lien",
+              downloadable: true,
+              storageUrl: null,
             });
           }
 
-          // Statuts
-          if (pappersData.derniers_statuts?.date_depot) {
-            documents.push({
-              type: "Statuts",
-              label: `Statuts — ${pappersData.derniers_statuts.date_depot ?? ""}`,
-              url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
-              source: "pappers",
-              available: true,
-              status: "lien",
-            });
+          // Only add Pappers document links if INPI didn't return documents
+          if (!inpiSuccess) {
+            if (pappersData.derniers_statuts?.date_depot) {
+              documents.push({
+                type: "Statuts",
+                label: `Statuts — ${pappersData.derniers_statuts.date_depot}`,
+                url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
+                source: "Pappers",
+                available: true,
+                status: "lien",
+                downloadable: false,
+                storageUrl: null,
+              });
+            }
+
+            if (pappersData.actes?.length > 0) {
+              const acte = pappersData.actes[0];
+              documents.push({
+                type: "Actes",
+                label: `Acte — ${acte.type ?? "Dernier acte"} — ${acte.date_depot ?? ""}`,
+                url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
+                source: "Pappers",
+                available: true,
+                status: "lien",
+                downloadable: false,
+                storageUrl: null,
+              });
+            }
+
+            const comptesArray = pappersData.comptes ?? (pappersData.derniers_comptes ? [pappersData.derniers_comptes] : []);
+            if (comptesArray.length > 0) {
+              documents.push({
+                type: "Comptes annuels",
+                label: `Comptes annuels (${comptesArray.filter(Boolean).length} exercice(s))`,
+                url: `https://www.pappers.fr/entreprise/${cleanSiren}#finances`,
+                source: "Pappers",
+                available: true,
+                status: "lien",
+                downloadable: false,
+                storageUrl: null,
+              });
+            }
           }
 
-          // Actes (statuts alternatifs)
-          if (pappersData.actes?.length > 0) {
-            const acte = pappersData.actes[0];
-            documents.push({
-              type: "Actes",
-              label: `Acte — ${acte.type ?? "Dernier acte"} — ${acte.date_depot ?? ""}`,
-              url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
-              source: "pappers",
-              available: true,
-              status: "lien",
-            });
-          }
-
-          // Comptes annuels
-          const comptes = pappersData.comptes ?? (pappersData.derniers_comptes ? [pappersData.derniers_comptes] : []);
-          const comptesArray = pappersData.comptes ?? comptes;
-          if ((comptesArray ?? []).length > 0) {
-            documents.push({
-              type: "Comptes annuels",
-              label: `Comptes annuels (${(comptesArray ?? []).filter(Boolean).length} exercice(s))`,
-              url: `https://www.pappers.fr/entreprise/${cleanSiren}#finances`,
-              source: "pappers",
-              available: true,
-              status: "lien",
-            });
-          }
-
-          // Other documents from Pappers
-          const pappersDocs = pappersData.documents ?? [];
-          if (pappersDocs.length > 0) {
-            documents.push({
-              type: "Documents",
-              label: `${pappersDocs.length} document(s) disponible(s) sur Pappers`,
-              url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
-              source: "pappers",
-              available: true,
-              status: "lien",
-            });
-          }
-
-          // Beneficiaires effectifs (Probleme 7)
+          // BE from Pappers (always useful)
           if (pappersData.beneficiaires_effectifs?.length > 0) {
             beneficiaires = pappersData.beneficiaires_effectifs.map((be: any) => ({
               nom: be.nom ?? "",
@@ -139,23 +296,26 @@ Deno.serve(async (req) => {
               pourcentage_parts: be.pourcentage_parts ?? 0,
               pourcentage_votes: be.pourcentage_votes ?? 0,
             }));
-
-            documents.push({
-              type: "Declaration BE",
-              label: `${beneficiaires.length} beneficiaire(s) effectif(s) identifies`,
-              url: `https://data.inpi.fr/entreprises/${cleanSiren}#beneficiaires`,
-              source: "pappers",
-              available: true,
-              status: "auto",
-            });
           }
         }
       } catch {
-        // Pappers unavailable
+        console.log("[docs] Pappers unavailable");
       }
     }
 
-    // 3. Auto-generated free links
+    // ====== PHASE 3: INPI direct link (always available) ======
+    documents.push({
+      type: "INPI RNE",
+      label: "Fiche INPI (Registre National)",
+      url: `https://data.inpi.fr/entreprises/${cleanSiren}`,
+      source: "INPI",
+      available: true,
+      status: "lien",
+      downloadable: false,
+      storageUrl: null,
+    });
+
+    // Auto-generated free links
     documents.push({
       type: "Annuaire",
       label: "Fiche Annuaire Entreprises",
@@ -163,6 +323,8 @@ Deno.serve(async (req) => {
       source: "auto",
       available: true,
       status: "lien",
+      downloadable: false,
+      storageUrl: null,
     });
 
     documents.push({
@@ -172,45 +334,52 @@ Deno.serve(async (req) => {
       source: "auto",
       available: true,
       status: "lien",
+      downloadable: false,
+      storageUrl: null,
     });
 
-    documents.push({
-      type: "Societe.com",
-      label: "Fiche Societe.com",
-      url: `https://www.societe.com/societe/${cleanSiren}.html`,
-      source: "auto",
-      available: true,
-      status: "lien",
-    });
-
-    // Required docs checklist
+    // ====== Required docs checklist ======
     const requiredDocs = ["KBIS", "Statuts", "CNI", "RIB"];
-    const foundTypes = documents.filter((d: any) => d.status === "auto").map((d: any) => d.type);
+    const foundTypes = documents.filter((d: any) => d.status === "auto" && d.downloadable).map((d: any) => d.type);
     const missing = requiredDocs.filter(r => !foundTypes.some(f => f.toUpperCase().includes(r.toUpperCase())));
 
-    // Extract finances data from Pappers (#5)
-    const finances: any = {};
-    if (pappersData?.finances) {
-      const years = Object.keys(pappersData.finances).sort().reverse();
-      for (const yr of years.slice(0, 3)) {
-        const f = pappersData.finances[yr];
-        if (f) {
-          finances[yr] = {
-            ca: f.ca ?? f.chiffre_affaires ?? null,
-            resultat: f.resultat ?? null,
-            effectif: f.effectif ?? null,
-          };
-        }
-      }
+    // Add placeholder entries for missing required docs
+    if (!documents.some(d => d.type === "CNI")) {
+      documents.push({
+        type: "CNI",
+        label: "CNI du dirigeant",
+        url: null,
+        source: null,
+        available: false,
+        status: "manquant",
+        downloadable: false,
+        storageUrl: null,
+      });
     }
+    if (!documents.some(d => d.type === "RIB")) {
+      documents.push({
+        type: "RIB",
+        label: "RIB / IBAN",
+        url: null,
+        source: null,
+        available: false,
+        status: "manquant",
+        downloadable: false,
+        storageUrl: null,
+      });
+    }
+
+    const autoRecovered = documents.filter((d: any) => d.status === "auto" || d.downloadable).length;
+
+    console.log(`[docs] === Done: ${documents.length} docs, ${autoRecovered} auto, sources: ${sources.join(",")} ===`);
 
     return new Response(JSON.stringify({
       documents,
       beneficiaires_effectifs: beneficiaires,
-      finances,
       total: documents.length,
-      autoRecovered: documents.filter((d: any) => d.status === "auto").length,
+      autoRecovered,
       missing,
+      sources,
       status: "ok",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },

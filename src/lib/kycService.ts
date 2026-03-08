@@ -76,6 +76,7 @@ export interface EnterpriseResult {
       date_prise_de_poste: string; statut_rcs: string; date_creation: string;
     }>;
   }>;
+  sources?: string[];
   source: string;
 }
 
@@ -186,11 +187,15 @@ export interface NetworkResult {
 export interface DocumentInfo {
   type: string;
   label: string;
-  url: string;
-  source: "pappers" | "inpi" | "auto";
+  url: string | null;
+  source: "Pappers" | "pappers" | "INPI" | "inpi" | "auto" | null;
   available: boolean;
   status?: "auto" | "lien" | "manquant";
   storedInSupabase?: boolean;
+  downloadable?: boolean;
+  storageUrl?: string | null;
+  dateDepot?: string;
+  dateCloture?: string;
 }
 
 export interface DocumentsResult {
@@ -199,6 +204,7 @@ export interface DocumentsResult {
   total: number;
   autoRecovered: number;
   missing?: string[];
+  sources?: string[];
   status: string;
 }
 
@@ -290,11 +296,11 @@ export const SOURCE_PRIORITY: Record<string, DataSource[]> = {
   capital: ["INPI", "Pappers", "AnnuaireEntreprises"],
   objetSocial: ["INPI"],
   duree: ["INPI"],
-  dirigeants: ["Pappers", "INPI", "AnnuaireEntreprises"],
+  dirigeants: ["INPI", "Pappers", "AnnuaireEntreprises"],
   beneficiairesEffectifs: ["Pappers", "INPI"],
-  adresse: ["AnnuaireEntreprises", "INPI", "Pappers"],
-  codeAPE: ["AnnuaireEntreprises", "INPI"],
-  effectif: ["AnnuaireEntreprises", "INPI"],
+  adresse: ["INPI", "AnnuaireEntreprises", "Pappers"],
+  codeAPE: ["INPI", "AnnuaireEntreprises"],
+  effectif: ["INPI", "AnnuaireEntreprises"],
   procedures: ["BODACC", "AnnuaireEntreprises"],
   telephone: ["Pappers"],
   email: ["Pappers"],

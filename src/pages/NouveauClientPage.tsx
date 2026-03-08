@@ -1525,36 +1525,87 @@ export default function NouveauClientPage() {
               </label>
             </div>
 
-            {/* Auto-recovered documents from Pappers */}
+            {/* Auto-recovered documents (INPI + Pappers unified) */}
             {screening.documents.data && screening.documents.data.documents.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Documents auto-recuperes</Label>
-                {screening.documents.data.documents.filter(d => d.status === "auto").map((doc, i) => (
-                  <div key={`auto-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-4 h-4 text-emerald-400" />
-                      <div>
-                        <p className="text-sm text-slate-200">{doc.label}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                          <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Auto-recupere</Badge>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-slate-400">Documents recuperes automatiquement</Label>
+                  <div className="flex items-center gap-2">
+                    <Progress value={Math.round((screening.documents.data.autoRecovered / Math.max(screening.documents.data.total, 1)) * 100)} className="w-20 h-2" />
+                    <span className="text-xs text-slate-500">{screening.documents.data.autoRecovered}/{screening.documents.data.total}</span>
+                  </div>
+                </div>
+                {screening.documents.data.documents.filter(d => d.status !== "manquant").map((doc, i) => {
+                  const isINPI = doc.source === "INPI";
+                  const isPappers = doc.source === "Pappers" || doc.source === "pappers";
+                  const isDownloadable = (doc as any).downloadable || doc.status === "auto";
+                  const isLink = doc.status === "lien";
+                  const borderColor = isDownloadable
+                    ? "border-emerald-500/20 bg-emerald-500/5"
+                    : isLink
+                      ? "border-blue-500/20 bg-blue-500/5"
+                      : "border-white/[0.06] bg-white/[0.02]";
+                  return (
+                    <div key={`doc-${i}`} className={`flex items-center justify-between p-3 rounded-lg border ${borderColor}`}>
+                      <div className="flex items-center gap-3">
+                        <FileText className={`w-4 h-4 ${isINPI ? "text-indigo-400" : isPappers ? "text-purple-400" : "text-slate-400"}`} />
+                        <div>
+                          <p className="text-sm text-slate-200">{doc.label}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
+                            {isINPI && <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI</Badge>}
+                            {isPappers && <Badge className="text-[9px] bg-purple-500/20 text-purple-400 border-0">Pappers</Badge>}
+                            {!isINPI && !isPappers && doc.source !== "auto" && doc.source && (
+                              <Badge className="text-[9px] bg-white/[0.06] text-slate-500 border-0">{doc.source}</Badge>
+                            )}
+                            {isDownloadable && (doc as any).storedInSupabase && (
+                              <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">PDF stocke</Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-2">
+                        {isDownloadable && (doc as any).storageUrl && (
+                          <a href={(doc as any).storageUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-xs bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 px-2.5 py-1 rounded flex items-center gap-1">
+                            <FileDown className="w-3 h-3" /> Telecharger PDF
+                          </a>
+                        )}
+                        {doc.url && !((doc as any).storageUrl && isDownloadable) && (
+                          <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" /> {isINPI ? "Voir sur INPI" : isPappers ? "Consulter" : "Ouvrir"}
+                          </a>
+                        )}
+                      </div>
                     </div>
-                    {doc.url && (
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3" /> Ouvrir
-                      </a>
-                    )}
+                  );
+                })}
+                {/* Missing required documents */}
+                {screening.documents.data.documents.filter(d => d.status === "manquant").map((doc, i) => (
+                  <div key={`missing-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-red-500/20 bg-red-500/5">
+                    <div className="flex items-center gap-3">
+                      <X className="w-4 h-4 text-red-400" />
+                      <div>
+                        <p className="text-sm text-slate-300">{doc.label}</p>
+                        <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0 mt-0.5">A fournir</Badge>
+                      </div>
+                    </div>
+                    <label>
+                      <input type="file" className="hidden" onChange={e => handleFileUpload(e.target.files)} />
+                      <span className="cursor-pointer text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
+                        <Upload className="w-3 h-3" /> Uploader
+                      </span>
+                    </label>
                   </div>
                 ))}
               </div>
             )}
 
-            {/* INPI auto-recovered documents */}
+            {/* INPI-specific documents (from inpi-documents edge function, if any additional) */}
             {screening.inpi.data && screening.inpi.data.documents.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Documents INPI (RNE)</Label>
+                <Label className="text-xs text-slate-400">Documents INPI (RNE) — supplementaires</Label>
                 {screening.inpi.data.documents.map((doc, i) => (
                   <div key={`inpi-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
                     <div className="flex items-center gap-3">
@@ -1563,16 +1614,16 @@ export default function NouveauClientPage() {
                         <p className="text-sm text-slate-200">{doc.label}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                          <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI — Auto-recupere</Badge>
+                          <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI</Badge>
                           {doc.storedInSupabase && (
-                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Stocke</Badge>
+                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">PDF stocke</Badge>
                           )}
                         </div>
                       </div>
                     </div>
                     {doc.url && (
                       <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3" /> Ouvrir
+                        {doc.storedInSupabase ? <><FileDown className="w-3 h-3" /> Telecharger PDF</> : <><ExternalLink className="w-3 h-3" /> Voir sur INPI</>}
                       </a>
                     )}
                   </div>
