@@ -392,6 +392,23 @@ export default function NouveauClientPage() {
               }));
             return [...prev, ...inpiBE];
           });
+        } else if (inpi.dirigeants && inpi.dirigeants.length > 0) {
+          // No BE from INPI — pre-fill with dirigeants at 0% for manual entry
+          setBeneficiaires(prev => {
+            if (prev.length > 0 && prev.some(b => b.pourcentage > 0)) return prev; // Don't overwrite if already filled
+            const existing = new Set(prev.map(b => `${b.nom.toUpperCase()}-${b.prenom.toUpperCase()}`));
+            const dirBE = inpi.dirigeants
+              .filter((d: any) => !existing.has(`${(d.nom || "").toUpperCase()}-${(d.prenom || "").toUpperCase()}`))
+              .map((d: any) => ({
+                nom: d.nom || "",
+                prenom: d.prenom || "",
+                dateNaissance: d.dateNaissance || "",
+                nationalite: d.nationalite || "Francaise",
+                pourcentage: 0,
+                pourcentageVotes: 0,
+              }));
+            return [...prev, ...dirBE];
+          });
         }
 
         // CORRECTION 3: Build provenance records
@@ -650,7 +667,7 @@ export default function NouveauClientPage() {
       setBeneficiaires(parsed);
     }
 
-    // FIX 2: Fallback SASU/EURL - if no BE found and forme = SASU or EURL, dirigeant is BE at 100%
+    // FIX 2: Fallback BE — deduce from legal form when no BE found
     if (
       !enrichedBE?.length &&
       !result.beneficiaires_details?.length &&
@@ -658,7 +675,10 @@ export default function NouveauClientPage() {
       (result.dirigeant || entData?.dirigeant)
     ) {
       const forme = (formeMatch || entData?.forme_juridique || result.forme_juridique || "").toUpperCase();
-      if (forme.includes("SASU") || forme.includes("EURL") || forme.includes("INDIVIDUEL")) {
+      const isAssocieUnique = forme.includes("SASU") || forme.includes("EURL") || forme.includes("INDIVIDUEL") || forme.includes("EI");
+
+      if (isAssocieUnique) {
+        // Associe unique → dirigeant = BE a 100%
         const dir = entData?.dirigeant || result.dirigeant || "";
         const names = dir.split(" ");
         setBeneficiaires([{
@@ -669,6 +689,19 @@ export default function NouveauClientPage() {
           pourcentage: 100,
           pourcentageVotes: 100,
         }]);
+      } else {
+        // Plusieurs dirigeants possibles (SAS, SARL, etc.) → pre-remplir avec % a 0 pour saisie manuelle
+        const dirigeantsList = entData?.dirigeants ?? [];
+        if (dirigeantsList.length > 0) {
+          setBeneficiaires(dirigeantsList.map((d: any) => ({
+            nom: d.nom || "",
+            prenom: d.prenom || "",
+            dateNaissance: d.date_naissance || "",
+            nationalite: d.nationalite || "Francaise",
+            pourcentage: 0,
+            pourcentageVotes: 0,
+          })));
+        }
       }
     }
 
@@ -1317,7 +1350,7 @@ export default function NouveauClientPage() {
               </Button>
             </div>
 
-            {!beSumOk && beneficiaires.length > 0 && (
+            {!beSumOk && beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                 <span className="text-sm text-amber-400">
@@ -1326,11 +1359,21 @@ export default function NouveauClientPage() {
               </div>
             )}
 
+            {beneficiaires.length > 0 && beneficiaires.every(b => b.pourcentage === 0) && (
+              <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-start gap-2">
+                <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
+                <div>
+                  <span className="text-sm text-orange-400 font-medium">Aucun beneficiaire effectif declare au RNE pour cette societe.</span>
+                  <p className="text-xs text-orange-400/80 mt-1">La declaration des BE est obligatoire (art. L.561-46 CMF). Veuillez saisir manuellement les pourcentages de detention ci-dessous.</p>
+                </div>
+              </div>
+            )}
+
             {beneficiaires.length === 0 && (
               <div className="text-center py-12 text-slate-500">
                 <User className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Aucun beneficiaire effectif ajoute</p>
-                <p className="text-xs mt-1">Les beneficiaires recuperes via Pappers apparaitront automatiquement</p>
+                <p className="text-xs mt-1">Utilisez le bouton + Ajouter pour saisir manuellement</p>
               </div>
             )}
 
@@ -1588,13 +1631,15 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
-            {/* SECTION 1: Documents INPI recuperes (vrais PDFs uniquement) */}
+            {/* SECTION 1: Documents INPI recuperes */}
             {(() => {
               // Merge real PDFs from documents-fetch and inpi-documents
               const docsFetch = (screening.documents.data?.documents ?? []).filter(d =>
                 (d as any).storedInSupabase === true || ((d as any).downloadable && d.status === "auto")
               );
               const docsInpi = (screening.inpi.data?.documents ?? []).filter(d => d.storedInSupabase);
+              // Also get non-stored INPI docs (needsAuth fallback)
+              const docsInpiFallback = (screening.inpi.data?.documents ?? []).filter(d => !d.storedInSupabase && (d as any).needsAuth);
               // Deduplicate by storageUrl
               const seen = new Set<string>();
               const allPdfs = [...docsFetch, ...docsInpi].filter(d => {
@@ -1603,7 +1648,15 @@ export default function NouveauClientPage() {
                 seen.add(url);
                 return true;
               });
-              return allPdfs.length > 0 ? (
+              // Deduplicate fallback docs
+              const fallbackDocs = docsInpiFallback.filter(d => {
+                const key = `${d.type}-${d.label}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+              const hasAnyDocs = allPdfs.length > 0 || fallbackDocs.length > 0;
+              return hasAnyDocs ? (
                 <div className="space-y-2">
                   <Label className="text-xs text-slate-400">Documents recuperes automatiquement (INPI)</Label>
                   {allPdfs.map((doc, i) => (
@@ -1625,6 +1678,25 @@ export default function NouveauClientPage() {
                           <FileDown className="w-3 h-3" /> Telecharger PDF
                         </a>
                       )}
+                    </div>
+                  ))}
+                  {fallbackDocs.map((doc, i) => (
+                    <div key={`fallback-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-4 h-4 text-amber-400" />
+                        <div>
+                          <p className="text-sm text-slate-200">{doc.label}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
+                            <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI</Badge>
+                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Lien direct</Badge>
+                          </div>
+                        </div>
+                      </div>
+                      <a href={`https://data.inpi.fr/entreprises/${(doc as any).inpiSiren || form.siren?.replace(/\s/g, "")}`} target="_blank" rel="noopener noreferrer"
+                        className="text-xs bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 px-2.5 py-1 rounded flex items-center gap-1">
+                        <ExternalLink className="w-3 h-3" /> Voir sur INPI
+                      </a>
                     </div>
                   ))}
                 </div>
@@ -1738,7 +1810,7 @@ export default function NouveauClientPage() {
               ];
               const hasStoredPdf = (types: string[]) => allDocs.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t)) &&
-                ((d as any).storedInSupabase === true || ((d as any).downloadable && d.status === "auto"))
+                ((d as any).storedInSupabase === true || ((d as any).downloadable && d.status === "auto") || (d as any).needsAuth)
               );
               const hasUpload = (types: string[]) => documents.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t))

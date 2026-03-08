@@ -118,7 +118,7 @@ async function downloadAndStore(
         Accept: "application/pdf, application/octet-stream, */*",
       },
       redirect: "follow",
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(60000),
     });
     if (!res.ok) {
       const errBody = await res.text().catch(() => "");
@@ -693,15 +693,30 @@ Deno.serve(async (req) => {
           : String(acteType).toLowerCase().includes("statut");
         const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") || nature.toLowerCase().includes("assembl");
 
-        documents.push({
-          type: isStatuts ? "Statuts" : isPV ? "PV AG" : "Actes",
-          label,
-          url: publicUrl ?? downloadUrl,
-          source: "inpi",
-          available: true,
-          status: publicUrl ? "auto" : "lien",
-          storedInSupabase: !!publicUrl,
-        });
+        if (publicUrl) {
+          documents.push({
+            type: isStatuts ? "Statuts" : isPV ? "PV AG" : "Actes",
+            label,
+            url: publicUrl,
+            source: "inpi",
+            available: true,
+            status: "auto",
+            storedInSupabase: true,
+          });
+        } else {
+          // Fallback: return INPI direct link (needs auth token to download)
+          documents.push({
+            type: isStatuts ? "Statuts" : isPV ? "PV AG" : "Actes",
+            label,
+            url: downloadUrl,
+            inpiSiren: cleanSiren,
+            source: "inpi",
+            available: true,
+            status: "lien_direct",
+            storedInSupabase: false,
+            needsAuth: true,
+          });
+        }
       }
 
       for (const bilan of bilans.slice(0, 3)) {
@@ -713,15 +728,29 @@ Deno.serve(async (req) => {
         const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;
         const publicUrl = await downloadAndStore(supabase, token, downloadUrl, storagePath);
 
-        documents.push({
-          type: "Comptes annuels",
-          label: `${typeBilan} — Cloture ${dateCloture}`,
-          url: publicUrl ?? downloadUrl,
-          source: "inpi",
-          available: true,
-          status: publicUrl ? "auto" : "lien",
-          storedInSupabase: !!publicUrl,
-        });
+        if (publicUrl) {
+          documents.push({
+            type: "Comptes annuels",
+            label: `${typeBilan} — Cloture ${dateCloture}`,
+            url: publicUrl,
+            source: "inpi",
+            available: true,
+            status: "auto",
+            storedInSupabase: true,
+          });
+        } else {
+          documents.push({
+            type: "Comptes annuels",
+            label: `${typeBilan} — Cloture ${dateCloture}`,
+            url: downloadUrl,
+            inpiSiren: cleanSiren,
+            source: "inpi",
+            available: true,
+            status: "lien_direct",
+            storedInSupabase: false,
+            needsAuth: true,
+          });
+        }
       }
 
       financials = parseFinancials(bilansSaisis);
