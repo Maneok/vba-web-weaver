@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { collaborateursService } from "@/lib/supabaseService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -10,9 +11,31 @@ import { Search, Users, CheckCircle2, AlertCircle, Key, Mail, UserPlus } from "l
 import { toast } from "sonner";
 
 export default function GouvernancePage() {
-  const { collaborateurs } = useAppState();
+  const { collaborateurs, isLoading, isOnline, refreshAll } = useAppState();
   const [search, setSearch] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newCollab, setNewCollab] = useState({ nom: "", fonction: "COLLABORATEUR", email: "" });
+
+  const handleAddCollab = useCallback(async () => {
+    if (!newCollab.nom) return;
+    if (isOnline) {
+      await collaborateursService.create({
+        nom: newCollab.nom,
+        fonction: newCollab.fonction,
+        email: newCollab.email,
+        referent_lcb: false,
+        suppleant: "",
+        niveau_competence: "JUNIOR",
+        date_signature_manuel: "",
+        derniere_formation: "",
+        statut_formation: "A FORMER",
+      });
+      await refreshAll();
+    }
+    setShowAddDialog(false);
+    setNewCollab({ nom: "", fonction: "COLLABORATEUR", email: "" });
+    toast.success("Collaborateur ajoute");
+  }, [newCollab, isOnline, refreshAll]);
 
   const formesOk = collaborateurs.filter(c => c.statutFormation.includes("A JOUR")).length;
   const formesKo = collaborateurs.filter(c => c.statutFormation.includes("FORMER") || c.statutFormation.includes("JAMAIS")).length;
@@ -172,10 +195,10 @@ export default function GouvernancePage() {
             <DialogTitle className="text-white">Ajouter un collaborateur</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div><Label className="text-xs text-slate-400">Nom</Label><Input className="bg-white/[0.03] border-white/[0.06]" placeholder="NOM Prenom" /></div>
+            <div><Label className="text-xs text-slate-400">Nom</Label><Input className="bg-white/[0.03] border-white/[0.06]" placeholder="NOM Prenom" value={newCollab.nom} onChange={e => setNewCollab(p => ({ ...p, nom: e.target.value }))} /></div>
             <div>
               <Label className="text-xs text-slate-400">Fonction</Label>
-              <Select defaultValue="COLLABORATEUR">
+              <Select value={newCollab.fonction} onValueChange={v => setNewCollab(p => ({ ...p, fonction: v }))}>
                 <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ASSOCIE SIGNATAIRE">Associe signataire</SelectItem>
@@ -186,8 +209,8 @@ export default function GouvernancePage() {
                 </SelectContent>
               </Select>
             </div>
-            <div><Label className="text-xs text-slate-400">Email</Label><Input className="bg-white/[0.03] border-white/[0.06]" placeholder="email@cabinet.fr" /></div>
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => { setShowAddDialog(false); toast.success("Collaborateur ajoute"); }}>
+            <div><Label className="text-xs text-slate-400">Email</Label><Input className="bg-white/[0.03] border-white/[0.06]" placeholder="email@cabinet.fr" value={newCollab.email} onChange={e => setNewCollab(p => ({ ...p, email: e.target.value }))} /></div>
+            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleAddCollab} disabled={!newCollab.nom}>
               Ajouter
             </Button>
           </div>

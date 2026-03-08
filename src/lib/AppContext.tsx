@@ -1,28 +1,141 @@
-import React, { createContext, useContext, useState, useCallback } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "@/lib/types";
 import { O90_CLIENTS, O90_COLLABORATEURS, O90_ALERTES, O90_LOGS } from "@/lib/dataLoader";
+import { clientsService, collaborateursService, registreService, logsService } from "@/lib/supabaseService";
+import { mapDbClient, mapClientToDb, mapDbCollaborateur, mapDbAlerte, mapAlerteToDb, mapDbLog } from "@/lib/dbMappers";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AppState {
   clients: Client[];
   collaborateurs: Collaborateur[];
   alertes: AlerteRegistre[];
   logs: LogEntry[];
+  isLoading: boolean;
+  isOnline: boolean; // true = connected to Supabase
   addClient: (client: Client) => void;
   updateClient: (ref: string, updates: Partial<Client>) => void;
+  deleteClient: (ref: string) => void;
   addLog: (log: LogEntry) => void;
   addAlerte: (alerte: AlerteRegistre) => void;
+  refreshClients: () => Promise<void>;
+  refreshAll: () => Promise<void>;
 }
 
 const AppContext = createContext<AppState | null>(null);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [clients, setClients] = useState<Client[]>(O90_CLIENTS);
-  const [collaborateurs] = useState<Collaborateur[]>(O90_COLLABORATEURS);
-  const [alertes, setAlertes] = useState<AlerteRegistre[]>(O90_ALERTES);
-  const [logs, setLogs] = useState<LogEntry[]>(O90_LOGS);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
+  const [alertes, setAlertes] = useState<AlerteRegistre[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOnline, setIsOnline] = useState(false);
+  const initialized = useRef(false);
+
+  // Load data from Supabase or fallback to JSON
+  const loadData = useCallback(async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        // No auth session: use local JSON data
+        setClients(O90_CLIENTS);
+        setCollaborateurs(O90_COLLABORATEURS);
+        setAlertes(O90_ALERTES);
+        setLogs(O90_LOGS);
+        setIsOnline(false);
+        setIsLoading(false);
+        return;
+      }
+
+      // Authenticated: load from Supabase
+      const [dbClients, dbCollabs, dbAlertes, dbLogs] = await Promise.all([
+        clientsService.getAll(),
+        collaborateursService.getAll(),
+        registreService.getAll(),
+        logsService.getAll(),
+      ]);
+
+      // If Supabase has data, use it; otherwise fallback to JSON
+      if (dbClients.length > 0) {
+        setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
+        setIsOnline(true);
+      } else {
+        setClients(O90_CLIENTS);
+        setIsOnline(false);
+      }
+
+      if (dbCollabs.length > 0) {
+        setCollaborateurs(dbCollabs.map((r: Record<string, unknown>) => mapDbCollaborateur(r)));
+      } else {
+        setCollaborateurs(O90_COLLABORATEURS);
+      }
+
+      if (dbAlertes.length > 0) {
+        setAlertes(dbAlertes.map((r: Record<string, unknown>) => mapDbAlerte(r)));
+      } else {
+        setAlertes(O90_ALERTES);
+      }
+
+      if (dbLogs.length > 0) {
+        setLogs(dbLogs.map((r: Record<string, unknown>) => mapDbLog(r)));
+      } else {
+        setLogs(O90_LOGS);
+      }
+
+      setIsOnline(true);
+    } catch (err) {
+      console.error("[AppContext] Failed to load from Supabase, using local data:", err);
+      setClients(O90_CLIENTS);
+      setCollaborateurs(O90_COLLABORATEURS);
+      setAlertes(O90_ALERTES);
+      setLogs(O90_LOGS);
+      setIsOnline(false);
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+    loadData();
+
+    // Re-load when auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      loadData();
+    });
+    return () => subscription.unsubscribe();
+  }, [loadData]);
+
+  const refreshClients = useCallback(async () => {
+    if (!isOnline) return;
+    const dbClients = await clientsService.getAll();
+    if (dbClients.length > 0) {
+      setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
+    }
+  }, [isOnline]);
+
+  const refreshAll = useCallback(async () => {
+    await loadData();
+  }, [loadData]);
 
   const addClient = useCallback((client: Client) => {
-    setClients(prev => [...prev, client]);
+    // Optimistic update
+    setClients(prev => [client, ...prev]);
+
+    // Persist to Supabase in background
+    if (isOnline) {
+      const dbRow = mapClientToDb(client);
+      clientsService.create(dbRow).then((result) => {
+        if (!result) {
+          console.error("[AppContext] Failed to persist client to Supabase");
+        }
+        // Log creation
+        logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients");
+      });
+    }
+
+    // Local log entry
     setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
       utilisateur: "Utilisateur",
@@ -30,10 +143,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       typeAction: "CREATION",
       details: `Nouveau dossier cree: ${client.raisonSociale}`,
     }, ...prev]);
-  }, []);
+  }, [isOnline]);
 
   const updateClient = useCallback((ref: string, updates: Partial<Client>) => {
+    // Optimistic update
     setClients(prev => prev.map(c => c.ref === ref ? { ...c, ...updates } : c));
+
+    // Persist to Supabase
+    if (isOnline) {
+      const dbUpdates = mapClientToDb(updates);
+      clientsService.updateByRef(ref, dbUpdates).then((result) => {
+        if (!result) {
+          console.error("[AppContext] Failed to update client in Supabase");
+        }
+        logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients");
+      });
+    }
+
     setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
       utilisateur: "Utilisateur",
@@ -41,18 +167,48 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       typeAction: "REVUE/MAJ",
       details: `Mise a jour du dossier`,
     }, ...prev]);
-  }, []);
+  }, [isOnline]);
+
+  const deleteClient = useCallback((ref: string) => {
+    const client = clients.find(c => c.ref === ref);
+    setClients(prev => prev.filter(c => c.ref !== ref));
+
+    if (isOnline && client) {
+      // Find client by ref to get id, then delete
+      clientsService.getByRef(ref).then((dbClient) => {
+        if (dbClient?.id) {
+          clientsService.delete(dbClient.id as string);
+          logsService.add("SUPPRESSION", `Dossier supprime: ${client.raisonSociale}`, ref, "clients");
+        }
+      });
+    }
+  }, [isOnline, clients]);
 
   const addLog = useCallback((log: LogEntry) => {
     setLogs(prev => [log, ...prev]);
-  }, []);
+
+    if (isOnline) {
+      logsService.add(log.typeAction, log.details, log.refClient, "");
+    }
+  }, [isOnline]);
 
   const addAlerte = useCallback((alerte: AlerteRegistre) => {
-    setAlertes(prev => [...prev, alerte]);
-  }, []);
+    setAlertes(prev => [alerte, ...prev]);
+
+    if (isOnline) {
+      const dbRow = mapAlerteToDb(alerte);
+      registreService.create(dbRow);
+      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre");
+    }
+  }, [isOnline]);
 
   return (
-    <AppContext.Provider value={{ clients, collaborateurs, alertes, logs, addClient, updateClient, addLog, addAlerte }}>
+    <AppContext.Provider value={{
+      clients, collaborateurs, alertes, logs,
+      isLoading, isOnline,
+      addClient, updateClient, deleteClient, addLog, addAlerte,
+      refreshClients, refreshAll,
+    }}>
       {children}
     </AppContext.Provider>
   );
