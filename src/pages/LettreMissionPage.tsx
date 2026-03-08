@@ -1,39 +1,44 @@
 import { useState, useMemo, useEffect, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
-import {
-  generateFromClient,
-  renderToPdf,
-  renderToDocx,
-  validateLettreMission,
-} from "@/lib/lettreMissionEngine";
 import { supabase } from "@/integrations/supabase/client";
-import type { CabinetConfig } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
-import type { Genre } from "@/lib/lettreMissionContent";
+import {
+  DEFAULT_TEMPLATE,
+  replaceTemplateVariables,
+  type TemplateSection,
+} from "@/lib/lettreMissionTemplate";
+import LettreMissionA4Preview from "@/components/lettre-mission/LettreMissionA4Preview";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import {
   ArrowLeft,
   FileDown,
   FileText,
-  AlertTriangle,
-  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  RotateCcw,
   Save,
-  Mail,
-  Check,
+  Eye,
+  Lock,
 } from "lucide-react";
-import ClientSelector from "@/components/lettre-mission/ClientSelector";
-import LettreMissionEditor, {
-  buildDefaultEditorState,
-  type EditorState,
-} from "@/components/lettre-mission/LettreMissionEditor";
-import LettreMissionPreviewV2 from "@/components/lettre-mission/LettreMissionPreviewV2";
 
-// ── Constants ──
-const DEFAULT_CABINET: CabinetConfig = {
+// ── Cabinet config (from localStorage or defaults) ──
+interface CabinetInfo {
+  nom: string;
+  adresse: string;
+  cp: string;
+  ville: string;
+  siret: string;
+  numeroOEC: string;
+  email: string;
+  telephone: string;
+}
+
+const DEFAULT_CABINET: CabinetInfo = {
   nom: "Cabinet d'Expertise Comptable",
   adresse: "1 rue de la Paix",
   cp: "75001",
@@ -42,262 +47,234 @@ const DEFAULT_CABINET: CabinetConfig = {
   numeroOEC: "00-000000",
   email: "contact@cabinet.fr",
   telephone: "01 00 00 00 00",
-  couleurPrimaire: "#1E3A5F",
-  couleurSecondaire: "#3B82F6",
-  police: "system-ui",
 };
 
-type LetterStatus = "brouillon" | "finalisee" | "envoyee";
-type ViewTab = "editeur" | "apercu";
+function loadCabinet(): CabinetInfo {
+  try {
+    const stored = localStorage.getItem("lcb-cabinet-config");
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...DEFAULT_CABINET, ...parsed };
+    }
+  } catch {
+    /* ignore */
+  }
+  return DEFAULT_CABINET;
+}
 
-const STATUS_CONFIG: Record<LetterStatus, { label: string; className: string }> = {
-  brouillon: { label: "Brouillon", className: "bg-slate-500/20 text-slate-300 border-slate-500/30" },
-  finalisee: { label: "Finalisée", className: "bg-blue-500/20 text-blue-300 border-blue-500/30" },
-  envoyee: { label: "Envoyée", className: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" },
-};
-
-const SECTIONS = [
-  { id: 1, label: "Introduction" },
-  { id: 2, label: "Entité" },
-  { id: 3, label: "LCB-FT" },
-  { id: 4, label: "Mission" },
-  { id: 5, label: "Durée" },
-  { id: 6, label: "Missions comp." },
-  { id: 7, label: "Honoraires" },
-  { id: 8, label: "Paiement" },
-  { id: 9, label: "Conclusion" },
-  { id: 10, label: "Annexes" },
-];
-
-// ── Main Component ──
+// ══════════════════════════════════════════════
+// Main Component
+// ══════════════════════════════════════════════
 export default function LettreMissionPage() {
-  const { ref } = useParams<{ ref: string }>();
   const navigate = useNavigate();
   const { clients } = useAppState();
-  const contentRef = useRef<HTMLDivElement>(null);
+  const cabinet = useMemo(() => loadCabinet(), []);
 
-  const [selectedRef, setSelectedRef] = useState<string | null>(ref ?? null);
-  const [genre, setGenre] = useState<Genre>("M");
-  const [editorState, setEditorState] = useState<EditorState>(() =>
-    buildDefaultEditorState(ref ? clients.find((c) => c.ref === ref) : null)
-  );
-  const [activeTab, setActiveTab] = useState<ViewTab>("editeur");
-  const [status, setStatus] = useState<LetterStatus>("brouillon");
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [focusedSection, setFocusedSection] = useState<string | undefined>();
-  const [lmNumero, setLmNumero] = useState<string>(() => {
-    const year = new Date().getFullYear();
-    try {
-      const stored = localStorage.getItem("lcb_lm_counter");
-      if (stored) {
-        const parsed = JSON.parse(stored);
-        if (parsed.year === year) return `LM-${year}-${String(parsed.count + 1).padStart(3, "0")}`;
-      }
-    } catch { /* ignore */ }
-    return `LM-${year}-001`;
+  // ── Template state ──
+  const [template, setTemplate] = useState<TemplateSection[]>(DEFAULT_TEMPLATE);
+  const [templateLoaded, setTemplateLoaded] = useState(false);
+  const [templateSaving, setTemplateSaving] = useState(false);
+
+  // ── Generate state ──
+  const [selectedRef, setSelectedRef] = useState<string>("");
+  const [genre, setGenre] = useState<"M" | "Mme">("M");
+  const [missions, setMissions] = useState({
+    sociale: false,
+    juridique: false,
+    fiscal: false,
   });
+  const [honoraires, setHonoraires] = useState({
+    comptable: 0,
+    constitution: 0,
+    juridique: 0,
+    frequence: "MENSUEL" as "MENSUEL" | "TRIMESTRIEL" | "ANNUEL",
+  });
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+
+  // ── Collapsed sections (modèle tab) ──
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const client = useMemo(
     () => clients.find((c) => c.ref === selectedRef) ?? null,
     [clients, selectedRef]
   );
 
-  const validation = useMemo(
-    () => (client ? validateLettreMission(client, DEFAULT_CABINET) : null),
-    [client]
-  );
-
-  const handleClientSelected = useCallback((c: Client) => {
-    setSelectedRef(c.ref);
-    // Try to load saved draft from localStorage
-    try {
-      const saved = localStorage.getItem(`lm_draft_${c.ref}`);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.sections && parsed.missions && parsed.honoraires) {
-          setEditorState({
-            genre: parsed.genre || "M",
-            sections: parsed.sections,
-            missions: parsed.missions,
-            honoraires: parsed.honoraires,
-          });
-          setStatus("brouillon");
-          setLastSaved(parsed.savedAt ? new Date(parsed.savedAt) : null);
+  // ── Load template from Supabase on mount ──
+  useEffect(() => {
+    async function loadTemplate() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          setTemplateLoaded(true);
           return;
         }
+        const { data } = await supabase
+          .from("parametres")
+          .select("valeur")
+          .eq("user_id", user.id)
+          .eq("cle", "modele_lettre_mission")
+          .maybeSingle();
+        if (data?.valeur) {
+          setTemplate(data.valeur as unknown as TemplateSection[]);
+        }
+      } catch (err) {
+        console.warn("[loadTemplate] Failed:", err);
+      } finally {
+        setTemplateLoaded(true);
       }
-    } catch { /* ignore, use default */ }
-    setEditorState(buildDefaultEditorState(c));
-    setStatus("brouillon");
-    setLastSaved(null);
+    }
+    loadTemplate();
   }, []);
 
-  // Build options from editor state for PDF/DOCX export
-  const buildOptions = useCallback(() => ({
-    genre: genre === "M" ? ("M" as const) : ("F" as const),
-    missionSociale: editorState.missions.sociale,
-    missionJuridique: editorState.missions.juridique,
-    missionControleFiscal: editorState.missions.controleFiscal,
-    honorairesSocial: 0,
-    honorairesJuridique: editorState.honoraires.honoraires_juridique,
-    honorairesControleFiscal: 0,
-    fraisConstitution: editorState.honoraires.setup,
-    exerciceDebut: "01/01/2026",
-    exerciceFin: "31/12/2026",
-    regimeFiscal: "IS — Impôt sur les Sociétés",
-    tvaRegime: "Réel normal",
-    cac: false,
-    volumeComptable: "< 500 écritures/an",
-    periodicite: editorState.honoraires.frequence === "mensuel" ? "Mensuelle" : "Trimestrielle",
-    outilComptable: "Non précisé",
-    controleFiscalOptions: editorState.missions.controleFiscalOption
-      ? [editorState.missions.controleFiscalOption]
-      : [],
-  }), [genre, editorState]);
-
-  // Section completion status based on editor state
-  const sectionStatus = useMemo(() => {
-    if (!client) return SECTIONS.map(() => "grey" as const);
-    const s = editorState.sections;
-    return SECTIONS.map((_, i) => {
-      const section = s[i];
-      if (!section) return "green" as const;
-      if (!section.visible) return "grey" as const;
-      if (section.editable && (!section.content || section.content.trim().length < 10)) return "orange" as const;
-      return "green" as const;
-    });
-  }, [client, editorState.sections]);
-
-  const completedCount = sectionStatus.filter((s) => s === "green").length;
-  const progressPercent = SECTIONS.length > 0 ? Math.round((completedCount / SECTIONS.length) * 100) : 0;
-
-  // ── Export handlers with try/catch ──
-  const handleExportPdf = useCallback(() => {
+  // ── Auto-fill honoraires when client changes ──
+  useEffect(() => {
     if (!client) return;
-    if (validation && !validation.valid) {
-      toast.error(`Champs manquants : ${validation.champsManquants.join(", ")}`);
-      return;
-    }
+    setHonoraires({
+      comptable: client.honoraires || 0,
+      constitution: client.reprise || 0,
+      juridique: client.juridique || 0,
+      frequence:
+        client.frequence?.toLowerCase() === "trimestriel"
+          ? "TRIMESTRIEL"
+          : client.frequence?.toLowerCase() === "annuel"
+          ? "ANNUEL"
+          : "MENSUEL",
+    });
+  }, [client]);
+
+  // ── Save template to Supabase ──
+  const handleSaveTemplate = useCallback(async () => {
+    setTemplateSaving(true);
     try {
-      const opts = buildOptions();
-      const lm = generateFromClient(client, DEFAULT_CABINET, opts);
-      // Attach editor sections so PDF uses the actual edited content
-      lm.editorSections = editorState.sections.map((s) => ({
-        id: s.id,
-        title: s.title,
-        visible: s.visible,
-        content: s.content,
-      }));
-      renderToPdf(lm);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error("Vous devez être connecté pour sauvegarder le modèle");
+        return;
+      }
+      const { error } = await supabase.from("parametres").upsert(
+        {
+          user_id: user.id,
+          cle: "modele_lettre_mission",
+          valeur: template as unknown as Record<string, unknown>,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id,cle" }
+      );
+      if (error) throw error;
+      toast.success("Modèle sauvegardé");
+    } catch (err) {
+      console.error("[saveTemplate]", err);
+      toast.error("Erreur lors de la sauvegarde");
+    } finally {
+      setTemplateSaving(false);
+    }
+  }, [template]);
+
+  const handleResetTemplate = useCallback(() => {
+    setTemplate(DEFAULT_TEMPLATE);
+    toast.success("Modèle réinitialisé");
+  }, []);
+
+  // ── Update a section's content ──
+  const updateSectionContent = useCallback(
+    (id: string, content: string) => {
+      setTemplate((prev) =>
+        prev.map((s) => (s.id === id ? { ...s, content } : s))
+      );
+    },
+    []
+  );
+
+  const toggleCollapse = useCallback((id: string) => {
+    setCollapsed((prev) => ({ ...prev, [id]: !prev[id] }));
+  }, []);
+
+  // ── Build variables for preview ──
+  const previewVariables = useMemo(() => {
+    if (!client) return {};
+    const formule = genre === "Mme" ? "Madame" : "Monsieur";
+    const now = new Date();
+    return {
+      formule_politesse: formule,
+      dirigeant: client.dirigeant,
+      raison_sociale: client.raisonSociale,
+      forme_juridique: client.forme,
+      adresse: client.adresse,
+      code_postal: client.cp,
+      ville: client.ville,
+      siren: client.siren,
+      frequence: client.frequence,
+      date_du_jour: now.toLocaleDateString("fr-FR", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      }),
+      date_cloture: `31/12/${now.getFullYear()}`,
+      associe: client.associe,
+      nom_cabinet: cabinet.nom,
+      ville_cabinet: cabinet.ville,
+      iban: client.iban
+        ? client.iban.replace(/(.{4})/g, "$1 ").trim()
+        : "",
+      bic: client.bic || "",
+    } as Record<string, string>;
+  }, [client, genre, cabinet]);
+
+  // ── Export PDF ──
+  const handleExportPdf = useCallback(async () => {
+    if (!client) return;
+    try {
+      const { renderNewLettreMissionPdf } = await import(
+        "@/lib/lettreMissionPdf"
+      );
+      renderNewLettreMissionPdf({
+        sections: template,
+        client,
+        genre,
+        missions,
+        honoraires,
+        cabinet,
+        variables: previewVariables,
+      });
       toast.success("PDF généré avec succès");
-    } catch {
+    } catch (err) {
+      console.error("[PDF]", err);
       toast.error("Erreur lors de la génération du PDF");
     }
-  }, [client, validation, buildOptions, editorState.sections]);
+  }, [client, template, genre, missions, honoraires, cabinet, previewVariables]);
 
+  // ── Export DOCX ──
   const handleExportDocx = useCallback(async () => {
     if (!client) return;
-    if (validation && !validation.valid) {
-      toast.error(`Champs manquants : ${validation.champsManquants.join(", ")}`);
-      return;
-    }
     try {
-      const opts = buildOptions();
-      const lm = generateFromClient(client, DEFAULT_CABINET, opts);
-      lm.editorSections = editorState.sections.map((s) => ({
-        id: s.id,
-        title: s.title,
-        visible: s.visible,
-        content: s.content,
-      }));
-      await renderToDocx(lm);
+      const { renderNewLettreMissionDocx } = await import(
+        "@/lib/lettreMissionDocx"
+      );
+      await renderNewLettreMissionDocx({
+        sections: template,
+        client,
+        genre,
+        missions,
+        honoraires,
+        cabinet,
+        variables: previewVariables,
+      });
       toast.success("DOCX généré avec succès");
-    } catch {
+    } catch (err) {
+      console.error("[DOCX]", err);
       toast.error("Erreur lors de la génération du DOCX");
     }
-  }, [client, validation, buildOptions, editorState.sections]);
-
-  const handleSave = useCallback(async () => {
-    if (!client) return;
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("lettres_mission").upsert({
-          user_id: user.id,
-          client_ref: client.ref,
-          numero: lmNumero,
-          status: "brouillon",
-          data: {
-            sections: editorState.sections,
-            missions: editorState.missions,
-            honoraires: editorState.honoraires,
-            genre,
-          },
-          updated_at: new Date().toISOString(),
-        }, { onConflict: "client_ref,user_id" });
-      }
-    } catch (err) {
-      console.warn("[handleSave] Supabase save failed, saving locally:", err);
-    }
-    // Always save locally as fallback
-    try {
-      localStorage.setItem(`lm_draft_${client.ref}`, JSON.stringify({
-        sections: editorState.sections,
-        missions: editorState.missions,
-        honoraires: editorState.honoraires,
-        genre,
-        savedAt: new Date().toISOString(),
-      }));
-    } catch { /* ignore */ }
-    setLastSaved(new Date());
-    setStatus("finalisee");
-    toast.success("Lettre sauvegardée");
-  }, [client, editorState, genre, lmNumero]);
-
-  const handleEmail = useCallback(() => {
-    setStatus("envoyee");
-    toast.success("Email envoyé (simulation)");
-  }, []);
-
-  // ── Keyboard shortcuts ──
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-      if (mod && e.key === "p") {
-        e.preventDefault();
-        handleExportPdf();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [handleSave, handleExportPdf]);
-
-  // ── Section scroll ──
-  const scrollToSection = useCallback((sectionId: number) => {
-    const el = contentRef.current?.querySelector(`[data-section="${sectionId}"]`);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
-
-  // ── Time since last save ──
-  const timeSinceSave = useMemo(() => {
-    if (!lastSaved) return null;
-    const diff = Math.round((Date.now() - lastSaved.getTime()) / 60000);
-    if (diff < 1) return "à l'instant";
-    return `il y a ${diff} min`;
-  }, [lastSaved]);
-
-  const statusConf = STATUS_CONFIG[status];
+  }, [client, template, genre, missions, honoraires, cabinet, previewVariables]);
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 4rem)" }}>
-      {/* ═══ TOOLBAR — Sticky within outlet ═══ */}
+      {/* ═══ TOOLBAR ═══ */}
       <div className="sticky top-0 z-20 bg-slate-900 border-b border-white/10 shrink-0">
-        {/* Line 1: Back + Title + Status | Tab switcher + Export */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
+        <div className="flex items-center justify-between px-4 py-2">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -307,42 +284,20 @@ export default function LettreMissionPage() {
             >
               <ArrowLeft className="w-4 h-4" /> Retour
             </Button>
-            <h1 className="text-sm font-semibold text-white">Lettre de Mission</h1>
-            {client && (
-              <span className="text-xs text-slate-400 font-mono">{lmNumero}</span>
-            )}
-            <Badge variant="outline" className={`text-xs ${statusConf.className}`}>
-              {statusConf.label}
-            </Badge>
+            <h1 className="text-sm font-semibold text-white">
+              Lettre de Mission
+            </h1>
           </div>
-
           <div className="flex items-center gap-2">
-            {/* Tab switcher */}
-            <div className="flex rounded-md border border-white/10 overflow-hidden">
-              <button
-                onClick={() => setActiveTab("editeur")}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  activeTab === "editeur"
-                    ? "bg-white/10 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Éditeur
-              </button>
-              <button
-                onClick={() => setActiveTab("apercu")}
-                className={`px-3 py-1.5 text-xs font-medium transition-colors ${
-                  activeTab === "apercu"
-                    ? "bg-white/10 text-white"
-                    : "text-slate-400 hover:text-white"
-                }`}
-              >
-                Aperçu
-              </button>
-            </div>
-
-            <div className="w-px h-5 bg-white/10" />
-
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowPreviewModal(true)}
+              disabled={!client}
+              className="gap-1 text-xs"
+            >
+              <Eye className="h-3.5 w-3.5" /> Aperçu
+            </Button>
             <Button
               size="sm"
               variant="outline"
@@ -363,127 +318,354 @@ export default function LettreMissionPage() {
             </Button>
           </div>
         </div>
-
-        {/* Line 2: Client selector + Validation */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-white/[0.06]">
-          <div className="flex items-center gap-2">
-            <ClientSelector
-              selectedRef={selectedRef}
-              onClientSelected={handleClientSelected}
-            />
-
-            {validation && (
-              <Badge
-                variant="outline"
-                className={`text-xs h-6 ${
-                  validation.valid
-                    ? "border-emerald-500/30 text-emerald-400"
-                    : "border-amber-500/30 text-amber-400"
-                }`}
-              >
-                {validation.valid ? (
-                  <><CheckCircle2 className="w-3 h-3 mr-1" /> Dossier complet</>
-                ) : (
-                  <><AlertTriangle className="w-3 h-3 mr-1" /> {validation.champsManquants.length} champ(s) manquant(s)</>
-                )}
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        {/* Line 3: Save + Email + last saved | Progress */}
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-2">
-            <Button
-              size="sm"
-              onClick={handleSave}
-              disabled={!client}
-              className="gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white h-7"
-            >
-              <Save className="h-3.5 w-3.5" /> Sauvegarder
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleEmail}
-              disabled={!client}
-              className="gap-1 text-xs h-7"
-            >
-              <Mail className="h-3.5 w-3.5" /> Email
-            </Button>
-            {timeSinceSave && (
-              <span className="text-[11px] text-slate-500 flex items-center gap-1">
-                <Check className="w-3 h-3 text-emerald-500" />
-                Dernière sauvegarde : {timeSinceSave}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400">
-              {completedCount}/{SECTIONS.length} sections — {progressPercent}%
-            </span>
-            <Progress value={progressPercent} className="w-32 h-1.5" />
-          </div>
-        </div>
       </div>
 
       {/* ═══ BODY ═══ */}
-      <div className="flex-1 overflow-hidden">
-        {/* ── APERÇU MODE ── */}
-        {activeTab === "apercu" && (
-          <div className="h-full overflow-auto">
-            <LettreMissionPreviewV2
-              clientData={client}
-              sections={editorState.sections}
-              missionsActives={editorState.missions}
-              genre={genre}
-              honoraires={editorState.honoraires}
-              activeSectionId={focusedSection}
-            />
+      <div className="flex-1 overflow-auto">
+        <Tabs defaultValue="modele" className="h-full flex flex-col">
+          <div className="px-4 pt-3 shrink-0">
+            <TabsList className="bg-slate-800/50">
+              <TabsTrigger value="modele">Modèle</TabsTrigger>
+              <TabsTrigger value="generer">Générer</TabsTrigger>
+            </TabsList>
           </div>
-        )}
 
-        {/* ── ÉDITEUR MODE ── */}
-        {activeTab === "editeur" && (
-          <div className="flex h-full">
-            {/* Section nav sidebar — compact, does NOT overlap content */}
-            <div className="w-8 shrink-0 bg-slate-900/50 border-r border-white/[0.06] overflow-y-auto">
-              <div className="flex flex-col items-center py-3 gap-1.5">
-                {SECTIONS.map((s, i) => {
-                  const st = sectionStatus[i];
-                  return (
+          {/* ═══ ONGLET 1: MODÈLE ═══ */}
+          <TabsContent value="modele" className="flex-1 overflow-auto px-4 pb-6">
+            {/* Actions */}
+            <div className="flex items-center gap-2 py-3 sticky top-0 z-10 bg-slate-900/95 backdrop-blur">
+              <Button
+                size="sm"
+                onClick={handleSaveTemplate}
+                disabled={templateSaving}
+                className="gap-1 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              >
+                <Save className="h-3.5 w-3.5" />
+                {templateSaving ? "Sauvegarde..." : "Sauvegarder le modèle"}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleResetTemplate}
+                className="gap-1 text-xs"
+              >
+                <RotateCcw className="h-3.5 w-3.5" /> Réinitialiser
+              </Button>
+            </div>
+
+            {/* Sections */}
+            <div className="space-y-2">
+              {template.map((section) => {
+                const isCollapsed = collapsed[section.id] ?? true;
+                return (
+                  <div
+                    key={section.id}
+                    className="border border-white/10 rounded-lg overflow-hidden"
+                  >
+                    {/* Header */}
                     <button
-                      key={s.id}
-                      onClick={() => scrollToSection(s.id)}
-                      title={s.label}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold transition-all hover:scale-110 ${
-                        st === "green"
-                          ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
-                          : st === "orange"
-                          ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
-                          : "bg-slate-700/30 text-slate-500 border border-white/[0.06]"
-                      }`}
+                      onClick={() => toggleCollapse(section.id)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-800/50 hover:bg-slate-800 transition-colors text-left"
                     >
-                      {st === "green" ? "✓" : s.id}
+                      <div className="flex items-center gap-2">
+                        {isCollapsed ? (
+                          <ChevronRight className="w-4 h-4 text-slate-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-slate-400" />
+                        )}
+                        <span className="text-sm font-medium text-slate-200">
+                          {section.title}
+                        </span>
+                        {section.type === "conditional" && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                            {section.condition}
+                          </span>
+                        )}
+                        {section.type === "annexe" && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                            annexe
+                          </span>
+                        )}
+                      </div>
+                      {!section.editable && (
+                        <Lock className="w-3.5 h-3.5 text-slate-500" />
+                      )}
                     </button>
-                  );
-                })}
+
+                    {/* Body */}
+                    {!isCollapsed && (
+                      <div className="px-4 py-3 border-t border-white/[0.06]">
+                        {!section.editable ? (
+                          <div>
+                            <div className="text-xs text-amber-400/80 mb-2 flex items-center gap-1">
+                              <Lock className="w-3 h-3" />
+                              Ce contenu est généré automatiquement
+                            </div>
+                            <div className="text-sm text-slate-400 bg-slate-800/30 rounded p-3 whitespace-pre-wrap font-mono">
+                              {section.content}
+                            </div>
+                          </div>
+                        ) : (
+                          <textarea
+                            value={section.content}
+                            onChange={(e) =>
+                              updateSectionContent(section.id, e.target.value)
+                            }
+                            className="w-full rounded-md border border-white/10 p-3 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-y"
+                            style={{
+                              fontSize: 15,
+                              color: "#e2e8f0",
+                              backgroundColor: "hsl(217 33% 14%)",
+                              minHeight: 100,
+                              lineHeight: 1.6,
+                              fontFamily: "inherit",
+                            }}
+                            rows={
+                              Math.min(
+                                20,
+                                Math.max(4, section.content.split("\n").length + 1)
+                              )
+                            }
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </TabsContent>
+
+          {/* ═══ ONGLET 2: GÉNÉRER ═══ */}
+          <TabsContent value="generer" className="flex-1 overflow-auto">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+              {/* Left panel — Config */}
+              <div className="overflow-auto border-r border-white/10 p-4 space-y-4">
+                {/* Client selector */}
+                <div>
+                  <Label className="text-xs text-slate-400 mb-1.5 block">
+                    Sélectionner un client
+                  </Label>
+                  <select
+                    value={selectedRef}
+                    onChange={(e) => setSelectedRef(e.target.value)}
+                    className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  >
+                    <option value="">-- Choisir un client --</option>
+                    {clients.map((c) => (
+                      <option key={c.ref} value={c.ref}>
+                        {c.raisonSociale} ({c.ref})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {client && (
+                  <>
+                    {/* Client info card */}
+                    <div className="border border-white/10 rounded-lg p-4">
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+                        Informations client
+                      </h3>
+                      <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+                        {[
+                          ["Raison sociale", client.raisonSociale],
+                          ["Forme", client.forme],
+                          ["SIREN", client.siren],
+                          ["Dirigeant", client.dirigeant],
+                          ["Adresse", `${client.adresse}, ${client.cp} ${client.ville}`],
+                          ["Associé", client.associe],
+                          ["Vigilance", client.nivVigilance],
+                          ["Score LCB-FT", `${client.scoreGlobal}/100`],
+                        ].map(([label, value]) => (
+                          <div key={label}>
+                            <span className="text-slate-500 text-xs">{label}</span>
+                            <div className="text-slate-200 truncate">{value || "—"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Genre */}
+                    <div>
+                      <Label className="text-xs text-slate-400 mb-1.5 block">
+                        Formule de politesse
+                      </Label>
+                      <select
+                        value={genre}
+                        onChange={(e) => setGenre(e.target.value as "M" | "Mme")}
+                        className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm"
+                      >
+                        <option value="M">M. (Monsieur)</option>
+                        <option value="Mme">Mme (Madame)</option>
+                      </select>
+                    </div>
+
+                    {/* Missions toggles */}
+                    <div className="border border-white/10 rounded-lg p-4 space-y-3">
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        Missions complémentaires
+                      </h3>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm text-slate-300">
+                          Mission sociale
+                        </Label>
+                        <Switch
+                          checked={missions.sociale}
+                          onCheckedChange={(v) =>
+                            setMissions((p) => ({ ...p, sociale: v }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm text-slate-300">
+                          Mission juridique
+                        </Label>
+                        <Switch
+                          checked={missions.juridique}
+                          onCheckedChange={(v) =>
+                            setMissions((p) => ({ ...p, juridique: v }))
+                          }
+                        />
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <Label className="text-sm text-slate-300">
+                          Contrôle fiscal
+                        </Label>
+                        <Switch
+                          checked={missions.fiscal}
+                          onCheckedChange={(v) =>
+                            setMissions((p) => ({ ...p, fiscal: v }))
+                          }
+                        />
+                      </div>
+                    </div>
+
+                    {/* Honoraires */}
+                    <div className="border border-white/10 rounded-lg p-4 space-y-3">
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
+                        Honoraires
+                      </h3>
+                      <div>
+                        <Label className="text-xs text-slate-500">
+                          Forfait comptable annuel (€ HT)
+                        </Label>
+                        <input
+                          type="number"
+                          value={honoraires.comptable}
+                          onChange={(e) =>
+                            setHonoraires((p) => ({
+                              ...p,
+                              comptable: Number(e.target.value),
+                            }))
+                          }
+                          className="w-full mt-1 rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500">
+                          Constitution / Reprise dossier (€ HT)
+                        </Label>
+                        <input
+                          type="number"
+                          value={honoraires.constitution}
+                          onChange={(e) =>
+                            setHonoraires((p) => ({
+                              ...p,
+                              constitution: Number(e.target.value),
+                            }))
+                          }
+                          className="w-full mt-1 rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500">
+                          Juridique annuel (€ HT)
+                        </Label>
+                        <input
+                          type="number"
+                          value={honoraires.juridique}
+                          onChange={(e) =>
+                            setHonoraires((p) => ({
+                              ...p,
+                              juridique: Number(e.target.value),
+                            }))
+                          }
+                          className="w-full mt-1 rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-500">
+                          Fréquence de facturation
+                        </Label>
+                        <select
+                          value={honoraires.frequence}
+                          onChange={(e) =>
+                            setHonoraires((p) => ({
+                              ...p,
+                              frequence: e.target.value as
+                                | "MENSUEL"
+                                | "TRIMESTRIEL"
+                                | "ANNUEL",
+                            }))
+                          }
+                          className="w-full mt-1 rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm"
+                        >
+                          <option value="MENSUEL">Mensuel</option>
+                          <option value="TRIMESTRIEL">Trimestriel</option>
+                          <option value="ANNUEL">Annuel</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Right panel — Live preview */}
+              <div className="overflow-auto bg-slate-950/50">
+                {client ? (
+                  <LettreMissionA4Preview
+                    sections={template}
+                    client={client}
+                    genre={genre}
+                    missions={missions}
+                    honoraires={honoraires}
+                    cabinet={cabinet}
+                  />
+                ) : (
+                  <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+                    Sélectionnez un client pour prévisualiser la lettre
+                  </div>
+                )}
               </div>
             </div>
-
-            {/* Editor content */}
-            <div ref={contentRef} className="flex-1 overflow-auto">
-              <LettreMissionEditor
-                client={client}
-                genre={genre}
-                onGenreChange={setGenre}
-                onStateChange={setEditorState}
-              />
-            </div>
-          </div>
-        )}
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* ═══ FULLSCREEN PREVIEW MODAL ═══ */}
+      {showPreviewModal && client && (
+        <div className="fixed inset-0 z-50 bg-black/80 overflow-auto">
+          <div className="sticky top-0 z-10 flex justify-end p-4">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowPreviewModal(false)}
+              className="bg-slate-900/90 text-white"
+            >
+              Fermer
+            </Button>
+          </div>
+          <LettreMissionA4Preview
+            sections={template}
+            client={client}
+            genre={genre}
+            missions={missions}
+            honoraires={honoraires}
+            cabinet={cabinet}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -399,3 +399,226 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
   const blob = await Packer.toBlob(docx);
   saveAs(blob, filename);
 }
+
+// ══════════════════════════════════════════════════════════════
+// NEW TEMPLATE-BASED DOCX GENERATOR
+// ══════════════════════════════════════════════════════════════
+
+import type { TemplateSection } from "@/lib/lettreMissionTemplate";
+import { replaceTemplateVariables } from "@/lib/lettreMissionTemplate";
+import type { Client } from "@/lib/types";
+
+interface NewDocxParams {
+  sections: TemplateSection[];
+  client: Client;
+  genre: "M" | "Mme";
+  missions: { sociale: boolean; juridique: boolean; fiscal: boolean };
+  honoraires: {
+    comptable: number;
+    constitution: number;
+    juridique: number;
+    frequence: "MENSUEL" | "TRIMESTRIEL" | "ANNUEL";
+  };
+  cabinet: {
+    nom: string;
+    adresse: string;
+    cp: string;
+    ville: string;
+    siret: string;
+    numeroOEC: string;
+    email: string;
+    telephone: string;
+  };
+  variables: Record<string, string>;
+}
+
+const REPARTITION_TASKS_DOCX: { tache: string; cabinet: boolean; client: boolean }[] = [
+  { tache: "Collecte et classement des pièces comptables", cabinet: false, client: true },
+  { tache: "Saisie / Intégration des écritures comptables", cabinet: true, client: false },
+  { tache: "Rapprochement bancaire mensuel", cabinet: true, client: false },
+  { tache: "Établissement des déclarations de TVA", cabinet: true, client: false },
+  { tache: "Établissement de la liasse fiscale", cabinet: true, client: false },
+  { tache: "Comptes annuels (bilan, compte de résultat, annexe)", cabinet: true, client: false },
+  { tache: "Transmission des relevés bancaires", cabinet: false, client: true },
+  { tache: "Transmission des factures fournisseurs/clients", cabinet: false, client: true },
+  { tache: "Conservation des pièces justificatives", cabinet: true, client: true },
+  { tache: "Déclarations fiscales annuelles (IS, CVAE, CFE)", cabinet: true, client: false },
+];
+
+export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise<void> {
+  const { sections, client, missions, honoraires, cabinet, variables } = params;
+  const children: (Paragraph | Table)[] = [];
+
+  function resolve(text: string): string {
+    return replaceTemplateVariables(text, variables).replace(/\{\{\w+\}\}/g, "[À compléter]");
+  }
+
+  // Filter visible sections
+  const visibleSections = sections.filter((sec) => {
+    if (sec.type === "conditional") {
+      if (sec.condition === "sociale" && !missions.sociale) return false;
+      if (sec.condition === "juridique" && !missions.juridique) return false;
+      if (sec.condition === "fiscal" && !missions.fiscal) return false;
+    }
+    return true;
+  });
+
+  // ── Header ──
+  children.push(
+    new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 40 }, children: [new TextRun({ text: cabinet.nom, bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 30 }, children: [new TextRun({ text: `${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`, size: 16, color: "666666" })] }),
+    new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 30 }, children: [new TextRun({ text: `SIRET : ${cabinet.siret} — OEC n° ${cabinet.numeroOEC}`, size: 16, color: "666666" })] }),
+    new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.email} — ${cabinet.telephone}`, size: 16, color: "666666" })] }),
+  );
+
+  // Title
+  children.push(
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "Présentation des comptes annuels", size: 22, color: NAVY })] }),
+  );
+
+  // ── Iterate sections ──
+  let isFirstAnnexe = true;
+
+  for (const section of visibleSections) {
+    if (section.type === "annexe" && isFirstAnnexe) {
+      children.push(new Paragraph({ children: [new PageBreak()] }));
+      children.push(new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "ANNEXES", bold: true, size: 28, color: NAVY })] }));
+      isFirstAnnexe = false;
+    }
+
+    // Special content
+    if (section.content === "TABLEAU_ENTITE") {
+      children.push(heading(section.title));
+      const entityRows: [string, string][] = [
+        ["Raison sociale", client.raisonSociale || ""],
+        ["Forme juridique", client.forme || ""],
+        ["Activité", client.domaine || ""],
+        ["Code APE", client.ape || ""],
+        ["SIREN", client.siren || ""],
+        ["Capital social", client.capital ? formatMontant(client.capital) : "—"],
+        ["Date de création", client.dateCreation || "—"],
+        ["Dirigeant", client.dirigeant || ""],
+        ["Effectif", client.effectif || "—"],
+        ["Adresse", `${client.adresse}, ${client.cp} ${client.ville}`],
+      ];
+      children.push(new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: entityRows.map(([l, v], i) => tableRow2Col(l, v, i % 2 === 0)),
+      }));
+      continue;
+    }
+
+    if (section.content === "BLOC_LCBFT") {
+      children.push(heading(section.title));
+      children.push(new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [
+          tableRow2Col("Score de risque", `${client.scoreGlobal ?? 0}/100`, true),
+          tableRow2Col("Niveau de vigilance", client.nivVigilance || "STANDARD", false),
+          tableRow2Col("Statut PPE", client.ppe || "NON", true),
+          tableRow2Col("Dernière diligence", client.dateDerniereRevue || "—", false),
+          tableRow2Col("Prochaine MAJ", client.dateButoir || "—", true),
+        ],
+      }));
+      children.push(new Paragraph({ spacing: { before: 100 }, children: [new TextRun({ text: "CMF art. L.561-1 et s. | Conservation 5 ans après fin de relation", italics: true, size: 16, color: "888888" })] }));
+      continue;
+    }
+
+    if (section.content === "TABLEAU_HONORAIRES") {
+      children.push(heading(section.title));
+      const honoRows: TableRow[] = [
+        honoRow("Forfait comptable annuel", honoraires.comptable, true),
+      ];
+      if (honoraires.constitution > 0) {
+        honoRows.push(honoRow("Constitution / Reprise dossier", honoraires.constitution, false));
+      }
+      if (missions.juridique && honoraires.juridique > 0) {
+        honoRows.push(honoRow("Mission juridique annuelle", honoraires.juridique, true));
+      }
+      const totalHT = honoraires.comptable + honoraires.constitution + (missions.juridique ? honoraires.juridique : 0);
+      honoRows.push(honoTotal("TOTAL HT", totalHT));
+      children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: honoRows }));
+
+      const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : "annuel";
+      const divisor = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : 1;
+      children.push(bodyText(`Facturation ${freqLabel} : ${formatMontant(Math.round((honoraires.comptable / divisor) * 100) / 100)} HT`));
+      continue;
+    }
+
+    if (section.content === "TABLEAU_REPARTITION") {
+      children.push(heading(section.title));
+      const repartitionRows: TableRow[] = [
+        new TableRow({
+          tableHeader: true,
+          children: [
+            new TableCell({ shading: { type: ShadingType.SOLID, color: NAVY }, children: [new Paragraph({ children: [new TextRun({ text: "Tâche", bold: true, color: "FFFFFF", size: 18 })] })] }),
+            new TableCell({ shading: { type: ShadingType.SOLID, color: NAVY }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "Cabinet", bold: true, color: "FFFFFF", size: 18 })] })] }),
+            new TableCell({ shading: { type: ShadingType.SOLID, color: NAVY }, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: "Client", bold: true, color: "FFFFFF", size: 18 })] })] }),
+          ],
+        }),
+      ];
+      REPARTITION_TASKS_DOCX.forEach((row, i) => {
+        repartitionRows.push(new TableRow({
+          children: [
+            new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: GREY } : undefined, children: [new Paragraph({ children: [new TextRun({ text: row.tache, size: 18 })] })] }),
+            new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: GREY } : undefined, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: row.cabinet ? "X" : "", bold: true, size: 18 })] })] }),
+            new TableCell({ shading: i % 2 === 0 ? { type: ShadingType.SOLID, color: GREY } : undefined, children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: row.client ? "X" : "", bold: true, size: 18 })] })] }),
+          ],
+        }));
+      });
+      children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: repartitionRows }));
+      continue;
+    }
+
+    // Regular text section
+    if (section.type === "annexe") {
+      children.push(subHeading(section.title));
+    } else {
+      children.push(heading(section.title));
+    }
+
+    // Split content into paragraphs
+    const resolvedContent = resolve(section.content);
+    for (const line of resolvedContent.split("\n")) {
+      if (line.trim()) {
+        children.push(bodyText(line));
+      }
+    }
+  }
+
+  // Build document
+  const docxDoc = new Document({
+    sections: [
+      {
+        properties: {
+          page: {
+            margin: { top: 1418, right: 1134, bottom: 1134, left: 1418 },
+            pageNumbers: { start: 1 },
+          },
+        },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: `${cabinet.nom} — SIRET ${cabinet.siret} — Page `, size: 14, color: "888888" }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: "888888" }),
+                  new TextRun({ text: "/", size: 14, color: "888888" }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: "888888" }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children,
+      },
+    ],
+  });
+
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const filename = `LM_${(client.raisonSociale || "client").replace(/\s+/g, "_")}_${dateStr}.docx`;
+  const blob = await Packer.toBlob(docxDoc);
+  saveAs(blob, filename);
+}

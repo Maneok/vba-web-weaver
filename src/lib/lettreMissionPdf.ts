@@ -1133,3 +1133,355 @@ export function renderLettreMissionPdf(lm: LettreMission): jsPDF {
     return fallback;
   }
 }
+
+// ══════════════════════════════════════════════════════════════
+// NEW TEMPLATE-BASED PDF GENERATOR
+// ══════════════════════════════════════════════════════════════
+
+import type { TemplateSection } from "@/lib/lettreMissionTemplate";
+import { replaceTemplateVariables } from "@/lib/lettreMissionTemplate";
+
+interface NewPdfParams {
+  sections: TemplateSection[];
+  client: Client;
+  genre: "M" | "Mme";
+  missions: { sociale: boolean; juridique: boolean; fiscal: boolean };
+  honoraires: {
+    comptable: number;
+    constitution: number;
+    juridique: number;
+    frequence: "MENSUEL" | "TRIMESTRIEL" | "ANNUEL";
+  };
+  cabinet: {
+    nom: string;
+    adresse: string;
+    cp: string;
+    ville: string;
+    siret: string;
+    numeroOEC: string;
+    email: string;
+    telephone: string;
+  };
+  variables: Record<string, string>;
+}
+
+const REPARTITION_TASKS: [string, boolean, boolean][] = [
+  ["Collecte et classement des pièces comptables", false, true],
+  ["Saisie / Intégration des écritures comptables", true, false],
+  ["Rapprochement bancaire mensuel", true, false],
+  ["Établissement des déclarations de TVA", true, false],
+  ["Établissement de la liasse fiscale", true, false],
+  ["Comptes annuels (bilan, compte de résultat, annexe)", true, false],
+  ["Transmission des relevés bancaires", false, true],
+  ["Transmission des factures fournisseurs/clients", false, true],
+  ["Conservation des pièces justificatives", true, true],
+  ["Déclarations fiscales annuelles (IS, CVAE, CFE)", true, false],
+];
+
+export function renderNewLettreMissionPdf(params: NewPdfParams): void {
+  const { sections, client, genre, missions, honoraires, cabinet, variables } = params;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  let y = MARGIN_TOP;
+
+  function ensureSpace(needed: number) {
+    if (y + needed > FOOTER_Y - 5) {
+      doc.addPage();
+      y = MARGIN_TOP;
+    }
+  }
+
+  function newPage() {
+    doc.addPage();
+    y = MARGIN_TOP;
+  }
+
+  function setBody() {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(30, 30, 30);
+  }
+
+  function setSmall() {
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(80, 80, 80);
+  }
+
+  function writeText(text: string) {
+    setBody();
+    const lines = doc.splitTextToSize(text, CONTENT_W);
+    for (const line of lines) {
+      ensureSpace(5);
+      doc.text(line, MARGIN_L, y);
+      y += 4.5;
+    }
+    y += 2;
+  }
+
+  function drawSectionTitle(title: string) {
+    ensureSpace(12);
+    doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+    doc.rect(MARGIN_L, y - 1, CONTENT_W, 8, "F");
+    doc.setTextColor(255, 255, 255);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(title.toUpperCase(), MARGIN_L + 3, y + 4.5);
+    doc.setTextColor(30, 30, 30);
+    y += 12;
+  }
+
+  function drawTableRow2Col(label: string, value: string, shade: boolean) {
+    ensureSpace(7);
+    if (shade) {
+      doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+      doc.rect(MARGIN_L, y - 4, CONTENT_W, 7, "F");
+    }
+    doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
+    doc.line(MARGIN_L, y + 3, MARGIN_R, y + 3);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(50, 50, 50);
+    doc.text(label, MARGIN_L + 3, y);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(30, 30, 30);
+    const truncated = doc.splitTextToSize(value, CONTENT_W - 70);
+    doc.text(truncated[0] ?? "", MARGIN_L + 65, y);
+    y += 7;
+  }
+
+  function resolve(text: string): string {
+    return replaceTemplateVariables(text, variables).replace(/\{\{\w+\}\}/g, "[À compléter]");
+  }
+
+  // Filter visible sections
+  const visibleSections = sections.filter((sec) => {
+    if (sec.type === "conditional") {
+      if (sec.condition === "sociale" && !missions.sociale) return false;
+      if (sec.condition === "juridique" && !missions.juridique) return false;
+      if (sec.condition === "fiscal" && !missions.fiscal) return false;
+    }
+    return true;
+  });
+
+  // ── Header ──
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+  doc.text(cabinet.nom, MARGIN_R, MARGIN_TOP + 3, { align: "right" });
+  setSmall();
+  doc.text(`${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`, MARGIN_R, MARGIN_TOP + 8, { align: "right" });
+  doc.text(`SIRET : ${cabinet.siret} — OEC n° ${cabinet.numeroOEC}`, MARGIN_R, MARGIN_TOP + 12, { align: "right" });
+  doc.text(`${cabinet.email} — ${cabinet.telephone}`, MARGIN_R, MARGIN_TOP + 16, { align: "right" });
+  y = MARGIN_TOP + 24;
+  doc.setDrawColor(NAVY.r, NAVY.g, NAVY.b);
+  doc.setLineWidth(0.5);
+  doc.line(MARGIN_L, y, MARGIN_R, y);
+  y += 8;
+
+  // ── Title ──
+  doc.setFontSize(14);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+  doc.text("LETTRE DE MISSION", PAGE_W / 2, y, { align: "center" });
+  y += 6;
+  doc.setFontSize(11);
+  doc.text("Présentation des comptes annuels", PAGE_W / 2, y, { align: "center" });
+  y += 12;
+
+  // ── Iterate sections ──
+  let isFirstAnnexe = true;
+
+  for (const section of visibleSections) {
+    // Page break before annexes
+    if (section.type === "annexe" && isFirstAnnexe) {
+      newPage();
+      doc.setFontSize(14);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+      doc.text("ANNEXES", PAGE_W / 2, y, { align: "center" });
+      y += 12;
+      isFirstAnnexe = false;
+    }
+
+    // Special content handlers
+    if (section.content === "TABLEAU_ENTITE") {
+      drawSectionTitle(section.title);
+      const rows: [string, string][] = [
+        ["Raison sociale", client.raisonSociale || ""],
+        ["Forme juridique", client.forme || ""],
+        ["Activité", client.domaine || ""],
+        ["Code APE", client.ape || ""],
+        ["SIREN", client.siren || ""],
+        ["Capital social", client.capital ? formatMontant(client.capital) : "—"],
+        ["Date de création", client.dateCreation || "—"],
+        ["Dirigeant", client.dirigeant || ""],
+        ["Effectif", client.effectif || "—"],
+        ["Adresse", `${client.adresse}, ${client.cp} ${client.ville}`],
+      ];
+      rows.forEach(([l, v], i) => drawTableRow2Col(l, v, i % 2 === 0));
+      y += 6;
+      continue;
+    }
+
+    if (section.content === "BLOC_LCBFT") {
+      drawSectionTitle(section.title);
+      const vigColors: Record<string, { r: number; g: number; b: number }> = {
+        SIMPLIFIEE: { r: 76, g: 175, b: 80 },
+        STANDARD: { r: 255, g: 152, b: 0 },
+        RENFORCEE: { r: 244, g: 67, b: 54 },
+      };
+      const vc = vigColors[client.nivVigilance] ?? vigColors.STANDARD;
+      drawTableRow2Col("Score de risque", `${client.scoreGlobal ?? 0}/100`, true);
+      // Vigilance badge
+      ensureSpace(7);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Niveau de vigilance", MARGIN_L + 3, y);
+      const badgeX = MARGIN_L + 65;
+      doc.setFillColor(vc.r, vc.g, vc.b);
+      doc.roundedRect(badgeX, y - 3.5, 30, 5, 1, 1, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(7);
+      doc.text(client.nivVigilance || "STANDARD", badgeX + 15, y, { align: "center" });
+      doc.setTextColor(30, 30, 30);
+      y += 7;
+      drawTableRow2Col("Statut PPE", client.ppe || "NON", true);
+      drawTableRow2Col("Dernière diligence", client.dateDerniereRevue || "—", false);
+      drawTableRow2Col("Prochaine MAJ", client.dateButoir || "—", true);
+      y += 4;
+      setSmall();
+      doc.text("CMF art. L.561-1 et s. | Conservation 5 ans après fin de relation", MARGIN_L, y);
+      y += 8;
+      continue;
+    }
+
+    if (section.content === "TABLEAU_HONORAIRES") {
+      drawSectionTitle(section.title);
+      // Header
+      ensureSpace(8);
+      doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+      doc.rect(MARGIN_L, y - 4, CONTENT_W, 8, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.text("Désignation", MARGIN_L + 3, y);
+      doc.text("Montant HT annuel", MARGIN_R - 3, y, { align: "right" });
+      doc.setTextColor(30, 30, 30);
+      y += 7;
+      // Rows
+      function honoRow(label: string, montant: number, alt: boolean) {
+        ensureSpace(7);
+        if (alt) {
+          doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+          doc.rect(MARGIN_L, y - 4, CONTENT_W, 7, "F");
+        }
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
+        doc.text(label, MARGIN_L + 3, y);
+        doc.text(formatMontant(montant), MARGIN_R - 3, y, { align: "right" });
+        y += 7;
+      }
+      honoRow("Forfait comptable annuel", honoraires.comptable, true);
+      if (honoraires.constitution > 0) honoRow("Constitution / Reprise dossier", honoraires.constitution, false);
+      if (missions.juridique && honoraires.juridique > 0) honoRow("Mission juridique annuelle", honoraires.juridique, true);
+      const totalHT = honoraires.comptable + honoraires.constitution + (missions.juridique ? honoraires.juridique : 0);
+      // Total
+      ensureSpace(9);
+      doc.setFillColor(230, 235, 245);
+      doc.rect(MARGIN_L, y - 4, CONTENT_W, 9, "F");
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("TOTAL HT", MARGIN_L + 3, y + 1);
+      doc.text(formatMontant(totalHT), MARGIN_R - 3, y + 1, { align: "right" });
+      y += 11;
+      // Facturation
+      const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : "annuel";
+      const divisor = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : 1;
+      setSmall();
+      doc.text(`Facturation ${freqLabel} : ${formatMontant(Math.round((honoraires.comptable / divisor) * 100) / 100)} HT`, MARGIN_L, y);
+      y += 8;
+      continue;
+    }
+
+    if (section.content === "TABLEAU_REPARTITION") {
+      ensureSpace(20);
+      drawSectionTitle(section.title);
+      // Header
+      const colW1 = CONTENT_W * 0.5;
+      const colW2 = CONTENT_W * 0.25;
+      const colW3 = CONTENT_W * 0.25;
+      doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+      doc.rect(MARGIN_L, y - 4, CONTENT_W, 8, "F");
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "bold");
+      doc.text("Tâche", MARGIN_L + 3, y);
+      doc.text("Cabinet", MARGIN_L + colW1 + colW2 / 2, y, { align: "center" });
+      doc.text("Client", MARGIN_L + colW1 + colW2 + colW3 / 2, y, { align: "center" });
+      doc.setTextColor(30, 30, 30);
+      y += 7;
+      for (let i = 0; i < REPARTITION_TASKS.length; i++) {
+        ensureSpace(7);
+        if (i % 2 === 0) {
+          doc.setFillColor(GREY_BG.r, GREY_BG.g, GREY_BG.b);
+          doc.rect(MARGIN_L, y - 4, CONTENT_W, 7, "F");
+        }
+        doc.setFontSize(8);
+        doc.setFont("helvetica", "normal");
+        doc.text(REPARTITION_TASKS[i][0], MARGIN_L + 3, y);
+        if (REPARTITION_TASKS[i][1]) {
+          doc.setFont("helvetica", "bold");
+          doc.text("X", MARGIN_L + colW1 + colW2 / 2, y, { align: "center" });
+        }
+        if (REPARTITION_TASKS[i][2]) {
+          doc.setFont("helvetica", "bold");
+          doc.text("X", MARGIN_L + colW1 + colW2 + colW3 / 2, y, { align: "center" });
+        }
+        y += 7;
+      }
+      y += 4;
+      continue;
+    }
+
+    // Regular text section
+    if (section.type !== "annexe") {
+      drawSectionTitle(section.title);
+    } else {
+      // Annexe sub-title style
+      ensureSpace(10);
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+      doc.text(section.title, MARGIN_L, y);
+      doc.setDrawColor(NAVY.r, NAVY.g, NAVY.b);
+      doc.setLineWidth(0.3);
+      doc.line(MARGIN_L, y + 2, MARGIN_R, y + 2);
+      doc.setTextColor(30, 30, 30);
+      y += 8;
+    }
+    writeText(resolve(section.content));
+    y += 2;
+  }
+
+  // ── Footers ──
+  const totalPages = doc.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++) {
+    doc.setPage(i);
+    doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
+    doc.setLineWidth(0.3);
+    doc.line(MARGIN_L, FOOTER_Y, MARGIN_R, FOOTER_Y);
+    doc.setFontSize(7);
+    doc.setTextColor(130, 130, 130);
+    doc.text(
+      `${cabinet.nom} — SIRET ${cabinet.siret} — Page ${i}/${totalPages}`,
+      PAGE_W / 2,
+      FOOTER_Y + 4,
+      { align: "center" }
+    );
+  }
+
+  // Save
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const filename = `LM_${(client.raisonSociale || "client").replace(/\s+/g, "_")}_${dateStr}.pdf`;
+  doc.save(filename);
+}
