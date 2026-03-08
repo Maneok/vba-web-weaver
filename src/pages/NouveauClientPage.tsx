@@ -1507,129 +1507,87 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
-            {/* Drag & Drop zone */}
-            <div
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragOver ? "border-blue-500 bg-blue-500/10" : "border-white/[0.08] hover:border-white/[0.15]"
-              }`}
-            >
-              <Upload className="w-10 h-10 text-slate-500 mx-auto mb-3" />
-              <p className="text-sm text-slate-300">Glissez-deposez vos fichiers ici</p>
-              <p className="text-xs text-slate-500 mt-1">KBIS, Statuts, CNI, RIB, autres documents</p>
-              <label className="mt-4 inline-block">
-                <input type="file" multiple className="hidden" onChange={e => handleFileUpload(e.target.files)} />
-                <span className="cursor-pointer text-sm text-blue-400 hover:text-blue-300 underline">ou parcourir</span>
-              </label>
-            </div>
-
-            {/* Auto-recovered documents (INPI + Pappers unified) */}
-            {screening.documents.data && screening.documents.data.documents.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-slate-400">Documents recuperes automatiquement</Label>
-                  <div className="flex items-center gap-2">
-                    <Progress value={Math.round((screening.documents.data.autoRecovered / Math.max(screening.documents.data.total, 1)) * 100)} className="w-20 h-2" />
-                    <span className="text-xs text-slate-500">{screening.documents.data.autoRecovered}/{screening.documents.data.total}</span>
-                  </div>
-                </div>
-                {screening.documents.data.documents.filter(d => d.status !== "manquant").map((doc, i) => {
-                  const isINPI = doc.source === "INPI";
-                  const isPappers = doc.source === "Pappers" || doc.source === "pappers";
-                  const isDownloadable = (doc as any).downloadable || doc.status === "auto";
-                  const isLink = doc.status === "lien";
-                  const borderColor = isDownloadable
-                    ? "border-emerald-500/20 bg-emerald-500/5"
-                    : isLink
-                      ? "border-blue-500/20 bg-blue-500/5"
-                      : "border-white/[0.06] bg-white/[0.02]";
-                  return (
-                    <div key={`doc-${i}`} className={`flex items-center justify-between p-3 rounded-lg border ${borderColor}`}>
+            {/* SECTION 1: Documents INPI recuperes (vrais PDFs uniquement) */}
+            {(() => {
+              // Merge real PDFs from documents-fetch and inpi-documents
+              const docsFetch = (screening.documents.data?.documents ?? []).filter(d =>
+                (d as any).storedInSupabase === true || ((d as any).downloadable && d.status === "auto")
+              );
+              const docsInpi = (screening.inpi.data?.documents ?? []).filter(d => d.storedInSupabase);
+              // Deduplicate by storageUrl
+              const seen = new Set<string>();
+              const allPdfs = [...docsFetch, ...docsInpi].filter(d => {
+                const url = (d as any).storageUrl || (d as any).url || "";
+                if (seen.has(url)) return false;
+                seen.add(url);
+                return true;
+              });
+              return allPdfs.length > 0 ? (
+                <div className="space-y-2">
+                  <Label className="text-xs text-slate-400">Documents recuperes automatiquement (INPI)</Label>
+                  {allPdfs.map((doc, i) => (
+                    <div key={`pdf-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
                       <div className="flex items-center gap-3">
-                        <FileText className={`w-4 h-4 ${isINPI ? "text-indigo-400" : isPappers ? "text-purple-400" : "text-slate-400"}`} />
+                        <FileText className="w-4 h-4 text-indigo-400" />
                         <div>
                           <p className="text-sm text-slate-200">{doc.label}</p>
                           <div className="flex items-center gap-2 mt-0.5">
                             <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                            {isINPI && <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI</Badge>}
-                            {isPappers && <Badge className="text-[9px] bg-purple-500/20 text-purple-400 border-0">Pappers</Badge>}
-                            {!isINPI && !isPappers && doc.source !== "auto" && doc.source && (
-                              <Badge className="text-[9px] bg-white/[0.06] text-slate-500 border-0">{doc.source}</Badge>
-                            )}
-                            {isDownloadable && (doc as any).storedInSupabase && (
-                              <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">PDF stocke</Badge>
-                            )}
+                            <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI</Badge>
+                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">PDF stocke</Badge>
                           </div>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {isDownloadable && (doc as any).storageUrl && (
-                          <a href={(doc as any).storageUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-xs bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 px-2.5 py-1 rounded flex items-center gap-1">
-                            <FileDown className="w-3 h-3" /> Telecharger PDF
-                          </a>
-                        )}
-                        {doc.url && !((doc as any).storageUrl && isDownloadable) && (
-                          <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                            className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                            <ExternalLink className="w-3 h-3" /> {isINPI ? "Voir sur INPI" : isPappers ? "Consulter" : "Ouvrir"}
-                          </a>
-                        )}
-                      </div>
+                      {((doc as any).storageUrl || doc.url) && (
+                        <a href={(doc as any).storageUrl || doc.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500/30 px-2.5 py-1 rounded flex items-center gap-1">
+                          <FileDown className="w-3 h-3" /> Telecharger PDF
+                        </a>
+                      )}
                     </div>
-                  );
-                })}
-                {/* Missing required documents */}
-                {screening.documents.data.documents.filter(d => d.status === "manquant").map((doc, i) => (
-                  <div key={`missing-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-red-500/20 bg-red-500/5">
-                    <div className="flex items-center gap-3">
-                      <X className="w-4 h-4 text-red-400" />
-                      <div>
-                        <p className="text-sm text-slate-300">{doc.label}</p>
-                        <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0 mt-0.5">A fournir</Badge>
-                      </div>
-                    </div>
-                    <label>
-                      <input type="file" className="hidden" onChange={e => handleFileUpload(e.target.files)} />
-                      <span className="cursor-pointer text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                        <Upload className="w-3 h-3" /> Uploader
-                      </span>
-                    </label>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : screening.documents.loading || screening.inpi.loading ? (
+                <div className="flex items-center gap-2 p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                  <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
+                  <span className="text-sm text-slate-400">Recuperation des documents INPI...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                  <span className="text-sm text-amber-400">Aucun document PDF recupere automatiquement</span>
+                </div>
+              );
+            })()}
 
-            {/* INPI-specific documents (from inpi-documents edge function, if any additional) */}
-            {screening.inpi.data && screening.inpi.data.documents.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Documents INPI (RNE) — supplementaires</Label>
-                {screening.inpi.data.documents.map((doc, i) => (
-                  <div key={`inpi-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-indigo-500/20 bg-indigo-500/5">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-4 h-4 text-indigo-400" />
-                      <div>
-                        <p className="text-sm text-slate-200">{doc.label}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                          <Badge className="text-[9px] bg-indigo-500/20 text-indigo-400 border-0">INPI</Badge>
-                          {doc.storedInSupabase && (
-                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">PDF stocke</Badge>
-                          )}
+            {/* Pappers KBIS/RBE links (if available) */}
+            {(() => {
+              const pappersLinks = (screening.documents.data?.documents ?? []).filter(d =>
+                (d.source === "Pappers" || d.source === "pappers") && d.status === "auto" && (d as any).downloadable
+              );
+              return pappersLinks.length > 0 ? (
+                <div className="space-y-2">
+                  <Label className="text-xs text-slate-400">Documents Pappers</Label>
+                  {pappersLinks.map((doc, i) => (
+                    <div key={`pappers-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-purple-500/20 bg-purple-500/5">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-4 h-4 text-purple-400" />
+                        <div>
+                          <p className="text-sm text-slate-200">{doc.label}</p>
+                          <Badge className="text-[9px] bg-purple-500/20 text-purple-400 border-0 mt-0.5">Pappers</Badge>
                         </div>
                       </div>
+                      {doc.url && (
+                        <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                          className="text-xs bg-purple-500/20 text-purple-400 hover:bg-purple-500/30 px-2.5 py-1 rounded flex items-center gap-1">
+                          <FileDown className="w-3 h-3" /> Telecharger
+                        </a>
+                      )}
                     </div>
-                    {doc.url && (
-                      <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                        {doc.storedInSupabase ? <><FileDown className="w-3 h-3" /> Telecharger PDF</> : <><ExternalLink className="w-3 h-3" /> Voir sur INPI</>}
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : null;
+            })()}
 
             {/* INPI Financial data — Phase 2: multi-year */}
             {screening.inpi.data?.financials && screening.inpi.data.financials.length > 0 && (
@@ -1690,98 +1648,168 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* Uploaded documents */}
-            {documents.length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Documents uploades</Label>
-                {documents.map((doc, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                    <div className="flex items-center gap-3">
-                      <FileText className="w-4 h-4 text-slate-500" />
-                      <div>
-                        <p className="text-sm text-slate-200">{doc.name}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                          {doc.fromPappers ? (
-                            <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">Disponible sur Pappers</Badge>
-                          ) : (
-                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Upload manuel</Badge>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {doc.url && (
-                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-400 hover:text-blue-300">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                      <Button variant="ghost" size="sm" onClick={() => removeDocument(i)} className="text-slate-500 hover:text-red-400 h-7 w-7 p-0">
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            {/* SECTION 2: Checklist documentaire */}
+            {(() => {
+              // Gather all real PDFs for checklist matching
+              const allDocs = [
+                ...(screening.documents.data?.documents ?? []),
+                ...(screening.inpi.data?.documents ?? []),
+              ];
+              const hasStoredPdf = (types: string[]) => allDocs.some(d =>
+                types.some(t => d.type.toUpperCase().includes(t)) &&
+                ((d as any).storedInSupabase === true || ((d as any).downloadable && d.status === "auto"))
+              );
+              const hasUpload = (types: string[]) => documents.some(d =>
+                types.some(t => d.type.toUpperCase().includes(t))
+              );
+              const hasPappersLink = (types: string[]) => allDocs.some(d =>
+                types.some(t => d.type.toUpperCase().includes(t)) &&
+                (d.source === "Pappers" || d.source === "pappers") && d.status === "auto"
+              );
 
-            {/* #27: Checklist documentaire complete */}
-            <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-xs font-semibold text-slate-300">Checklist documentaire</h3>
-                {(() => {
-                  const checklist = [
-                    { type: "KBIS", label: "Extrait/Kbis", autoOnly: false },
-                    { type: "Statuts", label: "Statuts a jour", autoOnly: false },
-                    { type: "CNI", label: "CNI dirigeant", autoOnly: false },
-                    { type: "RIB", label: "RIB", autoOnly: false },
-                    { type: "Comptes", label: "Comptes annuels", autoOnly: false },
-                    { type: "Justificatif", label: "Justificatif domicile", autoOnly: false },
-                  ];
-                  const found = checklist.filter(c => {
-                    const autoDoc = screening.documents.data?.documents?.find(d => d.type.toUpperCase().includes(c.type.toUpperCase()) && d.status === "auto");
-                    const inpiDoc = screening.inpi.data?.documents?.find(d => d.type.toUpperCase().includes(c.type.toUpperCase()));
-                    const uploadedDoc = documents.some(d => d.type.toUpperCase().includes(c.type.toUpperCase()));
-                    return !!autoDoc || !!inpiDoc || uploadedDoc;
-                  });
-                  const pct = Math.round((found.length / checklist.length) * 100);
-                  return (
+              const checklist = [
+                { key: "KBIS", label: "Extrait / Kbis", types: ["KBIS", "ACTE", "ACTES"], manual: false },
+                { key: "Statuts", label: "Statuts a jour", types: ["STATUTS"], manual: false },
+                { key: "Comptes", label: "Comptes annuels", types: ["COMPTES", "BILAN"], manual: false },
+                { key: "CNI", label: "CNI dirigeant", types: ["CNI"], manual: true },
+                { key: "RIB", label: "RIB / IBAN", types: ["RIB"], manual: true },
+                { key: "Justificatif", label: "Justificatif domicile", types: ["JUSTIFICATIF"], manual: true },
+              ];
+
+              const results = checklist.map(c => ({
+                ...c,
+                hasPdf: hasStoredPdf(c.types),
+                hasUpload: hasUpload(c.types),
+                hasPappers: hasPappersLink(c.types),
+                found: hasStoredPdf(c.types) || hasUpload(c.types) || hasPappersLink(c.types),
+              }));
+              const foundCount = results.filter(r => r.found).length;
+              const pct = Math.round((foundCount / checklist.length) * 100);
+
+              return (
+                <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-semibold text-slate-300">Checklist documentaire</h3>
                     <div className="flex items-center gap-2">
                       <Progress value={pct} className="w-24 h-2" />
                       <span className={`text-sm font-bold ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
                     </div>
-                  );
-                })()}
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { type: "KBIS", label: "Extrait/Kbis", manual: false },
-                  { type: "Statuts", label: "Statuts a jour", manual: false },
-                  { type: "CNI", label: "CNI dirigeant", manual: true },
-                  { type: "RIB", label: "RIB", manual: true },
-                  { type: "Comptes", label: "Comptes annuels", manual: false },
-                  { type: "Justificatif", label: "Justificatif domicile", manual: true },
-                ].map(item => {
-                  const autoDoc = screening.documents.data?.documents?.find(d => d.type.toUpperCase().includes(item.type.toUpperCase()) && d.status === "auto");
-                  const inpiDoc = screening.inpi.data?.documents?.find(d => d.type.toUpperCase().includes(item.type.toUpperCase()));
-                  const uploadedDoc = documents.some(d => d.type.toUpperCase().includes(item.type.toUpperCase()));
-                  const found = !!autoDoc || !!inpiDoc || uploadedDoc;
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    {results.map(item => (
+                      <div key={item.key} className={`p-3 rounded-lg border text-center ${
+                        item.found ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"
+                      }`}>
+                        {item.found ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" /> : <X className="w-5 h-5 text-red-400 mx-auto mb-1" />}
+                        <p className={`text-xs font-medium ${item.found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
+                        {item.hasPdf && <p className="text-[9px] text-emerald-500 mt-0.5">PDF INPI</p>}
+                        {item.hasPappers && !item.hasPdf && <p className="text-[9px] text-purple-400 mt-0.5">Pappers</p>}
+                        {item.hasUpload && !item.hasPdf && !item.hasPappers && <p className="text-[9px] text-amber-400 mt-0.5">Upload manuel</p>}
+                        {!item.found && item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manuel requis</p>}
+                        {!item.found && !item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manquant</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* SECTION 3: Upload zones for manual documents */}
+            <div className="space-y-3">
+              <Label className="text-xs text-slate-400">Documents manuels a fournir</Label>
+              {[
+                { type: "CNI", label: "CNI du dirigeant", desc: "Carte d'identite ou passeport en cours de validite" },
+                { type: "RIB", label: "RIB / IBAN", desc: "Releve d'identite bancaire du compte professionnel" },
+                { type: "Justificatif", label: "Justificatif de domicile", desc: "Justificatif de domicile du siege (< 3 mois)" },
+              ].map(zone => {
+                const uploaded = documents.filter(d => d.type.toUpperCase().includes(zone.type.toUpperCase()));
+                return (
+                  <div key={zone.type} className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+                    <div className="px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-slate-200 font-medium">{zone.label}</p>
+                        <p className="text-[10px] text-slate-500 mt-0.5">{zone.desc}</p>
+                      </div>
+                      {uploaded.length > 0 ? (
+                        <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Uploade</Badge>
+                      ) : (
+                        <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0">A fournir</Badge>
+                      )}
+                    </div>
+                    {uploaded.length > 0 ? (
+                      <div className="px-4 pb-3 space-y-1">
+                        {uploaded.map((doc, i) => {
+                          const docIdx = documents.findIndex(d => d === doc);
+                          return (
+                            <div key={i} className="flex items-center justify-between p-2 rounded bg-emerald-500/5">
+                              <div className="flex items-center gap-2">
+                                <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="text-xs text-slate-300">{doc.name}</span>
+                              </div>
+                              <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 h-6 w-6 p-0">
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <label className="block px-4 pb-3">
+                        <div
+                          onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                          onDrop={e => {
+                            e.preventDefault(); e.stopPropagation();
+                            const files = e.dataTransfer.files;
+                            if (files.length > 0) {
+                              const newDocs: UploadedDoc[] = Array.from(files).map(f => ({
+                                name: f.name, type: zone.type, file: f,
+                              }));
+                              setDocuments(prev => [...prev, ...newDocs]);
+                            }
+                          }}
+                          className="border border-dashed border-white/[0.08] hover:border-blue-500/30 rounded-lg p-4 text-center cursor-pointer transition-colors"
+                        >
+                          <Upload className="w-5 h-5 text-slate-600 mx-auto mb-1" />
+                          <p className="text-[10px] text-slate-500">Glissez ou cliquez pour uploader</p>
+                          <input type="file" className="hidden" onChange={e => {
+                            if (e.target.files) {
+                              const newDocs: UploadedDoc[] = Array.from(e.target.files).map(f => ({
+                                name: f.name, type: zone.type, file: f,
+                              }));
+                              setDocuments(prev => [...prev, ...newDocs]);
+                            }
+                          }} />
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Other uploaded documents */}
+            {documents.filter(d => !["CNI", "RIB", "JUSTIFICATIF"].some(t => d.type.toUpperCase().includes(t))).length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-xs text-slate-400">Autres documents uploades</Label>
+                {documents.filter(d => !["CNI", "RIB", "JUSTIFICATIF"].some(t => d.type.toUpperCase().includes(t))).map((doc, i) => {
+                  const docIdx = documents.findIndex(d => d === doc);
                   return (
-                    <div key={item.type} className={`p-3 rounded-lg border text-center ${
-                      found ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"
-                    }`}>
-                      {found ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" /> : <X className="w-5 h-5 text-red-400 mx-auto mb-1" />}
-                      <p className={`text-xs font-medium ${found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
-                      {autoDoc && <p className="text-[9px] text-emerald-500 mt-0.5">Auto-recupere</p>}
-                      {inpiDoc && !autoDoc && <p className="text-[9px] text-indigo-400 mt-0.5">INPI</p>}
-                      {uploadedDoc && !autoDoc && !inpiDoc && <p className="text-[9px] text-amber-400 mt-0.5">Upload manuel</p>}
-                      {!found && item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manuel requis</p>}
-                      {!found && !item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manquant</p>}
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                      <div className="flex items-center gap-3">
+                        <FileText className="w-4 h-4 text-slate-500" />
+                        <div>
+                          <p className="text-sm text-slate-200">{doc.name}</p>
+                          <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0 mt-0.5">Upload manuel</Badge>
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 h-7 w-7 p-0">
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
                     </div>
                   );
                 })}
               </div>
-            </div>
+            )}
 
             {/* Generate buttons */}
             <div className="flex flex-wrap gap-3">

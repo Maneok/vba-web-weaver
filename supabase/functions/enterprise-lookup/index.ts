@@ -411,6 +411,8 @@ Deno.serve(async (req) => {
 
       // BE: INPI first, then Pappers (Pappers usually more detailed)
       let beneficiaires = inpiResult?.beneficiaires ?? [];
+      console.log(`[BE] INPI beneficiaires: ${beneficiaires.length}`, JSON.stringify(beneficiaires));
+      console.log(`[BE] Pappers beneficiaires_effectifs: ${pappersData?.beneficiaires_effectifs?.length ?? 0}`, JSON.stringify(pappersData?.beneficiaires_effectifs ?? []));
       if (beneficiaires.length === 0 && pappersData?.beneficiaires_effectifs) {
         beneficiaires = pappersData.beneficiaires_effectifs.map((be: any) => ({
           nom: (be.nom ?? "").toUpperCase(),

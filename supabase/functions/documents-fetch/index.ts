@@ -315,40 +315,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    // ====== PHASE 3: INPI direct link (always available) ======
-    documents.push({
-      type: "INPI RNE",
-      label: "Fiche INPI (Registre National)",
-      url: `https://data.inpi.fr/entreprises/${cleanSiren}`,
-      source: "INPI",
-      available: true,
-      status: "lien",
-      downloadable: false,
-      storageUrl: null,
-    });
-
-    // Auto-generated free links
-    documents.push({
-      type: "Annuaire",
-      label: "Fiche Annuaire Entreprises",
-      url: `https://annuaire-entreprises.data.gouv.fr/entreprise/${cleanSiren}`,
-      source: "auto",
-      available: true,
-      status: "lien",
-      downloadable: false,
-      storageUrl: null,
-    });
-
-    documents.push({
-      type: "Pappers.fr",
-      label: "Fiche Pappers (consultation gratuite)",
-      url: `https://www.pappers.fr/entreprise/${cleanSiren}`,
-      source: "auto",
-      available: true,
-      status: "lien",
-      downloadable: false,
-      storageUrl: null,
-    });
+    // Web links removed — step 6 shows only real PDFs + manual upload zones
 
     // ====== Required docs checklist ======
     const requiredDocs = ["KBIS", "Statuts", "CNI", "RIB"];
