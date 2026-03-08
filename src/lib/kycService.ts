@@ -684,6 +684,48 @@ export async function fetchInpiDocuments(siren: string): Promise<InpiResult> {
   }
 }
 
+// ====== GEL D'AVOIRS DG TRÉSOR (idée 11) ======
+
+export interface GelAvoirsMatch {
+  matchedName: string;
+  sanctionType: string;
+  dateDesignation: string;
+  nature: string;
+  score: "exact" | "partial";
+}
+
+export interface GelAvoirsResult {
+  matches: GelAvoirsMatch[];
+  checked: boolean;
+  totalSanctionsInList: number;
+  hasMatch: boolean;
+  hasExactMatch: boolean;
+  publicationDate: string | null;
+  status: string;
+  message: string;
+}
+
+export async function checkGelAvoirs(
+  nom: string,
+  prenom?: string,
+  denominationEntreprise?: string,
+): Promise<GelAvoirsResult> {
+  try {
+    return await callEdgeFunction<GelAvoirsResult>("gel-avoirs-check", { nom, prenom, denominationEntreprise });
+  } catch {
+    return {
+      matches: [],
+      checked: true,
+      totalSanctionsInList: 0,
+      hasMatch: false,
+      hasExactMatch: false,
+      publicationDate: null,
+      status: "unavailable",
+      message: "Service DG Trésor indisponible",
+    };
+  }
+}
+
 // ====== #20: Dirigeant principal by role priority ======
 
 const ROLE_PRIORITY = ["président", "president", "gérant", "gerant", "directeur général", "directeur general", "associé", "associe", "administrateur", "dirigeant"];
