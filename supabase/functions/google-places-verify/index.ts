@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({
         found: false,
         place: null,
-        alertes: ["Aucune presence physique detectee — risque societe ecran"],
+        alertes: ["Non referencee sur Google Maps — verification manuelle recommandee"],
         status: "ATTENTION",
         mapsUrl: `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`,
         mapsEmbedUrl: `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(searchQuery)}&zoom=15`,

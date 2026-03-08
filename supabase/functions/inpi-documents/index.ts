@@ -117,7 +117,9 @@ async function downloadAndStore(
       signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) {
-      console.error(`[INPI] Download failed: ${res.status} for ${url}`);
+      const errBody = await res.text().catch(() => "");
+      console.error(`[INPI] Download failed: ${res.status} ${res.statusText} for ${url} — ${errBody.substring(0, 200)}`);
+      if (res.status === 401) { cachedToken = null; tokenExpiry = 0; }
       return null;
     }
 
@@ -580,19 +582,21 @@ Deno.serve(async (req) => {
 
       for (const acte of actes.slice(0, 5)) {
         const acteId = acte.id;
-        const acteType = acte.typeRdd ?? acte.type ?? "Acte";
-        const acteDate = acte.dateDepot ?? acte.date ?? "";
-        const nature = acte.nature ?? "";
-        const label = nature ? `${acteType} — ${nature} — ${acteDate}` : `${acteType} — ${acteDate}`;
-        const storagePath = `${cleanSiren}/${acteType.replace(/\s/g, "_")}_${acteDate || acteId}.pdf`;
+        const acteType = String(acte.typeRdd ?? acte.type ?? "Acte");
+        const acteDate = String(acte.dateDepot ?? acte.date ?? "");
+        const nature = String(acte.nature ?? "");
+        const nomDoc = String(acte.nomDocument ?? "");
+        const label = nature ? `${acteType} — ${nature} — ${acteDate}` : `${acteType} — ${nomDoc || "depot"} ${acteDate}`;
+        const safeType = acteType.replace(/\s/g, "_");
+        const storagePath = `${cleanSiren}/${safeType}_${acteDate || acteId}.pdf`;
 
         const downloadUrl = `${INPI_BASE}/actes/${acteId}/download`;
         const publicUrl = await downloadAndStore(supabase, token, downloadUrl, storagePath);
 
-        const isStatuts = acteType.toLowerCase().includes("statut") || nature.toLowerCase().includes("statut");
+        const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") || nature.toLowerCase().includes("assembl");
 
         documents.push({
-          type: isStatuts ? "Statuts" : "Actes",
+          type: isStatuts ? "Statuts" : isPV ? "PV AG" : "Actes",
           label,
           url: publicUrl ?? downloadUrl,
           source: "inpi",
@@ -604,8 +608,8 @@ Deno.serve(async (req) => {
 
       for (const bilan of bilans.slice(0, 3)) {
         const bilanId = bilan.id;
-        const dateCloture = bilan.dateCloture ?? bilan.date_cloture ?? "";
-        const typeBilan = bilan.typeBilan ?? "Comptes annuels";
+        const dateCloture = String(bilan.dateCloture ?? bilan.date_cloture ?? "");
+        const typeBilan = String(bilan.typeBilan ?? "Comptes annuels");
         const storagePath = `${cleanSiren}/comptes_${dateCloture || bilanId}.pdf`;
 
         const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;

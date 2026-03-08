@@ -1911,18 +1911,11 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
           )}
         </div>
       </div>
-      {geoLat && geoLng ? (
+      {geoLat && geoLng && (
         <iframe
           src={`https://www.openstreetmap.org/export/embed.html?bbox=${geoLng - 0.005}%2C${geoLat - 0.005}%2C${geoLng + 0.005}%2C${geoLat + 0.005}&layer=mapnik&marker=${geoLat}%2C${geoLng}`}
           width="100%" height="250" style={{ border: 0 }} loading="lazy"
         />
-      ) : (
-        <div className="p-6 text-center">
-          <p className="text-sm text-slate-400">Coordonnees non disponibles</p>
-          <a href={mapsUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-blue-400 hover:text-blue-300 mt-2 inline-flex items-center gap-1">
-            <ExternalLink className="w-4 h-4" /> Voir sur Google Maps
-          </a>
-        </div>
       )}
     </div>
   );

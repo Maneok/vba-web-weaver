@@ -54,7 +54,9 @@ async function downloadAndStore(
       signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) {
-      console.error(`[docs] Download failed: ${res.status} for ${url}`);
+      const errBody = await res.text().catch(() => "");
+      console.error(`[docs] Download failed: ${res.status} ${res.statusText} for ${url} — ${errBody.substring(0, 200)}`);
+      if (res.status === 401) { cachedToken = null; tokenExpiry = 0; }
       return null;
     }
 
@@ -113,8 +115,15 @@ Deno.serve(async (req) => {
 
     // Ensure bucket exists
     try {
-      await supabaseClient.storage.createBucket("kyc-documents", { public: true });
-    } catch { /* Bucket may already exist */ }
+      const { data: buckets } = await supabaseClient.storage.listBuckets();
+      console.log(`[docs] Buckets: ${(buckets ?? []).map((b: any) => b.name).join(", ")}`);
+      if (!buckets?.find((b: any) => b.name === "kyc-documents")) {
+        await supabaseClient.storage.createBucket("kyc-documents", { public: true });
+        console.log("[docs] Bucket kyc-documents created");
+      }
+    } catch (e) {
+      console.error("[docs] Bucket check error:", (e as Error).message);
+    }
 
     // ====== PHASE 1: INPI Documents (primary source) ======
     const token = await getINPIToken();
@@ -130,15 +139,18 @@ Deno.serve(async (req) => {
           const attachments = await res.json();
           const actes = attachments.actes ?? [];
           const bilans = attachments.bilans ?? [];
+          console.log(`[docs] INPI attachments raw keys: ${Object.keys(attachments).join(", ")}`);
           console.log(`[docs] INPI attachments: ${actes.length} actes, ${bilans.length} bilans`);
+          if (actes.length > 0) console.log(`[docs] First acte: id=${actes[0].id}, type=${actes[0].typeRdd}, nature=${actes[0].nature}, date=${actes[0].dateDepot}`);
+          if (bilans.length > 0) console.log(`[docs] First bilan: id=${bilans[0].id}, type=${bilans[0].typeBilan}, dateCloture=${bilans[0].dateCloture}`);
 
           // Process actes (statuts, PV, decisions)
           for (const acte of actes.slice(0, 5)) {
             const acteId = acte.id;
-            const acteType = acte.typeRdd ?? acte.type ?? "Acte";
-            const acteDate = acte.dateDepot ?? acte.date ?? "";
-            const nature = acte.nature ?? "";
-            const nomDoc = acte.nomDocument ?? "";
+            const acteType = String(acte.typeRdd ?? acte.type ?? "Acte");
+            const acteDate = String(acte.dateDepot ?? acte.date ?? "");
+            const nature = String(acte.nature ?? "");
+            const nomDoc = String(acte.nomDocument ?? "");
             const label = nature
               ? `${acteType} — ${nature} — ${acteDate}`
               : `${acteType} — ${nomDoc || "depot"} ${acteDate}`;
@@ -167,8 +179,8 @@ Deno.serve(async (req) => {
           // Process bilans (comptes annuels)
           for (const bilan of bilans.slice(0, 3)) {
             const bilanId = bilan.id;
-            const dateCloture = bilan.dateCloture ?? bilan.date_cloture ?? "";
-            const typeBilan = bilan.typeBilan ?? "Comptes annuels";
+            const dateCloture = String(bilan.dateCloture ?? bilan.date_cloture ?? "");
+            const typeBilan = String(bilan.typeBilan ?? "Comptes annuels");
             const storagePath = `${cleanSiren}/comptes_${dateCloture || bilanId}.pdf`;
 
             const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;

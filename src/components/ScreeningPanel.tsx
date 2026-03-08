@@ -26,7 +26,30 @@ function StatusIcon({ status, loading }: { status: Status | null; loading: boole
   return <AlertTriangle className="w-4 h-4 text-slate-500" />;
 }
 
-function StatusBadge({ status, loading, tooltip }: { status: Status | null; loading: boolean; tooltip?: string }) {
+// Per-key contextual badge labels
+const OK_LABELS: Record<string, string> = {
+  enterprise: "Donnees recuperees",
+  sanctions: "Aucune alerte",
+  bodacc: "Aucune procedure",
+  google: "Presence confirmee",
+  news: "Aucun article negatif",
+  network: "Reseau normal",
+  documents: "Documents recuperes",
+  inpi: "Donnees recuperees",
+};
+
+const ATTENTION_LABELS: Record<string, string> = {
+  enterprise: "Donnees partielles",
+  sanctions: "Attention",
+  bodacc: "Annonces detectees",
+  google: "Non reference sur Google Maps",
+  news: "Articles a verifier",
+  network: "Mandats multiples",
+  documents: "Documents partiels",
+  inpi: "Donnees partielles",
+};
+
+function StatusBadge({ status, loading, tooltip, rowKey }: { status: Status | null; loading: boolean; tooltip?: string; rowKey?: string }) {
   const badge = (() => {
     if (loading) return <Badge className="bg-blue-500/15 text-blue-400 border-0 text-[10px]">Verification...</Badge>;
     const norm = normalizeStatus(status);
@@ -37,13 +60,16 @@ function StatusBadge({ status, loading, tooltip }: { status: Status | null; load
       ALERTE: "bg-red-500/15 text-red-400",
       ERREUR: "bg-slate-500/15 text-slate-500",
     };
-    const labels: Record<string, string> = {
-      OK: "Aucun match",
-      ATTENTION: "Attention",
-      ALERTE: "ALERTE",
-      ERREUR: "Service indisponible",
-    };
-    return <Badge className={`${colors[norm] ?? "bg-slate-500/15 text-slate-500"} border-0 text-[10px]`}>{labels[norm] ?? norm}</Badge>;
+    const label = norm === "OK"
+      ? (rowKey ? OK_LABELS[rowKey] ?? "OK" : "OK")
+      : norm === "ATTENTION"
+        ? (rowKey ? ATTENTION_LABELS[rowKey] ?? "Attention" : "Attention")
+        : norm === "ALERTE"
+          ? "ALERTE"
+          : norm === "ERREUR"
+            ? "Service indisponible"
+            : norm;
+    return <Badge className={`${colors[norm] ?? "bg-slate-500/15 text-slate-500"} border-0 text-[10px]`}>{label}</Badge>;
   })();
 
   if (tooltip) {
@@ -63,14 +89,14 @@ interface Props {
 }
 
 const TOOLTIPS: Record<string, string> = {
-  enterprise: "Recherche dans l'Annuaire des Entreprises (data.gouv.fr) + enrichissement Pappers",
+  enterprise: "Recherche INPI (source officielle) + enrichissement Pappers + Annuaire Entreprises",
   sanctions: "Verification des listes de sanctions internationales et PPE via OpenSanctions (art. L.561-10 CMF)",
   bodacc: "Recherche d'annonces BODACC : procedures collectives, liquidations, redressements",
   google: "Verification de l'existence physique du siege via Google Places API",
   news: "Revue de presse automatique via Google Custom Search — detection d'articles negatifs",
   network: "Analyse du reseau de societes des dirigeants — detection de mandats multiples et creations recentes",
-  documents: "Recuperation automatique des documents Pappers (KBIS, statuts, comptes annuels)",
-  inpi: "Recuperation des actes et bilans depuis le Registre National des Entreprises (INPI RNE)",
+  documents: "Recuperation automatique des documents officiels (INPI actes/bilans + Pappers KBIS/RBE)",
+  inpi: "Donnees detaillees INPI : objet social, financiers, historique des modifications",
 };
 
 export default function ScreeningPanel({ screening, compact }: Props) {
@@ -87,10 +113,12 @@ export default function ScreeningPanel({ screening, compact }: Props) {
     {
       key: "enterprise",
       icon: <FileText className="w-4 h-4 text-blue-400" />,
-      label: "Annuaire Entreprises",
+      label: "Donnees entreprise",
       status: screening.enterprise.data ? "OK" : screening.enterprise.error ? "ERREUR" : null,
       loading: screening.enterprise.loading,
-      detail: screening.enterprise.data ? `${screening.enterprise.data.length} resultat(s)` : undefined,
+      detail: screening.enterprise.data
+        ? `${screening.enterprise.data.length} resultat(s) — ${(screening.enterprise.data[0] as any)?.sources?.join(", ") ?? "Annuaire"}`
+        : undefined,
       timeMs: screening.enterprise.timeMs,
     },
     {
@@ -109,29 +137,39 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       label: "BODACC (procedures collectives)",
       status: (screening.bodacc.data?.status as Status) ?? (screening.bodacc.error ? "ERREUR" : null),
       loading: screening.bodacc.loading,
-      detail: screening.bodacc.data ? `${screening.bodacc.data.annonces.length} annonce(s)` : undefined,
+      detail: screening.bodacc.data
+        ? screening.bodacc.data.annonces.length > 0
+          ? `${screening.bodacc.data.annonces.length} annonce(s)`
+          : "Aucune procedure collective"
+        : undefined,
       alertes: screening.bodacc.data?.alertes,
       timeMs: screening.bodacc.timeMs,
     },
     {
       key: "google",
       icon: <MapPin className="w-4 h-4 text-emerald-400" />,
-      label: "Google Places (existence physique)",
+      label: "Google Places",
       status: (screening.google.data?.status as Status) ?? (screening.google.error ? "ERREUR" : null),
       loading: screening.google.loading,
       detail: screening.google.data?.place
         ? `${screening.google.data.place.name} — ${screening.google.data.place.rating ?? "N/A"}/5 (${screening.google.data.place.totalRatings} avis)`
-        : undefined,
+        : screening.google.data
+          ? "Non reference sur Google Maps"
+          : undefined,
       alertes: screening.google.data?.alertes,
       timeMs: screening.google.timeMs,
     },
     {
       key: "news",
       icon: <Newspaper className="w-4 h-4 text-purple-400" />,
-      label: "Revue de presse (Google Search)",
+      label: "Revue de presse",
       status: (screening.news.data?.status as Status) ?? (screening.news.error ? "ERREUR" : null),
       loading: screening.news.loading,
-      detail: screening.news.data ? `${screening.news.data.articles.length} article(s)` : undefined,
+      detail: screening.news.data
+        ? screening.news.data.articles.length > 0
+          ? `${screening.news.data.articles.length} article(s) trouve(s)`
+          : "Aucun article negatif"
+        : undefined,
       alertes: screening.news.data?.alertes,
       timeMs: screening.news.timeMs,
     },
@@ -144,7 +182,11 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       label: "Reseau dirigeants",
       status: (screening.network.data?.status as Status) ?? (screening.network.error ? "ERREUR" : null),
       loading: screening.network.loading,
-      detail: screening.network.data ? `${screening.network.data.totalCompanies} societe(s), ${screening.network.data.totalPersons} personne(s)` : undefined,
+      detail: screening.network.data
+        ? screening.network.data.alertes.length > 0
+          ? `${screening.network.data.totalCompanies} societe(s) liee(s) — alertes detectees`
+          : `${screening.network.data.totalCompanies} societe(s) liee(s), ${screening.network.data.totalPersons} dirigeant(s)`
+        : undefined,
       alertes: screening.network.data?.alertes.map(a => a.message),
       timeMs: screening.network.timeMs,
     });
@@ -155,7 +197,9 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: (screening.documents.data?.status as Status) ?? (screening.documents.error ? "ERREUR" : null),
       loading: screening.documents.loading,
       detail: screening.documents.data
-        ? `${screening.documents.data.autoRecovered} recupere(s) / ${screening.documents.data.total} total`
+        ? screening.documents.data.autoRecovered > 0
+          ? `${screening.documents.data.autoRecovered} recupere(s) sur ${screening.documents.data.total}`
+          : `${screening.documents.data.total} detecte(s), 0 recupere — verifier logs`
         : undefined,
       timeMs: screening.documents.timeMs,
     });
@@ -166,7 +210,13 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: (screening.inpi.data?.status as Status) ?? (screening.inpi.error ? "ERREUR" : null),
       loading: screening.inpi.loading,
       detail: screening.inpi.data
-        ? `${screening.inpi.data.storedCount} stocke(s) sur ${screening.inpi.data.totalDocuments}`
+        ? screening.inpi.data.storedCount > 0
+          ? `${screening.inpi.data.storedCount} PDF stocke(s) sur ${screening.inpi.data.totalDocuments}`
+          : screening.inpi.data.totalDocuments > 0
+            ? `${screening.inpi.data.totalDocuments} doc(s) — stockage echoue`
+            : screening.inpi.data.companyData
+              ? "Donnees entreprise OK"
+              : "Aucun document"
         : undefined,
       timeMs: screening.inpi.timeMs,
     });
@@ -195,12 +245,12 @@ export default function ScreeningPanel({ screening, compact }: Props) {
               </div>
               <div className="flex items-center gap-2">
                 {row.timeMs != null && !row.loading && (
-                  <span className="text-[9px] text-slate-600 font-mono">{(row.timeMs / 1000).toFixed(1)}s</span>
+                  <span className="text-[8px] text-slate-700 font-mono">{(row.timeMs / 1000).toFixed(1)}s</span>
                 )}
                 {row.detail && !row.loading && (
                   <span className="text-[10px] text-slate-500">{row.detail}</span>
                 )}
-                <StatusBadge status={row.status} loading={row.loading} tooltip={TOOLTIPS[row.key]} />
+                <StatusBadge status={row.status} loading={row.loading} tooltip={TOOLTIPS[row.key]} rowKey={row.key} />
               </div>
             </div>
 
