@@ -22,6 +22,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: string[] }> = {
   "/diagnostic": { title: "Diagnostic 360", breadcrumb: ["Accueil", "Diagnostic 360"] },
   "/ged": { title: "Documents / GED", breadcrumb: ["Accueil", "Documents / GED"] },
   "/parametres": { title: "Parametres", breadcrumb: ["Accueil", "Parametres"] },
+  "/lettre-mission": { title: "Lettre de Mission", breadcrumb: ["Accueil", "Lettre de Mission"] },
 };
 
 export default function AppLayout() {
@@ -34,6 +35,10 @@ export default function AppLayout() {
   if (!page && location.pathname.startsWith("/client/")) {
     const ref = location.pathname.split("/client/")[1];
     page = { title: ref, breadcrumb: ["Accueil", "Base Clients", ref] };
+  }
+  if (!page && location.pathname.startsWith("/lettre-mission/")) {
+    const ref = location.pathname.split("/lettre-mission/")[1];
+    page = { title: `LDM ${ref}`, breadcrumb: ["Accueil", "Lettre de Mission", ref] };
   }
   if (!page) page = { title: "Page", breadcrumb: ["Accueil"] };
 
