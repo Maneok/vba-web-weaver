@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -7,10 +7,18 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2 } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
+
+interface DraftInfo {
+  siren: string;
+  raisonSociale: string;
+  step: number;
+  savedAt: number;
+  key: string;
+}
 
 type SortKey = "raisonSociale" | "scoreGlobal" | "nivVigilance" | "etatPilotage" | "dateButoir" | "comptable";
 type SortDir = "asc" | "desc";
@@ -24,6 +32,44 @@ export default function BddPage() {
   const [filterEtat, setFilterEtat] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("raisonSociale");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+  // FIX 2: Scan localStorage for drafts
+  const [drafts, setDrafts] = useState<DraftInfo[]>([]);
+  useEffect(() => {
+    const found: DraftInfo[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith("draft_nc_")) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || "");
+          if (data.form?.siren) {
+            found.push({
+              siren: data.form.siren,
+              raisonSociale: data.form.raisonSociale || "",
+              step: data.step || 0,
+              savedAt: data.savedAt || 0,
+              key,
+            });
+          }
+        } catch {}
+      }
+    }
+    // Also check the main draft
+    try {
+      const main = JSON.parse(localStorage.getItem("draft_nouveau_client") || "");
+      if (main.form?.siren && !found.some(d => d.siren.replace(/\s/g, "") === main.form.siren.replace(/\s/g, ""))) {
+        found.push({
+          siren: main.form.siren,
+          raisonSociale: main.form.raisonSociale || "",
+          step: main.step || 0,
+          savedAt: main.savedAt || 0,
+          key: "draft_nouveau_client",
+        });
+      }
+    } catch {}
+    found.sort((a, b) => b.savedAt - a.savedAt);
+    setDrafts(found);
+  }, []);
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -164,6 +210,61 @@ export default function BddPage() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* FIX 2: Brouillons section */}
+      {drafts.length > 0 && (
+        <div className="glass-card p-4 animate-fade-in-up-delay-1">
+          <div className="flex items-center gap-2 mb-3">
+            <Clock className="w-4 h-4 text-blue-400" />
+            <h3 className="text-sm font-semibold text-slate-300">Brouillons ({drafts.length})</h3>
+          </div>
+          <div className="space-y-2">
+            {drafts.map(draft => (
+              <div key={draft.key} className="flex items-center justify-between p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                <div className="flex items-center gap-3">
+                  <div>
+                    <span className="text-sm text-slate-200 font-medium">{draft.raisonSociale || "Sans nom"}</span>
+                    <span className="text-xs text-slate-500 ml-2 font-mono">{draft.siren}</span>
+                  </div>
+                  <span className="text-[10px] text-slate-500">
+                    Etape {draft.step + 1}/6 · {draft.savedAt ? (() => {
+                      const diff = Date.now() - draft.savedAt;
+                      const mins = Math.floor(diff / 60000);
+                      if (mins < 1) return "a l'instant";
+                      if (mins < 60) return `il y a ${mins} min`;
+                      const hours = Math.floor(mins / 60);
+                      if (hours < 24) return `il y a ${hours}h`;
+                      return `il y a ${Math.floor(hours / 24)}j`;
+                    })() : ""}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    className="gap-1 text-xs bg-blue-600 hover:bg-blue-700"
+                    onClick={() => navigate("/nouveau-client")}
+                  >
+                    Reprendre
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0"
+                    onClick={() => {
+                      localStorage.removeItem(draft.key);
+                      if (draft.key !== "draft_nouveau_client") localStorage.removeItem("draft_nouveau_client");
+                      setDrafts(prev => prev.filter(d => d.key !== draft.key));
+                      toast.success("Brouillon supprime");
+                    }}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Table */}
       <div className="glass-card overflow-hidden animate-fade-in-up-delay-2">
