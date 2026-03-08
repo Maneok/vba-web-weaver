@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -24,7 +25,8 @@ type SortKey = "raisonSociale" | "scoreGlobal" | "nivVigilance" | "etatPilotage"
 type SortDir = "asc" | "desc";
 
 export default function BddPage() {
-  const { clients, updateClient, isLoading } = useAppState();
+  const { clients, updateClient, deleteClient, isLoading } = useAppState();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [filterVigilance, setFilterVigilance] = useState<string>("all");
@@ -351,6 +353,11 @@ export default function BddPage() {
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateClient(client.ref, { etat: "ARCHIVE" }); toast.success("Client archive"); }}>
                           <Archive className="w-3.5 h-3.5 mr-2" /> Archiver
                         </DropdownMenuItem>
+                        {profile?.role === "ADMIN" && (
+                          <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10" onClick={(e) => { e.stopPropagation(); if (confirm("Supprimer definitivement ce client ?")) { deleteClient(client.ref); toast.success("Client supprime"); } }}>
+                            <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

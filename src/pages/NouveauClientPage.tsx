@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
+import { clientsService } from "@/lib/supabaseService";
 import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, APE_CASH, MISSION_FREQUENCE, normalizeAddress } from "@/lib/riskEngine";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
@@ -93,7 +94,7 @@ interface UploadedDoc {
 
 export default function NouveauClientPage() {
   const navigate = useNavigate();
-  const { clients, addClient } = useAppState();
+  const { clients, addClient, refreshClients } = useAppState();
   const [step, setStep] = useState(0);
 
   // Step 1 - Search
@@ -385,6 +386,20 @@ export default function NouveauClientPage() {
   const questionsValid = useMemo(() => {
     return questions.every(q => q.value !== "OUI" || q.commentaire.trim().length > 0);
   }, [questions]);
+
+  // #8: Screening progress indicator
+  const screeningProgress = useMemo(() => {
+    const keys = ["enterprise", "sanctions", "bodacc", "google", "news", "network", "documents", "inpi"] as const;
+    const totalCount = keys.length;
+    const completedCount = keys.filter(k => !screening[k].loading && (screening[k].data !== null || screening[k].error !== null)).length;
+    return { completedCount, totalCount };
+  }, [screening]);
+
+  // #23: Screening running — any key has loading=true
+  const screeningRunning = useMemo(() => {
+    const keys = ["enterprise", "sanctions", "bodacc", "google", "news", "network", "documents", "inpi"] as const;
+    return keys.some(k => screening[k].loading);
+  }, [screening]);
 
   // Launch parallel screening checks
   const launchScreening = (enterprise: EnterpriseResult) => {
@@ -957,7 +972,7 @@ export default function NouveauClientPage() {
   };
 
   // Final submission
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     // FIX 10: Check for duplicate SIREN before creating
     const existingSiren = clients.find(c => c.siren?.replace(/\s/g, "") === form.siren?.replace(/\s/g, ""));
     if (existingSiren) {
@@ -969,20 +984,40 @@ export default function NouveauClientPage() {
     const cleanSiren = form.siren?.replace(/\s/g, "");
     if (cleanSiren && cleanSiren.length === 9) localStorage.removeItem(`draft_nc_${cleanSiren}`);
     const now = new Date().toISOString().split("T")[0];
-    const existingNums = clients.map(c => {
-      const match = c.ref.match(/CLI-\d{2}-(\d+)/);
-      return match ? parseInt(match[1], 10) : 0;
-    });
-    const nextNum = Math.max(0, ...existingNums) + 1;
     const year = new Date().getFullYear().toString().slice(-2);
+
+    // #19: Ref auto-increment from Supabase (with local fallback)
+    let nextNum: number;
+    try {
+      const dbClients = await clientsService.getAll();
+      if (dbClients && dbClients.length > 0) {
+        const dbNums = dbClients.map((c: any) => {
+          const match = (c.ref || "").match(/CLI-\d{2}-(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        });
+        nextNum = Math.max(0, ...dbNums) + 1;
+      } else {
+        // Fallback to local
+        const existingNums = clients.map(c => {
+          const match = c.ref.match(/CLI-\d{2}-(\d+)/);
+          return match ? parseInt(match[1], 10) : 0;
+        });
+        nextNum = Math.max(0, ...existingNums) + 1;
+      }
+    } catch {
+      // Fallback to local calculation
+      const existingNums = clients.map(c => {
+        const match = c.ref.match(/CLI-\d{2}-(\d+)/);
+        return match ? parseInt(match[1], 10) : 0;
+      });
+      nextNum = Math.max(0, ...existingNums) + 1;
+    }
     const ref = `CLI-${year}-${String(nextNum).padStart(3, "0")}`;
     // Idée 9: Date butoir auto-calculated based on vigilance level from today
     const dateButoir = calculateDateButoir(risk.nivVigilance);
 
-    const beStr = beneficiaires
-      .filter(b => b.nom)
-      .map(b => `${b.prenom} ${b.nom} (${b.pourcentage}%)`)
-      .join(", ");
+    // #20: Store BE as JSON to preserve full data (nom, prenom, dateNaissance, nationalite, pourcentage)
+    const beStr = JSON.stringify(beneficiaires.filter(b => b.nom));
 
     const etat = decision === "REFUSER" ? "REFUSE" : decision === "ACCEPTER_RESERVE" ? "EN COURS" : "VALIDE";
 
@@ -1053,6 +1088,9 @@ export default function NouveauClientPage() {
     }
 
     addClient(newClient);
+
+    // #25: Refresh clients from Supabase after creation
+    refreshClients().catch(() => {});
 
     // Idee 27: Auto-generate fiche PDF in background
     try {
@@ -1368,14 +1406,24 @@ export default function NouveauClientPage() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                 <Input
                   value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setSearchQuery(val);
+                    // #11: Auto-detect SIREN vs company name
+                    const trimmed = val.trim().replace(/\s/g, "");
+                    if (/^\d+$/.test(trimmed) && searchMode !== "dirigeant") {
+                      setSearchMode("siren");
+                    } else if (/[a-zA-ZÀ-ÿ]/.test(trimmed) && searchMode === "siren") {
+                      setSearchMode("nom");
+                    }
+                  }}
                   onKeyDown={e => e.key === "Enter" && handleSearch()}
                   placeholder={searchMode === "siren" ? "Ex: 412 345 678" : searchMode === "nom" ? "Ex: BOULANGERIE MARTIN" : "Ex: MARTIN Jean-Pierre"}
                   className="pl-9 bg-white/[0.03] border-white/[0.06]"
                 />
               </div>
 
-              <Button onClick={handleSearch} disabled={searchLoading || !searchQuery.trim()} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleSearch} disabled={searchLoading || screeningRunning || !searchQuery.trim()} className="bg-blue-600 hover:bg-blue-700">
                 {searchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 <span className="ml-1.5">Recuperer</span>
               </Button>
@@ -1429,7 +1477,7 @@ export default function NouveauClientPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <span className="font-medium text-sm text-slate-200">{r.raison_sociale}</span>
-                          <span className="text-slate-500 ml-2 text-xs">({r.siren})</span>
+                          <span className="text-slate-500 ml-2 text-xs">({formatSiren(r.siren)})</span>
                         </div>
                         {selectedResult?.siren === r.siren && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
                       </div>
@@ -1437,6 +1485,26 @@ export default function NouveauClientPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {/* #8: Screening progress indicator */}
+            {(screening.enterprise.loading || screening.enterprise.data || screeningRunning) && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-400">{screeningProgress.completedCount}/{screeningProgress.totalCount} APIs terminees</span>
+                  {screeningRunning && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />}
+                </div>
+                <Progress value={(screeningProgress.completedCount / screeningProgress.totalCount) * 100} className="h-2" />
+                {/* #9: Skip screening button */}
+                {screeningRunning && (
+                  <button
+                    onClick={() => setStep(1)}
+                    className="text-xs text-slate-500 hover:text-blue-400 transition-colors mt-1"
+                  >
+                    Passer et completer plus tard &rarr;
+                  </button>
+                )}
               </div>
             )}
 
@@ -1532,10 +1600,10 @@ export default function NouveauClientPage() {
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div><span className="text-slate-500">Raison sociale</span><p className="text-slate-200 font-medium mt-0.5">{selectedResult.raison_sociale}</p></div>
-                  <div><span className="text-slate-500">SIREN</span><p className="text-slate-200 font-mono mt-0.5">{selectedResult.siren}</p></div>
+                  <div><span className="text-slate-500">SIREN</span><p className="text-slate-200 font-mono mt-0.5">{formatSiren(selectedResult.siren)}</p></div>
                   <div><span className="text-slate-500">Forme</span><p className="text-slate-200 mt-0.5">{selectedResult.forme_juridique_raw}</p></div>
                   <div><span className="text-slate-500">APE</span><p className="text-slate-200 mt-0.5">{selectedResult.ape} - {selectedResult.libelle_ape}</p></div>
-                  <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; return cap > 0 ? `${cap.toLocaleString()} EUR` : "Non renseigne"; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-500">({capitalSource})</span>}</p></div>
+                  <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; const forme = (selectedResult.forme_juridique_raw || "").toUpperCase(); const isEI = forme.includes("INDIVIDUEL") || forme.includes("EI"); if (isEI && cap === 0) return "N/A"; return cap > 0 ? `${cap.toLocaleString()} EUR` : "Non renseigne"; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-500">({capitalSource})</span>}</p></div>
                   <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{selectedResult.dirigeant || "—"}</p></div>
                   <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
                   <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation ? selectedResult.date_creation.split("-").reverse().join("/") : "—"}</p></div>
@@ -1613,7 +1681,13 @@ export default function NouveauClientPage() {
                     {capitalSource && form.capital > 0 && <Badge className={`text-[9px] border-0 ${capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-400"}`}>{capitalSource}</Badge>}
                   </div>
                   <Input type="number" value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="Non renseigne" className={`bg-white/[0.03] mt-1 ${!form.capital ? "border-amber-500/50" : "border-white/[0.06]"}`} />
-                  {!form.capital && <p className="text-[10px] text-amber-400 mt-0.5">Non renseigne — a completer</p>}
+                  {(() => {
+                    const f = form.forme.toUpperCase();
+                    const isEI = f.includes("INDIVIDUEL") || f.includes("EI");
+                    if (isEI && !form.capital) return <p className="text-[10px] text-slate-500 mt-0.5">N/A (Entreprise individuelle)</p>;
+                    if (!form.capital) return <p className="text-[10px] text-amber-400 mt-0.5">Non renseigne — a completer</p>;
+                    return null;
+                  })()}
                 </div>
                 <div>
                   <SourceField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" source={autoFields.has("dateCreation") ? "data.gouv" : undefined} />
@@ -1621,7 +1695,7 @@ export default function NouveauClientPage() {
                 </div>
                 {/* FIX 5: Date cloture formattee */}
                 {form.dateClotureExercice && (
-                  <SourceField label="Date de cloture" value={formatDateCloture(form.dateClotureExercice)} onChange={v => set("dateClotureExercice", v)} source="INPI" />
+                  <SourceField label="Date de cloture" value={formatCloture(form.dateClotureExercice)} onChange={v => set("dateClotureExercice", v)} source="INPI" />
                 )}
                 {form.objetSocial && (
                   <div className="col-span-2">
@@ -2709,6 +2783,23 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
       )}
     </div>
   );
+}
+
+// #18: Format SIREN "123456789" → "123 456 789"
+function formatSiren(s: string): string {
+  const clean = (s || "").replace(/\s/g, "");
+  if (clean.length !== 9) return s;
+  return `${clean.slice(0, 3)} ${clean.slice(3, 6)} ${clean.slice(6, 9)}`;
+}
+
+// #15: Format date cloture "3112" → "31/12"
+function formatCloture(val: string): string {
+  if (!val) return "";
+  const clean = val.replace(/\//g, "");
+  if (/^\d{4}$/.test(clean)) {
+    return `${clean.slice(0, 2)}/${clean.slice(2, 4)}`;
+  }
+  return val;
 }
 
 // FIX 5: Format date cloture "3112" → "31/12"

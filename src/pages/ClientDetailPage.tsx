@@ -1,6 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { clientsService } from "@/lib/supabaseService";
+import { mapDbClient } from "@/lib/dbMappers";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES } from "@/lib/riskEngine";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
@@ -64,9 +67,39 @@ export default function ClientDetailPage() {
   const { ref } = useParams<{ ref: string }>();
   const navigate = useNavigate();
   const { clients } = useAppState();
+  const [fallbackClient, setFallbackClient] = useState<Client | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [notFound, setNotFound] = useState(false);
 
-  const client = clients.find(c => c.ref === ref);
-  if (!client) {
+  const contextClient = clients.find(c => c.ref === ref);
+
+  // Fallback: load from Supabase if context doesn't have the client (e.g. direct URL)
+  useEffect(() => {
+    if (contextClient || fallbackClient || !ref) return;
+    setLoading(true);
+    clientsService.getByRef(ref).then(row => {
+      if (row) {
+        setFallbackClient(mapDbClient(row));
+      } else {
+        setNotFound(true);
+      }
+    }).catch(() => {
+      setNotFound(true);
+    }).finally(() => setLoading(false));
+  }, [ref, contextClient, fallbackClient]);
+
+  const client = contextClient || fallbackClient;
+
+  if (loading) {
+    return (
+      <div className="p-8 text-center">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
+        <p className="text-slate-400 mt-2">Chargement du client...</p>
+      </div>
+    );
+  }
+
+  if (!client || notFound) {
     return (
       <div className="p-8 text-center">
         <p className="text-slate-400">Client introuvable</p>
@@ -80,7 +113,8 @@ export default function ClientDetailPage() {
 
 function ClientDetailContent({ client }: { client: Client }) {
   const navigate = useNavigate();
-  const { updateClient, logs } = useAppState();
+  const { updateClient, deleteClient, logs } = useAppState();
+  const { profile } = useAuth();
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ ...client });
   const [tab, setTab] = useState("informations");
@@ -274,6 +308,11 @@ function ClientDetailContent({ client }: { client: Client }) {
         <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }}>
           <Shield className="w-4 h-4" /> Lancer screening
         </Button>
+        {profile?.role === "ADMIN" && (
+          <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => { if (confirm("Supprimer definitivement ce client ?")) { deleteClient(client.ref); navigate("/bdd"); toast.success("Client supprime"); } }}>
+            <Trash2 className="w-4 h-4" /> Supprimer
+          </Button>
+        )}
       </div>
 
       {/* Malus flags */}

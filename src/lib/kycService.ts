@@ -506,22 +506,23 @@ async function setCachedResponse(siren: string, apiName: string, responseData: u
 
 // ====== API CALLS ======
 
-// #30: 10s timeout for all edge function calls
+// #30: 30s timeout for all edge function calls using Promise.race
 async function callEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  try {
+  const timeoutMs = 30000;
+  const timeoutPromise = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error(`Edge function "${name}" timed out after ${timeoutMs / 1000}s`)), timeoutMs)
+  );
+
+  const invokePromise = (async () => {
     const { data, error } = await supabase.functions.invoke(name, { body });
-    clearTimeout(timeout);
     if (error) throw new Error(error.message);
     if (data && typeof data === "object" && (data as Record<string, unknown>).status === "unavailable") {
       throw new Error("Service indisponible");
     }
     return data as T;
-  } catch (e) {
-    clearTimeout(timeout);
-    throw e;
-  }
+  })();
+
+  return Promise.race([invokePromise, timeoutPromise]);
 }
 
 // Direct client-side fallback for enterprise-lookup

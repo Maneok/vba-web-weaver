@@ -55,34 +55,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         logsService.getAll(),
       ]);
 
-      // If Supabase has data, use it; otherwise fallback to JSON
-      if (dbClients.length > 0) {
-        setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
-        setIsOnline(true);
-      } else {
-        setClients(O90_CLIENTS);
-        setIsOnline(false);
-      }
-
-      if (dbCollabs.length > 0) {
-        setCollaborateurs(dbCollabs.map((r: Record<string, unknown>) => mapDbCollaborateur(r)));
-      } else {
-        setCollaborateurs(O90_COLLABORATEURS);
-      }
-
-      if (dbAlertes.length > 0) {
-        setAlertes(dbAlertes.map((r: Record<string, unknown>) => mapDbAlerte(r)));
-      } else {
-        setAlertes(O90_ALERTES);
-      }
-
-      if (dbLogs.length > 0) {
-        setLogs(dbLogs.map((r: Record<string, unknown>) => mapDbLog(r)));
-      } else {
-        setLogs(O90_LOGS);
-      }
-
+      // Authenticated: always use Supabase data (even if 0 rows — new cabinet)
       setIsOnline(true);
+      setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
+      setCollaborateurs(dbCollabs.map((r: Record<string, unknown>) => mapDbCollaborateur(r)));
+      setAlertes(dbAlertes.map((r: Record<string, unknown>) => mapDbAlerte(r)));
+      setLogs(dbLogs.map((r: Record<string, unknown>) => mapDbLog(r)));
     } catch (err) {
       console.error("[AppContext] Failed to load from Supabase, using local data:", err);
       setClients(O90_CLIENTS);
@@ -110,9 +88,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const refreshClients = useCallback(async () => {
     if (!isOnline) return;
     const dbClients = await clientsService.getAll();
-    if (dbClients.length > 0) {
-      setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
-    }
+    setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
   }, [isOnline]);
 
   const refreshAll = useCallback(async () => {
