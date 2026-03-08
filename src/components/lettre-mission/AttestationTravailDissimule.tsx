@@ -1,4 +1,4 @@
-import { LETTRE_MISSION_TEMPLATE } from "../../lib/lettreMissionContent";
+import { ATTESTATION_TRAVAIL_DISSIMULE } from "../../lib/lettreMissionAnnexes";
 import type { Client } from "../../lib/types";
 
 interface AttestationTravailDissimuleProps {
@@ -8,7 +8,7 @@ interface AttestationTravailDissimuleProps {
 export default function AttestationTravailDissimule({
   client,
 }: AttestationTravailDissimuleProps) {
-  const texte = LETTRE_MISSION_TEMPLATE.attestationTravailDissimule.texte
+  const texte = ATTESTATION_TRAVAIL_DISSIMULE.texte
     .replace(/\{\{ville\}\}/g, client.ville)
     .replace(/\{\{date\}\}/g, new Date().toLocaleDateString("fr-FR"))
     .replace(/\{\{dirigeant\}\}/g, client.dirigeant)
@@ -18,7 +18,7 @@ export default function AttestationTravailDissimule({
     <div className="border rounded-lg bg-white">
       <div className="bg-gray-800 text-white px-6 py-3 rounded-t-lg">
         <h3 className="text-base font-semibold">
-          {LETTRE_MISSION_TEMPLATE.attestationTravailDissimule.titre}
+          {ATTESTATION_TRAVAIL_DISSIMULE.titre}
         </h3>
       </div>
       <div className="p-6 text-sm text-gray-700 leading-relaxed whitespace-pre-line">
