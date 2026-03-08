@@ -16,6 +16,7 @@ export default {
     extend: {
       fontFamily: {
         sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+        serif: ["Georgia", "'Times New Roman'", "serif"],
       },
       colors: {
         border: "hsl(var(--border))",

@@ -34,7 +34,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
 
   // No session at all → go to login
   if (!session) {
-    return <Navigate to="/auth" replace />;
+    return <Navigate to="/landing" replace />;
   }
 
   // Session exists but profile not loaded yet
