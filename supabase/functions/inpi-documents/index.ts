@@ -756,55 +756,74 @@ Deno.serve(async (req) => {
       financials = parseFinancials(bilansSaisis);
     }
 
-    // Generate Extrait RNE (equivalent Kbis) from INPI data
+    // Generate Extrait RNE (equivalent Kbis) as HTML from INPI data
     if (companyData && companyRaw) {
       try {
         const adr = companyData.adresse ?? {};
         const adresseStr = [adr.numVoie, adr.typeVoie, adr.voie].filter(Boolean).join(" ");
-        const dirigeantsText = (companyData.dirigeants ?? [])
-          .map((d: any) => `  - ${d.nom} ${d.prenom} (${d.qualite || "Dirigeant"})`)
-          .join("\n");
-        const beText = (companyData.beneficiaires ?? [])
-          .map((b: any) => `  - ${b.nom} ${b.prenom} — ${b.pourcentageParts ?? 0}% parts`)
-          .join("\n");
+        const denomination = companyData.denomination || "";
         const today = new Date().toLocaleDateString("fr-FR");
         const todayISO = new Date().toISOString().slice(0, 10);
 
-        const extraitText = [
-          "═══════════════════════════════════════════════════",
-          "      EXTRAIT DU REGISTRE NATIONAL DES ENTREPRISES",
-          "           Source : INPI — " + today,
-          "═══════════════════════════════════════════════════",
-          "",
-          "Denomination : " + (companyData.denomination || ""),
-          "SIREN : " + cleanSiren,
-          "Forme juridique : " + (companyData.formeJuridiqueLabel || companyData.formeJuridique || ""),
-          "Capital : " + (companyData.capital || 0) + " " + (companyData.deviseCapital || "EUR"),
-          "Adresse : " + adresseStr,
-          "Code postal : " + (adr.codePostal || ""),
-          "Commune : " + (adr.commune || ""),
-          "Objet social : " + (companyData.objetSocial || "").substring(0, 300),
-          "Date immatriculation : " + (companyData.dateImmatriculation || ""),
-          "Duree : " + (companyData.duree || "") + " ans",
-          "Date cloture exercice : " + (companyData.dateClotureExercice || ""),
-          "",
-          "Dirigeants :",
-          dirigeantsText || "  (aucun)",
-          "",
-          "Beneficiaires effectifs :",
-          beText || "  (aucun declare)",
-          "",
-          "═══════════════════════════════════════════════════",
-          "Document genere automatiquement depuis les donnees INPI",
-          "Ce document n'a pas de valeur legale officielle",
-          "═══════════════════════════════════════════════════",
-        ].join("\n");
+        const dirigeantsHtml = (companyData.dirigeants ?? [])
+          .map((d: any) => `<div class="field"><span class="label">${d.qualite || "Dirigeant"}</span><span class="value">${d.nom} ${d.prenom}${d.dateNaissance ? " — né(e) le " + d.dateNaissance : ""}${d.nationalite ? " — " + d.nationalite : ""}</span></div>`)
+          .join("\n");
+        const beHtml = (companyData.beneficiaires ?? [])
+          .map((b: any) => `<div class="field"><span class="label">${b.nom} ${b.prenom}</span><span class="value">${b.pourcentageParts ?? 0}% parts — ${b.pourcentageVotes ?? 0}% votes${b.nationalite ? " — " + b.nationalite : ""}</span></div>`)
+          .join("\n");
 
-        const extraitPath = cleanSiren + "/extrait_rne_" + todayISO + ".txt";
+        const extraitHtml = `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8">
+<title>Extrait RNE — ${denomination} — ${cleanSiren}</title>
+<style>
+  body { font-family: Georgia, serif; max-width: 800px; margin: 40px auto; padding: 20px; color: #333; }
+  h1 { text-align: center; color: #1a1a2e; border-bottom: 2px solid #1a1a2e; padding-bottom: 10px; font-size: 22px; }
+  h2 { color: #1a1a2e; margin-top: 30px; font-size: 16px; border-bottom: 1px solid #ccc; padding-bottom: 5px; }
+  .field { display: flex; padding: 8px 0; border-bottom: 1px solid #eee; }
+  .label { font-weight: bold; width: 250px; color: #555; flex-shrink: 0; }
+  .value { flex: 1; }
+  .footer { margin-top: 40px; font-size: 12px; color: #999; text-align: center; border-top: 1px solid #ddd; padding-top: 10px; }
+  @media print { body { margin: 20px; } }
+</style></head><body>
+<h1>EXTRAIT DU REGISTRE NATIONAL DES ENTREPRISES</h1>
+<p style="text-align:center;color:#666;">Source : INPI &mdash; ${today}</p>
+
+<h2>Identité</h2>
+<div class="field"><span class="label">Dénomination</span><span class="value">${denomination}</span></div>
+<div class="field"><span class="label">SIREN</span><span class="value">${cleanSiren}</span></div>
+<div class="field"><span class="label">Forme juridique</span><span class="value">${companyData.formeJuridiqueLabel || companyData.formeJuridique || ""}</span></div>
+<div class="field"><span class="label">Capital</span><span class="value">${companyData.capital || 0} ${companyData.deviseCapital || "EUR"}${companyData.capitalVariable ? " (variable)" : ""}</span></div>
+<div class="field"><span class="label">Date immatriculation</span><span class="value">${companyData.dateImmatriculation || ""}</span></div>
+<div class="field"><span class="label">Durée</span><span class="value">${companyData.duree || ""} ans</span></div>
+<div class="field"><span class="label">Date clôture exercice</span><span class="value">${companyData.dateClotureExercice || ""}</span></div>
+
+<h2>Siège social</h2>
+<div class="field"><span class="label">Adresse</span><span class="value">${adresseStr}</span></div>
+<div class="field"><span class="label">Code postal</span><span class="value">${adr.codePostal || ""}</span></div>
+<div class="field"><span class="label">Commune</span><span class="value">${adr.commune || ""}</span></div>
+
+<h2>Activité</h2>
+<div class="field"><span class="label">Activité principale</span><span class="value">${companyData.activitePrincipale || ""}</span></div>
+<div class="field"><span class="label">Objet social</span><span class="value">${(companyData.objetSocial || "").substring(0, 500)}</span></div>
+
+<h2>Dirigeants</h2>
+${dirigeantsHtml || '<div class="field"><span class="value" style="color:#999;">Aucun dirigeant déclaré</span></div>'}
+
+<h2>Bénéficiaires effectifs</h2>
+${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun bénéficiaire effectif déclaré</span></div>'}
+
+<div class="footer">
+  Document généré automatiquement depuis les données INPI<br>
+  Ce document n'a pas de valeur légale officielle
+</div>
+</body></html>`;
+
+        const extraitPath = cleanSiren + "/extrait_rne_" + todayISO + ".html";
+        const encoder = new TextEncoder();
         const { error: uploadErr } = await supabase.storage
           .from("kyc-documents")
-          .upload(extraitPath, new TextEncoder().encode(extraitText), {
-            contentType: "text/plain",
+          .upload(extraitPath, encoder.encode(extraitHtml), {
+            contentType: "text/html; charset=utf-8",
             upsert: true,
           });
 
@@ -812,7 +831,7 @@ Deno.serve(async (req) => {
           const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(extraitPath);
           documents.unshift({
             type: "kbis",
-            label: "Extrait RNE (equivalent Kbis) — " + today,
+            label: "Extrait RNE (équivalent Kbis) — " + today,
             url: urlData?.publicUrl || "",
             source: "inpi",
             available: true,
@@ -820,7 +839,7 @@ Deno.serve(async (req) => {
             storedInSupabase: true,
             dateDepot: todayISO,
           });
-          console.log("[INPI] Extrait RNE genere et stocke");
+          console.log("[INPI] Extrait RNE HTML généré et stocké");
         } else {
           console.error("[INPI] Extrait RNE upload error:", uploadErr.message);
         }
