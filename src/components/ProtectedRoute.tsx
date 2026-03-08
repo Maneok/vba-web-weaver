@@ -37,30 +37,25 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return <Navigate to="/auth" replace />;
   }
 
-  // Session exists but profile not loaded yet
-  if (!profile && !timedOut) {
+  // Session exists but profile not loaded — loading finished without profile
+  if (!profile) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Chargement du profil...</p>
-      </div>
-    );
-  }
-
-  // Profile failed to load after timeout — show app in degraded mode
-  if (!profile && timedOut) {
-    return (
-      <div className="flex flex-col min-h-screen bg-background">
-        <div className="bg-destructive/10 border-b border-destructive/20 px-4 py-2 text-center text-sm text-destructive flex items-center justify-center gap-3">
-          <span>Profil non charge — certaines fonctionnalites peuvent etre limitees.</span>
+        <p className="text-muted-foreground">Impossible de charger le profil.</p>
+        <div className="flex gap-2">
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm"
+          >
+            Réessayer
+          </button>
           <button
             onClick={() => signOut()}
-            className="px-3 py-1 text-xs rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="px-4 py-2 bg-muted text-muted-foreground rounded-md text-sm"
           >
-            Se deconnecter
+            Se déconnecter
           </button>
         </div>
-        {children}
       </div>
     );
   }
