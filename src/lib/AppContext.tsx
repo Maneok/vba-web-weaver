@@ -35,13 +35,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Load data from Supabase or fallback to JSON
   const loadData = useCallback(async () => {
     try {
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Session timeout")), 8000)
-      );
-      const { data: { session } } = await Promise.race([
-        supabase.auth.getSession(),
-        timeoutPromise,
-      ]);
+      const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         // No auth session: use local JSON data
         setClients(O90_CLIENTS);

@@ -76,50 +76,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let cancelled = false;
 
-    // Get initial session with timeout to prevent infinite spinner
-    const initAuth = async () => {
-      try {
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Auth timeout")), 8000)
-        );
-        const sessionPromise = supabase.auth.getSession();
-        const { data: { session: s } } = await Promise.race([sessionPromise, timeoutPromise]);
-
-        if (cancelled) return;
-
-        setSession(s);
-        setUser(s?.user ?? null);
-        if (s?.user) {
-          const p = await fetchProfile(s.user.id);
-          if (!cancelled) setProfile(p);
-        }
-      } catch (err) {
-        console.error("[AuthContext] Init error:", err);
-        if (!cancelled) {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    };
-    initAuth();
-
-    // Listen for auth changes (login, logout, token refresh)
+    // Listen for auth changes FIRST to catch events during init
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (cancelled) return;
+        console.log("[Auth] State change:", event);
 
         setSession(s);
         setUser(s?.user ?? null);
 
         if (s?.user) {
-          // Fetch profile — with retries for SIGNED_IN (trigger may need time)
           const p = await fetchProfile(s.user.id);
           if (!cancelled) {
             setProfile(p);
-
             if (event === "SIGNED_IN" && p) {
               logAudit({ action: "CONNEXION" }).catch(() => {});
             }
@@ -132,8 +101,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
+    // Then get initial session — no Promise.race timeout wrapper
+    const initAuth = async () => {
+      try {
+        const { data: { session: s }, error } = await supabase.auth.getSession();
+
+        if (cancelled) return;
+
+        if (error) {
+          console.warn("[Auth] getSession error:", error.message);
+          await supabase.auth.signOut();
+          return;
+        }
+
+        setSession(s);
+        setUser(s?.user ?? null);
+
+        if (s?.user) {
+          const p = await fetchProfile(s.user.id);
+          if (!cancelled) setProfile(p);
+        }
+      } catch (err) {
+        console.error("[Auth] Init exception:", err);
+        if (!cancelled) {
+          setSession(null);
+          setUser(null);
+          setProfile(null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    initAuth();
+
+    // Safety net: if loading is STILL true after 10s, force it false
+    const safetyTimer = setTimeout(() => {
+      if (!cancelled) {
+        setLoading(prev => {
+          if (prev) {
+            console.warn("[Auth] Safety timeout — forcing load complete");
+            return false;
+          }
+          return prev;
+        });
+      }
+    }, 10000);
+
     return () => {
       cancelled = true;
+      clearTimeout(safetyTimer);
       subscription.unsubscribe();
     };
   }, [fetchProfile]);
