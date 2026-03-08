@@ -478,7 +478,7 @@ async function getCachedResponse<T>(siren: string, apiName: string): Promise<T |
       .select("response_data, expires_at")
       .eq("siren", siren.replace(/\s/g, ""))
       .eq("api_name", apiName)
-      .single();
+      .maybeSingle();
     if (data && new Date(data.expires_at) > new Date()) {
       return data.response_data as T;
     }

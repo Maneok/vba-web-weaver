@@ -52,14 +52,18 @@ export default function GouvernancePage() {
   // Load referent config from parametres
   useEffect(() => {
     async function loadConfig() {
-      const { data } = await supabase
-        .from("parametres")
-        .select("value")
-        .eq("key", "lcbft_config")
-        .single();
-      if (data?.value) {
-        const val = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
-        setReferentConfig(val as ReferentConfig);
+      try {
+        const { data } = await supabase
+          .from("parametres")
+          .select("value")
+          .eq("key", "lcbft_config")
+          .maybeSingle();
+        if (data?.value) {
+          const val = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+          setReferentConfig(val as ReferentConfig);
+        }
+      } catch (err) {
+        console.error("[Gouvernance] Failed to load config:", err);
       }
     }
     loadConfig();

@@ -320,7 +320,7 @@ export default function GedPage() {
             current_version: 1,
           })
           .select()
-          .single();
+          .maybeSingle();
 
         if (docError) throw docError;
 
@@ -349,51 +349,66 @@ export default function GedPage() {
   };
 
   const deleteDocument = async (doc: Document) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    await supabase.storage.from("documents").remove([doc.file_path]);
-    const { data: versionData } = await supabase
-      .from("document_versions")
-      .select("file_path")
-      .eq("document_id", doc.id);
-    if (versionData) {
-      const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
-      if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
+      await supabase.storage.from("documents").remove([doc.file_path]);
+      const { data: versionData } = await supabase
+        .from("document_versions")
+        .select("file_path")
+        .eq("document_id", doc.id);
+      if (versionData) {
+        const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
+        if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
+      }
+
+      await supabase.from("documents").delete().eq("id", doc.id);
+      toast.success("Document supprime");
+      fetchDocuments();
+    } catch (err) {
+      console.error("[GED] Delete error:", err);
+      toast.error("Erreur lors de la suppression");
     }
-
-    await supabase.from("documents").delete().eq("id", doc.id);
-    toast.success("Document supprime");
-    fetchDocuments();
   };
 
   const downloadDocument = async (filePath: string, fileName: string) => {
-    const { data, error } = await supabase.storage
-      .from("documents")
-      .download(filePath);
+    try {
+      const { data, error } = await supabase.storage
+        .from("documents")
+        .download(filePath);
 
-    if (error) {
+      if (error) {
+        toast.error("Erreur telechargement");
+        return;
+      }
+
+      const url = URL.createObjectURL(data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("[GED] Download error:", err);
       toast.error("Erreur telechargement");
-      return;
     }
-
-    const url = URL.createObjectURL(data);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = fileName;
-    a.click();
-    URL.revokeObjectURL(url);
   };
 
   const openVersionDialog = async (doc: Document) => {
-    setSelectedDoc(doc);
-    const { data } = await supabase
-      .from("document_versions")
-      .select("*")
-      .eq("document_id", doc.id)
-      .order("version_number", { ascending: false });
-    setVersions((data as DocumentVersion[]) || []);
-    setVersionDialogOpen(true);
+    try {
+      setSelectedDoc(doc);
+      const { data } = await supabase
+        .from("document_versions")
+        .select("*")
+        .eq("document_id", doc.id)
+        .order("version_number", { ascending: false });
+      setVersions((data as DocumentVersion[]) || []);
+      setVersionDialogOpen(true);
+    } catch (err) {
+      console.error("[GED] Version dialog error:", err);
+      toast.error("Erreur chargement des versions");
+    }
   };
 
   const uploadNewVersion = async () => {

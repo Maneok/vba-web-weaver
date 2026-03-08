@@ -9,7 +9,7 @@ async function getCabinetId(): Promise<string | null> {
       .from("profiles")
       .select("cabinet_id")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
     if (error) {
       console.error("[DB] getCabinetId error:", error);
       return null;
@@ -45,7 +45,7 @@ export const clientsService = {
       .from("clients")
       .insert({ ...client, cabinet_id: cabinetId })
       .select()
-      .single();
+      .maybeSingle();
     if (error) {
       console.error("[DB] clients create:", error);
       return null;
@@ -59,7 +59,7 @@ export const clientsService = {
       .update({ ...updates, updated_at: new Date().toISOString() })
       .eq("id", id)
       .select()
-      .single();
+      .maybeSingle();
     if (error) {
       console.error("[DB] clients update:", error);
       return null;
@@ -76,7 +76,7 @@ export const clientsService = {
       .eq("cabinet_id", cabinetId)
       .eq("ref", ref)
       .select()
-      .single();
+      .maybeSingle();
     if (error) {
       console.error("[DB] clients updateByRef:", error);
       return null;
@@ -97,7 +97,7 @@ export const clientsService = {
       .select("*")
       .eq("cabinet_id", cabinetId)
       .eq("ref", ref)
-      .single();
+      .maybeSingle();
     return data;
   },
 
@@ -135,7 +135,7 @@ export const collaborateursService = {
       .from("collaborateurs")
       .insert({ ...collab, cabinet_id: cabinetId })
       .select()
-      .single();
+      .maybeSingle();
     if (error) {
       console.error("[DB] collab create:", error);
       return null;
@@ -149,7 +149,7 @@ export const collaborateursService = {
       .update(updates)
       .eq("id", id)
       .select()
-      .single();
+      .maybeSingle();
     return data;
   },
 
@@ -178,7 +178,7 @@ export const registreService = {
       .from("alertes_registre")
       .insert({ ...alerte, cabinet_id: cabinetId })
       .select()
-      .single();
+      .maybeSingle();
     if (error) {
       console.error("[DB] alerte create:", error);
       return null;
@@ -192,7 +192,7 @@ export const registreService = {
       .update(updates)
       .eq("id", id)
       .select()
-      .single();
+      .maybeSingle();
     return data;
   },
 };
@@ -248,7 +248,7 @@ export const controlesService = {
       .from("controles_qualite")
       .insert({ ...controle, cabinet_id: cabinetId })
       .select()
-      .single();
+      .maybeSingle();
     if (error) {
       console.error("[DB] controle create:", error);
       return null;
