@@ -107,26 +107,69 @@ function parseINPICompany(raw: any): any {
     const adresse = adresseEnt?.adresse ?? adresseEnt ?? {};
     const pouvoirs = (pm?.composition?.pouvoirs ?? []);
 
+    // Parse dirigeants from pouvoirs — INPI structure: individu.descriptionPersonne
     const dirigeants = pouvoirs
-      .filter((p: any) => !p.beneficiaireEffectif)
-      .map((p: any) => ({
-        nom: (p.individu?.nom ?? p.nom ?? "").toUpperCase(),
-        prenom: p.individu?.prenom ?? p.prenom ?? "",
-        qualite: p.roleEnEntreprise ?? p.qualite ?? "",
-        date_naissance: p.individu?.dateDeNaissance ?? "",
-        nationalite: p.individu?.nationalite ?? "",
-      }));
+      .filter((p: any) => p.typeDePersonne === "INDIVIDU")
+      .map((p: any) => {
+        const desc = p.individu?.descriptionPersonne ?? {};
+        const prenoms = desc.prenoms ?? [];
+        const prenom = Array.isArray(prenoms) ? (prenoms[0] ?? "") : String(prenoms);
+        return {
+          nom: (desc.nom ?? p.individu?.nom ?? "").toUpperCase(),
+          prenom,
+          qualite: p.roleEntreprise ?? p.roleEnEntreprise ?? "",
+          date_naissance: desc.dateDeNaissance ?? "",
+          nationalite: desc.nationalite ?? "",
+        };
+      });
 
+    // Parse BE: field beneficiaireEffectif does NOT exist in INPI API
+    // Check for it anyway (future-proofing), then fallback to deduction
     const beneficiaires = pouvoirs
-      .filter((p: any) => p.beneficiaireEffectif === true)
-      .map((p: any) => ({
-        nom: (p.individu?.nom ?? p.nom ?? "").toUpperCase(),
-        prenom: p.individu?.prenom ?? p.prenom ?? "",
-        date_naissance: p.individu?.dateDeNaissance ?? "",
-        nationalite: p.individu?.nationalite ?? "",
-        pourcentage_parts: p.pourcentageDetentionCapital ?? 0,
-        pourcentage_votes: p.pourcentageDetentionDroitVote ?? 0,
-      }));
+      .filter((p: any) => {
+        const be = p.beneficiaireEffectif;
+        return be === true || be === "true" || be === "O" || be === "OUI";
+      })
+      .map((p: any) => {
+        const desc = p.individu?.descriptionPersonne ?? {};
+        const prenoms = desc.prenoms ?? [];
+        const prenom = Array.isArray(prenoms) ? (prenoms[0] ?? "") : String(prenoms);
+        return {
+          nom: (desc.nom ?? "").toUpperCase(),
+          prenom,
+          date_naissance: desc.dateDeNaissance ?? "",
+          nationalite: desc.nationalite ?? "",
+          pourcentage_parts: p.pourcentageDetentionCapital ?? 0,
+          pourcentage_votes: p.pourcentageDetentionDroitVote ?? 0,
+          role: p.roleEntreprise ?? "",
+          source: "INPI",
+        };
+      });
+
+    console.log("[INPI BE] Pouvoirs total:", pouvoirs.length,
+      "| Dont BE:", beneficiaires.length,
+      "| Dirigeants:", dirigeants.length);
+
+    // Fallback: if no BE declared, deduce from structure
+    if (beneficiaires.length === 0 && dirigeants.length > 0) {
+      const forme = (description.formeJuridique ?? entreprise.formeJuridique ?? formality?.formeJuridique ?? "").toUpperCase();
+      const isAssocieUnique = description.indicateurAssocieUnique === true ||
+        forme.includes("SASU") || forme.includes("EURL") || forme.includes("SNC");
+
+      if (isAssocieUnique || dirigeants.length === 1) {
+        beneficiaires.push({
+          nom: dirigeants[0].nom,
+          prenom: dirigeants[0].prenom,
+          date_naissance: dirigeants[0].date_naissance || "",
+          nationalite: dirigeants[0].nationalite || "",
+          pourcentage_parts: 100,
+          pourcentage_votes: 100,
+          role: dirigeants[0].qualite || "Dirigeant unique",
+          source: "INPI (deduit)",
+        });
+        console.log("[INPI BE] Fallback: dirigeant unique utilise comme BE a 100%");
+      }
+    }
 
     const numVoie = adresse.numVoie ?? "";
     const typeVoie = adresse.typeVoie ?? "";

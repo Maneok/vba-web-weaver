@@ -113,7 +113,11 @@ async function downloadAndStore(
   try {
     console.log(`[INPI] Downloading ${url}`);
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/pdf, application/octet-stream, */*",
+      },
+      redirect: "follow",
       signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) {
@@ -157,10 +161,29 @@ function parseFinancials(bilansSaisis: any[]): any[] {
   if (!bilansSaisis || bilansSaisis.length === 0) return [];
 
   return bilansSaisis.slice(0, 3).map((bilan: any) => {
+    // Handle both flat structure and nested bilanSaisi structure
     const data = bilan.data ?? bilan.donnees ?? {};
+    const nestedPages = bilan?.bilanSaisi?.bilan?.detail?.pages ?? [];
     const pages = data.pages ?? data;
 
-    const getValue = (codes: string[]): number | null => {
+    // Try nested liasse-based lookup first (bilanSaisi.bilan.detail.pages[].liasses[])
+    const getValFromLiasses = (pageNum: number, code: string): number | null => {
+      if (nestedPages.length === 0) return null;
+      const page = nestedPages.find((p: any) => p.numero === pageNum);
+      if (!page) return null;
+      const liasse = (page.liasses ?? []).find((l: any) => l.code === code);
+      if (!liasse) return null;
+      const raw = liasse.m1 || liasse.m3 || "0";
+      return parseInt(String(raw).replace(/^0+/, "") || "0");
+    };
+
+    const getValue = (codes: string[], pageHint?: number): number | null => {
+      // Try nested structure first
+      if (nestedPages.length > 0 && pageHint != null) {
+        const v = getValFromLiasses(pageHint, codes[0]);
+        if (v !== null) return v;
+      }
+      // Fallback to flat structure
       for (const code of codes) {
         for (const key of Object.keys(pages)) {
           const page = pages[key];
@@ -180,15 +203,17 @@ function parseFinancials(bilansSaisis: any[]): any[] {
       return null;
     };
 
+    const identite = bilan?.bilanSaisi?.bilan?.identite ?? {};
+
     return {
-      dateCloture: bilan.dateCloture ?? bilan.date_cloture ?? "",
-      chiffreAffaires: getValue(["FJ", "210", "214", "218"]),
-      resultat: getValue(["HN", "310"]),
-      capital: getValue(["DA"]),
-      totalBilan: getValue(["EE", "180"]),
-      effectif: getValue(["YP", "376"]),
-      dettes: getValue(["EC"]),
-      capitauxPropres: getValue(["DL"]),
+      dateCloture: bilan.dateCloture ?? bilan.date_cloture ?? identite.dateClotureExercice ?? "",
+      chiffreAffaires: getValue(["FJ", "210", "214", "218"], 3),
+      resultat: getValue(["HN", "310"], 4),
+      capital: getValue(["DA"], 2),
+      totalBilan: getValue(["EE", "180"], 2),
+      effectif: getValue(["YP", "376"], 11),
+      dettes: getValue(["EC"], 2),
+      capitauxPropres: getValue(["DL"], 2),
     };
   });
 }
@@ -207,28 +232,66 @@ function parsePersonneMorale(companyRaw: any): any {
   const composition = pm?.composition ?? {};
   const pouvoirs = composition?.pouvoirs ?? [];
 
+  // Parse dirigeants — INPI structure: individu.descriptionPersonne
   const dirigeants = pouvoirs
-    .filter((p: any) => !p.beneficiaireEffectif)
-    .map((p: any) => ({
-      nom: (p.individu?.nom ?? p.nom ?? "").toUpperCase(),
-      prenom: p.individu?.prenom ?? p.prenom ?? "",
-      qualite: p.roleEnEntreprise ?? p.qualite ?? "",
-      dateNaissance: p.individu?.dateDeNaissance ?? "",
-      nationalite: p.individu?.nationalite ?? "",
-      lieuNaissance: p.individu?.lieuDeNaissance ?? "",
-    }));
+    .filter((p: any) => p.typeDePersonne === "INDIVIDU")
+    .map((p: any) => {
+      const desc = p.individu?.descriptionPersonne ?? {};
+      const prenoms = desc.prenoms ?? [];
+      const prenom = Array.isArray(prenoms) ? (prenoms[0] ?? "") : String(prenoms);
+      return {
+        nom: (desc.nom ?? p.individu?.nom ?? "").toUpperCase(),
+        prenom,
+        qualite: p.roleEntreprise ?? p.roleEnEntreprise ?? "",
+        dateNaissance: desc.dateDeNaissance ?? "",
+        nationalite: desc.nationalite ?? "",
+        lieuNaissance: desc.lieuDeNaissance ?? "",
+      };
+    });
 
-  const beneficiaires = pouvoirs
-    .filter((p: any) => p.beneficiaireEffectif === true)
-    .map((p: any) => ({
-      nom: (p.individu?.nom ?? p.nom ?? "").toUpperCase(),
-      prenom: p.individu?.prenom ?? p.prenom ?? "",
-      dateNaissance: p.individu?.dateDeNaissance ?? "",
-      nationalite: p.individu?.nationalite ?? "",
-      pourcentageParts: p.pourcentageDetentionCapital ?? 0,
-      pourcentageVotes: p.pourcentageDetentionDroitVote ?? 0,
-      modalitesControle: p.modalitesDeControle ?? "",
-    }));
+  // Parse BE: beneficiaireEffectif field does NOT exist in INPI API
+  const beneficiaires: any[] = pouvoirs
+    .filter((p: any) => {
+      const be = p.beneficiaireEffectif;
+      return be === true || be === "true" || be === "O" || be === "OUI";
+    })
+    .map((p: any) => {
+      const desc = p.individu?.descriptionPersonne ?? {};
+      const prenoms = desc.prenoms ?? [];
+      const prenom = Array.isArray(prenoms) ? (prenoms[0] ?? "") : String(prenoms);
+      return {
+        nom: (desc.nom ?? "").toUpperCase(),
+        prenom,
+        dateNaissance: desc.dateDeNaissance ?? "",
+        nationalite: desc.nationalite ?? "",
+        pourcentageParts: p.pourcentageDetentionCapital ?? 0,
+        pourcentageVotes: p.pourcentageDetentionDroitVote ?? 0,
+        modalitesControle: p.modalitesDeControle ?? "",
+      };
+    });
+
+  console.log("[INPI BE] Pouvoirs:", pouvoirs.length, "| BE:", beneficiaires.length, "| Dirigeants:", dirigeants.length);
+
+  // Fallback: deduce BE from structure when none declared
+  if (beneficiaires.length === 0 && dirigeants.length > 0) {
+    const formeCode = companyRaw?.formality?.formeJuridique ?? "";
+    const forme = (description.formeJuridique ?? entreprise.formeJuridique ?? formeCode).toUpperCase();
+    const isAssocieUnique = description.indicateurAssocieUnique === true ||
+      forme.includes("SASU") || forme.includes("EURL") || forme.includes("SNC");
+
+    if (isAssocieUnique || dirigeants.length === 1) {
+      beneficiaires.push({
+        nom: dirigeants[0].nom,
+        prenom: dirigeants[0].prenom,
+        dateNaissance: dirigeants[0].dateNaissance || "",
+        nationalite: dirigeants[0].nationalite || "",
+        pourcentageParts: 100,
+        pourcentageVotes: 100,
+        modalitesControle: "Dirigeant unique (deduit)",
+      });
+      console.log("[INPI BE] Fallback: dirigeant unique = BE 100%");
+    }
+  }
 
   const etablissements = (companyRaw.etablissements ?? []).map((e: any) => ({
     siret: e.siret ?? "",
@@ -580,7 +643,25 @@ Deno.serve(async (req) => {
 
       console.log(`[INPI] Found ${actes.length} actes, ${bilans.length} bilans, ${bilansSaisis.length} bilansSaisis`);
 
-      for (const acte of actes.slice(0, 5)) {
+      // Separate statuts from other actes, prioritize statuts
+      const statutsActes: any[] = [];
+      const autresActes: any[] = [];
+      for (const acte of actes) {
+        let isStatutActe = false;
+        if (acte.typeRdd && Array.isArray(acte.typeRdd)) {
+          isStatutActe = acte.typeRdd.some((t: any) => {
+            const ta = String(t.typeActe || "").toLowerCase();
+            const dec = String(t.decision || "").toLowerCase();
+            return ta.includes("statut") || dec.includes("statut");
+          });
+        }
+        if (isStatutActe) statutsActes.push(acte);
+        else autresActes.push(acte);
+      }
+      console.log(`[INPI] Statuts: ${statutsActes.length}, Autres actes: ${autresActes.length}`);
+      const actesToProcess = [...statutsActes.slice(0, 2), ...autresActes.slice(0, 3)];
+
+      for (const acte of actesToProcess) {
         const acteId = acte.id;
         let acteType = "Acte";
         if (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0) {
@@ -644,6 +725,79 @@ Deno.serve(async (req) => {
       }
 
       financials = parseFinancials(bilansSaisis);
+    }
+
+    // Generate Extrait RNE (equivalent Kbis) from INPI data
+    if (companyData && companyRaw) {
+      try {
+        const adr = companyData.adresse ?? {};
+        const adresseStr = [adr.numVoie, adr.typeVoie, adr.voie].filter(Boolean).join(" ");
+        const dirigeantsText = (companyData.dirigeants ?? [])
+          .map((d: any) => `  - ${d.nom} ${d.prenom} (${d.qualite || "Dirigeant"})`)
+          .join("\n");
+        const beText = (companyData.beneficiaires ?? [])
+          .map((b: any) => `  - ${b.nom} ${b.prenom} — ${b.pourcentageParts ?? 0}% parts`)
+          .join("\n");
+        const today = new Date().toLocaleDateString("fr-FR");
+        const todayISO = new Date().toISOString().slice(0, 10);
+
+        const extraitText = [
+          "═══════════════════════════════════════════════════",
+          "      EXTRAIT DU REGISTRE NATIONAL DES ENTREPRISES",
+          "           Source : INPI — " + today,
+          "═══════════════════════════════════════════════════",
+          "",
+          "Denomination : " + (companyData.denomination || ""),
+          "SIREN : " + cleanSiren,
+          "Forme juridique : " + (companyData.formeJuridiqueLabel || companyData.formeJuridique || ""),
+          "Capital : " + (companyData.capital || 0) + " " + (companyData.deviseCapital || "EUR"),
+          "Adresse : " + adresseStr,
+          "Code postal : " + (adr.codePostal || ""),
+          "Commune : " + (adr.commune || ""),
+          "Objet social : " + (companyData.objetSocial || "").substring(0, 300),
+          "Date immatriculation : " + (companyData.dateImmatriculation || ""),
+          "Duree : " + (companyData.duree || "") + " ans",
+          "Date cloture exercice : " + (companyData.dateClotureExercice || ""),
+          "",
+          "Dirigeants :",
+          dirigeantsText || "  (aucun)",
+          "",
+          "Beneficiaires effectifs :",
+          beText || "  (aucun declare)",
+          "",
+          "═══════════════════════════════════════════════════",
+          "Document genere automatiquement depuis les donnees INPI",
+          "Ce document n'a pas de valeur legale officielle",
+          "═══════════════════════════════════════════════════",
+        ].join("\n");
+
+        const extraitPath = cleanSiren + "/extrait_rne_" + todayISO + ".txt";
+        const { error: uploadErr } = await supabase.storage
+          .from("kyc-documents")
+          .upload(extraitPath, new TextEncoder().encode(extraitText), {
+            contentType: "text/plain",
+            upsert: true,
+          });
+
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(extraitPath);
+          documents.unshift({
+            type: "kbis",
+            label: "Extrait RNE (equivalent Kbis) — " + today,
+            url: urlData?.publicUrl || "",
+            source: "inpi",
+            available: true,
+            status: "auto",
+            storedInSupabase: true,
+            dateDepot: todayISO,
+          });
+          console.log("[INPI] Extrait RNE genere et stocke");
+        } else {
+          console.error("[INPI] Extrait RNE upload error:", uploadErr.message);
+        }
+      } catch (e) {
+        console.error("[INPI] Extrait RNE generation error:", (e as Error).message);
+      }
     }
 
     console.log(`[INPI] === Done: ${documents.length} docs, ${documents.filter((d: any) => d.storedInSupabase).length} stored, ${financials.length} financial years ===`);
