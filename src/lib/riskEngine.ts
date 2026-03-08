@@ -1,5 +1,51 @@
 import type { VigilanceLevel } from "./types";
 
+// ====== CASH-INTENSIVE APE CODES (Idée 4) ======
+export const APE_CASH: string[] = [
+  "56.10A", "56.10C", "56.30Z", "47.26Z", "10.71C",
+  "96.02A", "96.02B", "96.04Z", "47.11B", "47.11D",
+  "47.77Z", "92.00Z",
+];
+
+// ====== MISSION → FREQUENCY MAPPING (Idée 7) ======
+export const MISSION_FREQUENCE: Record<string, string> = {
+  "TENUE COMPTABLE": "MENSUEL",
+  "REVISION / SURVEILLANCE": "TRIMESTRIEL",
+  "SOCIAL / PAIE SEULE": "MENSUEL",
+  "CONSEIL DE GESTION": "ANNUEL",
+  "CONSTITUTION / CESSION": "ANNUEL",
+  "DOMICILIATION": "MENSUEL",
+  "IRPP": "ANNUEL",
+};
+
+// ====== VIGILANCE → DATE BUTOIR OFFSET (Idée 9) ======
+export function calculateDateButoir(nivVigilance: VigilanceLevel): string {
+  const d = new Date();
+  switch (nivVigilance) {
+    case "SIMPLIFIEE": d.setFullYear(d.getFullYear() + 3); break;
+    case "STANDARD": d.setFullYear(d.getFullYear() + 2); break;
+    case "RENFORCEE": d.setFullYear(d.getFullYear() + 1); break;
+  }
+  return d.toISOString().split("T")[0];
+}
+
+// ====== ADDRESS NORMALIZATION (Idée 17) ======
+export function normalizeAddress(addr: string): string {
+  return addr
+    .toUpperCase()
+    .replace(/[,;.]/g, " ")
+    .replace(/\b(AVENUE|AV)\b/g, "AV")
+    .replace(/\b(BOULEVARD|BD|BLVD)\b/g, "BD")
+    .replace(/\b(ROUTE|RTE)\b/g, "RTE")
+    .replace(/\b(PLACE|PL)\b/g, "PL")
+    .replace(/\b(IMPASSE|IMP)\b/g, "IMP")
+    .replace(/\b(ALLEE|ALL)\b/g, "ALL")
+    .replace(/\b(CHEMIN|CH)\b/g, "CH")
+    .replace(/\b(RUE|R)\b/g, "RUE")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // ====== MISSION SCORING ======
 const MISSION_SCORES: Record<string, number> = {
   "TENUE COMPTABLE": 10,

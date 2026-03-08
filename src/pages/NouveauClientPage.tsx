@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
-import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE } from "@/lib/riskEngine";
+import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, APE_CASH, MISSION_FREQUENCE, normalizeAddress } from "@/lib/riskEngine";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
@@ -33,7 +33,7 @@ import {
 import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
-  Map, ExternalLink, Eye, Clock,
+  Map, ExternalLink, Eye, Clock, DollarSign, Calendar,
 } from "lucide-react";
 
 const FORMES = ["ENTREPRISE INDIVIDUELLE", "SARL", "EURL", "SAS", "SCI", "SCP", "SELAS", "SELARL", "EARL", "SA", "ASSOCIATION", "SNC", "TRUST", "FIDUCIE", "FONDATION"];
@@ -212,6 +212,14 @@ export default function NouveauClientPage() {
     }
   }, [sanctionsPPE]);
 
+  // Idée 7: Auto-suggest frequency based on mission type
+  useMemo(() => {
+    const suggested = MISSION_FREQUENCE[form.mission];
+    if (suggested && form.frequence !== suggested) {
+      set("frequence", suggested);
+    }
+  }, [form.mission]);
+
   // #24: Auto-detect domiciliataire → mission DOMICILIATION
   const inpiDomiciliataire = screening.inpi.data?.companyData?.domiciliataire;
   useMemo(() => {
@@ -219,6 +227,42 @@ export default function NouveauClientPage() {
       set("mission", "DOMICILIATION");
     }
   }, [inpiDomiciliataire]);
+
+  // Idée 4: Auto-detect cash-intensive APE
+  useMemo(() => {
+    if (form.ape && APE_CASH.includes(form.ape)) {
+      setQuestions(prev => {
+        const cashQ = prev.find(q => q.id === "cash");
+        if (cashQ && cashQ.value !== "OUI") {
+          toast.warning("Secteur a risque especes detecte (APE " + form.ape + ")");
+          return prev.map(q =>
+            q.id === "cash"
+              ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Secteur a risque especes detecte automatiquement (APE ${form.ape})` }
+              : q
+          );
+        }
+        return prev;
+      });
+    }
+  }, [form.ape]);
+
+  // Idée 5: Auto-detect pays risque from BE nationalities
+  useMemo(() => {
+    if (beneficiaires.length > 0) {
+      const paysRisqueMatch = beneficiaires.find(b => {
+        const nat = (b.nationalite || "").toUpperCase();
+        return nat && nat !== "FRANCAISE" && nat !== "FRANÇAISE" && PAYS_RISQUE.some(p => nat.includes(p));
+      });
+      if (paysRisqueMatch) {
+        setQuestions(prev => prev.map(q =>
+          q.id === "paysRisque" && q.value !== "OUI"
+            ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Pays a risque detecte via BE : ${paysRisqueMatch.nationalite}` }
+            : q
+        ));
+        toast.warning(`Pays a risque detecte (nationalite BE: ${paysRisqueMatch.nationalite})`);
+      }
+    }
+  }, [beneficiaires]);
 
   // #25: Auto-detect pays risque from address or dirigeant nationality
   const inpiPays = screening.inpi.data?.companyData?.adresse?.pays;
@@ -901,7 +945,8 @@ export default function NouveauClientPage() {
     const nextNum = Math.max(0, ...existingNums) + 1;
     const year = new Date().getFullYear().toString().slice(-2);
     const ref = `CLI-${year}-${String(nextNum).padStart(3, "0")}`;
-    const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
+    // Idée 9: Date butoir auto-calculated based on vigilance level from today
+    const dateButoir = calculateDateButoir(risk.nivVigilance);
 
     const beStr = beneficiaires
       .filter(b => b.nom)
@@ -1010,6 +1055,74 @@ export default function NouveauClientPage() {
     }
     return errors;
   }, [step, form]);
+
+  // Idée 6: Average honoraires for same mission type
+  const avgHonoraires = useMemo(() => {
+    const sameMission = clients.filter(c => c.mission === form.mission && c.honoraires > 0);
+    if (sameMission.length === 0) return null;
+    const avg = Math.round(sameMission.reduce((sum, c) => sum + c.honoraires, 0) / sameMission.length);
+    return avg;
+  }, [clients, form.mission]);
+
+  // Idée 13: Alert société récente (< 12 mois)
+  const societeRecenteAlert = useMemo(() => {
+    if (!form.dateCreation) return null;
+    const created = new Date(form.dateCreation);
+    const now = new Date();
+    const diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+    if (diffMonths >= 0 && diffMonths < 12) return diffMonths;
+    return null;
+  }, [form.dateCreation]);
+
+  // Idée 15: Alert effectif zéro + CA > 500k
+  const effectifZeroCaAlert = useMemo(() => {
+    const financials = screening.inpi.data?.financials;
+    if (!financials || financials.length === 0) return null;
+    const latestCA = financials[0]?.chiffreAffaires;
+    const effectif = form.effectif || "";
+    const hasZeroEmployees = effectif.includes("0") && !effectif.includes("10") && !effectif.includes("20");
+    if (hasZeroEmployees && latestCA && latestCA > 500000) {
+      return latestCA;
+    }
+    return null;
+  }, [screening.inpi.data?.financials, form.effectif]);
+
+  // Idée 14: Alert capital bas (< 500€) for SAS/SARL only
+  const capitalBasAlert = useMemo(() => {
+    if (form.capital > 0 && form.capital < 500) {
+      const f = form.forme.toUpperCase();
+      const isEI = f.includes("INDIVIDUEL") || f.includes("EI") || f.includes("AUTO");
+      if (!isEI) return form.capital;
+    }
+    return null;
+  }, [form.capital, form.forme]);
+
+  // Idée 17: Address divergence INPI vs Annuaire
+  const addressDivergence = useMemo(() => {
+    const inpiAddr = screening.inpi.data?.companyData?.adresse;
+    if (!inpiAddr || !selectedEnterprise) return null;
+    const inpiFull = normalizeAddress([inpiAddr.numVoie, inpiAddr.typeVoie, inpiAddr.voie, inpiAddr.codePostal, inpiAddr.commune].filter(Boolean).join(" "));
+    const annuaireFull = normalizeAddress([selectedEnterprise.adresse, selectedEnterprise.code_postal, selectedEnterprise.ville].filter(Boolean).join(" "));
+    if (inpiFull && annuaireFull && inpiFull !== annuaireFull) {
+      return {
+        inpi: [inpiAddr.numVoie, inpiAddr.typeVoie, inpiAddr.voie, inpiAddr.codePostal, inpiAddr.commune].filter(Boolean).join(" "),
+        annuaire: [selectedEnterprise.adresse, selectedEnterprise.code_postal, selectedEnterprise.ville].filter(Boolean).join(" "),
+      };
+    }
+    return null;
+  }, [screening.inpi.data?.companyData?.adresse, selectedEnterprise]);
+
+  // Idée 16: INPI historique timeline + alert if dirigeant change < 6 months
+  const inpiHistorique = screening.inpi.data?.companyData?.historique ?? [];
+  const recentDirigeantChange = useMemo(() => {
+    if (inpiHistorique.length === 0) return false;
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    return inpiHistorique.some(evt => {
+      const evtDate = new Date(evt.date);
+      return evtDate >= sixMonthsAgo && (evt.type.toLowerCase().includes("dirigeant") || evt.description.toLowerCase().includes("dirigeant"));
+    });
+  }, [inpiHistorique]);
 
   // CORRECTION 1: Detect if EI/personne physique for adapted form labels
   const isPersonnePhysique = screening.inpi.data?.companyData?.typePersonne === "physique";
@@ -1382,8 +1495,6 @@ export default function NouveauClientPage() {
                   <SourceField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" source={autoFields.has("dateCreation") ? "data.gouv" : undefined} />
                   {form.dateCreation && <p className="text-[10px] text-slate-500 mt-0.5">{formatDateFR(form.dateCreation)}</p>}
                 </div>
-                <SourceField label="Effectif" value={form.effectif} onChange={v => set("effectif", v)} source={autoFields.has("effectif") ? "data.gouv" : undefined} />
-                <SourceField label="Dirigeant" value={form.dirigeant} onChange={v => set("dirigeant", v)} source={autoFields.has("dirigeant") ? (screening.inpi.data?.companyData?.dirigeants?.length ? "INPI" : "data.gouv") : undefined} />
                 {/* FIX 5: Date cloture formattee */}
                 {form.dateClotureExercice && (
                   <SourceField label="Date de cloture" value={formatDateCloture(form.dateClotureExercice)} onChange={v => set("dateClotureExercice", v)} source="INPI" />
@@ -1415,6 +1526,50 @@ export default function NouveauClientPage() {
               )}
             </div>
 
+            {/* Alerte société récente */}
+            {societeRecenteAlert !== null && (
+              <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-orange-400 shrink-0" />
+                <span className="text-sm text-orange-400 font-medium">Societe creee il y a {societeRecenteAlert} mois — anciennete inferieure a 12 mois (score maturite : 65)</span>
+              </div>
+            )}
+
+            {/* Alerte capital bas */}
+            {capitalBasAlert !== null && (
+              <div className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/20 flex items-center gap-2">
+                <Info className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                <span className="text-xs text-amber-400">Capital faible ({capitalBasAlert} EUR) pour une {form.forme} — a surveiller</span>
+              </div>
+            )}
+
+            {/* Alerte effectif zéro + CA élevé */}
+            {effectifZeroCaAlert !== null && (
+              <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/30 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0" />
+                <span className="text-sm text-orange-400 font-medium">CA eleve ({effectifZeroCaAlert.toLocaleString("fr-FR")} EUR) avec effectif a 0 — risque de societe de facturation</span>
+              </div>
+            )}
+
+            {/* Divergence d'adresse INPI vs Annuaire */}
+            {addressDivergence && (
+              <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0" />
+                  <Badge className="text-[9px] bg-orange-500/20 text-orange-400 border-0">Divergence d'adresse</Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs ml-6">
+                  <div>
+                    <span className="text-slate-500">INPI :</span>
+                    <p className="text-slate-300 mt-0.5">{addressDivergence.inpi}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Annuaire :</span>
+                    <p className="text-slate-300 mt-0.5">{addressDivergence.annuaire}</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* ===== SEPARATEUR ===== */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.08]" /></div>
@@ -1434,7 +1589,14 @@ export default function NouveauClientPage() {
                 <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
                 <FormField label="Type de mission *" type="select" value={form.mission} options={MISSIONS} onChange={v => set("mission", v)} />
                 <FormField label="Frequence" type="select" value={form.frequence} options={FREQUENCES} onChange={v => set("frequence", v)} />
-                <FormField label="Honoraires HT" value={form.honoraires} onChange={v => set("honoraires", Number(v))} type="number" />
+                <div>
+                  <FormField label="Honoraires HT" value={form.honoraires} onChange={v => set("honoraires", Number(v))} type="number" />
+                  {avgHonoraires && (
+                    <p className="text-[10px] text-blue-400 mt-0.5 flex items-center gap-1">
+                      <DollarSign className="w-3 h-3" /> Moyenne cabinet pour {form.mission} : {avgHonoraires.toLocaleString("fr-FR")} EUR HT/an
+                    </p>
+                  )}
+                </div>
                 <FormField label="Frais constitution" value={form.reprise} onChange={v => set("reprise", Number(v))} type="number" />
                 <FormField label="Honoraires juridique" value={form.juridique} onChange={v => set("juridique", Number(v))} type="number" />
                 <FormField label="IBAN" value={form.iban} onChange={v => set("iban", v)} error={validationErrors.iban} placeholder="FR76..." />
@@ -1689,6 +1851,20 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
+            {/* Idée 9: Date butoir auto-calculée */}
+            <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-blue-400" />
+                <span className="text-xs text-slate-300">Date butoir prochaine revue</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-200 font-mono">{calculateDateButoir(risk.nivVigilance).split("-").reverse().join("/")}</span>
+                <span className="text-[10px] text-slate-500">
+                  ({risk.nivVigilance === "SIMPLIFIEE" ? "+3 ans" : risk.nivVigilance === "STANDARD" ? "+2 ans" : "+1 an"})
+                </span>
+              </div>
+            </div>
+
             {/* Screening summary at scoring step */}
             {(screening.sanctions.data || screening.bodacc.data || screening.google.data || screening.news.data) && (
               <div className="lg:col-span-2">
@@ -1927,6 +2103,56 @@ export default function NouveauClientPage() {
                     <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
                     <span className="text-xs text-red-400">Capitaux propres negatifs — alerte financiere</span>
                   </div>
+                )}
+              </div>
+            )}
+
+            {/* Idée 16: INPI Historique Timeline */}
+            {inpiHistorique.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-slate-400">Historique INPI ({inpiHistorique.length} evenement(s))</Label>
+                  {recentDirigeantChange && (
+                    <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0 flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" /> Changement de dirigeant &lt; 6 mois
+                    </Badge>
+                  )}
+                </div>
+                <div className="relative pl-6 space-y-0">
+                  {inpiHistorique.slice(0, 10).map((evt, i) => {
+                    const evtDate = new Date(evt.date);
+                    const sixMonthsAgo = new Date();
+                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                    const isRecent = evtDate >= sixMonthsAgo;
+                    const isDirigeant = evt.type.toLowerCase().includes("dirigeant") || evt.description.toLowerCase().includes("dirigeant");
+                    return (
+                      <div key={i} className="relative pb-4">
+                        {/* Vertical line */}
+                        {i < inpiHistorique.slice(0, 10).length - 1 && (
+                          <div className="absolute left-[-16px] top-3 bottom-0 w-px bg-white/[0.08]" />
+                        )}
+                        {/* Dot */}
+                        <div className={`absolute left-[-20px] top-1.5 w-2.5 h-2.5 rounded-full border-2 ${
+                          isRecent && isDirigeant ? "bg-red-400 border-red-500" :
+                          isRecent ? "bg-amber-400 border-amber-500" :
+                          "bg-slate-600 border-slate-500"
+                        }`} />
+                        <div className={`p-2 rounded-lg ${isRecent && isDirigeant ? "bg-red-500/5 border border-red-500/20" : "bg-white/[0.02]"}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] text-slate-500 font-mono">{evt.date.split("-").reverse().join("/")}</span>
+                            <Badge className={`text-[9px] border-0 ${
+                              isDirigeant ? "bg-red-500/20 text-red-400" : "bg-slate-500/20 text-slate-400"
+                            }`}>{evt.type}</Badge>
+                          </div>
+                          <p className="text-xs text-slate-300 mt-1">{evt.description}</p>
+                          {evt.detail && <p className="text-[10px] text-slate-500 mt-0.5">{evt.detail}</p>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                {inpiHistorique.length > 10 && (
+                  <p className="text-[10px] text-slate-500 text-center">+ {inpiHistorique.length - 10} evenement(s) anterieurs</p>
                 )}
               </div>
             )}
@@ -2176,7 +2402,7 @@ export default function NouveauClientPage() {
 
   function buildTempClient(): Client | null {
     const now = new Date().toISOString().split("T")[0];
-    const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
+    const dateButoir = calculateDateButoir(risk.nivVigilance);
     return {
       ref: "CLI-XX-000", etat: "EN COURS", comptable: form.comptable, mission: form.mission,
       raisonSociale: form.raisonSociale, forme: form.forme, adresse: form.adresse,
