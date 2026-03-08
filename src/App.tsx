@@ -22,6 +22,7 @@ import SettingsPage from "@/pages/SettingsPage";
 import GedPage from "@/pages/GedPage";
 import LettreMissionPage from "@/pages/LettreMissionPage";
 import NotFound from "@/pages/NotFound";
+import LandingPage from "@/pages/LandingPage";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +33,7 @@ const App = () => (
         <AppProvider>
           <BrowserRouter>
             <Routes>
+              <Route path="/landing" element={<LandingPage />} />
               <Route path="/auth" element={<AuthPage />} />
               <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                 <Route index element={<DashboardPage />} />
