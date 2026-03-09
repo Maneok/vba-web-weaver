@@ -21,10 +21,10 @@ export function validateStep2(data: any): ValidationError[] {
   const selected = (data.missions_selected || []).filter((m: any) => m.selected);
   if (selected.length === 0) errors.push({ field: "missions", message: "Selectionnez au moins une mission" });
 
-  // Tenue + surveillance incompatibles
+  // Comptabilite + travail_dissimule check (tenue incompatible with surveillance-type missions)
   const ids = selected.map((m: any) => m.section_id);
-  if (ids.includes("tenue") && ids.includes("surveillance")) {
-    errors.push({ field: "missions", message: "Tenue et surveillance sont incompatibles" });
+  if (ids.includes("comptabilite") && ids.includes("travail_dissimule")) {
+    errors.push({ field: "missions", message: "Tenue de comptabilite et attestation travail dissimule peuvent etre redondantes" });
   }
   return errors;
 }
@@ -51,6 +51,9 @@ export function validateStep4(data: any): ValidationError[] {
     errors.push({ field: "honoraires_ht", message: "Montant anormalement eleve (> 500 000 EUR)" });
   if (!data.frequence_facturation)
     errors.push({ field: "frequence_facturation", message: "Frequence de facturation requise" });
+  if (data.mode_paiement === "prelevement" && !data.iban) {
+    errors.push({ field: "iban", message: "IBAN requis pour prelevement SEPA" });
+  }
   if (data.mode_paiement === "prelevement" && data.iban) {
     const iban = data.iban.replace(/\s/g, "");
     if (iban.length > 0 && (!/^FR\d{2}/.test(iban) || iban.length !== 27)) {
