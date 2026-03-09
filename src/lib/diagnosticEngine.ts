@@ -6,6 +6,7 @@ export interface DiagnosticItem {
   statut: "OK" | "ALERTE" | "CRITIQUE";
   detail: string;
   recommandation: string;
+  referenceReglementaire?: string;
 }
 
 export interface DiagnosticReport {
@@ -35,13 +36,33 @@ export function runDiagnostic360(
     : 0;
   items.push({
     categorie: "CLASSIFICATION",
-    indicateur: `Taux de dossiers classifies (VALIDE)`,
+    indicateur: "Taux de dossiers classifies (VALIDE)",
     statut: tauxClassification >= 90 ? "OK" : tauxClassification >= 70 ? "ALERTE" : "CRITIQUE",
     detail: `${valides.length}/${actifs.length} dossiers classes (${tauxClassification}%)`,
     recommandation: tauxClassification < 90 ? "Finaliser la classification de tous les dossiers actifs." : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-5 CMF",
   });
 
-  // === 2. SCORING COHERENCE ===
+  // === 2. DOSSIERS PROSPECT STAGNANTS ===
+  const prospects = clients.filter(c => c.etat === "PROSPECT");
+  const prospectAnciens = prospects.filter(c => {
+    if (!c.dateCreationLigne) return false;
+    const diff = (now.getTime() - new Date(c.dateCreationLigne).getTime()) / (1000 * 60 * 60 * 24);
+    return diff > 90;
+  });
+  if (prospects.length > 0) {
+    items.push({
+      categorie: "CLASSIFICATION",
+      indicateur: "Dossiers prospect stagnants (>90 jours)",
+      statut: prospectAnciens.length === 0 ? "OK" : prospectAnciens.length <= 3 ? "ALERTE" : "CRITIQUE",
+      detail: `${prospectAnciens.length} prospect(s) non traite(s) depuis plus de 90 jours`,
+      recommandation: prospectAnciens.length > 0
+        ? "Valider ou refuser les prospects en attente pour maintenir un portefeuille propre."
+        : "Aucune action requise.",
+    });
+  }
+
+  // === 3. SCORING COHERENCE ===
   const incoherences = actifs.filter(c =>
     c.nivVigilance === "SIMPLIFIEE" && (c.ppe === "OUI" || c.paysRisque === "OUI" || c.atypique === "OUI")
   );
@@ -55,10 +76,25 @@ export function runDiagnostic360(
     recommandation: incoherences.length > 0
       ? "Recalculer immediatement le scoring de ces clients. Un client PPE/Pays risque/Atypique ne peut etre en vigilance simplifiee."
       : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-10 CMF",
   });
 
-  // === 3. REVISIONS ===
-  const retards = actifs.filter(c => new Date(c.dateButoir) < now);
+  // === 4. SCORING - Clients sans score ===
+  const sansScore = actifs.filter(c => c.scoreGlobal === 0 && c.etat === "VALIDE");
+  items.push({
+    categorie: "SCORING",
+    indicateur: "Clients valides sans scoring",
+    statut: sansScore.length === 0 ? "OK" : sansScore.length <= 2 ? "ALERTE" : "CRITIQUE",
+    detail: sansScore.length === 0
+      ? "Tous les clients valides ont un scoring"
+      : `${sansScore.length} client(s) valide(s) sans scoring calcule`,
+    recommandation: sansScore.length > 0
+      ? "Calculer le scoring de risque pour tous les dossiers valides."
+      : "Aucune action requise.",
+  });
+
+  // === 5. REVISIONS ===
+  const retards = actifs.filter(c => c.dateButoir && new Date(c.dateButoir) < now);
   const tauxRetard = actifs.length > 0 ? Math.round((retards.length / actifs.length) * 100) : 0;
   items.push({
     categorie: "REVISIONS",
@@ -68,9 +104,27 @@ export function runDiagnostic360(
     recommandation: retards.length > 0
       ? `Planifier en urgence la revue de: ${retards.slice(0, 5).map(c => c.raisonSociale).join(", ")}${retards.length > 5 ? ` et ${retards.length - 5} autres` : ""}`
       : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-6 CMF",
   });
 
-  // === 4. CNI / PIECES D'IDENTITE ===
+  // === 6. REVISIONS - Echeances proches ===
+  const bientotEchus = actifs.filter(c => {
+    if (!c.dateButoir) return false;
+    const butoir = new Date(c.dateButoir);
+    const diff = (butoir.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return diff > 0 && diff <= 60;
+  });
+  if (bientotEchus.length > 0) {
+    items.push({
+      categorie: "REVISIONS",
+      indicateur: "Revisions a echeance proche (< 60 jours)",
+      statut: bientotEchus.length <= 3 ? "ALERTE" : "CRITIQUE",
+      detail: `${bientotEchus.length} dossier(s) arrivent a echeance dans les 60 prochains jours`,
+      recommandation: `Anticiper la revue de: ${bientotEchus.slice(0, 5).map(c => c.raisonSociale).join(", ")}`,
+    });
+  }
+
+  // === 7. CNI / PIECES D'IDENTITE ===
   const cniExp = actifs.filter(c => c.dateExpCni && new Date(c.dateExpCni) < now);
   items.push({
     categorie: "KYC",
@@ -82,11 +136,29 @@ export function runDiagnostic360(
     recommandation: cniExp.length > 0
       ? "Demander immediatement le renouvellement des pieces d'identite expirees."
       : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-5 CMF",
   });
 
-  // === 5. COMPLETUDE KYC ===
+  // === 8. CNI - Expirant bientot ===
+  const cniBientot = actifs.filter(c => {
+    if (!c.dateExpCni) return false;
+    const exp = new Date(c.dateExpCni);
+    const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+    return diff > 0 && diff <= 90;
+  });
+  if (cniBientot.length > 0) {
+    items.push({
+      categorie: "KYC",
+      indicateur: "CNI expirant dans les 90 prochains jours",
+      statut: "ALERTE",
+      detail: `${cniBientot.length} CNI expire(s) prochainement: ${cniBientot.map(c => c.raisonSociale).join(", ")}`,
+      recommandation: "Anticiper la demande de renouvellement des pieces d'identite.",
+    });
+  }
+
+  // === 9. COMPLETUDE KYC ===
   const kycIncomplets = actifs.filter(c =>
-    !c.siren.trim() || !c.mail.trim() || !c.iban.trim() || !c.adresse.trim()
+    !c.siren.trim() || !c.mail.trim() || !c.adresse.trim()
   );
   items.push({
     categorie: "KYC",
@@ -94,11 +166,41 @@ export function runDiagnostic360(
     statut: kycIncomplets.length === 0 ? "OK" : kycIncomplets.length <= 3 ? "ALERTE" : "CRITIQUE",
     detail: `${kycIncomplets.length} dossier(s) avec donnees KYC incompletes`,
     recommandation: kycIncomplets.length > 0
-      ? "Completer les informations manquantes (SIREN, email, IBAN, adresse)."
+      ? "Completer les informations manquantes (SIREN, email, adresse)."
+      : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-5 CMF",
+  });
+
+  // === 10. BENEFICIAIRES EFFECTIFS ===
+  const sansBE = actifs.filter(c => !c.be || c.be.trim() === "");
+  items.push({
+    categorie: "KYC",
+    indicateur: "Beneficiaires effectifs renseignes",
+    statut: sansBE.length === 0 ? "OK" : sansBE.length <= 3 ? "ALERTE" : "CRITIQUE",
+    detail: sansBE.length === 0
+      ? "Tous les dossiers ont leurs beneficiaires effectifs"
+      : `${sansBE.length} dossier(s) sans beneficiaire effectif identifie`,
+    recommandation: sansBE.length > 0
+      ? "Identifier et documenter les beneficiaires effectifs conformement a l'art. L.561-2-2."
+      : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-2-2 CMF",
+  });
+
+  // === 11. DOCUMENTS ===
+  const sansDocuments = actifs.filter(c => !c.lienKbis && !c.lienStatuts && !c.lienCni);
+  items.push({
+    categorie: "KYC",
+    indicateur: "Documents justificatifs (KBIS, statuts, CNI)",
+    statut: sansDocuments.length === 0 ? "OK" : sansDocuments.length <= 5 ? "ALERTE" : "CRITIQUE",
+    detail: sansDocuments.length === 0
+      ? "Tous les dossiers ont au moins un document"
+      : `${sansDocuments.length} dossier(s) sans aucun document justificatif`,
+    recommandation: sansDocuments.length > 0
+      ? "Collecter les pieces justificatives (KBIS, statuts, CNI dirigeant) pour tous les clients."
       : "Aucune action requise.",
   });
 
-  // === 6. GOUVERNANCE & FORMATION ===
+  // === 12. GOUVERNANCE & FORMATION ===
   const referents = collaborateurs.filter(c => c.referentLcb);
   items.push({
     categorie: "GOUVERNANCE",
@@ -110,8 +212,24 @@ export function runDiagnostic360(
     recommandation: referents.length === 0
       ? "Obligation legale: designer un referent LCB-FT (art. L.561-32 CMF)."
       : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-32 CMF",
   });
 
+  // === 13. SUPPLEANT ===
+  const suppleants = collaborateurs.filter(c => c.suppleant && !c.referentLcb);
+  items.push({
+    categorie: "GOUVERNANCE",
+    indicateur: "Suppleant du referent designe",
+    statut: suppleants.length > 0 ? "OK" : "ALERTE",
+    detail: suppleants.length > 0
+      ? `${suppleants.length} suppleant(s) designe(s)`
+      : "Aucun suppleant designe pour le referent LCB-FT",
+    recommandation: suppleants.length === 0
+      ? "Designer au moins un suppleant pour assurer la continuite du dispositif."
+      : "Aucune action requise.",
+  });
+
+  // === 14. FORMATION ===
   const aFormer = collaborateurs.filter(c =>
     c.statutFormation.includes("FORMER") || c.statutFormation.includes("JAMAIS")
   );
@@ -126,9 +244,10 @@ export function runDiagnostic360(
     recommandation: aFormer.length > 0
       ? `Former en priorite: ${aFormer.map(c => c.nom).join(", ")}`
       : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-36 CMF",
   });
 
-  // === 7. MANUEL INTERNE ===
+  // === 15. MANUEL INTERNE ===
   const sansManuel = collaborateurs.filter(c => !c.dateSignatureManuel);
   items.push({
     categorie: "GOUVERNANCE",
@@ -140,11 +259,12 @@ export function runDiagnostic360(
     recommandation: sansManuel.length > 0
       ? "Faire signer le Manuel Interne LCB-FT a tous les collaborateurs."
       : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-32 CMF",
   });
 
-  // === 8. REGISTRE DES ALERTES ===
+  // === 16. REGISTRE DES ALERTES ===
   const alertesEnCours = alertes.filter(a => a.statut === "EN COURS");
-  const alertesEnRetard = alertesEnCours.filter(a => new Date(a.dateButoir) < now);
+  const alertesEnRetard = alertesEnCours.filter(a => a.dateButoir && new Date(a.dateButoir) < now);
   items.push({
     categorie: "REGISTRE",
     indicateur: "Alertes en cours de traitement",
@@ -154,9 +274,21 @@ export function runDiagnostic360(
     recommandation: alertesEnRetard.length > 0
       ? "Traiter immediatement les alertes dont l'echeance est depassee."
       : "Aucune action requise.",
+    referenceReglementaire: "Art. L.561-15 CMF",
   });
 
-  // === 9. TRACABILITE (LOGS) ===
+  // === 17. DECLARATIONS TRACFIN ===
+  const tracfinDeclarations = alertes.filter(a => (a.typeDecision || "").toLowerCase().includes("tracfin"));
+  items.push({
+    categorie: "REGISTRE",
+    indicateur: "Suivi des declarations TRACFIN",
+    statut: "OK",
+    detail: `${tracfinDeclarations.length} declaration(s) TRACFIN effectuee(s)`,
+    recommandation: "Aucune action requise. Verifier regulierement les retours de TRACFIN.",
+    referenceReglementaire: "Art. L.561-15 CMF",
+  });
+
+  // === 18. TRACABILITE (LOGS) ===
   const logsRecents = logs.filter(l => {
     const d = new Date(l.horodatage.replace(" ", "T"));
     return (now.getTime() - d.getTime()) < 90 * 24 * 60 * 60 * 1000;
@@ -171,7 +303,19 @@ export function runDiagnostic360(
       : "Aucune action requise.",
   });
 
-  // === 10. REPARTITION DES RISQUES ===
+  // === 19. DIVERSITE DES ACTIONS ===
+  const actionTypes = new Set(logsRecents.map(l => l.typeAction));
+  items.push({
+    categorie: "TRACABILITE",
+    indicateur: "Diversite des actions tracees",
+    statut: actionTypes.size >= 4 ? "OK" : actionTypes.size >= 2 ? "ALERTE" : "CRITIQUE",
+    detail: `${actionTypes.size} type(s) d'action distinct(s) dans les 90 derniers jours`,
+    recommandation: actionTypes.size < 4
+      ? "Verifier que les screenings, scorings, revues et alertes sont correctement traces."
+      : "Aucune action requise.",
+  });
+
+  // === 20. REPARTITION DES RISQUES ===
   const renforcees = actifs.filter(c => c.nivVigilance === "RENFORCEE");
   const tauxRenforce = actifs.length > 0 ? Math.round((renforcees.length / actifs.length) * 100) : 0;
   items.push({
@@ -184,7 +328,7 @@ export function runDiagnostic360(
       : "Aucune action requise.",
   });
 
-  // === 11. SCORE MOYEN DU PORTEFEUILLE ===
+  // === 21. SCORE MOYEN DU PORTEFEUILLE ===
   const scoreMoyen = actifs.length > 0
     ? Math.round(actifs.reduce((s, c) => s + c.scoreGlobal, 0) / actifs.length)
     : 0;
@@ -198,19 +342,46 @@ export function runDiagnostic360(
       : "Aucune action requise.",
   });
 
+  // === 22. CAPITAL ADEQUACY ===
+  const capitalAnomalie = actifs.filter(c => {
+    if (c.capital <= 0 || c.honoraires <= 0) return false;
+    return c.capital < 100 && c.honoraires > 10000;
+  });
+  if (capitalAnomalie.length > 0) {
+    items.push({
+      categorie: "RISQUE GLOBAL",
+      indicateur: "Anomalie capital / chiffre d'affaires",
+      statut: "ALERTE",
+      detail: `${capitalAnomalie.length} client(s) avec capital tres faible (<100€) et honoraires eleves (>10k€)`,
+      recommandation: "Examiner les societes a faible capitalisation presentant des flux financiers importants.",
+    });
+  }
+
+  // === 23. DOMICILIATION ===
+  const domicilies = actifs.filter(c => c.mission === "DOMICILIATION");
+  if (domicilies.length > 0) {
+    items.push({
+      categorie: "RISQUE GLOBAL",
+      indicateur: "Clients en mission de domiciliation",
+      statut: domicilies.length <= 3 ? "ALERTE" : "CRITIQUE",
+      detail: `${domicilies.length} client(s) en domiciliation — mission a risque eleve`,
+      recommandation: "Appliquer des mesures de vigilance renforcees pour tous les clients domicilies.",
+      referenceReglementaire: "Art. L.561-10 CMF",
+    });
+  }
+
   // === CALCUL NOTE GLOBALE ===
   const critiques = items.filter(i => i.statut === "CRITIQUE").length;
   const alerteCount = items.filter(i => i.statut === "ALERTE").length;
   const okCount = items.filter(i => i.statut === "OK").length;
 
-  // Score sur 100: OK=10pts, ALERTE=5pts, CRITIQUE=0pts
+  // Score pondéré: OK=10pts, ALERTE=5pts, CRITIQUE=0pts
   const maxPoints = items.length * 10;
   const points = okCount * 10 + alerteCount * 5;
   const scoreDispositif = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
 
   const noteLettre = scoreDispositif >= 80 ? "A" : scoreDispositif >= 60 ? "B" : scoreDispositif >= 40 ? "C" : "D";
 
-  // Recommandations prioritaires
   const recommandationsPrioritaires = items
     .filter(i => i.statut === "CRITIQUE")
     .map(i => i.recommandation)
