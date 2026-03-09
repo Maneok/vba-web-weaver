@@ -14,7 +14,9 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
+    // P6-81: Skip simulation for single node (no edges to display)
     if (!svgRef.current || !nodes || nodes.length === 0) return;
+    if (nodes.length === 1 && (!edges || edges.length === 0)) return;
     const safeEdges = edges ?? [];
 
     const svg = d3.select(svgRef.current);
@@ -178,7 +180,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
     });
 
     return () => { simulation.stop(); };
-  }, [nodes, edges, width, height, onNodeClick]);
+  // P6-44: Remove onNodeClick from deps to avoid re-render loops (ref-stable via useRef in parent)
+  }, [nodes, edges, width, height]);
 
   if (nodes.length === 0) {
     return (

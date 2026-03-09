@@ -47,7 +47,7 @@ export function normalizeAddress(addr: string): string {
 }
 
 // ====== MISSION SCORING ======
-const MISSION_SCORES: Record<string, number> = {
+export const MISSION_SCORES: Record<string, number> = {
   "TENUE COMPTABLE": 10,
   "SOCIAL / PAIE SEULE": 10,
   "IRPP": 20,
@@ -58,7 +58,7 @@ const MISSION_SCORES: Record<string, number> = {
 };
 
 // ====== ACTIVITY (APE) SCORING ======
-const APE_SCORES: Record<string, number> = {
+export const APE_SCORES: Record<string, number> = {
   "56.10A": 30, "10.71C": 30, "47.11D": 30, "55.10Z": 30, "68.20A": 30, "68.20B": 30,
   "47.73Z": 20, "96.02A": 25, "47.76Z": 25, "47.11B": 25, "73.11Z": 25, "71.11Z": 25,
   "86.21Z": 20, "86.23Z": 20, "62.20Z": 25, "01.21Z": 25, "70.22Z": 25,
@@ -73,7 +73,7 @@ const APE_SCORES: Record<string, number> = {
 };
 
 // ====== COUNTRY RISK ======
-const PAYS_RISQUE: string[] = [
+export const PAYS_RISQUE: string[] = [
   "AFGHANISTAN", "ALGERIE", "ANGOLA", "ANGUILLA", "ANTIGUA-ET-BARBUDA",
   "BIELORUSSIE", "BULGARIE", "BURKINA FASO", "CAMEROUN", "CONGO (RDC)",
   "COREE DU NORD", "COTE D'IVOIRE", "CROATIE", "EMIRATS ARABES UNIS",
@@ -119,12 +119,13 @@ function scoreMaturite(
   const hasSalaries = effectif && !/^0\b|^0 |AUCUN|NEANT|0 SALAR/i.test(effectif.trim()) && effectif.trim() !== "0";
   const isSCI = forme.toUpperCase().includes("SCI") || forme.toUpperCase().includes("HOLDING");
 
-  if (!isReprise) return 10; // Created by firm
-
+  // P6-52: Score by anciennete regardless of reprise status
+  // isReprise=false means client was created by firm → lower risk for mature companies
   if (ancienneteYears < 1) return 65;
-  if (ancienneteYears < 3) return 50;
-  if (hasSalaries || isSCI) return 0;
-  return 80; // Dormant shell
+  if (ancienneteYears < 3) return isReprise ? 50 : 30;
+  if (hasSalaries || isSCI) return isReprise ? 0 : 0;
+  if (!isReprise) return 10; // Created by firm, old, no employees
+  return 80; // Dormant shell — old company, reprise, no employees
 }
 
 // ====== MAIN RISK CALCULATION ======
@@ -232,4 +233,3 @@ export function getPilotageStatus(dateButoir: string): string {
   return "A JOUR";
 }
 
-export { PAYS_RISQUE, APE_SCORES, MISSION_SCORES };

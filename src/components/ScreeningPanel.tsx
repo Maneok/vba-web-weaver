@@ -191,6 +191,33 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       alertes: screening.google.data?.alertes,
       timeMs: screening.google.timeMs,
     },
+    // P6-45: Add news and network rows
+    {
+      key: "news",
+      icon: <Newspaper className="w-4 h-4 text-cyan-400" />,
+      label: "Revue de presse",
+      status: (screening.news.data?.status as Status) ?? (screening.news.error ? "ERREUR" : null),
+      loading: screening.news.loading,
+      detail: screening.news.data
+        ? screening.news.data.articles?.length > 0
+          ? `${screening.news.data.articles.length} article(s)`
+          : "Aucun article"
+        : undefined,
+      alertes: screening.news.data?.alertes,
+      timeMs: screening.news.timeMs,
+    },
+    {
+      key: "network",
+      icon: <Users className="w-4 h-4 text-orange-400" />,
+      label: "Reseau dirigeants",
+      status: (screening.network.data?.status as Status) ?? (screening.network.error ? "ERREUR" : null),
+      loading: screening.network.loading,
+      detail: screening.network.data
+        ? `${screening.network.data.totalCompanies ?? 0} societe(s), ${screening.network.data.totalPersons ?? 0} personne(s)`
+        : undefined,
+      alertes: screening.network.data?.alertes?.map((a: any) => a.message),
+      timeMs: screening.network.timeMs,
+    },
   ];
 
   return (
@@ -198,7 +225,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
         <Shield className="w-4 h-4 text-blue-400" />
         <h3 className="text-sm font-semibold text-slate-300">Screening automatique</h3>
-        {(screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading || screening.inpi.loading) && (
+        {(screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading || screening.network.loading || screening.inpi.loading || screening.documents.loading) && (
           <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin ml-auto" />
         )}
       </div>

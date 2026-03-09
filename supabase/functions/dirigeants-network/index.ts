@@ -57,7 +57,9 @@ Deno.serve(async (req) => {
           { signal: AbortSignal.timeout(8000) }
         );
         if (pRes.ok) {
-          const pData = await pRes.json();
+          // P6-39: Guard against non-JSON Pappers response
+          let pData: any;
+          try { pData = await pRes.json(); } catch { pData = {}; }
           pappersReps = pData.representants ?? [];
         }
       } catch {
@@ -99,14 +101,20 @@ Deno.serve(async (req) => {
             if (!seenSirens.has(eSiren)) {
               seenSirens.add(eSiren);
               const companyId = `company-${eSiren}`;
+              const companyAddr = (ent.siege?.code_postal ?? ent.code_postal ?? "").trim();
               nodes.push({
                 id: companyId,
-                label: (ent.denomination ?? ent.nom_entreprise ?? "").toUpperCase(),
+                label: ((ent.denomination ?? ent.nom_entreprise ?? "") || "").toUpperCase(),
                 type: "company",
                 siren: eSiren,
                 dateCreation: ent.date_creation ?? "",
-                ville: "",
+                ville: companyAddr,
               });
+              // P6-41: Populate addressCounts for domiciliation commune detection
+              if (companyAddr && companyAddr.length >= 3) {
+                if (!addressCounts[companyAddr]) addressCounts[companyAddr] = [];
+                addressCounts[companyAddr].push(ent.denomination ?? eSiren);
+              }
               const role = ent.qualite ?? matchingRep.qualite ?? "Dirigeant";
               const dateNom = ent.date_prise_de_poste ?? "";
               const edgeLabel = dateNom ? `${role} (${dateNom})` : role;

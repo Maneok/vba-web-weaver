@@ -12,6 +12,14 @@ Deno.serve(async (req) => {
   if (optRes) return optRes;
   const corsHeaders = getCorsHeaders(req);
 
+  // P6-55: Auth check for consistency with other edge functions
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Non autorise", articles: [], alertes: [], hasNegativeNews: false, status: "error" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { raison_sociale, dirigeant } = await req.json();
     if (!raison_sociale) {
@@ -50,7 +58,9 @@ Deno.serve(async (req) => {
 
         if (!res.ok) continue;
 
-        const data = await res.json();
+        // P6-35: Guard against non-JSON response
+        let data: any;
+        try { data = await res.json(); } catch { data = {}; }
         const items = data.items ?? [];
 
         for (const item of items) {

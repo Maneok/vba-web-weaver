@@ -549,9 +549,7 @@ async function callEdgeFunction<T>(name: string, body: Record<string, unknown>):
       signal: controller.signal as AbortSignal,
     });
     if (error) throw new Error(error.message);
-    if (data && typeof data === "object" && (data as Record<string, unknown>).status === "unavailable") {
-      throw new Error("Service indisponible");
-    }
+    // P6-60: Don't throw on "unavailable" status — return it to callers for graceful handling
     return data as T;
   } catch (e) {
     if (controller.signal.aborted) {
@@ -612,7 +610,7 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
       ape: (siege.activite_principale as string) ?? (r.activite_principale as string) ?? "",
       libelle_ape: (siege.libelle_activite_principale as string) ?? "",
       capital: (r.capital as number) ?? 0,
-      capital_source: (r.capital as number) > 0 ? "data.gouv" : "",
+      capital_source: ((r.capital as number) ?? 0) > 0 ? "data.gouv" : "",
       date_creation: (r.date_creation as string) ?? "",
       effectif: (r.tranche_effectif_salarie as string) ?? "0 SALARIE",
       dirigeant: dirigeants.length > 0 ? `${dirigeants[0].nom} ${dirigeants[0].prenom}`.trim().toUpperCase() : "",
@@ -668,8 +666,14 @@ export async function checkSanctions(
 }
 
 export async function checkBodacc(siren: string, raison_sociale?: string, complements?: Record<string, unknown>): Promise<BodaccResult> {
+  // P6-61: Add BODACC cache
+  const cleanSiren = siren.replace(/\s/g, "");
+  const cached = await getCachedResponse<BodaccResult>(cleanSiren, "bodacc");
+  if (cached) return cached;
   try {
-    return await callEdgeFunction<BodaccResult>("bodacc-check", { siren, raison_sociale, complements });
+    const result = await callEdgeFunction<BodaccResult>("bodacc-check", { siren, raison_sociale, complements });
+    if (result.status !== "unavailable") await setCachedResponse(cleanSiren, "bodacc", result);
+    return result;
   } catch {
     return { annonces: [], hasProcedureCollective: false, alertes: [], malus: 0, status: "unavailable" };
   }
@@ -679,7 +683,7 @@ export async function verifyGooglePlaces(raison_sociale: string, ville?: string)
   try {
     return await callEdgeFunction<GooglePlacesResult>("google-places-verify", { raison_sociale, ville });
   } catch {
-    return { found: false, place: null, alertes: [], mapsUrl: "", mapsEmbedUrl: null, streetViewUrl: null, status: "unavailable" };
+    return { found: false, place: null, alertes: [], mapsUrl: "", mapsEmbedUrl: null, streetViewUrl: null, status: "unavailable" } as GooglePlacesResult;
   }
 }
 
@@ -810,8 +814,14 @@ export function computeKycCompleteness(
     ...(inpiDocs ?? []),
   ];
   // FIX P4-8: Accept all stored/available statuses, not just "auto"
+  // P6-64: Also match "Extrait RNE"/"Extrait RBE" as KBIS equivalent
   const hasDocType = (typePattern: string) =>
-    allDocs.some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()) && (d.status === "auto" || d.status === "lien_direct" || d.storedInSupabase || d.downloadable)) ||
+    allDocs.some(d => {
+      const typeUp = d.type.toUpperCase();
+      const isMatch = typeUp.includes(typePattern.toUpperCase()) ||
+        (typePattern.toUpperCase() === "KBIS" && (typeUp.includes("EXTRAIT") || typeUp === "KBIS"));
+      return isMatch && (d.status === "auto" || d.status === "lien_direct" || d.storedInSupabase || d.downloadable);
+    }) ||
     (uploadedDocs ?? []).some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()));
 
   const fields: Array<{ label: string; ok: boolean }> = [
