@@ -51,6 +51,38 @@ function formatDate(dateStr: string) {
   }
 }
 
+function daysSince(dateStr: string): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  const diffMs = Date.now() - d.getTime();
+  const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (days < 30) return `il y a ${days}j`;
+  if (days < 365) return `il y a ${Math.floor(days / 30)} mois`;
+  return `il y a ${Math.floor(days / 365)} an(s)`;
+}
+
+function exportCollaborateursCSV(collaborateurs: typeof import("@/lib/types").Collaborateur extends never ? never : Array<{
+  nom: string; fonction: string; email: string; niveauCompetence: string;
+  derniereFormation: string; statutFormation: string; referentLcb: boolean; suppleant: string;
+  dateSignatureManuel: string;
+}>) {
+  const headers = ["Nom", "Fonction", "Email", "Niveau", "Derniere Formation", "Statut Formation", "Referent LCB", "Suppleant", "Signature Manuel"];
+  const rows = collaborateurs.map(c => [
+    c.nom, c.fonction, c.email, c.niveauCompetence,
+    c.derniereFormation || "", c.statutFormation, c.referentLcb ? "OUI" : "NON",
+    c.suppleant || "", c.dateSignatureManuel || "",
+  ]);
+  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`).join(";"))].join("\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `collaborateurs-lcb-${new Date().toISOString().split("T")[0]}.csv`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
 type SortField = "nom" | "fonction" | "niveauCompetence" | "derniereFormation" | "statutFormation";
 type SortDirection = "asc" | "desc";
 
@@ -84,9 +116,9 @@ export default function GouvernancePage() {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(c =>
-        c.nom.toLowerCase().includes(q) ||
-        c.email?.toLowerCase().includes(q) ||
-        c.fonction?.toLowerCase().includes(q)
+        (c.nom || "").toLowerCase().includes(q) ||
+        (c.fonction || "").toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q)
       );
     }
     return [...result].sort((a, b) => {

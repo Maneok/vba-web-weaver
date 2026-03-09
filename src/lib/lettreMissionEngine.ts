@@ -37,7 +37,7 @@ function incrementCounter(): string {
   const year = new Date().getFullYear();
   const count = current.year === year ? current.count + 1 : 1;
   sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count }));
-  return `LM-${year}-${String(count).padStart(3, "0")}`;
+  return `LM-${year}-${String(count).padStart(4, "0")}`;
 }
 
 /**

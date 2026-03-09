@@ -5,10 +5,10 @@
 
 const MAX_TEXT_LENGTH = 500;
 
-/** Strip HTML tags, trim whitespace, and limit length. */
+/** Strip HTML tags (including malformed/unclosed), trim whitespace, and limit length. */
 export function sanitizeText(input: string): string {
   return input
-    .replace(/<[^>]*>/g, "")
+    .replace(/<[^>]*>?/g, "")
     .trim()
     .slice(0, MAX_TEXT_LENGTH);
 }

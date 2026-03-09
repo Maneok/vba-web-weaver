@@ -42,9 +42,9 @@ export function MonthlyChart({ data, loading = false }: MonthlyChartProps) {
         if (!acc[qi]) {
           acc[qi] = { month: `T${qi + 1}`, simplifiee: 0, standard: 0, renforcee: 0 };
         }
-        acc[qi].simplifiee += d.simplifiee;
-        acc[qi].standard += d.standard;
-        acc[qi].renforcee += d.renforcee;
+        acc[qi].simplifiee += d.simplifiee ?? 0;
+        acc[qi].standard += d.standard ?? 0;
+        acc[qi].renforcee += d.renforcee ?? 0;
         return acc;
       }, [])
     : data;
