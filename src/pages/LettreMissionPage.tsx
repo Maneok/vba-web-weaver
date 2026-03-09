@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { toast } from "sonner";
@@ -27,14 +26,26 @@ import LMWizardStep9Preview from "@/components/lettre-mission/LMWizardStep9Previ
 import LMWizardStep10Export from "@/components/lettre-mission/LMWizardStep10Export";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   ChevronLeft, ChevronRight, Check, FileText, History, Plus, Loader2,
-  Clock, Edit3, ShieldAlert,
+  Clock, Edit3, ShieldAlert, Save,
 } from "lucide-react";
+
+// ── useMediaQuery hook ──
+function useMediaQuery(query: string) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const mql = window.matchMedia(query);
+    setMatches(mql.matches);
+    const handler = (e: MediaQueryListEvent) => setMatches(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [query]);
+  return matches;
+}
 
 // ─────────────────────────────────────────
 // Historique — tableau des lettres sauvées
@@ -82,14 +93,14 @@ function LetterHistory({
       {letters.map((letter) => (
         <div
           key={letter.id}
-          className="flex items-center gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+          className="flex items-center gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
         >
-          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-            <FileText className="w-5 h-5 text-blue-400" />
+          <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+            <FileText className="w-4 h-4 sm:w-5 sm:h-5 text-blue-400" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">{letter.raison_sociale}</p>
-            <p className="text-xs text-slate-500">{letter.numero} — {letter.type_mission} — {new Date(letter.updated_at).toLocaleDateString("fr-FR")}</p>
+            <p className="text-xs text-slate-500 truncate">{letter.numero} — {letter.type_mission} — {new Date(letter.updated_at).toLocaleDateString("fr-FR")}</p>
           </div>
           <Badge variant="outline" className={`text-[10px] shrink-0 ${statusBadge(letter.statut)}`}>
             {letter.statut}
@@ -97,7 +108,7 @@ function LetterHistory({
           <Button
             variant="ghost"
             size="sm"
-            className="text-slate-400 hover:text-blue-400"
+            className="text-slate-400 hover:text-blue-400 shrink-0"
             onClick={() => onEdit(letter)}
           >
             <Edit3 className="w-3.5 h-3.5" />
@@ -115,7 +126,7 @@ export default function LettreMissionPage() {
   const navigate = useNavigate();
   const { clients } = useAppState();
   const { hasPermission, profile } = useAuth();
-  const isMobile = useIsMobile();
+  const isMobile = useMediaQuery("(max-width: 768px)");
   const [activeTab, setActiveTab] = useState("wizard");
 
   // ── Permission check ──
@@ -124,7 +135,7 @@ export default function LettreMissionPage() {
       <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
         <ShieldAlert className="w-12 h-12 text-red-400" />
         <p className="text-white font-medium">Acces refuse</p>
-        <p className="text-slate-400 text-sm">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
+        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
         <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">
           Retour
         </Button>
@@ -140,15 +151,24 @@ export default function LettreMissionPage() {
   const prevStepRef = useRef(0);
   const [lmId, setLmId] = useState<string | null>(null);
   const [existingLmWarningShown, setExistingLmWarningShown] = useState(false);
+  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+
+  // Draft resume
+  const [showDraftBanner, setShowDraftBanner] = useState(false);
+  const [draftInfo, setDraftInfo] = useState<{ id: string; wizard_data: any; wizard_step: number } | null>(null);
 
   // History state
   const [savedLetters, setSavedLetters] = useState<SavedLetter[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Swipe refs
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
+
   // Progress
   const progress = ((step + 1) / LM_STEP_LABELS.length) * 100;
 
-  // ── Step change animation ──
+  // ── Step change animation + scroll to top ──
   useEffect(() => {
     setStepDirection(step > prevStepRef.current ? "right" : "left");
     prevStepRef.current = step;
@@ -163,17 +183,47 @@ export default function LettreMissionPage() {
     sessionStorage.setItem("lm_wizard_draft", JSON.stringify({ ...data, wizard_step: step }));
   }, [data, step]);
 
-  // ── Restore draft on mount ──
+  // ── Restore draft on mount + check Supabase drafts ──
   useEffect(() => {
+    // SessionStorage draft
     try {
       const raw = sessionStorage.getItem("lm_wizard_draft");
       if (raw) {
         const parsed = JSON.parse(raw);
-        setData(parsed);
-        if (parsed.wizard_step > 0) setStep(parsed.wizard_step);
+        if (parsed.client_id) {
+          setData(parsed);
+          if (parsed.wizard_step > 0) setStep(parsed.wizard_step);
+        }
       }
     } catch {}
+    // Supabase draft
+    loadSupabaseDraft();
   }, []);
+
+  const loadSupabaseDraft = async () => {
+    try {
+      const { data: drafts } = await supabase
+        .from("lettres_mission")
+        .select("id, wizard_data, wizard_step, created_at")
+        .eq("statut", "BROUILLON")
+        .order("updated_at", { ascending: false })
+        .limit(1);
+      if (drafts && drafts.length > 0 && drafts[0].wizard_data?.client_id) {
+        setDraftInfo(drafts[0] as any);
+        setShowDraftBanner(true);
+      }
+    } catch {}
+  };
+
+  const resumeDraft = () => {
+    if (draftInfo) {
+      setData({ ...INITIAL_LM_WIZARD_DATA, ...draftInfo.wizard_data });
+      setLmId(draftInfo.id);
+      setStep(draftInfo.wizard_step || 0);
+      setShowDraftBanner(false);
+      setActiveTab("wizard");
+    }
+  };
 
   // Load saved letters
   useEffect(() => {
@@ -187,7 +237,40 @@ export default function LettreMissionPage() {
     }
   }, [data.forme_juridique]);
 
-  // ── Avertissement LM existante quand on sélectionne un client ──
+  // ── Pre-remplissage intelligent ──
+  useEffect(() => {
+    if (!data.client_id) return;
+    const client = clients.find((c) => c.ref === data.client_id);
+    if (!client) return;
+
+    const updates: Partial<LMWizardData> = {};
+
+    // SCI → pre-check immobilier missions
+    if (data.forme_juridique === "SCI" && data.missions_selected.length > 0) {
+      const updated = data.missions_selected.map((m) =>
+        m.section_id === "juridique" ? { ...m, selected: true, sous_options: m.sous_options.map((s) => ({ ...s, selected: true })) } : m
+      );
+      if (JSON.stringify(updated) !== JSON.stringify(data.missions_selected)) {
+        updates.missions_selected = updated;
+      }
+    }
+
+    // Effectif > 0 → pre-check social
+    if (client.effectif && parseInt(client.effectif) > 0 && data.missions_selected.length > 0) {
+      const updated = data.missions_selected.map((m) =>
+        m.section_id === "social" ? { ...m, selected: true } : m
+      );
+      if (JSON.stringify(updated) !== JSON.stringify(data.missions_selected)) {
+        updates.missions_selected = updated;
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      setData((prev) => ({ ...prev, ...updates }));
+    }
+  }, [data.client_id, data.forme_juridique, data.missions_selected.length]);
+
+  // ── Avertissement LM existante ──
   useEffect(() => {
     if (data.client_id && !existingLmWarningShown) {
       checkExistingLM(data.client_id);
@@ -203,14 +286,12 @@ export default function LettreMissionPage() {
         .eq("client_ref", clientId)
         .neq("statut", "ARCHIVEE");
       if (existing && existing.length > 0) {
-        toast.warning(
-          `Ce client a deja ${existing.length} lettre(s) de mission en cours`
-        );
+        toast.warning(`Ce client a deja ${existing.length} lettre(s) de mission en cours`);
       }
     } catch {}
   };
 
-  // ── Auto-save to Supabase every 30s + on step change ──
+  // ── Auto-save to Supabase every 30s ──
   const saveToSupabase = useCallback(async () => {
     if (!data.client_id) return;
     try {
@@ -224,10 +305,7 @@ export default function LettreMissionPage() {
       };
 
       if (lmId) {
-        await supabase
-          .from("lettres_mission")
-          .update(payload)
-          .eq("id", lmId);
+        await supabase.from("lettres_mission").update(payload).eq("id", lmId);
       } else {
         const { data: inserted } = await supabase
           .from("lettres_mission")
@@ -246,12 +324,12 @@ export default function LettreMissionPage() {
           .maybeSingle();
         if (inserted) setLmId(inserted.id);
       }
+      setLastSaved(new Date());
     } catch (e) {
       console.error("Auto-save error:", e);
     }
   }, [data, step, lmId, profile?.cabinet_id, savedLetters.length]);
 
-  // Auto-save interval (30s)
   useEffect(() => {
     const interval = setInterval(saveToSupabase, 30000);
     return () => clearInterval(interval);
@@ -283,17 +361,15 @@ export default function LettreMissionPage() {
     setHistoryLoading(false);
   };
 
-  // Data updater
   const handleChange = useCallback((updates: Partial<LMWizardData>) => {
     setData((prev) => ({ ...prev, ...updates }));
   }, []);
 
-  // Go to specific step
   const goToStep = useCallback((s: number) => {
     if (s >= 0 && s < LM_STEP_LABELS.length) setStep(s);
   }, []);
 
-  // ── Validated next step ──
+  // ── Navigation handlers ──
   const handleNext = useCallback(() => {
     const validator = VALIDATORS[step];
     if (validator) {
@@ -304,11 +380,28 @@ export default function LettreMissionPage() {
       }
     }
     setStep((prev) => Math.min(prev + 1, LM_STEP_LABELS.length - 1));
-    // Save on step change
     saveToSupabase();
   }, [step, data, saveToSupabase]);
 
-  // ── Final save with sanitize + audit ──
+  const handlePrevious = useCallback(() => {
+    if (step > 0) setStep(step - 1);
+    else navigate("/bdd");
+  }, [step, navigate]);
+
+  // ── Swipe handlers ──
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    touchEndX.current = e.changedTouches[0].clientX;
+    const diff = touchStartX.current - touchEndX.current;
+    if (Math.abs(diff) > 75) {
+      if (diff > 0) handleNext();
+      else handlePrevious();
+    }
+  };
+
+  // ── Final save ──
   const handleSave = async () => {
     const sanitized = sanitizeWizardData(data);
     try {
@@ -324,10 +417,7 @@ export default function LettreMissionPage() {
       if (lmId) {
         const { error } = await supabase
           .from("lettres_mission")
-          .update({
-            ...payload,
-            updated_at: new Date().toISOString(),
-          })
+          .update({ ...payload, updated_at: new Date().toISOString() })
           .eq("id", lmId);
         if (error) throw error;
       } else {
@@ -340,19 +430,15 @@ export default function LettreMissionPage() {
         if (inserted) setLmId(inserted.id);
       }
 
-      // Audit trail
       logAudit({
         action: "LETTRE_MISSION",
         table_name: "lettres_mission",
         record_id: lmId || undefined,
-        new_data: {
-          client_ref: sanitized.client_ref,
-          type: sanitized.type_mission,
-          statut: sanitized.statut,
-        },
+        new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, statut: sanitized.statut },
       }).catch(() => {});
 
       sessionStorage.removeItem("lm_wizard_draft");
+      setLastSaved(new Date());
       await loadSavedLetters();
       setActiveTab("history");
     } catch (err) {
@@ -361,7 +447,6 @@ export default function LettreMissionPage() {
     }
   };
 
-  // Edit existing letter
   const handleEditLetter = (letter: SavedLetter) => {
     if (letter.wizard_data) {
       setData({ ...INITIAL_LM_WIZARD_DATA, ...letter.wizard_data });
@@ -371,7 +456,6 @@ export default function LettreMissionPage() {
     }
   };
 
-  // New letter
   const handleNewLetter = () => {
     setData({ ...INITIAL_LM_WIZARD_DATA });
     setLmId(null);
@@ -394,7 +478,6 @@ export default function LettreMissionPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [step, activeTab]);
 
-  // Render step content
   const renderStep = () => {
     switch (step) {
       case 0: return <LMWizardStep1Client data={data} onChange={handleChange} />;
@@ -405,118 +488,152 @@ export default function LettreMissionPage() {
       case 5: return <LMWizardStep6Honoraires data={data} onChange={handleChange} />;
       case 6: return <LMWizardStep7Intervenants data={data} onChange={handleChange} />;
       case 7: return <LMWizardStep8Clauses data={data} onChange={handleChange} />;
-      case 8: return <LMWizardStep9Preview data={data} onChange={handleChange} onGoToStep={goToStep} />;
+      case 8: return <LMWizardStep9Preview data={data} onChange={handleChange} onGoToStep={goToStep} isMobile={isMobile} />;
       case 9: return <LMWizardStep10Export data={data} onChange={handleChange} onSave={handleSave} />;
       default: return null;
     }
   };
 
   return (
-    <div className="space-y-6 animate-fade-in-up">
+    <div className="space-y-4 sm:space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Lettres de mission</h1>
-          <p className="text-sm text-slate-500 mt-1">Creez et gerez vos lettres de mission</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Lettres de mission</h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Creez et gerez vos lettres de mission</p>
         </div>
-        <Button
-          onClick={handleNewLetter}
-          className="gap-1.5 bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="w-4 h-4" /> Nouvelle lettre
+        <Button onClick={handleNewLetter} className="gap-1.5 bg-blue-600 hover:bg-blue-700" size={isMobile ? "sm" : "default"}>
+          <Plus className="w-4 h-4" /> {!isMobile && "Nouvelle lettre"}
         </Button>
       </div>
 
+      {/* Draft resume banner */}
+      {showDraftBanner && draftInfo && (
+        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 animate-fade-in-up">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-blue-300">Brouillon en cours</p>
+            <p className="text-xs text-slate-400 truncate">
+              {draftInfo.wizard_data?.raison_sociale || "Sans nom"} — Etape {(draftInfo.wizard_step || 0) + 1}/10
+            </p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Button size="sm" onClick={resumeDraft} className="bg-blue-600 hover:bg-blue-700">Reprendre</Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowDraftBanner(false)} className="text-slate-400">Ignorer</Button>
+          </div>
+        </div>
+      )}
+
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-white/[0.04] border border-white/[0.06]">
-          <TabsTrigger value="wizard" className="gap-1.5 data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
-            <FileText className="w-3.5 h-3.5" /> Nouvelle lettre
+        <TabsList className="bg-white/[0.04] border border-white/[0.06] w-full sm:w-auto">
+          <TabsTrigger value="wizard" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+            <FileText className="w-3.5 h-3.5" /> {isMobile ? "Wizard" : "Nouvelle lettre"}
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-1.5 data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+          <TabsTrigger value="history" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
             <History className="w-3.5 h-3.5" /> Historique
             {savedLetters.length > 0 && (
-              <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">
-                {savedLetters.length}
-              </Badge>
+              <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
             )}
           </TabsTrigger>
         </TabsList>
 
         {/* ─── WIZARD TAB ─── */}
-        <TabsContent value="wizard" className="space-y-4 mt-4">
+        <TabsContent value="wizard" className="space-y-3 sm:space-y-4 mt-3 sm:mt-4">
           {/* Progress bar */}
           <Progress value={progress} className="h-1" />
 
-          {/* Stepper — responsive: Select on mobile, horizontal on desktop */}
-          <div className="glass-card p-4 shadow-lg">
-            <div className="flex items-center justify-end gap-1.5 mb-2">
-              <Clock className="w-3 h-3 text-slate-600" />
-              <span className="text-[9px] text-slate-600">
-                Etape {step + 1} / {LM_STEP_LABELS.length} — {LM_STEP_DESCRIPTIONS[step]}
-              </span>
-            </div>
-
+          {/* Stepper */}
+          <div className="glass-card p-3 sm:p-4 shadow-lg">
             {isMobile ? (
-              /* ── Mobile: Select dropdown ── */
-              <Select value={String(step)} onValueChange={(v) => goToStep(Number(v))}>
-                <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {LM_STEP_LABELS.map((label, i) => (
-                    <SelectItem key={i} value={String(i)} disabled={i > step}>
-                      {i + 1}. {label} {i < step ? "✓" : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              /* ── Mobile: Compact band with chevrons ── */
+              <div className="flex items-center justify-between gap-2">
+                <button
+                  onClick={() => step > 0 && setStep(step - 1)}
+                  disabled={step === 0}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.04] disabled:opacity-30 transition-opacity"
+                >
+                  <ChevronLeft className="w-4 h-4 text-slate-400" />
+                </button>
+                <div className="flex-1 text-center min-w-0">
+                  <p className="text-xs font-medium text-white truncate">
+                    Etape {step + 1}/10 — {LM_STEP_LABELS[step]}
+                  </p>
+                  <p className="text-[10px] text-slate-500 truncate">{LM_STEP_DESCRIPTIONS[step]}</p>
+                </div>
+                <button
+                  onClick={() => step < LM_STEP_LABELS.length - 1 && handleNext()}
+                  disabled={step === LM_STEP_LABELS.length - 1}
+                  className="w-8 h-8 rounded-full flex items-center justify-center bg-white/[0.04] disabled:opacity-30 transition-opacity"
+                >
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </button>
+              </div>
             ) : (
               /* ── Desktop: Horizontal stepper ── */
-              <div className="flex items-center justify-between overflow-x-auto pb-1">
-                {LM_STEP_LABELS.map((label, i) => (
-                  <button
-                    key={i}
-                    onClick={() => i <= step && setStep(i)}
-                    disabled={i > step}
-                    className={`flex items-center gap-1.5 transition-opacity shrink-0 ${
-                      i <= step ? "cursor-pointer opacity-100" : "cursor-default opacity-40"
-                    }`}
-                  >
-                    <div
-                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                        i < step
-                          ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-90"
-                          : i === step
-                          ? "bg-blue-500 text-white ring-4 ring-blue-500/20 shadow-xl shadow-blue-500/30 scale-110"
-                          : "bg-white/[0.06] text-slate-500"
-                      }`}
-                    >
-                      {i < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
-                    </div>
-                    <span
-                      className={`text-[10px] font-medium hidden lg:inline transition-colors ${
-                        i < step ? "text-emerald-400" : i === step ? "text-slate-200" : "text-slate-600"
-                      }`}
-                    >
-                      {label}
+              <>
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <Clock className="w-3 h-3 text-slate-600" />
+                    <span className="text-[9px] text-slate-600">
+                      Etape {step + 1} / {LM_STEP_LABELS.length} — {LM_STEP_DESCRIPTIONS[step]}
                     </span>
-                    {i < LM_STEP_LABELS.length - 1 && (
+                  </div>
+                  {lastSaved && (
+                    <span className="text-[9px] text-slate-600 animate-fade-in-up">
+                      <Save className="w-3 h-3 inline mr-0.5" />
+                      Sauvegarde {lastSaved.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between overflow-x-auto pb-1">
+                  {LM_STEP_LABELS.map((label, i) => (
+                    <button
+                      key={i}
+                      onClick={() => i <= step && setStep(i)}
+                      disabled={i > step}
+                      className={`flex items-center gap-1.5 transition-opacity shrink-0 ${
+                        i <= step ? "cursor-pointer opacity-100" : "cursor-default opacity-40"
+                      }`}
+                    >
                       <div
-                        className={`w-4 lg:w-8 h-0.5 mx-1 rounded-full transition-colors duration-300 ${
-                          i < step ? "bg-emerald-500" : "bg-white/[0.06]"
+                        className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                          i < step
+                            ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-90"
+                            : i === step
+                            ? "bg-blue-500 text-white ring-4 ring-blue-500/20 shadow-xl shadow-blue-500/30 scale-110"
+                            : "bg-white/[0.06] text-slate-500"
                         }`}
-                      />
-                    )}
-                  </button>
-                ))}
-              </div>
+                      >
+                        {i < step ? <Check className="w-3.5 h-3.5" /> : i + 1}
+                      </div>
+                      <span
+                        className={`text-[10px] font-medium hidden lg:inline transition-colors ${
+                          i < step ? "text-emerald-400" : i === step ? "text-slate-200" : "text-slate-600"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                      {i < LM_STEP_LABELS.length - 1 && (
+                        <div className={`w-4 lg:w-8 h-0.5 mx-1 rounded-full transition-colors duration-300 ${i < step ? "bg-emerald-500" : "bg-white/[0.06]"}`} />
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
-          {/* Step content with animation */}
+          {/* Mobile: last saved indicator */}
+          {isMobile && lastSaved && (
+            <div className="flex items-center justify-center gap-1 text-[10px] text-slate-500">
+              <Save className="w-3 h-3" />
+              Sauvegarde {lastSaved.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            </div>
+          )}
+
+          {/* Step content with animation + swipe */}
           <div
-            className={`glass-card p-6 transition-all duration-300 ${
+            className={`glass-card p-4 sm:p-6 transition-all duration-300 ${isMobile ? "pb-28" : ""} ${
               fieldsVisible
                 ? "opacity-100 translate-y-0"
                 : stepDirection === "right"
@@ -524,59 +641,67 @@ export default function LettreMissionPage() {
                 : "opacity-0 -translate-x-4"
             }`}
             style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.15)" }}
+            onTouchStart={handleTouchStart}
+            onTouchEnd={handleTouchEnd}
           >
             {renderStep()}
           </div>
 
-          {/* Navigation */}
-          <div className="glass-card p-4 space-y-2">
-            <div className="flex items-center justify-between">
+          {/* Navigation — sticky on mobile, inline on desktop */}
+          {isMobile ? (
+            <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-white/[0.06] p-3 pb-safe flex items-center justify-between z-50">
               <Button
                 variant="outline"
-                onClick={() => (step > 0 ? setStep(step - 1) : navigate("/bdd"))}
-                className="gap-1.5 border-white/[0.06] hover:bg-white/[0.04] transition-all duration-200"
+                size="sm"
+                onClick={handlePrevious}
+                disabled={step === 0}
+                className="gap-1 border-white/[0.06] hover:bg-white/[0.04]"
               >
                 <ChevronLeft className="w-4 h-4" />
-                {step === 0 ? "Retour" : "Precedent"}
+                {step === 0 ? "Retour" : "Prec."}
               </Button>
-
-              <div className="flex flex-col items-center">
-                <span className="text-[10px] text-slate-500 tabular-nums">
-                  Etape {step + 1} / {LM_STEP_LABELS.length}
-                </span>
-                {!isMobile && (
-                  <span className="text-[9px] text-slate-600">
-                    <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">
-                      Esc
-                    </kbd>{" "}
-                    precedent
-                  </span>
-                )}
-              </div>
-
+              <span className="text-xs text-slate-500 tabular-nums">{step + 1}/10</span>
               {step < LM_STEP_LABELS.length - 1 ? (
-                <Button
-                  onClick={handleNext}
-                  className="gap-1.5 bg-blue-600 hover:bg-blue-700 transition-all duration-200 shadow-md shadow-blue-500/10"
-                >
-                  Suivant
-                  <ChevronRight className="w-4 h-4" />
+                <Button size="sm" onClick={handleNext} className="gap-1 bg-blue-600 hover:bg-blue-700">
+                  Suivant <ChevronRight className="w-4 h-4" />
                 </Button>
               ) : (
-                <div /> // Step 10 has its own save button
+                <div className="w-20" />
               )}
             </div>
-          </div>
+          ) : (
+            <div className="glass-card p-4">
+              <div className="flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  onClick={handlePrevious}
+                  className="gap-1.5 border-white/[0.06] hover:bg-white/[0.04] transition-all duration-200"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  {step === 0 ? "Retour" : "Precedent"}
+                </Button>
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] text-slate-500 tabular-nums">Etape {step + 1} / {LM_STEP_LABELS.length}</span>
+                  <span className="text-[9px] text-slate-600">
+                    <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> precedent
+                  </span>
+                </div>
+                {step < LM_STEP_LABELS.length - 1 ? (
+                  <Button onClick={handleNext} className="gap-1.5 bg-blue-600 hover:bg-blue-700 transition-all duration-200 shadow-md shadow-blue-500/10">
+                    Suivant <ChevronRight className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <div />
+                )}
+              </div>
+            </div>
+          )}
         </TabsContent>
 
         {/* ─── HISTORY TAB ─── */}
-        <TabsContent value="history" className="mt-4">
-          <div className="glass-card p-6">
-            <LetterHistory
-              letters={savedLetters}
-              loading={historyLoading}
-              onEdit={handleEditLetter}
-            />
+        <TabsContent value="history" className="mt-3 sm:mt-4">
+          <div className="glass-card p-4 sm:p-6">
+            <LetterHistory letters={savedLetters} loading={historyLoading} onEdit={handleEditLetter} />
           </div>
         </TabsContent>
       </Tabs>

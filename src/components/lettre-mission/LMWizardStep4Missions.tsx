@@ -3,7 +3,7 @@ import type { LMWizardData, MissionSelection } from "@/lib/lmWizardTypes";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Lock } from "lucide-react";
+import { Lock, Calculator, Landmark, Users, Scale, ShieldCheck, FileWarning, Lightbulb, ChevronDown } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -87,6 +87,26 @@ const DEFAULT_MISSIONS: MissionSelection[] = [
 
 const LOCKED_SECTIONS = ["lcbft", "travail_dissimule"];
 
+const SECTION_ICONS: Record<string, React.ReactNode> = {
+  comptabilite: <Calculator className="w-4 h-4" />,
+  fiscal: <Landmark className="w-4 h-4" />,
+  social: <Users className="w-4 h-4" />,
+  juridique: <Scale className="w-4 h-4" />,
+  lcbft: <ShieldCheck className="w-4 h-4" />,
+  travail_dissimule: <FileWarning className="w-4 h-4" />,
+  conseil: <Lightbulb className="w-4 h-4" />,
+};
+
+const SECTION_DESCRIPTIONS: Record<string, string> = {
+  comptabilite: "Saisie, rapprochement, bilan, liasse fiscale",
+  fiscal: "TVA, IS/IR, CFE, DAS2",
+  social: "Paie, DSN, contrats de travail",
+  juridique: "PV d'AG, approbation, modifications",
+  lcbft: "KYC, vigilance, declaration Tracfin",
+  travail_dissimule: "Attestation de vigilance",
+  conseil: "Gestion, previsionnel, tableau de bord",
+};
+
 export default function LMWizardStep4Missions({ data, onChange }: Props) {
   // Initialize missions if empty
   useEffect(() => {
@@ -133,13 +153,13 @@ export default function LMWizardStep4Missions({ data, onChange }: Props) {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-5 sm:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div>
           <h2 className="text-lg font-semibold text-white mb-1">Missions a inclure</h2>
           <p className="text-sm text-slate-500">Selectionnez les prestations couvertes par la lettre</p>
         </div>
-        <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20">
+        <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 self-start">
           {totalSelected} sections — {totalSubSelected} prestations
         </Badge>
       </div>
@@ -147,6 +167,10 @@ export default function LMWizardStep4Missions({ data, onChange }: Props) {
       <div className="space-y-3">
         {missions.map((mission) => {
           const isLocked = LOCKED_SECTIONS.includes(mission.section_id);
+          const icon = SECTION_ICONS[mission.section_id];
+          const desc = SECTION_DESCRIPTIONS[mission.section_id];
+          const subCount = mission.sous_options.filter((s) => s.selected).length;
+
           return (
             <div
               key={mission.section_id}
@@ -156,33 +180,67 @@ export default function LMWizardStep4Missions({ data, onChange }: Props) {
                   : "bg-white/[0.01] border-white/[0.04]"
               }`}
             >
-              {/* Section header */}
-              <div className="flex items-center gap-3 p-4">
-                <Switch
-                  checked={mission.selected}
-                  onCheckedChange={() => toggleSection(mission.section_id)}
-                  disabled={isLocked}
-                />
-                <div className="flex-1">
+              {/* Section header — clickable card */}
+              <button
+                type="button"
+                onClick={() => toggleSection(mission.section_id)}
+                disabled={isLocked}
+                className={`w-full flex items-center gap-3 p-3 sm:p-4 text-left ${
+                  isLocked ? "cursor-default" : "cursor-pointer active:bg-white/[0.02]"
+                }`}
+              >
+                {/* Icon container */}
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors ${
+                  mission.selected
+                    ? "bg-blue-500/15 text-blue-400"
+                    : "bg-white/[0.04] text-slate-500"
+                }`}>
+                  {icon}
+                </div>
+
+                <div className="flex-1 min-w-0">
                   <p className={`text-sm font-medium ${mission.selected ? "text-white" : "text-slate-500"}`}>
                     {mission.label}
                   </p>
+                  <p className="text-xs text-slate-600 truncate mt-0.5">{desc}</p>
                 </div>
-                {isLocked && (
-                  <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-400 gap-1">
-                    <Lock className="w-3 h-3" /> Obligatoire
-                  </Badge>
-                )}
-              </div>
 
-              {/* Sub-options */}
-              {mission.selected && (
-                <div className="px-4 pb-4 pt-1 space-y-2 border-t border-white/[0.04]">
+                <div className="flex items-center gap-2 shrink-0">
+                  {isLocked && (
+                    <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-400 gap-1 hidden sm:flex">
+                      <Lock className="w-3 h-3" /> Obligatoire
+                    </Badge>
+                  )}
+                  {isLocked && (
+                    <Lock className="w-3.5 h-3.5 text-amber-400 sm:hidden" />
+                  )}
+                  {mission.selected && !isLocked && (
+                    <span className="text-[10px] text-slate-500">{subCount}/{mission.sous_options.length}</span>
+                  )}
+                  <Switch
+                    checked={mission.selected}
+                    onCheckedChange={() => toggleSection(mission.section_id)}
+                    disabled={isLocked}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  {mission.selected && (
+                    <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200`} />
+                  )}
+                </div>
+              </button>
+
+              {/* Sub-options — animated expand */}
+              <div
+                className={`overflow-hidden transition-all duration-200 ${
+                  mission.selected ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-1 space-y-1 border-t border-white/[0.04]">
                   {mission.sous_options.map((opt) => (
                     <label
                       key={opt.id}
-                      className={`flex items-center gap-3 p-2 rounded-lg transition-colors cursor-pointer ${
-                        isLocked ? "cursor-default opacity-70" : "hover:bg-white/[0.03]"
+                      className={`flex items-center gap-3 p-2 sm:p-2.5 rounded-lg transition-colors ${
+                        isLocked ? "cursor-default opacity-70" : "cursor-pointer hover:bg-white/[0.03] active:bg-white/[0.05]"
                       }`}
                     >
                       <Checkbox
@@ -196,7 +254,7 @@ export default function LMWizardStep4Missions({ data, onChange }: Props) {
                     </label>
                   ))}
                 </div>
-              )}
+              </div>
             </div>
           );
         })}

@@ -82,6 +82,8 @@ export default function LMWizardStep1Client({ data, onChange }: Props) {
           placeholder="Rechercher par nom, SIREN ou reference..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
+          inputMode="search"
+          autoComplete="off"
           className="pl-10 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600"
         />
       </div>
