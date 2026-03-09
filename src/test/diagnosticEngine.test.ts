@@ -360,4 +360,60 @@ describe("diagnosticEngine - runDiagnostic360", () => {
     const report = runDiagnostic360([], [], [], []);
     expect(report.dateGeneration).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  it("should include syntheseSimple in report", () => {
+    const report = runDiagnostic360([], [], [], []);
+    expect(report.syntheseSimple).toBeDefined();
+    expect(report.syntheseSimple.length).toBeGreaterThan(0);
+  });
+
+  it("should include categoryStats with meta field", () => {
+    const clients = [makeClient()];
+    const report = runDiagnostic360(clients, [makeCollaborateur({ referentLcb: true })], [], []);
+    for (const cs of report.categoryStats) {
+      expect(cs.meta).toBeDefined();
+      expect(cs.meta.icon).toBeDefined();
+      expect(cs.meta.description).toBeDefined();
+      expect(cs.meta.positiveMessage).toBeDefined();
+    }
+  });
+
+  it("should assign actionUrl to items with corrective actions", () => {
+    const clients = [makeClient({ be: "", siren: "" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const itemsWithAction = report.items.filter(i => i.statut !== "OK" && i.actionUrl);
+    expect(itemsWithAction.length).toBeGreaterThan(0);
+  });
+
+  it("should assign difficulte and impact to all items", () => {
+    const clients = [makeClient()];
+    const report = runDiagnostic360(clients, [makeCollaborateur({ referentLcb: true })], [], []);
+    for (const item of report.items) {
+      expect(item.difficulte).toBeDefined();
+      expect(["facile", "moyen", "complexe"]).toContain(item.difficulte);
+      expect(item.impact).toBeDefined();
+      expect(["faible", "moyen", "fort"]).toContain(item.impact);
+    }
+  });
+
+  it("should provide positive syntheseSimple for score >= 80", () => {
+    const clients = [
+      makeClient(),
+      makeClient({ ref: "CLI-26-002", raisonSociale: "Test2", siren: "987654321" }),
+    ];
+    const collabs = [
+      makeCollaborateur({ referentLcb: true, nom: "Referent" }),
+      makeCollaborateur({ suppleant: "Referent", nom: "Suppleant" }),
+    ];
+    const logs = Array.from({ length: 15 }, (_, i) =>
+      makeLog({
+        typeAction: ["SCORING", "SCREENING", "REVUE", "ALERTE", "KYC"][i % 5],
+        horodatage: `2026-02-${String(i + 1).padStart(2, "0")} 10:00:00`,
+      })
+    );
+    const report = runDiagnostic360(clients, collabs, [], logs);
+    if (report.scoreGlobalDispositif >= 80) {
+      expect(report.syntheseSimple).toContain("bien organise");
+    }
+  });
 });

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { runDiagnostic360 } from "@/lib/diagnosticEngine";
 import {
   Tooltip,
   TooltipContent,
@@ -55,8 +56,14 @@ const SETTINGS_NAV = [
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; shortcut: string };
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
-  const { alertes, clients } = useAppState();
+  const { alertes, clients, collaborateurs, logs } = useAppState();
   const { profile, signOut } = useAuth();
+
+  // Diagnostic 360 badge: show note letter
+  const diagReport = useMemo(() => {
+    if (clients.length === 0) return null;
+    return runDiagnostic360(clients, collaborateurs, alertes, logs);
+  }, [clients, collaborateurs, alertes, logs]);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -77,10 +84,19 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const alertesEnCours = alertes.filter((a) => a.statut === "EN COURS").length;
   const retardCount = clients.filter((c) => c.etatPilotage === "RETARD").length;
 
+  const diagCritiques = diagReport ? diagReport.items.filter(i => i.statut === "CRITIQUE").length : 0;
+  const diagBadgeColor = diagReport
+    ? diagReport.noteLettre === "A" ? "bg-emerald-400"
+      : diagReport.noteLettre === "B" ? "bg-yellow-400"
+      : diagReport.noteLettre === "C" ? "bg-orange-400"
+      : "bg-red-400"
+    : "bg-slate-400";
+
   const badges: Record<string, { count: number; color: string }> = {
     "/": { count: retardCount, color: "bg-amber-400" },
     "/bdd": { count: clients.length, color: "bg-blue-400" },
     "/registre": { count: alertesEnCours, color: "bg-red-400" },
+    "/diagnostic": { count: diagCritiques, color: diagBadgeColor },
   };
 
   const cabinetName = profile?.full_name?.split(" ").pop() || "LCB-FT";

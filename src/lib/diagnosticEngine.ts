@@ -1,5 +1,8 @@
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "./types";
 
+export type Difficulte = "facile" | "moyen" | "complexe";
+export type Impact = "faible" | "moyen" | "fort";
+
 export interface DiagnosticItem {
   categorie: string;
   indicateur: string;
@@ -7,6 +10,22 @@ export interface DiagnosticItem {
   detail: string;
   recommandation: string;
   referenceReglementaire?: string;
+  /** Deep-link path to the page where the user can fix this issue */
+  actionUrl?: string;
+  /** Estimated difficulty to fix */
+  difficulte?: Difficulte;
+  /** Impact on compliance if fixed */
+  impact?: Impact;
+  /** Estimated time to fix (human-readable) */
+  tempsEstime?: string;
+  /** Client names involved (for linking) */
+  clientsConcernes?: string[];
+}
+
+export interface CategoryMeta {
+  icon: string; // lucide icon name
+  description: string;
+  positiveMessage: string;
 }
 
 export interface CategoryStats {
@@ -16,6 +35,7 @@ export interface CategoryStats {
   alerte: number;
   critique: number;
   score: number; // 0-100 per category
+  meta: CategoryMeta;
 }
 
 export interface DiagnosticReport {
@@ -24,12 +44,59 @@ export interface DiagnosticReport {
   noteLettre: string;
   items: DiagnosticItem[];
   synthese: string;
+  syntheseSimple: string; // plain-language version
   recommandationsPrioritaires: string[];
   categoryStats: CategoryStats[];
   totalClients: number;
   totalCollaborateurs: number;
   totalAlertes: number;
 }
+
+// ---------------------------------------------------------------------------
+// Category metadata for UX (icons, descriptions, positive messages)
+// ---------------------------------------------------------------------------
+const CATEGORY_META: Record<string, CategoryMeta> = {
+  CLASSIFICATION: {
+    icon: "FolderCheck",
+    description: "Etat de classification et de validation des dossiers de votre portefeuille clients.",
+    positiveMessage: "Tous vos dossiers sont correctement classifies.",
+  },
+  SCORING: {
+    icon: "BarChart3",
+    description: "Coherence et completude du scoring de risque de chaque client.",
+    positiveMessage: "Le scoring de tous vos clients est coherent et a jour.",
+  },
+  REVISIONS: {
+    icon: "CalendarClock",
+    description: "Suivi des echeances de revue periodique des dossiers clients.",
+    positiveMessage: "Toutes les revisions sont a jour, aucun retard detecte.",
+  },
+  KYC: {
+    icon: "UserCheck",
+    description: "Completude et validite des informations d'identification de vos clients (Know Your Customer).",
+    positiveMessage: "Toutes les donnees KYC sont completes et a jour.",
+  },
+  GOUVERNANCE: {
+    icon: "Building2",
+    description: "Organisation interne du dispositif LCB-FT: referent, formation, procedures.",
+    positiveMessage: "La gouvernance LCB-FT du cabinet est exemplaire.",
+  },
+  REGISTRE: {
+    icon: "BookOpen",
+    description: "Gestion du registre des alertes et des declarations de soupcon.",
+    positiveMessage: "Le registre des alertes est parfaitement tenu a jour.",
+  },
+  TRACABILITE: {
+    icon: "History",
+    description: "Qualite et exhaustivite de la piste d'audit des actions du cabinet.",
+    positiveMessage: "L'activite de suivi est bien tracee dans le journal d'audit.",
+  },
+  "RISQUE GLOBAL": {
+    icon: "Shield",
+    description: "Vue d'ensemble du niveau de risque du portefeuille et des concentrations.",
+    positiveMessage: "Le niveau de risque global du portefeuille est maitrise.",
+  },
+};
 
 // ---------------------------------------------------------------------------
 // Helper: validate SIREN format (9 digits)
@@ -78,6 +145,10 @@ export function runDiagnostic360(
     detail: `${valides.length}/${actifs.length} dossiers classes (${tauxClassification}%)`,
     recommandation: tauxClassification < 90 ? "Finaliser la classification de tous les dossiers actifs." : "Aucune action requise.",
     referenceReglementaire: "Art. L.561-5 CMF",
+    actionUrl: "/bdd",
+    difficulte: "facile",
+    impact: "fort",
+    tempsEstime: "5 min par dossier",
   });
 
   // === 2. DOSSIERS PROSPECT STAGNANTS ===
@@ -99,6 +170,11 @@ export function runDiagnostic360(
         ? "Valider ou refuser les prospects en attente pour maintenir un portefeuille propre."
         : "Aucune action requise.",
       referenceReglementaire: "Art. L.561-5 CMF",
+      actionUrl: "/bdd",
+      difficulte: "facile",
+      impact: "moyen",
+      tempsEstime: "10 min",
+      clientsConcernes: prospectAnciens.map(c => c.raisonSociale),
     });
   }
 
@@ -117,6 +193,10 @@ export function runDiagnostic360(
         ? "Documenter la date et les motifs de refus pour tous les dossiers refuses."
         : "Aucune action requise.",
       referenceReglementaire: "Art. L.561-8 CMF",
+      actionUrl: "/bdd",
+      difficulte: "facile",
+      impact: "moyen",
+      tempsEstime: "5 min par dossier",
     });
   }
 
@@ -135,6 +215,11 @@ export function runDiagnostic360(
       ? "Recalculer immediatement le scoring de ces clients. Un client PPE/Pays risque/Atypique ne peut etre en vigilance simplifiee."
       : "Aucune action requise.",
     referenceReglementaire: "Art. L.561-10 CMF",
+    actionUrl: "/bdd",
+    difficulte: "facile",
+    impact: "fort",
+    tempsEstime: "2 min par client",
+    clientsConcernes: incoherences.map(c => c.raisonSociale),
   });
 
   // === 5. SCORING - Clients sans score ===
@@ -815,6 +900,34 @@ export function runDiagnostic360(
     });
   }
 
+  // === POST-PROCESSING: Enrich items with UX metadata ===
+  const CATEGORY_ACTION_URL: Record<string, string> = {
+    CLASSIFICATION: "/bdd",
+    SCORING: "/bdd",
+    REVISIONS: "/bdd",
+    KYC: "/bdd",
+    GOUVERNANCE: "/gouvernance",
+    REGISTRE: "/registre",
+    TRACABILITE: "/logs",
+    "RISQUE GLOBAL": "/bdd",
+  };
+  for (const item of items) {
+    // Set actionUrl if not already set
+    if (!item.actionUrl) {
+      item.actionUrl = CATEGORY_ACTION_URL[item.categorie] || "/bdd";
+    }
+    // Auto-assign difficulty/impact based on status if not set
+    if (!item.difficulte) {
+      item.difficulte = item.statut === "OK" ? "facile" : item.statut === "ALERTE" ? "moyen" : "complexe";
+    }
+    if (!item.impact) {
+      item.impact = item.statut === "CRITIQUE" ? "fort" : item.statut === "ALERTE" ? "moyen" : "faible";
+    }
+    if (!item.tempsEstime) {
+      item.tempsEstime = item.statut === "OK" ? "" : item.statut === "ALERTE" ? "~15 min" : "~30 min";
+    }
+  }
+
   // === CALCUL NOTE GLOBALE (Amélioration #23 - pondération par catégorie) ===
   const critiques = items.filter(i => i.statut === "CRITIQUE").length;
   const alerteCount = items.filter(i => i.statut === "ALERTE").length;
@@ -849,6 +962,7 @@ export function runDiagnostic360(
       alerte: catAlerte,
       critique: catCritique,
       score: catScore,
+      meta: CATEGORY_META[cat] || { icon: "HelpCircle", description: "", positiveMessage: "" },
     };
   });
 
@@ -877,12 +991,22 @@ export function runDiagnostic360(
         ? "Des ameliorations sont recommandees pour renforcer le dispositif."
         : "Le dispositif est globalement conforme aux exigences reglementaires.");
 
+  // Plain-language synthesis for non-technical users
+  const syntheseSimple = scoreDispositif >= 80
+    ? "Votre cabinet est bien organise pour lutter contre le blanchiment. Continuez ainsi !"
+    : scoreDispositif >= 60
+      ? "Votre dispositif est correct mais quelques points meritent votre attention. Consultez les recommandations ci-dessous."
+      : scoreDispositif >= 40
+        ? "Plusieurs points importants necessitent des corrections. Nous vous guidons pas a pas pour y remedier."
+        : "Votre dispositif presente des lacunes significatives. Suivez les actions prioritaires pour vous mettre en conformite rapidement.";
+
   return {
     dateGeneration: now.toISOString().split("T")[0],
     scoreGlobalDispositif: scoreDispositif,
     noteLettre,
     items,
     synthese,
+    syntheseSimple,
     recommandationsPrioritaires,
     categoryStats,
     totalClients: clients.length,

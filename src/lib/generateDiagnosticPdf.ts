@@ -89,9 +89,16 @@ export function generateDiagnosticPdf(report: DiagnosticReport) {
   doc.text(`Score du dispositif : ${report.scoreGlobalDispositif}/100`, marginL + 40, y + 2);
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
+  // Plain-language synthesis first (easier to understand)
+  const simpleLines = doc.splitTextToSize(report.syntheseSimple, contentW - 45);
+  doc.setFont("helvetica", "bold");
+  doc.text(simpleLines, marginL + 40, y + 8);
+  y += simpleLines.length * 3.5 + 4;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
   const synLines = doc.splitTextToSize(report.synthese, contentW - 45);
-  doc.text(synLines, marginL + 40, y + 8);
-  y += 25;
+  doc.text(synLines, marginL + 40, y + 2);
+  y += synLines.length * 3 + 8;
 
   // Summary statistics
   doc.setFontSize(9);
