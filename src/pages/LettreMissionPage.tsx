@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -10,6 +10,8 @@ import {
   LM_STEP_TITLES,
   LM_TOTAL_STEPS,
   INITIAL_LM_WIZARD_DATA,
+  LM_STATUTS,
+  formatDuration,
   type LMWizardData,
   type SavedLetter,
 } from "@/lib/lmWizardTypes";
@@ -27,27 +29,75 @@ import LMSummaryPanel from "@/components/lettre-mission/LMSummaryPanel";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   ChevronLeft, ChevronRight, FileText, History, Plus,
-  Loader2, ShieldAlert, Edit3, Save, Zap,
+  Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
+  FileDown, Search, Clock, AlertTriangle, Filter,
 } from "lucide-react";
 
 // ─────────────────────────────────────────
-// Historique inline
+// G) Advanced history with filters, duplicate, archive
 // ─────────────────────────────────────────
 function LetterHistory({
   letters,
   loading,
   onEdit,
+  onDuplicate,
+  onArchive,
+  onDownloadPdf,
 }: {
   letters: SavedLetter[];
   loading: boolean;
   onEdit: (letter: SavedLetter) => void;
+  onDuplicate: (letter: SavedLetter) => void;
+  onArchive: (letter: SavedLetter) => void;
+  onDownloadPdf: (letter: SavedLetter) => void;
 }) {
+  const [searchQ, setSearchQ] = useState("");
+  const [filterStatut, setFilterStatut] = useState("all");
+  const [filterPeriode, setFilterPeriode] = useState("all");
+
+  const filtered = useMemo(() => {
+    let result = [...letters];
+
+    // Filter by statut
+    if (filterStatut !== "all") {
+      result = result.filter((l) => l.statut === filterStatut);
+    }
+
+    // Filter by periode
+    if (filterPeriode !== "all") {
+      const now = new Date();
+      if (filterPeriode === "7j") {
+        const d = new Date(); d.setDate(d.getDate() - 7);
+        result = result.filter((l) => new Date(l.updated_at) >= d);
+      } else if (filterPeriode === "30j") {
+        const d = new Date(); d.setDate(d.getDate() - 30);
+        result = result.filter((l) => new Date(l.updated_at) >= d);
+      } else if (filterPeriode === "annee") {
+        result = result.filter((l) => new Date(l.updated_at).getFullYear() === now.getFullYear());
+      }
+    }
+
+    // Search
+    if (searchQ.length >= 2) {
+      const q = searchQ.toLowerCase();
+      result = result.filter(
+        (l) =>
+          l.raison_sociale.toLowerCase().includes(q) ||
+          l.numero.toLowerCase().includes(q) ||
+          l.client_ref.toLowerCase().includes(q)
+      );
+    }
+
+    return result;
+  }, [letters, filterStatut, filterPeriode, searchQ]);
+
   const statusColor = (s: string) => {
-    if (s === "signee") return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
-    if (s === "envoyee") return "bg-blue-500/10 text-blue-400 border-blue-500/20";
-    return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+    const found = LM_STATUTS.find((st) => st.value === s);
+    return found?.color || "bg-slate-500/10 text-slate-400 border-slate-500/20";
   };
 
   if (loading) {
@@ -70,28 +120,183 @@ function LetterHistory({
   }
 
   return (
-    <div className="space-y-2">
-      {letters.map((letter) => (
-        <button
-          key={letter.id}
-          onClick={() => onEdit(letter)}
-          className="w-full flex items-center gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors text-left"
-        >
-          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-            <FileText className="w-5 h-5 text-blue-400" />
+    <div className="space-y-4">
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+          <Input
+            placeholder="Rechercher par nom, numero..."
+            value={searchQ}
+            onChange={(e) => setSearchQ(e.target.value)}
+            className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
+          />
+        </div>
+        <Select value={filterStatut} onValueChange={setFilterStatut}>
+          <SelectTrigger className="w-full sm:w-[150px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
+            <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
+            <SelectValue placeholder="Statut" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous les statuts</SelectItem>
+            {LM_STATUTS.map((s) => (
+              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={filterPeriode} onValueChange={setFilterPeriode}>
+          <SelectTrigger className="w-full sm:w-[140px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
+            <Clock className="w-3 h-3 mr-1.5 text-slate-500" />
+            <SelectValue placeholder="Periode" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Toutes periodes</SelectItem>
+            <SelectItem value="7j">7 derniers jours</SelectItem>
+            <SelectItem value="30j">30 derniers jours</SelectItem>
+            <SelectItem value="annee">Cette annee</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {/* Results count */}
+      <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
+
+      {/* Table header (desktop) */}
+      <div className="hidden sm:grid grid-cols-[1fr_120px_100px_100px_80px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
+        <span>Client</span>
+        <span>Numero</span>
+        <span>Type</span>
+        <span>Statut</span>
+        <span>Duree</span>
+        <span className="text-right">Actions</span>
+      </div>
+
+      {/* Rows */}
+      <div className="space-y-1.5">
+        {filtered.map((letter) => (
+          <div
+            key={letter.id}
+            className="group sm:grid sm:grid-cols-[1fr_120px_100px_100px_80px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+          >
+            {/* Client */}
+            <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                <FileText className="w-4 h-4 text-blue-400" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-white truncate">{letter.raison_sociale}</p>
+                <p className="text-[10px] text-slate-500 sm:hidden">
+                  {letter.numero} · {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
+                </p>
+              </div>
+            </button>
+
+            {/* Numero */}
+            <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{letter.numero}</span>
+
+            {/* Type */}
+            <span className="hidden sm:block text-xs text-slate-500">{letter.type_mission}</span>
+
+            {/* Statut */}
+            <div className="hidden sm:block">
+              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>
+                {letter.statut}
+              </Badge>
+            </div>
+
+            {/* H) Duration */}
+            <span className="hidden sm:block text-[10px] text-slate-600">
+              {letter.duration_seconds ? formatDuration(letter.duration_seconds) : "—"}
+            </span>
+
+            {/* Actions */}
+            <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button
+                onClick={() => onEdit(letter)}
+                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
+                title="Modifier"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onDuplicate(letter)}
+                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
+                title="Dupliquer"
+              >
+                <Copy className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onDownloadPdf(letter)}
+                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-purple-400 transition-colors"
+                title="PDF"
+              >
+                <FileDown className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => onArchive(letter)}
+                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-amber-400 transition-colors"
+                title="Archiver"
+              >
+                <Archive className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Mobile actions */}
+            <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
+              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>{letter.statut}</Badge>
+              <div className="flex-1" />
+              <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{letter.raison_sociale}</p>
-            <p className="text-xs text-slate-500 truncate">
-              {letter.numero} · {letter.type_mission} · {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
-            </p>
-          </div>
-          <Badge variant="outline" className={`text-[10px] shrink-0 ${statusColor(letter.statut)}`}>
-            {letter.statut}
-          </Badge>
-          <Edit3 className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-        </button>
-      ))}
+        ))}
+      </div>
+
+      {filtered.length === 0 && letters.length > 0 && (
+        <div className="text-center py-10 text-slate-500 text-sm">Aucun resultat pour ces filtres</div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────
+// F) Renewal alerts
+// ─────────────────────────────────────────
+function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
+  const expiringSoon = useMemo(() => {
+    const now = new Date();
+    const in60Days = new Date(); in60Days.setDate(in60Days.getDate() + 60);
+    return letters.filter((l) => {
+      if (l.statut !== "signee") return false;
+      const wd = l.wizard_data;
+      if (!wd?.date_debut || !wd?.duree) return false;
+      const start = new Date(wd.date_debut);
+      const years = parseInt(wd.duree) || 1;
+      const end = new Date(start);
+      end.setFullYear(end.getFullYear() + years);
+      return end >= now && end <= in60Days;
+    });
+  }, [letters]);
+
+  if (expiringSoon.length === 0) return null;
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-fade-in-up">
+      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+      <div>
+        <p className="text-sm font-medium text-amber-300">
+          {expiringSoon.length} lettre{expiringSoon.length > 1 ? "s" : ""} expire{expiringSoon.length > 1 ? "nt" : ""} dans 60 jours
+        </p>
+        <div className="mt-1.5 space-y-1">
+          {expiringSoon.slice(0, 3).map((l) => (
+            <p key={l.id} className="text-xs text-amber-400/70">{l.raison_sociale} — {l.numero}</p>
+          ))}
+          {expiringSoon.length > 3 && (
+            <p className="text-[10px] text-amber-400/50">+{expiringSoon.length - 3} autres</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -138,6 +343,13 @@ export default function LettreMissionPage() {
 
   // Swipe
   const touchStartX = useRef(0);
+
+  // ── H) Time tracking ──
+  useEffect(() => {
+    if (!data.started_at) {
+      setData((prev) => ({ ...prev, started_at: new Date().toISOString() }));
+    }
+  }, []);
 
   // ── Step animation + scroll ──
   useEffect(() => {
@@ -281,6 +493,9 @@ export default function LettreMissionPage() {
             created_at: r.created_at,
             updated_at: r.updated_at,
             wizard_data: r.wizard_data || {},
+            duration_seconds: r.wizard_data?.duration_seconds || 0,
+            honoraires_ht: r.wizard_data?.honoraires_ht || 0,
+            missions_count: r.wizard_data?.missions_selected?.filter((m: any) => m.selected)?.length || 0,
           }))
         );
       }
@@ -326,9 +541,16 @@ export default function LettreMissionPage() {
     if (Math.abs(diff) > 75) { diff > 0 ? handleNext() : handlePrevious(); }
   };
 
-  // ── Final save ──
+  // ── H) Compute duration on final save ──
   const handleSave = async () => {
-    const sanitized = sanitizeWizardData(data);
+    // Compute duration
+    let duration = 0;
+    if (data.started_at) {
+      duration = Math.round((Date.now() - new Date(data.started_at).getTime()) / 1000);
+    }
+    const finalData = { ...data, duration_seconds: duration };
+
+    const sanitized = sanitizeWizardData(finalData);
     const payload = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,
@@ -345,11 +567,12 @@ export default function LettreMissionPage() {
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }
+    setData(finalData);
     logAudit({
       action: "LETTRE_MISSION_SAVE",
       table_name: "lettres_mission",
       record_id: lmId || undefined,
-      new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, statut: sanitized.statut },
+      new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, statut: sanitized.statut, duration_seconds: duration },
     }).catch(() => {});
     sessionStorage.removeItem("lm_wizard_draft");
     setLastSaved(new Date());
@@ -357,7 +580,7 @@ export default function LettreMissionPage() {
   };
 
   const handleReset = () => {
-    setData({ ...INITIAL_LM_WIZARD_DATA });
+    setData({ ...INITIAL_LM_WIZARD_DATA, started_at: new Date().toISOString() });
     setLmId(null);
     setStep(0);
     warningShown.current = false;
@@ -374,11 +597,82 @@ export default function LettreMissionPage() {
     }
   };
 
+  // G) Duplicate
+  const handleDuplicate = async (letter: SavedLetter) => {
+    if (!letter.wizard_data) return;
+    const newData = {
+      ...INITIAL_LM_WIZARD_DATA,
+      ...letter.wizard_data,
+      statut: "brouillon",
+      numero_lettre: "",
+      signature_expert: "",
+      signature_client: "",
+      date_signature: "",
+      started_at: new Date().toISOString(),
+      duration_seconds: 0,
+    };
+    setData(newData);
+    setLmId(null);
+    setStep(0);
+    setActiveTab("wizard");
+    toast.success("Lettre dupliquee — modifiez et sauvegardez");
+  };
+
+  // G) Archive
+  const handleArchive = async (letter: SavedLetter) => {
+    try {
+      await supabase.from("lettres_mission").update({ statut: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
+      toast.success("Lettre archivee");
+      await loadSavedLetters();
+    } catch {
+      toast.error("Erreur lors de l'archivage");
+    }
+  };
+
+  // G) Download PDF from history
+  const handleDownloadPdf = async (letter: SavedLetter) => {
+    if (!letter.wizard_data) return;
+    try {
+      const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
+      const wd = letter.wizard_data;
+      const client = {
+        ref: wd.client_ref, raisonSociale: wd.raison_sociale, forme: wd.forme_juridique,
+        siren: wd.siren, dirigeant: wd.dirigeant, adresse: wd.adresse, cp: wd.cp, ville: wd.ville,
+        capital: Number(wd.capital) || 0, ape: wd.ape, mail: wd.email, tel: wd.telephone,
+        iban: wd.iban, bic: wd.bic, etat: "EN_COURS", comptable: "", mission: wd.type_mission,
+        domaine: "", effectif: "", dateCreation: "", dateReprise: "",
+        honoraires: wd.honoraires_ht, reprise: 0, juridique: 0, frequence: wd.frequence_facturation,
+        associe: wd.associe_signataire, superviseur: wd.chef_mission,
+        ppe: "NON", paysRisque: "NON", atypique: "NON", distanciel: "NON", cash: "NON", pression: "NON",
+        scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
+        malus: 0, scoreGlobal: 0, nivVigilance: "STANDARD",
+        dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
+        etatPilotage: "A JOUR", dateExpCni: "", statut: "ACTIF", be: "",
+      };
+      await renderLettreMissionPdf({
+        numero: letter.numero, date: new Date().toLocaleDateString("fr-FR"),
+        client: client as any,
+        cabinet: { nom: "Cabinet Expertise Comptable", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" },
+        options: {
+          genre: "M" as const,
+          missionSociale: wd.missions_selected?.some((m: any) => m.section_id === "social" && m.selected),
+          missionJuridique: wd.missions_selected?.some((m: any) => m.section_id === "juridique" && m.selected),
+          missionControleFiscal: wd.missions_selected?.some((m: any) => m.section_id === "fiscal" && m.selected),
+          regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
+          tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
+          periodicite: wd.frequence_facturation,
+        },
+      });
+      toast.success("PDF genere");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur PDF");
+    }
+  };
+
   // ── Express mode ──
   const handleExpress = () => {
     setExpressMode(!expressMode);
     if (!expressMode && data.client_id) {
-      // Jump to step 3 (honoraires)
       setStep(3);
     }
   };
@@ -392,6 +686,11 @@ export default function LettreMissionPage() {
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [step, activeTab]);
+
+  // H) Elapsed time display
+  const elapsed = data.started_at
+    ? Math.round((Date.now() - new Date(data.started_at).getTime()) / 1000)
+    : 0;
 
   // Step render
   const renderStep = () => {
@@ -431,6 +730,9 @@ export default function LettreMissionPage() {
         </div>
       </div>
 
+      {/* F) Renewal alerts */}
+      <RenewalAlerts letters={savedLetters} />
+
       {/* Draft resume banner */}
       {showDraftBanner && draftInfo && (
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 animate-fade-in-up">
@@ -466,15 +768,22 @@ export default function LettreMissionPage() {
           {/* Progress bar */}
           <LMProgressBar currentStep={step} />
 
-          {/* Step title */}
+          {/* Step title + H) elapsed time */}
           <div className="flex items-center justify-between">
             <h2 className="text-lg sm:text-xl font-bold text-white">{LM_STEP_TITLES[step]}</h2>
-            {lastSaved && (
-              <span className="text-[10px] text-slate-600 flex items-center gap-1">
-                <Save className="w-3 h-3" />
-                {lastSaved.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            )}
+            <div className="flex items-center gap-3">
+              {elapsed > 0 && (
+                <span className="text-[10px] text-slate-600 flex items-center gap-1">
+                  <Clock className="w-3 h-3" /> {formatDuration(elapsed)}
+                </span>
+              )}
+              {lastSaved && (
+                <span className="text-[10px] text-slate-600 flex items-center gap-1">
+                  <Save className="w-3 h-3" />
+                  {lastSaved.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* ── 2-column layout ── */}
@@ -575,7 +884,14 @@ export default function LettreMissionPage() {
         {/* ─── HISTORY TAB ─── */}
         <TabsContent value="history" className="mt-4">
           <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
-            <LetterHistory letters={savedLetters} loading={historyLoading} onEdit={handleEditLetter} />
+            <LetterHistory
+              letters={savedLetters}
+              loading={historyLoading}
+              onEdit={handleEditLetter}
+              onDuplicate={handleDuplicate}
+              onArchive={handleArchive}
+              onDownloadPdf={handleDownloadPdf}
+            />
           </div>
         </TabsContent>
       </Tabs>

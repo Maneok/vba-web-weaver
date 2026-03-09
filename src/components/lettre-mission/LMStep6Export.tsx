@@ -1,5 +1,6 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
+import { LM_STATUTS, computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
 import { sanitizeWizardData } from "@/lib/lmValidation";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
@@ -9,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   FileDown, FileText, Send, CheckCircle2, Upload, RotateCcw, ChevronDown,
-  Loader2,
+  Loader2, Trash2, Paperclip,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -19,12 +20,6 @@ interface Props {
   onSave: () => Promise<void>;
   onReset: () => void;
 }
-
-const STATUTS = [
-  { value: "brouillon", label: "Brouillon", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
-  { value: "envoyee", label: "Envoyee", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  { value: "signee", label: "Signee", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-];
 
 function buildClientForExport(data: LMWizardData): Client {
   return {
@@ -72,12 +67,127 @@ function buildClientForExport(data: LMWizardData): Client {
   };
 }
 
+// ── D) Tactile signature canvas ──
+function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: string) => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isDrawing = useRef(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    // Set canvas size
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * 2;
+    canvas.height = rect.height * 2;
+    ctx.scale(2, 2);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = "#e2e8f0";
+
+    // Restore existing signature
+    if (value) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      };
+      img.src = value;
+    }
+  }, []);
+
+  const getPos = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current!;
+    const rect = canvas.getBoundingClientRect();
+    if ("touches" in e) {
+      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  };
+
+  const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    isDrawing.current = true;
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.beginPath();
+    ctx.moveTo(pos.x, pos.y);
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing.current) return;
+    e.preventDefault();
+    const ctx = canvasRef.current?.getContext("2d");
+    if (!ctx) return;
+    const pos = getPos(e);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+  };
+
+  const endDraw = () => {
+    if (!isDrawing.current) return;
+    isDrawing.current = false;
+    const canvas = canvasRef.current;
+    if (canvas) {
+      onSave(canvas.toDataURL("image/png"));
+    }
+  };
+
+  const clearCanvas = () => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    onSave("");
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="relative rounded-lg border border-dashed border-white/[0.12] bg-white/[0.02] overflow-hidden">
+        <canvas
+          ref={canvasRef}
+          className="w-full h-[120px] cursor-crosshair touch-none"
+          onMouseDown={startDraw}
+          onMouseMove={draw}
+          onMouseUp={endDraw}
+          onMouseLeave={endDraw}
+          onTouchStart={startDraw}
+          onTouchMove={draw}
+          onTouchEnd={endDraw}
+        />
+        <p className="absolute bottom-1.5 left-3 text-[9px] text-slate-600 pointer-events-none">
+          Dessinez votre signature
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={clearCanvas}
+        className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+      >
+        <Trash2 className="w-3 h-3" /> Effacer
+      </button>
+    </div>
+  );
+}
+
 export default function LMStep6Export({ data, onChange, onSave, onReset }: Props) {
   const [showSignature, setShowSignature] = useState(false);
   const [emailTo, setEmailTo] = useState(data.email || "");
   const [showEmail, setShowEmail] = useState(false);
   const lockRef = useRef(false);
   const [generating, setGenerating] = useState<string | null>(null);
+
+  // E) Compute annexes
+  const annexes = computeAnnexes(data);
+  useEffect(() => {
+    if (JSON.stringify(data.annexes) !== JSON.stringify(annexes)) {
+      onChange({ annexes });
+    }
+  }, [annexes.join(",")]);
 
   const withLock = useCallback(async (key: string, fn: () => Promise<void>) => {
     if (lockRef.current) return;
@@ -239,28 +349,63 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         </div>
       )}
 
-      {/* ── Signature (collapsible) ── */}
+      {/* ── E) Annexes auto ── */}
+      {annexes.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Paperclip className="w-4 h-4 text-slate-500" />
+            <p className="text-sm font-medium text-slate-300">Annexes jointes ({annexes.length})</p>
+          </div>
+          <div className="space-y-1">
+            {annexes.map((id) => (
+              <div key={id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <span className="text-xs text-slate-400">{ANNEXE_LABELS[id] || id}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── D) Signature tactile (collapsible) ── */}
       <div className="rounded-xl border border-white/[0.06] overflow-hidden">
         <button
           type="button"
           onClick={() => setShowSignature(!showSignature)}
           className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors"
         >
-          <p className="text-sm font-medium text-slate-300">Signature</p>
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-medium text-slate-300">Signature</p>
+            {data.signature_expert && (
+              <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px]">OK</Badge>
+            )}
+          </div>
           <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showSignature ? "rotate-180" : ""}`} />
         </button>
-        <div className={`overflow-hidden transition-all duration-200 ${showSignature ? "max-h-[300px] opacity-100" : "max-h-0 opacity-0"}`}>
-          <div className="px-4 pb-4 space-y-3 border-t border-white/[0.04]">
-            <div className="space-y-1.5 pt-3">
-              <Label className="text-slate-400 text-xs">Image de signature</Label>
+        <div className={`overflow-hidden transition-all duration-200 ${showSignature ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
+          <div className="px-4 pb-4 space-y-4 border-t border-white/[0.04]">
+            {/* Canvas signature */}
+            <div className="pt-3">
+              <Label className="text-slate-400 text-xs mb-2 block">Dessiner la signature</Label>
+              <SignatureCanvas
+                value={data.signature_expert}
+                onSave={(dataUrl) => onChange({ signature_expert: dataUrl })}
+              />
+            </div>
+
+            {/* Or upload image */}
+            <div className="space-y-1.5">
+              <Label className="text-slate-400 text-xs">Ou charger une image</Label>
               <label className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-white/[0.1] bg-white/[0.02] cursor-pointer hover:border-white/[0.15] transition-colors">
                 <Upload className="w-4 h-4 text-slate-500" />
                 <span className="text-xs text-slate-400">
-                  {data.signature_expert ? "Signature chargee ✓" : "Cliquez pour charger"}
+                  {data.signature_expert ? "Signature chargee" : "Cliquez pour charger"}
                 </span>
                 <input type="file" accept="image/*" onChange={handleSignatureUpload} className="hidden" />
               </label>
             </div>
+
+            {/* Date */}
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs">Date de signature</Label>
               <Input
@@ -274,11 +419,11 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         </div>
       </div>
 
-      {/* ── Statut ── */}
+      {/* ── C) Statut workflow (5 etats) ── */}
       <div className="space-y-3">
         <p className="text-sm font-medium text-slate-300">Statut</p>
-        <div className="flex gap-2">
-          {STATUTS.map((s) => (
+        <div className="flex flex-wrap gap-2">
+          {LM_STATUTS.map((s) => (
             <button
               key={s.value}
               onClick={() => onChange({ statut: s.value })}

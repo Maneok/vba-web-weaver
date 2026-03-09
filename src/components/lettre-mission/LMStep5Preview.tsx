@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
+import { computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
 import LettreMissionA4Preview from "@/components/lettre-mission/LettreMissionA4Preview";
 import { Button } from "@/components/ui/button";
-import { Edit3, Maximize2, X } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Edit3, Maximize2, X, Paperclip, FileText } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -182,6 +184,29 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
           </button>
         )}
       </div>
+
+      {/* E) Auto annexes */}
+      {(() => {
+        const annexeIds = computeAnnexes(data);
+        if (annexeIds.length === 0) return null;
+        return (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Paperclip className="w-4 h-4 text-slate-500" />
+              <p className="text-sm font-medium text-slate-300">Annexes jointes</p>
+              <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px]">{annexeIds.length}</Badge>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+              {annexeIds.map((id) => (
+                <div key={id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                  <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <span className="text-xs text-slate-400">{ANNEXE_LABELS[id] || id}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* CTA */}
       <div className="text-center space-y-2 pt-2">

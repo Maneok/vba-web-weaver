@@ -204,6 +204,16 @@ export default function LMStep3Details({ data, onChange }: Props) {
               </SelectContent>
             </Select>
           </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label className="text-slate-400 text-xs">Validateur (co-edition)</Label>
+            <Select value={data.validateur} onValueChange={(v) => onChange({ validateur: v })}>
+              <SelectTrigger className={inputCls}><SelectValue placeholder="Aucun validateur" /></SelectTrigger>
+              <SelectContent>
+                {collaborateurs.map((c) => <SelectItem key={c.nom} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-slate-600">Collaborateur qui validera la lettre avant envoi</p>
+          </div>
         </div>
         {data.referent_lcb && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
