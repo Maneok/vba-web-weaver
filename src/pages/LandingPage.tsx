@@ -13,7 +13,7 @@ import {
   ArrowRight, ClipboardCheck, Search, Monitor, Quote,
   ChevronRight, Menu, X as XIcon, ChevronDown, Sun, Moon,
   Lock, HelpCircle, CreditCard, Database, Globe, Users,
-  Sparkles, Play, Zap, Cookie,
+  Sparkles, Play, Zap, Cookie, BarChart3, TrendingUp, Award, Brain,
 } from "lucide-react";
 
 /* ══════════════════════════════════════════════════════════════
@@ -212,7 +212,7 @@ function GlowCard({ children, className = "" }: { children: ReactNode; className
         <div
           className="pointer-events-none absolute inset-0 z-10 transition-opacity duration-300"
           style={{
-            background: `radial-gradient(350px circle at ${pos.x}px ${pos.y}px, rgba(59,130,246,0.12), transparent 60%)`,
+            background: `radial-gradient(350px circle at ${pos.x}px ${pos.y}px, rgba(139,92,246,0.12), transparent 60%)`,
           }}
         />
       )}
@@ -303,6 +303,65 @@ const DEMO_APIS = [
   { name: "Base nationale PEP", icon: Shield },
 ];
 
+function RadarChart() {
+  const axes = [
+    { label: "Activit\u00e9", value: 0.85 },
+    { label: "Pays", value: 0.95 },
+    { label: "Mission", value: 0.7 },
+    { label: "Maturit\u00e9", value: 0.6 },
+    { label: "Structure", value: 0.8 },
+    { label: "Malus", value: 0.9 },
+  ];
+  const n = axes.length;
+  const cx = 100, cy = 100, R = 70;
+  const angleStep = (2 * Math.PI) / n;
+  const gridLevels = [0.25, 0.5, 0.75, 1];
+
+  const pointAt = (i: number, r: number) => ({
+    x: cx + r * Math.sin(i * angleStep),
+    y: cy - r * Math.cos(i * angleStep),
+  });
+
+  const dataPoints = axes.map((a, i) => pointAt(i, R * a.value));
+
+  return (
+    <svg viewBox="0 0 200 200" className="w-full max-w-[220px] mx-auto">
+      {/* Grid */}
+      {gridLevels.map((level) => (
+        <polygon key={level}
+          points={Array.from({ length: n }, (_, i) => { const p = pointAt(i, R * level); return `${p.x},${p.y}`; }).join(" ")}
+          fill="none" stroke="rgba(139,92,246,0.1)" strokeWidth="0.5"
+        />
+      ))}
+      {/* Axis lines */}
+      {axes.map((_, i) => {
+        const p = pointAt(i, R);
+        return <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y} stroke="rgba(139,92,246,0.08)" strokeWidth="0.5" />;
+      })}
+      {/* Data area */}
+      <polygon points={dataPoints.map(p => `${p.x},${p.y}`).join(" ")}
+        fill="rgba(139,92,246,0.15)" stroke="#8b5cf6" strokeWidth="1.5"
+        className="animate-in fade-in duration-700"
+      />
+      {/* Data dots */}
+      {dataPoints.map((p, i) => (
+        <circle key={i} cx={p.x} cy={p.y} r="3" fill="#8b5cf6" />
+      ))}
+      {/* Labels */}
+      {axes.map((a, i) => {
+        const p = pointAt(i, R + 18);
+        return (
+          <text key={a.label} x={p.x} y={p.y} textAnchor="middle" dominantBaseline="middle"
+            className="text-[8px] fill-[--l-text-4]" style={{ fontSize: "8px" }}
+          >
+            {a.label}
+          </text>
+        );
+      })}
+    </svg>
+  );
+}
+
 function InteractiveDemo() {
   const [stage, setStage] = useState<"idle" | "running" | "done">("idle");
   const [completed, setCompleted] = useState(0);
@@ -355,7 +414,7 @@ function InteractiveDemo() {
           <button
             onClick={run}
             disabled={stage === "running"}
-            className="rounded-lg bg-blue-600 hover:bg-blue-500 disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-colors btn-press"
+            className="rounded-lg bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-colors btn-press"
           >
             {stage === "idle" ? "Lancer" : stage === "running" ? "En cours..." : "Relancer"}
           </button>
@@ -392,16 +451,23 @@ function InteractiveDemo() {
           })}
         </div>
 
-        {/* Score result */}
+        {/* Score result + Radar chart */}
         {stage === "done" && (
-          <div className="mt-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 flex items-center justify-between animate-in fade-in">
-            <div>
-              <p className="text-sm font-medium text-emerald-400">Screening terminé</p>
-              <p className="text-xs text-emerald-400/60">9/9 sources vérifiées — 0 alerte</p>
+          <div className="mt-4 space-y-4 animate-in fade-in">
+            <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-emerald-400">Screening terminé</p>
+                <p className="text-xs text-emerald-400/60">9/9 sources vérifiées — 0 alerte</p>
+              </div>
+              <div className="text-right">
+                <span className="text-2xl font-bold text-emerald-400 font-serif">{score}</span>
+                <span className="text-sm text-emerald-400/70">/100</span>
+              </div>
             </div>
-            <div className="text-right">
-              <span className="text-2xl font-bold text-emerald-400 font-serif">{score}</span>
-              <span className="text-sm text-emerald-400/70">/100</span>
+            {/* Radar chart */}
+            <div className="rounded-lg bg-white/[0.02] border border-[--l-border] p-4">
+              <p className="text-[11px] text-[--l-text-5] mb-3 text-center">Scoring NPLAB — 6 axes</p>
+              <RadarChart />
             </div>
           </div>
         )}
@@ -578,11 +644,11 @@ function CompMobileCard({ row }: { row: CompRow }) {
   return (
     <div className="rounded-xl border border-[--l-border] bg-[--l-surface] p-4 space-y-3">
       <p className="text-sm font-medium text-[--l-text]">{row.label}</p>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        {(["grimy", "kanta", "excel"] as const).map((k) => (
+      <div className="grid grid-cols-2 gap-2 text-center">
+        {(["grimy", "excel"] as const).map((k) => (
           <div key={k} className="space-y-1">
             <span className={`text-[10px] uppercase tracking-wider ${k === "grimy" ? "text-emerald-400 font-semibold" : "text-[--l-text-5]"}`}>
-              {k === "grimy" ? "GRIMY" : k === "kanta" ? "Kanta" : "Excel"}
+              {k === "grimy" ? "GRIMY" : "Excel"}
             </span>
             <div><CompCell value={row[k]} accent={k === "grimy"} /></div>
           </div>
@@ -635,10 +701,10 @@ const NAV_LINKS = [
 ];
 
 const whyCards = [
-  { icon: Shield, title: "Screening automatique", desc: "9 APIs vérifiées en 30 secondes : INPI, OpenSanctions, BODACC, DG Trésor, Google Places...", badge: null },
-  { icon: FileCheck, title: "Documents récupérés", desc: "Statuts, comptes annuels, Kbis — téléchargés automatiquement depuis l'INPI et stockés dans votre GED.", badge: null },
-  { icon: Calculator, title: "Scoring 6 axes", desc: "Activité, pays, mission, maturité, structure + malus. Évaluation objective, traçable et conforme NPLAB.", badge: null },
-  { icon: FileText, title: "Lettre de mission", desc: "Modèle réutilisable, remplissage auto des données client, export PDF/DOCX en un clic.", badge: null },
+  { icon: Shield, title: "Screening automatique", desc: "9 APIs vérifiées en 30 secondes : INPI, OpenSanctions, BODACC, DG Trésor, Google Places... Adapté aux EC et CAC.", badge: null },
+  { icon: FileCheck, title: "Documents récupérés", desc: "Statuts, comptes annuels, Kbis — téléchargés automatiquement depuis l'INPI et stockés dans votre GED. Conforme NEP et NPLAB.", badge: null },
+  { icon: Calculator, title: "Scoring 6 axes", desc: "Activité, pays, mission, maturité, structure + malus. Évaluation objective, traçable et conforme NPLAB / H3C.", badge: null },
+  { icon: FileText, title: "Lettre de mission", desc: "Modèle réutilisable pour experts-comptables et commissaires aux comptes, remplissage auto, export PDF/DOCX.", badge: null },
 ];
 
 const featureShowcase = [
@@ -660,18 +726,18 @@ const timelineSteps = [
 ];
 
 type CompValue = "yes" | "no" | "partial" | string;
-type CompRow = { label: string; grimy: CompValue; kanta: CompValue; excel: CompValue };
+type CompRow = { label: string; grimy: CompValue; excel: CompValue };
 const comparison: CompRow[] = [
-  { label: "Screening automatique 9 APIs", grimy: "yes", kanta: "partial", excel: "no" },
-  { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Scoring multi-critères NPLAB", grimy: "yes", kanta: "yes", excel: "Manuel" },
-  { label: "Lettre de mission auto", grimy: "yes", kanta: "yes", excel: "no" },
-  { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Gel des avoirs DG Trésor", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Diagnostic 360°", grimy: "yes", kanta: "partial", excel: "no" },
-  { label: "Multi-cabinet / Multi-utilisateur", grimy: "yes", kanta: "yes", excel: "no" },
-  { label: "API publique", grimy: "Bientôt", kanta: "yes", excel: "no" },
-  { label: "Prix à partir de", grimy: "29€/mois", kanta: "Sur devis", excel: "Gratuit" },
+  { label: "Screening automatique 9 APIs", grimy: "yes", excel: "no" },
+  { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", excel: "no" },
+  { label: "Scoring multi-critères NPLAB", grimy: "yes", excel: "Manuel" },
+  { label: "Lettre de mission auto", grimy: "yes", excel: "no" },
+  { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", excel: "no" },
+  { label: "Gel des avoirs DG Trésor", grimy: "yes", excel: "no" },
+  { label: "Diagnostic 360°", grimy: "yes", excel: "no" },
+  { label: "Multi-cabinet / Multi-utilisateur", grimy: "yes", excel: "no" },
+  { label: "Journal d'audit certifié", grimy: "yes", excel: "no" },
+  { label: "Prix à partir de", grimy: "29€/mois", excel: "Gratuit" },
 ];
 
 /* #18 — Features with badges */
@@ -714,7 +780,7 @@ const testimonials = [
   { quote: "Nous avons passé notre contrôle LAB sans aucune observation grâce à GRIMY.", name: "Marc D.", title: "Expert-comptable", cabinet: "Cabinet marseillais", initials: "MD", color: "bg-blue-500/20 text-blue-400" },
   { quote: "Le screening automatique nous fait gagner 2 heures par nouveau client.", name: "Sophie L.", title: "Collaboratrice", cabinet: "Cabinet 15 personnes", initials: "SL", color: "bg-emerald-500/20 text-emerald-400" },
   { quote: "Enfin un outil conçu par quelqu'un qui comprend nos obligations.", name: "Thomas R.", title: "Associé", cabinet: "Cabinet parisien", initials: "TR", color: "bg-purple-500/20 text-purple-400" },
-  { quote: "L'intégration INPI nous a convaincu. Plus besoin de naviguer sur 5 sites différents.", name: "Claire B.", title: "Responsable conformité", cabinet: "Cabinet lyonnais", initials: "CB", color: "bg-amber-500/20 text-amber-400" },
+  { quote: "En tant que commissaire aux comptes, la conformité NEP est cruciale. GRIMY couvre parfaitement nos obligations LAB/FT.", name: "Claire B.", title: "Commissaire aux comptes", cabinet: "CRCC Lyon", initials: "CB", color: "bg-amber-500/20 text-amber-400" },
   { quote: "Le scoring 6 axes est redoutable de précision. Nos contrôleurs sont impressionnés.", name: "Philippe M.", title: "Associé signataire", cabinet: "Cabinet 30 personnes", initials: "PM", color: "bg-pink-500/20 text-pink-400" },
 ];
 
@@ -725,6 +791,7 @@ const faqItems = [
   { q: "GRIMY est-il conforme au RGPD ?", a: "Oui. Hébergement en France, DPO désigné, registre de traitements, droit d'accès/suppression/portabilité, et chiffrement bout en bout des données sensibles.", icon: Shield },
   { q: "Comment fonctionne l'essai gratuit ?", a: "14 jours d'essai complet, aucune carte bancaire requise. Vous avez accès à toutes les fonctionnalités du plan Cabinet. À la fin de l'essai, choisissez votre plan ou exportez vos données.", icon: HelpCircle },
   { q: "Le logiciel convient-il à un petit cabinet ?", a: "Absolument. Le plan Solo à 29€/mois couvre 50 clients, largement suffisant pour un indépendant. L'interface est conçue pour être utilisable sans formation.", icon: Users },
+  { q: "GRIMY convient-il aux commissaires aux comptes ?", a: "Oui. GRIMY est aussi adapté aux commissaires aux comptes (NEP, H3C). Le scoring NPLAB, le registre LCB-FT et le journal d'audit répondent aux exigences de la CNCC et des CRCC. Les normes NEP et ISQM 1 sont intégrées.", icon: Award },
 ];
 
 /* #8 — Footer with working links */
@@ -800,18 +867,20 @@ export default function LandingPage() {
         }
         .theme-light {
           --l-bg-primary: #fafbfc;
-          --l-bg-alt: #f0f2f5;
-          --l-surface: rgba(0,0,0,0.03);
-          --l-border: rgba(0,0,0,0.1);
-          --l-border-subtle: rgba(0,0,0,0.05);
-          --l-bg-blur: rgba(250,251,252,0.85);
+          --l-bg-alt: #f5f3ff;
+          --l-surface: rgba(139,92,246,0.03);
+          --l-border: rgba(139,92,246,0.12);
+          --l-border-subtle: rgba(139,92,246,0.06);
+          --l-bg-blur: rgba(250,251,252,0.88);
           --l-bg-blur-heavy: rgba(250,251,252,0.95);
           --l-text: #111827;
           --l-text-2: #374151;
           --l-text-3: #4b5563;
           --l-text-4: #6b7280;
           --l-text-5: #9ca3af;
-          --l-mock-bg: #f3f4f6;
+          --l-mock-bg: #f5f3ff;
+          --l-accent: #7c3aed;
+          --l-accent-light: rgba(139,92,246,0.1);
         }
         .landing-root { color: var(--l-text); }
 
@@ -822,7 +891,7 @@ export default function LandingPage() {
           animation: gradShift 15s ease infinite;
         }
         .theme-light .landing-bg-wrap {
-          background: linear-gradient(135deg, #fafbfc 0%, #eef2ff 50%, #fafbfc 100%);
+          background: linear-gradient(135deg, #fafbfc 0%, #f5f3ff 25%, #ede9fe 50%, #f5f3ff 75%, #fafbfc 100%);
         }
         @keyframes gradShift {
           0% { background-position: 0% 50%; }
@@ -836,7 +905,7 @@ export default function LandingPage() {
           background-size: 32px 32px;
         }
         .theme-light .dot-grid {
-          background-image: radial-gradient(circle, rgba(59,130,246,0.12) 1px, transparent 1px);
+          background-image: radial-gradient(circle, rgba(139,92,246,0.1) 1px, transparent 1px);
         }
 
         /* Hero glow */
@@ -844,7 +913,7 @@ export default function LandingPage() {
           background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.15) 0%, transparent 70%);
         }
         .theme-light .hero-glow {
-          background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.08) 0%, transparent 70%);
+          background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139,92,246,0.12) 0%, transparent 70%);
         }
 
         /* #9 — Micro-interactions */
@@ -869,7 +938,7 @@ export default function LandingPage() {
 
         /* #14 — GRIMY column highlight */
         .grimy-col { background: rgba(16,185,129,0.04); }
-        .theme-light .grimy-col { background: rgba(16,185,129,0.06); }
+        .theme-light .grimy-col { background: rgba(139,92,246,0.06); }
 
         /* Reduced motion */
         @media (prefers-reduced-motion: reduce) {
@@ -880,6 +949,14 @@ export default function LandingPage() {
             animation-duration: 0.01ms !important;
             transition-duration: 0.01ms !important;
           }
+        }
+
+        /* Purple gradient section titles in light mode */
+        .theme-light h2.font-serif {
+          background: linear-gradient(135deg, #7c3aed, #6d28d9, #4c1d95);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
         }
 
         /* Timeline line fill */
@@ -968,17 +1045,18 @@ export default function LandingPage() {
 
           <div className="relative mx-auto max-w-4xl px-6 text-center">
             <div className={`transition-all duration-1000 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-              <Badge className="mb-8 border-blue-500/20 bg-blue-500/10 text-blue-400 px-4 py-1.5 text-sm">Plateforme LCB-FT nouvelle génération</Badge>
+              <Badge className="mb-8 border-violet-500/20 bg-violet-500/10 text-violet-400 px-4 py-1.5 text-sm">IA + Conformité LCB-FT — Nouvelle génération</Badge>
             </div>
 
             <h1 className={`mb-8 font-serif text-4xl font-bold leading-[1.1] tracking-tight transition-all duration-1000 delay-150 sm:text-5xl md:text-[56px] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
               La conformité LCB-FT<br />
-              <span className="bg-gradient-to-r from-blue-400 to-blue-300 bg-clip-text text-transparent">n'a jamais été aussi simple</span>
+              <span className="bg-gradient-to-r from-violet-400 to-purple-300 bg-clip-text text-transparent">n'a jamais été aussi simple</span>
+              <Badge className="ml-3 align-middle border-purple-500/20 bg-purple-500/10 text-purple-400 px-2 py-0.5 text-[10px] font-semibold"><Brain className="inline h-3 w-3 mr-1" />Propulsé par l'IA</Badge>
             </h1>
 
             <p className={`mx-auto mb-10 max-w-2xl text-lg leading-relaxed transition-all duration-1000 delay-300 sm:text-xl ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-3)" }}>
               Automatisez votre dispositif anti-blanchiment. Screening intelligent, documents INPI, lettre de mission.<br className="hidden sm:block" />
-              <span style={{ color: "var(--l-text-4)" }}>Conçu par un expert-comptable, pour les experts-comptables.</span>
+              <span style={{ color: "var(--l-text-4)" }}>Conçu par un expert-comptable, pour les experts-comptables et commissaires aux comptes.</span>
             </p>
 
             <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 transition-all duration-1000 delay-500 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
@@ -994,6 +1072,9 @@ export default function LandingPage() {
 
             <p className={`mt-6 text-sm transition-all duration-1000 delay-700 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-5)" }}>
               Aucune carte bancaire requise — 14 jours d'essai gratuit
+            </p>
+            <p className={`mt-3 text-sm font-medium transition-all duration-1000 delay-[800ms] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-4)" }}>
+              <TrendingUp className="inline h-3.5 w-3.5 mr-1 text-emerald-400" />+150 cabinets nous font confiance
             </p>
 
             {/* #7 — Onboarding stepper */}
@@ -1013,9 +1094,9 @@ export default function LandingPage() {
         <section className="border-y" style={{ borderColor: "var(--l-border)" }}>
           <div className="mx-auto max-w-5xl px-6 py-4 flex flex-col items-center gap-3">
             <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12">
-              <p className="text-sm" style={{ color: "var(--l-text-4)" }}>Conforme NPLAB, NPMQ et ISQM 1</p>
+              <p className="text-sm" style={{ color: "var(--l-text-4)" }}>Conforme NPLAB, NPMQ, ISQM 1 et NEP</p>
               <div className="flex items-center gap-8">
-                {["Ordre des Experts-Comptables", "CNCC", "TRACFIN"].map((n) => (
+                {["Ordre des Experts-Comptables", "CNCC", "CRCC", "TRACFIN"].map((n) => (
                   <span key={n} className="text-[10px] font-medium uppercase tracking-widest opacity-50" style={{ color: "var(--l-text-4)" }}>{n}</span>
                 ))}
               </div>
@@ -1091,6 +1172,28 @@ export default function LandingPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ══════ Sécurité & Conformité ══════ */}
+        <section className="py-16 border-y" style={{ borderColor: "var(--l-border)" }}>
+          <div className="mx-auto max-w-5xl px-6">
+            <div data-reveal className="grid grid-cols-2 sm:grid-cols-4 gap-8 opacity-0 translate-y-10 transition-all duration-700">
+              {[
+                { icon: Shield, label: "Conforme RGPD", desc: "DPO désigné, registre de traitements" },
+                { icon: Lock, label: "Chiffrement AES-256", desc: "Données sensibles chiffrées E2E" },
+                { icon: Globe, label: "Hébergement France", desc: "Serveurs Supabase EU-West" },
+                { icon: BarChart3, label: "SOC 2-ready", desc: "Audit trail certifié, immutable" },
+              ].map((item) => (
+                <div key={item.label} className="text-center space-y-2">
+                  <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-violet-500/10">
+                    <item.icon className="h-6 w-6 text-violet-400" />
+                  </div>
+                  <p className="text-sm font-semibold" style={{ color: "var(--l-text)" }}>{item.label}</p>
+                  <p className="text-xs" style={{ color: "var(--l-text-4)" }}>{item.desc}</p>
+                </div>
+              ))}
             </div>
           </div>
         </section>
@@ -1193,7 +1296,7 @@ export default function LandingPage() {
         {/* ══════ COMPARAISON — #14 highlighted column ══════ */}
         <section id="comparaison" className="py-28">
           <div className="mx-auto max-w-5xl px-6">
-            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs les alternatives</h2>
+            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs Excel</h2>
             <p data-reveal className="mx-auto mb-14 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
               Comparez et choisissez la solution la plus complète pour votre cabinet.
             </p>
@@ -1207,8 +1310,7 @@ export default function LandingPage() {
                     <th className="px-6 py-5 text-center grimy-col rounded-tl-lg">
                       <span className="text-sm font-bold text-emerald-400">GRIMY</span>
                     </th>
-                    <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Kanta</th>
-                    <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Excel</th>
+                    <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Excel / Manuel</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1216,7 +1318,6 @@ export default function LandingPage() {
                     <tr key={row.label} className="table-row-hover" style={{ borderBottom: "1px solid var(--l-border-subtle)" }}>
                       <td className="px-6 py-4" style={{ color: "var(--l-text-2)" }}>{row.label}</td>
                       <td className="px-6 py-4 text-center grimy-col"><CompCell value={row.grimy} accent /></td>
-                      <td className="px-6 py-4 text-center"><CompCell value={row.kanta} /></td>
                       <td className="px-6 py-4 text-center"><CompCell value={row.excel} /></td>
                     </tr>
                   ))}
@@ -1303,6 +1404,10 @@ export default function LandingPage() {
                 );
               })}
             </div>
+
+            <p data-reveal className="mt-8 text-center text-sm opacity-0 translate-y-10 transition-all duration-700 delay-300" style={{ color: "var(--l-text-4)" }}>
+              <Shield className="inline h-4 w-4 mr-1 text-emerald-400" />Garantie satisfait ou remboursé 30 jours
+            </p>
 
             {/* #3 — Pricing feature comparison table */}
             <div data-reveal className="mt-14 text-center opacity-0 translate-y-10 transition-all duration-700">
@@ -1414,7 +1519,7 @@ export default function LandingPage() {
         {/* ══════ CTA FINAL — #6 email + #15 ══════ */}
         <section className="py-28">
           <div data-reveal className="mx-auto max-w-5xl px-6 opacity-0 translate-y-10 transition-all duration-700">
-            <div className="rounded-3xl bg-gradient-to-r from-blue-600/20 via-blue-500/10 to-indigo-600/20 border border-blue-500/20 p-12 sm:p-16 text-center relative overflow-hidden">
+            <div className="rounded-3xl bg-gradient-to-r from-violet-600/20 via-purple-500/10 to-indigo-600/20 border border-purple-500/20 p-12 sm:p-16 text-center relative overflow-hidden">
               <div className="absolute inset-0 dot-grid opacity-20" />
               <div className="relative">
                 <h2 className="mb-4 font-serif text-3xl font-bold sm:text-4xl">Prêt à automatiser votre conformité ?</h2>
@@ -1440,6 +1545,18 @@ export default function LandingPage() {
                   {ctaError && <p id="cta-error" className="mt-2 text-xs text-red-400">{ctaError}</p>}
                   <p className="mt-3 text-xs" style={{ color: "var(--l-text-5)" }}>Aucune carte bancaire requise</p>
                 </form>
+                <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
+                  {[
+                    { icon: Shield, label: "RGPD" },
+                    { icon: Globe, label: "Hébergement France" },
+                    { icon: Lock, label: "Chiffrement AES-256" },
+                  ].map((b) => (
+                    <div key={b.label} className="flex items-center gap-2 text-xs" style={{ color: "var(--l-text-4)" }}>
+                      <b.icon className="h-3.5 w-3.5 text-violet-400/60" />
+                      {b.label}
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -1451,7 +1568,7 @@ export default function LandingPage() {
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
               <div className="lg:col-span-1">
                 <span className="text-lg font-bold font-serif">GRIMY</span>
-                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--l-text-4)" }}>Conformité LCB-FT<br />pour experts-comptables</p>
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--l-text-4)" }}>Conformité LCB-FT<br />pour experts-comptables<br />et commissaires aux comptes</p>
               </div>
               {footerSections.map((sec) => (
                 <div key={sec.title}>
@@ -1471,7 +1588,7 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row" style={{ borderColor: "var(--l-border)" }}>
-              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; 2026 GRIMY — Conformité LCB-FT pour experts-comptables</p>
+              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; 2026 GRIMY — Conformité LCB-FT pour experts-comptables et commissaires aux comptes</p>
               <div className="flex gap-6">
                 {["LinkedIn", "Twitter"].map((s) => (
                   <a key={s} href="#" className="text-xs transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }}>{s}</a>
