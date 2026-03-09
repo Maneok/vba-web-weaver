@@ -1,4 +1,5 @@
 import React from "react";
+import { logger } from "@/lib/logger";
 
 interface AppErrorBoundaryState {
   hasError: boolean;
@@ -19,7 +20,7 @@ export default class AppErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Application render error:", error, errorInfo);
+    logger.error("ErrorBoundary", "Application render error", error, errorInfo);
   }
 
   render() {

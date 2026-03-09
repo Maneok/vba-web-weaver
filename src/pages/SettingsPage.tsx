@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 /* ---------- types ---------- */
 
@@ -104,88 +105,91 @@ export default function SettingsPage() {
   /* --- load --- */
   useEffect(() => {
     async function load() {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          setLoading(false);
-          return;
-        }
-        setUserId(user.id);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
+      setUserId(user.id);
 
-        const { data, error } = await supabase
-          .from("parametres")
-          .select("*")
-          .eq("user_id", user.id);
+      const { data, error } = await supabase
+        .from("parametres")
+        .select("*")
+        .eq("user_id", user.id);
 
-        if (error) {
-          console.error("Error loading parametres:", error);
-          toast.error("Erreur lors du chargement des parametres");
-          setLoading(false);
-          return;
-        }
+      if (error) {
+        logger.error("Settings", "Error loading parametres:", error);
+        toast.error("Erreur lors du chargement des parametres");
+        setLoading(false);
+        return;
+      }
 
-        if (data) {
-          for (const row of data) {
-            if (row.cle === "cabinet_info" && row.valeur) {
-              setCabinet((prev) => ({ ...prev, ...(row.valeur as Partial<CabinetInfo>) }));
-            }
-            if (row.cle === "scoring_config" && row.valeur) {
-              setScoring((prev) => ({ ...prev, ...(row.valeur as Partial<ScoringConfig>) }));
-            }
-            if (row.cle === "lcbft_config" && row.valeur) {
-              setLcbft((prev) => ({ ...prev, ...(row.valeur as Partial<LcbftConfig>) }));
-            }
+      if (data) {
+        for (const row of data) {
+          if (row.cle === "cabinet_info" && row.valeur) {
+            setCabinet((prev) => ({ ...prev, ...(row.valeur as Partial<CabinetInfo>) }));
+          }
+          if (row.cle === "scoring_config" && row.valeur) {
+            setScoring((prev) => ({ ...prev, ...(row.valeur as Partial<ScoringConfig>) }));
+          }
+          if (row.cle === "lcbft_config" && row.valeur) {
+            setLcbft((prev) => ({ ...prev, ...(row.valeur as Partial<LcbftConfig>) }));
           }
         }
-      } catch (err) {
-        console.error("[Settings] load error:", err);
-        toast.error("Erreur lors du chargement des parametres");
-      } finally {
-        setLoading(false);
       }
+
+      setLoading(false);
     }
     load();
   }, []);
 
   /* --- save helpers --- */
-  async function saveParametre(cle: string, valeur: unknown, setLoading: (v: boolean) => void, successMsg: string) {
+  async function saveCabinet() {
     if (!userId) return;
-    setLoading(true);
-    try {
-      // Re-verify auth before mutation
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || user.id !== userId) {
-        toast.error("Session expiree, veuillez vous reconnecter");
-        return;
-      }
-      const { error } = await supabase.from("parametres").upsert(
-        { user_id: userId, cle, valeur: valeur as Record<string, unknown>, updated_at: new Date().toISOString() },
-        { onConflict: "user_id,cle" }
-      );
-      if (error) {
-        toast.error("Erreur lors de la sauvegarde");
-        console.error(error);
-      } else {
-        toast.success(successMsg);
-      }
-    } catch (err) {
-      console.error("[Settings] save error:", err);
+    setSavingCabinet(true);
+    const { error } = await supabase.from("parametres").upsert(
+      { user_id: userId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,cle" }
+    );
+    setSavingCabinet(false);
+    if (error) {
       toast.error("Erreur lors de la sauvegarde");
-    } finally {
-      setLoading(false);
+      logger.error("Settings", "Erreur sauvegarde cabinet", error);
+    } else {
+      toast.success("Informations cabinet enregistrees");
     }
   }
 
-  async function saveCabinet() {
-    await saveParametre("cabinet_info", cabinet, setSavingCabinet, "Informations cabinet enregistrees");
-  }
-
   async function saveScoring() {
-    await saveParametre("scoring_config", scoring, setSavingScoring, "Configuration scoring enregistree");
+    if (!userId) return;
+    setSavingScoring(true);
+    const { error } = await supabase.from("parametres").upsert(
+      { user_id: userId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,cle" }
+    );
+    setSavingScoring(false);
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+      logger.error("Settings", "Erreur sauvegarde scoring", error);
+    } else {
+      toast.success("Configuration scoring enregistree");
+    }
   }
 
   async function saveLcbft() {
-    await saveParametre("lcbft_config", lcbft, setSavingLcbft, "Configuration LCB-FT enregistree");
+    if (!userId) return;
+    setSavingLcbft(true);
+    const { error } = await supabase.from("parametres").upsert(
+      { user_id: userId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+      { onConflict: "user_id,cle" }
+    );
+    setSavingLcbft(false);
+    if (error) {
+      toast.error("Erreur lors de la sauvegarde");
+      logger.error("Settings", "Erreur sauvegarde LCB-FT", error);
+    } else {
+      toast.success("Configuration LCB-FT enregistree");
+    }
   }
 
   /* --- update helpers --- */

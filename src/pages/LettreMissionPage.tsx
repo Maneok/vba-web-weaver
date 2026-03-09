@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 import {
   ArrowLeft,
   FileDown,
@@ -190,7 +191,7 @@ export default function LettreMissionPage() {
           }
         }
       } catch (err) {
-        console.warn("[loadModels]", err);
+        logger.warn("LDM", "loadModels error", err);
       } finally {
         setTemplateLoaded(true);
       }
@@ -287,7 +288,7 @@ export default function LettreMissionPage() {
       if (error) throw error;
       toast.success("Modèle sauvegardé");
     } catch (err) {
-      console.error("[saveTemplate]", err);
+      logger.error("LDM", "saveTemplate error", err);
       toast.error("Erreur lors de la sauvegarde");
     } finally {
       setTemplateSaving(false);
@@ -405,7 +406,7 @@ export default function LettreMissionPage() {
       setLastSaved(new Date());
       if (!silent) toast.success("Lettre sauvegardée");
     } catch (err) {
-      console.warn("[save]", err);
+      logger.warn("LDM", "save error", err);
       if (!silent) toast.error("Erreur de sauvegarde");
     }
   }, [client, status, missions, honoraires, genre, notesInternes, signatureExpert, signatureClient, objetContrat, activeModelKey]);
@@ -496,7 +497,7 @@ export default function LettreMissionPage() {
       });
       toast.success("PDF généré");
     } catch (err) {
-      console.error("[PDF]", err);
+      logger.error("LDM", "PDF generation error", err);
       toast.error("Erreur PDF");
     }
   }, [client, template, genre, missions, honoraires, cabinet, previewVariables, status, signatureExpert, signatureClient]);
@@ -513,7 +514,7 @@ export default function LettreMissionPage() {
       });
       toast.success("DOCX généré");
     } catch (err) {
-      console.error("[DOCX]", err);
+      logger.error("LDM", "DOCX generation error", err);
       toast.error("Erreur DOCX");
     }
   }, [client, template, genre, missions, honoraires, cabinet, previewVariables, status, signatureExpert, signatureClient]);

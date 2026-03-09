@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { logger } from "@/lib/logger";
 
 interface Document {
   id: string;
@@ -106,7 +107,6 @@ export default function GedPage() {
   const [filterExpiration, setFilterExpiration] = useState<string>("all");
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Upload dialog
@@ -130,31 +130,25 @@ export default function GedPage() {
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-
-      const { data, error } = await supabase
-        .from("documents")
-        .select("*")
-        .eq("user_id", user.id)
-        .order("updated_at", { ascending: false });
-
-      if (error) {
-        toast.error("Erreur chargement documents");
-        console.error(error);
-      } else {
-        setDocuments((data as Document[]) || []);
-      }
-    } catch (err) {
-      console.error("[GED] fetchDocuments error:", err);
-      toast.error("Erreur chargement documents");
-    } finally {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
       setLoading(false);
+      return;
     }
+
+    const { data, error } = await supabase
+      .from("documents")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("updated_at", { ascending: false });
+
+    if (error) {
+      toast.error("Erreur chargement documents");
+      logger.error("GED", "Erreur chargement documents", error);
+    } else {
+      setDocuments((data as Document[]) || []);
+    }
+    setLoading(false);
   }, []);
 
   const fetchStorageFiles = useCallback(async () => {
@@ -166,7 +160,7 @@ export default function GedPage() {
         .list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } });
 
       if (folderError) {
-        console.error("Storage list error:", folderError);
+        logger.error("GED", "Storage list error", folderError);
         setStorageLoading(false);
         return;
       }
@@ -201,7 +195,7 @@ export default function GedPage() {
 
       setStorageFolders(sirenFolders);
     } catch (err) {
-      console.error("Error fetching storage:", err);
+      logger.error("GED", "Error fetching storage", err);
     }
     setStorageLoading(false);
   }, []);
@@ -292,32 +286,8 @@ export default function GedPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
-  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
-  const MAX_FILE_COUNT = 10;
-  const ALLOWED_MIME_TYPES = [
-    "application/pdf", "image/png", "image/jpeg", "image/jpg",
-    "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  ];
-
   const uploadFiles = async () => {
     if (pendingFiles.length === 0) return;
-
-    if (pendingFiles.length > MAX_FILE_COUNT) {
-      toast.error(`Maximum ${MAX_FILE_COUNT} fichiers a la fois`);
-      return;
-    }
-
-    for (const file of pendingFiles) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`"${file.name}" depasse la limite de 20 Mo`);
-        return;
-      }
-      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-        toast.error(`Type de fichier non autorise: ${file.type || "inconnu"}`);
-        return;
-      }
-    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -351,24 +321,18 @@ export default function GedPage() {
             current_version: 1,
           })
           .select()
-          .maybeSingle();
+          .single();
 
-        if (docError) {
-          // Cleanup orphan storage file if DB insert fails
-          await supabase.storage.from("documents").remove([filePath]);
-          throw docError;
-        }
+        if (docError) throw docError;
 
-        if (docData) {
-          await supabase.from("document_versions").insert({
-            document_id: docData.id,
-            version_number: 1,
-            file_path: filePath,
-            file_size: file.size,
-            uploaded_by: user.id,
-            comment: "Version initiale",
-          });
-        }
+        await supabase.from("document_versions").insert({
+          document_id: docData.id,
+          version_number: 1,
+          file_path: filePath,
+          file_size: file.size,
+          uploaded_by: user.id,
+          comment: "Version initiale",
+        });
       }
 
       toast.success(`${pendingFiles.length} document(s) importe(s)`);
@@ -386,70 +350,51 @@ export default function GedPage() {
   };
 
   const deleteDocument = async (doc: Document) => {
-    if (deleting) return;
-    setDeleting(doc.id);
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-      await supabase.storage.from("documents").remove([doc.file_path]);
-      const { data: versionData } = await supabase
-        .from("document_versions")
-        .select("file_path")
-        .eq("document_id", doc.id);
-      if (versionData) {
-        const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
-        if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
-      }
-
-      await supabase.from("documents").delete().eq("id", doc.id);
-      toast.success("Document supprime");
-      fetchDocuments();
-    } catch (err) {
-      console.error("[GED] Delete error:", err);
-      toast.error("Erreur lors de la suppression");
-    } finally {
-      setDeleting(null);
+    await supabase.storage.from("documents").remove([doc.file_path]);
+    const { data: versionData } = await supabase
+      .from("document_versions")
+      .select("file_path")
+      .eq("document_id", doc.id);
+    if (versionData) {
+      const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
+      if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
     }
+
+    await supabase.from("documents").delete().eq("id", doc.id);
+    toast.success("Document supprime");
+    fetchDocuments();
   };
 
   const downloadDocument = async (filePath: string, fileName: string) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from("documents")
-        .download(filePath);
+    const { data, error } = await supabase.storage
+      .from("documents")
+      .download(filePath);
 
-      if (error) {
-        toast.error("Erreur telechargement");
-        return;
-      }
-
-      const url = URL.createObjectURL(data);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = fileName;
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error("[GED] Download error:", err);
+    if (error) {
       toast.error("Erreur telechargement");
+      return;
     }
+
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const openVersionDialog = async (doc: Document) => {
-    try {
-      setSelectedDoc(doc);
-      const { data } = await supabase
-        .from("document_versions")
-        .select("*")
-        .eq("document_id", doc.id)
-        .order("version_number", { ascending: false });
-      setVersions((data as DocumentVersion[]) || []);
-      setVersionDialogOpen(true);
-    } catch (err) {
-      console.error("[GED] Version dialog error:", err);
-      toast.error("Erreur chargement des versions");
-    }
+    setSelectedDoc(doc);
+    const { data } = await supabase
+      .from("document_versions")
+      .select("*")
+      .eq("document_id", doc.id)
+      .order("version_number", { ascending: false });
+    setVersions((data as DocumentVersion[]) || []);
+    setVersionDialogOpen(true);
   };
 
   const uploadNewVersion = async () => {
@@ -467,7 +412,7 @@ export default function GedPage() {
         .upload(filePath, newVersionFile);
       if (uploadError) throw uploadError;
 
-      const { error: versionError } = await supabase.from("document_versions").insert({
+      await supabase.from("document_versions").insert({
         document_id: selectedDoc.id,
         version_number: newVersion,
         file_path: filePath,
@@ -475,11 +420,6 @@ export default function GedPage() {
         uploaded_by: user.id,
         comment: versionComment || null,
       });
-
-      if (versionError) {
-        await supabase.storage.from("documents").remove([filePath]);
-        throw versionError;
-      }
 
       await supabase
         .from("documents")
@@ -822,7 +762,6 @@ export default function GedPage() {
                           size="icon"
                           className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
                           onClick={() => deleteDocument(doc)}
-                          disabled={deleting === doc.id}
                           title="Supprimer"
                         >
                           <Trash2 className="w-4 h-4" />

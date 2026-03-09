@@ -2,16 +2,19 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2 } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
+
+const PAGE_SIZE = 25;
 
 interface DraftInfo {
   siren: string;
@@ -34,6 +37,9 @@ export default function BddPage() {
   const [filterEtat, setFilterEtat] = useState<string>("all");
   const [sortKey, setSortKey] = useState<SortKey>("raisonSociale");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [page, setPage] = useState(0);
+  const [selectedRefs, setSelectedRefs] = useState<Set<string>>(new Set());
+  const debouncedSearch = useDebounce(search, 250);
 
   // FIX 2: Scan localStorage for drafts
   const [drafts, setDrafts] = useState<DraftInfo[]>([]);
@@ -89,14 +95,18 @@ export default function BddPage() {
       : <ChevronDown className="w-3 h-3 text-blue-400" />;
   };
 
+  // Reset to page 0 when filters change
+  useEffect(() => { setPage(0); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
+
   const filtered = useMemo(() => {
+    const q = debouncedSearch.toLowerCase();
     const result = clients.filter(c => {
-      const matchSearch = !search ||
-        c.raisonSociale.toLowerCase().includes(search.toLowerCase()) ||
-        c.ref.toLowerCase().includes(search.toLowerCase()) ||
-        c.siren.includes(search) ||
-        c.dirigeant.toLowerCase().includes(search.toLowerCase()) ||
-        c.comptable.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !q ||
+        c.raisonSociale.toLowerCase().includes(q) ||
+        c.ref.toLowerCase().includes(q) ||
+        c.siren.includes(debouncedSearch) ||
+        c.dirigeant.toLowerCase().includes(q) ||
+        c.comptable.toLowerCase().includes(q);
       const matchVig = filterVigilance === "all" || c.nivVigilance === filterVigilance;
       const matchPil = filterPilotage === "all" || c.etatPilotage === filterPilotage;
       const matchEtat = filterEtat === "all" ||
@@ -119,7 +129,10 @@ export default function BddPage() {
     });
 
     return result;
-  }, [clients, search, filterVigilance, filterPilotage, filterEtat, sortKey, sortDir]);
+  }, [clients, debouncedSearch, filterVigilance, filterPilotage, filterEtat, sortKey, sortDir]);
+
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   // FIX 16: CSV injection protection
   function csvSafe(val: unknown): string {
@@ -193,6 +206,7 @@ export default function BddPage() {
             placeholder="Rechercher par nom, SIREN, reference, comptable..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            aria-label="Rechercher un client"
             className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
           />
         </div>
@@ -286,12 +300,62 @@ export default function BddPage() {
         </div>
       )}
 
+      {/* Bulk actions */}
+      {selectedRefs.size > 0 && (
+        <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 animate-fade-in-up">
+          <span className="text-sm text-blue-200 font-medium">{selectedRefs.size} selectionne{selectedRefs.size > 1 ? "s" : ""}</span>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1 text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+            onClick={() => {
+              selectedRefs.forEach(ref => updateClient(ref, { etat: "ARCHIVE" }));
+              setSelectedRefs(new Set());
+              toast.success(`${selectedRefs.size} client(s) archive(s)`);
+            }}
+          >
+            <Archive className="w-3 h-3" /> Archiver
+          </Button>
+          {profile?.role === "ADMIN" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1 text-xs border-red-500/30 text-red-300 hover:bg-red-500/10"
+              onClick={() => {
+                if (!confirm(`Supprimer ${selectedRefs.size} client(s) ?`)) return;
+                selectedRefs.forEach(ref => deleteClient(ref));
+                setSelectedRefs(new Set());
+                toast.success("Clients supprimes");
+              }}
+            >
+              <Trash2 className="w-3 h-3" /> Supprimer
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" className="text-xs text-slate-400" onClick={() => setSelectedRefs(new Set())}>
+            Deselectionner
+          </Button>
+        </div>
+      )}
+
       {/* Table */}
       <div className="glass-card overflow-hidden animate-fade-in-up-delay-2">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow className="border-white/[0.06] hover:bg-transparent">
+                <TableHead className="w-[40px]">
+                  <input
+                    type="checkbox"
+                    className="rounded border-white/20 bg-white/5"
+                    checked={paginated.length > 0 && paginated.every(c => selectedRefs.has(c.ref))}
+                    onChange={(e) => {
+                      const next = new Set(selectedRefs);
+                      paginated.forEach(c => e.target.checked ? next.add(c.ref) : next.delete(c.ref));
+                      setSelectedRefs(next);
+                    }}
+                    aria-label="Selectionner tous les clients de la page"
+                  />
+                </TableHead>
                 <TableHead className="w-[90px] text-slate-500 text-[11px] uppercase tracking-wider">Ref</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")}>
                   <div className="flex items-center gap-1.5">Raison Sociale <SortIcon column="raisonSociale" /></div>
@@ -314,12 +378,25 @@ export default function BddPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map(client => (
+              {paginated.map(client => (
                 <TableRow
                   key={client.ref}
                   className="cursor-pointer border-white/[0.04] hover:bg-white/[0.02] transition-colors"
                   onClick={() => navigate(`/client/${client.ref}`)}
                 >
+                  <TableCell onClick={e => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="rounded border-white/20 bg-white/5"
+                      checked={selectedRefs.has(client.ref)}
+                      onChange={(e) => {
+                        const next = new Set(selectedRefs);
+                        e.target.checked ? next.add(client.ref) : next.delete(client.ref);
+                        setSelectedRefs(next);
+                      }}
+                      aria-label={`Selectionner ${client.raisonSociale}`}
+                    />
+                  </TableCell>
                   <TableCell className="font-mono text-[11px] text-slate-500">{client.ref}</TableCell>
                   <TableCell className="font-medium text-sm text-slate-200">{client.raisonSociale}</TableCell>
                   <TableCell className="text-xs text-slate-400">{client.forme}</TableCell>
@@ -372,7 +449,7 @@ export default function BddPage() {
               ))}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={11} className="text-center py-12 text-slate-500">
+                  <TableCell colSpan={12} className="text-center py-12 text-slate-500">
                     Aucun client ne correspond aux filtres
                   </TableCell>
                 </TableRow>
@@ -380,6 +457,38 @@ export default function BddPage() {
             </TableBody>
           </Table>
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
+            <p className="text-xs text-slate-500">
+              {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}
+            </p>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0">
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                const start = Math.max(0, Math.min(page - 2, totalPages - 5));
+                const p = start + i;
+                return (
+                  <Button
+                    key={p}
+                    variant={p === page ? "default" : "ghost"}
+                    size="sm"
+                    onClick={() => setPage(p)}
+                    className={`h-8 w-8 p-0 text-xs ${p === page ? "bg-blue-600" : ""}`}
+                  >
+                    {p + 1}
+                  </Button>
+                );
+              })}
+              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0">
+                <ChevronRightIcon className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

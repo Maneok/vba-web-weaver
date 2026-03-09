@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { validateIBAN } from "@/lib/ibanValidator";
+import { logger } from "@/lib/logger";
 
 // ====== TYPES ======
 
@@ -201,7 +202,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
       } catch (err) {
         setStatus("error");
         setErrorMsg("Extraction automatique impossible — saisie manuelle");
-        console.error("OCR error:", err);
+        logger.error("OCR", "OCR extraction error", err);
       }
     },
     [mode, clientSiren, onExtracted]

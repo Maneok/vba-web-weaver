@@ -1,6 +1,8 @@
 import { useState, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
   Search,
   ScrollText,
@@ -14,6 +16,7 @@ import {
   ClipboardCheck,
   FileText,
   Activity,
+  Download,
 } from "lucide-react";
 
 const FRENCH_MONTHS = [
@@ -91,11 +94,33 @@ export default function LogsPage() {
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
       {/* Header */}
-      <div className="animate-fade-in-up">
-        <h1 className="text-xl font-bold text-white">Journal des Actions</h1>
-        <p className="text-sm text-slate-500 mt-0.5">
-          Historique automatique de toutes les actions effectuees
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
+        <div>
+          <h1 className="text-xl font-bold text-white">Journal des Actions</h1>
+          <p className="text-sm text-slate-500 mt-0.5">
+            Historique automatique de toutes les actions effectuees
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5 border-white/[0.06]"
+          onClick={() => {
+            const headers = ["Horodatage", "Utilisateur", "Action", "Reference", "Details"];
+            const rows = filtered.map(l => [l.horodatage, l.utilisateur, l.typeAction, l.refClient, `"${l.details.replace(/"/g, '""')}"`]);
+            const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
+            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `audit_trail_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast.success(`Export CSV genere (${filtered.length} entrees)`);
+          }}
+        >
+          <Download className="w-3.5 h-3.5" /> Export CSV
+        </Button>
       </div>
 
       {/* Stats */}

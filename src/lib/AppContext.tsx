@@ -4,6 +4,7 @@ import { O90_CLIENTS, O90_COLLABORATEURS, O90_ALERTES, O90_LOGS } from "@/lib/da
 import { clientsService, collaborateursService, registreService, logsService } from "@/lib/supabaseService";
 import { mapDbClient, mapClientToDb, mapDbCollaborateur, mapDbAlerte, mapAlerteToDb, mapDbLog } from "@/lib/dbMappers";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 
 interface AppState {
@@ -24,16 +25,6 @@ interface AppState {
 
 const AppContext = createContext<AppState | null>(null);
 
-// Timeout wrapper for Promise.all
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Timeout after ${ms}ms`)), ms)
-    ),
-  ]);
-}
-
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [clients, setClients] = useState<Client[]>([]);
   const [collaborateurs, setCollaborateurs] = useState<Collaborateur[]>([]);
@@ -48,34 +39,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        // FIX 18: Don't load demo data for unauthenticated users — use empty arrays
-        setClients([]);
-        setCollaborateurs([]);
-        setAlertes([]);
-        setLogs([]);
+        // No auth session: use local JSON data
+        setClients(O90_CLIENTS);
+        setCollaborateurs(O90_COLLABORATEURS);
+        setAlertes(O90_ALERTES);
+        setLogs(O90_LOGS);
         setIsOnline(false);
         setIsLoading(false);
         return;
       }
 
-      // Authenticated: load from Supabase with 15s timeout
-      const [dbClients, dbCollabs, dbAlertes, dbLogs] = await withTimeout(
-        Promise.all([
-          clientsService.getAll(),
-          collaborateursService.getAll(),
-          registreService.getAll(),
-          logsService.getAll(),
-        ]),
-        15000
-      );
+      // Authenticated: load from Supabase
+      const [dbClients, dbCollabs, dbAlertes, dbLogs] = await Promise.all([
+        clientsService.getAll(),
+        collaborateursService.getAll(),
+        registreService.getAll(),
+        logsService.getAll(),
+      ]);
 
+      // Authenticated: always use Supabase data (even if 0 rows — new cabinet)
       setIsOnline(true);
       setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
       setCollaborateurs(dbCollabs.map((r: Record<string, unknown>) => mapDbCollaborateur(r)));
       setAlertes(dbAlertes.map((r: Record<string, unknown>) => mapDbAlerte(r)));
       setLogs(dbLogs.map((r: Record<string, unknown>) => mapDbLog(r)));
     } catch (err) {
-      console.error("[AppContext] Failed to load from Supabase, using local data:", err);
+      logger.error("[AppContext] Failed to load from Supabase, using local data:", err);
       setClients(O90_CLIENTS);
       setCollaborateurs(O90_COLLABORATEURS);
       setAlertes(O90_ALERTES);
@@ -91,6 +80,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     initialized.current = true;
     loadData();
 
+    // Re-load when auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
       loadData();
     });
@@ -99,12 +89,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshClients = useCallback(async () => {
     if (!isOnline) return;
-    try {
-      const dbClients = await clientsService.getAll();
-      setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
-    } catch (err) {
-      console.error("[AppContext] refreshClients error:", err);
-    }
+    const dbClients = await clientsService.getAll();
+    setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
   }, [isOnline]);
 
   const refreshAll = useCallback(async () => {
@@ -115,23 +101,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Optimistic update
     setClients(prev => [client, ...prev]);
 
+    // Persist to Supabase in background (with rollback on failure)
     if (isOnline) {
       const dbRow = mapClientToDb(client);
       clientsService.create(dbRow).then((result) => {
         if (!result) {
-          // Rollback on failure
+          logger.error("AppContext", "Failed to persist client to Supabase");
           setClients(prev => prev.filter(c => c.ref !== client.ref));
           toast.error("Erreur lors de la sauvegarde du client");
           return;
         }
-        logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients").catch(() => {});
-      }).catch((err) => {
-        setClients(prev => prev.filter(c => c.ref !== client.ref));
-        toast.error("Erreur lors de la sauvegarde du client");
-        console.error("[AppContext] addClient error:", err);
+        logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients");
       });
     }
 
+    // Local log entry
     setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
       utilisateur: "Utilisateur",
@@ -142,23 +126,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
 
   const updateClient = useCallback((ref: string, updates: Partial<Client>) => {
-    // Save previous state for rollback
-    const previousClients = clients;
+    // Snapshot for rollback
+    const snapshot = clients.find(c => c.ref === ref);
+
+    // Optimistic update
     setClients(prev => prev.map(c => c.ref === ref ? { ...c, ...updates } : c));
 
+    // Persist to Supabase (with rollback on failure)
     if (isOnline) {
       const dbUpdates = mapClientToDb(updates);
       clientsService.updateByRef(ref, dbUpdates).then((result) => {
         if (!result) {
-          setClients(previousClients);
+          logger.error("AppContext", "Failed to update client in Supabase");
+          if (snapshot) setClients(prev => prev.map(c => c.ref === ref ? snapshot : c));
           toast.error("Erreur lors de la mise a jour du client");
           return;
         }
-        logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients").catch(() => {});
-      }).catch((err) => {
-        setClients(previousClients);
-        toast.error("Erreur lors de la mise a jour du client");
-        console.error("[AppContext] updateClient error:", err);
+        logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients");
       });
     }
 
@@ -173,21 +157,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteClient = useCallback((ref: string) => {
     const client = clients.find(c => c.ref === ref);
-    const previousClients = clients;
+    const snapshot = [...clients];
     setClients(prev => prev.filter(c => c.ref !== ref));
 
     if (isOnline && client) {
-      clientsService.deleteByRef(ref).then((success) => {
-        if (!success) {
-          setClients(previousClients);
-          toast.error("Erreur lors de la suppression du client");
-          return;
+      clientsService.getByRef(ref).then((dbClient) => {
+        if (dbClient?.id) {
+          clientsService.delete(dbClient.id as string).catch(() => {
+            logger.error("AppContext", "Failed to delete client");
+            setClients(snapshot);
+            toast.error("Erreur lors de la suppression du client");
+          });
+          logsService.add("SUPPRESSION", `Dossier supprime: ${client.raisonSociale}`, ref, "clients");
         }
-        logsService.add("SUPPRESSION", `Dossier supprime: ${client.raisonSociale}`, ref, "clients").catch(() => {});
-      }).catch((err) => {
-        setClients(previousClients);
-        toast.error("Erreur lors de la suppression du client");
-        console.error("[AppContext] deleteClient error:", err);
       });
     }
   }, [isOnline, clients]);
@@ -196,7 +178,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLogs(prev => [log, ...prev]);
 
     if (isOnline) {
-      logsService.add(log.typeAction, log.details, log.refClient, "").catch(() => {});
+      logsService.add(log.typeAction, log.details, log.refClient, "");
     }
   }, [isOnline]);
 
@@ -205,11 +187,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (isOnline) {
       const dbRow = mapAlerteToDb(alerte);
-      registreService.create(dbRow).catch((err) => {
-        console.error("[AppContext] addAlerte error:", err);
-        toast.error("Erreur lors de la sauvegarde de l'alerte");
-      });
-      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre").catch(() => {});
+      registreService.create(dbRow);
+      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre");
     }
   }, [isOnline]);
 

@@ -1,4 +1,4 @@
-import { Suspense, lazy } from "react";
+import { lazy, Suspense } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,11 +8,9 @@ import { AppProvider } from "@/lib/AppContext";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import PageErrorBoundary from "@/components/PageErrorBoundary";
 import AuthPage from "@/pages/AuthPage";
-import { Loader2 } from "lucide-react";
 
-// Lazy-loaded pages for code splitting
+// Lazy-loaded pages — code split per route
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
 const BddPage = lazy(() => import("@/pages/BddPage"));
 const GouvernancePage = lazy(() => import("@/pages/GouvernancePage"));
@@ -26,28 +24,15 @@ const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const GedPage = lazy(() => import("@/pages/GedPage"));
 const LettreMissionPage = lazy(() => import("@/pages/LettreMissionPage"));
 const HelpPage = lazy(() => import("@/pages/HelpPage"));
-const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
-const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
-const LandingPage = lazy(() => import("@/pages/LandingPage"));
 
 const queryClient = new QueryClient();
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    <div className="flex items-center justify-center h-64">
+      <div className="h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
     </div>
-  );
-}
-
-function LazyPage({ children }: { children: React.ReactNode }) {
-  return (
-    <PageErrorBoundary>
-      <Suspense fallback={<PageLoader />}>
-        {children}
-      </Suspense>
-    </PageErrorBoundary>
   );
 }
 
@@ -59,29 +44,26 @@ const App = () => (
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/landing" element={<LazyPage><LandingPage /></LazyPage>} />
                 <Route path="/auth" element={<AuthPage />} />
-                <Route path="/pricing" element={<LazyPage><PricingPage /></LazyPage>} />
                 <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                  <Route index element={<LazyPage><DashboardPage /></LazyPage>} />
-                  <Route path="bdd" element={<LazyPage><BddPage /></LazyPage>} />
-                  <Route path="nouveau-client" element={<LazyPage><NouveauClientPage /></LazyPage>} />
-                  <Route path="client/:ref" element={<LazyPage><ClientDetailPage /></LazyPage>} />
-                  <Route path="gouvernance" element={<LazyPage><GouvernancePage /></LazyPage>} />
-                  <Route path="controle" element={<LazyPage><ControlePage /></LazyPage>} />
-                  <Route path="registre" element={<LazyPage><RegistrePage /></LazyPage>} />
-                  <Route path="logs" element={<LazyPage><LogsPage /></LazyPage>} />
-                  <Route path="ged" element={<LazyPage><GedPage /></LazyPage>} />
-                  <Route path="lettre-mission" element={<LazyPage><LettreMissionPage /></LazyPage>} />
-                  <Route path="lettre-mission/:ref" element={<LazyPage><LettreMissionPage /></LazyPage>} />
-                  <Route path="diagnostic" element={<LazyPage><DiagnosticPage /></LazyPage>} />
-                  <Route path="parametres" element={<LazyPage><SettingsPage /></LazyPage>} />
-                  <Route path="aide" element={<LazyPage><HelpPage /></LazyPage>} />
-                  <Route path="admin/users" element={<LazyPage><AdminUsersPage /></LazyPage>} />
+                  <Route index element={<DashboardPage />} />
+                  <Route path="bdd" element={<BddPage />} />
+                  <Route path="nouveau-client" element={<NouveauClientPage />} />
+                  <Route path="client/:ref" element={<ClientDetailPage />} />
+                  <Route path="gouvernance" element={<GouvernancePage />} />
+                  <Route path="controle" element={<ControlePage />} />
+                  <Route path="registre" element={<RegistrePage />} />
+                  <Route path="logs" element={<LogsPage />} />
+                  <Route path="ged" element={<GedPage />} />
+                  <Route path="lettre-mission" element={<LettreMissionPage />} />
+                  <Route path="lettre-mission/:ref" element={<LettreMissionPage />} />
+                  <Route path="diagnostic" element={<DiagnosticPage />} />
+                  <Route path="parametres" element={<SettingsPage />} />
+                  <Route path="aide" element={<HelpPage />} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />
                 </Route>
-                <Route path="*" element={<LazyPage><NotFound /></LazyPage>} />
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </Suspense>
           </BrowserRouter>

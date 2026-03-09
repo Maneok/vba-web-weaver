@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 interface AuditEntry {
   action: string;
@@ -8,36 +9,21 @@ interface AuditEntry {
   new_data?: Record<string, unknown>;
 }
 
-// FIX 25: Use getSession() instead of getUser() to avoid extra network call
-// FIX 26: Cache cabinet_id to avoid querying profiles on every audit log
-let cachedCabinetId: string | null = null;
-let cachedUserId: string | null = null;
-
 export async function logAudit(entry: AuditEntry): Promise<void> {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session?.user) return;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
 
-    const user = session.user;
+    const profileRes = await supabase
+      .from("profiles")
+      .select("cabinet_id")
+      .eq("id", user.id)
+      .single();
 
-    // Use cached cabinet_id if same user
-    if (cachedUserId !== user.id || !cachedCabinetId) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("cabinet_id")
-        .eq("id", user.id)
-        .maybeSingle();
-
-      if (!profileData?.cabinet_id) {
-        if (import.meta.env.DEV) console.warn("[Audit] No cabinet_id found, skipping audit log");
-        return;
-      }
-      cachedCabinetId = profileData.cabinet_id;
-      cachedUserId = user.id;
-    }
+    if (!profileRes.data) return;
 
     await supabase.from("audit_trail").insert({
-      cabinet_id: cachedCabinetId,
+      cabinet_id: profileRes.data.cabinet_id,
       user_id: user.id,
       user_email: user.email || "",
       action: entry.action,
@@ -45,16 +31,10 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       record_id: entry.record_id || null,
       old_data: entry.old_data || null,
       new_data: entry.new_data || null,
-      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+      ip_address: null, // Set by server-side if needed
+      user_agent: navigator.userAgent,
     });
   } catch (err) {
-    if (import.meta.env.DEV) console.error("[Audit] Error (non-blocking):", err);
-    // NE JAMAIS throw ici — l'audit ne doit jamais bloquer l'app
+    logger.error("Audit", "trail error:", err);
   }
-}
-
-// FIX 26: Clear cache on sign-out
-export function clearAuditCache(): void {
-  cachedCabinetId = null;
-  cachedUserId = null;
 }

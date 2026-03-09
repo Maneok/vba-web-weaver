@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 export interface BeneficiaireDetail {
   nom: string;
@@ -52,7 +53,7 @@ export async function searchPappers(
 
     if (error) {
       // Edge function failed — try direct data.gouv.fr fallback from client
-      console.warn("Edge function failed, trying direct fallback:", error.message);
+      logger.warn("Pappers", "Edge function failed, trying direct fallback:", error.message);
       return await fallbackDataGouv(mode, query);
     }
 
