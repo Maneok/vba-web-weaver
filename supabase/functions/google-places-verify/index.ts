@@ -5,10 +5,28 @@ Deno.serve(async (req) => {
   if (optRes) return optRes;
   const corsHeaders = getCorsHeaders(req);
 
+  // Auth check
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Non autorise" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { raison_sociale, ville, adresse } = await req.json();
-    if (!raison_sociale) {
-      return new Response(JSON.stringify({ error: "raison_sociale requis", found: false, status: "error" }), {
+    if (!raison_sociale || typeof raison_sociale !== "string" || raison_sociale.length > 200) {
+      return new Response(JSON.stringify({ error: "raison_sociale requis (max 200 caracteres)", found: false, status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (ville && (typeof ville !== "string" || ville.length > 100)) {
+      return new Response(JSON.stringify({ error: "ville invalide (max 100 caracteres)", found: false, status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (adresse && (typeof adresse !== "string" || adresse.length > 300)) {
+      return new Response(JSON.stringify({ error: "adresse invalide (max 300 caracteres)", found: false, status: "error" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -52,7 +70,7 @@ Deno.serve(async (req) => {
         alertes: ["Non referencee sur Google Maps — verification manuelle recommandee"],
         status: "ATTENTION",
         mapsUrl: `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`,
-        mapsEmbedUrl: `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(searchQuery)}&zoom=15`,
+        mapsEmbedUrl: null,
         streetViewUrl: null,
       }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -92,9 +110,7 @@ Deno.serve(async (req) => {
       mapsUrl: lat && lng
         ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
         : `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`,
-      mapsEmbedUrl: lat && lng
-        ? `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${lat},${lng}&zoom=15`
-        : `https://www.google.com/maps/embed/v1/place?key=${apiKey}&q=${encodeURIComponent(searchQuery)}&zoom=15`,
+      mapsEmbedUrl: null,
       streetViewUrl: lat && lng
         ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`
         : null,
@@ -107,7 +123,7 @@ Deno.serve(async (req) => {
       found: false,
       alertes: [],
       status: "unavailable",
-      error: (error as Error).message,
+      error: "Erreur interne du service Google Places",
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

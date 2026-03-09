@@ -85,7 +85,7 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("Stripe checkout error:", (err as Error).message);
+    console.error("Stripe checkout error");
     return new Response(
       JSON.stringify({ error: "Erreur lors de la creation de la session de paiement" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

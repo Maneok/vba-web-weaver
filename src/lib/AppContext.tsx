@@ -48,10 +48,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
-        setClients(O90_CLIENTS);
-        setCollaborateurs(O90_COLLABORATEURS);
-        setAlertes(O90_ALERTES);
-        setLogs(O90_LOGS);
+        // FIX 18: Don't load demo data for unauthenticated users — use empty arrays
+        setClients([]);
+        setCollaborateurs([]);
+        setAlertes([]);
+        setLogs([]);
         setIsOnline(false);
         setIsLoading(false);
         return;

@@ -40,6 +40,22 @@ export default function LoginPage() {
       toast.error(`Trop de tentatives. Reessayez dans ${lockRemaining}s.`);
       return;
     }
+    // FIX 25: Password complexity validation on signup
+    if (mode === "signup") {
+      if (password.length < 8) {
+        toast.error("Le mot de passe doit contenir au moins 8 caracteres");
+        return;
+      }
+      if (!/[A-Z]/.test(password) || !/[a-z]/.test(password) || !/[0-9]/.test(password)) {
+        toast.error("Le mot de passe doit contenir majuscules, minuscules et chiffres");
+        return;
+      }
+      if (!fullName.trim() || fullName.trim().length < 2) {
+        toast.error("Veuillez entrer votre nom complet");
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       if (mode === "login") {
@@ -47,7 +63,7 @@ export default function LoginPage() {
         setFailedAttempts(0);
         toast.success("Connexion reussie");
       } else {
-        await signUp(email, password, fullName);
+        await signUp(email, password, fullName.trim());
         toast.success("Compte cree ! Verifiez votre email pour confirmer.");
       }
     } catch (err: unknown) {

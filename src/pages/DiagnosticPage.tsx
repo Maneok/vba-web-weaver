@@ -4,6 +4,7 @@ import { runDiagnostic360, type DiagnosticReport, type DiagnosticItem } from "@/
 import { generateDiagnosticPdf } from "@/lib/generateDiagnosticPdf";
 import { controlesService } from "@/lib/supabaseService";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { FileDown, CheckCircle2, AlertTriangle, XCircle, ShieldCheck, Activity } from "lucide-react";
 import { RadialBarChart, RadialBar, PolarAngleAxis } from "recharts";
@@ -108,7 +109,10 @@ export default function DiagnosticPage() {
   useEffect(() => {
     controlesService.getAll()
       .then((data) => setControles(data as Record<string, unknown>[]))
-      .catch((err) => console.error("[Diagnostic] controles error:", err));
+      .catch((err) => {
+        console.error("[Diagnostic] controles error:", err);
+        toast.error("Erreur lors du chargement des controles");
+      });
 
     async function loadParametres() {
       try {
@@ -127,6 +131,7 @@ export default function DiagnosticPage() {
         }
       } catch (err) {
         console.error("[Diagnostic] loadParametres error:", err);
+        toast.error("Erreur lors du chargement des parametres");
       }
     }
     loadParametres();

@@ -78,23 +78,28 @@ export default function GouvernancePage() {
   // Add collaborateur
   const handleAddCollab = useCallback(async () => {
     if (!newCollab.nom) return;
-    if (isOnline) {
-      await collaborateursService.create({
-        nom: newCollab.nom,
-        fonction: newCollab.fonction,
-        email: newCollab.email,
-        referent_lcb: false,
-        suppleant: newCollab.suppleant,
-        niveau_competence: newCollab.niveau_competence,
-        date_signature_manuel: "",
-        derniere_formation: "",
-        statut_formation: "A FORMER",
-      });
-      await refreshAll();
+    try {
+      if (isOnline) {
+        await collaborateursService.create({
+          nom: newCollab.nom,
+          fonction: newCollab.fonction,
+          email: newCollab.email,
+          referent_lcb: false,
+          suppleant: newCollab.suppleant,
+          niveau_competence: newCollab.niveau_competence,
+          date_signature_manuel: "",
+          derniere_formation: "",
+          statut_formation: "A FORMER",
+        });
+        await refreshAll();
+      }
+      setShowAddDialog(false);
+      setNewCollab({ ...EMPTY_FORM });
+      toast.success("Collaborateur ajoute");
+    } catch (err) {
+      console.error("[Gouvernance] handleAddCollab error:", err);
+      toast.error("Erreur lors de l'ajout du collaborateur");
     }
-    setShowAddDialog(false);
-    setNewCollab({ ...EMPTY_FORM });
-    toast.success("Collaborateur ajoute");
   }, [newCollab, isOnline, refreshAll]);
 
   // Edit collaborateur
@@ -112,19 +117,24 @@ export default function GouvernancePage() {
 
   const handleSaveEdit = useCallback(async () => {
     if (!editingCollab?.id || !editForm.nom) return;
-    if (isOnline) {
-      await collaborateursService.update(editingCollab.id, {
-        nom: editForm.nom,
-        fonction: editForm.fonction,
-        email: editForm.email,
-        niveau_competence: editForm.niveau_competence,
-        suppleant: editForm.suppleant,
-      });
-      await refreshAll();
+    try {
+      if (isOnline) {
+        await collaborateursService.update(editingCollab.id, {
+          nom: editForm.nom,
+          fonction: editForm.fonction,
+          email: editForm.email,
+          niveau_competence: editForm.niveau_competence,
+          suppleant: editForm.suppleant,
+        });
+        await refreshAll();
+      }
+      setShowEditDialog(false);
+      setEditingCollab(null);
+      toast.success("Collaborateur mis a jour");
+    } catch (err) {
+      console.error("[Gouvernance] handleSaveEdit error:", err);
+      toast.error("Erreur lors de la mise a jour");
     }
-    setShowEditDialog(false);
-    setEditingCollab(null);
-    toast.success("Collaborateur mis a jour");
   }, [editingCollab, editForm, isOnline, refreshAll]);
 
   // Stats

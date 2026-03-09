@@ -6,7 +6,11 @@ if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) {
   console.error("[Encryption] VITE_ENCRYPTION_KEY and VITE_ENCRYPTION_SALT must be set");
 }
 
+// FIX 14: Cache derived key — PBKDF2 with 1M iterations is expensive
+let _cachedKey: CryptoKey | null = null;
+
 async function getKey(): Promise<CryptoKey> {
+  if (_cachedKey) return _cachedKey;
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -15,13 +19,14 @@ async function getKey(): Promise<CryptoKey> {
     false,
     ["deriveKey"]
   );
-  return crypto.subtle.deriveKey(
+  _cachedKey = await crypto.subtle.deriveKey(
     { name: "PBKDF2", salt: encoder.encode(ENCRYPTION_SALT || ""), iterations: 1000000, hash: "SHA-256" },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,
     ["encrypt", "decrypt"]
   );
+  return _cachedKey;
 }
 
 export async function encryptField(plaintext: string): Promise<string> {
@@ -48,6 +53,7 @@ export async function decryptField(encrypted: string): Promise<string> {
     const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
     return new TextDecoder().decode(decrypted);
   } catch {
-    return encrypted; // Return as-is if not encrypted (legacy data)
+    // FIX 15: Never return raw ciphertext — return masked placeholder
+    return "••••••••";
   }
 }

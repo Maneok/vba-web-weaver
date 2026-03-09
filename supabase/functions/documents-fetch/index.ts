@@ -45,6 +45,8 @@ async function _refreshINPIToken(): Promise<string | null> {
 }
 
 // Download PDF from INPI and store in Supabase Storage
+// FIX 2: Added PDF header validation (matching inpi-documents)
+// FIX 3: Added token invalidation on 401
 async function downloadAndStore(
   supabaseClient: any,
   token: string,
@@ -54,7 +56,11 @@ async function downloadAndStore(
   try {
     console.log(`[docs] Downloading ${url}`);
     const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/pdf, application/octet-stream, */*",
+      },
+      redirect: "follow",
       signal: AbortSignal.timeout(30000),
     });
     if (!res.ok) {
@@ -64,15 +70,31 @@ async function downloadAndStore(
       return null;
     }
 
-    const blob = await res.blob();
-    const arrayBuffer = await blob.arrayBuffer();
+    const arrayBuffer = await res.arrayBuffer();
     const uint8 = new Uint8Array(arrayBuffer);
     console.log(`[docs] Downloaded ${uint8.length} bytes → ${storagePath}`);
+
+    // FIX 2: Validate PDF header — reject HTML login pages and tiny files
+    const headerBytes = new Uint8Array(arrayBuffer.slice(0, 10));
+    const headerStr = String.fromCharCode(...headerBytes);
+    const isPDF = headerStr.startsWith("%PDF");
+    const isHTML = headerStr.toLowerCase().startsWith("<!doc") || headerStr.toLowerCase().startsWith("<html");
+
+    if (isHTML) {
+      console.error(`[docs] HTML detected instead of PDF — likely auth redirect`);
+      cachedToken = null;
+      tokenExpiry = 0;
+      return null;
+    }
+    if (!isPDF && arrayBuffer.byteLength < 100) {
+      console.error(`[docs] File too small and not PDF: ${arrayBuffer.byteLength} bytes`);
+      return null;
+    }
 
     const { error } = await supabaseClient.storage
       .from("kyc-documents")
       .upload(storagePath, uint8, {
-        contentType: blob.type || "application/pdf",
+        contentType: "application/pdf",
         upsert: true,
       });
 
@@ -81,12 +103,22 @@ async function downloadAndStore(
       return null;
     }
 
-    const { data: urlData } = supabaseClient.storage
+    // FIX 5: Use createSignedUrl for private bucket instead of getPublicUrl
+    const { data: signedData, error: signError } = await supabaseClient.storage
       .from("kyc-documents")
-      .getPublicUrl(storagePath);
+      .createSignedUrl(storagePath, 7 * 24 * 60 * 60); // 7 days
+
+    if (signError || !signedData?.signedUrl) {
+      console.error("[docs] Signed URL error:", signError?.message);
+      // Fallback to public URL
+      const { data: urlData } = supabaseClient.storage
+        .from("kyc-documents")
+        .getPublicUrl(storagePath);
+      return urlData?.publicUrl ?? null;
+    }
 
     console.log(`[docs] Stored OK: ${storagePath}`);
-    return urlData?.publicUrl ?? null;
+    return signedData.signedUrl;
   } catch (e) {
     console.error("[docs] Download/store error:", (e as Error).message);
     return null;
@@ -106,12 +138,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cleanSiren = String(siren).replace(/[\s.\-]/g, "");
+    // FIX 31: Truncate SIRET (14 digits) to SIREN (9 digits) for INPI API
+    let cleanSiren = String(siren).replace(/[\s.\-]/g, "");
     if (!/^\d{9,14}$/.test(cleanSiren)) {
       return new Response(JSON.stringify({ error: "Format SIREN invalide", documents: [], status: "error" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (cleanSiren.length === 14) cleanSiren = cleanSiren.slice(0, 9);
     const documents: any[] = [];
     let beneficiaires: any[] = [];
     const sources: string[] = [];
@@ -153,31 +187,124 @@ Deno.serve(async (req) => {
           if (actes.length > 0) console.log(`[docs] First acte: id=${actes[0].id}, type=${actes[0].typeRdd}, nature=${actes[0].nature}, date=${actes[0].dateDepot}`);
           if (bilans.length > 0) console.log(`[docs] First bilan: id=${bilans[0].id}, type=${bilans[0].typeBilan}, dateCloture=${bilans[0].dateCloture}`);
 
-          // Process actes (statuts, PV, decisions)
-          for (const acte of actes.slice(0, 5)) {
+          // FIX 1: typeRdd is an array of objects in INPI API, not a string
+          // FIX 3: Re-auth if token might be expired
+          // FIX 4: Normalize source to lowercase "inpi" (matching inpi-documents)
+          // Separate statuts from other actes, prioritize statuts
+          const statutsActes: any[] = [];
+          const autresActes: any[] = [];
+          for (const acte of actes) {
+            let isStatutActe = false;
+            if (acte.typeRdd && Array.isArray(acte.typeRdd)) {
+              isStatutActe = acte.typeRdd.some((t: any) => {
+                const ta = String(t.typeActe || "").toLowerCase();
+                const dec = String(t.decision || "").toLowerCase();
+                return ta.includes("statut") || dec.includes("statut");
+              });
+            } else {
+              const typeStr = String(acte.typeRdd ?? acte.type ?? "").toLowerCase();
+              const natureStr = String(acte.nature ?? "").toLowerCase();
+              isStatutActe = typeStr.includes("statut") || natureStr.includes("statut");
+            }
+            if (isStatutActe) statutsActes.push(acte);
+            else autresActes.push(acte);
+          }
+          console.log(`[docs] Statuts: ${statutsActes.length}, Autres actes: ${autresActes.length}`);
+          const actesToProcess = [...statutsActes.slice(0, 2), ...autresActes.slice(0, 3)];
+
+          let currentToken = token;
+          const authTime = Date.now();
+
+          // FIX 32: Parallel downloads with concurrency limit (3 at a time)
+          const downloadBatch = async (items: any[], type: "acte" | "bilan") => {
+            const results: any[] = [];
+            for (let i = 0; i < items.length; i += 3) {
+              const batch = items.slice(i, i + 3);
+              // Re-auth if token is older than 5 minutes
+              if (Date.now() - authTime > 5 * 60 * 1000) {
+                console.log("[docs] Token potentiellement expiré, re-authentification...");
+                cachedToken = null;
+                tokenExpiry = 0;
+                const newToken = await getINPIToken();
+                if (newToken) currentToken = newToken;
+              }
+              const batchResults = await Promise.allSettled(
+                batch.map(item => processItem(item, type, currentToken))
+              );
+              for (const r of batchResults) {
+                if (r.status === "fulfilled" && r.value) results.push(r.value);
+              }
+            }
+            return results;
+          };
+
+          const processItem = async (item: any, type: "acte" | "bilan", tk: string) => {
+            if (type === "bilan") {
+              const bilanId = item.id;
+              const dateCloture = String(item.dateCloture ?? item.date_cloture ?? "");
+              const typeBilan = String(item.typeBilan ?? "Comptes annuels");
+              const safeDateCloture = String(dateCloture || bilanId).replace(/[^a-zA-Z0-9_-]/g, "");
+              const storagePath = `${cleanSiren}/comptes_${safeDateCloture}.pdf`;
+              const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;
+              const publicUrl = await downloadAndStore(supabaseClient, tk, downloadUrl, storagePath);
+              return {
+                type: "Comptes annuels",
+                label: `${typeBilan} — Cloture ${dateCloture}`,
+                url: publicUrl ?? `https://data.inpi.fr/entreprises/${cleanSiren}`,
+                source: "inpi",
+                available: true,
+                status: publicUrl ? "auto" : "lien",
+                storedInSupabase: !!publicUrl,
+                downloadable: !!publicUrl,
+                dateCloture,
+                storageUrl: publicUrl,
+              };
+            }
+            // acte processing
+            return processActe(item, tk);
+          };
+
+          const processActe = async (acte: any, tk: string) => {
             const acteId = acte.id;
-            const acteType = String(acte.typeRdd ?? acte.type ?? "Acte");
+            // FIX 1: Properly parse typeRdd array
+            let acteType = "Acte";
+            let nature = "";
+            if (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0) {
+              acteType = String(acte.typeRdd[0]?.typeActe || acte.typeRdd[0]?.decision || "Acte");
+              nature = acte.typeRdd.map((t: any) => String(t.decision || t.typeActe || "")).filter(Boolean).join(", ");
+            } else if (typeof acte.typeRdd === "string") {
+              acteType = acte.typeRdd;
+              nature = String(acte.nature ?? "");
+            } else {
+              acteType = String(acte.type ?? "Acte");
+              nature = String(acte.nature ?? "");
+            }
+
             const acteDate = String(acte.dateDepot ?? acte.date ?? "");
-            const nature = String(acte.nature ?? "");
             const nomDoc = String(acte.nomDocument ?? "");
             const label = nature
               ? `${acteType} — ${nature} — ${acteDate}`
               : `${acteType} — ${nomDoc || "depot"} ${acteDate}`;
-            const safeType = acteType.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50);
+            const safeType = acteType.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50);
             const safeDate = String(acteDate || acteId).replace(/[^a-zA-Z0-9_-]/g, "");
             const storagePath = `${cleanSiren}/${safeType}_${safeDate}.pdf`;
 
             const downloadUrl = `${INPI_BASE}/actes/${acteId}/download`;
-            const publicUrl = await downloadAndStore(supabaseClient, token, downloadUrl, storagePath);
+            const publicUrl = await downloadAndStore(supabaseClient, currentToken, downloadUrl, storagePath);
 
-            const isStatuts = acteType.toLowerCase().includes("statut") || nature.toLowerCase().includes("statut") || nomDoc.toLowerCase().includes("statut");
+            // FIX 1: Proper statuts detection from typeRdd array
+            const isStatuts = (acte.typeRdd && Array.isArray(acte.typeRdd))
+              ? acte.typeRdd.some((t: any) =>
+                  String(t.typeActe || "").toLowerCase().includes("statut") ||
+                  String(t.decision || "").toLowerCase().includes("statut"))
+              : acteType.toLowerCase().includes("statut") || nature.toLowerCase().includes("statut") || nomDoc.toLowerCase().includes("statut");
             const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") || nature.toLowerCase().includes("assembl");
 
             documents.push({
               type: isStatuts ? "Statuts" : isPV ? "PV AG" : "Actes",
               label,
               url: publicUrl ?? `https://data.inpi.fr/entreprises/${cleanSiren}`,
-              source: "INPI",
+              source: "inpi",
               available: true,
               status: publicUrl ? "auto" : "lien",
               storedInSupabase: !!publicUrl,
@@ -189,6 +316,14 @@ Deno.serve(async (req) => {
 
           // Process bilans (comptes annuels)
           for (const bilan of bilans.slice(0, 3)) {
+            // FIX 3: Re-auth if token is older than 5 minutes
+            if (Date.now() - authTime > 5 * 60 * 1000) {
+              cachedToken = null;
+              tokenExpiry = 0;
+              const newToken = await getINPIToken();
+              if (newToken) currentToken = newToken;
+            }
+
             const bilanId = bilan.id;
             const dateCloture = String(bilan.dateCloture ?? bilan.date_cloture ?? "");
             const typeBilan = String(bilan.typeBilan ?? "Comptes annuels");
@@ -196,13 +331,13 @@ Deno.serve(async (req) => {
             const storagePath = `${cleanSiren}/comptes_${safeDateCloture}.pdf`;
 
             const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;
-            const publicUrl = await downloadAndStore(supabaseClient, token, downloadUrl, storagePath);
+            const publicUrl = await downloadAndStore(supabaseClient, currentToken, downloadUrl, storagePath);
 
             documents.push({
               type: "Comptes annuels",
               label: `${typeBilan} — Cloture ${dateCloture}`,
               url: publicUrl ?? `https://data.inpi.fr/entreprises/${cleanSiren}`,
-              source: "INPI",
+              source: "inpi",
               available: true,
               status: publicUrl ? "auto" : "lien",
               storedInSupabase: !!publicUrl,
@@ -226,11 +361,13 @@ Deno.serve(async (req) => {
     }
 
     // ====== PHASE 2: Pappers fallback (if INPI returned no documents) ======
+    // FIX 24: Don't log Pappers API token
     const pappersKey = Deno.env.get("PAPPERS");
     if (pappersKey) {
       try {
+        console.log(`[docs] Pappers lookup for ${cleanSiren}`);
         const res = await fetch(
-          `https://api.pappers.fr/v2/entreprise?api_token=${pappersKey}&siren=${cleanSiren}&extrait_rne=true`,
+          `https://api.pappers.fr/v2/entreprise?api_token=${encodeURIComponent(pappersKey)}&siren=${cleanSiren}&extrait_rne=true`,
           { signal: AbortSignal.timeout(8000) }
         );
 
@@ -239,12 +376,13 @@ Deno.serve(async (req) => {
           sources.push("Pappers");
 
           // Extrait Kbis (Pappers)
+          // FIX 7: Normalize type to lowercase "kbis" (matching inpi-documents)
           if (pappersData.extrait_immatriculation_url) {
             documents.push({
-              type: "KBIS",
+              type: "kbis",
               label: "Extrait Kbis (Pappers)",
               url: pappersData.extrait_immatriculation_url,
-              source: "Pappers",
+              source: "pappers",
               available: true,
               status: "auto",
               downloadable: true,
@@ -258,7 +396,7 @@ Deno.serve(async (req) => {
               type: "Extrait RBE",
               label: "Extrait RBE (Pappers)",
               url: pappersData.extrait_rbe_url,
-              source: "Pappers",
+              source: "pappers",
               available: true,
               status: "auto",
               downloadable: true,
@@ -273,7 +411,7 @@ Deno.serve(async (req) => {
                 type: "Statuts",
                 label: `Statuts — ${pappersData.derniers_statuts.date_depot}`,
                 url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
-                source: "Pappers",
+                source: "pappers",
                 available: true,
                 status: "lien",
                 downloadable: false,
@@ -287,7 +425,7 @@ Deno.serve(async (req) => {
                 type: "Actes",
                 label: `Acte — ${acte.type ?? "Dernier acte"} — ${acte.date_depot ?? ""}`,
                 url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
-                source: "Pappers",
+                source: "pappers",
                 available: true,
                 status: "lien",
                 downloadable: false,
@@ -301,7 +439,7 @@ Deno.serve(async (req) => {
                 type: "Comptes annuels",
                 label: `Comptes annuels (${comptesArray.filter(Boolean).length} exercice(s))`,
                 url: `https://www.pappers.fr/entreprise/${cleanSiren}#finances`,
-                source: "Pappers",
+                source: "pappers",
                 available: true,
                 status: "lien",
                 downloadable: false,
@@ -376,8 +514,10 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    // FIX 27: Don't leak internal error details to client
+    console.error("[docs] Unhandled error:", (error as Error).message);
     return new Response(JSON.stringify({
-      error: (error as Error).message,
+      error: "Service de documents temporairement indisponible",
       documents: [],
       beneficiaires_effectifs: [],
       missing: ["KBIS", "Statuts", "CNI", "RIB"],

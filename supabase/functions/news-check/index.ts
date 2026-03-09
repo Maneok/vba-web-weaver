@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
     });
   } catch (error) {
     return new Response(JSON.stringify({
-      error: (error as Error).message,
+      error: "Erreur interne du service de veille presse",
       articles: [],
       alertes: [],
       hasNegativeNews: false,

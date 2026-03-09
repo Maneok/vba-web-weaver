@@ -1,13 +1,15 @@
-const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || "").split(",").filter(Boolean);
+const SITE_URL = Deno.env.get("SITE_URL") || "";
+const ALLOWED_ORIGINS = (Deno.env.get("ALLOWED_ORIGINS") || SITE_URL || "").split(",").filter(Boolean);
 
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") || "";
-  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0] || "";
+  const isAllowed = ALLOWED_ORIGINS.length > 0 && ALLOWED_ORIGINS.includes(origin);
   return {
-    "Access-Control-Allow-Origin": allowed,
+    "Access-Control-Allow-Origin": isAllowed ? origin : (ALLOWED_ORIGINS[0] || ""),
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     "Vary": "Origin",
+    "X-Content-Type-Options": "nosniff",
   };
 }
 
