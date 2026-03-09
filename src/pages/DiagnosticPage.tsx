@@ -9,6 +9,7 @@ import {
   type CategoryStats,
 } from "@/lib/diagnosticEngine";
 import { generateDiagnosticPdf } from "@/lib/generateDiagnosticPdf";
+import { useDebounce } from "@/hooks/useDebounce";
 import { controlesService } from "@/lib/supabaseService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -302,15 +303,23 @@ function CategoryHeader({
 // ---------------------------------------------------------------------------
 // #19 CSV Export
 // ---------------------------------------------------------------------------
+function escapeCsvField(value: string): string {
+  // Escape double quotes by doubling them, then wrap in quotes if contains separator/quotes/newlines
+  if (value.includes('"') || value.includes(';') || value.includes('\n')) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
 function exportDiagnosticCsv(report: DiagnosticReport) {
   const header = "Categorie;Indicateur;Statut;Detail;Recommandation;Difficulte;Impact;Temps estime;Reference\n";
   const rows = report.items.map(item =>
     [
-      item.categorie,
-      `"${item.indicateur}"`,
+      escapeCsvField(item.categorie),
+      escapeCsvField(item.indicateur),
       item.statut,
-      `"${item.detail}"`,
-      `"${item.recommandation}"`,
+      escapeCsvField(item.detail),
+      escapeCsvField(item.recommandation),
       item.difficulte || "",
       item.impact || "",
       item.tempsEstime || "",
@@ -523,13 +532,16 @@ export default function DiagnosticPage() {
     return recs;
   }, [indicators]);
 
+  // --- Debounced search for perf ---
+  const debouncedSearch = useDebounce(searchQuery, 250);
+
   // --- Filtered & sorted items ---
   const filteredItems = useMemo(() => {
     let items = report.items;
     if (statusFilter !== "ALL") items = items.filter(i => i.statut === statusFilter);
     if (categoryFilter !== "ALL") items = items.filter(i => i.categorie === categoryFilter);
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
+    if (debouncedSearch.trim()) {
+      const q = debouncedSearch.toLowerCase();
       items = items.filter(i =>
         i.indicateur.toLowerCase().includes(q) ||
         i.detail.toLowerCase().includes(q) ||
@@ -542,7 +554,7 @@ export default function DiagnosticPage() {
       items = [...items].sort((a, b) => order[a.statut] - order[b.statut]);
     }
     return items;
-  }, [report.items, statusFilter, categoryFilter, searchQuery, sortPriority]);
+  }, [report.items, statusFilter, categoryFilter, debouncedSearch, sortPriority]);
 
   const categories = useMemo(() => {
     if (sortPriority) return ["TOUS"];
@@ -551,9 +563,11 @@ export default function DiagnosticPage() {
 
   const allCategories = useMemo(() => [...new Set(report.items.map(i => i.categorie))], [report.items]);
 
-  const critiques = report.items.filter(i => i.statut === "CRITIQUE").length;
-  const alerteCount = report.items.filter(i => i.statut === "ALERTE").length;
-  const okCount = report.items.filter(i => i.statut === "OK").length;
+  const { critiques, alerteCount, okCount } = useMemo(() => ({
+    critiques: report.items.filter(i => i.statut === "CRITIQUE").length,
+    alerteCount: report.items.filter(i => i.statut === "ALERTE").length,
+    okCount: report.items.filter(i => i.statut === "OK").length,
+  }), [report.items]);
   const hasFilters = statusFilter !== "ALL" || categoryFilter !== "ALL" || searchQuery.trim();
 
   const toggleCategory = useCallback((cat: string) => {
@@ -592,6 +606,17 @@ export default function DiagnosticPage() {
 
   // --- #30 Navigate handler for deep links ---
   const handleNavigate = useCallback((url: string) => navigate(url), [navigate]);
+
+  // --- Upcoming deadlines (memoized, avoids IIFE in JSX) ---
+  const upcomingDeadlines = useMemo(() => {
+    const now = new Date();
+    return clients
+      .filter(c => c.statut !== "INACTIF" && c.dateButoir)
+      .map(c => ({ nom: c.raisonSociale, date: c.dateButoir, diff: Math.round((new Date(c.dateButoir).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) }))
+      .filter(c => c.diff > 0 && c.diff <= 90)
+      .sort((a, b) => a.diff - b.diff)
+      .slice(0, 5);
+  }, [clients]);
 
   // --- Empty state ---
   if (clients.length === 0 && !isLoading) {
@@ -651,7 +676,7 @@ export default function DiagnosticPage() {
             <span className="hidden sm:inline">CSV</span>
           </Button>
           <Button
-            onClick={() => { generateDiagnosticPdf(report); toast.success("PDF telecharge avec succes."); }}
+            onClick={() => { try { generateDiagnosticPdf(report); toast.success("PDF telecharge avec succes."); } catch { toast.error("Erreur lors de la generation du PDF."); } }}
             variant="outline" size="sm" className="gap-2 border-white/10 text-slate-300 hover:bg-white/5" aria-label="Exporter en PDF"
           >
             <FileDown className="w-4 h-4" />
@@ -698,7 +723,7 @@ export default function DiagnosticPage() {
       </div>
 
       {/* #38 Animated progress bar */}
-      <div className="w-full h-3 rounded-full bg-white/5 overflow-hidden flex" role="progressbar" aria-label="Repartition des statuts">
+      <div className="w-full h-3 rounded-full bg-white/5 overflow-hidden flex" role="progressbar" aria-label="Repartition des statuts" aria-valuenow={report.scoreGlobalDispositif} aria-valuemin={0} aria-valuemax={100}>
         <div className="bg-emerald-500 transition-all duration-1000 ease-out" style={{ width: `${(okCount / report.items.length) * 100}%` }} />
         <div className="bg-amber-400 transition-all duration-1000 ease-out" style={{ width: `${(alerteCount / report.items.length) * 100}%` }} />
         <div className="bg-red-500 transition-all duration-1000 ease-out" style={{ width: `${(critiques / report.items.length) * 100}%` }} />
@@ -831,6 +856,17 @@ export default function DiagnosticPage() {
         <p className="text-xs text-slate-500">{filteredItems.length} indicateur(s) sur {report.items.length}</p>
       )}
 
+      {/* Empty filter results */}
+      {hasFilters && filteredItems.length === 0 && (
+        <div className="glass-card p-8 text-center">
+          <Search className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+          <p className="text-sm text-slate-400">Aucun indicateur ne correspond a vos filtres.</p>
+          <button onClick={resetFilters} className="text-xs text-sky-400 hover:text-sky-300 mt-2 transition-colors">
+            Reinitialiser les filtres
+          </button>
+        </div>
+      )}
+
       {/* #46 Items by category / priority */}
       {sortPriority ? (
         <div className="glass-card p-5">
@@ -839,7 +875,7 @@ export default function DiagnosticPage() {
             Tous les indicateurs (par priorite)
           </h3>
           <div className="space-y-2" role="list">
-            {filteredItems.map((item, idx) => <DiagnosticItemCard key={idx} item={item} onNavigate={handleNavigate} />)}
+            {filteredItems.map((item) => <DiagnosticItemCard key={`${item.categorie}-${item.indicateur}`} item={item} onNavigate={handleNavigate} />)}
           </div>
         </div>
       ) : (
@@ -852,7 +888,7 @@ export default function DiagnosticPage() {
               <CategoryHeader cat={cat} stats={stats} isOpen={isOpen} onToggle={() => toggleCategory(cat)} />
               {isOpen && (
                 <div className="space-y-2 mt-2" role="list" aria-label={`Indicateurs ${cat}`}>
-                  {catItems.map((item, idx) => <DiagnosticItemCard key={idx} item={item} onNavigate={handleNavigate} />)}
+                  {catItems.map((item) => <DiagnosticItemCard key={`${item.categorie}-${item.indicateur}`} item={item} onNavigate={handleNavigate} />)}
                 </div>
               )}
             </div>
@@ -869,7 +905,7 @@ export default function DiagnosticPage() {
           </h3>
           <div className="space-y-2" role="list">
             {autoRecommandations.map((rec, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10" role="listitem">
+              <div key={`rec-${i}-${rec.slice(0, 20)}`} className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10" role="listitem">
                 <span className="font-bold text-amber-400 text-sm">{i + 1}.</span>
                 <p className="text-sm text-slate-300">{rec}</p>
               </div>
@@ -887,7 +923,7 @@ export default function DiagnosticPage() {
           </h3>
           <div className="space-y-2" role="list">
             {report.recommandationsPrioritaires.map((rec, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10" role="listitem">
+              <div key={`prio-${i}-${rec.slice(0, 20)}`} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10" role="listitem">
                 <span className="font-bold text-red-400 text-sm">{i + 1}.</span>
                 <p className="text-sm text-slate-300">{rec}</p>
               </div>
@@ -897,36 +933,25 @@ export default function DiagnosticPage() {
       )}
 
       {/* #49 Next deadlines summary */}
-      {(() => {
-        const now = new Date();
-        const upcoming = clients
-          .filter(c => c.statut !== "INACTIF" && c.dateButoir)
-          .map(c => ({ nom: c.raisonSociale, date: c.dateButoir, diff: Math.round((new Date(c.dateButoir).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) }))
-          .filter(c => c.diff > 0 && c.diff <= 90)
-          .sort((a, b) => a.diff - b.diff)
-          .slice(0, 5);
-
-        if (upcoming.length === 0) return null;
-        return (
-          <div className="glass-card p-5">
-            <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-3">
-              <CalendarClock className="w-4 h-4 text-sky-400" />
-              Prochaines echeances (90 jours)
-            </h3>
-            <div className="space-y-1.5">
-              {upcoming.map((c, i) => (
-                <div key={i} className="flex items-center gap-3 text-xs">
-                  <span className={`font-mono ${c.diff <= 30 ? "text-red-400" : c.diff <= 60 ? "text-amber-400" : "text-slate-400"}`}>
-                    J-{c.diff}
-                  </span>
-                  <span className="text-slate-300">{c.nom}</span>
-                  <span className="text-slate-600 text-[10px]">{c.date}</span>
-                </div>
-              ))}
-            </div>
+      {upcomingDeadlines.length > 0 && (
+        <div className="glass-card p-5">
+          <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2 mb-3">
+            <CalendarClock className="w-4 h-4 text-sky-400" />
+            Prochaines echeances (90 jours)
+          </h3>
+          <div className="space-y-1.5">
+            {upcomingDeadlines.map((c) => (
+              <div key={`${c.nom}-${c.date}`} className="flex items-center gap-3 text-xs">
+                <span className={`font-mono ${c.diff <= 30 ? "text-red-400" : c.diff <= 60 ? "text-amber-400" : "text-slate-400"}`}>
+                  J-{c.diff}
+                </span>
+                <span className="text-slate-300">{c.nom}</span>
+                <span className="text-slate-600 text-[10px]">{c.date}</span>
+              </div>
+            ))}
           </div>
-        );
-      })()}
+        </div>
+      )}
 
       {/* #50 Back to top button */}
       {showBackToTop && (
