@@ -540,7 +540,7 @@ function AnimatedMockStep() {
           <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" />
           <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
           <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
-          <span className="ml-3 text-[11px] text-[--l-text-5]">Nouveau client — Étape 1/6</span>
+          <span className="ml-3 text-[11px] text-[--l-text-5]">Nouvelle fiche client — Étape 1/6</span>
         </div>
         <div className="h-1.5 rounded-full bg-white/5 mb-5">
           <div className="h-1.5 w-1/6 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all" />
@@ -671,12 +671,12 @@ function CompCell({ value, accent }: { value: CompValue; accent?: boolean }) {
 /* #20 — Social proof ticker */
 function SocialTicker() {
   const msgs = [
-    "Cabinet Dupont a créé 3 dossiers aujourd'hui",
+    "Cabinet Dupont a créé 3 fiches clients aujourd'hui",
     "42 screenings lancés cette semaine",
-    "Score moyen des cabinets : 78/100",
-    "Cabinet Martin — contrôle passé sans observation",
-    "12 lettres de mission générées aujourd'hui",
-    "Nouveau cabinet inscrit à Marseille",
+    "Score moyen des utilisateurs : 78/100",
+    "Étude Martin — contrôle passé sans observation",
+    "12 fiches clients complétées aujourd'hui",
+    "Nouveau professionnel inscrit à Marseille",
   ];
   return (
     <div className="overflow-hidden py-3 group/ticker">
@@ -703,15 +703,15 @@ const NAV_LINKS = [
 ];
 
 const whyCards = [
-  { icon: Shield, title: "Screening automatique", desc: "9 APIs vérifiées en 30 secondes : INPI, OpenSanctions, BODACC, DG Trésor, Google Places... Adapté aux EC et CAC.", badge: null, iconBg: "bg-blue-500/10", iconColor: "text-blue-400" },
-  { icon: FileCheck, title: "Documents récupérés", desc: "Statuts, comptes annuels, Kbis — téléchargés automatiquement depuis l'INPI et stockés dans votre GED. Conforme NEP et NPLAB.", badge: null, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-400" },
-  { icon: Calculator, title: "Scoring 6 axes", desc: "Activité, pays, mission, maturité, structure + malus. Évaluation objective, traçable et conforme NPLAB / H3C.", badge: null, iconBg: "bg-violet-500/10", iconColor: "text-violet-400" },
-  { icon: FileText, title: "Lettre de mission", desc: "Modèle réutilisable pour experts-comptables et commissaires aux comptes, remplissage auto, export PDF/DOCX.", badge: null, iconBg: "bg-amber-500/10", iconColor: "text-amber-400" },
+  { icon: Shield, title: "Screening automatique", desc: "9 APIs vérifiées en 30 secondes : INPI, OpenSanctions, BODACC, DG Trésor, Google Places... Pour tous les professionnels assujettis.", badge: null, iconBg: "bg-blue-500/10", iconColor: "text-blue-400" },
+  { icon: FileCheck, title: "Documents récupérés", desc: "Statuts, comptes annuels, Kbis — téléchargés automatiquement depuis l'INPI et stockés dans votre GED sécurisée.", badge: null, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-400" },
+  { icon: Calculator, title: "Scoring multi-critères", desc: "Activité, pays, relation d'affaires, maturité, structure + malus. Évaluation objective et traçable pour chaque client.", badge: null, iconBg: "bg-violet-500/10", iconColor: "text-violet-400" },
+  { icon: FileText, title: "Fiche client complète", desc: "Identification, bénéficiaires effectifs, évaluation des risques, documents justificatifs — tout centralisé et exportable.", badge: null, iconBg: "bg-amber-500/10", iconColor: "text-amber-400" },
 ];
 
 const featureShowcase = [
-  { title: "Créez un dossier client en 2 minutes", desc: "Entrez un SIREN. GRIMY récupère automatiquement les données INPI, vérifie les sanctions, télécharge les statuts, calcule le score de risque et pré-remplit la lettre de mission.", icon: Search, mock: "step" as const, reverse: false, iconBg: "bg-blue-500/10", iconColor: "text-blue-400" },
-  { title: "Prêt pour le contrôle CROEC", desc: "Registre LCB-FT, journal d'audit, contrôle qualité — tout est documenté et traçable. Le contrôleur peut visualiser vos dossiers en autonomie.", icon: ClipboardCheck, mock: "audit" as const, reverse: true, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-400" },
+  { title: "Créez une fiche client en 2 minutes", desc: "Entrez un SIREN. GRIMY récupère automatiquement les données INPI, vérifie les sanctions, télécharge les statuts et calcule le score de risque.", icon: Search, mock: "step" as const, reverse: false, iconBg: "bg-blue-500/10", iconColor: "text-blue-400" },
+  { title: "Prêt pour tout contrôle", desc: "Registre LAB, journal d'audit, contrôle qualité — tout est documenté et traçable. Votre autorité de contrôle peut visualiser vos dossiers en autonomie.", icon: ClipboardCheck, mock: "audit" as const, reverse: true, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-400" },
   { title: "Dashboard de pilotage", desc: "Visualisez en un coup d'œil : clients actifs, alertes en cours, revues échues, score moyen. Diagnostic 360° avec recommandations.", icon: Monitor, mock: "dashboard" as const, reverse: false, iconBg: "bg-violet-500/10", iconColor: "text-violet-400" },
 ];
 
@@ -719,11 +719,11 @@ const MOCKS = { step: AnimatedMockStep, audit: AnimatedMockAudit, dashboard: Ani
 
 /* #15 — Timeline steps */
 const timelineSteps = [
-  { title: "Entrez un SIREN", desc: "Une seule donnée suffit pour démarrer tout le processus.", icon: Search },
+  { title: "Entrez un SIREN", desc: "Une seule donnée suffit pour démarrer tout le processus d'identification.", icon: Search },
   { title: "Screening automatique", desc: "9 APIs interrogées en parallèle. Sanctions, PEP, gel des avoirs, BODACC.", icon: Shield },
   { title: "Documents INPI", desc: "Statuts, Kbis, comptes annuels PDF récupérés et archivés dans la GED.", icon: FileCheck },
-  { title: "Scoring NPLAB", desc: "6 axes analysés. Score objectif, traçable, conforme aux normes professionnelles.", icon: Calculator },
-  { title: "Lettre de mission", desc: "Pré-remplie avec les données client. Export PDF/DOCX en un clic.", icon: FileText },
+  { title: "Scoring des risques", desc: "6 axes analysés. Score objectif, traçable, conforme aux obligations professionnelles.", icon: Calculator },
+  { title: "Fiche client complète", desc: "Identification, bénéficiaires effectifs, évaluation des risques. Export PDF/DOCX.", icon: FileText },
   { title: "Dossier complet", desc: "Tout est documenté, archivé, prêt pour le contrôle. 2 minutes chrono.", icon: Check },
 ];
 
@@ -732,12 +732,12 @@ type CompRow = { label: string; grimy: CompValue; excel: CompValue };
 const comparison: CompRow[] = [
   { label: "Screening automatique 9 APIs", grimy: "yes", excel: "no" },
   { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", excel: "no" },
-  { label: "Scoring multi-critères NPLAB", grimy: "yes", excel: "Manuel" },
-  { label: "Lettre de mission auto", grimy: "yes", excel: "no" },
+  { label: "Scoring multi-critères des risques", grimy: "yes", excel: "Manuel" },
+  { label: "Fiche client pré-remplie", grimy: "yes", excel: "no" },
   { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", excel: "no" },
   { label: "Gel des avoirs DG Trésor", grimy: "yes", excel: "no" },
   { label: "Diagnostic 360°", grimy: "yes", excel: "no" },
-  { label: "Multi-cabinet / Multi-utilisateur", grimy: "yes", excel: "no" },
+  { label: "Multi-structure / Multi-utilisateur", grimy: "yes", excel: "no" },
   { label: "Journal d'audit certifié", grimy: "yes", excel: "no" },
   { label: "Prix à partir de", grimy: "29€/mois", excel: "Gratuit" },
 ];
@@ -746,10 +746,10 @@ const comparison: CompRow[] = [
 const allFeatures = [
   { name: "Screening 9 APIs", badge: null },
   { name: "Documents INPI", badge: null },
-  { name: "Scoring 6 axes", badge: null },
-  { name: "Lettre de mission", badge: null },
+  { name: "Scoring des risques", badge: null },
+  { name: "Fiche client complète", badge: null },
   { name: "GED documentaire", badge: null },
-  { name: "Registre LCB-FT", badge: null },
+  { name: "Registre LAB", badge: null },
   { name: "Contrôle qualité", badge: null },
   { name: "Journal d'audit", badge: null },
   { name: "OCR Cloud Vision", badge: "Nouveau" as const },
@@ -759,9 +759,9 @@ const allFeatures = [
 ];
 
 const plans = [
-  { name: "Solo", price: 29, desc: "Pour les indépendants", features: ["1 utilisateur", "50 clients", "Screening complet", "Lettre de mission", "GED 5 Go"], cta: "Commencer", popular: false },
-  { name: "Cabinet", price: 79, desc: "Pour les cabinets en croissance", features: ["5 utilisateurs", "200 clients", "Tout Solo +", "Contrôle qualité", "Multi-rôles", "Support prioritaire"], cta: "Commencer", popular: true },
-  { name: "Enterprise", price: 0, desc: "Pour les grands cabinets", features: ["Utilisateurs illimités", "Clients illimités", "Tout Cabinet +", "SSO", "API", "Formation", "Référent dédié"], cta: "Nous contacter", popular: false },
+  { name: "Solo", price: 29, desc: "Pour les indépendants", features: ["1 utilisateur", "50 clients", "Screening complet", "Fiche client complète", "GED 5 Go"], cta: "Commencer", popular: false },
+  { name: "Pro", price: 79, desc: "Pour les structures en croissance", features: ["5 utilisateurs", "200 clients", "Tout Solo +", "Contrôle qualité", "Multi-rôles", "Support prioritaire"], cta: "Commencer", popular: true },
+  { name: "Enterprise", price: 0, desc: "Pour les grandes structures", features: ["Utilisateurs illimités", "Clients illimités", "Tout Pro +", "SSO", "API", "Formation", "Référent dédié"], cta: "Nous contacter", popular: false },
 ];
 
 /* #3 — Pricing comparison features */
@@ -769,7 +769,7 @@ const pricingFeatures = [
   { name: "Utilisateurs", solo: "1", cabinet: "5", enterprise: "Illimité" },
   { name: "Clients", solo: "50", cabinet: "200", enterprise: "Illimité" },
   { name: "Screening APIs", solo: "yes", cabinet: "yes", enterprise: "yes" },
-  { name: "Lettre de mission", solo: "yes", cabinet: "yes", enterprise: "yes" },
+  { name: "Fiche client complète", solo: "yes", cabinet: "yes", enterprise: "yes" },
   { name: "GED", solo: "5 Go", cabinet: "20 Go", enterprise: "Illimité" },
   { name: "Contrôle qualité", solo: "no", cabinet: "yes", enterprise: "yes" },
   { name: "Multi-rôles", solo: "no", cabinet: "yes", enterprise: "yes" },
@@ -779,21 +779,21 @@ const pricingFeatures = [
 ];
 
 const testimonials = [
-  { quote: "Nous avons passé notre contrôle LAB sans aucune observation grâce à GRIMY.", name: "Marc D.", title: "Expert-comptable", cabinet: "Cabinet marseillais", initials: "MD", color: "bg-blue-500/20 text-blue-400" },
-  { quote: "Le screening automatique nous fait gagner 2 heures par nouveau client.", name: "Sophie L.", title: "Collaboratrice", cabinet: "Cabinet 15 personnes", initials: "SL", color: "bg-emerald-500/20 text-emerald-400" },
-  { quote: "Enfin un outil conçu par quelqu'un qui comprend nos obligations.", name: "Thomas R.", title: "Associé", cabinet: "Cabinet parisien", initials: "TR", color: "bg-purple-500/20 text-purple-400" },
-  { quote: "En tant que commissaire aux comptes, la conformité NEP est cruciale. GRIMY couvre parfaitement nos obligations LAB/FT.", name: "Claire B.", title: "Commissaire aux comptes", cabinet: "CRCC Lyon", initials: "CB", color: "bg-amber-500/20 text-amber-400" },
-  { quote: "Le scoring 6 axes est redoutable de précision. Nos contrôleurs sont impressionnés.", name: "Philippe M.", title: "Associé signataire", cabinet: "Cabinet 30 personnes", initials: "PM", color: "bg-pink-500/20 text-pink-400" },
+  { quote: "Nous avons passé notre contrôle LAB sans aucune observation grâce à GRIMY.", name: "Marc D.", title: "Expert-comptable", cabinet: "Cabinet EC — Marseille", initials: "MD", color: "bg-blue-500/20 text-blue-400" },
+  { quote: "Le screening automatique nous fait gagner 2 heures par nouveau client. Indispensable pour notre étude.", name: "Sophie L.", title: "Notaire associée", cabinet: "Étude notariale — Bordeaux", initials: "SL", color: "bg-emerald-500/20 text-emerald-400" },
+  { quote: "Enfin un outil simple qui comprend nos obligations LAB. Fini les tableaux Excel ingérables.", name: "Thomas R.", title: "Avocat", cabinet: "Cabinet d'avocats — Paris", initials: "TR", color: "bg-purple-500/20 text-purple-400" },
+  { quote: "En tant qu'agent immobilier, la LAB est une obligation souvent négligée. GRIMY rend ça concret et rapide.", name: "Claire B.", title: "Agent immobilier", cabinet: "Agence — Lyon", initials: "CB", color: "bg-amber-500/20 text-amber-400" },
+  { quote: "Le scoring multi-critères est redoutable de précision. Nos contrôleurs ACPR sont impressionnés.", name: "Philippe M.", title: "CIF — Conseiller en investissements", cabinet: "Cabinet de gestion de patrimoine", initials: "PM", color: "bg-pink-500/20 text-pink-400" },
 ];
 
 const faqItems = [
+  { q: "Quels professionnels peuvent utiliser GRIMY ?", a: "Tous les professionnels assujettis aux obligations LAB (art. L.561-2 du Code monétaire) : experts-comptables, commissaires aux comptes, avocats, notaires, commissaires de justice, agents immobiliers, conseillers en investissements financiers (CIF), sociétés de domiciliation, mandataires judiciaires, et plus.", icon: Users },
   { q: "Mes données sont-elles sécurisées ?", a: "Toutes les données sont hébergées en France (Supabase EU-West), chiffrées au repos (AES-256) et en transit (TLS 1.3). Les champs sensibles (IBAN, CNI) bénéficient d'un chiffrement applicatif AES-GCM supplémentaire. Nous sommes conformes au RGPD.", icon: Lock },
   { q: "Puis-je migrer depuis Excel ou un autre outil ?", a: "Oui. Importez vos clients existants via un fichier CSV. Les données INPI et le screening sont relancés automatiquement pour enrichir chaque fiche.", icon: Database },
   { q: "Y a-t-il un engagement de durée ?", a: "Aucun engagement. Vous pouvez résilier à tout moment depuis vos paramètres. Vos données restent exportables pendant 30 jours après résiliation.", icon: CreditCard },
   { q: "GRIMY est-il conforme au RGPD ?", a: "Oui. Hébergement en France, DPO désigné, registre de traitements, droit d'accès/suppression/portabilité, et chiffrement bout en bout des données sensibles.", icon: Shield },
-  { q: "Comment fonctionne l'essai gratuit ?", a: "14 jours d'essai complet, aucune carte bancaire requise. Vous avez accès à toutes les fonctionnalités du plan Cabinet. À la fin de l'essai, choisissez votre plan ou exportez vos données.", icon: HelpCircle },
-  { q: "Le logiciel convient-il à un petit cabinet ?", a: "Absolument. Le plan Solo à 29€/mois couvre 50 clients, largement suffisant pour un indépendant. L'interface est conçue pour être utilisable sans formation.", icon: Users },
-  { q: "GRIMY convient-il aux commissaires aux comptes ?", a: "Oui. GRIMY est aussi adapté aux commissaires aux comptes (NEP, H3C). Le scoring NPLAB, le registre LCB-FT et le journal d'audit répondent aux exigences de la CNCC et des CRCC. Les normes NEP et ISQM 1 sont intégrées.", icon: Award },
+  { q: "Comment fonctionne l'essai gratuit ?", a: "14 jours d'essai complet, aucune carte bancaire requise. Vous avez accès à toutes les fonctionnalités du plan Pro. À la fin de l'essai, choisissez votre plan ou exportez vos données.", icon: HelpCircle },
+  { q: "Le logiciel convient-il à un indépendant ?", a: "Absolument. Le plan Solo à 29€/mois couvre 50 clients, largement suffisant pour un professionnel indépendant. L'interface est conçue pour être utilisable sans formation.", icon: Award },
 ];
 
 /* #8 — Footer with working links */
@@ -801,7 +801,7 @@ const footerSections = [
   { title: "Produit", links: [{ label: "Fonctionnalités", id: "fonctionnalites" }, { label: "Tarifs", id: "tarifs" }, { label: "Démo", id: "demo" }, { label: "Changelog", id: null }] },
   { title: "Ressources", links: [{ label: "Documentation", id: null }, { label: "Blog", id: null }, { label: "Guide LCB-FT", id: null }, { label: "FAQ", id: "faq" }] },
   { title: "Entreprise", links: [{ label: "À propos", id: "temoignages" }, { label: "Contact", id: null }, { label: "CGV", id: null }, { label: "Mentions légales", id: null }] },
-  { title: "Conformité", links: [{ label: "NPLAB", id: null }, { label: "NPMQ", id: null }, { label: "RGPD", id: null }, { label: "Hébergement France", id: null }] },
+  { title: "Conformité", links: [{ label: "Obligations LAB", id: null }, { label: "Art. L.561-2 CMF", id: null }, { label: "RGPD", id: null }, { label: "Hébergement France", id: null }] },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -1127,8 +1127,8 @@ export default function LandingPage() {
             </h1>
 
             <p className={`mx-auto mb-10 max-w-2xl text-lg leading-relaxed transition-all duration-1000 delay-300 sm:text-xl ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-3)" }}>
-              Automatisez votre dispositif anti-blanchiment. Screening automatique, documents INPI, lettre de mission.<br className="hidden sm:block" />
-              <span style={{ color: "var(--l-text-4)" }}>Conçu par un expert-comptable, pour les experts-comptables et commissaires aux comptes.</span>
+              La base de données client conçue pour votre conformité LAB. Screening automatique, documents INPI, scoring des risques.<br className="hidden sm:block" />
+              <span style={{ color: "var(--l-text-4)" }}>Pour tous les professionnels assujettis : avocats, notaires, experts-comptables, agents immobiliers, CIF...</span>
             </p>
 
             <div className={`flex flex-col sm:flex-row items-center justify-center gap-3 transition-all duration-1000 delay-500 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
@@ -1149,7 +1149,7 @@ export default function LandingPage() {
               Aucune carte bancaire requise — 14 jours d'essai gratuit
             </p>
             <p className={`mt-3 text-sm font-medium transition-all duration-1000 delay-[800ms] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-4)" }}>
-              <TrendingUp className="inline h-3.5 w-3.5 mr-1 text-emerald-400" />+150 cabinets nous font confiance
+              <TrendingUp className="inline h-3.5 w-3.5 mr-1 text-emerald-400" />+150 professionnels nous font confiance
             </p>
 
             {/* #7 — Onboarding stepper */}
@@ -1169,9 +1169,9 @@ export default function LandingPage() {
         <section className="border-y" style={{ borderColor: "var(--l-border)" }}>
           <div className="mx-auto max-w-5xl px-6 py-4 flex flex-col items-center gap-3">
             <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12">
-              <p className="text-sm" style={{ color: "var(--l-text-4)" }}>Conforme NPLAB, NPMQ, ISQM 1 et NEP</p>
-              <div className="flex items-center gap-8">
-                {["Ordre des Experts-Comptables", "CNCC", "CRCC", "TRACFIN"].map((n) => (
+              <p className="text-sm" style={{ color: "var(--l-text-4)" }}>Conforme aux obligations LAB — Art. L.561-2 du Code monétaire</p>
+              <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8">
+                {["TRACFIN", "DGCCRF", "ACPR", "Ordres professionnels"].map((n) => (
                   <span key={n} className="text-[10px] font-medium uppercase tracking-widest opacity-50" style={{ color: "var(--l-text-4)" }}>{n}</span>
                 ))}
               </div>
@@ -1184,10 +1184,10 @@ export default function LandingPage() {
         <section id="fonctionnalites" className="py-28">
           <div className="mx-auto max-w-7xl px-6">
             <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">
-              Tout ce dont votre cabinet a besoin
+              Tout ce dont vous avez besoin
             </h2>
             <p data-reveal className="mx-auto mb-16 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
-              Une plateforme unique pour piloter votre conformité LCB-FT de bout en bout.
+              Une base de données client simple et intuitive, conçue pour répondre à vos obligations LAB.
             </p>
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -1503,7 +1503,7 @@ export default function LandingPage() {
                       <tr style={{ borderBottom: "1px solid var(--l-border)" }}>
                         <th className="px-5 py-4 text-left font-medium" style={{ color: "var(--l-text-4)" }}>Fonctionnalité</th>
                         <th className="px-5 py-4 text-center font-medium" style={{ color: "var(--l-text-3)" }}>Solo</th>
-                        <th className="px-5 py-4 text-center font-bold text-blue-400 grimy-col">Cabinet</th>
+                        <th className="px-5 py-4 text-center font-bold text-blue-400 grimy-col">Pro</th>
                         <th className="px-5 py-4 text-center font-medium" style={{ color: "var(--l-text-3)" }}>Enterprise</th>
                       </tr>
                     </thead>
@@ -1610,7 +1610,7 @@ export default function LandingPage() {
               <div className="absolute inset-0 dot-grid opacity-20" />
               <div className="relative">
                 <h2 className="mb-4 font-serif text-3xl font-bold sm:text-4xl">Prêt à automatiser votre conformité ?</h2>
-                <p className="mx-auto mb-8 max-w-lg text-lg" style={{ color: "var(--l-text-3)" }}>Rejoignez les cabinets qui ont choisi l'efficacité.</p>
+                <p className="mx-auto mb-8 max-w-lg text-lg" style={{ color: "var(--l-text-3)" }}>Rejoignez les professionnels qui ont choisi la simplicité.</p>
                 {/* #6 — Email passthrough form + #7 validation + #16 loading */}
                 <form onSubmit={handleCtaSubmit} className="mx-auto max-w-md">
                   <div className="flex flex-col sm:flex-row items-stretch gap-3">
@@ -1668,7 +1668,7 @@ export default function LandingPage() {
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
               <div className="lg:col-span-1">
                 <span className="text-lg font-bold font-serif">GRIMY</span>
-                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--l-text-4)" }}>Conformité LCB-FT<br />pour experts-comptables<br />et commissaires aux comptes</p>
+                <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--l-text-4)" }}>Base de données client<br />et conformité LAB<br />pour professionnels assujettis</p>
               </div>
               {footerSections.map((sec) => (
                 <div key={sec.title}>
@@ -1688,7 +1688,7 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row" style={{ borderColor: "var(--l-border)" }}>
-              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; 2026 GRIMY — Conformité LCB-FT pour experts-comptables et commissaires aux comptes</p>
+              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; 2026 GRIMY — Conformité LAB pour professionnels assujettis</p>
               <div className="flex items-center gap-6">
                 {["LinkedIn", "Twitter"].map((s) => (
                   <a key={s} href="#" className="text-xs transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }}>{s}</a>
