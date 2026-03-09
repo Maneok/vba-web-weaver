@@ -282,34 +282,6 @@ tr {
   animation: bounce-once 0.5s ease-out;
 }
 
-/* Landing page — blob animations */
-@keyframes blob1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(30px, -50px) scale(1.1); }
-  66% { transform: translate(-20px, 20px) scale(0.9); }
-}
-@keyframes blob2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(-40px, 30px) scale(0.9); }
-  66% { transform: translate(20px, -40px) scale(1.1); }
-}
-@keyframes blob3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  33% { transform: translate(20px, 40px) scale(1.05); }
-  66% { transform: translate(-30px, -20px) scale(0.95); }
-}
-
-/* Landing page — CTA glow pulse */
-@keyframes ctaGlow {
-  0%, 100% { box-shadow: 0 0 20px -5px rgba(59, 130, 246, 0.25); }
-  50% { box-shadow: 0 0 30px -5px rgba(59, 130, 246, 0.45); }
-}
-
-/* Landing page — perspective helper */
-.perspective-\[1200px\] { perspective: 1200px; }
-.\[transform\:rotateX\(5deg\)\] { transform: rotateX(5deg); }
-.hover\:rotate-x-0:hover { transform: rotateX(0deg); }
-
 /* Print styles */
 @media print {
   .no-print { display: none !important; }
