@@ -202,9 +202,9 @@ function ClientDetailContent({ client }: { client: Client }) {
   }, [tab, launchComplianceScreening]);
 
   // Diligences
-  const apePrefix = client.ape.substring(0, 2);
-  const apeFull = client.ape.substring(0, 5);
-  const sectorDiligences = DILIGENCES_MAP[apeFull] || DILIGENCES_MAP[apePrefix];
+  const apePrefix = (client.ape || "").substring(0, 2);
+  const apeFull = (client.ape || "").substring(0, 5);
+  const sectorDiligences = (apeFull && DILIGENCES_MAP[apeFull]) || (apePrefix && DILIGENCES_MAP[apePrefix]) || null;
 
   const [diligences, setDiligences] = useState<Diligence[]>(() => {
     const items = sectorDiligences

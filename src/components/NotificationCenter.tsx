@@ -21,7 +21,9 @@ export default function NotificationCenter() {
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try {
       const stored = sessionStorage.getItem("dismissed_notifs");
-      return stored ? new Set(JSON.parse(stored)) : new Set<string>();
+      if (!stored) return new Set<string>();
+      const parsed = JSON.parse(stored);
+      return Array.isArray(parsed) ? new Set<string>(parsed) : new Set<string>();
     } catch {
       return new Set<string>();
     }
