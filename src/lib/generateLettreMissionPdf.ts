@@ -105,7 +105,7 @@ export function generateLettreMission(client: Client) {
     ["Associe signataire", client.associe],
     ["Superviseur", client.superviseur],
     ["Comptable referent", client.comptable],
-    ["Honoraires HT", `${client.honoraires.toLocaleString("fr-FR")} EUR`],
+    ["Honoraires HT", `${(client.honoraires ?? 0).toLocaleString("fr-FR")} EUR`],
   ];
   for (const [label, val] of missionDetails) {
     doc.setFont("helvetica", "bold");

@@ -379,6 +379,14 @@ Deno.serve(async (req: Request) => {
   if (optRes) return optRes;
   const corsHeaders = getCorsHeaders(req);
 
+  // Auth check
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Non autorise" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const body = await req.json();
     const { mode, query, download_docs } = body as {

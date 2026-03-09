@@ -373,7 +373,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <InfoRow label="Adresse" value={`${client.adresse}, ${client.cp} ${client.ville}`} icon={MapPin} />
                   <InfoRow label="Telephone" value={client.tel} icon={Phone} />
                   <InfoRow label="Email" value={client.mail} icon={Mail} />
-                  <InfoRow label="Capital" value={`${client.capital.toLocaleString()} EUR`} />
+                  <InfoRow label="Capital" value={`${(client.capital ?? 0).toLocaleString()} EUR`} />
                   <InfoRow label="Effectif" value={client.effectif} />
                   <InfoRow label="Date creation" value={client.dateCreation} />
                 </div>
@@ -383,7 +383,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <InfoRow label="Comptable" value={client.comptable} />
                   <InfoRow label="Associe" value={client.associe} />
                   <InfoRow label="Superviseur" value={client.superviseur} />
-                  <InfoRow label="Honoraires" value={`${client.honoraires.toLocaleString()} EUR HT`} />
+                  <InfoRow label="Honoraires" value={`${(client.honoraires ?? 0).toLocaleString()} EUR HT`} />
                   <InfoRow label="Frequence" value={client.frequence} />
                   <InfoRow label="IBAN" value={client.iban || "---"} />
                   <InfoRow label="BIC" value={client.bic || "---"} />

@@ -12,6 +12,14 @@ Deno.serve(async (req) => {
   if (optRes) return optRes;
   const corsHeaders = getCorsHeaders(req);
 
+  // Auth check
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return new Response(JSON.stringify({ error: "Non autorise" }), {
+      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
   try {
     const { raison_sociale, dirigeant } = await req.json();
     if (!raison_sociale) {

@@ -52,7 +52,7 @@ export function generateFicheAcceptation(client: Client) {
   addTitle("1. IDENTIFICATION DU CLIENT");
   addRow("Raison sociale", client.raisonSociale, "SIREN", client.siren);
   addRow("Forme juridique", client.forme, "Code APE", client.ape);
-  addRow("Dirigeant", client.dirigeant, "Capital", `${client.capital.toLocaleString("fr-FR")} €`);
+  addRow("Dirigeant", client.dirigeant, "Capital", `${(client.capital ?? 0).toLocaleString("fr-FR")} €`);
   addRow("Adresse", `${client.adresse}, ${client.cp} ${client.ville}`);
   addRow("Téléphone", client.tel, "Email", client.mail);
   addRow("Effectif", client.effectif, "Date création", client.dateCreation);
@@ -77,7 +77,7 @@ export function generateFicheAcceptation(client: Client) {
   addRow("Type de mission", client.mission, "Fréquence", client.frequence);
   addRow("Comptable référent", client.comptable, "Associé signataire", client.associe);
   addRow("Superviseur", client.superviseur);
-  addRow("Honoraires", `${client.honoraires.toLocaleString("fr-FR")} €`, "IBAN", client.iban);
+  addRow("Honoraires", `${(client.honoraires ?? 0).toLocaleString("fr-FR")} €`, "IBAN", client.iban);
   addRow("Date de reprise", client.dateReprise);
   y += 3;
 
