@@ -45,6 +45,7 @@ export function analyzeCockpit(
     if (c.statut === "INACTIF") continue;
     if (!c.dateButoir) continue;
     const butoir = new Date(c.dateButoir);
+    if (isNaN(butoir.getTime())) continue;
     if (butoir < now) {
       const daysLate = Math.floor((now.getTime() - butoir.getTime()) / (1000 * 60 * 60 * 24));
       const u: CockpitUrgency = {
@@ -64,6 +65,7 @@ export function analyzeCockpit(
   for (const c of clients) {
     if (c.statut === "INACTIF" || !c.dateExpCni) continue;
     const expCni = new Date(c.dateExpCni);
+    if (isNaN(expCni.getTime())) continue;
     if (expCni < now) {
       const u: CockpitUrgency = {
         type: "cni",
@@ -149,8 +151,8 @@ export function analyzeCockpit(
   const alertesNonTraitees: CockpitUrgency[] = [];
   for (const a of alertes) {
     if (a.statut === "EN COURS") {
-      const echeance = new Date(a.dateButoir);
-      const isOverdue = a.dateButoir && echeance < now;
+      const echeance = a.dateButoir ? new Date(a.dateButoir) : null;
+      const isOverdue = echeance && !isNaN(echeance.getTime()) && echeance < now;
       const daysOverdue = isOverdue ? Math.floor((now.getTime() - echeance.getTime()) / (1000 * 60 * 60 * 24)) : 0;
       const u: CockpitUrgency = {
         type: "alerte",

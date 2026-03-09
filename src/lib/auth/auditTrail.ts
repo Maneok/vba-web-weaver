@@ -25,7 +25,7 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       return;
     }
 
-    await supabase.from("audit_trail").insert({
+    const { error: insertError } = await supabase.from("audit_trail").insert({
       cabinet_id: profileRes.data.cabinet_id,
       user_id: user.id,
       user_email: user.email || "",
@@ -34,9 +34,13 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       record_id: entry.record_id || null,
       old_data: entry.old_data || null,
       new_data: entry.new_data || null,
-      ip_address: null, // Set by server-side if needed
-      user_agent: navigator.userAgent,
+      ip_address: null,
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
     });
+
+    if (insertError) {
+      logger.error("Audit", "insert failed:", insertError.message);
+    }
   } catch (err) {
     logger.error("Audit", "trail error:", err);
   }

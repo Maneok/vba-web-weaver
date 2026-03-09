@@ -41,7 +41,12 @@ export async function encryptField(plaintext: string): Promise<string> {
   const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
   combined.set(iv);
   combined.set(new Uint8Array(ciphertext), iv.length);
-  return btoa(String.fromCharCode(...combined));
+  // Use chunked conversion to avoid "Maximum call stack size exceeded" on large data
+  let binary = "";
+  for (let i = 0; i < combined.length; i++) {
+    binary += String.fromCharCode(combined[i]);
+  }
+  return btoa(binary);
 }
 
 export async function decryptField(encrypted: string): Promise<string> {

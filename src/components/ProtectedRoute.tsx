@@ -26,14 +26,21 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return () => clearTimeout(timer);
   }, [loading]);
 
+  // Reset retry counter when session changes (new login)
+  useEffect(() => {
+    setRetryCount(0);
+  }, [session?.access_token]);
+
   // Auto-retry profile fetch once on timeout (before showing error)
   useEffect(() => {
     if (timedOut && session && !profile && retryCount === 0) {
+      let cancelled = false;
       setRetryCount(1);
       setRetrying(true);
       refreshProfile()
         .catch(() => {})
-        .finally(() => setRetrying(false));
+        .finally(() => { if (!cancelled) setRetrying(false); });
+      return () => { cancelled = true; };
     }
   }, [timedOut, session, profile, retryCount, refreshProfile]);
 

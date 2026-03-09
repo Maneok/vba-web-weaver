@@ -31,7 +31,9 @@ type FormationFilter = "all" | "a_jour" | "a_former" | "non_renseigne";
 
 function getFormationBadge(dateStr: string) {
   if (!dateStr) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400", days: 0 };
-  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const ts = new Date(dateStr).getTime();
+  if (isNaN(ts)) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400", days: 0 };
+  const diffMs = Date.now() - ts;
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   const diffYears = diffDays / 365;
   if (diffYears < 1) return { label: "A jour", color: "bg-emerald-500/15 text-emerald-400", days: Math.max(0, 365 - diffDays) };

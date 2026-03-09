@@ -475,7 +475,7 @@ export default function LettreMissionPage() {
     if (el && leftPanelScrollRef.current) {
       el.scrollTop = leftPanelScrollRef.current;
     }
-  });
+  }); // Intentional: runs every render to restore scroll position after re-render
 
 
   // ── Load models list and active template from Supabase on mount ──
@@ -663,19 +663,21 @@ export default function LettreMissionPage() {
     if (autoSaveCountdownRef.current) clearInterval(autoSaveCountdownRef.current);
 
     let remaining = 30;
+    let mounted = true;
     setAutoSaveCountdown(remaining);
     autoSaveCountdownRef.current = setInterval(() => {
       remaining -= 1;
-      setAutoSaveCountdown(remaining > 0 ? remaining : null);
+      if (mounted) setAutoSaveCountdown(remaining > 0 ? remaining : null);
     }, 1000);
 
     autoSaveTimerRef.current = setTimeout(() => {
-      handleSave(true);
+      if (mounted) handleSave(true);
       if (autoSaveCountdownRef.current) clearInterval(autoSaveCountdownRef.current);
-      setAutoSaveCountdown(null);
+      if (mounted) setAutoSaveCountdown(null);
     }, 30000);
 
     return () => {
+      mounted = false;
       if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
       if (autoSaveCountdownRef.current) clearInterval(autoSaveCountdownRef.current);
     };

@@ -137,17 +137,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     let cancelled = false;
 
-    fetchProfile(user.id).then(p => {
-      if (cancelled) return;
-      setProfile(p);
-      setLoading(false);
+    fetchProfile(user.id)
+      .then(p => {
+        if (cancelled) return;
+        setProfile(p);
+        setLoading(false);
 
-      // Only log audit on actual sign-in (not page refresh)
-      if (p && signedInRef.current) {
-        logAudit({ action: "CONNEXION" }).catch(() => {});
-        signedInRef.current = false;
-      }
-    });
+        // Only log audit on actual sign-in (not page refresh)
+        if (p && signedInRef.current) {
+          logAudit({ action: "CONNEXION" }).catch(() => {});
+          signedInRef.current = false;
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setProfile(null);
+        setLoading(false);
+      });
 
     return () => { cancelled = true; };
   }, [user?.id, fetchProfile]);

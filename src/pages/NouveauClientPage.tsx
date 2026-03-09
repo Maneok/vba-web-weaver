@@ -838,6 +838,7 @@ export default function NouveauClientPage() {
       effectiveMode = "nom";
     }
 
+    try {
     // Primary: new enterprise-lookup (Annuaire Entreprises)
     setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
 
@@ -897,6 +898,11 @@ export default function NouveauClientPage() {
       if (res.results.length === 1) {
         selectPappersResult(res.results[0]);
       }
+    }
+    } catch (err) {
+      logger.error("NouveauClient", "handleSearch error:", err);
+      setSearchError("Erreur lors de la recherche. Veuillez reessayer.");
+      setSearchLoading(false);
     }
   };
 
@@ -3949,7 +3955,12 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: AbortSignal.timeout(10000) })
       .then(r => r.json())
       .then((data: Array<{ lat: string; lon: string }>) => {
-        if (data.length > 0) { setGeoLat(parseFloat(data[0].lat)); setGeoLng(parseFloat(data[0].lon)); }
+        if (data.length > 0) {
+          const parsedLat = parseFloat(data[0].lat);
+          const parsedLng = parseFloat(data[0].lon);
+          if (!isNaN(parsedLat)) setGeoLat(parsedLat);
+          if (!isNaN(parsedLng)) setGeoLng(parsedLng);
+        }
       })
       .catch(() => {})
       .finally(() => setGeoLoading(false));

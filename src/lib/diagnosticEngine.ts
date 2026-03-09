@@ -47,7 +47,9 @@ export function runDiagnostic360(
   const prospects = clients.filter(c => c.etat === "PROSPECT");
   const prospectAnciens = prospects.filter(c => {
     if (!c.dateCreationLigne) return false;
-    const diff = (now.getTime() - new Date(c.dateCreationLigne).getTime()) / (1000 * 60 * 60 * 24);
+    const ts = new Date(c.dateCreationLigne).getTime();
+    if (isNaN(ts)) return false;
+    const diff = (now.getTime() - ts) / (1000 * 60 * 60 * 24);
     return diff > 90;
   });
   if (prospects.length > 0) {
@@ -94,7 +96,11 @@ export function runDiagnostic360(
   });
 
   // === 5. REVISIONS ===
-  const retards = actifs.filter(c => c.dateButoir && new Date(c.dateButoir) < now);
+  const retards = actifs.filter(c => {
+    if (!c.dateButoir) return false;
+    const d = new Date(c.dateButoir);
+    return !isNaN(d.getTime()) && d < now;
+  });
   const tauxRetard = actifs.length > 0 ? Math.round((retards.length / actifs.length) * 100) : 0;
   items.push({
     categorie: "REVISIONS",
@@ -111,6 +117,7 @@ export function runDiagnostic360(
   const bientotEchus = actifs.filter(c => {
     if (!c.dateButoir) return false;
     const butoir = new Date(c.dateButoir);
+    if (isNaN(butoir.getTime())) return false;
     const diff = (butoir.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff > 0 && diff <= 60;
   });
@@ -125,7 +132,11 @@ export function runDiagnostic360(
   }
 
   // === 7. CNI / PIECES D'IDENTITE ===
-  const cniExp = actifs.filter(c => c.dateExpCni && new Date(c.dateExpCni) < now);
+  const cniExp = actifs.filter(c => {
+    if (!c.dateExpCni) return false;
+    const d = new Date(c.dateExpCni);
+    return !isNaN(d.getTime()) && d < now;
+  });
   items.push({
     categorie: "KYC",
     indicateur: "Pieces d'identite perimees",
@@ -143,6 +154,7 @@ export function runDiagnostic360(
   const cniBientot = actifs.filter(c => {
     if (!c.dateExpCni) return false;
     const exp = new Date(c.dateExpCni);
+    if (isNaN(exp.getTime())) return false;
     const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
     return diff > 0 && diff <= 90;
   });
@@ -264,7 +276,11 @@ export function runDiagnostic360(
 
   // === 16. REGISTRE DES ALERTES ===
   const alertesEnCours = alertes.filter(a => a.statut === "EN COURS");
-  const alertesEnRetard = alertesEnCours.filter(a => a.dateButoir && new Date(a.dateButoir) < now);
+  const alertesEnRetard = alertesEnCours.filter(a => {
+    if (!a.dateButoir) return false;
+    const d = new Date(a.dateButoir);
+    return !isNaN(d.getTime()) && d < now;
+  });
   items.push({
     categorie: "REGISTRE",
     indicateur: "Alertes en cours de traitement",
@@ -290,7 +306,9 @@ export function runDiagnostic360(
 
   // === 18. TRACABILITE (LOGS) ===
   const logsRecents = logs.filter(l => {
+    if (!l.horodatage) return false;
     const d = new Date(l.horodatage.replace(" ", "T"));
+    if (isNaN(d.getTime())) return false;
     return (now.getTime() - d.getTime()) < 90 * 24 * 60 * 60 * 1000;
   });
   items.push({
