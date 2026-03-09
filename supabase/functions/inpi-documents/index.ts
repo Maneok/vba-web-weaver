@@ -1090,7 +1090,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun b√
       storedCount: 0,
       status: "partial",
     }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

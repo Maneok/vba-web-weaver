@@ -157,7 +157,7 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error("[sanctions-check] Error:", (error as Error).message);
     return new Response(JSON.stringify({ error: "Erreur interne du service de sanctions", matches: [], checked: 0, status: "unavailable" }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

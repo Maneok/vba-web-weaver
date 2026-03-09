@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
       hasNegativeNews: false,
       status: "unavailable",
     }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast.warning("Session expiree apres 15 minutes d'inactivite");
       handleSignOut();
     }, [handleSignOut]),
-    !!session
+    !!user
   );
 
   // ─── STEP 1: Auth listener — lightweight, NO async profile fetch ───

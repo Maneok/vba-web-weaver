@@ -24,11 +24,12 @@ const WHITE = { r: 255, g: 255, b: 255 };
 // ──────────────────────────────────────────────
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
   const h = hex.replace("#", "");
-  return {
-    r: parseInt(h.substring(0, 2), 16) || NAVY.r,
-    g: parseInt(h.substring(2, 4), 16) || NAVY.g,
-    b: parseInt(h.substring(4, 6), 16) || NAVY.b,
-  };
+  if (h.length < 6) return NAVY;
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return NAVY;
+  return { r, g, b };
 }
 
 function formatMontant(n: number | undefined): string {

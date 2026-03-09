@@ -1,7 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const PAPPERS_API_KEY = Deno.env.get("PAPPERS_API_KEY") ?? "";
+const PAPPERS_API_KEY = Deno.env.get("PAPPERS_API_KEY") || "";
 const PAPPERS_BASE = "https://api.pappers.fr/v2";
 
 import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";

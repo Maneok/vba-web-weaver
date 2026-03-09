@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       malus: 0,
       status: "unavailable",
     }), {
-      status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });

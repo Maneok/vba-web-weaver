@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const ALLOWED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    const ALLOWED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
     if (mimeType && !ALLOWED_MEDIA.includes(mimeType)) {
       return new Response(
         JSON.stringify({ error: "Type de fichier non supporte", extracted: null }),
@@ -145,7 +145,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
       console.error("Anthropic API error:", anthropicRes.status, errText);
       return new Response(
         JSON.stringify({ error: "Erreur OCR: service temporairement indisponible", extracted: null }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -154,7 +154,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
       console.error("Anthropic returned non-JSON response:", contentType);
       return new Response(
         JSON.stringify({ error: "Erreur OCR: reponse invalide", extracted: null }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     const anthropicData = await anthropicRes.json();
@@ -191,7 +191,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
     console.error("OCR error:", (error as Error).message);
     return new Response(
       JSON.stringify({ error: "Erreur interne OCR", extracted: null }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

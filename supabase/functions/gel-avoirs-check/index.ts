@@ -169,7 +169,7 @@ Deno.serve(async (req) => {
         status: "unavailable",
         error: "Erreur interne du service gel d'avoirs",
       }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });
