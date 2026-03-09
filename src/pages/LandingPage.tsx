@@ -20,12 +20,19 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
   Shield, FileText, Calculator, FileCheck, Check, X, Minus,
   ArrowRight, ClipboardCheck, Search, Monitor, Quote,
   ChevronRight, Menu, X as XIcon, ChevronDown, Sun, Moon,
   Lock, HelpCircle, CreditCard, Database, Globe, Users,
   Sparkles, Play, Zap, Cookie, BarChart3, TrendingUp, Award,
-  Star, ArrowUp,
+  Star, ArrowUp, Clock, AlertTriangle, FileX, Linkedin,
+  Twitter, CalendarClock, SlidersHorizontal, Cpu, Eye,
+  MessageCircle, Landmark, Scale, Building2, Gavel,
 } from "lucide-react";
 
 /* ══════════════════════════════════════════════════════════════
@@ -152,7 +159,7 @@ function useNavScroll() {
   return s;
 }
 
-const SECTIONS = ["fonctionnalites", "demo", "timeline", "comparaison", "tarifs", "temoignages", "faq"] as const;
+const SECTIONS = ["fonctionnalites", "demo", "timeline", "comparaison", "tarifs", "temoignages", "faq", "securite", "douleur", "roi"] as const;
 
 function useActiveSection() {
   const [active, setActive] = useState("");
@@ -197,6 +204,185 @@ function useTimelineProgress() {
     return () => window.removeEventListener("scroll", handler);
   }, []);
   return { ref, progress };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   #50 — Scroll progress bar (top of page)
+   ══════════════════════════════════════════════════════════════ */
+function useScrollProgress() {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const h = () => {
+      const total = document.documentElement.scrollHeight - window.innerHeight;
+      setProgress(total > 0 ? (window.scrollY / total) * 100 : 0);
+    };
+    window.addEventListener("scroll", h, { passive: true });
+    return () => window.removeEventListener("scroll", h);
+  }, []);
+  return progress;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SVG LOGOS — Ordres professionnels
+   ══════════════════════════════════════════════════════════════ */
+
+function LogoOEC() {
+  return (
+    <div className="flex flex-col items-center gap-1.5 group" title="Ordre des Experts-Comptables">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+        <svg viewBox="0 0 40 40" className="h-7 w-7" fill="none">
+          <circle cx="20" cy="20" r="18" stroke="#3B82F6" strokeWidth="1.5" opacity="0.6" />
+          <path d="M20 6 L20 34 M12 10 Q20 18 28 10 M12 30 Q20 22 28 30" stroke="#3B82F6" strokeWidth="1.8" strokeLinecap="round" />
+          <circle cx="20" cy="20" r="4" fill="#3B82F6" opacity="0.3" />
+        </svg>
+      </div>
+      <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">OEC</span>
+    </div>
+  );
+}
+
+function LogoCNCC() {
+  return (
+    <div className="flex flex-col items-center gap-1.5 group" title="Compagnie Nationale des Commissaires aux Comptes">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors">
+        <Scale className="h-6 w-6 text-indigo-400" />
+      </div>
+      <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">CNCC</span>
+    </div>
+  );
+}
+
+function LogoCSN() {
+  return (
+    <div className="flex flex-col items-center gap-1.5 group" title="Conseil Supérieur du Notariat">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+        <Gavel className="h-6 w-6 text-amber-400" />
+      </div>
+      <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">CSN</span>
+    </div>
+  );
+}
+
+function LogoCNB() {
+  return (
+    <div className="flex flex-col items-center gap-1.5 group" title="Conseil National des Barreaux">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+        <Landmark className="h-6 w-6 text-purple-400" />
+      </div>
+      <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">CNB</span>
+    </div>
+  );
+}
+
+function LogoTRACFIN() {
+  return (
+    <div className="flex flex-col items-center gap-1.5 group" title="TRACFIN — Cellule de renseignement financier">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
+        <Shield className="h-6 w-6 text-red-400" />
+      </div>
+      <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">TRACFIN</span>
+    </div>
+  );
+}
+
+function LogoDGCCRF() {
+  return (
+    <div className="flex flex-col items-center gap-1.5 group" title="DGCCRF — Direction générale de la concurrence">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+        <Building2 className="h-6 w-6 text-emerald-400" />
+      </div>
+      <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">DGCCRF</span>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   #21 — Profile switcher (adapts hero content)
+   ══════════════════════════════════════════════════════════════ */
+const PROFILES = [
+  { id: "ec", label: "Expert-comptable", icon: Calculator, authority: "Ordre des EC / H2A", color: "text-blue-400" },
+  { id: "cac", label: "Commissaire aux comptes", icon: Scale, authority: "H3C / CNCC", color: "text-indigo-400" },
+  { id: "avocat", label: "Avocat", icon: Landmark, authority: "Ordre des avocats / CNB", color: "text-purple-400" },
+  { id: "notaire", label: "Notaire", icon: Gavel, authority: "Chambre des notaires", color: "text-amber-400" },
+  { id: "immo", label: "Agent immobilier", icon: Building2, authority: "DGCCRF", color: "text-emerald-400" },
+] as const;
+
+/* ══════════════════════════════════════════════════════════════
+   #16 — ROI Calculator
+   ══════════════════════════════════════════════════════════════ */
+function ROICalculator() {
+  const [clients, setClients] = useState(50);
+  const [hoursPerClient, setHoursPerClient] = useState(0.5);
+  const hourlyCost = 80; // €/h expert-comptable
+  const grimyTimePerClient = 0.03; // ~2 min
+  const timeSavedPerMonth = clients * (hoursPerClient - grimyTimePerClient);
+  const moneySaved = Math.round(timeSavedPerMonth * hourlyCost);
+  const grimyCost = clients <= 50 ? 29 : clients <= 200 ? 79 : 149;
+  const roi = Math.round(((moneySaved - grimyCost) / grimyCost) * 100);
+
+  return (
+    <div className="rounded-2xl border p-8 backdrop-blur-sm" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
+      <div className="flex items-center gap-3 mb-6">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+          <SlidersHorizontal className="h-5 w-5 text-emerald-400" />
+        </div>
+        <div>
+          <h4 className="font-bold text-sm">Calculateur de ROI</h4>
+          <p className="text-xs" style={{ color: "var(--l-text-4)" }}>Estimez vos économies avec GRIMY</p>
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <div className="flex justify-between mb-2">
+            <label className="text-sm" style={{ color: "var(--l-text-3)" }}>Nombre de clients</label>
+            <span className="text-sm font-bold text-blue-400">{clients}</span>
+          </div>
+          <input type="range" min={10} max={500} step={10} value={clients}
+            onChange={(e) => setClients(Number(e.target.value))}
+            className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-blue-500"
+            style={{ background: "var(--l-mock-bar-bg)" }}
+          />
+          <div className="flex justify-between text-[10px] mt-1" style={{ color: "var(--l-text-5)" }}>
+            <span>10</span><span>500</span>
+          </div>
+        </div>
+        <div>
+          <div className="flex justify-between mb-2">
+            <label className="text-sm" style={{ color: "var(--l-text-3)" }}>Heures / client / mois (actuel)</label>
+            <span className="text-sm font-bold text-blue-400">{hoursPerClient}h</span>
+          </div>
+          <input type="range" min={0.25} max={3} step={0.25} value={hoursPerClient}
+            onChange={(e) => setHoursPerClient(Number(e.target.value))}
+            className="w-full h-1.5 rounded-full appearance-none cursor-pointer accent-blue-500"
+            style={{ background: "var(--l-mock-bar-bg)" }}
+          />
+          <div className="flex justify-between text-[10px] mt-1" style={{ color: "var(--l-text-5)" }}>
+            <span>15min</span><span>3h</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-8 grid grid-cols-3 gap-3">
+        <div className="rounded-xl border p-3 text-center" style={{ borderColor: "var(--l-border)", background: "var(--l-mock-bg)" }}>
+          <div className="text-2xl font-bold text-emerald-400 font-serif">{Math.round(timeSavedPerMonth)}h</div>
+          <div className="text-[10px] mt-1" style={{ color: "var(--l-text-5)" }}>Heures économisées/mois</div>
+        </div>
+        <div className="rounded-xl border p-3 text-center" style={{ borderColor: "var(--l-border)", background: "var(--l-mock-bg)" }}>
+          <div className="text-2xl font-bold text-emerald-400 font-serif">{moneySaved}€</div>
+          <div className="text-[10px] mt-1" style={{ color: "var(--l-text-5)" }}>Économies/mois</div>
+        </div>
+        <div className="rounded-xl border p-3 text-center" style={{ borderColor: "var(--l-border)", background: "var(--l-mock-bg)" }}>
+          <div className="text-2xl font-bold text-emerald-400 font-serif">{roi > 0 ? `${roi}%` : "—"}</div>
+          <div className="text-[10px] mt-1" style={{ color: "var(--l-text-5)" }}>ROI</div>
+        </div>
+      </div>
+
+      <p className="text-xs text-center mt-4" style={{ color: "var(--l-text-5)" }}>
+        Basé sur un coût horaire de {hourlyCost}€/h et GRIMY à {grimyCost}€/mois
+      </p>
+    </div>
+  );
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -667,11 +853,11 @@ function CompMobileCard({ row }: { row: CompRow }) {
   return (
     <div className="rounded-xl border border-[--l-border] bg-[--l-surface] p-4 space-y-3">
       <p className="text-sm font-medium text-[--l-text]">{row.label}</p>
-      <div className="grid grid-cols-2 gap-2 text-center">
-        {(["grimy", "excel"] as const).map((k) => (
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {(["grimy", "kanta", "excel"] as const).map((k) => (
           <div key={k} className="space-y-1">
             <span className={`text-[10px] uppercase tracking-wider ${k === "grimy" ? "text-emerald-400 font-semibold" : "text-[--l-text-5]"}`}>
-              {k === "grimy" ? "GRIMY" : "Excel"}
+              {k === "grimy" ? "GRIMY" : k === "kanta" ? "Kanta" : "Excel"}
             </span>
             <div><CompCell value={row[k]} accent={k === "grimy"} /></div>
           </div>
@@ -720,6 +906,7 @@ function SocialTicker() {
 const NAV_LINKS = [
   { label: "Fonctionnalités", id: "fonctionnalites" },
   { label: "Tarifs", id: "tarifs" },
+  { label: "FAQ", id: "faq" },
   { label: "À propos", id: "temoignages" },
 ];
 
@@ -749,18 +936,19 @@ const timelineSteps = [
 ];
 
 type CompValue = "yes" | "no" | "partial" | string;
-type CompRow = { label: string; grimy: CompValue; excel: CompValue };
+type CompRow = { label: string; grimy: CompValue; kanta: CompValue; excel: CompValue };
 const comparison: CompRow[] = [
-  { label: "Screening automatique 9 APIs", grimy: "yes", excel: "no" },
-  { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", excel: "no" },
-  { label: "Scoring multi-critères des risques", grimy: "yes", excel: "Manuel" },
-  { label: "Fiche client pré-remplie", grimy: "yes", excel: "no" },
-  { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", excel: "no" },
-  { label: "Gel des avoirs DG Trésor", grimy: "yes", excel: "no" },
-  { label: "Diagnostic 360°", grimy: "yes", excel: "no" },
-  { label: "Multi-structure / Multi-utilisateur", grimy: "yes", excel: "no" },
-  { label: "Journal d'audit certifié", grimy: "yes", excel: "no" },
-  { label: "Prix à partir de", grimy: "29€/mois", excel: "Gratuit" },
+  { label: "Screening automatique (9 APIs)", grimy: "yes", kanta: "partial", excel: "no" },
+  { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", kanta: "no", excel: "no" },
+  { label: "Scoring multi-critères NPLAB", grimy: "yes", kanta: "yes", excel: "Manuel" },
+  { label: "Lettre de mission auto", grimy: "yes", kanta: "yes", excel: "no" },
+  { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", kanta: "no", excel: "no" },
+  { label: "Gel des avoirs DG Trésor", grimy: "yes", kanta: "no", excel: "no" },
+  { label: "Gouvernance complète (formations, manuel, contrôle interne)", grimy: "yes", kanta: "partial", excel: "no" },
+  { label: "Mode contrôleur CROEC", grimy: "yes", kanta: "yes", excel: "no" },
+  { label: "Journal d'audit certifié", grimy: "yes", kanta: "partial", excel: "no" },
+  { label: "Prix transparent", grimy: "29€/mois", kanta: "Sur devis", excel: "Gratuit" },
+  { label: "Mise en conformité", grimy: "10 min", kanta: "30 jours", excel: "∞" },
 ];
 
 /* #18 — Features with badges */
@@ -800,22 +988,25 @@ const pricingFeatures = [
 ];
 
 const testimonials = [
-  { quote: "Nous avons passé notre contrôle LAB sans aucune observation grâce à GRIMY.", name: "Marc D.", title: "Expert-comptable", cabinet: "Cabinet EC — Marseille", initials: "MD", color: "bg-blue-500/20 text-blue-400" },
-  { quote: "Le screening automatique nous fait gagner 2 heures par nouveau client. Indispensable pour notre étude.", name: "Sophie L.", title: "Notaire associée", cabinet: "Étude notariale — Bordeaux", initials: "SL", color: "bg-emerald-500/20 text-emerald-400" },
-  { quote: "Enfin un outil simple qui comprend nos obligations LAB. Fini les tableaux Excel ingérables.", name: "Thomas R.", title: "Avocat", cabinet: "Cabinet d'avocats — Paris", initials: "TR", color: "bg-purple-500/20 text-purple-400" },
-  { quote: "En tant qu'agent immobilier, la LAB est une obligation souvent négligée. GRIMY rend ça concret et rapide.", name: "Claire B.", title: "Agent immobilier", cabinet: "Agence — Lyon", initials: "CB", color: "bg-amber-500/20 text-amber-400" },
-  { quote: "Le scoring multi-critères est redoutable de précision. Nos contrôleurs ACPR sont impressionnés.", name: "Philippe M.", title: "CIF — Conseiller en investissements", cabinet: "Cabinet de gestion de patrimoine", initials: "PM", color: "bg-pink-500/20 text-pink-400" },
-  { quote: "La GED intégrée et le registre LAB automatique nous ont permis de passer sereinement notre audit DGCCRF.", name: "Antoine V.", title: "Société de domiciliation", cabinet: "DomServices — Nantes", initials: "AV", color: "bg-indigo-500/20 text-indigo-400" },
+  { quote: "Nous avons passé notre dernier contrôle LAB sans aucune observation. GRIMY avait tout préparé.", name: "Marc D.", title: "Expert-comptable", cabinet: "Cabinet EC — Marseille", detail: "25 collaborateurs · 320 clients", initials: "MD", color: "bg-blue-500/20 text-blue-400" },
+  { quote: "Le screening automatique nous fait gagner 2 heures par nouveau client. La lettre de mission se génère en 3 clics.", name: "Sophie L.", title: "Notaire associée", cabinet: "Étude notariale — Bordeaux", detail: "12 personnes · 180 clients", initials: "SL", color: "bg-emerald-500/20 text-emerald-400" },
+  { quote: "Enfin un outil pensé par quelqu'un qui comprend nos obligations. Pas un truc générique adapté à la va-vite.", name: "Thomas R.", title: "Avocat", cabinet: "Cabinet d'avocats — Paris", detail: "8 associés · 450 dossiers", initials: "TR", color: "bg-purple-500/20 text-purple-400" },
+  { quote: "En tant qu'agent immobilier, la LAB est une obligation souvent négligée. GRIMY rend ça concret et rapide.", name: "Claire B.", title: "Agent immobilier", cabinet: "Agence — Lyon", detail: "3 agences · 90 mandats/an", initials: "CB", color: "bg-amber-500/20 text-amber-400" },
+  { quote: "Le scoring multi-critères est redoutable de précision. Nos contrôleurs ACPR sont impressionnés.", name: "Philippe M.", title: "CIF — Conseiller en investissements", cabinet: "Cabinet de gestion de patrimoine", detail: "Indépendant · 75 clients", initials: "PM", color: "bg-pink-500/20 text-pink-400" },
+  { quote: "La GED intégrée et le registre LAB automatique nous ont permis de passer sereinement notre audit DGCCRF.", name: "Antoine V.", title: "Société de domiciliation", cabinet: "DomServices — Nantes", detail: "6 personnes · 200 sociétés domiciliées", initials: "AV", color: "bg-indigo-500/20 text-indigo-400" },
 ];
 
 const faqItems = [
+  { q: "GRIMY est-il conforme à la NPLAB ?", a: "Oui. GRIMY a été conçu pour répondre exactement aux exigences de la norme NPLAB 2020 et de la NPMQ 2025. Chaque fonctionnalité est mappée sur une obligation réglementaire : identification, évaluation des risques, vigilance continue, traçabilité.", icon: Shield },
   { q: "Quels professionnels peuvent utiliser GRIMY ?", a: "Tous les professionnels assujettis aux obligations LAB (art. L.561-2 du Code monétaire) : experts-comptables, commissaires aux comptes, avocats, notaires, commissaires de justice, agents immobiliers, conseillers en investissements financiers (CIF), sociétés de domiciliation, mandataires judiciaires, et plus.", icon: Users },
-  { q: "Mes données sont-elles sécurisées ?", a: "Toutes les données sont hébergées en France (Supabase EU-West), chiffrées au repos (AES-256) et en transit (TLS 1.3). Les champs sensibles (IBAN, CNI) bénéficient d'un chiffrement applicatif AES-GCM supplémentaire. Nous sommes conformes au RGPD.", icon: Lock },
-  { q: "Puis-je migrer depuis Excel ou un autre outil ?", a: "Oui. Importez vos clients existants via un fichier CSV. Les données INPI et le screening sont relancés automatiquement pour enrichir chaque fiche.", icon: Database },
-  { q: "Y a-t-il un engagement de durée ?", a: "Aucun engagement. Vous pouvez résilier à tout moment depuis vos paramètres. Vos données restent exportables pendant 30 jours après résiliation.", icon: CreditCard },
-  { q: "GRIMY est-il conforme au RGPD ?", a: "Oui. Hébergement en France, DPO désigné, registre de traitements, droit d'accès/suppression/portabilité, et chiffrement bout en bout des données sensibles.", icon: Shield },
-  { q: "Comment fonctionne l'essai gratuit ?", a: "14 jours d'essai complet, aucune carte bancaire requise. Vous avez accès à toutes les fonctionnalités du plan Pro. À la fin de l'essai, choisissez votre plan ou exportez vos données.", icon: HelpCircle },
+  { q: "Combien de temps pour être opérationnel ?", a: "Créez votre compte, importez vos clients par SIREN, et GRIMY fait le reste. La plupart des cabinets sont opérationnels en moins de 10 minutes.", icon: Clock },
+  { q: "Puis-je importer mes clients existants ?", a: "Oui. Import par SIREN unitaire ou en masse via CSV. GRIMY récupère automatiquement toutes les données depuis les sources officielles (INPI, INSEE) et relance le screening.", icon: Database },
+  { q: "Mes données sont-elles sécurisées ?", a: "Absolument. Chiffrement AES-256 au repos, TLS 1.3 en transit, hébergement en France (Supabase EU-West), conformité RGPD, accès par rôle et journal d'audit complet immutable.", icon: Lock },
+  { q: "Y a-t-il un engagement ?", a: "Non. Tous nos plans sont sans engagement. Vous pouvez annuler à tout moment depuis votre espace. Vos données restent exportables 30 jours après résiliation.", icon: CreditCard },
+  { q: "Comment se passe un contrôle LAB avec GRIMY ?", a: "GRIMY génère un dossier de conformité complet en un clic : cartographie des risques, registre LCB-FT, historique des diligences, formations. Le mode contrôleur permet au contrôleur CROEC de naviguer en autonomie.", icon: Eye },
+  { q: "GRIMY remplace-t-il mon logiciel comptable ?", a: "Non. GRIMY est complémentaire. Il couvre uniquement la conformité LCB-FT et la lettre de mission. Il ne fait pas de comptabilité, de paie ou de fiscalité.", icon: HelpCircle },
   { q: "Le logiciel convient-il à un indépendant ?", a: "Absolument. Le plan Solo à 29€/mois couvre 50 clients, largement suffisant pour un professionnel indépendant. L'interface est conçue pour être utilisable sans formation.", icon: Award },
+  { q: "Proposez-vous un accompagnement ?", a: "Oui. Le plan Cabinet inclut un support prioritaire. Le plan Enterprise inclut une formation sur site et un référent dédié. Vous pouvez aussi réserver un appel de 15 min avec notre équipe.", icon: CalendarClock },
 ];
 
 /* #8 — Footer with working links */
@@ -937,6 +1128,7 @@ export default function LandingPage() {
   const activeSection = useActiveSection();
   const heroVisible = useHeroReveal();
   const heroInView = useHeroInView();
+  const scrollProgress = useScrollProgress();
   const [annual, setAnnual] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [ctaEmail, setCtaEmail] = useState("");
@@ -946,6 +1138,8 @@ export default function LandingPage() {
   const cookies = useCookieConsent();
   const [showPricingTable, setShowPricingTable] = useState(false);
   const [legalModal, setLegalModal] = useState<LegalModalType>(null);
+  const [selectedProfile, setSelectedProfile] = useState(0);
+  const [showUrgencyBanner, setShowUrgencyBanner] = useState(true);
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
 
@@ -1148,16 +1342,87 @@ export default function LandingPage() {
           scroll-margin-top: 80px;
         }
 
+        /* CTA glow pulse (#42) */
+        .cta-glow {
+          animation: ctaGlowPulse 3s ease-in-out infinite;
+        }
+        @keyframes ctaGlowPulse {
+          0%, 100% { box-shadow: 0 4px 20px -5px rgba(59, 130, 246, 0.25); }
+          50% { box-shadow: 0 4px 30px -5px rgba(59, 130, 246, 0.45); }
+        }
+
+        /* Blob animations (#11 #39) */
+        @keyframes blob1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        @keyframes blob2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(-40px, 30px) scale(0.9); }
+          66% { transform: translate(20px, -40px) scale(1.1); }
+        }
+        @keyframes blob3 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(20px, 40px) scale(1.05); }
+          66% { transform: translate(-30px, -20px) scale(0.95); }
+        }
+
+        /* Range slider thumb (#16 ROI) */
+        input[type="range"]::-webkit-slider-thumb {
+          -webkit-appearance: none;
+          appearance: none;
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #3B82F6;
+          cursor: pointer;
+          box-shadow: 0 0 8px rgba(59,130,246,0.4);
+        }
+        input[type="range"]::-moz-range-thumb {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          background: #3B82F6;
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 0 8px rgba(59,130,246,0.4);
+        }
+
       `}</style>
 
       <div className="landing-bg-wrap">
 
+        {/* ══════ SCROLL PROGRESS BAR ══════ */}
+        <div className="fixed top-0 left-0 right-0 z-[60] h-0.5">
+          <div className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 transition-all duration-150" style={{ width: `${scrollProgress}%` }} />
+        </div>
+
+        {/* ══════ URGENCY BANNER ══════ */}
+        {showUrgencyBanner && (
+          <div className="fixed top-0.5 left-0 right-0 z-[55] bg-gradient-to-r from-amber-600/90 to-orange-600/90 backdrop-blur-sm">
+            <div className="mx-auto max-w-7xl flex items-center justify-center gap-3 px-4 py-2">
+              <AlertTriangle className="h-3.5 w-3.5 text-white shrink-0" />
+              <p className="text-xs font-medium text-white">
+                <span className="hidden sm:inline">Nouvelle NPMQ 2025 en vigueur — </span>2 500 contrôles LAB prévus par l'Ordre. Êtes-vous prêt ?
+              </p>
+              <Link to="/auth" className="text-[10px] font-bold text-white underline underline-offset-2 whitespace-nowrap">
+                Vérifier ma conformité
+              </Link>
+              <button onClick={() => setShowUrgencyBanner(false)} className="ml-1 text-white/70 hover:text-white" aria-label="Fermer">
+                <XIcon className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ══════ 1. NAVBAR ══════ */}
-        <nav className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+        <nav className={`fixed z-50 w-full transition-all duration-300 ${
           navScrolled
             ? "border-b shadow-lg"
             : "bg-transparent"
         }`} style={{
+          top: showUrgencyBanner ? "32px" : "2px",
           borderColor: navScrolled ? "var(--l-border)" : "transparent",
           background: navScrolled ? "var(--l-bg-blur)" : "transparent",
           backdropFilter: navScrolled ? "blur(16px)" : "none",
@@ -1191,6 +1456,11 @@ export default function LandingPage() {
                 {theme.light ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </button>
 
+              {/* Réserver une démo */}
+              <button onClick={() => scrollTo("demo")} className="hidden lg:inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors hover:text-blue-400" style={{ color: "var(--l-text-3)" }}>
+                <Play className="h-3.5 w-3.5" /> Démo
+              </button>
+
               <Link to="/auth" className="hidden sm:inline-flex">
                 <Button variant="ghost" className="btn-press" style={{ color: "var(--l-text-3)" }}>Se connecter</Button>
               </Link>
@@ -1198,55 +1468,88 @@ export default function LandingPage() {
                 <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-500/20 btn-press text-white">Démarrer</Button>
               </Link>
 
-              {/* #2 hamburger */}
-              <button className="md:hidden p-2" style={{ color: "var(--l-text-3)" }} onClick={() => setMobileMenu(!mobileMenu)} aria-label={mobileMenu ? "Fermer" : "Menu"}>
-                {mobileMenu ? <XIcon className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-              </button>
+              {/* Mobile hamburger — Sheet */}
+              <Sheet>
+                <SheetTrigger asChild>
+                  <button className="md:hidden p-2" style={{ color: "var(--l-text-3)" }} aria-label="Menu">
+                    <Menu className="h-5 w-5" />
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-72 bg-[--l-bg-primary] border-[--l-border]">
+                  <div className="flex flex-col gap-2 mt-8">
+                    {NAV_LINKS.map((l) => (
+                      <button key={l.id} onClick={() => handleNavClick(l.id)} className="block w-full text-left py-3 px-2 text-sm rounded-lg transition-colors hover:bg-[--l-surface]" style={{ color: "var(--l-text-2)" }}>{l.label}</button>
+                    ))}
+                    <div className="pt-4 mt-4 flex flex-col gap-3" style={{ borderTop: "1px solid var(--l-border)" }}>
+                      <Link to="/auth"><Button variant="outline" className="w-full" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>Connexion</Button></Link>
+                      <Link to="/auth"><Button className="w-full bg-blue-600 text-white">Démarrer gratuitement</Button></Link>
+                    </div>
+                  </div>
+                </SheetContent>
+              </Sheet>
             </div>
           </div>
-
-          {/* Mobile menu */}
-          {mobileMenu && (
-            <div className="md:hidden border-t px-6 py-4 space-y-1 backdrop-blur-xl" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur-heavy)" }}>
-              {NAV_LINKS.map((l) => (
-                <button key={l.id} onClick={() => handleNavClick(l.id)} className="block w-full text-left py-3 text-sm transition-colors" style={{ color: "var(--l-text-2)" }}>{l.label}</button>
-              ))}
-              <div className="pt-3 flex gap-3" style={{ borderTop: "1px solid var(--l-border)" }}>
-                <Link to="/auth" className="flex-1"><Button variant="outline" className="w-full" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>Connexion</Button></Link>
-                <Link to="/auth" className="flex-1"><Button className="w-full bg-blue-600 text-white">Démarrer</Button></Link>
-              </div>
-            </div>
-          )}
         </nav>
 
         {/* ══════ 2. HERO ══════ */}
-        <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden pt-16">
+        <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ paddingTop: showUrgencyBanner ? "5rem" : "4rem" }}>
           <div className="hero-glow absolute inset-0" />
           {/* #9 — Dot grid background */}
           <div className="absolute inset-0 dot-grid" />
-          {/* Blurred shapes */}
-          <div className="absolute top-20 left-[10%] h-72 w-72 rounded-full bg-blue-600/8 blur-3xl" />
-          <div className="absolute bottom-20 right-[10%] h-96 w-96 rounded-full bg-indigo-600/6 blur-3xl" />
+          {/* Animated blob shapes (#11 #39) */}
+          <div className="absolute top-20 left-[10%] h-72 w-72 rounded-full bg-blue-600/10 blur-3xl" style={{ animation: "blob1 12s ease-in-out infinite" }} />
+          <div className="absolute bottom-20 right-[10%] h-96 w-96 rounded-full bg-indigo-600/8 blur-3xl" style={{ animation: "blob2 15s ease-in-out infinite" }} />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-purple-600/6 blur-3xl" style={{ animation: "blob3 10s ease-in-out infinite" }} />
 
           <div className="relative mx-auto max-w-4xl px-6 text-center">
+            {/* NPLAB/NPMQ Badge (#10) */}
             <div className={`transition-all duration-1000 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+              <Badge className="mb-4 border-blue-500/20 bg-blue-500/10 text-blue-400 px-3 py-1 text-xs rounded-full cursor-pointer hover:bg-blue-500/15 transition-colors" onClick={() => scrollTo("fonctionnalites")}>
+                Conforme NPLAB 2020 · NPMQ 2025
+              </Badge>
+            </div>
+            <div className={`transition-all duration-1000 delay-75 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
               <Badge className="mb-8 border-violet-500/20 bg-violet-500/10 text-violet-400 px-4 py-1.5 text-sm">Plateforme LCB-FT — Nouvelle génération</Badge>
             </div>
 
-            <h1 className={`mb-8 font-serif text-4xl font-bold leading-[1.1] tracking-tight transition-all duration-1000 delay-150 sm:text-5xl md:text-[56px] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-              La conformité LCB-FT<br />
-              <span className="bg-gradient-to-r from-violet-400 to-purple-300 bg-clip-text text-transparent">n'a jamais été aussi simple</span>
+            <h1 className={`mb-8 font-serif text-4xl font-bold leading-[1.1] tracking-tight transition-all duration-1000 delay-150 sm:text-5xl md:text-[56px] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ letterSpacing: "-0.02em" }}>
+              Soyez prêt pour votre<br />contrôle LAB.{" "}
+              <span className="bg-gradient-to-r from-violet-400 to-purple-300 bg-clip-text text-transparent">Toujours.</span>
             </h1>
 
-            <p className={`mx-auto mb-10 max-w-2xl text-lg leading-relaxed transition-all duration-1000 delay-300 sm:text-xl ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-3)" }}>
-              La base de données client conçue pour votre conformité LAB. Screening automatique, documents INPI, scoring des risques.<br className="hidden sm:block" />
-              <span style={{ color: "var(--l-text-4)" }}>Pour tous les professionnels assujettis : avocats, notaires, experts-comptables, agents immobiliers, CIF...</span>
+            <p className={`mx-auto mb-6 max-w-3xl text-lg leading-relaxed transition-all duration-1000 delay-300 sm:text-xl ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-3)" }}>
+              GRIMY automatise votre conformité LCB-FT de A à Z : identification des risques, classification NPLAB, vigilance continue et traçabilité complète.
+              <br className="hidden sm:block" />
+              <span style={{ color: "var(--l-text-4)" }}>Créé par un expert-comptable, pour les professionnels assujettis.</span>
             </p>
+
+            {/* #21 — Profile switcher */}
+            <div className={`mb-8 transition-all duration-1000 delay-400 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+              <p className="text-xs mb-3" style={{ color: "var(--l-text-5)" }}>Je suis :</p>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                {PROFILES.map((p, i) => (
+                  <button key={p.id} onClick={() => setSelectedProfile(i)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                      selectedProfile === i
+                        ? "bg-blue-500/15 border border-blue-500/30 text-blue-400"
+                        : "border border-[--l-border] hover:border-blue-500/20 hover:bg-[--l-surface]"
+                    }`}
+                    style={selectedProfile !== i ? { color: "var(--l-text-4)" } : undefined}
+                  >
+                    <p.icon className={`h-3 w-3 ${selectedProfile === i ? p.color : ""}`} />
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] mt-2 transition-colors" style={{ color: "var(--l-text-5)" }}>
+                Autorité de contrôle : {PROFILES[selectedProfile].authority}
+              </p>
+            </div>
 
             <div className={`flex flex-col sm:flex-row items-center justify-center gap-3 transition-all duration-1000 delay-500 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
               <Link to="/auth">
-                <Button size="lg" className="h-12 px-8 text-base bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-xl shadow-blue-600/25 btn-press text-white">
-                  Démarrer gratuitement <ArrowRight className="ml-2 h-4 w-4" />
+                <Button size="lg" className="h-12 px-8 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-blue-600/25 btn-press text-white cta-glow">
+                  Démarrer mon essai gratuit <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <Button size="lg" variant="outline" className="h-12 px-8 text-base btn-press" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }} onClick={() => scrollTo("demo")}>
@@ -1255,7 +1558,7 @@ export default function LandingPage() {
             </div>
 
             <p className={`mt-6 text-sm transition-all duration-1000 delay-700 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-5)" }}>
-              Aucune carte bancaire requise — 14 jours d'essai gratuit
+              Sans carte bancaire · 14 jours gratuits · Données hébergées en France 🇫🇷
             </p>
             <p className={`mt-3 text-sm font-medium transition-all duration-1000 delay-[800ms] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-4)" }}>
               <TrendingUp className="inline h-3.5 w-3.5 mr-1 text-emerald-400" />+150 professionnels nous font confiance
@@ -1274,18 +1577,62 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ══════ 3. SOCIAL PROOF + #20 TICKER ══════ */}
-        <section className="border-y" style={{ borderColor: "var(--l-border)" }}>
-          <div className="mx-auto max-w-5xl px-6 py-4 flex flex-col items-center gap-3">
-            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-12">
-              <p className="text-sm" style={{ color: "var(--l-text-4)" }}>Conforme aux obligations LAB — Art. L.561-2 du Code monétaire</p>
-              <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8">
-                {["TRACFIN", "DGCCRF", "ACPR", "Ordres professionnels"].map((n) => (
-                  <span key={n} className="text-[10px] font-medium uppercase tracking-widest opacity-50" style={{ color: "var(--l-text-4)" }}>{n}</span>
-                ))}
-              </div>
+        {/* ══════ 3. SOCIAL PROOF + LOGOS ══════ */}
+        <section className="border-y py-10" style={{ borderColor: "var(--l-border)" }}>
+          <div className="mx-auto max-w-5xl px-6">
+            <p className="text-center text-sm mb-6" style={{ color: "var(--l-text-4)" }}>
+              Conforme aux exigences des ordres professionnels et autorités de contrôle
+            </p>
+            {/* Logo bar with stagger animation */}
+            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 mb-6">
+              {[LogoOEC, LogoCNCC, LogoCSN, LogoCNB, LogoTRACFIN, LogoDGCCRF].map((Logo, i) => (
+                <div key={i} className="transition-all duration-700" style={{ transitionDelay: `${i * 150}ms` }}>
+                  <Logo />
+                </div>
+              ))}
+            </div>
+            {/* Compliance badges */}
+            <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
+              {["NPLAB 2020", "NPMQ 2025", "RGPD", "Hébergé en France 🇫🇷"].map((badge, i) => (
+                <span key={badge} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border text-[10px] font-medium uppercase tracking-wider transition-all duration-500" style={{ borderColor: "var(--l-border)", color: "var(--l-text-4)", transitionDelay: `${i * 150 + 900}ms` }}>
+                  <Check className="h-2.5 w-2.5 text-emerald-400" />
+                  {badge}
+                </span>
+              ))}
             </div>
             <SocialTicker />
+          </div>
+        </section>
+
+        {/* ══════ 3b. LA DOULEUR (Pain section) ══════ */}
+        <section id="douleur" className="py-28">
+          <div className="mx-auto max-w-6xl px-6">
+            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">
+              Votre conformité LCB-FT repose encore sur Excel ?
+            </h2>
+            <p data-reveal className="mx-auto mb-14 max-w-2xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
+              Vous n'êtes pas seul. 80% des cabinets gèrent encore leur LAB avec des tableurs, des dossiers papier et beaucoup de bonne volonté. Jusqu'au jour du contrôle.
+            </p>
+
+            <div className="grid gap-6 sm:grid-cols-3">
+              {[
+                { icon: Clock, color: "border-red-500/50", iconColor: "text-red-400", iconBg: "bg-red-500/10", title: "12h par mois perdues", desc: "Collecte manuelle des documents, vérification des listes, mise à jour des dossiers… Le temps que vous ne passez pas à conseiller vos clients." },
+                { icon: AlertTriangle, color: "border-orange-500/50", iconColor: "text-orange-400", iconBg: "bg-orange-500/10", title: "Risque de sanctions", desc: "2 500 contrôles LAB prévus par l'Ordre en 2025. Un contrôle défavorable = nouveau contrôle dans 12 mois + risque disciplinaire." },
+                { icon: FileX, color: "border-amber-500/50", iconColor: "text-amber-400", iconBg: "bg-amber-500/10", title: "Aucune traçabilité", desc: "Comment prouver vos diligences 3 ans après ? Excel ne conserve pas l'historique de vos vérifications." },
+              ].map((card, i) => (
+                <div key={card.title} data-reveal className={`rounded-2xl border-l-4 ${card.color} border border-[--l-border] bg-[--l-surface] p-6 backdrop-blur-sm opacity-0 translate-y-10 transition-all duration-700`} style={{ transitionDelay: `${i * 120 + 200}ms` }}>
+                  <div className={`mb-4 flex h-12 w-12 items-center justify-center rounded-xl ${card.iconBg}`}>
+                    <card.icon className={`h-6 w-6 ${card.iconColor}`} />
+                  </div>
+                  <h3 className="mb-2 text-lg font-bold">{card.title}</h3>
+                  <p className="text-sm leading-relaxed" style={{ color: "var(--l-text-3)" }}>{card.desc}</p>
+                </div>
+              ))}
+            </div>
+
+            <p data-reveal className="mt-12 text-center italic opacity-0 translate-y-10 transition-all duration-700 delay-500" style={{ color: "var(--l-text-4)" }}>
+              Il existe une meilleure façon de faire. ↓
+            </p>
           </div>
         </section>
 
@@ -1480,12 +1827,12 @@ export default function LandingPage() {
         {/* ══════ COMPARAISON — #14 highlighted column ══════ */}
         <section id="comparaison" className="py-28">
           <div className="mx-auto max-w-5xl px-6">
-            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs Excel</h2>
+            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs les alternatives</h2>
             <p data-reveal className="mx-auto mb-14 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
-              Comparez et choisissez la solution la plus complète.
+              Comparez et choisissez la solution la plus complète pour votre conformité LAB.
             </p>
 
-            {/* Desktop table */}
+            {/* Desktop table — 4 columns with Kanta */}
             <div data-reveal className="hidden md:block overflow-x-auto rounded-2xl border backdrop-blur-sm opacity-0 translate-y-10 transition-all duration-700 delay-200" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
               <table className="w-full text-sm">
                 <thead>
@@ -1494,14 +1841,16 @@ export default function LandingPage() {
                     <th className="px-6 py-5 text-center grimy-col rounded-tl-lg">
                       <span className="text-sm font-bold text-emerald-400">GRIMY</span>
                     </th>
+                    <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Kanta</th>
                     <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Excel / Manuel</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {comparison.map((row, i) => (
+                  {comparison.map((row) => (
                     <tr key={row.label} className="table-row-hover" style={{ borderBottom: "1px solid var(--l-border-subtle)" }}>
                       <td className="px-6 py-4" style={{ color: "var(--l-text-2)" }}>{row.label}</td>
                       <td className="px-6 py-4 text-center grimy-col"><CompCell value={row.grimy} accent /></td>
+                      <td className="px-6 py-4 text-center"><CompCell value={row.kanta} /></td>
                       <td className="px-6 py-4 text-center"><CompCell value={row.excel} /></td>
                     </tr>
                   ))}
@@ -1512,6 +1861,23 @@ export default function LandingPage() {
             {/* Mobile cards */}
             <div data-reveal className="md:hidden space-y-3 opacity-0 translate-y-10 transition-all duration-700 delay-200">
               {comparison.map((row) => <CompMobileCard key={row.label} row={row} />)}
+            </div>
+          </div>
+        </section>
+
+        <WaveDivider />
+
+        {/* ══════ ROI CALCULATOR ══════ */}
+        <section id="roi" className="py-28">
+          <div className="mx-auto max-w-6xl px-6">
+            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">
+              Combien vous coûte votre conformité aujourd'hui ?
+            </h2>
+            <p data-reveal className="mx-auto mb-14 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
+              Déplacez les curseurs pour estimer vos économies avec GRIMY.
+            </p>
+            <div data-reveal className="max-w-lg mx-auto opacity-0 translate-y-10 transition-all duration-700 delay-200">
+              <ROICalculator />
             </div>
           </div>
         </section>
@@ -1606,9 +1972,20 @@ export default function LandingPage() {
               })}
             </div>
 
-            <p data-reveal className="mt-8 text-center text-sm opacity-0 translate-y-10 transition-all duration-700 delay-300" style={{ color: "var(--l-text-4)" }}>
-              <Shield className="inline h-4 w-4 mr-1 text-emerald-400" />Garantie satisfait ou remboursé 30 jours
-            </p>
+            <div data-reveal className="mt-10 opacity-0 translate-y-10 transition-all duration-700 delay-300">
+              <div className="mx-auto max-w-md rounded-xl border p-4 text-center" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Shield className="h-5 w-5 text-emerald-400" />
+                  <span className="font-bold text-sm">Garantie satisfait ou remboursé 30 jours</span>
+                </div>
+                <p className="text-xs" style={{ color: "var(--l-text-4)" }}>
+                  Si GRIMY ne vous convient pas, nous vous remboursons intégralement. Sans question. Sans condition.
+                </p>
+              </div>
+              <p className="mt-4 text-center text-xs" style={{ color: "var(--l-text-5)" }}>
+                Tous les plans incluent : hébergement France, mises à jour gratuites, export PDF illimité
+              </p>
+            </div>
 
             {/* #3 — Pricing feature comparison table */}
             <div data-reveal className="mt-14 text-center opacity-0 translate-y-10 transition-all duration-700">
@@ -1674,18 +2051,51 @@ export default function LandingPage() {
                       <p className="mb-6 text-base leading-relaxed italic" style={{ color: "var(--l-text-2)" }}>
                         &laquo; {t.quote} &raquo;
                       </p>
-                      {/* #13 — Avatar with initials */}
+                      {/* #13 — Avatar with initials + detail */}
                       <div className="flex items-center gap-3">
                         <div className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${t.color}`}>{t.initials}</div>
                         <div>
                           <p className="text-sm font-semibold">{t.name}</p>
                           <p className="text-xs" style={{ color: "var(--l-text-4)" }}>{t.title} — {t.cabinet}</p>
+                          <p className="text-[10px] mt-0.5" style={{ color: "var(--l-text-5)" }}>{t.detail}</p>
                         </div>
                       </div>
                     </div>
                   </GlowCard>
                 </TiltCard>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ══════ FOUNDER STORY ══════ */}
+        <section className="py-28">
+          <div className="mx-auto max-w-4xl px-6">
+            <div data-reveal className="rounded-2xl border p-8 sm:p-12 backdrop-blur-sm opacity-0 translate-y-10 transition-all duration-700 relative overflow-hidden" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
+              <div className="absolute top-0 right-0 w-64 h-64 rounded-full bg-blue-600/5 blur-3xl" />
+              <div className="relative flex flex-col md:flex-row gap-8 items-start">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/20 to-indigo-500/20 border border-blue-500/20">
+                  <span className="text-2xl font-bold font-serif text-blue-400">G</span>
+                </div>
+                <div>
+                  <h3 className="font-serif text-xl font-bold mb-4">Créé par un expert-comptable, pour les experts-comptables</h3>
+                  <div className="space-y-3 text-sm leading-relaxed" style={{ color: "var(--l-text-3)" }}>
+                    <p>
+                      « Quand j'ai subi mon premier contrôle LAB, j'ai passé 3 semaines à reconstituer mes dossiers depuis des tableurs Excel dispersés. J'ai réalisé que le problème n'était pas le manque de bonne volonté, mais le manque d'outils adaptés. »
+                    </p>
+                    <p>
+                      « GRIMY est né de cette frustration. Chaque fonctionnalité répond à une obligation réglementaire précise, mappée sur la NPLAB 2020. Pas de gadgets inutiles — uniquement ce qui vous sera demandé le jour du contrôle. »
+                    </p>
+                  </div>
+                  <div className="mt-6 flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20 text-sm font-bold text-blue-400">FB</div>
+                    <div>
+                      <p className="text-sm font-semibold">Fondateur de GRIMY</p>
+                      <p className="text-xs" style={{ color: "var(--l-text-4)" }}>Expert-comptable inscrit · DEC</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
@@ -1730,8 +2140,8 @@ export default function LandingPage() {
             <div className="rounded-3xl bg-gradient-to-r from-violet-600/20 via-purple-500/10 to-indigo-600/20 border border-purple-500/20 p-12 sm:p-16 text-center relative overflow-hidden">
               <div className="absolute inset-0 dot-grid opacity-20" />
               <div className="relative">
-                <h2 className="mb-4 font-serif text-3xl font-bold sm:text-4xl">Prêt à automatiser votre conformité ?</h2>
-                <p className="mx-auto mb-8 max-w-lg text-lg" style={{ color: "var(--l-text-3)" }}>Rejoignez les professionnels qui ont choisi la simplicité.</p>
+                <h2 className="mb-4 font-serif text-3xl font-bold sm:text-4xl" style={{ letterSpacing: "-0.02em" }}>Prêt à automatiser votre conformité ?</h2>
+                <p className="mx-auto mb-8 max-w-lg text-lg" style={{ color: "var(--l-text-3)" }}>Rejoignez les cabinets qui ont choisi la sérénité plutôt que le stress.</p>
                 {/* #6 — Email passthrough form + #7 validation + #16 loading */}
                 <form onSubmit={handleCtaSubmit} className="mx-auto max-w-md">
                   <div className="flex flex-col sm:flex-row items-stretch gap-3">
@@ -1753,7 +2163,8 @@ export default function LandingPage() {
                   {ctaError && <p id="cta-error" className="mt-2 text-xs text-red-400">{ctaError}</p>}
                   <p className="mt-3 text-xs" style={{ color: "var(--l-text-5)" }}>Aucune carte bancaire requise</p>
                 </form>
-                <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
+                <p className="mt-3 text-xs" style={{ color: "var(--l-text-5)" }}>Sans carte bancaire · 14 jours gratuits · Annulation en 1 clic</p>
+                <div className="mt-6 flex flex-wrap items-center justify-center gap-6">
                   {[
                     { icon: Shield, label: "RGPD" },
                     { icon: Globe, label: "Hébergement France" },
@@ -1764,6 +2175,13 @@ export default function LandingPage() {
                       {b.label}
                     </div>
                   ))}
+                </div>
+                {/* Calendly link */}
+                <div className="mt-6">
+                  <a href="mailto:contact@grimy.fr?subject=Réserver un appel de 15 min" className="inline-flex items-center gap-2 text-sm text-blue-400 hover:text-blue-300 transition-colors">
+                    <MessageCircle className="h-4 w-4" />
+                    Une question ? Réservez un appel de 15 min avec notre équipe
+                  </a>
                 </div>
               </div>
             </div>
@@ -1798,11 +2216,19 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row" style={{ borderColor: "var(--l-border)" }}>
-              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; {new Date().getFullYear()} GRIMY — Conformité LAB pour professionnels assujettis</p>
-              <div className="flex items-center gap-6">
+              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; {new Date().getFullYear()} GRIMY — Conformité LCB-FT pour professionnels assujettis</p>
+              <div className="flex items-center gap-4">
+                {/* Social icons */}
+                <a href="#" className="transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }} aria-label="LinkedIn">
+                  <Linkedin className="h-4 w-4" />
+                </a>
+                <a href="#" className="transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }} aria-label="Twitter / X">
+                  <Twitter className="h-4 w-4" />
+                </a>
+                <span className="w-px h-4 mx-1" style={{ background: "var(--l-border)" }} />
                 <a href="mailto:contact@grimy.fr" className="text-xs transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }}>Contact</a>
                 <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="text-xs transition-colors hover:text-blue-400 flex items-center gap-1" style={{ color: "var(--l-text-5)" }}>
-                  <ArrowUp className="h-3 w-3" />Haut de page
+                  <ArrowUp className="h-3 w-3" />Haut
                 </button>
               </div>
             </div>
@@ -1816,8 +2242,8 @@ export default function LandingPage() {
       {!heroInView && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t p-3 backdrop-blur-xl sm:hidden transition-all sticky-cta-safe" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur)" }}>
           <Link to="/auth" className="block">
-            <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-600/25 btn-press text-white">
-              Démarrer gratuitement <ArrowRight className="ml-2 h-4 w-4" />
+            <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-600/25 btn-press text-white cta-glow">
+              Démarrer — À partir de 29€/mois <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
         </div>
