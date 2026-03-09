@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, Save, Loader2 } from "lucide-react";
+import { Building2, Target, ShieldCheck, Save, Loader2, RotateCcw, Info, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
@@ -89,6 +90,65 @@ const DEFAULT_LCBFT: LcbftConfig = {
   pays_greylist: [],
 };
 
+/* ---------- validation ---------- */
+
+type ValidationErrors = Record<string, string>;
+
+function validateEmail(email: string): boolean {
+  if (!email) return true; // empty is ok (not required)
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function validateSiret(siret: string): boolean {
+  if (!siret) return true;
+  const digits = siret.replace(/\s/g, "");
+  return /^\d{14}$/.test(digits);
+}
+
+function validateCabinet(c: CabinetInfo): ValidationErrors {
+  const errors: ValidationErrors = {};
+  if (!c.nom.trim()) errors.nom = "Le nom du cabinet est requis";
+  if (c.email && !validateEmail(c.email)) errors.email = "Format email invalide (ex: contact@cabinet.fr)";
+  if (c.siret && !validateSiret(c.siret)) errors.siret = "Le SIRET doit contenir exactement 14 chiffres";
+  return errors;
+}
+
+function validateScoring(s: ScoringConfig): ValidationErrors {
+  const errors: ValidationErrors = {};
+  if (s.seuil_bas >= s.seuil_haut) errors.seuil_bas = "Le seuil bas doit etre inferieur au seuil haut";
+  if (s.seuil_bas < 0) errors.seuil_bas = "Le seuil bas doit etre positif";
+  if (s.seuil_haut < 0) errors.seuil_haut = "Le seuil haut doit etre positif";
+  return errors;
+}
+
+function validateLcbft(l: LcbftConfig): ValidationErrors {
+  const errors: ValidationErrors = {};
+  if (!l.referent_lcb.trim()) errors.referent_lcb = "Le referent LCB-FT est requis";
+  return errors;
+}
+
+function formatTimestamp(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+/* ---------- InfoTip ---------- */
+
+function InfoTip({ text }: { text: string }) {
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Info className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300 cursor-help inline ml-1.5" />
+        </TooltipTrigger>
+        <TooltipContent side="top" className="max-w-[260px] text-xs">
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
 /* ---------- component ---------- */
 
 export default function SettingsPage() {
@@ -97,10 +157,38 @@ export default function SettingsPage() {
   const [savingCabinet, setSavingCabinet] = useState(false);
   const [savingScoring, setSavingScoring] = useState(false);
   const [savingLcbft, setSavingLcbft] = useState(false);
+  const [savedCabinet, setSavedCabinet] = useState(false);
+  const [savedScoring, setSavedScoring] = useState(false);
+  const [savedLcbft, setSavedLcbft] = useState(false);
 
   const [cabinet, setCabinet] = useState<CabinetInfo>(DEFAULT_CABINET);
   const [scoring, setScoring] = useState<ScoringConfig>(DEFAULT_SCORING);
   const [lcbft, setLcbft] = useState<LcbftConfig>(DEFAULT_LCBFT);
+
+  // Snapshot of last saved values for dirty tracking
+  const [savedCabinetSnapshot, setSavedCabinetSnapshot] = useState<CabinetInfo>(DEFAULT_CABINET);
+  const [savedScoringSnapshot, setSavedScoringSnapshot] = useState<ScoringConfig>(DEFAULT_SCORING);
+  const [savedLcbftSnapshot, setSavedLcbftSnapshot] = useState<LcbftConfig>(DEFAULT_LCBFT);
+
+  // Validation errors
+  const [cabinetErrors, setCabinetErrors] = useState<ValidationErrors>({});
+  const [scoringErrors, setScoringErrors] = useState<ValidationErrors>({});
+  const [lcbftErrors, setLcbftErrors] = useState<ValidationErrors>({});
+
+  // Last saved timestamps
+  const [lastSavedCabinet, setLastSavedCabinet] = useState<string | null>(null);
+  const [lastSavedScoring, setLastSavedScoring] = useState<string | null>(null);
+  const [lastSavedLcbft, setLastSavedLcbft] = useState<string | null>(null);
+
+  // Active tab for keyboard shortcut + unsaved warning
+  const [activeTab, setActiveTab] = useState("cabinet");
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
+
+  // Dirty state helpers
+  const dirtyCabinet = JSON.stringify(cabinet) !== JSON.stringify(savedCabinetSnapshot);
+  const dirtyScoring = JSON.stringify(scoring) !== JSON.stringify(savedScoringSnapshot);
+  const dirtyLcbft = JSON.stringify(lcbft) !== JSON.stringify(savedLcbftSnapshot);
 
   /* --- load --- */
   useEffect(() => {
@@ -131,13 +219,22 @@ export default function SettingsPage() {
       if (data) {
         for (const row of data) {
           if (row.cle === "cabinet_info" && row.valeur) {
-            setCabinet((prev) => ({ ...prev, ...(row.valeur as Partial<CabinetInfo>) }));
+            const merged = { ...DEFAULT_CABINET, ...(row.valeur as Partial<CabinetInfo>) };
+            setCabinet(merged);
+            setSavedCabinetSnapshot(merged);
+            if (row.updated_at) setLastSavedCabinet(row.updated_at);
           }
           if (row.cle === "scoring_config" && row.valeur) {
-            setScoring((prev) => ({ ...prev, ...(row.valeur as Partial<ScoringConfig>) }));
+            const merged = { ...DEFAULT_SCORING, ...(row.valeur as Partial<ScoringConfig>) };
+            setScoring(merged);
+            setSavedScoringSnapshot(merged);
+            if (row.updated_at) setLastSavedScoring(row.updated_at);
           }
           if (row.cle === "lcbft_config" && row.valeur) {
-            setLcbft((prev) => ({ ...prev, ...(row.valeur as Partial<LcbftConfig>) }));
+            const merged = { ...DEFAULT_LCBFT, ...(row.valeur as Partial<LcbftConfig>) };
+            setLcbft(merged);
+            setSavedLcbftSnapshot(merged);
+            if (row.updated_at) setLastSavedLcbft(row.updated_at);
           }
         }
       }
@@ -149,11 +246,18 @@ export default function SettingsPage() {
   }, []);
 
   /* --- save helpers --- */
-  async function saveCabinet() {
+  const saveCabinet = useCallback(async () => {
     if (!userId) return;
+    const errors = validateCabinet(cabinet);
+    setCabinetErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error("Veuillez corriger les erreurs avant de sauvegarder");
+      return;
+    }
     setSavingCabinet(true);
+    const now = new Date().toISOString();
     const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+      { user_id: userId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: now },
       { onConflict: "user_id,cle" }
     );
     setSavingCabinet(false);
@@ -161,15 +265,26 @@ export default function SettingsPage() {
       toast.error("Erreur lors de la sauvegarde");
       logger.error("Settings", "Erreur sauvegarde cabinet", error);
     } else {
+      setSavedCabinetSnapshot({ ...cabinet });
+      setLastSavedCabinet(now);
+      setSavedCabinet(true);
+      setTimeout(() => setSavedCabinet(false), 1500);
       toast.success("Informations cabinet enregistrees");
     }
-  }
+  }, [userId, cabinet]);
 
-  async function saveScoring() {
+  const saveScoring = useCallback(async () => {
     if (!userId) return;
+    const errors = validateScoring(scoring);
+    setScoringErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error("Veuillez corriger les erreurs avant de sauvegarder");
+      return;
+    }
     setSavingScoring(true);
+    const now = new Date().toISOString();
     const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+      { user_id: userId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: now },
       { onConflict: "user_id,cle" }
     );
     setSavingScoring(false);
@@ -177,15 +292,26 @@ export default function SettingsPage() {
       toast.error("Erreur lors de la sauvegarde");
       logger.error("Settings", "Erreur sauvegarde scoring", error);
     } else {
+      setSavedScoringSnapshot({ ...scoring });
+      setLastSavedScoring(now);
+      setSavedScoring(true);
+      setTimeout(() => setSavedScoring(false), 1500);
       toast.success("Configuration scoring enregistree");
     }
-  }
+  }, [userId, scoring]);
 
-  async function saveLcbft() {
+  const saveLcbft = useCallback(async () => {
     if (!userId) return;
+    const errors = validateLcbft(lcbft);
+    setLcbftErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast.error("Veuillez corriger les erreurs avant de sauvegarder");
+      return;
+    }
     setSavingLcbft(true);
+    const now = new Date().toISOString();
     const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+      { user_id: userId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: now },
       { onConflict: "user_id,cle" }
     );
     setSavingLcbft(false);
@@ -193,26 +319,97 @@ export default function SettingsPage() {
       toast.error("Erreur lors de la sauvegarde");
       logger.error("Settings", "Erreur sauvegarde LCB-FT", error);
     } else {
+      setSavedLcbftSnapshot({ ...lcbft });
+      setLastSavedLcbft(now);
+      setSavedLcbft(true);
+      setTimeout(() => setSavedLcbft(false), 1500);
       toast.success("Configuration LCB-FT enregistree");
     }
-  }
+  }, [userId, lcbft]);
 
   /* --- update helpers --- */
   function updateCabinet<K extends keyof CabinetInfo>(key: K, value: CabinetInfo[K]) {
     setCabinet((prev) => ({ ...prev, [key]: value }));
+    // Clear error for field on change
+    if (cabinetErrors[key]) setCabinetErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
   }
   function updateScoring<K extends keyof ScoringConfig>(key: K, value: ScoringConfig[K]) {
     setScoring((prev) => ({ ...prev, [key]: value }));
+    if (scoringErrors[key]) setScoringErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
   }
   function updateLcbft<K extends keyof LcbftConfig>(key: K, value: LcbftConfig[K]) {
     setLcbft((prev) => ({ ...prev, [key]: value }));
+    if (lcbftErrors[key]) setLcbftErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+  }
+
+  /* --- reset to defaults --- */
+  function resetCabinet() {
+    setCabinet(DEFAULT_CABINET);
+    setCabinetErrors({});
+  }
+  function resetScoring() {
+    setScoring(DEFAULT_SCORING);
+    setScoringErrors({});
+  }
+  function resetLcbft() {
+    setLcbft(DEFAULT_LCBFT);
+    setLcbftErrors({});
+  }
+
+  /* --- keyboard shortcut Ctrl+S --- */
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        const tab = activeTabRef.current;
+        if (tab === "cabinet") saveCabinet();
+        else if (tab === "scoring") saveScoring();
+        else if (tab === "lcbft") saveLcbft();
+      }
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [saveCabinet, saveScoring, saveLcbft]);
+
+  /* --- tab change with unsaved changes warning --- */
+  function handleTabChange(newTab: string) {
+    const currentDirty =
+      (activeTab === "cabinet" && dirtyCabinet) ||
+      (activeTab === "scoring" && dirtyScoring) ||
+      (activeTab === "lcbft" && dirtyLcbft);
+    if (currentDirty) {
+      const confirmed = window.confirm("Vous avez des modifications non enregistrees. Voulez-vous vraiment changer d'onglet ?");
+      if (!confirmed) return;
+    }
+    setActiveTab(newTab);
   }
 
   /* --- loading state --- */
   if (loading) {
     return (
-      <div className="p-6 lg:p-8 max-w-[1200px] mx-auto flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-6 h-6 animate-spin text-slate-400" />
+      <div className="p-6 lg:p-8 max-w-[1200px] mx-auto space-y-6">
+        <div className="space-y-2">
+          <div className="h-6 w-40 bg-white/5 rounded animate-pulse" />
+          <div className="h-4 w-80 bg-white/5 rounded animate-pulse" />
+        </div>
+        <div className="h-10 w-72 bg-white/5 rounded animate-pulse" />
+        <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
+          <div className="space-y-3">
+            <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
+            <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-24 bg-white/5 rounded animate-pulse" />
+                <div className="h-10 w-full bg-white/5 rounded animate-pulse" />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end">
+            <div className="h-10 w-32 bg-white/5 rounded animate-pulse" />
+          </div>
+        </div>
       </div>
     );
   }
@@ -226,76 +423,90 @@ export default function SettingsPage() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="cabinet" className="space-y-6">
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
         <TabsList className="bg-white/5 border border-white/10">
-          <TabsTrigger value="cabinet" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+          <TabsTrigger value="cabinet" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2 relative">
             <Building2 className="w-4 h-4" />
-            Cabinet
+            <span className="hidden sm:inline">Cabinet</span>
+            {dirtyCabinet && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
-          <TabsTrigger value="scoring" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+          <TabsTrigger value="scoring" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2 relative">
             <Target className="w-4 h-4" />
-            Scoring
+            <span className="hidden sm:inline">Scoring</span>
+            {dirtyScoring && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
-          <TabsTrigger value="lcbft" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+          <TabsTrigger value="lcbft" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2 relative">
             <ShieldCheck className="w-4 h-4" />
-            LCB-FT
+            <span className="hidden sm:inline">LCB-FT</span>
+            {dirtyLcbft && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
         </TabsList>
 
         {/* ===== CABINET TAB ===== */}
         <TabsContent value="cabinet">
           <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-100">Informations du cabinet</h2>
-              <p className="text-sm text-slate-400 mt-1">Coordonnees et identite du cabinet comptable.</p>
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-100 flex items-center">
+                  Informations du cabinet
+                  <InfoTip text="Ces informations apparaissent sur vos documents officiels et rapports de conformite LCB-FT." />
+                </h2>
+                <p className="text-sm text-slate-400 mt-1">Coordonnees et identite du cabinet comptable.</p>
+              </div>
+              {lastSavedCabinet && (
+                <span className="text-xs text-slate-500 whitespace-nowrap">Sauvegarde : {formatTimestamp(lastSavedCabinet)}</span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label htmlFor="cab-nom">Nom du cabinet</Label>
-                <Input id="cab-nom" value={cabinet.nom} onChange={(e) => updateCabinet("nom", e.target.value)} placeholder="Cabinet Dupont & Associes" />
+                <Label htmlFor="cab-nom">Nom du cabinet <span className="text-red-400">*</span></Label>
+                <Input id="cab-nom" value={cabinet.nom} onChange={(e) => updateCabinet("nom", e.target.value)} placeholder="Cabinet Dupont & Associes" className={`focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${cabinetErrors.nom ? "border-red-500" : ""}`} />
+                {cabinetErrors.nom && <p className="text-xs text-red-400">{cabinetErrors.nom}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cab-associe">Associe principal</Label>
-                <Input id="cab-associe" value={cabinet.associe_principal} onChange={(e) => updateCabinet("associe_principal", e.target.value)} placeholder="Jean Dupont" />
+                <Input id="cab-associe" value={cabinet.associe_principal} onChange={(e) => updateCabinet("associe_principal", e.target.value)} placeholder="Jean Dupont" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="cab-adresse">Adresse</Label>
-              <Input id="cab-adresse" value={cabinet.adresse} onChange={(e) => updateCabinet("adresse", e.target.value)} placeholder="12 rue de la Paix" />
+              <Input id="cab-adresse" value={cabinet.adresse} onChange={(e) => updateCabinet("adresse", e.target.value)} placeholder="12 rue de la Paix" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-2">
                 <Label htmlFor="cab-cp">Code postal</Label>
-                <Input id="cab-cp" value={cabinet.cp} onChange={(e) => updateCabinet("cp", e.target.value)} placeholder="75001" />
+                <Input id="cab-cp" value={cabinet.cp} onChange={(e) => updateCabinet("cp", e.target.value)} placeholder="75001" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cab-ville">Ville</Label>
-                <Input id="cab-ville" value={cabinet.ville} onChange={(e) => updateCabinet("ville", e.target.value)} placeholder="Paris" />
+                <Input id="cab-ville" value={cabinet.ville} onChange={(e) => updateCabinet("ville", e.target.value)} placeholder="Paris" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <Label htmlFor="cab-siret">SIRET</Label>
-                <Input id="cab-siret" value={cabinet.siret} onChange={(e) => updateCabinet("siret", e.target.value)} placeholder="123 456 789 00012" />
+                <Label htmlFor="cab-siret">SIRET <InfoTip text="Le SIRET doit contenir exactement 14 chiffres. Les espaces sont ignores." /></Label>
+                <Input id="cab-siret" value={cabinet.siret} onChange={(e) => updateCabinet("siret", e.target.value)} placeholder="123 456 789 00012" className={`focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${cabinetErrors.siret ? "border-red-500" : ""}`} />
+                {cabinetErrors.siret && <p className="text-xs text-red-400">{cabinetErrors.siret}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cab-oec">Numero OEC</Label>
-                <Input id="cab-oec" value={cabinet.numeroOEC} onChange={(e) => updateCabinet("numeroOEC", e.target.value)} placeholder="OEC-2024-XXXX" />
+                <Input id="cab-oec" value={cabinet.numeroOEC} onChange={(e) => updateCabinet("numeroOEC", e.target.value)} placeholder="OEC-2024-XXXX" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="space-y-2">
                 <Label htmlFor="cab-email">Email</Label>
-                <Input id="cab-email" type="email" value={cabinet.email} onChange={(e) => updateCabinet("email", e.target.value)} placeholder="contact@cabinet.fr" />
+                <Input id="cab-email" type="email" value={cabinet.email} onChange={(e) => updateCabinet("email", e.target.value)} placeholder="contact@cabinet.fr" className={`focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${cabinetErrors.email ? "border-red-500" : ""}`} />
+                {cabinetErrors.email && <p className="text-xs text-red-400">{cabinetErrors.email}</p>}
               </div>
               <div className="space-y-2">
                 <Label htmlFor="cab-tel">Telephone</Label>
-                <Input id="cab-tel" value={cabinet.telephone} onChange={(e) => updateCabinet("telephone", e.target.value)} placeholder="01 23 45 67 89" />
+                <Input id="cab-tel" value={cabinet.telephone} onChange={(e) => updateCabinet("telephone", e.target.value)} placeholder="01 23 45 67 89" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
               </div>
             </div>
 
@@ -309,15 +520,27 @@ export default function SettingsPage() {
                   onChange={(e) => updateCabinet("couleurPrimaire", e.target.value)}
                   className="w-10 h-10 rounded border border-white/10 bg-transparent cursor-pointer"
                 />
+                <div className="w-8 h-8 rounded-md border border-white/10" style={{ backgroundColor: cabinet.couleurPrimaire }} />
                 <span className="text-sm text-slate-400 font-mono">{cabinet.couleurPrimaire}</span>
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
-              <Button onClick={saveCabinet} disabled={savingCabinet} className="gap-2">
-                {savingCabinet ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Enregistrer
+            <div className="flex items-center justify-between pt-2">
+              <Button variant="ghost" size="sm" onClick={resetCabinet} className="gap-2 text-slate-400 hover:text-slate-200">
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reinitialiser
               </Button>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500 hidden sm:inline">Ctrl+S pour sauvegarder</span>
+                <Button
+                  onClick={saveCabinet}
+                  disabled={savingCabinet}
+                  className={`gap-2 transition-colors duration-300 ${savedCabinet ? "bg-green-600 hover:bg-green-600" : ""}`}
+                >
+                  {savingCabinet ? <Loader2 className="w-4 h-4 animate-spin" /> : savedCabinet ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                  {savedCabinet ? "Enregistre !" : "Enregistrer"}
+                </Button>
+              </div>
             </div>
           </div>
         </TabsContent>

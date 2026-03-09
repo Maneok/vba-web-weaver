@@ -180,3 +180,76 @@
 [data-widget-id][style*="translate"] {
   transition: none;
 }
+
+/* Page transition */
+@keyframes page-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-page-in {
+  animation: page-fade-in 0.25s ease-out forwards;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Progress bar */
+@keyframes progress-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(400%); }
+}
+.animate-progress {
+  animation: progress-indeterminate 1.5s ease-in-out infinite;
+}
+
+/* Focus ring improvements */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px hsl(217 91% 60% / 0.5);
+  border-radius: inherit;
+}
+
+/* Better selection color */
+::selection {
+  background: hsl(217 91% 60% / 0.3);
+  color: white;
+}
+
+/* Notification badge pulse */
+@keyframes badge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+}
+.animate-badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Table row hover transition */
+tr {
+  transition: background-color 150ms ease;
+}
+
+/* Toast position fix */
+[data-sonner-toaster] {
+  --offset: 16px !important;
+}
+
+/* Print styles */
+@media print {
+  .no-print { display: none !important; }
+  .glass-card { border: 1px solid #ddd; box-shadow: none; backdrop-filter: none; background: white; }
+  body { background: white; color: black; }
+}

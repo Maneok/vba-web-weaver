@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { useDebounce } from "@/hooks/useDebounce";
 import type { AlerteRegistre } from "@/lib/types";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,9 +10,27 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, BookOpen, Plus, AlertTriangle, Download, FileWarning } from "lucide-react";
+import { Search, BookOpen, Plus, AlertTriangle, Download, FileWarning, X, ChevronLeft, ChevronRight, ArrowUpDown, FileX2 } from "lucide-react";
 import { toast } from "sonner";
 import { ALERT_CATEGORIES as CATEGORIES, DEFAULT_ASSOCIES, DEFAULT_SUPERVISEURS } from "@/lib/constants";
+
+const PAGE_SIZE = 20;
+const TODAY = new Date().toISOString().split("T")[0];
+
+function formatDateFR(dateStr: string | undefined): string {
+  if (!dateStr) return "—";
+  try {
+    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  } catch {
+    return dateStr;
+  }
+}
+
+function sanitizeCSVValue(val: string | undefined): string {
+  const v = (val || "").replace(/"/g, '""');
+  if (/^[=+\-@\t\r]/.test(v)) return "'" + v;
+  return v;
+}
 
 function getCategoryBadgeClasses(categorie: string): string {
   const upper = categorie.toUpperCase();
@@ -34,7 +53,7 @@ function exportCSV(data: AlerteRegistre[], filename: string) {
     a.date, a.clientConcerne, a.categorie, a.qualification, a.details,
     a.actionPrise, a.responsable, a.statut, a.dateButoir, a.typeDecision, a.validateur,
   ]);
-  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""')}"`).join(";"))].join("\n");
+  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${sanitizeCSVValue(v)}"`).join(";"))].join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -56,6 +75,32 @@ export default function RegistrePage() {
   const [newAlerte, setNewAlerte] = useState({
     client: "", categorie: CATEGORIES[0], details: "", responsable: "", dateEcheance: "",
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortKey, setSortKey] = useState<"date" | "clientConcerne" | "categorie" | null>(null);
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+
+  const debouncedSearch = useDebounce(search, 250);
+
+  const hasActiveFilters = filterStatut !== "all" || filterCategorie !== "all" || dateStart !== "" || dateEnd !== "" || search !== "";
+
+  const clearAllFilters = useCallback(() => {
+    setSearch("");
+    setFilterStatut("all");
+    setFilterCategorie("all");
+    setDateStart("");
+    setDateEnd("");
+    setCurrentPage(1);
+  }, []);
+
+  const handleSort = useCallback((key: "date" | "clientConcerne" | "categorie") => {
+    if (sortKey === key) {
+      setSortDir(d => d === "asc" ? "desc" : "asc");
+    } else {
+      setSortKey(key);
+      setSortDir("asc");
+    }
+  }, [sortKey]);
 
   // --- KPI counts ---
   const totalAlertes = alertes.length;
@@ -70,20 +115,45 @@ export default function RegistrePage() {
 
   // --- Filtered data ---
   const filtered = useMemo(() => {
-    return alertes.filter(a => {
-      const matchSearch = !search ||
-        a.clientConcerne.toLowerCase().includes(search.toLowerCase()) ||
-        a.categorie.toLowerCase().includes(search.toLowerCase()) ||
-        a.details.toLowerCase().includes(search.toLowerCase());
+    const result = alertes.filter(a => {
+      const matchSearch = !debouncedSearch ||
+        a.clientConcerne.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        a.categorie.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        a.details.toLowerCase().includes(debouncedSearch.toLowerCase());
       const matchStatut = filterStatut === "all" || a.statut === filterStatut;
       const matchCategorie = filterCategorie === "all" || a.categorie === filterCategorie;
       const matchDateStart = !dateStart || a.date >= dateStart;
       const matchDateEnd = !dateEnd || a.date <= dateEnd;
       return matchSearch && matchStatut && matchCategorie && matchDateStart && matchDateEnd;
     });
-  }, [alertes, search, filterStatut, filterCategorie, dateStart, dateEnd]);
+    if (sortKey) {
+      result.sort((a, b) => {
+        const va = (a[sortKey] || "").toLowerCase();
+        const vb = (b[sortKey] || "").toLowerCase();
+        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+        return sortDir === "asc" ? cmp : -cmp;
+      });
+    }
+    return result;
+  }, [alertes, debouncedSearch, filterStatut, filterCategorie, dateStart, dateEnd, sortKey, sortDir]);
+
+  // --- Pagination ---
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedData = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
 
   const handleAddAlerte = () => {
+    const errors: Record<string, string> = {};
+    if (!newAlerte.client) errors.client = "Veuillez selectionner un client";
+    if (!newAlerte.details.trim()) errors.details = "Veuillez saisir les details de l'alerte";
+    if (!newAlerte.responsable) errors.responsable = "Veuillez selectionner un responsable";
+    if (!newAlerte.dateEcheance) errors.dateEcheance = "Veuillez saisir une date d'echeance";
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast.error("Veuillez remplir tous les champs obligatoires");
+      return;
+    }
+    setFormErrors({});
     addAlerte({
       date: new Date().toISOString().split("T")[0],
       clientConcerne: newAlerte.client,
@@ -129,7 +199,7 @@ export default function RegistrePage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
-        <div className="glass-card p-4 flex items-center gap-4">
+        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.03] cursor-default">
           <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
             <BookOpen className="w-5 h-5 text-blue-400" />
           </div>
@@ -138,7 +208,7 @@ export default function RegistrePage() {
             <p className="text-[11px] text-slate-500">Total alertes</p>
           </div>
         </div>
-        <div className="glass-card p-4 flex items-center gap-4">
+        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.03] cursor-default">
           <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
             <AlertTriangle className="w-5 h-5 text-orange-400" />
           </div>
@@ -147,7 +217,7 @@ export default function RegistrePage() {
             <p className="text-[11px] text-slate-500">En cours</p>
           </div>
         </div>
-        <div className="glass-card p-4 flex items-center gap-4">
+        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.03] cursor-default">
           <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
             <FileWarning className="w-5 h-5 text-red-400" />
           </div>
@@ -159,7 +229,7 @@ export default function RegistrePage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap animate-fade-in-up" style={{ animationDelay: "120ms" }}>
+      <div className="flex flex-col sm:flex-row gap-3 flex-wrap animate-fade-in-up" style={{ animationDelay: "120ms" }}>
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <Input
@@ -167,10 +237,11 @@ export default function RegistrePage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
+            aria-label="Rechercher dans le registre"
           />
         </div>
-        <Select value={filterStatut} onValueChange={setFilterStatut}>
-          <SelectTrigger className="w-[150px] bg-white/[0.03] border-white/[0.06]">
+        <Select value={filterStatut} onValueChange={(v) => { setFilterStatut(v); setCurrentPage(1); }}>
+          <SelectTrigger className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06]" aria-label="Filtrer par statut">
             <SelectValue placeholder="Statut" />
           </SelectTrigger>
           <SelectContent>
@@ -179,8 +250,8 @@ export default function RegistrePage() {
             <SelectItem value="CLÔTURÉ">Cloture</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={filterCategorie} onValueChange={setFilterCategorie}>
-          <SelectTrigger className="w-[200px] bg-white/[0.03] border-white/[0.06]">
+        <Select value={filterCategorie} onValueChange={(v) => { setFilterCategorie(v); setCurrentPage(1); }}>
+          <SelectTrigger className="w-full sm:w-[200px] bg-white/[0.03] border-white/[0.06]" aria-label="Filtrer par categorie">
             <SelectValue placeholder="Categorie" />
           </SelectTrigger>
           <SelectContent>
@@ -193,17 +264,29 @@ export default function RegistrePage() {
         <Input
           type="date"
           value={dateStart}
-          onChange={e => setDateStart(e.target.value)}
-          className="w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
+          onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }}
+          className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
           placeholder="Date debut"
+          aria-label="Date de debut du filtre"
         />
         <Input
           type="date"
           value={dateEnd}
-          onChange={e => setDateEnd(e.target.value)}
-          className="w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
+          onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }}
+          className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
           placeholder="Date fin"
+          aria-label="Date de fin du filtre"
         />
+        {hasActiveFilters && (
+          <Button
+            variant="outline"
+            className="gap-1.5 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-slate-300"
+            onClick={clearAllFilters}
+            aria-label="Effacer tous les filtres"
+          >
+            <X className="w-4 h-4" /> Effacer filtres
+          </Button>
+        )}
       </div>
 
       {/* Table */}
@@ -212,9 +295,15 @@ export default function RegistrePage() {
           <Table>
             <TableHeader>
               <TableRow className="border-white/[0.06] hover:bg-transparent">
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Date</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Client</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Categorie</TableHead>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("date")} aria-label="Trier par date">
+                  <span className="inline-flex items-center gap-1">Date <ArrowUpDown className="w-3 h-3" /></span>
+                </TableHead>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("clientConcerne")} aria-label="Trier par client">
+                  <span className="inline-flex items-center gap-1">Client <ArrowUpDown className="w-3 h-3" /></span>
+                </TableHead>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("categorie")} aria-label="Trier par categorie">
+                  <span className="inline-flex items-center gap-1">Categorie <ArrowUpDown className="w-3 h-3" /></span>
+                </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Qualification</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Action prise</TableHead>
@@ -224,35 +313,45 @@ export default function RegistrePage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((a, i) => (
-                <TableRow
-                  key={i}
-                  className="border-white/[0.04] hover:bg-white/[0.02] transition-colors cursor-pointer"
-                  onClick={() => setSelectedAlerte(a)}
-                >
-                  <TableCell className="text-xs text-slate-400 font-mono whitespace-nowrap">{a.date}</TableCell>
-                  <TableCell className="font-medium text-sm text-slate-200 whitespace-nowrap">{a.clientConcerne}</TableCell>
-                  <TableCell>
-                    <span className={`text-[11px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap ${getCategoryBadgeClasses(a.categorie)}`}>
-                      {a.categorie}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-xs text-slate-400">{a.qualification}</TableCell>
-                  <TableCell className="text-xs text-slate-400 max-w-[200px] truncate">{a.details?.length > 100 ? a.details.slice(0, 100) + "..." : a.details}</TableCell>
-                  <TableCell className="text-xs text-slate-400 max-w-[180px] truncate">{a.actionPrise}</TableCell>
-                  <TableCell className="text-xs text-slate-400 whitespace-nowrap">{a.responsable}</TableCell>
-                  <TableCell>
-                    <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap ${getStatutBadgeClasses(a.statut)}`}>
-                      {a.statut}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-xs text-slate-400 font-mono whitespace-nowrap">{a.dateButoir}</TableCell>
-                </TableRow>
-              ))}
+              {paginatedData.map((a, i) => {
+                const globalIndex = (safePage - 1) * PAGE_SIZE + i;
+                const alerteId = (a as AlerteRegistre & { id?: string }).id || `ALR-${String(globalIndex + 1).padStart(4, "0")}`;
+                const isOverdue = a.dateButoir && a.dateButoir < TODAY && a.statut !== "CLÔTURÉ";
+                return (
+                  <TableRow
+                    key={alerteId}
+                    className={`border-white/[0.04] hover:bg-white/[0.02] transition-colors cursor-pointer ${isOverdue ? "bg-red-500/[0.06]" : ""}`}
+                    onClick={() => setSelectedAlerte(a)}
+                    aria-label={`Alerte ${alerteId} - ${a.clientConcerne}`}
+                  >
+                    <TableCell className="text-xs text-slate-400 font-mono whitespace-nowrap">{formatDateFR(a.date)}</TableCell>
+                    <TableCell className="font-medium text-sm text-slate-200 whitespace-nowrap">{a.clientConcerne}</TableCell>
+                    <TableCell>
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap ${getCategoryBadgeClasses(a.categorie)}`}>
+                        {a.categorie}
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-400">{a.qualification}</TableCell>
+                    <TableCell className="text-xs text-slate-400 max-w-[200px] truncate">{a.details?.length > 100 ? a.details.slice(0, 100) + "..." : a.details}</TableCell>
+                    <TableCell className="text-xs text-slate-400 max-w-[180px] truncate">{a.actionPrise}</TableCell>
+                    <TableCell className="text-xs text-slate-400 whitespace-nowrap">{a.responsable}</TableCell>
+                    <TableCell>
+                      <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap ${getStatutBadgeClasses(a.statut)}`}>
+                        {a.statut}
+                      </span>
+                    </TableCell>
+                    <TableCell className={`text-xs font-mono whitespace-nowrap ${isOverdue ? "text-red-400 font-semibold" : "text-slate-400"}`}>{formatDateFR(a.dateButoir)}</TableCell>
+                  </TableRow>
+                );
+              })}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-12 text-slate-500">
-                    Aucune alerte ne correspond aux filtres
+                  <TableCell colSpan={9} className="text-center py-16 text-slate-500">
+                    <div className="flex flex-col items-center gap-3">
+                      <FileX2 className="w-12 h-12 text-slate-600" />
+                      <p className="text-sm font-medium text-slate-400">Aucune alerte trouvee</p>
+                      <p className="text-xs text-slate-600">Modifiez vos filtres ou creez une nouvelle alerte</p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -260,8 +359,38 @@ export default function RegistrePage() {
           </Table>
         </div>
         {filtered.length > 0 && (
-          <div className="px-4 py-3 border-t border-white/[0.06] text-xs text-slate-500">
-            {filtered.length} alerte{filtered.length > 1 ? "s" : ""} affichee{filtered.length > 1 ? "s" : ""}
+          <div className="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between">
+            <span className="text-xs text-slate-500">
+              {filtered.length} alerte{filtered.length > 1 ? "s" : ""} affichee{filtered.length > 1 ? "s" : ""}
+              {filtered.length !== alertes.length && ` sur ${alertes.length}`}
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-slate-300"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={safePage <= 1}
+                  aria-label="Page precedente"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-xs text-slate-400">
+                  {safePage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 w-7 p-0 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-slate-300"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={safePage >= totalPages}
+                  aria-label="Page suivante"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -269,12 +398,21 @@ export default function RegistrePage() {
       {/* Detail Sheet */}
       <Sheet open={!!selectedAlerte} onOpenChange={(open) => { if (!open) setSelectedAlerte(null); }}>
         <SheetContent className="bg-[hsl(217,33%,12%)] border-white/[0.06] w-full sm:max-w-lg overflow-y-auto">
-          <SheetHeader>
+          <SheetHeader className="flex flex-row items-center justify-between">
             <SheetTitle className="text-white text-lg">Detail de l'alerte</SheetTitle>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+              onClick={() => setSelectedAlerte(null)}
+              aria-label="Fermer le panneau de detail"
+            >
+              <X className="w-4 h-4" />
+            </Button>
           </SheetHeader>
           {selectedAlerte && (
             <div className="mt-6 space-y-5">
-              <DetailRow label="Date" value={selectedAlerte.date} mono />
+              <DetailRow label="Date" value={formatDateFR(selectedAlerte.date)} mono />
               <DetailRow label="Client concerne" value={selectedAlerte.clientConcerne} />
               <div>
                 <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Categorie</p>
@@ -295,7 +433,7 @@ export default function RegistrePage() {
                   {selectedAlerte.statut}
                 </span>
               </div>
-              <DetailRow label="Date butoir" value={selectedAlerte.dateButoir || "—"} mono />
+              <DetailRow label="Date butoir" value={formatDateFR(selectedAlerte.dateButoir)} mono />
               <DetailRow label="Type de decision" value={selectedAlerte.typeDecision || "—"} />
               <DetailRow label="Validateur" value={selectedAlerte.validateur || "—"} />
             </div>

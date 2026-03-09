@@ -42,8 +42,10 @@ Deno.serve(async (req) => {
       const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
 
       if (res.ok) {
+        let data: any;
+        try { data = await res.json(); } catch { data = null; }
+        if (!data) throw new Error("Non-JSON response from BODACC API");
         apiWorked = true;
-        const data = await res.json();
         const records = data.results ?? data.records ?? [];
 
         annonces = records.map((r: any) => {

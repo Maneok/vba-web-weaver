@@ -406,6 +406,7 @@ export function detectAmlSignals(
   // Creation < 12 months
   if (dateCreation) {
     const created = new Date(dateCreation);
+    if (!isNaN(created.getTime())) {
     const now = new Date();
     const diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
     if (diffMonths < 12 && diffMonths >= 0) {
@@ -415,6 +416,7 @@ export function detectAmlSignals(
         severity: "orange",
         malus: 10,
       });
+    }
     }
   }
 

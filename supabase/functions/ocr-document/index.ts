@@ -141,8 +141,8 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
     });
 
     if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text();
-      console.error("Anthropic API error:", anthropicRes.status);
+      const errText = await anthropicRes.text().catch(() => "unknown");
+      console.error("Anthropic API error:", anthropicRes.status, errText);
       return new Response(
         JSON.stringify({ error: "Erreur OCR: service temporairement indisponible", extracted: null }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

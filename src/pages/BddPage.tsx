@@ -1,15 +1,17 @@
-import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
@@ -31,15 +33,60 @@ export default function BddPage() {
   const { clients, updateClient, deleteClient, isLoading } = useAppState();
   const { profile } = useAuth();
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [filterVigilance, setFilterVigilance] = useState<string>("all");
-  const [filterPilotage, setFilterPilotage] = useState<string>("all");
-  const [filterEtat, setFilterEtat] = useState<string>("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  // 7. Persist search/filter state to URL search params
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [filterVigilance, setFilterVigilance] = useState<string>(searchParams.get("vigilance") || "all");
+  const [filterPilotage, setFilterPilotage] = useState<string>(searchParams.get("pilotage") || "all");
+  const [filterEtat, setFilterEtat] = useState<string>(searchParams.get("etat") || "all");
   const [sortKey, setSortKey] = useState<SortKey>("raisonSociale");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(0);
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(new Set());
+  const [selectAllPages, setSelectAllPages] = useState(false);
   const debouncedSearch = useDebounce(search, 250);
+
+  // 7. Sync filter state to URL
+  useEffect(() => {
+    const params: Record<string, string> = {};
+    if (search) params.q = search;
+    if (filterVigilance !== "all") params.vigilance = filterVigilance;
+    if (filterPilotage !== "all") params.pilotage = filterPilotage;
+    if (filterEtat !== "all") params.etat = filterEtat;
+    setSearchParams(params, { replace: true });
+  }, [search, filterVigilance, filterPilotage, filterEtat, setSearchParams]);
+
+  // 5. Active filter count
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (debouncedSearch) count++;
+    if (filterVigilance !== "all") count++;
+    if (filterPilotage !== "all") count++;
+    if (filterEtat !== "all") count++;
+    return count;
+  }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
+
+  // 2. Clear all filters
+  const clearFilters = useCallback(() => {
+    setSearch("");
+    setFilterVigilance("all");
+    setFilterPilotage("all");
+    setFilterEtat("all");
+  }, []);
+
+  // 10. Keyboard shortcut: press 'n' to navigate to /nouveau-client
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      if (e.key === "n" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        navigate("/nouveau-client");
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [navigate]);
 
   // FIX 2: Scan localStorage for drafts
   const [drafts, setDrafts] = useState<DraftInfo[]>([]);
@@ -155,13 +202,15 @@ export default function BddPage() {
       return [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, `${kyc}%`, c.dateButoir].map(csvSafe);
     });
     const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    // 1. Add BOM for proper UTF-8 encoding in Excel
+    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = "clients_lcb.csv";
     a.click();
-    URL.revokeObjectURL(url);
+    // 11. Cleanup objectURL after download starts to prevent memory leak
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     if (excluded > 0) {
       toast.warning(`Export CSV genere — ${excluded} client(s) non-diffusible(s) exclus (art. R.123-320 C.com)`);
     } else {
@@ -169,12 +218,42 @@ export default function BddPage() {
     }
   };
 
+  // 6. Loading skeleton instead of spinner
   if (isLoading) {
     return (
-      <div className="p-6 lg:p-8 flex items-center justify-center min-h-[60vh]">
-        <div className="text-center space-y-3">
-          <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto" />
-          <p className="text-sm text-slate-500">Chargement des clients...</p>
+      <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-2">
+            <Skeleton className="h-6 w-56 bg-white/[0.06]" />
+            <Skeleton className="h-4 w-36 bg-white/[0.04]" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-28 bg-white/[0.06]" />
+            <Skeleton className="h-9 w-36 bg-white/[0.06]" />
+          </div>
+        </div>
+        <div className="flex gap-3 flex-wrap">
+          <Skeleton className="h-10 flex-1 min-w-[220px] bg-white/[0.04]" />
+          <Skeleton className="h-10 w-[180px] bg-white/[0.04]" />
+          <Skeleton className="h-10 w-[170px] bg-white/[0.04]" />
+          <Skeleton className="h-10 w-[150px] bg-white/[0.04]" />
+        </div>
+        <div className="glass-card overflow-hidden">
+          <div className="p-4 space-y-3">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <Skeleton className="h-4 w-4 bg-white/[0.04]" />
+                <Skeleton className="h-4 w-16 bg-white/[0.04]" />
+                <Skeleton className="h-4 w-40 bg-white/[0.06]" />
+                <Skeleton className="h-4 w-16 bg-white/[0.04]" />
+                <Skeleton className="h-4 w-24 bg-white/[0.04]" />
+                <Skeleton className="h-4 w-16 bg-white/[0.04]" />
+                <Skeleton className="h-4 w-12 bg-white/[0.04]" />
+                <Skeleton className="h-5 w-20 rounded-full bg-white/[0.04]" />
+                <Skeleton className="h-5 w-16 rounded-full bg-white/[0.04]" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -199,7 +278,7 @@ export default function BddPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap animate-fade-in-up-delay-1">
+      <div className="flex gap-3 flex-wrap items-center animate-fade-in-up-delay-1">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <Input
@@ -207,8 +286,14 @@ export default function BddPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Rechercher un client"
-            className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
+            className="pl-9 pr-24 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
           />
+          {/* 8. Live results count badge */}
+          {debouncedSearch && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-full">
+              {filtered.length} resultat{filtered.length !== 1 ? "s" : ""}
+            </span>
+          )}
         </div>
         <Select value={filterVigilance} onValueChange={setFilterVigilance}>
           <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.06]">
@@ -243,6 +328,23 @@ export default function BddPage() {
             <SelectItem value="ARCHIVE">Archive</SelectItem>
           </SelectContent>
         </Select>
+        {/* 5. Active filter count badge */}
+        {activeFilterCount > 0 && (
+          <Badge variant="secondary" className="bg-blue-500/15 text-blue-300 border-blue-500/20 text-xs">
+            {activeFilterCount} filtre{activeFilterCount > 1 ? "s" : ""} actif{activeFilterCount > 1 ? "s" : ""}
+          </Badge>
+        )}
+        {/* 2. Clear filters button */}
+        {activeFilterCount > 0 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearFilters}
+            className="gap-1 text-xs text-slate-400 hover:text-slate-200"
+          >
+            <X className="w-3 h-3" /> Effacer filtres
+          </Button>
+        )}
       </div>
 
       {/* FIX 2: Brouillons section */}
@@ -304,14 +406,49 @@ export default function BddPage() {
       {selectedRefs.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 animate-fade-in-up">
           <span className="text-sm text-blue-200 font-medium">{selectedRefs.size} selectionne{selectedRefs.size > 1 ? "s" : ""}</span>
+          {/* 12. Select all across pages */}
+          {!selectAllPages && filtered.length > paginated.length && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs text-blue-300 hover:text-blue-200"
+              onClick={() => {
+                const next = new Set(selectedRefs);
+                filtered.forEach(c => next.add(c.ref));
+                setSelectedRefs(next);
+                setSelectAllPages(true);
+              }}
+            >
+              Selectionner les {filtered.length} resultats
+            </Button>
+          )}
+          {selectAllPages && (
+            <span className="text-xs text-blue-400">Tous les {filtered.length} resultats selectionnes</span>
+          )}
           <Button
             size="sm"
             variant="outline"
             className="gap-1 text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
             onClick={() => {
-              selectedRefs.forEach(ref => updateClient(ref, { etat: "ARCHIVE" }));
+              // 15. Confirmation toast with undo for archive action
+              const refsToArchive = new Set(selectedRefs);
+              const previousStates = new Map<string, string>();
+              refsToArchive.forEach(ref => {
+                const client = clients.find(c => c.ref === ref);
+                if (client) previousStates.set(ref, client.etat);
+              });
+              refsToArchive.forEach(ref => updateClient(ref, { etat: "ARCHIVE" }));
               setSelectedRefs(new Set());
-              toast.success(`${selectedRefs.size} client(s) archive(s)`);
+              setSelectAllPages(false);
+              toast.success(`${refsToArchive.size} client(s) archive(s)`, {
+                action: {
+                  label: "Annuler",
+                  onClick: () => {
+                    previousStates.forEach((etat, ref) => updateClient(ref, { etat: etat as Client["etat"] }));
+                    toast.info("Archivage annule");
+                  },
+                },
+              });
             }}
           >
             <Archive className="w-3 h-3" /> Archiver
@@ -331,7 +468,7 @@ export default function BddPage() {
               <Trash2 className="w-3 h-3" /> Supprimer
             </Button>
           )}
-          <Button size="sm" variant="ghost" className="text-xs text-slate-400" onClick={() => setSelectedRefs(new Set())}>
+          <Button size="sm" variant="ghost" className="text-xs text-slate-400" onClick={() => { setSelectedRefs(new Set()); setSelectAllPages(false); }}>
             Deselectionner
           </Button>
         </div>
@@ -339,9 +476,10 @@ export default function BddPage() {
 
       {/* Table */}
       <div className="glass-card overflow-hidden animate-fade-in-up-delay-2">
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto">
           <Table>
-            <TableHeader>
+            {/* 14. Sticky table header */}
+            <TableHeader className="sticky top-0 z-10 bg-[#0f1117] backdrop-blur-sm">
               <TableRow className="border-white/[0.06] hover:bg-transparent">
                 <TableHead className="w-[40px]">
                   <input
@@ -378,10 +516,10 @@ export default function BddPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {paginated.map(client => (
+              {paginated.map((client, idx) => (
                 <TableRow
                   key={client.ref}
-                  className="cursor-pointer border-white/[0.04] hover:bg-white/[0.02] transition-colors"
+                  className={`cursor-pointer border-white/[0.04] transition-colors hover:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "even:bg-white/[0.01]" : ""}`}
                   onClick={() => navigate(`/client/${client.ref}`)}
                 >
                   <TableCell onClick={e => e.stopPropagation()}>
@@ -434,7 +572,20 @@ export default function BddPage() {
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateFicheAcceptation(client); toast.success("PDF genere"); }}>
                           <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateClient(client.ref, { etat: "ARCHIVE" }); toast.success("Client archive"); }}>
+                        <DropdownMenuItem onClick={(e) => {
+                          e.stopPropagation();
+                          const prevEtat = client.etat;
+                          updateClient(client.ref, { etat: "ARCHIVE" });
+                          toast.success("Client archive", {
+                            action: {
+                              label: "Annuler",
+                              onClick: () => {
+                                updateClient(client.ref, { etat: prevEtat });
+                                toast.info("Archivage annule");
+                              },
+                            },
+                          });
+                        }}>
                           <Archive className="w-3.5 h-3.5 mr-2" /> Archiver
                         </DropdownMenuItem>
                         {profile?.role === "ADMIN" && (
@@ -447,10 +598,20 @@ export default function BddPage() {
                   </TableCell>
                 </TableRow>
               ))}
+              {/* 3. Better empty state */}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-12 text-slate-500">
-                    Aucun client ne correspond aux filtres
+                  <TableCell colSpan={12} className="text-center py-16">
+                    <div className="flex flex-col items-center gap-3">
+                      <DatabaseZap className="w-10 h-10 text-slate-600" />
+                      <p className="text-sm text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
+                      <p className="text-xs text-slate-600">Essayez de modifier vos criteres de recherche ou d'effacer les filtres</p>
+                      {activeFilterCount > 0 && (
+                        <Button variant="outline" size="sm" onClick={clearFilters} className="mt-2 gap-1 text-xs border-white/[0.08]">
+                          <X className="w-3 h-3" /> Effacer les filtres
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -464,8 +625,12 @@ export default function BddPage() {
             <p className="text-xs text-slate-500">
               {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}
             </p>
+            {/* 13. Pagination with first/last page buttons */}
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(0)} className="h-8 w-8 p-0" title="Premiere page">
+                <ChevronsLeft className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0" title="Page precedente">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -483,8 +648,11 @@ export default function BddPage() {
                   </Button>
                 );
               })}
-              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0">
+              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0" title="Page suivante">
                 <ChevronRightIcon className="w-4 h-4" />
+              </Button>
+              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} className="h-8 w-8 p-0" title="Derniere page">
+                <ChevronsRight className="w-4 h-4" />
               </Button>
             </div>
           </div>

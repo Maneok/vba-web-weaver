@@ -226,9 +226,12 @@ Deno.serve(async (req) => {
         });
 
         if (res.ok) {
-          const attachments = await res.json();
-          const actes = attachments.actes ?? [];
-          const bilans = attachments.bilans ?? [];
+          // P6-11: Guard against non-JSON response from INPI
+          let attachments: any;
+          try { attachments = await res.json(); } catch { attachments = {}; }
+          // P6-12: Guard against non-array actes/bilans
+          const actes = Array.isArray(attachments.actes) ? attachments.actes : [];
+          const bilans = Array.isArray(attachments.bilans) ? attachments.bilans : [];
           console.log(`[docs] INPI attachments raw keys: ${Object.keys(attachments).join(", ")}`);
           console.log(`[docs] INPI attachments: ${actes.length} actes, ${bilans.length} bilans`);
           if (actes.length > 0) console.log(`[docs] First acte: id=${actes[0].id}, type=${actes[0].typeRdd}, nature=${actes[0].nature}, date=${actes[0].dateDepot}`);
@@ -379,12 +382,17 @@ Deno.serve(async (req) => {
             // FIX P4-2: Use passed `tk` parameter instead of outer `currentToken` (variable shadowing bug)
             const publicUrl = await downloadAndStore(supabaseClient, tk, downloadUrl, storagePath);
 
-            // FIX 1: Proper statuts detection from typeRdd array
-            const isStatuts = (acte.typeRdd && Array.isArray(acte.typeRdd))
-              ? acte.typeRdd.some((t: any) =>
-                  String(t.typeActe || "").toLowerCase().includes("statut") ||
-                  String(t.decision || "").toLowerCase().includes("statut"))
-              : acteType.toLowerCase().includes("statut") || nature.toLowerCase().includes("statut") || nomDoc.toLowerCase().includes("statut");
+            // FIX 1 + P6-13: Proper statuts detection — check typeRdd array + fallback to acteType/nature/nomDocument
+            let isStatuts = false;
+            if (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0) {
+              isStatuts = acte.typeRdd.some((t: any) =>
+                String(t.typeActe || "").toLowerCase().includes("statut") ||
+                String(t.decision || "").toLowerCase().includes("statut"));
+            }
+            // P6-13: Always also check nomDocument and nature for "statut" keyword (even if typeRdd matched as non-statut)
+            if (!isStatuts) {
+              isStatuts = acteType.toLowerCase().includes("statut") || nature.toLowerCase().includes("statut") || nomDoc.toLowerCase().includes("statut");
+            }
             // FIX P4-47: Also check nomDocument for PV detection
             const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") || nature.toLowerCase().includes("assembl") || nomDoc.toLowerCase().includes("pv") || nomDoc.toLowerCase().includes("assembl");
 
@@ -467,17 +475,33 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Extrait RBE
+          // P6-14: Extrait RBE — store locally like KBIS for offline access
           if (pappersData.extrait_rbe_url) {
+            let rbeUrl = pappersData.extrait_rbe_url;
+            try {
+              const rbeRes = await fetch(rbeUrl, { signal: AbortSignal.timeout(10000), redirect: "follow" });
+              if (rbeRes.ok) {
+                const rbeBuf = await rbeRes.arrayBuffer();
+                const rbeHeader = String.fromCharCode(...new Uint8Array(rbeBuf.slice(0, 5)));
+                if (rbeHeader.startsWith("%PDF") && rbeBuf.byteLength > 100) {
+                  const rbePath = `${cleanSiren}/rbe_pappers.pdf`;
+                  await supabaseClient.storage.from("kyc-documents").upload(rbePath, new Uint8Array(rbeBuf), { contentType: "application/pdf", upsert: true });
+                  const { data: rbeSigned } = await supabaseClient.storage.from("kyc-documents").createSignedUrl(rbePath, 7 * 24 * 60 * 60);
+                  if (rbeSigned?.signedUrl) rbeUrl = rbeSigned.signedUrl;
+                  console.log("[docs] Pappers RBE stored locally");
+                }
+              }
+            } catch { /* Non-critical */ }
             documents.push({
               type: "Extrait RBE",
               label: "Extrait RBE (Pappers)",
-              url: pappersData.extrait_rbe_url,
+              url: rbeUrl,
               source: "pappers",
               available: true,
               status: "auto",
               downloadable: true,
-              storageUrl: null,
+              storedInSupabase: rbeUrl !== pappersData.extrait_rbe_url,
+              storageUrl: rbeUrl !== pappersData.extrait_rbe_url ? rbeUrl : null,
             });
           }
 
@@ -501,19 +525,24 @@ Deno.serve(async (req) => {
             });
           }
 
-          // Add Pappers actes if INPI returned none
+          // P6-15: Add Pappers actes if INPI returned none — detect Statuts vs Actes
           if (!inpiSuccess && pappersData.actes?.length > 0) {
-            const acte = pappersData.actes[0];
-            documents.push({
-              type: "Actes",
-              label: `Acte — ${acte.type ?? "Dernier acte"} — ${acte.date_depot ?? ""}`,
-              url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
-              source: "pappers",
-              available: true,
-              status: "lien",
-              downloadable: false,
-              storageUrl: null,
-            });
+            for (const acte of pappersData.actes.slice(0, 3)) {
+              const acteTypeStr = (acte.type ?? "").toLowerCase();
+              const isStatut = acteTypeStr.includes("statut");
+              // P6-16: Don't add Pappers Statuts if we already have one from derniers_statuts
+              if (isStatut && documents.some(d => d.type === "Statuts" && d.source === "pappers")) continue;
+              documents.push({
+                type: isStatut ? "Statuts" : "Actes",
+                label: `${isStatut ? "Statuts" : "Acte"} — ${acte.type ?? "Dernier acte"} — ${acte.date_depot ?? ""}`,
+                url: `https://www.pappers.fr/entreprise/${cleanSiren}#documents`,
+                source: "pappers",
+                available: true,
+                status: "lien",
+                downloadable: false,
+                storageUrl: null,
+              });
+            }
           }
 
           // Add Pappers comptes if INPI didn't store any
@@ -552,10 +581,14 @@ Deno.serve(async (req) => {
 
     // Web links removed — step 6 shows only real PDFs + manual upload zones
 
-    // FIX 51: Required docs checklist — case-insensitive matching
+    // FIX 51 + P6-17: Required docs checklist — case-insensitive matching
     const requiredDocs = ["KBIS", "Statuts", "CNI", "RIB"];
     const foundTypes = documents.filter((d: any) => d.status === "auto" || d.storedInSupabase || d.downloadable).map((d: any) => d.type);
-    const missing = requiredDocs.filter(r => !foundTypes.some(f => f.toUpperCase().includes(r.toUpperCase())));
+    // P6-17: Also match "Extrait RBE" and "Extrait RNE" as KBIS equivalents
+    const missing = requiredDocs.filter(r => !foundTypes.some(f => {
+      if (r === "KBIS") return f.toUpperCase().includes("KBIS") || f.toUpperCase().includes("EXTRAIT");
+      return f.toUpperCase().includes(r.toUpperCase());
+    }));
 
     // Add placeholder entries for missing required docs
     if (!documents.some(d => d.type === "CNI")) {

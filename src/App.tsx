@@ -1,4 +1,4 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, type ReactNode } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +8,7 @@ import { AppProvider } from "@/lib/AppContext";
 import { AuthProvider } from "@/lib/auth/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import PageErrorBoundary from "@/components/PageErrorBoundary";
 import AuthPage from "@/pages/AuthPage";
 
 // Lazy-loaded pages — code split per route
@@ -27,52 +28,75 @@ const HelpPage = lazy(() => import("@/pages/HelpPage"));
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 2,
+      staleTime: 5 * 60 * 1000,
+      refetchOnWindowFocus: false,
+    },
+  },
+});
 
 function PageLoader() {
   return (
-    <div className="flex items-center justify-center h-64">
-      <div className="h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+    <div className="flex flex-col items-center justify-center h-64 gap-3 animate-fade-in-up">
+      <div className="relative">
+        <div className="h-8 w-8 border-2 border-blue-500/30 rounded-full" />
+        <div className="absolute inset-0 h-8 w-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+      <p className="text-xs text-slate-500">Chargement...</p>
     </div>
+  );
+}
+
+/** Wrap each route in Suspense + ErrorBoundary */
+function SafePage({ children }: { children: ReactNode }) {
+  return (
+    <PageErrorBoundary>
+      <Suspense fallback={<PageLoader />}>
+        {children}
+      </Suspense>
+    </PageErrorBoundary>
   );
 }
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
+    <TooltipProvider delayDuration={300}>
       <AuthProvider>
         <AppProvider>
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
-                <Route path="/landing" element={<LandingPage />} />
-                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/landing" element={<SafePage><LandingPage /></SafePage>} />
+                <Route path="/auth" element={<SafePage><AuthPage /></SafePage>} />
                 <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
-                  <Route index element={<DashboardPage />} />
-                  <Route path="bdd" element={<BddPage />} />
-                  <Route path="nouveau-client" element={<NouveauClientPage />} />
-                  <Route path="client/:ref" element={<ClientDetailPage />} />
-                  <Route path="gouvernance" element={<GouvernancePage />} />
-                  <Route path="controle" element={<ControlePage />} />
-                  <Route path="registre" element={<RegistrePage />} />
-                  <Route path="logs" element={<LogsPage />} />
-                  <Route path="ged" element={<GedPage />} />
-                  <Route path="lettre-mission" element={<LettreMissionPage />} />
-                  <Route path="lettre-mission/:ref" element={<LettreMissionPage />} />
-                  <Route path="diagnostic" element={<DiagnosticPage />} />
-                  <Route path="parametres" element={<SettingsPage />} />
-                  <Route path="aide" element={<HelpPage />} />
+                  <Route index element={<SafePage><DashboardPage /></SafePage>} />
+                  <Route path="bdd" element={<SafePage><BddPage /></SafePage>} />
+                  <Route path="nouveau-client" element={<SafePage><NouveauClientPage /></SafePage>} />
+                  <Route path="client/:ref" element={<SafePage><ClientDetailPage /></SafePage>} />
+                  <Route path="gouvernance" element={<SafePage><GouvernancePage /></SafePage>} />
+                  <Route path="controle" element={<SafePage><ControlePage /></SafePage>} />
+                  <Route path="registre" element={<SafePage><RegistrePage /></SafePage>} />
+                  <Route path="logs" element={<SafePage><LogsPage /></SafePage>} />
+                  <Route path="ged" element={<SafePage><GedPage /></SafePage>} />
+                  <Route path="lettre-mission" element={<SafePage><LettreMissionPage /></SafePage>} />
+                  <Route path="lettre-mission/:ref" element={<SafePage><LettreMissionPage /></SafePage>} />
+                  <Route path="diagnostic" element={<SafePage><DiagnosticPage /></SafePage>} />
+                  <Route path="parametres" element={<SafePage><SettingsPage /></SafePage>} />
+                  <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />
                 </Route>
-                <Route path="*" element={<NotFound />} />
+                <Route path="*" element={<SafePage><NotFound /></SafePage>} />
               </Routes>
             </Suspense>
           </BrowserRouter>
         </AppProvider>
       </AuthProvider>
       <Toaster />
-      <Sonner />
+      <Sonner richColors position="bottom-right" closeButton />
     </TooltipProvider>
   </QueryClientProvider>
 );

@@ -758,9 +758,10 @@ Deno.serve(async (req) => {
     let currentToken = token;
 
     if (attachments) {
-      const actes = attachments.actes ?? [];
-      const bilans = attachments.bilans ?? [];
-      const bilansSaisis = attachments.bilansSaisis ?? [];
+      // P6-29: Guard against non-array fields from INPI
+      const actes = Array.isArray(attachments.actes) ? attachments.actes : [];
+      const bilans = Array.isArray(attachments.bilans) ? attachments.bilans : [];
+      const bilansSaisis = Array.isArray(attachments.bilansSaisis) ? attachments.bilansSaisis : [];
 
       console.log(`[INPI] Found ${actes.length} actes, ${bilans.length} bilans, ${bilansSaisis.length} bilansSaisis`);
 
@@ -853,13 +854,23 @@ Deno.serve(async (req) => {
           publicUrl = await downloadAndStore(supabase, currentToken, downloadUrl, storagePath);
         }
 
-        // FIX P4-20: Include nomDocument in statuts detection
-        const isStatuts = (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0)
-          ? acte.typeRdd.some((t: any) =>
+        // FIX P4-20 + P6-26: Comprehensive statuts detection — check typeRdd + nomDocument + nature
+        let isStatuts = false;
+        if (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0) {
+          isStatuts = acte.typeRdd.some((t: any) =>
               String(t.typeActe || "").toLowerCase().includes("statut") ||
-              String(t.decision || "").toLowerCase().includes("statut"))
-          : (String(acteType).toLowerCase().includes("statut") || String(acte.nomDocument || "").toLowerCase().includes("statut"));
-        const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") || nature.toLowerCase().includes("assembl");
+              String(t.decision || "").toLowerCase().includes("statut"));
+        }
+        // P6-26: Always also check nomDocument/nature even when typeRdd exists but didn't match
+        if (!isStatuts) {
+          isStatuts = String(acteType).toLowerCase().includes("statut") ||
+            String(acte.nomDocument || "").toLowerCase().includes("statut") ||
+            String(nature).toLowerCase().includes("statut");
+        }
+        // P6-27: Also detect PV/AG from nomDocument
+        const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") ||
+          nature.toLowerCase().includes("assembl") || nomDoc.toLowerCase().includes("pv") ||
+          nomDoc.toLowerCase().includes("assembl");
 
         if (publicUrl) {
           documents.push({
@@ -1028,18 +1039,22 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun b�
           const { data: signedRne } = await supabase.storage
             .from("kyc-documents")
             .createSignedUrl(extraitPath, 7 * 24 * 60 * 60);
-          // P5-18: Don't fallback to public URL on private bucket
+          // P5-18 + P6-28: Don't push doc with empty URL
           const rneUrl = signedRne?.signedUrl || "";
-          documents.unshift({
-            type: "kbis",
-            label: "Extrait RNE (équivalent Kbis) — " + today,
-            url: rneUrl,
-            source: "inpi",
-            available: true,
-            status: "auto",
-            storedInSupabase: true,
-            dateDepot: todayISO,
-          });
+          if (rneUrl) {
+            documents.unshift({
+              type: "kbis",
+              label: "Extrait RNE (équivalent Kbis) — " + today,
+              url: rneUrl,
+              source: "inpi",
+              available: true,
+              status: "auto",
+              storedInSupabase: true,
+              dateDepot: todayISO,
+            });
+          } else {
+            console.error("[INPI] Extrait RNE: signed URL generation failed");
+          }
           console.log("[INPI] Extrait RNE HTML généré et stocké");
         } else {
           console.error("[INPI] Extrait RNE upload error:", uploadErr.message);

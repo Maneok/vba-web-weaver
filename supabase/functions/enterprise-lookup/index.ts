@@ -61,8 +61,15 @@ let tokenRefreshing: Promise<string | null> | null = null;
 
 async function getINPIToken(): Promise<string | null> {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
-  // Prevent thundering herd: reuse in-flight refresh
-  if (tokenRefreshing) return tokenRefreshing;
+  // P6-2: Prevent thundering herd with timeout (matching documents-fetch)
+  if (tokenRefreshing) {
+    try {
+      return await Promise.race([
+        tokenRefreshing,
+        new Promise<null>((_, reject) => setTimeout(() => reject(new Error("Token refresh timeout")), 20000)),
+      ]);
+    } catch { return null; }
+  }
   tokenRefreshing = _refreshINPIToken();
   try { return await tokenRefreshing; } finally { tokenRefreshing = null; }
 }
@@ -199,8 +206,9 @@ function parseINPICompany(raw: any): any {
       activitePrincipale: description.activitePrincipale ?? "",
       ess: description.economeSocialeSolidaire === true,
       societeMission: description.societeMission === true,
-      associeUnique: description.associeUnique === true || description.associeUnique === "true",
-      capitalVariable: description.capitalVariable === true || description.capitalVariable === "true",
+      // P6-10: Also detect associeUnique from indicateurAssocieUnique
+      associeUnique: description.associeUnique === true || description.associeUnique === "true" || description.indicateurAssocieUnique === true || description.indicateurAssocieUnique === "O",
+      capitalVariable: description.capitalVariable === true || description.capitalVariable === "true" || description.capitalVariable === "O",
       domiciliataire: adresseEnt?.domiciliataire ?? null,
       nonDiffusible: raw.statutDiffusion === "N",
       etatAdministratif: raw.etatAdministratif ?? "A",
@@ -224,7 +232,9 @@ function parseINPICompany(raw: any): any {
     const adresse = adresseEnt?.adresse ?? adresseEnt ?? {};
 
     const nom = (desc.nom ?? desc.nomNaissance ?? "").toUpperCase();
-    const prenom = desc.prenoms ?? desc.prenom ?? "";
+    // P6-8: Handle prenoms as array or string (matching PM parser)
+    const rawPrenoms = desc.prenoms ?? desc.prenom ?? "";
+    const prenom = Array.isArray(rawPrenoms) ? (rawPrenoms[0] ?? "") : String(rawPrenoms);
     const denomination = descEnt.denomination ?? `${prenom} ${nom}`.trim();
 
     const numVoie = adresse.numVoie ?? "";
@@ -351,8 +361,11 @@ Deno.serve(async (req) => {
             signal: AbortSignal.timeout(10000),
           });
           if (res.ok) {
-            const raw = await res.json();
-            inpiResult = parseINPICompany(raw);
+            // P6-7: Guard against non-JSON INPI response
+            let raw: any;
+            try { raw = await res.json(); } catch { raw = null; }
+            if (!raw) { console.error("[INPI] Non-JSON response"); }
+            inpiResult = raw ? parseINPICompany(raw) : null;
             if (inpiResult) {
               sources.push("INPI");
               console.log(`[INPI] Company parsed: ${inpiResult.denomination} (${inpiResult.type})`);
@@ -369,7 +382,8 @@ Deno.serve(async (req) => {
               inpiResult.siren = siren9;
               inpiResult.ape = ape;
               inpiResult.libelleApe = libelleApe;
-              inpiResult.effectif = raw.trancheEffectifSalarie ?? "";
+              // P6-9: Also extract tranche effectif description, not just code
+              inpiResult.effectif = raw.trancheEffectifSalarie ?? (raw.effectifsMinEntreprise ? `${raw.effectifsMinEntreprise}-${raw.effectifsMaxEntreprise ?? "?"}` : "");
               inpiResult.dateCreation = raw.dateCreation ?? inpiResult.dateImmatriculation ?? "";
             }
           } else {
@@ -512,11 +526,11 @@ Deno.serve(async (req) => {
         }));
       }
 
-      // Dédupliquer BE par nom de famille
+      // P6-6: Dédupliquer BE par nom+prenom (not just nom — same surname ≠ same person)
       const seenBE = new Set<string>();
       beneficiaires = beneficiaires.filter((b: any) => {
-        const key = (b.nom || "").toUpperCase().trim();
-        if (!key) return true;
+        const key = `${(b.nom || "").toUpperCase().trim()}|${(b.prenom || "").toUpperCase().trim()}`;
+        if (!b.nom) return true;
         if (seenBE.has(key)) return false;
         seenBE.add(key);
         return true;
@@ -637,6 +651,7 @@ Deno.serve(async (req) => {
         let beneficiaires: any[] = [];
         let finances: any[] = [];
         let representants: any[] = [];
+        // P6-3: Initialize with safe defaults (avoid .toUpperCase() on undefined)
         let pappersAdresse = "";
         let pappersCp = "";
         let pappersVille = "";
@@ -648,7 +663,10 @@ Deno.serve(async (req) => {
               { signal: AbortSignal.timeout(6000) }
             );
             if (pRes.ok) {
-              const pData = await pRes.json();
+              // P6-1: Guard against non-JSON response
+              let pData: any;
+              try { pData = await pRes.json(); } catch { pData = null; }
+              if (!pData) throw new Error("Non-JSON response from Pappers");
               if (pData.capital > 0) { capital = pData.capital; capitalSource = "Pappers"; }
               telephone = pData.telephone ?? "";
               email = pData.email ?? "";
@@ -691,9 +709,10 @@ Deno.serve(async (req) => {
         let lat: number | null = siege.latitude != null ? parseFloat(siege.latitude) : null;
         let lon: number | null = siege.longitude != null ? parseFloat(siege.longitude) : null;
         if (lat == null || lon == null) {
-          const finalAddr = adresse || pappersAdresse.toUpperCase();
+          // P6-4: Null-safe address fallback (pappersAdresse/pappersVille may be empty strings)
+          const finalAddr = adresse || (pappersAdresse ? pappersAdresse.toUpperCase() : "");
           const finalCp = siege.code_postal || pappersCp || "";
-          const finalVille = (siege.libelle_commune ?? siege.commune ?? "").toUpperCase() || pappersVille.toUpperCase();
+          const finalVille = (siege.libelle_commune ?? siege.commune ?? "").toUpperCase() || (pappersVille ? pappersVille.toUpperCase() : "");
           if (finalAddr) {
             const geo = await geocodeAddress(finalAddr, finalCp, finalVille);
             lat = geo.latitude;
@@ -708,9 +727,10 @@ Deno.serve(async (req) => {
           forme_juridique: formeLabel,
           forme_juridique_code: codeFormeJuridique,
           forme_juridique_raw: r.libelle_nature_juridique ?? formeLabel,
-          adresse: adresse || pappersAdresse.toUpperCase(),
+          // P6-5: Null-safe address fields
+          adresse: adresse || (pappersAdresse ? pappersAdresse.toUpperCase() : ""),
           code_postal: siege.code_postal || pappersCp || "",
-          ville: (siege.libelle_commune ?? siege.commune ?? "").toUpperCase() || pappersVille.toUpperCase(),
+          ville: (siege.libelle_commune ?? siege.commune ?? "").toUpperCase() || (pappersVille ? pappersVille.toUpperCase() : ""),
           latitude: lat,
           longitude: lon,
           ape: siege.activite_principale ?? r.activite_principale ?? "",

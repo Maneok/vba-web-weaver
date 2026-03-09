@@ -1,31 +1,73 @@
-import { NavLink, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, ShieldCheck, ClipboardCheck, AlertTriangle, ScrollText, Settings, UserPlus, FolderOpen, Activity, FileText, LogOut, HelpCircle } from "lucide-react";
+import { useEffect } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
+import {
+  LayoutDashboard,
+  Users,
+  ShieldCheck,
+  ClipboardCheck,
+  AlertTriangle,
+  ScrollText,
+  Settings,
+  UserPlus,
+  FolderOpen,
+  Activity,
+  FileText,
+  LogOut,
+  HelpCircle,
+  ChevronLeft,
+} from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AppSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
 }
 
-const MENU_ITEMS = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/bdd", label: "Base Clients", icon: Users },
-  { to: "/lettre-mission", label: "Lettre de Mission", icon: FileText },
-  { to: "/gouvernance", label: "Gouvernance", icon: ShieldCheck },
-  { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck },
-  { to: "/registre", label: "Registre LCB", icon: AlertTriangle },
-  { to: "/ged", label: "Documents / GED", icon: FolderOpen },
-  { to: "/diagnostic", label: "Diagnostic 360", icon: Activity },
-  { to: "/logs", label: "Journal d'audit", icon: ScrollText },
-  { to: "/parametres", label: "Parametres", icon: Settings },
-  { to: "/aide", label: "Aide", icon: HelpCircle },
+const APP_VERSION = "1.0.0";
+
+const MAIN_NAV = [
+  { to: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "D" },
+  { to: "/bdd", label: "Base Clients", icon: Users, shortcut: "B" },
+  { to: "/lettre-mission", label: "Lettre de Mission", icon: FileText, shortcut: "L" },
+  { to: "/gouvernance", label: "Gouvernance", icon: ShieldCheck, shortcut: "G" },
+  { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck, shortcut: "Q" },
+  { to: "/registre", label: "Registre LCB", icon: AlertTriangle, shortcut: "R" },
 ] as const;
+
+const TOOLS_NAV = [
+  { to: "/ged", label: "Documents / GED", icon: FolderOpen, shortcut: "E" },
+  { to: "/diagnostic", label: "Diagnostic 360", icon: Activity, shortcut: "3" },
+  { to: "/logs", label: "Journal d'audit", icon: ScrollText, shortcut: "J" },
+] as const;
+
+const SETTINGS_NAV = [
+  { to: "/parametres", label: "Parametres", icon: Settings, shortcut: "P" },
+  { to: "/aide", label: "Aide", icon: HelpCircle, shortcut: "?" },
+] as const;
+
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; shortcut: string };
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { alertes, clients } = useAppState();
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Close sidebar on mobile when navigating
+  useEffect(() => {
+    const isMobile = window.innerWidth < 768;
+    if (isMobile && !collapsed) {
+      onToggle();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.pathname]);
 
   const handleSignOut = async () => {
     await signOut();
@@ -35,93 +77,207 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const alertesEnCours = alertes.filter((a) => a.statut === "EN COURS").length;
   const retardCount = clients.filter((c) => c.etatPilotage === "RETARD").length;
 
-  const badges: Record<string, number> = {
-    "/": retardCount,
-    "/bdd": clients.length,
-    "/registre": alertesEnCours,
+  const badges: Record<string, { count: number; color: string }> = {
+    "/": { count: retardCount, color: "bg-amber-400" },
+    "/bdd": { count: clients.length, color: "bg-blue-400" },
+    "/registre": { count: alertesEnCours, color: "bg-red-400" },
   };
 
-  return (
-    <aside
-      className={`fixed inset-y-0 left-0 z-40 border-r border-white/[0.06] bg-slate-950/95 backdrop-blur-xl transition-all duration-300 ${collapsed ? "w-[72px]" : "w-[260px]"}`}
-    >
-      <div className="h-16 px-4 flex items-center border-b border-white/[0.06]">
-        <button
-          onClick={onToggle}
-          aria-label="Reduire ou etendre le menu lateral"
-          className="w-full text-left text-sm font-semibold tracking-wide text-slate-100 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-        >
-          {collapsed ? "O90" : "Cabinet O90"}
-        </button>
-      </div>
+  const cabinetName = profile?.full_name?.split(" ").pop() || "LCB-FT";
 
-      <nav className="p-3 space-y-1">
-        {MENU_ITEMS.map((item) => {
-          const Icon = item.icon;
-          const badge = badges[item.to];
+  const renderNavItem = (item: NavItem) => {
+    const Icon = item.icon;
+    const badge = badges[item.to];
+    const hasBadge = badge && badge.count > 0;
 
-          return (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.to === "/"}
-              className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-                  isActive
-                    ? "bg-blue-500/15 text-blue-200"
-                    : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
-                }`
-              }
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              {!collapsed && <span className="truncate">{item.label}</span>}
-              {!collapsed && badge !== undefined && badge > 0 && (
-                <span className="ml-auto rounded-full bg-blue-500/20 px-2 py-0.5 text-[11px] font-medium text-blue-200">
-                  {badge}
-                </span>
-              )}
-            </NavLink>
-          );
-        })}
-
-        {/* Action buttons */}
-        <div className="pt-3 mt-3 border-t border-white/[0.06] space-y-2">
-          {/* Nouveau Client */}
-          <button
-            onClick={() => navigate("/nouveau-client")}
-            className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-          >
-            <UserPlus className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Nouveau Client</span>}
-          </button>
-
-          {/* Lettre de Mission */}
-          <button
-            onClick={() => navigate("/lettre-mission")}
-            className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-violet-500/20 to-blue-500/20 text-violet-300 hover:from-violet-500/30 hover:to-blue-500/30 hover:shadow-[0_0_16px_rgba(139,92,246,0.15)] transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-          >
-            <FileText className="h-4 w-4 shrink-0" />
-            {!collapsed && <span>Lettre de Mission</span>}
-          </button>
-        </div>
-      </nav>
-
-      {/* User info + logout */}
-      <div className="absolute bottom-0 left-0 right-0 border-t border-white/[0.06] p-3">
-        {profile && !collapsed && (
-          <div className="mb-2 px-3">
-            <p className="text-sm font-medium text-slate-200 truncate">{profile.full_name}</p>
-            <p className="text-xs text-slate-500 truncate">{profile.email}</p>
-          </div>
+    const link = (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={item.to === "/"}
+        aria-current={location.pathname === item.to || (item.to === "/" && location.pathname === "/") ? "page" : undefined}
+        className={({ isActive }) =>
+          `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+            isActive
+              ? "bg-blue-500/15 text-blue-200 border-l-[3px] border-blue-400 pl-[9px]"
+              : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
+          }`
+        }
+      >
+        <Icon className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+        {!collapsed && (
+          <>
+            <span className="truncate">{item.label}</span>
+            {hasBadge && (
+              <span className="ml-auto rounded-full bg-blue-500/20 px-2 py-0.5 text-[11px] font-medium text-blue-200">
+                {badge.count}
+              </span>
+            )}
+            <span className="ml-auto text-[10px] text-slate-600 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
+              {hasBadge ? "" : `Alt+${item.shortcut}`}
+            </span>
+          </>
         )}
-        <button
-          onClick={handleSignOut}
-          className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-colors"
-        >
-          <LogOut className="h-4 w-4 shrink-0" />
-          {!collapsed && <span>Deconnexion</span>}
-        </button>
-      </div>
-    </aside>
+        {collapsed && hasBadge && (
+          <span className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full ${badge.color} ring-2 ring-slate-950`} />
+        )}
+      </NavLink>
+    );
+
+    if (collapsed) {
+      return (
+        <Tooltip key={item.to} delayDuration={0}>
+          <TooltipTrigger asChild>{link}</TooltipTrigger>
+          <TooltipContent side="right" className="font-medium">
+            {item.label}
+            {hasBadge && (
+              <span className="ml-2 text-xs opacity-70">({badge.count})</span>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return link;
+  };
+
+  const renderSection = (items: readonly NavItem[], label?: string) => (
+    <div className="space-y-0.5">
+      {label && !collapsed && (
+        <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+          {label}
+        </p>
+      )}
+      {collapsed && label && (
+        <div className="mx-3 my-2 border-t border-white/[0.06]" />
+      )}
+      {items.map((item) => renderNavItem(item as NavItem))}
+    </div>
+  );
+
+  const nouveauClientBtn = (
+    <button
+      onClick={() => navigate("/nouveau-client")}
+      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-emerald-500/20 to-teal-500/15 text-emerald-400 hover:from-emerald-500/30 hover:to-teal-500/25 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+    >
+      <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+      {!collapsed && <span>Nouveau Client</span>}
+    </button>
+  );
+
+  const lettreMissionBtn = (
+    <button
+      onClick={() => navigate("/lettre-mission")}
+      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-violet-500/20 via-blue-500/15 to-indigo-500/20 text-violet-300 hover:from-violet-500/30 hover:via-blue-500/25 hover:to-indigo-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+    >
+      <FileText className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+      {!collapsed && <span>Lettre de Mission</span>}
+    </button>
+  );
+
+  return (
+    <TooltipProvider>
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 border-r border-white/[0.06] bg-slate-950/95 backdrop-blur-xl transition-all duration-300 flex flex-col ${
+          collapsed ? "w-[72px]" : "w-[260px]"
+        }`}
+      >
+        {/* Header */}
+        <div className="h-16 px-4 flex items-center justify-between border-b border-white/[0.06]">
+          <button
+            onClick={onToggle}
+            aria-label="Reduire ou etendre le menu lateral"
+            className="flex items-center gap-2 text-left text-sm font-semibold tracking-wide text-slate-100 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+          >
+            {collapsed ? (
+              <span className="text-blue-400 font-bold">LCB</span>
+            ) : (
+              <span>
+                Cabinet{" "}
+                <span className="text-blue-400">{cabinetName}</span>
+              </span>
+            )}
+          </button>
+          {!collapsed && (
+            <button
+              onClick={onToggle}
+              aria-label="Reduire le menu"
+              className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/[0.04] transition-colors"
+            >
+              <ChevronLeft
+                className="h-4 w-4 transition-transform duration-300"
+              />
+            </button>
+          )}
+        </div>
+
+        {/* Navigation */}
+        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+          {renderSection([...MAIN_NAV], "Navigation")}
+          {renderSection([...TOOLS_NAV], "Outils")}
+          {renderSection([...SETTINGS_NAV], "Systeme")}
+
+          {/* Action buttons */}
+          <div className="pt-3 mt-3 border-t border-white/[0.06] space-y-2">
+            {collapsed ? (
+              <>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>{nouveauClientBtn}</TooltipTrigger>
+                  <TooltipContent side="right">Nouveau Client</TooltipContent>
+                </Tooltip>
+                <Tooltip delayDuration={0}>
+                  <TooltipTrigger asChild>{lettreMissionBtn}</TooltipTrigger>
+                  <TooltipContent side="right">Lettre de Mission</TooltipContent>
+                </Tooltip>
+              </>
+            ) : (
+              <>
+                {nouveauClientBtn}
+                {lettreMissionBtn}
+              </>
+            )}
+          </div>
+        </nav>
+
+        {/* User info + logout + version */}
+        <div className="border-t border-white/[0.06] p-3">
+          {profile && !collapsed && (
+            <div className="mb-2 px-3">
+              <p className="text-sm font-medium text-slate-200 truncate">
+                {profile.full_name}
+              </p>
+              <p className="text-xs text-slate-500 truncate">{profile.email}</p>
+            </div>
+          )}
+
+          {collapsed ? (
+            <Tooltip delayDuration={0}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={handleSignOut}
+                  className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
+                >
+                  <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Deconnexion</TooltipContent>
+            </Tooltip>
+          ) : (
+            <button
+              onClick={handleSignOut}
+              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
+            >
+              <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />
+              <span>Deconnexion</span>
+            </button>
+          )}
+
+          {/* Version */}
+          <div className={`mt-2 text-center text-[10px] text-slate-700 select-none ${collapsed ? "px-1" : "px-3"}`}>
+            v{APP_VERSION}
+          </div>
+        </div>
+      </aside>
+    </TooltipProvider>
   );
 }

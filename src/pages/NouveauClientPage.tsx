@@ -214,7 +214,7 @@ export default function NouveauClientPage() {
   const sanctionsCritical = screening.sanctions.data?.hasCriticalMatch ?? false;
 
   // P5-16: Fix useMemo misuse — all these trigger side effects (setState/toast) so must be useEffect
-  // Auto-set questionnaire answers based on screening results
+  // P6-30: Auto-set questionnaire answers based on screening results — also handle critical match
   useEffect(() => {
     if (sanctionsPPE) {
       setQuestions(prev => prev.map(q =>
@@ -225,13 +225,26 @@ export default function NouveauClientPage() {
     }
   }, [sanctionsPPE]);
 
-  // Idée 7: Auto-suggest frequency based on mission type
+  // P6-31: Auto-flag atypique if critical sanctions match detected
+  useEffect(() => {
+    if (sanctionsCritical) {
+      setQuestions(prev => prev.map(q =>
+        q.id === "atypique" && q.value !== "OUI"
+          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || "Match critique OpenSanctions — verification manuelle requise" }
+          : q
+      ));
+    }
+  }, [sanctionsCritical]);
+
+  // P6-25: Auto-suggest frequency based on mission type — only on mission change (not frequence)
+  const prevMissionRef = useMemo(() => ({ current: form.mission }), []);
   useEffect(() => {
     const suggested = MISSION_FREQUENCE[form.mission];
-    if (suggested && form.frequence !== suggested) {
+    if (suggested && form.mission !== prevMissionRef.current) {
       set("frequence", suggested);
     }
-  }, [form.mission, set]);
+    prevMissionRef.current = form.mission;
+  }, [form.mission, set, prevMissionRef]);
 
   // #24: Auto-detect domiciliataire → mission DOMICILIATION
   const inpiDomiciliataire = screening.inpi.data?.companyData?.domiciliataire;
@@ -259,20 +272,23 @@ export default function NouveauClientPage() {
     }
   }, [form.ape]);
 
-  // Idée 5: Auto-detect pays risque from BE nationalities
+  // P6-32: Auto-detect pays risque from BE nationalities — use beKey to avoid re-triggering
   useEffect(() => {
     if (beneficiaires.length > 0) {
       const paysRisqueMatch = beneficiaires.find(b => {
         const nat = (b.nationalite || "").toUpperCase();
-        return nat && nat !== "FRANCAISE" && nat !== "FRANÇAISE" && PAYS_RISQUE.some(p => nat.includes(p));
+        return nat && nat !== "FRANCAISE" && nat !== "FRANÇAISE" && nat !== "FRENCH" && PAYS_RISQUE.some(p => nat.includes(p));
       });
       if (paysRisqueMatch) {
-        setQuestions(prev => prev.map(q =>
-          q.id === "paysRisque" && q.value !== "OUI"
-            ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Pays a risque detecte via BE : ${paysRisqueMatch.nationalite}` }
-            : q
-        ));
-        toast.warning(`Pays a risque detecte (nationalite BE: ${paysRisqueMatch.nationalite})`);
+        setQuestions(prev => {
+          const q = prev.find(q => q.id === "paysRisque");
+          if (q && q.value === "OUI") return prev; // Already set, don't re-toast
+          return prev.map(q =>
+            q.id === "paysRisque" && q.value !== "OUI"
+              ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Pays a risque detecte via BE : ${paysRisqueMatch.nationalite}` }
+              : q
+          );
+        });
       }
     }
   }, [beneficiaires]);
@@ -750,15 +766,16 @@ export default function NouveauClientPage() {
       setDuplicateRef("");
     }
 
-    // Launch screening if enterprise data available
-    if (screening.enterprise.data) {
-      const ent = screening.enterprise.data.find(e => e.siren.replace(/\s/g, "") === result.siren.replace(/\s/g, ""));
+    // P6-24: Launch screening if enterprise data available — also use passed results to avoid stale state
+    const entSourceForScreening = enterpriseResults ?? screening.enterprise.data;
+    if (entSourceForScreening) {
+      const ent = entSourceForScreening.find(e => e.siren.replace(/\s/g, "") === result.siren.replace(/\s/g, ""));
       if (ent && !screening.sanctions.data && !screening.sanctions.loading) {
         launchScreening(ent);
       }
     }
 
-    // Check gel des avoirs in background
+    // P6-18: Check gel des avoirs in background — add .catch() to prevent unhandled rejection
     checkGelAvoirs(result.siren, result.dirigeant).then(gel => {
       if (gel.matched) {
         setGelAvoirsAlert(gel.matches);
@@ -766,6 +783,9 @@ export default function NouveauClientPage() {
       } else {
         setGelAvoirsAlert([]);
       }
+    }).catch(() => {
+      console.warn("[GelAvoirs] Service indisponible");
+      setGelAvoirsAlert([]);
     });
 
     setSelectedResult(result);
@@ -820,7 +840,8 @@ export default function NouveauClientPage() {
     if (entData?.capital_source) setCapitalSource(entData.capital_source);
 
     setForm(prev => ({ ...prev, ...updates }));
-    setAutoFields(newAutoFields);
+    // P6-19: Merge auto fields instead of replacing — preserves INPI auto fields set later
+    setAutoFields(prev => new Set([...prev, ...newAutoFields]));
 
     // CORRECTION 3: Track provenance from enterprise-lookup (Annuaire + Pappers)
     const now = new Date().toISOString();
@@ -1072,7 +1093,7 @@ export default function NouveauClientPage() {
         const match = c.ref.match(/CLI-\d{2}-(\d+)/);
         return match ? parseInt(match[1], 10) : 0;
       });
-      nextNum = Math.max(0, ...existingNums) + 1;
+      nextNum = (existingNums.length > 0 ? Math.max(...existingNums) : 0) + 1;
     }
     const ref = `CLI-${year}-${String(nextNum).padStart(3, "0")}`;
     // Idée 9: Date butoir auto-calculated based on vigilance level from today
@@ -1749,7 +1770,7 @@ export default function NouveauClientPage() {
                   <div><span className="text-slate-500">Forme</span><p className="text-slate-200 mt-0.5">{selectedResult.forme_juridique_raw}</p></div>
                   <div><span className="text-slate-500">APE</span><p className="text-slate-200 mt-0.5">{selectedResult.ape} - {selectedResult.libelle_ape}</p></div>
                   <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; const forme = (selectedResult.forme_juridique_raw || "").toUpperCase(); const isEI = forme.includes("INDIVIDUEL") || forme.includes("EI"); if (isEI && cap === 0) return "N/A"; return cap > 0 ? `${cap.toLocaleString()} EUR` : "Non renseigne"; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-500">({capitalSource})</span>}</p></div>
-                  <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{selectedResult.dirigeant || "—"}</p></div>
+                  <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{form.dirigeant || selectedResult.dirigeant || "—"}</p></div>
                   <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
                   <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation ? formatDateFR(selectedResult.date_creation) : "—"}</p></div>
                 </div>
@@ -2708,7 +2729,7 @@ export default function NouveauClientPage() {
                                 const isNeg = typeof val === "number" && val < 0;
                                 return (
                                   <td key={i} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
-                                    {val != null ? (row.key === "effectif" ? val : `${val.toLocaleString("fr-FR")} \u20AC`) : "—"}
+                                    {val != null ? (row.key === "effectif" ? val : `${typeof val === "number" ? val.toLocaleString("fr-FR") : val} \u20AC`) : "—"}
                                   </td>
                                 );
                               })}
@@ -3132,7 +3153,9 @@ export default function NouveauClientPage() {
           onKeyDown={e => { if (e.key === "Escape") navigate("/bdd"); }}
           role="dialog"
           aria-modal="true"
-          tabIndex={-1}
+          aria-label="Client cree avec succes"
+          tabIndex={0}
+          ref={el => el?.focus()}
         >
           <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-6">

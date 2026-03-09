@@ -3,6 +3,7 @@ export type EtatDossier = "PROSPECT" | "EN COURS" | "VALIDE" | "REFUSE" | "ARCHI
 export type EtatPilotage = "A JOUR" | "RETARD" | "BIENTÔT";
 export type StatutClient = "ACTIF" | "RETARD" | "INACTIF";
 export type OuiNon = "OUI" | "NON";
+export type AlertPriority = "CRITIQUE" | "HAUTE" | "MOYENNE" | "BASSE";
 
 export type MissionType =
   | "TENUE COMPTABLE"
@@ -104,9 +105,12 @@ export interface Collaborateur {
   derniereFormation: string;
   statutFormation: string;
   email: string;
+  telephone?: string;
+  dateRecrutement?: string;
 }
 
 export interface AlerteRegistre {
+  id?: string;
   date: string;
   clientConcerne: string;
   categorie: string;
@@ -118,9 +122,11 @@ export interface AlerteRegistre {
   dateButoir: string;
   typeDecision: string;
   validateur: string;
+  priorite?: AlertPriority;
 }
 
 export interface ControleQualite {
+  id?: string;
   dateTirage: string;
   dossierAudite: string;
   siren: string;
@@ -139,6 +145,11 @@ export interface ControleQualite {
   resultatGlobal: string;
   incident: string;
   commentaire: string;
+  controleur: string;
+  actionCorrectrice: string;
+  dateEcheance: string;
+  suiviStatut: string;
+  createdAt?: string;
 }
 
 export interface LogEntry {

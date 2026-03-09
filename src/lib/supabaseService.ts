@@ -277,6 +277,38 @@ export const controlesService = {
     }
     return data;
   },
+
+  async update(id: string, controle: Record<string, unknown>) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return null;
+    const { data, error } = await supabase
+      .from("controles_qualite")
+      .update(controle)
+      .eq("id", id)
+      .eq("cabinet_id", cabinetId)
+      .select()
+      .single();
+    if (error) {
+      logger.error("DB", "controle update:", error);
+      return null;
+    }
+    return data;
+  },
+
+  async delete(id: string) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return false;
+    const { error } = await supabase
+      .from("controles_qualite")
+      .delete()
+      .eq("id", id)
+      .eq("cabinet_id", cabinetId);
+    if (error) {
+      logger.error("DB", "controle delete:", error);
+      return false;
+    }
+    return true;
+  },
 };
 
 // ===== BROUILLONS =====

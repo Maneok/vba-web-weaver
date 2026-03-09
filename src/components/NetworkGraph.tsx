@@ -14,7 +14,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
-    if (!svgRef.current || nodes.length === 0) return;
+    if (!svgRef.current || !nodes || nodes.length === 0) return;
+    const safeEdges = edges ?? [];
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
@@ -29,7 +30,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
     // Build simulation data
     const simNodes = nodes.map(n => ({ ...n, x: width / 2, y: height / 2 }));
-    const simEdges = edges.map(e => ({
+    const simEdges = safeEdges.map(e => ({
       ...e,
       source: e.source,
       target: e.target,
@@ -79,7 +80,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
     // Nodes - size proportional to connections
     const connectionCount = new Map<string, number>();
-    edges.forEach(e => {
+    safeEdges.forEach(e => {
       connectionCount.set(e.source, (connectionCount.get(e.source) ?? 0) + 1);
       connectionCount.set(e.target, (connectionCount.get(e.target) ?? 0) + 1);
     });

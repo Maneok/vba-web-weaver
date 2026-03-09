@@ -57,6 +57,45 @@ export const ALERT_CATEGORIES = [
   "OPERATION ATYPIQUE : Montant inhabituel",
 ] as const;
 
+// Alert priorities
+export const ALERT_PRIORITIES = [
+  { value: "CRITIQUE", label: "Critique", color: "text-red-400 bg-red-500/15" },
+  { value: "HAUTE", label: "Haute", color: "text-orange-400 bg-orange-500/15" },
+  { value: "MOYENNE", label: "Moyenne", color: "text-amber-400 bg-amber-500/15" },
+  { value: "BASSE", label: "Basse", color: "text-slate-400 bg-slate-500/15" },
+] as const;
+
+// Competence levels
+export const COMPETENCE_LEVELS = [
+  { value: "JUNIOR", label: "Junior", color: "bg-slate-500/15 text-slate-400" },
+  { value: "CONFIRME", label: "Confirme", color: "bg-emerald-500/15 text-emerald-400" },
+  { value: "SENIOR", label: "Senior", color: "bg-blue-500/15 text-blue-400" },
+  { value: "EXPERT", label: "Expert", color: "bg-purple-500/15 text-purple-400" },
+] as const;
+
+// Formation status
+export const FORMATION_STATUS = [
+  { value: "A JOUR", label: "A jour", color: "bg-emerald-500/15 text-emerald-400" },
+  { value: "A FORMER", label: "A former", color: "bg-amber-500/15 text-amber-400" },
+  { value: "JAMAIS FORME", label: "Jamais forme", color: "bg-red-500/15 text-red-400" },
+] as const;
+
+// Controle qualite results
+export const CONTROLE_RESULTATS = [
+  "CONFORME",
+  "NON CONFORME MINEUR",
+  "NON CONFORME MAJEUR",
+  "CONFORME AVEC RESERVES",
+] as const;
+
+// Deadline thresholds (in days)
+export const DEADLINE_THRESHOLDS = {
+  CRITIQUE: 0,      // overdue
+  URGENT: 7,        // within 7 days
+  ATTENTION: 30,    // within 30 days
+  NORMAL: 90,       // within 90 days
+} as const;
+
 // Risk score thresholds
 export const RISK_THRESHOLDS = {
   SIMPLIFIEE_MAX: 30,
@@ -66,3 +105,32 @@ export const RISK_THRESHOLDS = {
 
 // Pagination
 export const DEFAULT_PAGE_SIZE = 25;
+
+// Fonction options for collaborateur forms
+export const FONCTION_OPTIONS = [
+  { value: "ASSOCIE SIGNATAIRE", label: "Associe signataire" },
+  { value: "SUPERVISEUR", label: "Superviseur" },
+  { value: "COLLABORATEUR", label: "Collaborateur" },
+  { value: "STAGIAIRE", label: "Stagiaire" },
+  { value: "ALTERNANT", label: "Alternant" },
+  { value: "SECRETAIRE", label: "Secretaire" },
+] as const;
+
+// Audit trail action types
+export const AUDIT_ACTION_TYPES = [
+  "CONNEXION",
+  "DECONNEXION",
+  "CREATION",
+  "MODIFICATION",
+  "SUPPRESSION",
+  "INVITATION_UTILISATEUR",
+  "CHANGEMENT_ROLE",
+  "CREATION_CLIENT",
+  "SCREENING",
+  "SCORING_CALCUL",
+  "ALERTE_REGISTRE",
+  "DECLARATION_TRACFIN",
+  "REVUE_PERIODIQUE",
+  "CONTROLE_QUALITE",
+  "LETTRE_MISSION",
+] as const;

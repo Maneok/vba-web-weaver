@@ -60,7 +60,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const data = await res.json();
+    let data: any;
+    try { data = await res.json(); } catch {
+      return new Response(JSON.stringify({
+        found: false, alertes: [], status: "unavailable", error: "Google Places API: reponse non-JSON",
+      }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     const candidates = data.candidates ?? [];
 
     if (candidates.length === 0) {
@@ -119,6 +124,7 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    console.error("[google-places-verify] Error:", (error as Error).message);
     return new Response(JSON.stringify({
       found: false,
       alertes: [],

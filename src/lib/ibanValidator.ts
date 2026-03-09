@@ -1,7 +1,9 @@
 export function validateIBAN(iban: string): { valid: boolean; bankName?: string; error?: string } {
   const clean = iban.replace(/\s/g, "").toUpperCase();
-  if (!clean.startsWith("FR")) return { valid: false, error: "IBAN doit commencer par FR" };
-  if (clean.length !== 27) return { valid: false, error: "IBAN français = 27 caractères" };
+  if (clean.length < 15 || clean.length > 34) return { valid: false, error: "Longueur IBAN invalide (15-34 caractères)" };
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(clean)) return { valid: false, error: "Format IBAN invalide" };
+  // French-specific length check
+  if (clean.startsWith("FR") && clean.length !== 27) return { valid: false, error: "IBAN français = 27 caractères" };
 
   // Vérification modulo 97
   const rearranged = clean.slice(4) + clean.slice(0, 4);
@@ -12,7 +14,8 @@ export function validateIBAN(iban: string): { valid: boolean; bankName?: string;
   }
   if (remainder !== "1") return { valid: false, error: "Clé IBAN invalide" };
 
-  // Nom de la banque depuis le code établissement
+  // Nom de la banque depuis le code établissement (FR only)
+  if (!clean.startsWith("FR")) return { valid: true };
   const codeEtab = clean.slice(4, 9);
   const BANKS: Record<string, string> = {
     "30004": "BNP Paribas",

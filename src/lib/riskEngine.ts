@@ -41,7 +41,7 @@ export function normalizeAddress(addr: string): string {
     .replace(/\b(IMPASSE|IMP)\b/g, "IMP")
     .replace(/\b(ALLEE|ALL)\b/g, "ALL")
     .replace(/\b(CHEMIN|CH)\b/g, "CH")
-    .replace(/\b(RUE|R)\b/g, "RUE")
+    .replace(/\bRUE\b/g, "RUE")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -225,6 +225,7 @@ export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview
 export function getPilotageStatus(dateButoir: string): string {
   const now = new Date();
   const butoir = new Date(dateButoir);
+  if (isNaN(butoir.getTime())) return "RETARD";
   const diffDays = (butoir.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
   if (diffDays < 0) return "RETARD";
   if (diffDays < 60) return "BIENTÔT";

@@ -101,14 +101,19 @@ serve(async (req) => {
 
     case "customer.subscription.updated": {
       const subscription = event.data.object as Stripe.Subscription;
+      const updateData: Record<string, string> = {
+        status: subscription.status === "active" ? "active" : subscription.status === "past_due" ? "past_due" : "canceled",
+        updated_at: new Date().toISOString(),
+      };
+      if (subscription.current_period_start) {
+        updateData.current_period_start = new Date(subscription.current_period_start * 1000).toISOString();
+      }
+      if (subscription.current_period_end) {
+        updateData.current_period_end = new Date(subscription.current_period_end * 1000).toISOString();
+      }
       await supabase
         .from("subscriptions")
-        .update({
-          status: subscription.status === "active" ? "active" : subscription.status === "past_due" ? "past_due" : "canceled",
-          current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-          current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("stripe_subscription_id", subscription.id);
       break;
     }

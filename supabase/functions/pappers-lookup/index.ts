@@ -78,8 +78,8 @@ function mapFormeJuridique(forme: string | undefined): string {
   if (f.includes("EURL")) return "EURL";
   if (f.includes("SCI")) return "SCI";
   if (f.includes("SCP")) return "SCP";
+  if (f.includes("SELARL")) return "SELARL";
   if (f.includes("SELAS")) return "SELAS";
-  if (f.includes("SELARL")) return "SELAS";
   if (f.includes("EARL")) return "EARL";
   if (f === "SA" || f.startsWith("SA ") || f.includes(" SA")) return "SA";
   if (f.includes("ASSOCIATION")) return "ASSOCIATION";
@@ -89,12 +89,16 @@ function mapFormeJuridique(forme: string | undefined): string {
 
 function mapEffectif(tranche: string | undefined): string {
   if (!tranche) return "0 SALARIE";
-  const t = tranche.toLowerCase();
-  if (t.includes("0") || t.includes("aucun")) return "0 SALARIE";
-  if (t.includes("1") || t.includes("2")) return "1 OU 2 SALARIES";
-  if (t.includes("3") || t.includes("5")) return "3 A 5 SALARIES";
-  if (t.includes("6") || t.includes("10")) return "6 A 10 SALARIES";
-  if (t.includes("11") || t.includes("50")) return "11 A 50 SALARIES";
+  const t = tranche.toLowerCase().trim();
+  if (t === "0" || t.includes("aucun") || t === "0 salarié" || t === "0 salarie") return "0 SALARIE";
+  // Extract first number for range matching
+  const num = parseInt(t.replace(/[^\d]/g, ""), 10);
+  if (isNaN(num)) return t.toUpperCase();
+  if (num === 0) return "0 SALARIE";
+  if (num <= 2) return "1 OU 2 SALARIES";
+  if (num <= 5) return "3 A 5 SALARIES";
+  if (num <= 10) return "6 A 10 SALARIES";
+  if (num <= 50) return "11 A 50 SALARIES";
   return "PLUS DE 50";
 }
 
@@ -323,10 +327,14 @@ async function downloadDocument(
       console.error("Storage upload error:", error);
       return null;
     }
-    const { data: urlData } = supabase.storage
+    const { data: urlData, error: signError } = await supabase.storage
       .from("kyc-documents")
-      .getPublicUrl(filePath);
-    return urlData.publicUrl;
+      .createSignedUrl(filePath, 7 * 24 * 3600);
+    if (signError || !urlData?.signedUrl) {
+      console.error("Signed URL error:", signError);
+      return null;
+    }
+    return urlData.signedUrl;
   } catch (e) {
     console.error("Download error:", e);
     return null;
