@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
 
         if (!res.ok) continue;
 
-        const data = await res.json();
+        let data: any;
+        try { data = await res.json(); } catch { continue; }
         const items = data.items ?? [];
 
         for (const item of items) {

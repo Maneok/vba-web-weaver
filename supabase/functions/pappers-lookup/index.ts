@@ -147,7 +147,8 @@ async function searchPappersBySiren(siren: string): Promise<PappersCompany | nul
   try {
     const clean = siren.replace(/\s/g, "");
     const res = await fetch(
-      `${PAPPERS_BASE}/entreprise?api_token=${PAPPERS_API_KEY}&siren=${clean}`
+      `${PAPPERS_BASE}/entreprise?api_token=${PAPPERS_API_KEY}&siren=${clean}`,
+      { signal: AbortSignal.timeout(10000) }
     );
     if (!res.ok) return null;
     return await res.json();
@@ -160,7 +161,8 @@ async function searchPappersByName(nom: string): Promise<PappersCompany[]> {
   if (!PAPPERS_API_KEY) return [];
   try {
     const res = await fetch(
-      `${PAPPERS_BASE}/recherche?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`
+      `${PAPPERS_BASE}/recherche?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`,
+      { signal: AbortSignal.timeout(10000) }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -174,7 +176,8 @@ async function searchPappersByDirigeant(nom: string): Promise<PappersCompany[]> 
   if (!PAPPERS_API_KEY) return [];
   try {
     const res = await fetch(
-      `${PAPPERS_BASE}/recherche-dirigeants?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`
+      `${PAPPERS_BASE}/recherche-dirigeants?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`,
+      { signal: AbortSignal.timeout(10000) }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -309,7 +312,7 @@ async function downloadDocument(
 ): Promise<string | null> {
   try {
     const downloadUrl = `${url}?api_token=${PAPPERS_API_KEY}`;
-    const res = await fetch(downloadUrl);
+    const res = await fetch(downloadUrl, { signal: AbortSignal.timeout(15000) });
     if (!res.ok) return null;
     const blob = await res.blob();
     const arrayBuffer = await blob.arrayBuffer();
