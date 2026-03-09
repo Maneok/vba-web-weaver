@@ -869,9 +869,9 @@ function CompMobileCard({ row }: { row: CompRow }) {
 
 /* Comparison cell */
 function CompCell({ value, accent }: { value: CompValue; accent?: boolean }) {
-  if (value === "yes") return <Check className={`mx-auto h-5 w-5 ${accent ? "text-emerald-400" : "text-gray-400"}`} />;
+  if (value === "yes") return <Check className={`mx-auto h-5 w-5 ${accent ? "text-emerald-400" : "text-emerald-400/70"}`} />;
   if (value === "no") return <X className="mx-auto h-5 w-5 text-red-400/60" />;
-  if (value === "partial") return <Minus className="mx-auto h-5 w-5 text-yellow-400/70" />;
+  if (value === "partial") return <span className="text-xs font-medium text-amber-400">Partiel</span>;
   return <span className={`text-sm ${accent ? "text-emerald-400 font-semibold" : "text-[--l-text-3]"}`}>{value}</span>;
 }
 
@@ -1286,18 +1286,21 @@ export default function LandingPage() {
           }
         }
 
-        /* Purple gradient section titles in light mode */
+        /* Purple gradient section titles in light mode — use color instead of background-clip to avoid violet square bug */
         .theme-light h2.font-serif {
-          background: linear-gradient(135deg, #6d28d9, #5b21b6, #4c1d95);
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+          color: #4c1d95;
+        }
+        .theme-light h3.font-serif {
+          color: #4c1d95;
         }
 
         /* Light mode: darken accent colors for contrast on cream */
-        /* Hero gradient text on cream */
+        /* Hero gradient text on cream — keep background-clip but ensure proper display */
         .theme-light .bg-gradient-to-r.from-violet-400.to-purple-300 {
           background: linear-gradient(to right, #6d28d9, #7c3aed) !important;
+          -webkit-background-clip: text !important;
+          -webkit-text-fill-color: transparent !important;
+          background-clip: text !important;
         }
 
         .theme-light .text-emerald-400 { color: #059669 !important; }
@@ -1318,6 +1321,7 @@ export default function LandingPage() {
         .theme-light .text-emerald-400\\/60 { color: rgba(5,150,105,0.7) !important; }
         .theme-light .text-emerald-400\\/70 { color: rgba(5,150,105,0.8) !important; }
         .theme-light .text-blue-400\\/60 { color: rgba(37,99,235,0.7) !important; }
+        .theme-light .text-orange-400 { color: #ea580c !important; }
 
         /* Timeline line fill */
         .timeline-line-fill {
@@ -1337,9 +1341,9 @@ export default function LandingPage() {
           border-radius: 4px;
         }
 
-        /* Smooth section anchors offset */
+        /* Smooth section anchors offset — account for urgency banner */
         .landing-root [id] {
-          scroll-margin-top: 80px;
+          scroll-margin-top: 112px;
         }
 
         /* CTA glow pulse (#42) */
@@ -1908,26 +1912,32 @@ export default function LandingPage() {
               </span>
             </div>
 
-            {/* Plan cards */}
-            <div className="grid gap-8 lg:grid-cols-3">
+            {/* Plan cards — flex layout for aligned buttons */}
+            <div className="grid gap-8 lg:grid-cols-3 items-stretch">
               {plans.map((plan, i) => {
                 const price = plan.price === 0 ? null : annual ? Math.round(plan.price * 0.8) : plan.price;
                 return (
                   <TiltCard key={plan.name}>
-                    <GlowCard className={`h-full rounded-2xl border backdrop-blur-sm p-8 ${plan.popular ? "ring-1 ring-blue-500/20" : ""}`}
+                    <GlowCard className={`h-full rounded-2xl border backdrop-blur-sm ${plan.popular ? "ring-1 ring-blue-500/20" : ""}`}
                       style={{ borderColor: plan.popular ? "rgba(59,130,246,0.4)" : "var(--l-border)", background: "var(--l-surface)" }}
                     >
-                      <div data-reveal className="opacity-0 translate-y-10 transition-[opacity,transform] duration-700 relative" style={{ transitionDelay: `${i * 120 + 200}ms` }}>
-                        {plan.popular && (
-                          <div className="absolute -top-11 left-1/2 -translate-x-1/2">
-                            <Badge className="bg-blue-600 text-white border-0 px-3">Populaire</Badge>
+                      <div data-reveal className="flex flex-col h-full p-8 opacity-0 translate-y-10 transition-[opacity,transform] duration-700" style={{ transitionDelay: `${i * 120 + 200}ms` }}>
+                        {/* Populaire badge — inline, not absolute */}
+                        {plan.popular ? (
+                          <div className="mb-4">
+                            <Badge className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-0 px-3 py-1">Le plus populaire</Badge>
                           </div>
+                        ) : (
+                          <div className="mb-4 h-6" /> /* spacer for alignment */
                         )}
-                        <div className="mb-6">
+
+                        <div className="mb-4">
                           <h3 className="text-xl font-bold">{plan.name}</h3>
                           <p className="mt-1 text-sm" style={{ color: "var(--l-text-4)" }}>{plan.desc}</p>
                         </div>
-                        <div className="mb-8">
+
+                        {/* Price — fixed height for alignment */}
+                        <div className="mb-6 h-16 flex items-end">
                           {price !== null ? (
                             <div className="flex items-baseline gap-1">
                               <span className="text-5xl font-bold font-serif">{price}€</span>
@@ -1940,30 +1950,34 @@ export default function LandingPage() {
                             <span className="text-3xl font-bold font-serif">Sur devis</span>
                           )}
                         </div>
-                        <ul className="mb-8 space-y-3">
+
+                        {/* Features — flex-1 to push button to bottom */}
+                        <ul className="space-y-3 flex-1">
                           {plan.features.map((f) => (
                             <li key={f} className="flex items-center gap-3 text-sm" style={{ color: "var(--l-text-2)" }}>
                               <Check className="h-4 w-4 shrink-0 text-blue-400" />{f}
                             </li>
                           ))}
                         </ul>
-                        <div className="space-y-2">
+
+                        {/* CTA — always at bottom */}
+                        <div className="mt-8 space-y-2">
                           {plan.price === 0 ? (
                             <a href="mailto:contact@grimy.fr?subject=Demande Enterprise" className="block">
-                              <Button className="w-full h-11 btn-press bg-[--l-surface-raised] hover:opacity-80" style={{ color: "var(--l-text)" }}>
+                              <Button className="w-full h-12 btn-press bg-[--l-surface-raised] hover:opacity-80 text-base" style={{ color: "var(--l-text)" }}>
                                 {plan.cta}
                               </Button>
                             </a>
                           ) : (
                             <Link to="/auth" className="block">
-                              <Button className={`w-full h-11 btn-press ${plan.popular ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-600/20 text-white" : "bg-[--l-surface-raised] hover:opacity-80"}`} style={plan.popular ? {} : { color: "var(--l-text)" }}>
+                              <Button className={`w-full h-12 btn-press text-base ${plan.popular ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/20 text-white" : "bg-[--l-surface-raised] hover:opacity-80"}`} style={plan.popular ? {} : { color: "var(--l-text)" }}>
                                 {plan.cta}
                               </Button>
                             </Link>
                           )}
-                          {plan.price > 0 && (
-                            <p className="text-center text-xs" style={{ color: "var(--l-text-5)" }}>14 jours d'essai gratuit</p>
-                          )}
+                          <p className="text-center text-xs" style={{ color: "var(--l-text-5)" }}>
+                            {plan.price > 0 ? "14 jours d'essai gratuit" : "Démonstration personnalisée"}
+                          </p>
                         </div>
                       </div>
                     </GlowCard>
