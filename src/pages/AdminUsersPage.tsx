@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { logAudit } from "@/lib/auth/auditTrail";
 import type { UserProfile, UserRole } from "@/lib/auth/types";
+import { validateInvite, formatZodErrors } from "@/lib/validation";
 import { ROLE_LABELS } from "@/lib/auth/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -57,31 +57,33 @@ export default function AdminUsersPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+
+    // Validate input with Zod
+    const validation = validateInvite({ email: inviteEmail.trim(), fullName: inviteName.trim(), role: inviteRole });
+    if (!validation.success) {
+      toast.error(formatZodErrors(validation.error));
+      return;
+    }
+
     setInviting(true);
 
     try {
-      // Create user via Supabase Auth admin (client-side invite)
-      const { error } = await supabase.auth.signUp({
-        email: inviteEmail,
-        password: crypto.randomUUID().slice(0, 16) + "A1!", // Temporary password
-        options: {
-          data: {
-            full_name: inviteName,
-            cabinet_id: profile.cabinet_id,
-            role: inviteRole,
-          },
+      // Invite via secure Edge Function (server-side, role-verified)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expirée");
+
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          email: inviteEmail.trim(),
+          fullName: inviteName.trim(),
+          role: inviteRole,
         },
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      await logAudit({
-        action: "INVITATION_UTILISATEUR",
-        table_name: "profiles",
-        new_data: { email: inviteEmail, role: inviteRole, full_name: inviteName },
-      });
-
-      toast.success(`Invitation envoyee a ${inviteEmail}`);
+      toast.success(data?.message || `Invitation envoyee a ${inviteEmail}`);
       setInviteOpen(false);
       setInviteEmail("");
       setInviteName("");
