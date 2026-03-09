@@ -26,25 +26,47 @@ function sanitizeFields(data: Record<string, unknown>, allowedFields: readonly s
   return clean;
 }
 
-// Helper: get current user's cabinet_id from profile
+// FIX 27: Cache cabinet_id for session lifetime to avoid repeated queries
+let _cachedCabinetId: string | null = null;
+let _cachedForUserId: string | null = null;
+
 async function getCabinetId(): Promise<string | null> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    // FIX 25: Use getSession() instead of getUser() (avoids extra network call)
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session?.user) {
+      _cachedCabinetId = null;
+      _cachedForUserId = null;
+      return null;
+    }
+
+    // Return cached value if same user
+    if (_cachedForUserId === session.user.id && _cachedCabinetId) {
+      return _cachedCabinetId;
+    }
+
     const { data, error } = await supabase
       .from("profiles")
       .select("cabinet_id")
-      .eq("id", user.id)
+      .eq("id", session.user.id)
       .maybeSingle();
     if (error) {
       if (import.meta.env.DEV) console.error("[DB] getCabinetId error:", error);
       return null;
     }
-    return data?.cabinet_id || null;
+    _cachedCabinetId = data?.cabinet_id || null;
+    _cachedForUserId = session.user.id;
+    return _cachedCabinetId;
   } catch (e) {
     if (import.meta.env.DEV) console.error("[DB] getCabinetId exception:", e);
     return null;
   }
+}
+
+// Clear cache on sign-out (called from AuthContext)
+export function clearCabinetCache(): void {
+  _cachedCabinetId = null;
+  _cachedForUserId = null;
 }
 
 // ===== CLIENTS =====
