@@ -16,6 +16,7 @@ export const supabase = createClient(
   {
     auth: {
       storage: typeof window !== 'undefined' ? sessionStorage : undefined,
+      storageKey: 'lcb-ft-auth',
       persistSession: true,
       autoRefreshToken: true,
       flowType: 'pkce',

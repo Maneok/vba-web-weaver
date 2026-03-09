@@ -24,6 +24,7 @@ export interface AuthState {
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
   signOut: () => Promise<void>;
   hasPermission: (action: PermissionAction) => boolean;
+  refreshProfile: () => Promise<UserProfile | null>;
 }
 
 export type PermissionAction =
