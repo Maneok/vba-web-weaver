@@ -309,7 +309,10 @@ function InteractiveDemo() {
   const [score, setScore] = useState(0);
   const timers = useRef<number[]>([]);
 
-  const cleanup = () => timers.current.forEach(clearTimeout);
+  const cleanup = useCallback(() => {
+    timers.current.forEach((id) => { clearTimeout(id); clearInterval(id); });
+    timers.current = [];
+  }, []);
 
   const run = () => {
     cleanup();
@@ -323,14 +326,15 @@ function InteractiveDemo() {
           timers.current.push(window.setTimeout(() => {
             setStage("done");
             let s = 0;
-            const iv = setInterval(() => { s += 3; setScore(s); if (s >= 72) clearInterval(iv); }, 25);
+            const iv = window.setInterval(() => { s += 3; setScore(s); if (s >= 72) clearInterval(iv); }, 25);
+            timers.current.push(iv);
           }, 500));
         }
       }, 400 * (i + 1)));
     });
   };
 
-  useEffect(() => cleanup, []);
+  useEffect(() => { return () => cleanup(); }, [cleanup]);
 
   return (
     <div className="rounded-2xl border border-[--l-border] bg-[--l-surface] p-1.5 backdrop-blur-sm max-w-lg mx-auto">
@@ -449,15 +453,16 @@ function AnimatedMockStep() {
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
+    let iv: ReturnType<typeof setInterval> | undefined;
     const obs = new IntersectionObserver(([e]) => {
       if (e.isIntersecting && !started.current) {
         started.current = true;
         let c = 0;
-        const iv = setInterval(() => { c++; setApiCount(c); if (c >= 9) clearInterval(iv); }, 350);
+        iv = setInterval(() => { c++; setApiCount(c); if (c >= 9) { clearInterval(iv); iv = undefined; } }, 350);
       }
     }, { threshold: 0.3 });
     obs.observe(el);
-    return () => obs.disconnect();
+    return () => { obs.disconnect(); if (iv) clearInterval(iv); };
   }, []);
 
   return (
@@ -783,6 +788,9 @@ export default function LandingPage() {
           --l-bg-alt: #0f0f2e;
           --l-surface: rgba(255,255,255,0.05);
           --l-border: rgba(255,255,255,0.1);
+          --l-border-subtle: rgba(255,255,255,0.05);
+          --l-bg-blur: rgba(10,10,26,0.85);
+          --l-bg-blur-heavy: rgba(10,10,26,0.95);
           --l-text: #ffffff;
           --l-text-2: #d1d5db;
           --l-text-3: #9ca3af;
@@ -795,6 +803,9 @@ export default function LandingPage() {
           --l-bg-alt: #f0f2f5;
           --l-surface: rgba(0,0,0,0.03);
           --l-border: rgba(0,0,0,0.1);
+          --l-border-subtle: rgba(0,0,0,0.05);
+          --l-bg-blur: rgba(250,251,252,0.85);
+          --l-bg-blur-heavy: rgba(250,251,252,0.95);
           --l-text: #111827;
           --l-text-2: #374151;
           --l-text-3: #4b5563;
@@ -886,7 +897,7 @@ export default function LandingPage() {
             : "bg-transparent"
         }`} style={{
           borderColor: navScrolled ? "var(--l-border)" : "transparent",
-          background: navScrolled ? "color-mix(in srgb, var(--l-bg-primary) 80%, transparent)" : "transparent",
+          background: navScrolled ? "var(--l-bg-blur)" : "transparent",
           backdropFilter: navScrolled ? "blur(16px)" : "none",
         }}>
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -934,7 +945,7 @@ export default function LandingPage() {
 
           {/* Mobile menu */}
           {mobileMenu && (
-            <div className="md:hidden border-t px-6 py-4 space-y-1 backdrop-blur-xl" style={{ borderColor: "var(--l-border)", background: "color-mix(in srgb, var(--l-bg-primary) 95%, transparent)" }}>
+            <div className="md:hidden border-t px-6 py-4 space-y-1 backdrop-blur-xl" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur-heavy)" }}>
               {NAV_LINKS.map((l) => (
                 <button key={l.id} onClick={() => handleNavClick(l.id)} className="block w-full text-left py-3 text-sm transition-colors" style={{ color: "var(--l-text-2)" }}>{l.label}</button>
               ))}
@@ -986,7 +997,7 @@ export default function LandingPage() {
             </p>
 
             {/* #7 — Onboarding stepper */}
-            <div className={`mt-12 flex items-center justify-center gap-2 sm:gap-4 transition-all duration-1000 delay-[900ms] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+            <div className={`mt-12 flex items-center justify-center gap-2 sm:gap-4 transition-all duration-1000 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ transitionDelay: "900ms" }}>
               {["Créez votre compte", "Ajoutez un client", "Lancez le screening"].map((step, i) => (
                 <div key={step} className="flex items-center gap-2 sm:gap-3">
                   <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-400">{i + 1}</div>
@@ -1202,7 +1213,7 @@ export default function LandingPage() {
                 </thead>
                 <tbody>
                   {comparison.map((row, i) => (
-                    <tr key={row.label} className="table-row-hover" style={{ borderBottom: "1px solid color-mix(in srgb, var(--l-border) 50%, transparent)" }}>
+                    <tr key={row.label} className="table-row-hover" style={{ borderBottom: "1px solid var(--l-border-subtle)" }}>
                       <td className="px-6 py-4" style={{ color: "var(--l-text-2)" }}>{row.label}</td>
                       <td className="px-6 py-4 text-center grimy-col"><CompCell value={row.grimy} accent /></td>
                       <td className="px-6 py-4 text-center"><CompCell value={row.kanta} /></td>
@@ -1313,7 +1324,7 @@ export default function LandingPage() {
                     </thead>
                     <tbody>
                       {pricingFeatures.map((pf, i) => (
-                        <tr key={pf.name} className="table-row-hover" style={{ borderBottom: i < pricingFeatures.length - 1 ? "1px solid color-mix(in srgb, var(--l-border) 50%, transparent)" : "none" }}>
+                        <tr key={pf.name} className="table-row-hover" style={{ borderBottom: i < pricingFeatures.length - 1 ? "1px solid var(--l-border-subtle)" : "none" }}>
                           <td className="px-5 py-3" style={{ color: "var(--l-text-2)" }}>{pf.name}</td>
                           <td className="px-5 py-3 text-center"><CompCell value={pf.solo} /></td>
                           <td className="px-5 py-3 text-center grimy-col"><CompCell value={pf.cabinet} accent /></td>
@@ -1473,7 +1484,7 @@ export default function LandingPage() {
 
       {/* ══════ #4 — STICKY CTA BAR (appears after hero) ══════ */}
       {!heroInView && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t p-3 backdrop-blur-xl sm:hidden transition-all" style={{ borderColor: "var(--l-border)", background: "color-mix(in srgb, var(--l-bg-primary) 90%, transparent)" }}>
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t p-3 backdrop-blur-xl sm:hidden transition-all" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur)" }}>
           <Link to="/auth" className="block">
             <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-600/25 btn-press text-white">
               Démarrer gratuitement <ArrowRight className="ml-2 h-4 w-4" />
@@ -1484,7 +1495,7 @@ export default function LandingPage() {
 
       {/* ══════ #18 — Cookie consent banner (RGPD) ══════ */}
       {cookies.show && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t p-4 backdrop-blur-xl" style={{ borderColor: "var(--l-border)", background: "color-mix(in srgb, var(--l-bg-primary) 95%, transparent)" }}>
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t p-4 backdrop-blur-xl" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur-heavy)" }}>
           <div className="mx-auto max-w-4xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
             <div className="flex items-start gap-3 flex-1">
               <Cookie className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
