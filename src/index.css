@@ -172,3 +172,11 @@
   animation: fade-in-up 0.4s ease-out 0.2s forwards;
   opacity: 0;
 }
+
+/* Dashboard drag & drop transitions */
+[data-widget-id] {
+  transition: transform 200ms ease, opacity 200ms ease;
+}
+[data-widget-id][style*="translate"] {
+  transition: none;
+}
