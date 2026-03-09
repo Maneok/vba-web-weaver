@@ -484,6 +484,8 @@ interface NewDocxParams {
     comptable: number;
     constitution: number;
     juridique: number;
+    sociale: number;
+    fiscal: number;
     frequence: "MENSUEL" | "TRIMESTRIEL" | "ANNUEL";
   };
   cabinet: {
@@ -611,10 +613,19 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
       if (honoraires.constitution > 0) {
         honoRows.push(honoRow4Col("Constitution / Reprise dossier", honoraires.constitution, rowIdx++ % 2 === 0));
       }
+      if (missions.sociale && (honoraires.sociale || 0) > 0) {
+        honoRows.push(honoRow4Col("Mission sociale annuelle", honoraires.sociale, rowIdx++ % 2 === 0));
+      }
       if (missions.juridique && honoraires.juridique > 0) {
         honoRows.push(honoRow4Col("Mission juridique annuelle", honoraires.juridique, rowIdx++ % 2 === 0));
       }
-      const totalHT = honoraires.comptable + honoraires.constitution + (missions.juridique ? honoraires.juridique : 0);
+      if (missions.fiscal && (honoraires.fiscal || 0) > 0) {
+        honoRows.push(honoRow4Col("Assistance contrôle fiscal", honoraires.fiscal, rowIdx++ % 2 === 0));
+      }
+      const totalHT = honoraires.comptable + honoraires.constitution
+        + (missions.juridique ? honoraires.juridique : 0)
+        + (missions.sociale ? (honoraires.sociale || 0) : 0)
+        + (missions.fiscal ? (honoraires.fiscal || 0) : 0);
       honoRows.push(honoTotal4Col("TOTAL", totalHT));
       children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: honoRows }));
 

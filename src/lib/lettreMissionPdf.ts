@@ -1151,6 +1151,8 @@ interface NewPdfParams {
     comptable: number;
     constitution: number;
     juridique: number;
+    sociale: number;
+    fiscal: number;
     frequence: "MENSUEL" | "TRIMESTRIEL" | "ANNUEL";
   };
   cabinet: {
@@ -1396,9 +1398,14 @@ export function renderNewLettreMissionPdf(params: NewPdfParams): void {
 
       honoRow4("Forfait comptable annuel", honoraires.comptable, true);
       if (honoraires.constitution > 0) honoRow4("Constitution / Reprise dossier", honoraires.constitution, false);
-      if (missions.juridique && honoraires.juridique > 0) honoRow4("Mission juridique annuelle", honoraires.juridique, true);
+      if (missions.sociale && (honoraires.sociale || 0) > 0) honoRow4("Mission sociale annuelle", honoraires.sociale, true);
+      if (missions.juridique && honoraires.juridique > 0) honoRow4("Mission juridique annuelle", honoraires.juridique, false);
+      if (missions.fiscal && (honoraires.fiscal || 0) > 0) honoRow4("Assistance contrôle fiscal", honoraires.fiscal, true);
 
-      const totalHT = honoraires.comptable + honoraires.constitution + (missions.juridique ? honoraires.juridique : 0);
+      const totalHT = honoraires.comptable + honoraires.constitution
+        + (missions.juridique ? honoraires.juridique : 0)
+        + (missions.sociale ? (honoraires.sociale || 0) : 0)
+        + (missions.fiscal ? (honoraires.fiscal || 0) : 0);
       const totalTVA = Math.round(totalHT * 0.20 * 100) / 100;
       const totalTTC = Math.round(totalHT * 1.20 * 100) / 100;
 

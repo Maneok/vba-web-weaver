@@ -23,6 +23,8 @@ interface Props {
     comptable: number;
     constitution: number;
     juridique: number;
+    sociale: number;
+    fiscal: number;
     frequence: "MENSUEL" | "TRIMESTRIEL" | "ANNUEL";
   };
   cabinet: CabinetInfo;
@@ -109,7 +111,10 @@ export default function LettreMissionA4Preview({
   const vigilanceBg = client?.nivVigilance === "SIMPLIFIEE" ? "#f0fff4" : client?.nivVigilance === "RENFORCEE" ? "#fff5f5" : "#fffff0";
 
   // Honoraires with TVA (#6, #18)
-  const totalHT = (honoraires.comptable || 0) + (honoraires.constitution || 0) + (missions.juridique ? honoraires.juridique || 0 : 0);
+  const totalHT = (honoraires.comptable || 0) + (honoraires.constitution || 0)
+    + (missions.juridique ? honoraires.juridique || 0 : 0)
+    + (missions.sociale ? honoraires.sociale || 0 : 0)
+    + (missions.fiscal ? honoraires.fiscal || 0 : 0);
   const totalTVA = Math.round(totalHT * 0.20 * 100) / 100;
   const totalTTC = Math.round(totalHT * 1.20 * 100) / 100;
   const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : "annuel";
@@ -127,55 +132,60 @@ export default function LettreMissionA4Preview({
         position: "relative", overflow: "hidden",
       }}
     >
-      {/* Filigrane PROJET (#3) */}
+      {/* Filigrane PROJET */}
       {showWatermark && (
         <div style={{
           position: "absolute", top: "50%", left: "50%",
           transform: "translate(-50%, -50%) rotate(-45deg)",
-          fontSize: 80, fontWeight: 900, color: "rgba(200,200,200,0.08)",
+          fontSize: 90, fontWeight: 900, color: "rgba(180,180,200,0.10)",
           pointerEvents: "none", whiteSpace: "nowrap", zIndex: 0,
-          letterSpacing: 20, userSelect: "none",
+          letterSpacing: 24, userSelect: "none",
+          textTransform: "uppercase",
         }}>
-          PROJET
+          {status === "en_attente" ? "EN ATTENTE" : "PROJET"}
         </div>
       )}
 
       {/* ── En-tête cabinet ── */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, position: "relative", zIndex: 1 }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: "#1a1a2e" }}>{cabinet.nom}</div>
-          <div style={{ fontSize: 11, color: "#666", marginTop: 2 }}>Membre de l'Ordre des Experts-Comptables</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: "#1a1a2e", letterSpacing: 0.3 }}>{cabinet.nom}</div>
+          <div style={{ fontSize: 11, color: "#888", marginTop: 3, fontStyle: "italic" }}>Membre de l'Ordre des Experts-Comptables</div>
         </div>
-        <div style={{ textAlign: "right", fontSize: 11, color: "#666" }}>
+        <div style={{ textAlign: "right", fontSize: 11, color: "#666", lineHeight: 1.7 }}>
           <div>{cabinet.adresse}</div>
           <div>{cabinet.cp} {cabinet.ville}</div>
-          <div>SIRET : {cabinet.siret}</div>
-          <div>OEC n° {cabinet.numeroOEC}</div>
+          <div style={{ color: "#888", marginTop: 3 }}>SIRET : {cabinet.siret} | OEC n° {cabinet.numeroOEC}</div>
           <div>{cabinet.email} — {cabinet.telephone}</div>
         </div>
       </div>
-      <hr style={{ border: "none", borderTop: "2px solid #1a1a2e", marginBottom: 30 }} />
+      <div style={{ height: 3, background: "linear-gradient(90deg, #1a1a2e, #3b4c8a, #1a1a2e)", marginBottom: 30, borderRadius: 2 }} />
 
       {/* ── Title ── */}
       <div style={{ textAlign: "center", margin: "20px 0 10px", position: "relative", zIndex: 1 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: "#1a1a2e", letterSpacing: 1 }}>LETTRE DE MISSION</div>
-        {/* Objet du contrat (#16) */}
-        <div style={{ fontSize: 14, color: "#666", marginTop: 4 }}>Objet : {objetContrat}</div>
+        <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 4, color: "#888", marginBottom: 6 }}>Document contractuel</div>
+        <div style={{ fontSize: 24, fontWeight: 700, color: "#1a1a2e", letterSpacing: 2 }}>LETTRE DE MISSION</div>
+        <div style={{ width: 60, height: 3, background: "#1a1a2e", margin: "8px auto", borderRadius: 2 }} />
+        <div style={{ fontSize: 14, color: "#555", marginTop: 6 }}>{objetContrat}</div>
         {client && (
-          <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>
-            Exercice {new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })} au 31/12/{new Date().getFullYear()}
+          <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+            Exercice du 01/01/{new Date().getFullYear()} au 31/12/{new Date().getFullYear()}
           </div>
         )}
       </div>
 
-      {/* ── Sommaire (#9) ── */}
-      <div style={{ margin: "20px 0 30px", padding: "12px 20px", background: "#f8f9fa", borderRadius: 6, position: "relative", zIndex: 1 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e", marginBottom: 6, textTransform: "uppercase", letterSpacing: 1 }}>Sommaire</div>
-        {visibleSections.map((s, i) => (
-          <div key={s.id} style={{ fontSize: 11, color: "#555", padding: "1px 0", display: "flex", justifyContent: "space-between" }}>
-            <span>{i + 1}. {s.title}</span>
-          </div>
-        ))}
+      {/* ── Sommaire ── */}
+      <div style={{ margin: "24px 0 30px", padding: "16px 24px", background: "#f8f9fb", borderRadius: 8, border: "1px solid #e8ecf1", position: "relative", zIndex: 1 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a2e", marginBottom: 8, textTransform: "uppercase", letterSpacing: 2 }}>Sommaire</div>
+        <div style={{ columns: visibleSections.length > 10 ? 2 : 1, columnGap: 24 }}>
+          {visibleSections.map((s, i) => (
+            <div key={s.id} style={{ fontSize: 11, color: "#555", padding: "2px 0", display: "flex", alignItems: "baseline", gap: 6, breakInside: "avoid" }}>
+              <span style={{ color: "#1a1a2e", fontWeight: 600, minWidth: 20 }}>{String(i + 1).padStart(2, "0")}.</span>
+              <span>{s.title}</span>
+              {s.type === "annexe" && <span style={{ fontSize: 9, color: "#888", fontStyle: "italic" }}>(annexe)</span>}
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* ── Sections ── */}
@@ -231,7 +241,9 @@ export default function LettreMissionA4Preview({
               { label: "Forfait comptable annuel", ht: honoraires.comptable },
             ];
             if (honoraires.constitution > 0) rows.push({ label: "Constitution / Reprise dossier", ht: honoraires.constitution });
+            if (missions.sociale && honoraires.sociale > 0) rows.push({ label: "Mission sociale annuelle", ht: honoraires.sociale });
             if (missions.juridique && honoraires.juridique > 0) rows.push({ label: "Mission juridique annuelle", ht: honoraires.juridique });
+            if (missions.fiscal && honoraires.fiscal > 0) rows.push({ label: "Assistance contrôle fiscal", ht: honoraires.fiscal });
 
             return (
               <div key={section.id} style={{ marginBottom: 24 }}>
@@ -262,8 +274,8 @@ export default function LettreMissionA4Preview({
                     </tr>
                   </tbody>
                 </table>
-                <div style={{ marginTop: 8, fontSize: 12, color: "#666" }}>
-                  Facturation {freqLabel} : {fmt(montantPeriodique)} HT / {freqLabel === "annuel" ? "an" : freqLabel === "mensuel" ? "mois" : "trimestre"}
+                <div style={{ marginTop: 10, padding: "8px 12px", background: "#f0f4f8", borderRadius: 6, fontSize: 12, color: "#555", borderLeft: "3px solid #1a1a2e" }}>
+                  Facturation {freqLabel} : <strong>{fmt(montantPeriodique)} HT</strong> / {freqLabel === "annuel" ? "an" : freqLabel === "mensuel" ? "mois" : "trimestre"}
                 </div>
               </div>
             );
@@ -322,14 +334,15 @@ export default function LettreMissionA4Preview({
         })}
       </div>
 
-      {/* Date de validité (#10) */}
+      {/* Date de validité */}
       {client && (
-        <div style={{ marginTop: 30, padding: "10px 16px", background: "#f0f4f8", borderRadius: 6, fontSize: 12, color: "#555", position: "relative", zIndex: 1 }}>
-          Cette lettre est valable jusqu'au {(() => {
+        <div style={{ marginTop: 30, padding: "12px 18px", background: "#f8f9fb", borderRadius: 8, fontSize: 12, color: "#555", position: "relative", zIndex: 1, border: "1px solid #e8ecf1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Cette lettre est valable jusqu'au <strong>{(() => {
             const d = new Date();
             d.setFullYear(d.getFullYear() + 1);
             return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
-          })()}
+          })()}</strong></span>
+          {status === "signee" && <span style={{ background: "#38a169", color: "#fff", padding: "2px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600 }}>SIGNÉE</span>}
         </div>
       )}
     </div>
@@ -341,13 +354,13 @@ export default function LettreMissionA4Preview({
 function SectionTitle({ title, isAnnexe }: { title: string; isAnnexe?: boolean }) {
   if (isAnnexe) {
     return (
-      <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e", borderBottom: "1px solid #1a1a2e", paddingBottom: 4, marginBottom: 12 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e", borderBottom: "2px solid #e8ecf1", paddingBottom: 6, marginBottom: 14 }}>
         {title}
       </div>
     );
   }
   return (
-    <div style={{ background: "#1a1a2e", color: "#fff", padding: "6px 14px", fontSize: 13, fontWeight: 700, marginBottom: 10, letterSpacing: 0.5 }}>
+    <div style={{ background: "linear-gradient(90deg, #1a1a2e, #2d2d5e)", color: "#fff", padding: "8px 16px", fontSize: 13, fontWeight: 600, marginBottom: 12, letterSpacing: 0.8, borderRadius: 2 }}>
       {title.toUpperCase()}
     </div>
   );
