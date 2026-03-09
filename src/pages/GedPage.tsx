@@ -353,16 +353,22 @@ export default function GedPage() {
           .select()
           .maybeSingle();
 
-        if (docError) throw docError;
+        if (docError) {
+          // Cleanup orphan storage file if DB insert fails
+          await supabase.storage.from("documents").remove([filePath]);
+          throw docError;
+        }
 
-        await supabase.from("document_versions").insert({
-          document_id: docData.id,
-          version_number: 1,
-          file_path: filePath,
-          file_size: file.size,
-          uploaded_by: user.id,
-          comment: "Version initiale",
-        });
+        if (docData) {
+          await supabase.from("document_versions").insert({
+            document_id: docData.id,
+            version_number: 1,
+            file_path: filePath,
+            file_size: file.size,
+            uploaded_by: user.id,
+            comment: "Version initiale",
+          });
+        }
       }
 
       toast.success(`${pendingFiles.length} document(s) importe(s)`);
@@ -461,7 +467,7 @@ export default function GedPage() {
         .upload(filePath, newVersionFile);
       if (uploadError) throw uploadError;
 
-      await supabase.from("document_versions").insert({
+      const { error: versionError } = await supabase.from("document_versions").insert({
         document_id: selectedDoc.id,
         version_number: newVersion,
         file_path: filePath,
@@ -469,6 +475,11 @@ export default function GedPage() {
         uploaded_by: user.id,
         comment: versionComment || null,
       });
+
+      if (versionError) {
+        await supabase.storage.from("documents").remove([filePath]);
+        throw versionError;
+      }
 
       await supabase
         .from("documents")

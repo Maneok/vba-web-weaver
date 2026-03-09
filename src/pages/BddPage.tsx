@@ -121,9 +121,16 @@ export default function BddPage() {
     return result;
   }, [clients, search, filterVigilance, filterPilotage, filterEtat, sortKey, sortDir]);
 
+  // FIX 16: CSV injection protection
+  function csvSafe(val: unknown): string {
+    const s = String(val ?? "");
+    if (/^[=+\-@\t\r]/.test(s)) return `'${s}`;
+    if (s.includes(";") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
   const handleExportCSV = () => {
     const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "KYC%", "Butoir"];
-    // CORRECTION 6: Exclude non-diffusible clients from CSV export
     const exportable = filtered.filter(c => !c.nonDiffusible);
     const excluded = filtered.length - exportable.length;
     const rows = exportable.map(c => {
@@ -132,7 +139,7 @@ export default function BddPage() {
       if (c.mail) kyc += 25;
       if (c.iban) kyc += 25;
       if (c.adresse) kyc += 25;
-      return [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, `${kyc}%`, c.dateButoir];
+      return [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, `${kyc}%`, c.dateButoir].map(csvSafe);
     });
     const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });

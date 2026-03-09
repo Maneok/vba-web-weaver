@@ -184,18 +184,21 @@ export interface NetworkResult {
   status: string;
 }
 
+// FIX 10: Normalize source type — accept mixed casing from APIs
 export interface DocumentInfo {
   type: string;
   label: string;
   url: string | null;
-  source: "Pappers" | "pappers" | "INPI" | "inpi" | "auto" | null;
+  source: "pappers" | "inpi" | "auto" | "Pappers" | "INPI" | null;
   available: boolean;
-  status?: "auto" | "lien" | "manquant";
+  status?: "auto" | "lien" | "lien_direct" | "manquant";
   storedInSupabase?: boolean;
   downloadable?: boolean;
   storageUrl?: string | null;
   dateDepot?: string;
   dateCloture?: string;
+  needsAuth?: boolean;
+  inpiSiren?: string;
 }
 
 export interface DocumentsResult {
@@ -772,10 +775,23 @@ export function formatDateFR(dateStr: string): string {
 
 // ====== KYC COMPLETENESS (Probleme 10) ======
 
+// FIX 11: Case-insensitive type matching (inpi-documents uses "kbis", documents-fetch uses "KBIS")
+// FIX 12: Accept both INPI and documents-fetch docs, plus manual uploads
 export function computeKycCompleteness(
   enterprise: EnterpriseResult | null,
   docs: DocumentsResult | null,
+  inpiDocs?: DocumentInfo[],
+  uploadedDocs?: Array<{ type: string }>,
 ): { percent: number; missing: string[] } {
+  // Merge all document sources for checking
+  const allDocs = [
+    ...(docs?.documents ?? []),
+    ...(inpiDocs ?? []),
+  ];
+  const hasDocType = (typePattern: string) =>
+    allDocs.some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()) && (d.status === "auto" || d.storedInSupabase)) ||
+    (uploadedDocs ?? []).some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()));
+
   const fields: Array<{ label: string; ok: boolean }> = [
     { label: "SIREN", ok: !!enterprise?.siren },
     { label: "Raison sociale", ok: !!enterprise?.raison_sociale },
@@ -783,10 +799,10 @@ export function computeKycCompleteness(
     { label: "Forme juridique", ok: !!enterprise?.forme_juridique },
     { label: "Capital", ok: (enterprise?.capital ?? 0) > 0 },
     { label: "Dirigeant", ok: !!enterprise?.dirigeant },
-    { label: "KBIS", ok: docs?.documents?.some(d => d.type === "KBIS" && d.status === "auto") ?? false },
-    { label: "Statuts", ok: docs?.documents?.some(d => d.type === "Statuts" && d.status === "auto") ?? false },
-    { label: "CNI", ok: false },
-    { label: "RIB", ok: false },
+    { label: "KBIS", ok: hasDocType("KBIS") },
+    { label: "Statuts", ok: hasDocType("STATUT") },
+    { label: "CNI", ok: hasDocType("CNI") },
+    { label: "RIB", ok: hasDocType("RIB") },
   ];
   const ok = fields.filter(f => f.ok).length;
   const missing = fields.filter(f => !f.ok).map(f => f.label);

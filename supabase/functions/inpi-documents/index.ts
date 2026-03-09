@@ -100,8 +100,9 @@ async function getAttachments(token: string, siren: string): Promise<any> {
   }
 }
 
-// Diagnostic logs array — returned in response for debugging
-const dlLogs: string[] = [];
+// FIX 8: dlLogs was module-level and grew unboundedly across requests
+// Now reset per request in the handler
+let dlLogs: string[] = [];
 
 async function downloadAndStore(
   supabase: any,
@@ -111,7 +112,7 @@ async function downloadAndStore(
 ): Promise<string | null> {
   try {
     dlLogs.push(`[DL] === DEBUT URL=${url} PATH=${path}`);
-    dlLogs.push(`[DL] Token prefix: ${token?.substring(0, 20)}`);
+    dlLogs.push(`[DL] Token: ${token ? "present" : "missing"}`);
 
     const res = await fetch(url, {
       headers: {
@@ -171,10 +172,21 @@ async function downloadAndStore(
       return null;
     }
 
-    const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(path);
-    const publicUrl = urlData?.publicUrl || null;
-    dlLogs.push(`[DL] STOCKÉ OK: ${publicUrl}`);
-    return publicUrl;
+    // FIX 5: Use createSignedUrl for private bucket instead of getPublicUrl
+    const { data: signedData, error: signErr } = await supabase.storage
+      .from("kyc-documents")
+      .createSignedUrl(path, 7 * 24 * 60 * 60); // 7 days
+
+    let finalUrl: string | null = null;
+    if (signedData?.signedUrl) {
+      finalUrl = signedData.signedUrl;
+    } else {
+      dlLogs.push(`[DL] SignedUrl fallback: ${signErr?.message}`);
+      const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(path);
+      finalUrl = urlData?.publicUrl || null;
+    }
+    dlLogs.push(`[DL] STOCKÉ OK: ${finalUrl}`);
+    return finalUrl;
 
   } catch (e) {
     dlLogs.push(`[DL] EXCEPTION: ${(e as Error).message} | ${(e as Error).stack?.substring(0, 200)}`);
@@ -629,6 +641,8 @@ Deno.serve(async (req) => {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // FIX 8: Reset dlLogs per request to prevent unbounded growth
+    dlLogs = [];
     console.log(`[INPI] === Start for SIREN ${cleanSiren} ===`);
 
     // CORRECTION 2: Use cached token
@@ -818,19 +832,21 @@ Deno.serve(async (req) => {
     }
 
     // Generate Extrait RNE (equivalent Kbis) as HTML from INPI data
+    // FIX 9: Escape HTML to prevent XSS from INPI data
+    const escHtml = (s: string) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     if (companyData && companyRaw) {
       try {
         const adr = companyData.adresse ?? {};
-        const adresseStr = [adr.numVoie, adr.typeVoie, adr.voie].filter(Boolean).join(" ");
-        const denomination = companyData.denomination || "";
+        const adresseStr = escHtml([adr.numVoie, adr.typeVoie, adr.voie].filter(Boolean).join(" "));
+        const denomination = escHtml(companyData.denomination || "");
         const today = new Date().toLocaleDateString("fr-FR");
         const todayISO = new Date().toISOString().slice(0, 10);
 
         const dirigeantsHtml = (companyData.dirigeants ?? [])
-          .map((d: any) => `<div class="field"><span class="label">${d.qualite || "Dirigeant"}</span><span class="value">${d.nom} ${d.prenom}${d.dateNaissance ? " — né(e) le " + d.dateNaissance : ""}${d.nationalite ? " — " + d.nationalite : ""}</span></div>`)
+          .map((d: any) => `<div class="field"><span class="label">${escHtml(d.qualite || "Dirigeant")}</span><span class="value">${escHtml(d.nom)} ${escHtml(d.prenom)}${d.dateNaissance ? " — né(e) le " + escHtml(d.dateNaissance) : ""}${d.nationalite ? " — " + escHtml(d.nationalite) : ""}</span></div>`)
           .join("\n");
         const beHtml = (companyData.beneficiaires ?? [])
-          .map((b: any) => `<div class="field"><span class="label">${b.nom} ${b.prenom}</span><span class="value">${b.pourcentageParts ?? 0}% parts — ${b.pourcentageVotes ?? 0}% votes${b.nationalite ? " — " + b.nationalite : ""}</span></div>`)
+          .map((b: any) => `<div class="field"><span class="label">${escHtml(b.nom)} ${escHtml(b.prenom)}</span><span class="value">${b.pourcentageParts ?? 0}% parts — ${b.pourcentageVotes ?? 0}% votes${b.nationalite ? " — " + escHtml(b.nationalite) : ""}</span></div>`)
           .join("\n");
 
         const extraitHtml = `<!DOCTYPE html>
@@ -852,20 +868,20 @@ Deno.serve(async (req) => {
 <h2>Identité</h2>
 <div class="field"><span class="label">Dénomination</span><span class="value">${denomination}</span></div>
 <div class="field"><span class="label">SIREN</span><span class="value">${cleanSiren}</span></div>
-<div class="field"><span class="label">Forme juridique</span><span class="value">${companyData.formeJuridiqueLabel || companyData.formeJuridique || ""}</span></div>
-<div class="field"><span class="label">Capital</span><span class="value">${companyData.capital || 0} ${companyData.deviseCapital || "EUR"}${companyData.capitalVariable ? " (variable)" : ""}</span></div>
-<div class="field"><span class="label">Date immatriculation</span><span class="value">${companyData.dateImmatriculation || ""}</span></div>
-<div class="field"><span class="label">Durée</span><span class="value">${companyData.duree || ""} ans</span></div>
-<div class="field"><span class="label">Date clôture exercice</span><span class="value">${companyData.dateClotureExercice || ""}</span></div>
+<div class="field"><span class="label">Forme juridique</span><span class="value">${escHtml(companyData.formeJuridiqueLabel || companyData.formeJuridique || "")}</span></div>
+<div class="field"><span class="label">Capital</span><span class="value">${companyData.capital || 0} ${escHtml(companyData.deviseCapital || "EUR")}${companyData.capitalVariable ? " (variable)" : ""}</span></div>
+<div class="field"><span class="label">Date immatriculation</span><span class="value">${escHtml(companyData.dateImmatriculation || "")}</span></div>
+<div class="field"><span class="label">Durée</span><span class="value">${escHtml(companyData.duree || "")} ans</span></div>
+<div class="field"><span class="label">Date clôture exercice</span><span class="value">${escHtml(companyData.dateClotureExercice || "")}</span></div>
 
 <h2>Siège social</h2>
 <div class="field"><span class="label">Adresse</span><span class="value">${adresseStr}</span></div>
-<div class="field"><span class="label">Code postal</span><span class="value">${adr.codePostal || ""}</span></div>
-<div class="field"><span class="label">Commune</span><span class="value">${adr.commune || ""}</span></div>
+<div class="field"><span class="label">Code postal</span><span class="value">${escHtml(adr.codePostal || "")}</span></div>
+<div class="field"><span class="label">Commune</span><span class="value">${escHtml(adr.commune || "")}</span></div>
 
 <h2>Activité</h2>
-<div class="field"><span class="label">Activité principale</span><span class="value">${companyData.activitePrincipale || ""}</span></div>
-<div class="field"><span class="label">Objet social</span><span class="value">${(companyData.objetSocial || "").substring(0, 500)}</span></div>
+<div class="field"><span class="label">Activité principale</span><span class="value">${escHtml(companyData.activitePrincipale || "")}</span></div>
+<div class="field"><span class="label">Objet social</span><span class="value">${escHtml((companyData.objetSocial || "").substring(0, 500))}</span></div>
 
 <h2>Dirigeants</h2>
 ${dirigeantsHtml || '<div class="field"><span class="value" style="color:#999;">Aucun dirigeant déclaré</span></div>'}
@@ -889,11 +905,18 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun b�
           });
 
         if (!uploadErr) {
-          const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(extraitPath);
+          // FIX 5: Use signed URL for private bucket
+          const { data: signedRne } = await supabase.storage
+            .from("kyc-documents")
+            .createSignedUrl(extraitPath, 7 * 24 * 60 * 60);
+          const rneUrl = signedRne?.signedUrl || (() => {
+            const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(extraitPath);
+            return urlData?.publicUrl || "";
+          })();
           documents.unshift({
             type: "kbis",
             label: "Extrait RNE (équivalent Kbis) — " + today,
-            url: urlData?.publicUrl || "",
+            url: rneUrl,
             source: "inpi",
             available: true,
             status: "auto",
@@ -918,14 +941,16 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun b�
       totalDocuments: documents.length,
       storedCount: documents.filter((d: any) => d.storedInSupabase).length,
       status: "ok",
-      _dlLogs: dlLogs,
+      // FIX 28: Only include dlLogs in non-production for debugging
+      ...(Deno.env.get("ENVIRONMENT") !== "production" ? { _dlLogs: dlLogs } : {}),
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("[INPI] Unhandled error:", (error as Error).message);
+    // FIX 27: Don't leak internal error details to client
+    console.error("[INPI] Unhandled error:", (error as Error).message, (error as Error).stack?.substring(0, 300));
     return new Response(JSON.stringify({
-      error: (error as Error).message,
+      error: "Service INPI temporairement indisponible",
       documents: [],
       companyData: null,
       financials: [],

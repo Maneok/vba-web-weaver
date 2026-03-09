@@ -57,12 +57,20 @@ function buildAddress(siege: any): string {
 const INPI_BASE = "https://registre-national-entreprises.inpi.fr/api";
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
+let tokenRefreshing: Promise<string | null> | null = null;
 
 async function getINPIToken(): Promise<string | null> {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+  // Prevent thundering herd: reuse in-flight refresh
+  if (tokenRefreshing) return tokenRefreshing;
+  tokenRefreshing = _refreshINPIToken();
+  try { return await tokenRefreshing; } finally { tokenRefreshing = null; }
+}
+
+async function _refreshINPIToken(): Promise<string | null> {
   const username = Deno.env.get("INPI_USERNAME");
   const password = Deno.env.get("INPI_PASSWORD");
-  if (!username || !password) { console.log("[INPI] No credentials"); return null; }
+  if (!username || !password) return null;
 
   try {
     const res = await fetch(`${INPI_BASE}/sso/login`, {
@@ -76,7 +84,6 @@ async function getINPIToken(): Promise<string | null> {
     if (data.token) {
       cachedToken = data.token;
       tokenExpiry = Date.now() + 8 * 60 * 1000;
-      console.log("[INPI] Auth OK");
       return data.token;
     }
     return null;
@@ -379,7 +386,7 @@ Deno.serve(async (req) => {
     if (pappersKey && siren9) {
       try {
         const pRes = await fetch(
-          `https://api.pappers.fr/v2/entreprise?api_token=${pappersKey}&siren=${siren9}`,
+          `https://api.pappers.fr/v2/entreprise?api_token=${encodeURIComponent(pappersKey)}&siren=${siren9}`,
           { signal: AbortSignal.timeout(6000) }
         );
         if (pRes.ok) {
@@ -636,7 +643,7 @@ Deno.serve(async (req) => {
         if (pappersKey && siren) {
           try {
             const pRes = await fetch(
-              `https://api.pappers.fr/v2/entreprise?api_token=${pappersKey}&siren=${siren}`,
+              `https://api.pappers.fr/v2/entreprise?api_token=${encodeURIComponent(pappersKey)}&siren=${siren}`,
               { signal: AbortSignal.timeout(6000) }
             );
             if (pRes.ok) {

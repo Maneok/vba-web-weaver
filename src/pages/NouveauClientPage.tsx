@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
+import { supabase } from "@/integrations/supabase/client";
 import { clientsService } from "@/lib/supabaseService";
 import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, APE_CASH, MISSION_FREQUENCE, normalizeAddress } from "@/lib/riskEngine";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
@@ -147,6 +148,8 @@ export default function NouveauClientPage() {
   // Step 6 - Documents
   const [documents, setDocuments] = useState<UploadedDoc[]>([]);
   const [dragOver, setDragOver] = useState(false);
+  // FIX 18: Submission loading state to prevent double-click
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Draft banner state
   const [draftBanner, setDraftBanner] = useState<{ restoredAt: Date } | null>(null);
@@ -341,6 +344,8 @@ export default function NouveauClientPage() {
   }, [beneficiaires]);
 
   // KYC completeness
+  // FIX 13: Corrected KBIS matching — "Actes" is NOT a KBIS equivalent
+  // Only "kbis", "extrait rne", "extrait rbe" count as KBIS
   const kycCompleteness = useMemo(() => {
     const required = ["KBIS", "Statuts", "CNI", "RIB"];
     const autoDocs = [
@@ -350,9 +355,10 @@ export default function NouveauClientPage() {
     const found = required.filter(r =>
       documents.some(d => d.type.toUpperCase().includes(r.toUpperCase())) ||
       autoDocs.some(d => {
-        const typeMatch = d.type.toUpperCase().includes(r.toUpperCase());
-        // INPI "Actes" count as KBIS equivalent
-        const kbisMatch = r === "KBIS" && (d.type.toUpperCase().includes("ACTE") || d.type.toUpperCase().includes("EXTRAIT"));
+        const typeUp = d.type.toUpperCase();
+        const typeMatch = typeUp.includes(r.toUpperCase());
+        // Only Extrait RNE/RBE count as KBIS equivalent, NOT generic "Actes"
+        const kbisMatch = r === "KBIS" && (typeUp.includes("EXTRAIT") || typeUp === "KBIS");
         return (typeMatch || kbisMatch) && (d.status === "auto" || (d as any).storedInSupabase);
       })
     );
@@ -659,10 +665,18 @@ export default function NouveauClientPage() {
       }
     }
 
+    // FIX 30: Auto-detect search mode from query content
+    let effectiveMode = searchMode;
+    if (/^\d{9,14}$/.test(cleanSearch)) {
+      effectiveMode = "siren";
+    } else if (/[a-zA-ZÀ-ÿ]/.test(cleanSearch) && effectiveMode === "siren") {
+      effectiveMode = "nom";
+    }
+
     // Primary: new enterprise-lookup (Annuaire Entreprises)
     setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
 
-    const entRes = await searchEnterprise(searchMode, searchQuery.trim());
+    const entRes = await searchEnterprise(effectiveMode, searchQuery.trim());
 
     if (entRes.results && entRes.results.length > 0) {
       setDataSource("annuaire_entreprises");
@@ -701,7 +715,7 @@ export default function NouveauClientPage() {
     } else {
       // Fallback to old Pappers service
       setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: entRes.error ?? "Aucun resultat" } }));
-      const res = await searchPappers(searchMode, searchQuery.trim());
+      const res = await searchPappers(effectiveMode, searchQuery.trim());
       setSearchLoading(false);
 
       if (res.error && (!res.results || res.results.length === 0)) {
@@ -947,18 +961,38 @@ export default function NouveauClientPage() {
   };
 
   // Step 6: file upload
+  // FIX 16: File size limit (10 MB)
+  // FIX 17: File type validation (PDF, images, common doc formats)
+  const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".doc", ".docx", ".xls", ".xlsx"];
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
     const typeMap: Record<string, string> = {
       kbis: "KBIS", statuts: "Statuts", cni: "CNI", rib: "RIB",
       identite: "CNI", passeport: "CNI",
     };
-    const newDocs: UploadedDoc[] = Array.from(files).map(f => {
+    const validFiles: File[] = [];
+    for (const f of Array.from(files)) {
+      // FIX 16: Reject files > 10 MB
+      if (f.size > MAX_FILE_SIZE) {
+        toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`);
+        continue;
+      }
+      // FIX 17: Validate file extension
+      const ext = "." + f.name.split(".").pop()?.toLowerCase();
+      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+        toast.error(`Type de fichier non autorise : ${ext} (${f.name})`);
+        continue;
+      }
+      validFiles.push(f);
+    }
+    const newDocs: UploadedDoc[] = validFiles.map(f => {
       const lower = f.name.toLowerCase();
       const detectedType = Object.entries(typeMap).find(([k]) => lower.includes(k))?.[1] || "Autre";
       return { name: f.name, type: detectedType, file: f };
     });
-    setDocuments(prev => [...prev, ...newDocs]);
+    if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -973,10 +1007,22 @@ export default function NouveauClientPage() {
 
   // Final submission
   const handleSubmit = async () => {
+    // FIX 18: Prevent double submission
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
+    try {
+    // FIX 21: Validate motifRefus when decision is REFUSER
+    if (decision === "REFUSER" && !motifRefus.trim()) {
+      toast.error("Le motif de refus est obligatoire");
+      setIsSubmitting(false);
+      return;
+    }
     // FIX 10: Check for duplicate SIREN before creating
     const existingSiren = clients.find(c => c.siren?.replace(/\s/g, "") === form.siren?.replace(/\s/g, ""));
     if (existingSiren) {
       toast.warning(`Ce client existe deja : ${existingSiren.raisonSociale} — Ref. ${existingSiren.ref}`);
+      setIsSubmitting(false);
       return;
     }
     // FIX 9: Clear draft on successful submission
@@ -1089,6 +1135,48 @@ export default function NouveauClientPage() {
 
     addClient(newClient);
 
+    // FIX 22: Store motifRefus in audit trail when client is refused
+    if (decision === "REFUSER" && motifRefus.trim()) {
+      try {
+        const { logAudit } = await import("@/lib/auth/auditTrail");
+        await logAudit({
+          action: "REFUS_CLIENT",
+          table_name: "clients",
+          record_id: ref,
+          new_data: { motifRefus: motifRefus.trim(), raisonSociale: form.raisonSociale, siren: form.siren },
+        });
+      } catch {
+        // Non-blocking
+      }
+    }
+
+    // FIX 14: Upload manual documents to Supabase storage
+    const manualDocs = documents.filter(d => d.file);
+    if (manualDocs.length > 0) {
+      const cleanSirenForStorage = form.siren?.replace(/\s/g, "") || ref;
+      for (const doc of manualDocs) {
+        if (!doc.file) continue;
+        try {
+          const ext = doc.file.name.split(".").pop() || "pdf";
+          const safeType = doc.type.replace(/[^a-zA-Z0-9_-]/g, "_");
+          const storagePath = `${cleanSirenForStorage}/${safeType}_${Date.now()}.${ext}`;
+          const { error: uploadErr } = await supabase.storage
+            .from("kyc-documents")
+            .upload(storagePath, doc.file, {
+              contentType: doc.file.type || "application/octet-stream",
+              upsert: true,
+            });
+          if (uploadErr) {
+            console.error(`[Submit] Upload failed for ${doc.name}:`, uploadErr.message);
+          } else {
+            console.log(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
+          }
+        } catch (err) {
+          console.error(`[Submit] Upload error for ${doc.name}:`, err);
+        }
+      }
+    }
+
     // #25: Refresh clients from Supabase after creation
     refreshClients().catch(() => {});
 
@@ -1103,6 +1191,12 @@ export default function NouveauClientPage() {
     // Idee 28: Show success modal instead of navigating directly
     setCreatedClientRef(ref);
     setShowSuccessModal(true);
+    } catch (err) {
+      console.error("[Submit] Error:", err);
+      toast.error("Erreur lors de la creation du client");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const canGoNext = useMemo(() => {
@@ -1125,9 +1219,10 @@ export default function NouveauClientPage() {
       if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) errors.siren = "Le SIREN doit comporter 9 chiffres";
       if (form.tel && !/^0\d{9}$/.test(form.tel.replace(/\s/g, ""))) errors.tel = "Format: 0XXXXXXXXX";
       if (form.mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.mail)) errors.mail = "Email invalide";
-      if (form.iban && !/^FR\d{2}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{4}\s?\d{3}$/.test(form.iban.replace(/\s/g, "").replace(/(.{4})/g, "$1 ").trim())) {
-        // simplified IBAN check - just check FR prefix and length
-        if (!form.iban.startsWith("FR") || form.iban.replace(/\s/g, "").length !== 27) {
+      // FIX 23: Simplified IBAN validation — FR prefix + 27 chars
+      if (form.iban) {
+        const cleanIban = form.iban.replace(/\s/g, "");
+        if (!cleanIban.startsWith("FR") || cleanIban.length !== 27) {
           errors.iban = "IBAN invalide (FR + 25 caracteres)";
         }
       }
@@ -1209,15 +1304,14 @@ export default function NouveauClientPage() {
   // Idee 30: Dynamic doc checklist per vigilance level
   const vigilanceDocChecklist = useMemo(() => {
     const base = [
-      { key: "KBIS", label: "Extrait / Kbis", types: ["KBIS", "ACTE", "ACTES", "EXTRAIT"] },
-      { key: "CNI", label: "CNI dirigeant", types: ["CNI"] },
+      { key: "KBIS", label: "Extrait Kbis / RNE", types: ["KBIS", "EXTRAIT"] },
+      { key: "Statuts", label: "Statuts a jour", types: ["STATUTS", "STATUT"] },
+      { key: "CNI", label: "CNI dirigeant", types: ["CNI", "IDENTITE", "PASSEPORT"] },
+      { key: "RIB", label: "RIB / IBAN", types: ["RIB"] },
     ];
-    if (risk.nivVigilance === "STANDARD" || risk.nivVigilance === "RENFORCEE") {
-      base.splice(1, 0, { key: "Statuts", label: "Statuts a jour", types: ["STATUTS"] });
-      base.push({ key: "RIB", label: "RIB / IBAN", types: ["RIB"] });
-    }
     if (risk.nivVigilance === "RENFORCEE") {
-      base.push({ key: "Justificatif", label: "Justificatif domicile", types: ["JUSTIFICATIF"] });
+      base.push({ key: "Justificatif", label: "Justificatif domicile", types: ["JUSTIFICATIF", "DOMICILE"] });
+      base.push({ key: "Comptes", label: "Comptes annuels", types: ["COMPTES", "BILAN"] });
       base.push({ key: "Organigramme", label: "Organigramme", types: ["ORGANIGRAMME"] });
     }
     return base;
@@ -1641,7 +1735,7 @@ export default function NouveauClientPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {(() => {
-                    const kyc = computeKycCompleteness(selectedEnterprise, screening.documents.data);
+                    const kyc = computeKycCompleteness(selectedEnterprise, screening.documents.data, screening.inpi.data?.documents, documents);
                     return (
                       <>
                         <Progress value={kyc.percent} className="w-32 h-2" />
@@ -2166,47 +2260,44 @@ export default function NouveauClientPage() {
         {/* STEP 5: DOCUMENTS */}
         {step === 5 && (
           <div className="space-y-6">
+            {/* Header with KYC progress */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-white">Documents et finalisation</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Uploadez les justificatifs et generez les documents</p>
+                <p className="text-sm text-slate-500 mt-0.5">Verifiez les pieces collectees et uploadez les justificatifs manquants</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-slate-500">Completude KYC</span>
-                <div className="flex items-center gap-2">
-                  <Progress value={kycCompleteness} className="w-24 h-2" />
-                  <span className={`text-sm font-bold ${kycCompleteness === 100 ? "text-emerald-400" : "text-amber-400"}`}>{kycCompleteness}%</span>
-                </div>
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500">KYC</span>
+                <Progress value={kycCompleteness} className="w-28 h-2.5" />
+                <span className={`text-sm font-bold tabular-nums ${kycCompleteness === 100 ? "text-emerald-400" : kycCompleteness >= 60 ? "text-amber-400" : "text-red-400"}`}>{kycCompleteness}%</span>
               </div>
             </div>
 
-            {/* Idee 19: Recapitulatif avant validation */}
-            <Collapsible defaultOpen>
-              <CollapsibleTrigger className="w-full flex items-center justify-between p-4 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
+            {/* Recapitulatif compact */}
+            <Collapsible>
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
-                  <h3 className="text-sm font-semibold text-slate-300">Recapitulatif</h3>
+                  <h3 className="text-sm font-semibold text-slate-300">Recapitulatif du dossier</h3>
                 </div>
                 <ChevronDown className="w-4 h-4 text-slate-500" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
-                <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-3">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {[
                       { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale },
                       { label: "SIREN", value: form.siren, ok: !!form.siren },
                       { label: "Forme juridique", value: form.forme, ok: !!form.forme },
                       { label: "Adresse", value: [form.adresse, form.cp, form.ville].filter(Boolean).join(", "), ok: !!(form.adresse && form.cp && form.ville) },
                       { label: "Dirigeant", value: form.dirigeant, ok: !!form.dirigeant },
-                      { label: "Score", value: `${adjustedScore}/120`, ok: true },
-                      { label: "Vigilance", value: risk.nivVigilance, ok: true },
+                      { label: "Score / Vigilance", value: `${adjustedScore}/120 — ${risk.nivVigilance}`, ok: true },
                       { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0 },
-                      { label: "Documents", value: `${documents.length} doc(s)`, ok: documents.length > 0 },
+                      { label: "Decision", value: decision || "—", ok: !!decision },
+                      { label: "Docs manuels", value: `${documents.length} fichier(s)`, ok: documents.length > 0 },
                     ].map(item => (
                       <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-white/[0.02]">
-                        <Badge className={`text-[9px] border-0 shrink-0 mt-0.5 ${item.ok ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400"}`}>
-                          {item.ok ? "OK" : "!"}
-                        </Badge>
+                        <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${item.ok ? "bg-emerald-400" : "bg-orange-400"}`} />
                         <div className="min-w-0">
                           <p className="text-[10px] text-slate-500">{item.label}</p>
                           <p className="text-xs text-slate-200 truncate">{item.value || "—"}</p>
@@ -2218,167 +2309,235 @@ export default function NouveauClientPage() {
               </CollapsibleContent>
             </Collapsible>
 
-            {/* SECTION 1: Documents INPI recuperes */}
+            {/* SECTION 1: Extrait RNE / Kbis — affiché en premier car c'est le doc le plus important */}
             {(() => {
-              // Get INPI documents (excluding kbis/extrait which has its own section)
-              const docsInpiStored = (screening.inpi.data?.documents ?? []).filter(d =>
-                d.storedInSupabase && d.type !== "kbis"
+              const extraitInpi = (screening.inpi.data?.documents ?? []).filter(d =>
+                d.type?.toLowerCase() === "kbis" && d.storedInSupabase
               );
-              const docsInpiFallback = (screening.inpi.data?.documents ?? []).filter(d =>
-                !d.storedInSupabase && (d as any).needsAuth && d.type !== "kbis"
+              const extraitPappers = (screening.documents.data?.documents ?? []).filter(d =>
+                d.type?.toLowerCase() === "kbis" && d.url
               );
-              // Deduplicate
+              const allExtraits = [...extraitInpi, ...extraitPappers];
+              if (allExtraits.length === 0 && !screening.inpi.loading && !screening.documents.loading) {
+                return (
+                  <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-amber-400">Aucun extrait Kbis / RNE disponible</p>
+                        <p className="text-[10px] text-amber-500/70 mt-0.5">L&apos;extrait sera genere automatiquement a partir des donnees INPI si disponible</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              if (allExtraits.length === 0) return null;
+              return (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-blue-400" />
+                    <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Extrait Kbis / RNE</Label>
+                  </div>
+                  {allExtraits.map((doc, i) => {
+                    const isHtml = doc.url?.includes(".html") || doc.label?.includes("RNE");
+                    const source = (doc as any).source === "pappers" ? "Pappers" : "INPI";
+                    return (
+                      <div key={`kbis-${i}`} className="flex items-center justify-between p-4 rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                            <FileText className="w-5 h-5 text-blue-400" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-slate-200 truncate">{doc.label}</p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge className="text-[9px] bg-blue-500/15 text-blue-400 border-0">{source}</Badge>
+                              <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{isHtml ? "HTML" : "PDF"}</Badge>
+                              {doc.dateDepot && <span className="text-[9px] text-slate-500">{doc.dateDepot.split("-").reverse().join("/")}</span>}
+                            </div>
+                          </div>
+                        </div>
+                        {doc.url && (
+                          <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                            className="shrink-0 ml-3 text-xs font-medium bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+                            <ExternalLink className="w-3.5 h-3.5" /> {isHtml ? "Ouvrir" : "Telecharger"}
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
+            {/* SECTION 2: Statuts & Actes INPI recuperes */}
+            {(() => {
+              // Merge ALL document sources, deduplicate
+              const inpiDocs = (screening.inpi.data?.documents ?? []).filter(d => d.type?.toLowerCase() !== "kbis");
+              const fetchDocs = (screening.documents.data?.documents ?? []).filter(d =>
+                d.type?.toLowerCase() !== "kbis" && d.status !== "manquant"
+              );
               const seen = new Set<string>();
-              const storedPdfs = docsInpiStored.filter(d => {
-                const url = (d as any).url || "";
-                if (seen.has(url)) return false;
-                seen.add(url);
-                return true;
-              });
-              const fallbackDocs = docsInpiFallback.filter(d => {
-                const key = `${d.type}-${d.label}`;
+              const allDocs = [...inpiDocs, ...fetchDocs].filter(d => {
+                const key = `${d.type}-${d.label}`.toLowerCase();
                 if (seen.has(key)) return false;
                 seen.add(key);
                 return true;
               });
-              const hasAnyDocs = storedPdfs.length > 0 || fallbackDocs.length > 0;
-              return hasAnyDocs ? (
+              const storedDocs = allDocs.filter(d => d.storedInSupabase);
+              const linkDocs = allDocs.filter(d => !d.storedInSupabase && d.url && d.status !== "manquant");
+              const isLoading = screening.inpi.loading || screening.documents.loading;
+
+              if (storedDocs.length === 0 && linkDocs.length === 0 && !isLoading) {
+                return (
+                  <div className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="w-4 h-4 text-slate-500" />
+                      <p className="text-sm text-slate-400">Aucun acte ou statut recupere automatiquement</p>
+                    </div>
+                  </div>
+                );
+              }
+
+              // Map doc types to readable labels
+              const typeLabel = (t: string) => {
+                const map: Record<string, string> = {
+                  "Statuts": "Statuts", "PV AG": "PV d'AG", "Actes": "Acte juridique",
+                  "Comptes annuels": "Comptes annuels", "Extrait RBE": "Extrait RBE",
+                };
+                return map[t] || t;
+              };
+              // Icon color by type
+              const typeColor = (t: string) => {
+                if (t === "Statuts") return "text-violet-400 bg-violet-500/10";
+                if (t === "PV AG") return "text-cyan-400 bg-cyan-500/10";
+                if (t.includes("Comptes")) return "text-amber-400 bg-amber-500/10";
+                return "text-slate-400 bg-white/[0.06]";
+              };
+
+              return (
                 <div className="space-y-2">
-                  <Label className="text-xs text-slate-400">Documents recuperes automatiquement (INPI)</Label>
-                  {storedPdfs.map((doc, i) => (
-                    <div key={`pdf-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-4 h-4 text-emerald-400" />
-                        <div>
-                          <p className="text-sm text-slate-200">{doc.label}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                            <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">PDF stocke</Badge>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                      <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Documents collectes</Label>
+                      <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{storedDocs.length + linkDocs.length}</Badge>
+                    </div>
+                    {isLoading && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />}
+                  </div>
+
+                  {/* Stored PDFs */}
+                  {storedDocs.map((doc, i) => (
+                    <div key={`stored-${i}`} className="flex items-center justify-between p-3 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.03] hover:bg-emerald-500/[0.06] transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${typeColor(doc.type)}`}>
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm text-slate-200 truncate max-w-[400px]">{doc.label}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
+                            <span className="text-[8px] text-emerald-500/70">PDF stocke</span>
+                            {doc.dateDepot && <span className="text-[8px] text-slate-500">{doc.dateDepot.split("-").reverse().join("/")}</span>}
+                            {doc.dateCloture && <span className="text-[8px] text-slate-500">Cloture {doc.dateCloture.split("-").reverse().join("/")}</span>}
                           </div>
                         </div>
                       </div>
                       {doc.url && (
                         <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30 px-2.5 py-1 rounded flex items-center gap-1">
-                          <FileDown className="w-3 h-3" /> Telecharger PDF
+                          className="shrink-0 ml-2 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
+                          <FileDown className="w-3 h-3" /> Ouvrir
                         </a>
                       )}
                     </div>
                   ))}
-                  {fallbackDocs.map((doc, i) => (
-                    <div key={`fallback-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-amber-500/20 bg-amber-500/5">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-4 h-4 text-amber-400" />
-                        <div>
-                          <p className="text-sm text-slate-200">{doc.label}</p>
-                          <div className="flex items-center gap-2 mt-0.5">
-                            <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
-                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Non stocke</Badge>
-                          </div>
-                        </div>
-                      </div>
-                      <a href={`https://data.inpi.fr/entreprises/${(doc as any).inpiSiren || form.siren?.replace(/\s/g, "")}`} target="_blank" rel="noopener noreferrer"
-                        className="text-xs bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 px-2.5 py-1 rounded flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3" /> Voir sur INPI
-                      </a>
-                    </div>
-                  ))}
-                </div>
-              ) : screening.inpi.loading ? (
-                <div className="flex items-center gap-2 p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                  <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
-                  <span className="text-sm text-slate-400">Recuperation des documents INPI...</span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span className="text-sm text-amber-400">Aucun document PDF recupere automatiquement</span>
-                </div>
-              );
-            })()}
 
-            {/* Extrait RNE section */}
-            {(() => {
-              const extraitDocs = (screening.inpi.data?.documents ?? []).filter(d =>
-                d.type === "kbis" && d.storedInSupabase
-              );
-              return extraitDocs.length > 0 ? (
-                <div className="space-y-2">
-                  <Label className="text-xs text-slate-400">Extrait RNE (equivalent Kbis)</Label>
-                  {extraitDocs.map((doc, i) => (
-                    <div key={`rne-${i}`} className="flex items-center justify-between p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-4 h-4 text-blue-400" />
-                        <div>
-                          <p className="text-sm text-slate-200">{doc.label}</p>
-                          <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0 mt-0.5">INPI — Genere</Badge>
+                  {/* Link-only docs */}
+                  {linkDocs.map((doc, i) => (
+                    <div key={`link-${i}`} className="flex items-center justify-between p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${typeColor(doc.type)}`}>
+                          <FileText className="w-4 h-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm text-slate-300 truncate max-w-[400px]">{doc.label}</p>
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <Badge className="text-[8px] bg-white/[0.06] text-slate-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
+                            <span className="text-[8px] text-amber-400/70">Lien externe</span>
+                          </div>
                         </div>
                       </div>
                       {doc.url && (
                         <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                          className="text-xs bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 px-2.5 py-1 rounded flex items-center gap-1">
-                          <ExternalLink className="w-3 h-3" /> Voir l&apos;extrait
+                          className="shrink-0 ml-2 text-[11px] font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.1] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
+                          <ExternalLink className="w-3 h-3" /> Voir
                         </a>
                       )}
                     </div>
                   ))}
                 </div>
-              ) : null;
+              );
             })()}
 
-            {/* INPI Financial data — Phase 2: multi-year */}
+            {/* Donnees financieres — improved formatting */}
             {screening.inpi.data?.financials && screening.inpi.data.financials.length > 0 && (
               <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Donnees financieres INPI ({screening.inpi.data.financials.length} exercice(s))</Label>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-white/[0.06]">
-                        <th className="text-left py-2 text-slate-500 font-medium">Indicateur</th>
-                        {screening.inpi.data.financials.map((f, i) => (
-                          <th key={i} className="text-right py-2 text-slate-500 font-medium px-3">{f.dateCloture || `Exercice ${i + 1}`}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {[
-                        { label: "Chiffre d'affaires", key: "chiffreAffaires" as const },
-                        { label: "Resultat net", key: "resultat" as const },
-                        { label: "Total bilan", key: "totalBilan" as const },
-                        { label: "Capitaux propres", key: "capitauxPropres" as const },
-                        { label: "Dettes", key: "dettes" as const },
-                        { label: "Effectif", key: "effectif" as const },
-                      ].map(row => {
-                        const hasData = screening.inpi.data!.financials.some(f => f[row.key] != null);
-                        if (!hasData) return null;
-                        return (
-                          <tr key={row.key} className="border-b border-white/[0.04]">
-                            <td className="py-2 text-slate-400">{row.label}</td>
-                            {screening.inpi.data!.financials.map((f, i) => {
-                              const val = f[row.key];
-                              const isNeg = typeof val === "number" && val < 0;
-                              return (
-                                <td key={i} className={`text-right py-2 px-3 font-mono ${isNeg ? "text-red-400" : "text-slate-200"}`}>
-                                  {val != null ? (row.key === "effectif" ? val : `${val.toLocaleString("fr-FR")} EUR`) : "—"}
-                                </td>
-                              );
-                            })}
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-400" />
+                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
+                  <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.financials.length} exercice(s)</Badge>
                 </div>
-                {/* Phase 3: Alerts for negative results */}
+                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-white/[0.03]">
+                          <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
+                          {screening.inpi.data.financials.map((f, i) => (
+                            <th key={i} className="text-right py-2.5 px-3 text-slate-400 font-medium">
+                              {f.dateCloture ? f.dateCloture.split("-").reverse().join("/") : `Exercice ${i + 1}`}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { label: "Chiffre d'affaires", key: "chiffreAffaires" as const },
+                          { label: "Resultat net", key: "resultat" as const },
+                          { label: "Total bilan", key: "totalBilan" as const },
+                          { label: "Capitaux propres", key: "capitauxPropres" as const },
+                          { label: "Dettes", key: "dettes" as const },
+                          { label: "Effectif", key: "effectif" as const },
+                        ].map(row => {
+                          const hasData = screening.inpi.data!.financials.some(f => f[row.key] != null);
+                          if (!hasData) return null;
+                          return (
+                            <tr key={row.key} className="border-t border-white/[0.04] hover:bg-white/[0.02]">
+                              <td className="py-2 px-3 text-slate-400">{row.label}</td>
+                              {screening.inpi.data!.financials.map((f, i) => {
+                                const val = f[row.key];
+                                const isNeg = typeof val === "number" && val < 0;
+                                return (
+                                  <td key={i} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
+                                    {val != null ? (row.key === "effectif" ? val : `${val.toLocaleString("fr-FR")} \u20AC`) : "—"}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
                 {screening.inpi.data.financials.some(f => f.resultat != null && f.resultat < 0) && (
-                  <div className="flex items-center gap-2 p-2 rounded bg-red-500/10 border border-red-500/20">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
-                    <span className="text-xs text-red-400">Resultat net negatif detecte — vigilance recommandee</span>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
+                    <span className="text-xs text-red-400">Resultat net negatif — vigilance recommandee</span>
                   </div>
                 )}
                 {screening.inpi.data.financials.some(f => f.capitauxPropres != null && f.capitauxPropres < 0) && (
-                  <div className="flex items-center gap-2 p-2 rounded bg-red-500/10 border border-red-500/20">
-                    <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-red-500/10 border border-red-500/20">
+                    <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                     <span className="text-xs text-red-400">Capitaux propres negatifs — alerte financiere</span>
                   </div>
                 )}
@@ -2437,11 +2596,18 @@ export default function NouveauClientPage() {
 
             {/* SECTION 2: Checklist documentaire dynamique (Idee 30) */}
             {(() => {
-              // Gather all real PDFs for checklist matching
-              const allDocs = [
+              // FIX 29: Deduplicate documents from both sources before checklist matching
+              const rawDocs = [
                 ...(screening.documents.data?.documents ?? []),
                 ...(screening.inpi.data?.documents ?? []),
               ];
+              const seenLabels = new Set<string>();
+              const allDocs = rawDocs.filter(d => {
+                const key = `${d.type.toUpperCase()}-${d.label}`;
+                if (seenLabels.has(key)) return false;
+                seenLabels.add(key);
+                return true;
+              });
               const hasStoredPdf = (types: string[]) => allDocs.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t)) &&
                 ((d as any).storedInSupabase === true || (d as any).needsAuth)
@@ -2541,22 +2707,34 @@ export default function NouveauClientPage() {
                             e.preventDefault(); e.stopPropagation();
                             const files = e.dataTransfer.files;
                             if (files.length > 0) {
-                              const newDocs: UploadedDoc[] = Array.from(files).map(f => ({
+                              // FIX 20: Validate files same as main handler
+                              const validFiles = Array.from(files).filter(f => {
+                                if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
+                                const ext = "." + f.name.split(".").pop()?.toLowerCase();
+                                if (!ALLOWED_EXTENSIONS.includes(ext)) { toast.error(`Type non autorise : ${ext}`); return false; }
+                                return true;
+                              });
+                              const newDocs: UploadedDoc[] = validFiles.map(f => ({
                                 name: f.name, type: zone.type, file: f,
                               }));
-                              setDocuments(prev => [...prev, ...newDocs]);
+                              if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
                             }
                           }}
                           className="border border-dashed border-white/[0.08] hover:border-blue-500/30 rounded-lg p-4 text-center cursor-pointer transition-colors"
                         >
                           <Upload className="w-5 h-5 text-slate-600 mx-auto mb-1" />
                           <p className="text-[10px] text-slate-500">Glissez ou cliquez pour uploader</p>
-                          <input type="file" className="hidden" onChange={e => {
+                          <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx" onChange={e => {
                             if (e.target.files) {
-                              const newDocs: UploadedDoc[] = Array.from(e.target.files).map(f => ({
+                              // FIX 20: Validate files same as main handler
+                              const validFiles = Array.from(e.target.files).filter(f => {
+                                if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
+                                return true;
+                              });
+                              const newDocs: UploadedDoc[] = validFiles.map(f => ({
                                 name: f.name, type: zone.type, file: f,
                               }));
-                              setDocuments(prev => [...prev, ...newDocs]);
+                              if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
                             }
                           }} />
                         </div>
@@ -2598,8 +2776,11 @@ export default function NouveauClientPage() {
                 className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
                 onClick={() => {
                   const tempClient = buildTempClient();
-                  if (tempClient) generateFicheAcceptation(tempClient);
-                  toast.success("Fiche LCB-FT generee");
+                  if (!tempClient) { toast.error("Impossible de generer la fiche : donnees manquantes"); return; }
+                  try {
+                    generateFicheAcceptation(tempClient);
+                    toast.success("Fiche LCB-FT generee");
+                  } catch { toast.error("Erreur lors de la generation de la fiche"); }
                 }}
               >
                 <FileDown className="w-4 h-4" /> Generer fiche LCB-FT (PDF)
@@ -2609,8 +2790,11 @@ export default function NouveauClientPage() {
                 className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
                 onClick={() => {
                   const tempClient = buildTempClient();
-                  if (tempClient) generateLettreMission(tempClient);
-                  toast.success("Lettre de mission generee");
+                  if (!tempClient) { toast.error("Impossible de generer la lettre : donnees manquantes"); return; }
+                  try {
+                    generateLettreMission(tempClient);
+                    toast.success("Lettre de mission generee");
+                  } catch { toast.error("Erreur lors de la generation de la lettre"); }
                 }}
               >
                 <FileDown className="w-4 h-4" /> Generer lettre de mission (PDF)
@@ -2661,10 +2845,14 @@ export default function NouveauClientPage() {
         ) : (
           <Button
             onClick={handleSubmit}
+            disabled={isSubmitting}
             className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
           >
-            <Check className="w-4 h-4" />
-            Valider et creer le client
+            {isSubmitting ? (
+              <><Loader2 className="w-4 h-4 animate-spin" /> Creation en cours...</>
+            ) : (
+              <><Check className="w-4 h-4" /> Valider et creer le client</>
+            )}
           </Button>
         )}
       </div>
@@ -2804,15 +2992,7 @@ function formatCloture(val: string): string {
   return val;
 }
 
-// FIX 5: Format date cloture "3112" → "31/12"
-function formatDateCloture(val: string): string {
-  if (!val) return "";
-  const clean = val.replace(/\//g, "");
-  if (/^\d{4}$/.test(clean)) {
-    return `${clean.slice(0, 2)}/${clean.slice(2, 4)}`;
-  }
-  return val;
-}
+// FIX 15: Removed duplicate formatDateCloture — use formatCloture instead
 
 // FIX 4: FormField with source badge (INPI / data.gouv)
 function SourceField({ label, value, onChange, type = "text", error, placeholder, options, source, required, hint }: {
