@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 interface AuditEntry {
   action: string;
@@ -34,6 +35,6 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       user_agent: navigator.userAgent,
     });
   } catch (err) {
-    console.error("Audit trail error:", err);
+    logger.error("Audit", "trail error:", err);
   }
 }

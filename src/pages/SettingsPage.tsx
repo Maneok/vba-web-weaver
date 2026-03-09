@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 /* ---------- types ---------- */
 
@@ -117,7 +118,7 @@ export default function SettingsPage() {
         .eq("user_id", user.id);
 
       if (error) {
-        console.error("Error loading parametres:", error);
+        logger.error("Settings", "Error loading parametres:", error);
         toast.error("Erreur lors du chargement des parametres");
         setLoading(false);
         return;
@@ -153,7 +154,7 @@ export default function SettingsPage() {
     setSavingCabinet(false);
     if (error) {
       toast.error("Erreur lors de la sauvegarde");
-      console.error(error);
+      logger.error("Settings", "Erreur sauvegarde cabinet", error);
     } else {
       toast.success("Informations cabinet enregistrees");
     }
@@ -169,7 +170,7 @@ export default function SettingsPage() {
     setSavingScoring(false);
     if (error) {
       toast.error("Erreur lors de la sauvegarde");
-      console.error(error);
+      logger.error("Settings", "Erreur sauvegarde scoring", error);
     } else {
       toast.success("Configuration scoring enregistree");
     }
@@ -185,7 +186,7 @@ export default function SettingsPage() {
     setSavingLcbft(false);
     if (error) {
       toast.error("Erreur lors de la sauvegarde");
-      console.error(error);
+      logger.error("Settings", "Erreur sauvegarde LCB-FT", error);
     } else {
       toast.success("Configuration LCB-FT enregistree");
     }

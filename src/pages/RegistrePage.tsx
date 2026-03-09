@@ -11,18 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, BookOpen, Plus, AlertTriangle, Download, FileWarning } from "lucide-react";
 import { toast } from "sonner";
-
-const CATEGORIES = [
-  "ADMIN : KYC Incomplet",
-  "INTERNE : Erreur Procedure",
-  "FLUX : Incoherence / Atypique",
-  "SOUPCON : Tracfin potentiel",
-  "EXTERNE : Gel des avoirs / Sanctions",
-  "PPE : Personne Politiquement Exposee",
-  "PAYS : Juridiction a risque",
-  "ANOMALIE : Ecart detecte",
-  "OPERATION ATYPIQUE : Montant inhabituel",
-];
+import { ALERT_CATEGORIES as CATEGORIES, DEFAULT_ASSOCIES, DEFAULT_SUPERVISEURS } from "@/lib/constants";
 
 function getCategoryBadgeClasses(categorie: string): string {
   const upper = categorie.toUpperCase();
@@ -348,7 +337,7 @@ export default function RegistrePage() {
               <Select value={newAlerte.responsable} onValueChange={v => setNewAlerte(p => ({ ...p, responsable: v }))}>
                 <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue placeholder="Selectionnez" /></SelectTrigger>
                 <SelectContent>
-                  {["DIDIER", "PASCAL", "KEVIN", "SAMUEL", "BRAYAN"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  {[...DEFAULT_ASSOCIES, ...DEFAULT_SUPERVISEURS].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

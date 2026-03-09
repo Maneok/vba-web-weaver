@@ -15,6 +15,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
+import { logger } from "@/lib/logger";
 
 interface Document {
   id: string;
@@ -143,7 +144,7 @@ export default function GedPage() {
 
     if (error) {
       toast.error("Erreur chargement documents");
-      console.error(error);
+      logger.error("GED", "Erreur chargement documents", error);
     } else {
       setDocuments((data as Document[]) || []);
     }
@@ -159,7 +160,7 @@ export default function GedPage() {
         .list("", { limit: 100, sortBy: { column: "created_at", order: "desc" } });
 
       if (folderError) {
-        console.error("Storage list error:", folderError);
+        logger.error("GED", "Storage list error", folderError);
         setStorageLoading(false);
         return;
       }
@@ -194,7 +195,7 @@ export default function GedPage() {
 
       setStorageFolders(sirenFolders);
     } catch (err) {
-      console.error("Error fetching storage:", err);
+      logger.error("GED", "Error fetching storage", err);
     }
     setStorageLoading(false);
   }, []);

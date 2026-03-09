@@ -51,16 +51,17 @@ export default function AdminUsersPage() {
     setInviting(true);
 
     try {
-      // Create user via Supabase Auth admin (client-side invite)
+      // Invite user — signUp with email confirmation so they set their own password
       const { error } = await supabase.auth.signUp({
         email: inviteEmail,
-        password: crypto.randomUUID().slice(0, 16) + "A1!", // Temporary password
+        password: crypto.randomUUID() + "Aa1!",
         options: {
           data: {
             full_name: inviteName,
             cabinet_id: profile.cabinet_id,
             role: inviteRole,
           },
+          emailRedirectTo: `${window.location.origin}/auth?invited=true`,
         },
       });
 

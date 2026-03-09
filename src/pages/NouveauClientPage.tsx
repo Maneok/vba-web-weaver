@@ -41,12 +41,7 @@ import {
   Map, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown,
 } from "lucide-react";
 
-const FORMES = ["ENTREPRISE INDIVIDUELLE", "SARL", "EURL", "SAS", "SCI", "SCP", "SELAS", "SELARL", "EARL", "SA", "ASSOCIATION", "SNC", "TRUST", "FIDUCIE", "FONDATION"];
-const MISSIONS: MissionType[] = ["TENUE COMPTABLE", "REVISION / SURVEILLANCE", "SOCIAL / PAIE SEULE", "CONSEIL DE GESTION", "CONSTITUTION / CESSION", "DOMICILIATION", "IRPP"];
-const FREQUENCES = ["MENSUEL", "TRIMESTRIEL", "ANNUEL"];
-const COMPTABLES = ["MAGALIE", "JULIEN", "FANNY", "SERGE", "JOSE"];
-const ASSOCIES = ["DIDIER", "PASCAL", "KEVIN"];
-const SUPERVISEURS = ["SAMUEL", "BRAYAN"];
+import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS } from "@/lib/constants";
 
 const STEP_LABELS = ["Recherche", "Informations", "Personnes", "Questionnaire", "Scoring", "Documents"];
 

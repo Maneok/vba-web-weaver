@@ -1,4 +1,5 @@
 import jsPDF from "jspdf";
+import { logger } from "@/lib/logger";
 import type { LettreMission, CabinetConfig, LettreMissionOptions, EditorSectionSnapshot } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 
@@ -1121,7 +1122,7 @@ export function renderLettreMissionPdf(lm: LettreMission): jsPDF {
     const builder = new LMPdfBuilder(lm);
     return builder.build();
   } catch (err) {
-    console.error("[lettreMissionPdf] Erreur lors de la génération du PDF :", err);
+    logger.error("PDF", "Erreur lors de la génération du PDF", err);
     // Return a minimal error PDF so callers never get undefined
     const fallback = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
     fallback.setFontSize(14);

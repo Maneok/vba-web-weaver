@@ -12,6 +12,7 @@ import { DEFAULT_LM_OPTIONS } from "@/types/lettreMission";
 import { replaceVariables } from "@/lib/lettreMissionVariables";
 import { renderLettreMissionPdf } from "@/lib/lettreMissionPdf";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 // ──────────────────────────────────────────────
 // Numérotation automatique (localStorage)
@@ -324,7 +325,7 @@ export function renderToPdf(lettreMission: LettreMission): void {
     const filename = `LDM_${lettreMission?.numero ?? "draft"}_${(lettreMission?.client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.pdf`;
     doc.save(filename);
   } catch (err) {
-    console.error("[renderToPdf] Erreur :", err);
+    logger.error("PDF", "renderToPdf error", err);
     toast.error("Erreur lors de la génération du PDF. Veuillez réessayer.");
   }
 }

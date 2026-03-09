@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
+import NotificationCenter from "./NotificationCenter";
 import { ChevronRight, LogOut, Menu, ScrollText, Settings, User } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppState } from "@/lib/AppContext";
@@ -96,6 +97,8 @@ export default function AppLayout() {
               {new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
             </span>
             <div className="w-px h-5 bg-white/[0.06]" />
+
+            <NotificationCenter />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

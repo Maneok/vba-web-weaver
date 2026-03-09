@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 // Helper: get current user's cabinet_id from profile
 async function getCabinetId(): Promise<string | null> {
@@ -11,12 +12,12 @@ async function getCabinetId(): Promise<string | null> {
       .eq("id", user.id)
       .single();
     if (error) {
-      console.error("[DB] getCabinetId error:", error);
+      logger.error("DB", "getCabinetId error:", error);
       return null;
     }
     return data?.cabinet_id || null;
   } catch (e) {
-    console.error("[DB] getCabinetId exception:", e);
+    logger.error("DB", "getCabinetId exception:", e);
     return null;
   }
 }
@@ -32,7 +33,7 @@ export const clientsService = {
       .eq("cabinet_id", cabinetId)
       .order("created_at", { ascending: false });
     if (error) {
-      console.error("[DB] clients getAll:", error);
+      logger.error("DB", "clients getAll:", error);
       return [];
     }
     return data || [];
@@ -47,7 +48,7 @@ export const clientsService = {
       .select()
       .single();
     if (error) {
-      console.error("[DB] clients create:", error);
+      logger.error("DB", "clients create:", error);
       return null;
     }
     return data;
@@ -61,7 +62,7 @@ export const clientsService = {
       .select()
       .single();
     if (error) {
-      console.error("[DB] clients update:", error);
+      logger.error("DB", "clients update:", error);
       return null;
     }
     return data;
@@ -78,7 +79,7 @@ export const clientsService = {
       .select()
       .single();
     if (error) {
-      console.error("[DB] clients updateByRef:", error);
+      logger.error("DB", "clients updateByRef:", error);
       return null;
     }
     return data;
@@ -86,7 +87,7 @@ export const clientsService = {
 
   async delete(id: string) {
     const { error } = await supabase.from("clients").delete().eq("id", id);
-    if (error) console.error("[DB] clients delete:", error);
+    if (error) logger.error("DB", "clients delete:", error);
   },
 
   async getByRef(ref: string) {
@@ -137,7 +138,7 @@ export const collaborateursService = {
       .select()
       .single();
     if (error) {
-      console.error("[DB] collab create:", error);
+      logger.error("DB", "collab create:", error);
       return null;
     }
     return data;
@@ -180,7 +181,7 @@ export const registreService = {
       .select()
       .single();
     if (error) {
-      console.error("[DB] alerte create:", error);
+      logger.error("DB", "alerte create:", error);
       return null;
     }
     return data;
@@ -250,7 +251,7 @@ export const controlesService = {
       .select()
       .single();
     if (error) {
-      console.error("[DB] controle create:", error);
+      logger.error("DB", "controle create:", error);
       return null;
     }
     return data;

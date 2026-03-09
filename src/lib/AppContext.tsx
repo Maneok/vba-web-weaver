@@ -4,6 +4,8 @@ import { O90_CLIENTS, O90_COLLABORATEURS, O90_ALERTES, O90_LOGS } from "@/lib/da
 import { clientsService, collaborateursService, registreService, logsService } from "@/lib/supabaseService";
 import { mapDbClient, mapClientToDb, mapDbCollaborateur, mapDbAlerte, mapAlerteToDb, mapDbLog } from "@/lib/dbMappers";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
+import { toast } from "sonner";
 
 interface AppState {
   clients: Client[];
@@ -62,7 +64,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setAlertes(dbAlertes.map((r: Record<string, unknown>) => mapDbAlerte(r)));
       setLogs(dbLogs.map((r: Record<string, unknown>) => mapDbLog(r)));
     } catch (err) {
-      console.error("[AppContext] Failed to load from Supabase, using local data:", err);
+      logger.error("[AppContext] Failed to load from Supabase, using local data:", err);
       setClients(O90_CLIENTS);
       setCollaborateurs(O90_COLLABORATEURS);
       setAlertes(O90_ALERTES);
@@ -99,14 +101,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Optimistic update
     setClients(prev => [client, ...prev]);
 
-    // Persist to Supabase in background
+    // Persist to Supabase in background (with rollback on failure)
     if (isOnline) {
       const dbRow = mapClientToDb(client);
       clientsService.create(dbRow).then((result) => {
         if (!result) {
-          console.error("[AppContext] Failed to persist client to Supabase");
+          logger.error("AppContext", "Failed to persist client to Supabase");
+          setClients(prev => prev.filter(c => c.ref !== client.ref));
+          toast.error("Erreur lors de la sauvegarde du client");
+          return;
         }
-        // Log creation
         logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients");
       });
     }
@@ -122,15 +126,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
 
   const updateClient = useCallback((ref: string, updates: Partial<Client>) => {
+    // Snapshot for rollback
+    const snapshot = clients.find(c => c.ref === ref);
+
     // Optimistic update
     setClients(prev => prev.map(c => c.ref === ref ? { ...c, ...updates } : c));
 
-    // Persist to Supabase
+    // Persist to Supabase (with rollback on failure)
     if (isOnline) {
       const dbUpdates = mapClientToDb(updates);
       clientsService.updateByRef(ref, dbUpdates).then((result) => {
         if (!result) {
-          console.error("[AppContext] Failed to update client in Supabase");
+          logger.error("AppContext", "Failed to update client in Supabase");
+          if (snapshot) setClients(prev => prev.map(c => c.ref === ref ? snapshot : c));
+          toast.error("Erreur lors de la mise a jour du client");
+          return;
         }
         logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients");
       });
@@ -143,17 +153,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       typeAction: "REVUE/MAJ",
       details: `Mise a jour du dossier`,
     }, ...prev]);
-  }, [isOnline]);
+  }, [isOnline, clients]);
 
   const deleteClient = useCallback((ref: string) => {
     const client = clients.find(c => c.ref === ref);
+    const snapshot = [...clients];
     setClients(prev => prev.filter(c => c.ref !== ref));
 
     if (isOnline && client) {
-      // Find client by ref to get id, then delete
       clientsService.getByRef(ref).then((dbClient) => {
         if (dbClient?.id) {
-          clientsService.delete(dbClient.id as string);
+          clientsService.delete(dbClient.id as string).catch(() => {
+            logger.error("AppContext", "Failed to delete client");
+            setClients(snapshot);
+            toast.error("Erreur lors de la suppression du client");
+          });
           logsService.add("SUPPRESSION", `Dossier supprime: ${client.raisonSociale}`, ref, "clients");
         }
       });

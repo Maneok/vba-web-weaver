@@ -6,6 +6,7 @@ import { ROLE_PERMISSIONS } from "./types";
 import { useSessionTimeout } from "./useSessionTimeout";
 import { logAudit } from "./auditTrail";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 const AuthContext = createContext<AuthState | null>(null);
 
@@ -37,12 +38,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (data) return data as UserProfile;
 
         if (error) {
-          console.warn(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries}:`, error.code, error.message);
+          logger.warn(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries}:`, error.code, error.message);
           // PGRST116 = row not found — worth retrying (trigger may not be done)
           if (error.code !== "PGRST116") return null;
         }
       } catch (err) {
-        console.warn(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries} exception:`, err);
+        logger.warn(`[AuthContext] Profile fetch attempt ${attempt + 1}/${maxRetries} exception:`, err);
       }
 
       // Wait before retry (trigger handle_new_user may still be running)
@@ -50,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await new Promise((r) => setTimeout(r, 800));
       }
     }
-    console.error("[AuthContext] Profile not found after", maxRetries, "retries for user:", userId);
+    logger.error("[AuthContext] Profile not found after", maxRetries, "retries for user:", userId);
     return null;
   }, []);
 
@@ -80,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, s) => {
         if (cancelled) return;
-        console.log("[Auth] State change:", event);
+        logger.debug("[Auth] State change:", event);
 
         setSession(s);
         setUser(s?.user ?? null);
@@ -109,7 +110,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
 
         if (error) {
-          console.warn("[Auth] getSession error:", error.message);
+          logger.warn("[Auth] getSession error:", error.message);
           await supabase.auth.signOut();
           return;
         }
@@ -122,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (!cancelled) setProfile(p);
         }
       } catch (err) {
-        console.error("[Auth] Init exception:", err);
+        logger.error("[Auth] Init exception:", err);
         if (!cancelled) {
           setSession(null);
           setUser(null);
@@ -139,7 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!cancelled) {
         setLoading(prev => {
           if (prev) {
-            console.warn("[Auth] Safety timeout — forcing load complete");
+            logger.warn("[Auth] Safety timeout — forcing load complete");
             return false;
           }
           return prev;
