@@ -139,7 +139,7 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   date_cloture: "",
   missions_selected: [],
   duree: "1",
-  date_debut: new Date().toISOString().slice(0, 10),
+  date_debut: "", // Set dynamically when wizard opens
   tacite_reconduction: true,
   preavis_mois: 3,
   associe_signataire: "",
@@ -189,12 +189,13 @@ export interface SavedLetter {
 /** E) Compute auto annexes from wizard data */
 export function computeAnnexes(data: LMWizardData): string[] {
   const annexes: string[] = [];
+  const missions = data.missions_selected || [];
   // Always
   annexes.push("cgv_cabinet");
   annexes.push("clause_travail_dissimule");
 
   // Social missions → annexe repartition travaux sociaux
-  if (data.missions_selected.some((m) => m.section_id === "social" && m.selected)) {
+  if (missions.some((m) => m.section_id === "social" && m.selected)) {
     annexes.push("repartition_travaux_sociaux");
   }
   // SEPA → mandat SEPA
@@ -202,7 +203,7 @@ export function computeAnnexes(data: LMWizardData): string[] {
     annexes.push("mandat_sepa");
   }
   // Missions complementaires (conseil)
-  if (data.missions_selected.some((m) => m.section_id === "conseil" && m.selected)) {
+  if (missions.some((m) => m.section_id === "conseil" && m.selected)) {
     annexes.push("detail_missions_complementaires");
   }
   return annexes;
@@ -219,9 +220,10 @@ export const ANNEXE_LABELS: Record<string, string> = {
 
 /** H) Format duration */
 export function formatDuration(seconds: number): string {
-  if (seconds <= 0) return "—";
+  if (!seconds || seconds <= 0) return "—";
   const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  if (min === 0) return `${sec}s`;
-  return `${min} min ${sec > 0 ? `${sec} s` : ""}`.trim();
+  const sec = Math.round(seconds % 60);
+  if (min === 0) return `${sec} s`;
+  if (sec === 0) return `${min} min`;
+  return `${min} min ${sec} s`;
 }

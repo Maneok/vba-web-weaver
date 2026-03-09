@@ -13,6 +13,7 @@ interface Props {
 
 function formatMontant(value: string): string {
   const num = value.replace(/[^\d]/g, "");
+  if (!num) return "";
   return num.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 }
 
@@ -105,7 +106,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
       {/* ── Slider optionnel ── */}
       <div className="px-2">
         <Slider
-          value={[Math.min(data.honoraires_ht, 15000)]}
+          value={[Math.max(500, Math.min(data.honoraires_ht, 15000))]}
           onValueChange={([v]) => onChange({ honoraires_ht: v })}
           min={500}
           max={15000}
@@ -116,6 +117,9 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           <span>500 €</span>
           <span>15 000 €</span>
         </div>
+        {data.honoraires_ht > 15000 && (
+          <p className="text-[10px] text-slate-500 text-center">Le curseur est plafonne a 15 000 € — utilisez le champ ci-dessus pour les montants superieurs</p>
+        )}
       </div>
 
       {/* ── Fréquence facturation ── */}
@@ -204,8 +208,8 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
         <Label className="text-slate-400 text-xs">Taux horaire complementaire (EUR/h HT)</Label>
         <Input
           inputMode="decimal"
-          value={data.taux_horaire_complementaire || ""}
-          onChange={(e) => onChange({ taux_horaire_complementaire: Number(e.target.value) || 0 })}
+          value={data.taux_horaire_complementaire > 0 ? String(data.taux_horaire_complementaire) : ""}
+          onChange={(e) => onChange({ taux_horaire_complementaire: Math.max(0, Number(e.target.value) || 0) })}
           className={`${inputCls} w-32`}
           placeholder="150"
         />

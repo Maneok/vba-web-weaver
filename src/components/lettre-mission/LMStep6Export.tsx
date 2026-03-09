@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { LM_STATUTS, computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
@@ -102,9 +102,11 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
     const canvas = canvasRef.current!;
     const rect = canvas.getBoundingClientRect();
     if ("touches" in e) {
-      return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
+      const touch = e.touches[0] || e.changedTouches[0];
+      if (!touch) return { x: 0, y: 0 };
+      return { x: touch.clientX - rect.left, y: touch.clientY - rect.top };
     }
-    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    return { x: (e as React.MouseEvent).clientX - rect.left, y: (e as React.MouseEvent).clientY - rect.top };
   };
 
   const startDraw = (e: React.MouseEvent | React.TouchEvent) => {
@@ -141,7 +143,11 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    // Canvas is 2x scaled, so reset transform before clearing
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.restore();
     onSave("");
   };
 
@@ -181,14 +187,20 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   const lockRef = useRef(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
-  // E) Compute annexes
-  const annexes = computeAnnexes(data);
+  // E) Compute annexes with stable memoization
+  const annexes = useMemo(() => computeAnnexes(data), [
+    data.mode_paiement,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    data.missions_selected?.map((m) => `${m.section_id}:${m.selected}`).join(","),
+  ]);
+  const annexesKey = annexes.join(",");
   useEffect(() => {
-    if (JSON.stringify(data.annexes) !== JSON.stringify(annexes)) {
+    if ((data.annexes || []).join(",") !== annexesKey) {
       onChange({ annexes });
     }
-  }, [annexes.join(",")]);
+  }, [annexesKey]);
 
+  const [cooldown, setCooldown] = useState(false);
   const withLock = useCallback(async (key: string, fn: () => Promise<void>) => {
     if (lockRef.current) return;
     lockRef.current = true;
@@ -199,7 +211,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       toast.error(e?.message || "Erreur lors de la generation");
     } finally {
       setGenerating(null);
-      setTimeout(() => { lockRef.current = false; }, 3000);
+      setCooldown(true);
+      setTimeout(() => { lockRef.current = false; setCooldown(false); }, 3000);
     }
   }, []);
 
@@ -217,9 +230,9 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       },
       options: {
         genre: "M" as const,
-        missionSociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
-        missionJuridique: data.missions_selected.some((m) => m.section_id === "juridique" && m.selected),
-        missionControleFiscal: data.missions_selected.some((m) => m.section_id === "fiscal" && m.selected),
+        missionSociale: (data.missions_selected || []).some((m) => m.section_id === "social" && m.selected),
+        missionJuridique: (data.missions_selected || []).some((m) => m.section_id === "juridique" && m.selected),
+        missionControleFiscal: (data.missions_selected || []).some((m) => m.section_id === "fiscal" && m.selected),
         regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
         tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
         periodicite: data.frequence_facturation,
@@ -238,9 +251,9 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       client,
       genre: "M",
       missions: {
-        sociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
-        juridique: data.missions_selected.some((m) => m.section_id === "juridique" && m.selected),
-        fiscal: data.missions_selected.some((m) => m.section_id === "fiscal" && m.selected),
+        sociale: (data.missions_selected || []).some((m) => m.section_id === "social" && m.selected),
+        juridique: (data.missions_selected || []).some((m) => m.section_id === "juridique" && m.selected),
+        fiscal: (data.missions_selected || []).some((m) => m.section_id === "fiscal" && m.selected),
       },
       honoraires: {
         comptable: data.honoraires_ht,
@@ -265,7 +278,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       toast.error("Adresse email requise");
       return;
     }
-    window.location.href = `mailto:${emailTo}?subject=Lettre de mission - ${data.raison_sociale}&body=Veuillez trouver ci-joint la lettre de mission.`;
+    window.location.href = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(`Lettre de mission - ${data.raison_sociale}`)}&body=${encodeURIComponent("Veuillez trouver ci-joint la lettre de mission.")}`;
     toast.success("Client email ouvert");
   };
 
@@ -281,6 +294,16 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // Validate file size (max 500KB)
+    if (file.size > 500_000) {
+      toast.error("Image trop volumineuse (max 500 Ko)");
+      return;
+    }
+    // Validate file type (no SVG for XSS safety)
+    if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
+      toast.error("Format d'image non supporte");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       onChange({ signature_expert: ev.target?.result as string });
@@ -304,7 +327,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <button
           onClick={handlePDF}
-          disabled={!!generating}
+          disabled={!!generating || cooldown}
           className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-50"
         >
           {generating === "pdf" ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
@@ -313,7 +336,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
         <button
           onClick={handleDOCX}
-          disabled={!!generating}
+          disabled={!!generating || cooldown}
           className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-50"
         >
           {generating === "docx" ? <Loader2 className="w-6 h-6 text-purple-400 animate-spin" /> : <FileText className="w-6 h-6 text-purple-400" />}
@@ -401,7 +424,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
                 <span className="text-xs text-slate-400">
                   {data.signature_expert ? "Signature chargee" : "Cliquez pour charger"}
                 </span>
-                <input type="file" accept="image/*" onChange={handleSignatureUpload} className="hidden" />
+                <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleSignatureUpload} className="hidden" />
               </label>
             </div>
 

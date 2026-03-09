@@ -19,7 +19,7 @@ function vigilanceColor(niv: string) {
 
 /** Compact mobile summary band */
 function CompactSummary({ data }: { data: LMWizardData }) {
-  const missionCount = data.missions_selected.filter((m) => m.selected).length;
+  const missionCount = (data.missions_selected || []).filter((m) => m.selected).length;
   const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
   const ttc = data.honoraires_ht + tva;
 
@@ -39,7 +39,7 @@ function CompactSummary({ data }: { data: LMWizardData }) {
 function FullSummary({ data }: { data: LMWizardData }) {
   const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
   const ttc = data.honoraires_ht + tva;
-  const missions = data.missions_selected.filter((m) => m.selected);
+  const missions = (data.missions_selected || []).filter((m) => m.selected);
 
   return (
     <div className="sticky top-20 space-y-5">

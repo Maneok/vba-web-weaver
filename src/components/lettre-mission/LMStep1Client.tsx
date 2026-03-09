@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -48,15 +48,19 @@ export default function LMStep1Client({ data, onChange }: Props) {
     );
   }, [clients, search]);
 
-  const selectedClient = clients.find((c) => c.ref === data.client_id);
+  const selectedClient = useMemo(() => clients.find((c) => c.ref === data.client_id), [clients, data.client_id]);
+  const vigilanceToastShown = useRef(false);
 
   // B) Check for previous signed LM + I) Screening check
   useEffect(() => {
     if (!data.client_id) {
       setPreviousLM(null);
       setScreeningStatus(null);
+      vigilanceToastShown.current = false;
       return;
     }
+
+    let cancelled = false;
 
     // B) Previous LM
     supabase
@@ -67,6 +71,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
       .order("updated_at", { ascending: false })
       .limit(1)
       .then(({ data: rows }) => {
+        if (cancelled) return;
         if (rows && rows.length > 0) setPreviousLM(rows[0]);
         else setPreviousLM(null);
       })
@@ -83,11 +88,14 @@ export default function LMStep1Client({ data, onChange }: Props) {
         setScreeningStatus(revueDate < oneYearAgo ? "expired" : "ok");
       }
 
-      // A) Vigilance renforcee banner
-      if (selectedClient.scoreGlobal > 60) {
+      // A) Vigilance renforcee banner (show once per client)
+      if (selectedClient.scoreGlobal > 60 && !vigilanceToastShown.current) {
+        vigilanceToastShown.current = true;
         toast.warning("Client a vigilance renforcee — envisagez un complement d'honoraires", { duration: 5000 });
       }
     }
+
+    return () => { cancelled = true; };
   }, [data.client_id, selectedClient]);
 
   const selectClient = (c: Client) => {
@@ -187,7 +195,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             ))}
             {filtered.length === 0 && search.length >= 2 && (
               <div className="text-center py-10 text-slate-500 text-sm">
-                Aucun client trouve pour "{search}"
+                Aucun client trouve pour cette recherche
               </div>
             )}
           </div>

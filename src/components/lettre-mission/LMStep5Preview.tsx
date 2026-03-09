@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
@@ -73,12 +73,23 @@ function buildClientFromData(data: LMWizardData) {
 export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }: Props) {
   const [fullscreen, setFullscreen] = useState(false);
 
+  // Escape key closes fullscreen
+  useEffect(() => {
+    if (!fullscreen) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key === "Escape") { e.stopPropagation(); setFullscreen(false); }
+    };
+    window.addEventListener("keydown", h, true);
+    return () => window.removeEventListener("keydown", h, true);
+  }, [fullscreen]);
+
   const client = buildClientFromData(data);
 
+  const missionsList = data.missions_selected || [];
   const missions = {
-    sociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
-    juridique: data.missions_selected.some((m) => m.section_id === "juridique" && m.selected),
-    fiscal: data.missions_selected.some((m) => m.section_id === "fiscal" && m.selected),
+    sociale: missionsList.some((m) => m.section_id === "social" && m.selected),
+    juridique: missionsList.some((m) => m.section_id === "juridique" && m.selected),
+    fiscal: missionsList.some((m) => m.section_id === "fiscal" && m.selected),
   };
 
   const honoraires = {
@@ -187,7 +198,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
 
       {/* E) Auto annexes */}
       {(() => {
-        const annexeIds = computeAnnexes(data);
+        const annexeIds = missionsList.length > 0 ? computeAnnexes(data) : [];
         if (annexeIds.length === 0) return null;
         return (
           <div className="space-y-2">

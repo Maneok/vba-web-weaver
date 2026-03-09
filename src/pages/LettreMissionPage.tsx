@@ -311,19 +311,7 @@ export default function LettreMissionPage() {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("wizard");
 
-  // ── Permission check ──
-  if (!hasPermission("write_clients")) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
-        <ShieldAlert className="w-12 h-12 text-red-400" />
-        <p className="text-white font-medium">Acces refuse</p>
-        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
-        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
-      </div>
-    );
-  }
-
-  // ── Wizard state ──
+  // ── Wizard state (ALL hooks BEFORE any early return) ──
   const [step, setStep] = useState(0);
   const [data, setData] = useState<LMWizardData>({ ...INITIAL_LM_WIZARD_DATA });
   const [stepDirection, setStepDirection] = useState<"left" | "right">("right");
@@ -344,11 +332,22 @@ export default function LettreMissionPage() {
   // Swipe
   const touchStartX = useRef(0);
 
-  // ── H) Time tracking ──
+  // H) Elapsed time ticker (updates every 30s)
+  const [elapsedTick, setElapsedTick] = useState(0);
   useEffect(() => {
-    if (!data.started_at) {
-      setData((prev) => ({ ...prev, started_at: new Date().toISOString() }));
-    }
+    const iv = setInterval(() => setElapsedTick((t) => t + 1), 30000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // ── H) Time tracking + date_debut init ──
+  useEffect(() => {
+    setData((prev) => {
+      const updates: Partial<LMWizardData> = {};
+      if (!prev.started_at) updates.started_at = new Date().toISOString();
+      if (!prev.date_debut) updates.date_debut = new Date().toISOString().slice(0, 10);
+      if (Object.keys(updates).length === 0) return prev;
+      return { ...prev, ...updates };
+    });
   }, []);
 
   // ── Step animation + scroll ──
@@ -361,8 +360,10 @@ export default function LettreMissionPage() {
     return () => clearTimeout(t);
   }, [step]);
 
-  // ── sessionStorage draft ──
+  // ── sessionStorage draft (skip initial empty state) ──
+  const initDone = useRef(false);
   useEffect(() => {
+    if (!initDone.current) { initDone.current = true; return; }
     sessionStorage.setItem("lm_wizard_draft", JSON.stringify({ ...data, wizard_step: step }));
   }, [data, step]);
 
@@ -455,7 +456,7 @@ export default function LettreMissionPage() {
             statut: "brouillon",
             wizard_data: data,
             wizard_step: step,
-            numero: `LM-${new Date().getFullYear()}-${String(savedLetters.length + 1).padStart(3, "0")}`,
+            numero: `LM-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`,
           })
           .select("id")
           .maybeSingle();
@@ -464,7 +465,7 @@ export default function LettreMissionPage() {
       setLastSaved(new Date());
       toast.success("Sauvegarde", { duration: 1500 });
     } catch {}
-  }, [data, step, lmId, profile?.cabinet_id, savedLetters.length]);
+  }, [data, step, lmId, profile?.cabinet_id]);
 
   // Trigger auto-save on data change (debounced 2s)
   useEffect(() => {
@@ -472,7 +473,7 @@ export default function LettreMissionPage() {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(saveToSupabase, 2000);
     return () => clearTimeout(saveTimer.current);
-  }, [data, step]);
+  }, [data, step, saveToSupabase]);
 
   const loadSavedLetters = async () => {
     setHistoryLoading(true);
@@ -531,8 +532,8 @@ export default function LettreMissionPage() {
   }, [step, data]);
 
   const handlePrevious = useCallback(() => {
-    if (step > 0) setStep(step - 1);
-  }, [step]);
+    setStep((s) => (s > 0 ? s - 1 : s));
+  }, []);
 
   // Swipe
   const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.targetTouches[0].clientX; };
@@ -551,19 +552,25 @@ export default function LettreMissionPage() {
     const finalData = { ...data, duration_seconds: duration };
 
     const sanitized = sanitizeWizardData(finalData);
+    const { data: authData } = await supabase.auth.getUser();
+    const numero = sanitized.numero_lettre || `LM-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
     const payload = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,
       type_mission: sanitized.type_mission,
       statut: sanitized.statut,
       wizard_data: sanitized,
-      numero: sanitized.numero_lettre || `LM-${new Date().getFullYear()}-${String(savedLetters.length + 1).padStart(3, "0")}`,
+      numero,
     };
     if (lmId) {
       const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmId);
       if (error) throw error;
     } else {
-      const { data: ins, error } = await supabase.from("lettres_mission").insert(payload).select("id").maybeSingle();
+      const { data: ins, error } = await supabase.from("lettres_mission").insert({
+        ...payload,
+        user_id: authData?.user?.id,
+        cabinet_id: profile?.cabinet_id,
+      }).select("id").maybeSingle();
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }
@@ -615,6 +622,7 @@ export default function LettreMissionPage() {
     setLmId(null);
     setStep(0);
     setActiveTab("wizard");
+    warningShown.current = false;
     toast.success("Lettre dupliquee — modifiez et sauvegardez");
   };
 
@@ -681,16 +689,22 @@ export default function LettreMissionPage() {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (activeTab !== "wizard") return;
-      if (e.key === "Escape" && step > 0) { e.preventDefault(); setStep(step - 1); }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setStep((s) => (s > 0 ? s - 1 : s));
+      }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [step, activeTab]);
+  }, [activeTab]);
 
-  // H) Elapsed time display
-  const elapsed = data.started_at
-    ? Math.round((Date.now() - new Date(data.started_at).getTime()) / 1000)
-    : 0;
+  // H) Elapsed time display (refreshed via elapsedTick interval)
+  const elapsed = useMemo(() => {
+    void elapsedTick; // dependency trigger
+    return data.started_at
+      ? Math.round((Date.now() - new Date(data.started_at).getTime()) / 1000)
+      : 0;
+  }, [data.started_at, elapsedTick]);
 
   // Step render
   const renderStep = () => {
@@ -706,6 +720,18 @@ export default function LettreMissionPage() {
   };
 
   const nextDisabled = !isStepValid(step);
+
+  // ── Permission check (AFTER all hooks to respect Rules of Hooks) ──
+  if (!hasPermission("write_clients")) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
+        <ShieldAlert className="w-12 h-12 text-red-400" />
+        <p className="text-white font-medium">Acces refuse</p>
+        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
+        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4 sm:space-y-6 animate-fade-in-up">

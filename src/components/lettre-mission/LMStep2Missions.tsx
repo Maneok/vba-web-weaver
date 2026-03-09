@@ -34,7 +34,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
 
   // Init missions if empty + apply conditionals
   useEffect(() => {
-    if (data.missions_selected.length === 0) {
+    if (!data.missions_selected || data.missions_selected.length === 0) {
       const base = DEFAULT_MISSIONS.map((m) => ({
         ...m,
         sous_options: m.sous_options.map((s) => ({ ...s })),
@@ -42,11 +42,15 @@ export default function LMStep2Missions({ data, onChange }: Props) {
       const applied = applyFormConditionals(base, data.forme_juridique, client?.effectif || "");
       onChange({ missions_selected: applied });
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data.forme_juridique]);
 
-  const missions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
+  const missions = (data.missions_selected || []).length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
 
   // A) Conditional logic toasts — show once
+  const missionsRef = useRef(missions);
+  missionsRef.current = missions;
+
   useEffect(() => {
     if (suggestionsShown.current || missions.length === 0) return;
     suggestionsShown.current = true;
@@ -60,7 +64,8 @@ export default function LMStep2Missions({ data, onChange }: Props) {
           action: {
             label: "Ajouter",
             onClick: () => {
-              const updated = missions.map((m) =>
+              const fresh = missionsRef.current;
+              const updated = fresh.map((m) =>
                 m.section_id === "social"
                   ? { ...m, selected: true, sous_options: m.sous_options.map((s) => ({ ...s, selected: true })) }
                   : m
@@ -81,7 +86,8 @@ export default function LMStep2Missions({ data, onChange }: Props) {
           action: {
             label: "Ajouter",
             onClick: () => {
-              const updated = missions.map((m) =>
+              const fresh = missionsRef.current;
+              const updated = fresh.map((m) =>
                 m.section_id === "juridique"
                   ? { ...m, selected: true, sous_options: m.sous_options.map((s) => ({ ...s, selected: true })) }
                   : m
@@ -92,7 +98,8 @@ export default function LMStep2Missions({ data, onChange }: Props) {
         });
       }
     }
-  }, [missions.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [missions.length, client?.effectif, data.forme_juridique]);
 
   const toggleSection = (sectionId: string) => {
     const m = missions.find((x) => x.section_id === sectionId);

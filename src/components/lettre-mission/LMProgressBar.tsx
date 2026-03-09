@@ -7,8 +7,8 @@ interface Props {
 export default function LMProgressBar({ currentStep }: Props) {
   const progress = ((currentStep + 1) / LM_TOTAL_STEPS) * 100;
 
-  // Remaining time estimate
-  const remainingSec = LM_STEP_DURATIONS.slice(currentStep).reduce((a, b) => a + b, 0);
+  // Remaining time estimate (exclude current step — only count steps ahead)
+  const remainingSec = LM_STEP_DURATIONS.slice(currentStep + 1).reduce((a, b) => a + b, 0);
   const remainingMin = Math.ceil(remainingSec / 60);
 
   return (

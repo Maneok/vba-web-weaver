@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
@@ -25,14 +25,19 @@ export default function LMStep3Details({ data, onChange }: Props) {
 
   const referentLcb = collaborateurs.find((c) => c.referentLcb);
 
-  // Auto pre-fill associe if not set
-  if (!data.associe_signataire && collaborateurs.length > 0) {
-    const admin = collaborateurs.find((c) => c.fonction?.toLowerCase().includes("associ"));
-    if (admin) onChange({ associe_signataire: admin.nom });
-  }
-  if (!data.referent_lcb && referentLcb) {
-    onChange({ referent_lcb: referentLcb.nom });
-  }
+  // Auto pre-fill associe if not set (wrapped in useEffect to avoid setState during render)
+  useEffect(() => {
+    if (!data.associe_signataire && collaborateurs.length > 0) {
+      const admin = collaborateurs.find((c) => c.fonction?.toLowerCase().includes("associ"));
+      if (admin) onChange({ associe_signataire: admin.nom });
+    }
+  }, [data.associe_signataire, collaborateurs]);
+
+  useEffect(() => {
+    if (!data.referent_lcb && referentLcb) {
+      onChange({ referent_lcb: referentLcb.nom });
+    }
+  }, [data.referent_lcb, referentLcb]);
 
   const validateField = (field: string, value: any) => {
     let error = "";
@@ -191,7 +196,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
             <Select value={data.associe_signataire} onValueChange={(v) => onChange({ associe_signataire: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
               <SelectContent>
-                {collaborateurs.map((c) => <SelectItem key={c.nom} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
+                {collaborateurs.map((c, i) => <SelectItem key={`${c.nom}-${i}`} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -200,7 +205,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
             <Select value={data.chef_mission} onValueChange={(v) => onChange({ chef_mission: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
               <SelectContent>
-                {collaborateurs.map((c) => <SelectItem key={c.nom} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
+                {collaborateurs.map((c, i) => <SelectItem key={`${c.nom}-${i}`} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -209,7 +214,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
             <Select value={data.validateur} onValueChange={(v) => onChange({ validateur: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Aucun validateur" /></SelectTrigger>
               <SelectContent>
-                {collaborateurs.map((c) => <SelectItem key={c.nom} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
+                {collaborateurs.map((c, i) => <SelectItem key={`${c.nom}-${i}`} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
               </SelectContent>
             </Select>
             <p className="text-[10px] text-slate-600">Collaborateur qui validera la lettre avant envoi</p>
