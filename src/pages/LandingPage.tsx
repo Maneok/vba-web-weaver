@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "@/lib/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -249,11 +248,11 @@ function TiltCard({ children, className = "" }: { children: ReactNode; className
 /* #17 — Wave separator */
 function WaveDivider({ flip = false, className = "" }: { flip?: boolean; className?: string }) {
   return (
-    <div className={`w-full overflow-hidden leading-[0] ${flip ? "rotate-180" : ""} ${className}`}>
+    <div className={`w-full overflow-hidden leading-[0] ${flip ? "rotate-180" : ""} ${className}`} aria-hidden="true">
       <svg viewBox="0 0 1440 60" preserveAspectRatio="none" className="w-full h-10 sm:h-14">
         <path
           d="M0,30 C240,55 480,5 720,30 C960,55 1200,5 1440,30 L1440,60 L0,60 Z"
-          className="fill-white/[0.02]"
+          className="fill-current opacity-[0.03]" style={{ color: "var(--l-text)" }}
         />
       </svg>
     </div>
@@ -272,7 +271,7 @@ function CircleCounter({ value, suffix = "", label, color }: {
     <div className="flex flex-col items-center gap-3">
       <div className="relative">
         <svg width="96" height="96" className="-rotate-90">
-          <circle cx="48" cy="48" r={r} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="5" />
+          <circle cx="48" cy="48" r={r} fill="none" stroke="var(--l-circle-track)" strokeWidth="5" />
           <circle
             cx="48" cy="48" r={r} fill="none" stroke={color} strokeWidth="5"
             strokeDasharray={circ} strokeDashoffset={offset}
@@ -402,7 +401,7 @@ function InteractiveDemo() {
       <div className="rounded-xl p-6" style={{ background: "var(--l-mock-bg)" }}>
         {/* Header */}
         <div className="flex items-center gap-2 mb-5">
-          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" />
+          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" />
           <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
           <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
           <span className="ml-3 text-[11px] text-[--l-text-4]">Screening — Démonstration</span>
@@ -410,7 +409,7 @@ function InteractiveDemo() {
 
         {/* Input */}
         <div className="flex gap-2 mb-5">
-          <div className="flex-1 rounded-lg bg-white/5 border border-[--l-border] px-4 py-2.5 text-sm font-mono text-[--l-text-2]">
+          <div className="flex-1 rounded-lg border border-[--l-border] px-4 py-2.5 text-sm font-mono text-[--l-text-2]" style={{ background: "var(--l-mock-field)" }}>
             SIREN : 831 562 749
           </div>
           <button
@@ -423,7 +422,7 @@ function InteractiveDemo() {
         </div>
 
         {/* Progress bar */}
-        <div className="h-1.5 rounded-full bg-white/5 mb-5">
+        <div className="h-1.5 rounded-full bg-[--l-mock-bar-bg] mb-5">
           <div
             className="h-1.5 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all duration-300"
             style={{ width: `${(completed / 9) * 100}%` }}
@@ -439,7 +438,7 @@ function InteractiveDemo() {
               <div
                 key={api.name}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2 text-sm transition-all duration-300 ${
-                  done ? "bg-emerald-500/10" : current ? "bg-blue-500/10" : "bg-white/[0.02]"
+                  done ? "bg-emerald-500/10" : current ? "bg-blue-500/10" : "bg-[--l-surface]"
                 }`}
               >
                 <api.icon className={`h-4 w-4 shrink-0 ${done ? "text-emerald-400" : current ? "text-blue-400 animate-pulse" : "text-[--l-text-5]"}`} />
@@ -467,7 +466,7 @@ function InteractiveDemo() {
               </div>
             </div>
             {/* Radar chart */}
-            <div className="rounded-lg bg-white/[0.02] border border-[--l-border] p-4">
+            <div className="rounded-lg bg-[--l-surface] border border-[--l-border] p-4">
               <p className="text-[11px] text-[--l-text-5] mb-3 text-center">Scoring NPLAB — 6 axes</p>
               <RadarChart />
             </div>
@@ -487,7 +486,7 @@ function VideoPlayer() {
     >
       {/* Poster gradient */}
       <div className="absolute inset-0 bg-gradient-to-br from-blue-900/40 via-indigo-900/30 to-[--l-bg-primary]" />
-      <div className="absolute inset-0 dot-grid opacity-30" />
+      <div className="absolute inset-0 dot-grid opacity-20" />
 
       {!playing ? (
         <div className="relative flex flex-col items-center justify-center h-full gap-4">
@@ -495,11 +494,17 @@ function VideoPlayer() {
             <Play className="h-7 w-7 text-white ml-1" />
           </div>
           <p className="text-sm font-medium text-[--l-text-3]">Découvrir GRIMY en 60 secondes</p>
+          <p className="text-xs text-[--l-text-5]">Cliquez pour lancer la vidéo</p>
         </div>
       ) : (
-        <div className="relative flex flex-col items-center justify-center h-full gap-3">
-          <Sparkles className="h-8 w-8 text-blue-400 animate-pulse" />
-          <p className="text-sm text-[--l-text-3]">Vidéo de démonstration — bientôt disponible</p>
+        <div className="relative flex flex-col items-center justify-center h-full gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-blue-500/20">
+            <Sparkles className="h-7 w-7 text-blue-400 animate-pulse" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-[--l-text-2]">Vidéo de démonstration</p>
+            <p className="text-xs text-[--l-text-4] mt-1">Bientôt disponible</p>
+          </div>
           <button
             onClick={(e) => { e.stopPropagation(); setPlaying(false); }}
             className="text-xs text-blue-400 hover:text-blue-300 underline"
@@ -537,17 +542,17 @@ function AnimatedMockStep() {
     <div ref={ref} className="rounded-2xl border border-[--l-border] bg-[--l-surface] p-1.5 backdrop-blur-sm">
       <div className="rounded-xl p-5" style={{ background: "var(--l-mock-bg)" }}>
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" />
+          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" />
           <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
           <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
           <span className="ml-3 text-[11px] text-[--l-text-5]">Nouvelle fiche client — Étape 1/6</span>
         </div>
-        <div className="h-1.5 rounded-full bg-white/5 mb-5">
+        <div className="h-1.5 rounded-full bg-[--l-mock-bar-bg] mb-5">
           <div className="h-1.5 w-1/6 rounded-full bg-gradient-to-r from-blue-500 to-blue-400 transition-all" />
         </div>
         <div className="space-y-2.5">
           {[["SIREN", "831 562 749"], ["Société", "SAS Exemple & Associés"], ["Activité", "6920Z — Comptabilité"]].map(([k, v]) => (
-            <div key={k} className="flex items-center gap-3 rounded-lg bg-white/5 px-4 py-2.5">
+            <div key={k} className="flex items-center gap-3 rounded-lg bg-[--l-mock-bar-bg] px-4 py-2.5">
               <span className="text-[11px] text-[--l-text-5] w-16 shrink-0">{k}</span>
               <span className="text-sm text-[--l-text-2] font-mono">{v}</span>
             </div>
@@ -567,7 +572,7 @@ function AnimatedMockStep() {
           )}
           <div className="ml-auto flex gap-1">
             {Array.from({ length: 9 }).map((_, i) => (
-              <div key={i} className={`h-1.5 w-3 rounded-full transition-colors duration-300 ${i < apiCount ? (apiCount >= 9 ? "bg-emerald-400" : "bg-blue-400") : "bg-white/10"}`} />
+              <div key={i} className={`h-1.5 w-3 rounded-full transition-colors duration-300 ${i < apiCount ? (apiCount >= 9 ? "bg-emerald-400" : "bg-blue-400") : "bg-[--l-surface-raised]"}`} />
             ))}
           </div>
         </div>
@@ -586,7 +591,7 @@ function AnimatedMockAudit() {
     <div className="rounded-2xl border border-[--l-border] bg-[--l-surface] p-1.5 backdrop-blur-sm">
       <div className="rounded-xl p-5" style={{ background: "var(--l-mock-bg)" }}>
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" /><div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" /><div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
+          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" /><div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" /><div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
           <span className="ml-3 text-[11px] text-[--l-text-5]">Contrôle qualité</span>
         </div>
         <div className="space-y-4">
@@ -596,7 +601,7 @@ function AnimatedMockAudit() {
                 <span className="text-sm text-[--l-text-3]">{r.label}</span>
                 <span className="text-sm font-semibold text-[--l-text]">{r.val}</span>
               </div>
-              <div className="h-2 rounded-full bg-white/5">
+              <div className="h-2 rounded-full bg-[--l-mock-bar-bg]">
                 <div className={`h-2 rounded-full ${r.color}`} style={{ width: `${r.pct}%` }} />
               </div>
             </div>
@@ -617,12 +622,12 @@ function AnimatedMockDashboard() {
     <div className="rounded-2xl border border-[--l-border] bg-[--l-surface] p-1.5 backdrop-blur-sm">
       <div className="rounded-xl p-5" style={{ background: "var(--l-mock-bg)" }}>
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" /><div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" /><div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
+          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" /><div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" /><div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
           <span className="ml-3 text-[11px] text-[--l-text-5]">Dashboard — Vue d'ensemble</span>
         </div>
         <div className="grid grid-cols-3 gap-2 mb-5">
           {[{ l: "Clients", v: "142", c: "text-blue-400" }, { l: "Alertes", v: "3", c: "text-yellow-400" }, { l: "Échues", v: "2", c: "text-red-400" }].map((k) => (
-            <div key={k.l} className="rounded-lg bg-white/5 px-3 py-2.5 text-center">
+            <div key={k.l} className="rounded-lg bg-[--l-mock-bar-bg] px-3 py-2.5 text-center">
               <div className={`text-xl font-bold ${k.c} font-serif`}>{k.v}</div>
               <div className="text-[10px] text-[--l-text-5] mt-0.5">{k.l}</div>
             </div>
@@ -805,20 +810,6 @@ const footerSections = [
 ];
 
 /* ══════════════════════════════════════════════════════════════
-   Google OAuth SVG
-   ══════════════════════════════════════════════════════════════ */
-function GoogleIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24">
-      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-    </svg>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════════
    Scroll-to-top button
    ══════════════════════════════════════════════════════════════ */
 function ScrollToTop() {
@@ -832,7 +823,7 @@ function ScrollToTop() {
   return (
     <button
       onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-      className="fixed bottom-20 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-full border shadow-lg backdrop-blur-sm transition-all hover:scale-110 btn-press sm:bottom-6"
+      className="fixed bottom-[70px] right-6 z-30 flex h-10 w-10 items-center justify-center rounded-full border shadow-lg backdrop-blur-sm transition-all hover:scale-110 btn-press sm:bottom-6 sm:z-40"
       style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur)" }}
       aria-label="Retour en haut"
     >
@@ -861,7 +852,6 @@ export default function LandingPage() {
   const [showPricingTable, setShowPricingTable] = useState(false);
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
-  const { signInWithGoogle } = useAuth();
 
   /* #11 — Mobile menu scroll lock */
   useEffect(() => {
@@ -894,6 +884,7 @@ export default function LandingPage() {
           --l-bg-primary: #0a0a1a;
           --l-bg-alt: #0f0f2e;
           --l-surface: rgba(255,255,255,0.05);
+          --l-surface-raised: rgba(255,255,255,0.08);
           --l-border: rgba(255,255,255,0.1);
           --l-border-subtle: rgba(255,255,255,0.05);
           --l-bg-blur: rgba(10,10,26,0.85);
@@ -904,23 +895,32 @@ export default function LandingPage() {
           --l-text-4: #6b7280;
           --l-text-5: #4b5563;
           --l-mock-bg: #0d0d24;
+          --l-mock-field: rgba(255,255,255,0.05);
+          --l-mock-bar-bg: rgba(255,255,255,0.05);
+          --l-circle-track: rgba(255,255,255,0.08);
+          --l-toggle-off: #374151;
         }
         .theme-light {
-          --l-bg-primary: #fafbfc;
-          --l-bg-alt: #f5f3ff;
-          --l-surface: rgba(139,92,246,0.03);
-          --l-border: rgba(139,92,246,0.12);
-          --l-border-subtle: rgba(139,92,246,0.06);
-          --l-bg-blur: rgba(250,251,252,0.88);
-          --l-bg-blur-heavy: rgba(250,251,252,0.95);
-          --l-text: #111827;
-          --l-text-2: #374151;
-          --l-text-3: #4b5563;
-          --l-text-4: #6b7280;
-          --l-text-5: #9ca3af;
-          --l-mock-bg: #f5f3ff;
+          --l-bg-primary: #f8f6f1;
+          --l-bg-alt: #f3efe8;
+          --l-surface: rgba(120,80,200,0.04);
+          --l-surface-raised: rgba(120,80,200,0.07);
+          --l-border: rgba(100,60,180,0.15);
+          --l-border-subtle: rgba(100,60,180,0.08);
+          --l-bg-blur: rgba(248,246,241,0.9);
+          --l-bg-blur-heavy: rgba(248,246,241,0.96);
+          --l-text: #1a1520;
+          --l-text-2: #2d2535;
+          --l-text-3: #4a4255;
+          --l-text-4: #6b6278;
+          --l-text-5: #9590a0;
+          --l-mock-bg: #f0ece5;
+          --l-mock-field: rgba(100,60,180,0.06);
+          --l-mock-bar-bg: rgba(100,60,180,0.08);
+          --l-circle-track: rgba(100,60,180,0.1);
           --l-accent: #7c3aed;
           --l-accent-light: rgba(139,92,246,0.1);
+          --l-toggle-off: #c4bfd0;
         }
         .landing-root { color: var(--l-text); }
 
@@ -931,7 +931,7 @@ export default function LandingPage() {
           animation: gradShift 15s ease infinite;
         }
         .theme-light .landing-bg-wrap {
-          background: linear-gradient(135deg, #fafbfc 0%, #f5f3ff 25%, #ede9fe 50%, #f5f3ff 75%, #fafbfc 100%);
+          background: linear-gradient(135deg, #f8f6f1 0%, #f3efe8 25%, #ece5dc 50%, #f3efe8 75%, #f8f6f1 100%);
         }
         @keyframes gradShift {
           0% { background-position: 0% 50%; }
@@ -945,7 +945,7 @@ export default function LandingPage() {
           background-size: 32px 32px;
         }
         .theme-light .dot-grid {
-          background-image: radial-gradient(circle, rgba(139,92,246,0.1) 1px, transparent 1px);
+          background-image: radial-gradient(circle, rgba(120,80,200,0.08) 1px, transparent 1px);
         }
 
         /* Hero glow */
@@ -953,14 +953,15 @@ export default function LandingPage() {
           background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(59,130,246,0.15) 0%, transparent 70%);
         }
         .theme-light .hero-glow {
-          background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(139,92,246,0.12) 0%, transparent 70%);
+          background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120,80,200,0.1) 0%, transparent 70%);
         }
 
         /* #9 — Micro-interactions */
         .btn-press { transition: transform 0.15s ease; }
         .btn-press:active { transform: scale(0.97); }
         .table-row-hover { transition: background 0.15s ease; }
-        .table-row-hover:hover { background: rgba(59,130,246,0.04); }
+        .table-row-hover:hover { background: rgba(59,130,246,0.06); }
+        .theme-light .table-row-hover:hover { background: rgba(120,80,200,0.06); }
 
         /* #2 — Video play pulse */
         @keyframes playPulse {
@@ -977,8 +978,8 @@ export default function LandingPage() {
         .animate-ticker { animation: ticker 40s linear infinite; will-change: transform; }
 
         /* #14 — GRIMY column highlight */
-        .grimy-col { background: rgba(16,185,129,0.04); }
-        .theme-light .grimy-col { background: rgba(139,92,246,0.06); }
+        .grimy-col { background: rgba(16,185,129,0.06); }
+        .theme-light .grimy-col { background: rgba(120,80,200,0.08); }
 
         /* Reduced motion */
         @media (prefers-reduced-motion: reduce) {
@@ -993,11 +994,29 @@ export default function LandingPage() {
 
         /* Purple gradient section titles in light mode */
         .theme-light h2.font-serif {
-          background: linear-gradient(135deg, #7c3aed, #6d28d9, #4c1d95);
+          background: linear-gradient(135deg, #6d28d9, #5b21b6, #4c1d95);
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
         }
+
+        /* Light mode: darken accent colors for contrast on cream */
+        /* Hero gradient text on cream */
+        .theme-light .bg-gradient-to-r.from-violet-400.to-purple-300 {
+          background: linear-gradient(to right, #6d28d9, #7c3aed) !important;
+        }
+
+        .theme-light .text-emerald-400 { color: #059669 !important; }
+        .theme-light .text-emerald-300 { color: #059669 !important; }
+        .theme-light .text-blue-400 { color: #2563eb !important; }
+        .theme-light .text-blue-300 { color: #2563eb !important; }
+        .theme-light .text-violet-400 { color: #7c3aed !important; }
+        .theme-light .text-amber-400 { color: #d97706 !important; }
+        .theme-light .text-purple-400 { color: #7c3aed !important; }
+        .theme-light .text-pink-400 { color: #db2777 !important; }
+        .theme-light .text-red-400\\/60 { color: rgba(220,38,38,0.7) !important; }
+        .theme-light .fill-amber-400 { fill: #d97706 !important; }
+        .theme-light .text-amber-400.fill-amber-400 { color: #d97706 !important; }
 
         /* Timeline line fill */
         .timeline-line-fill {
@@ -1022,11 +1041,6 @@ export default function LandingPage() {
           scroll-margin-top: 80px;
         }
 
-        /* Light mode text improvements for WCAG AA */
-        .theme-light .landing-root {
-          --l-text-2: #1f2937;
-          --l-text-3: #374151;
-        }
       `}</style>
 
       <div className="landing-bg-wrap">
@@ -1063,17 +1077,13 @@ export default function LandingPage() {
               {/* #12 — Theme toggle (persisted) */}
               <button
                 onClick={theme.toggle}
-                className="p-2 rounded-lg transition-colors hover:bg-white/10"
+                className="p-2 rounded-lg transition-colors hover:opacity-70"
                 style={{ color: "var(--l-text-3)" }}
                 aria-label={theme.light ? "Passer en mode sombre" : "Passer en mode clair"}
               >
                 {theme.light ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </button>
 
-              <button onClick={() => signInWithGoogle()} className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors hover:bg-white/10 btn-press" style={{ color: "var(--l-text-3)" }}>
-                <GoogleIcon className="h-4 w-4" />
-                <span className="hidden lg:inline">Connexion Google</span>
-              </button>
               <Link to="/auth" className="hidden sm:inline-flex">
                 <Button variant="ghost" className="btn-press" style={{ color: "var(--l-text-3)" }}>Se connecter</Button>
               </Link>
@@ -1094,14 +1104,9 @@ export default function LandingPage() {
               {NAV_LINKS.map((l) => (
                 <button key={l.id} onClick={() => handleNavClick(l.id)} className="block w-full text-left py-3 text-sm transition-colors" style={{ color: "var(--l-text-2)" }}>{l.label}</button>
               ))}
-              <div className="pt-3 space-y-2" style={{ borderTop: "1px solid var(--l-border)" }}>
-                <button onClick={() => { setMobileMenu(false); signInWithGoogle(); }} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border text-sm font-medium transition-colors" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>
-                  <GoogleIcon className="h-4 w-4" />Continuer avec Google
-                </button>
-                <div className="flex gap-3">
-                  <Link to="/auth" className="flex-1"><Button variant="outline" className="w-full" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>Connexion</Button></Link>
-                  <Link to="/auth" className="flex-1"><Button className="w-full bg-blue-600 text-white">Démarrer</Button></Link>
-                </div>
+              <div className="pt-3 flex gap-3" style={{ borderTop: "1px solid var(--l-border)" }}>
+                <Link to="/auth" className="flex-1"><Button variant="outline" className="w-full" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>Connexion</Button></Link>
+                <Link to="/auth" className="flex-1"><Button className="w-full bg-blue-600 text-white">Démarrer</Button></Link>
               </div>
             </div>
           )}
@@ -1137,11 +1142,8 @@ export default function LandingPage() {
                   Démarrer gratuitement <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="h-12 px-8 text-base btn-press" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}
-                onClick={() => signInWithGoogle()}
-              >
-                <GoogleIcon className="h-5 w-5 mr-2" />
-                Continuer avec Google
+              <Button size="lg" variant="outline" className="h-12 px-8 text-base btn-press" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }} onClick={() => scrollTo("demo")}>
+                Voir la démo <ChevronDown className="ml-2 h-4 w-4" />
               </Button>
             </div>
 
@@ -1355,9 +1357,9 @@ export default function LandingPage() {
                     </div>
                     <h3 className="font-serif text-2xl font-bold sm:text-3xl">{f.title}</h3>
                     <p className="text-base leading-relaxed max-w-lg" style={{ color: "var(--l-text-3)" }}>{f.desc}</p>
-                    <Link to="/auth" className="inline-flex items-center gap-1 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
-                      En savoir plus <ChevronRight className="h-4 w-4" />
-                    </Link>
+                    <button onClick={() => scrollTo("demo")} className="inline-flex items-center gap-1 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                      Voir en action <ChevronRight className="h-4 w-4" />
+                    </button>
                   </div>
                   <div className="flex-1 w-full max-w-md"><Mock /></div>
                 </div>
@@ -1373,7 +1375,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-5xl px-6">
             <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs Excel</h2>
             <p data-reveal className="mx-auto mb-14 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
-              Comparez et choisissez la solution la plus complète pour votre cabinet.
+              Comparez et choisissez la solution la plus complète.
             </p>
 
             {/* Desktop table */}
@@ -1414,7 +1416,7 @@ export default function LandingPage() {
           <div className="mx-auto max-w-6xl px-6">
             <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">Tarifs transparents</h2>
             <p data-reveal className="mx-auto mb-10 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
-              Des plans adaptés à chaque taille de cabinet. Sans engagement.
+              Des plans adaptés à chaque taille de structure. Sans engagement.
             </p>
 
             {/* #5 accessible toggle */}
@@ -1423,7 +1425,8 @@ export default function LandingPage() {
               <button role="switch" aria-checked={annual} aria-label="Basculer tarification annuelle"
                 onClick={() => setAnnual(!annual)}
                 onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setAnnual(!annual); } }}
-                className={`relative h-7 w-12 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${annual ? "bg-blue-600" : "bg-gray-700"}`}
+                className={`relative h-7 w-12 rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${annual ? "bg-blue-600" : ""}`}
+                style={{ background: annual ? undefined : "var(--l-toggle-off)" }}
               >
                 <span className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow-sm transition-transform duration-200 ${annual ? "translate-x-5" : "translate-x-0.5"}`} />
               </button>
@@ -1456,6 +1459,9 @@ export default function LandingPage() {
                             <div className="flex items-baseline gap-1">
                               <span className="text-5xl font-bold font-serif">{price}€</span>
                               <span style={{ color: "var(--l-text-4)" }}>/mois</span>
+                              {annual && (
+                                <span className="ml-2 text-sm line-through" style={{ color: "var(--l-text-5)" }}>{plan.price}€</span>
+                              )}
                             </div>
                           ) : (
                             <span className="text-3xl font-bold font-serif">Sur devis</span>
@@ -1469,11 +1475,19 @@ export default function LandingPage() {
                           ))}
                         </ul>
                         <div className="space-y-2">
-                          <Link to="/auth" className="block">
-                            <Button className={`w-full h-11 btn-press ${plan.popular ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-600/20 text-white" : "bg-white/10 hover:bg-white/15"}`} style={plan.popular ? {} : { color: "var(--l-text)" }}>
-                              {plan.cta}
-                            </Button>
-                          </Link>
+                          {plan.price === 0 ? (
+                            <a href="mailto:contact@grimy.fr?subject=Demande Enterprise" className="block">
+                              <Button className="w-full h-11 btn-press bg-[--l-surface-raised] hover:opacity-80" style={{ color: "var(--l-text)" }}>
+                                {plan.cta}
+                              </Button>
+                            </a>
+                          ) : (
+                            <Link to="/auth" className="block">
+                              <Button className={`w-full h-11 btn-press ${plan.popular ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-600/20 text-white" : "bg-[--l-surface-raised] hover:opacity-80"}`} style={plan.popular ? {} : { color: "var(--l-text)" }}>
+                                {plan.cta}
+                              </Button>
+                            </Link>
+                          )}
                           {plan.price > 0 && (
                             <p className="text-center text-xs" style={{ color: "var(--l-text-5)" }}>14 jours d'essai gratuit</p>
                           )}
@@ -1533,7 +1547,7 @@ export default function LandingPage() {
               Ce qu'en disent nos utilisateurs
             </h2>
             <p data-reveal className="mx-auto mb-14 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
-              Des cabinets de toutes tailles nous font confiance.
+              Des professionnels de toutes tailles nous font confiance.
             </p>
 
             {/* Testimonial grid (5 cards, wraps naturally) */}
@@ -1632,19 +1646,6 @@ export default function LandingPage() {
                   {ctaError && <p id="cta-error" className="mt-2 text-xs text-red-400">{ctaError}</p>}
                   <p className="mt-3 text-xs" style={{ color: "var(--l-text-5)" }}>Aucune carte bancaire requise</p>
                 </form>
-                <div className="mt-4 flex items-center justify-center gap-3">
-                  <div className="h-px flex-1 max-w-[60px]" style={{ background: "var(--l-border)" }} />
-                  <span className="text-xs" style={{ color: "var(--l-text-5)" }}>ou</span>
-                  <div className="h-px flex-1 max-w-[60px]" style={{ background: "var(--l-border)" }} />
-                </div>
-                <button
-                  onClick={() => signInWithGoogle()}
-                  className="mt-4 mx-auto flex items-center gap-2 rounded-lg border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 btn-press"
-                  style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}
-                >
-                  <GoogleIcon className="h-4 w-4" />
-                  Continuer avec Google
-                </button>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
                   {[
                     { icon: Shield, label: "RGPD" },
@@ -1707,16 +1708,11 @@ export default function LandingPage() {
       {/* ══════ #4 — STICKY CTA BAR (appears after hero) ══════ */}
       {!heroInView && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t p-3 backdrop-blur-xl sm:hidden transition-all sticky-cta-safe" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur)" }}>
-          <div className="flex gap-2">
-            <Link to="/auth" className="flex-1">
-              <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-600/25 btn-press text-white">
-                Démarrer <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-            <button onClick={() => signInWithGoogle()} className="h-11 w-11 flex items-center justify-center rounded-lg border btn-press shrink-0" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
-              <GoogleIcon className="h-5 w-5" />
-            </button>
-          </div>
+          <Link to="/auth" className="block">
+            <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-600/25 btn-press text-white">
+              Démarrer gratuitement <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </Link>
         </div>
       )}
 
