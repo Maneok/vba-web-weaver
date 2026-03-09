@@ -1,12 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
-import { logger } from '@/lib/logger';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '';
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  logger.warn('Supabase environment variables are missing. Backend features will not work.');
+  // Use console directly — logger may not be initialized yet at module top level
+  console.warn('[Supabase] Environment variables are missing. Backend features will not work.');
 }
 
 // Import the supabase client like this:
