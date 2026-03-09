@@ -258,7 +258,8 @@ export function applyFormConditionals(
   forme: string,
   effectif: string
 ): MissionSelection[] {
-  let result = missions.map((m) => ({ ...m, sous_options: m.sous_options.map((s) => ({ ...s })) }));
+  // (F9) Deep copy with guard against undefined sous_options
+  let result = missions.map((m) => ({ ...m, sous_options: (m.sous_options || []).map((s) => ({ ...s })) }));
 
   // SCI → juridique ON
   if (forme === "SCI") {

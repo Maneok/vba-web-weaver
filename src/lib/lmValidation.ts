@@ -37,7 +37,8 @@ export function validateStep3(data: any): ValidationError[] {
   if (!data.cp || !/^\d{5}$/.test(data.cp)) errors.push({ field: "cp", message: "Code postal invalide (5 chiffres)" });
   if (!data.ville) errors.push({ field: "ville", message: "Ville requise" });
   if (!data.associe_signataire) errors.push({ field: "associe_signataire", message: "Associe signataire requis" });
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(data.email))
+  // (F4) More permissive email regex — allows +, numbers in TLD, subdomains
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(data.email))
     errors.push({ field: "email", message: "Email invalide" });
   return errors;
 }
@@ -51,8 +52,9 @@ export function validateStep4(data: any): ValidationError[] {
     errors.push({ field: "honoraires_ht", message: "Montant anormalement eleve (> 500 000 EUR)" });
   if (!data.frequence_facturation)
     errors.push({ field: "frequence_facturation", message: "Frequence de facturation requise" });
-  if (data.mode_paiement === "prelevement" && data.iban) {
-    const iban = data.iban.replace(/\s/g, "");
+  // (F5) Validate IBAN when prelevement is selected, even if user switched away and back
+  if (data.mode_paiement === "prelevement") {
+    const iban = (data.iban || "").replace(/\s/g, "");
     if (iban.length > 0 && (!/^FR\d{2}/.test(iban) || iban.length !== 27)) {
       errors.push({ field: "iban", message: "IBAN francais invalide (27 car. commencant par FR)" });
     }
@@ -80,19 +82,33 @@ export const VALIDATORS: Record<number, (data: any) => ValidationError[]> = {
   5: validateStep6,
 };
 
-/** Sanitize HTML/XSS dans les champs texte (safe against double-encoding) */
+/** Sanitize HTML/XSS dans les champs texte — strip dangerous tags, keep safe text */
 export function sanitizeText(text: string): string {
   if (!text || typeof text !== "string") return "";
-  // First decode any existing entities to avoid double-encoding
-  const decoded = text
+  // (F1) Strip HTML tags entirely instead of encoding — prevents double-encode attacks
+  // Remove script/style tags and their content first
+  let clean = text.replace(/<script[\s\S]*?<\/script>/gi, "");
+  clean = clean.replace(/<style[\s\S]*?<\/style>/gi, "");
+  // Remove all remaining HTML tags
+  clean = clean.replace(/<[^>]*>/g, "");
+  // (F2) Decode HTML entities to plain text (safe since tags are stripped)
+  clean = clean
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/&#x[0-9a-fA-F]+;/g, (m) => String.fromCharCode(parseInt(m.slice(3, -1), 16)))
-    .replace(/&#\d+;/g, (m) => String.fromCharCode(parseInt(m.slice(2, -1), 10)));
-  return decoded.replace(/[<>&"']/g, (c) => {
+    .replace(/&#x([0-9a-fA-F]{1,6});/g, (_, hex) => {
+      const cp = parseInt(hex, 16);
+      // (F3) Guard against invalid/huge code points
+      return cp > 0 && cp <= 0x10FFFF ? String.fromCodePoint(cp) : "";
+    })
+    .replace(/&#(\d{1,7});/g, (_, dec) => {
+      const cp = parseInt(dec, 10);
+      return cp > 0 && cp <= 0x10FFFF ? String.fromCodePoint(cp) : "";
+    });
+  // Final encode for safe rendering in HTML contexts
+  return clean.replace(/[<>&"']/g, (c) => {
     const map: Record<string, string> = {
       "<": "&lt;",
       ">": "&gt;",

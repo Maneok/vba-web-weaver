@@ -90,18 +90,26 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
     ctx.lineWidth = 2;
     ctx.strokeStyle = "#e2e8f0";
 
+    // (F34) Guard against stale canvas ref on unmount; (F35) handle image load errors
     if (value) {
       const img = new window.Image();
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        if (canvasRef.current) {
+          ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        }
       };
-      img.onerror = () => {};
+      img.onerror = () => {
+        // Silently skip — broken image URL won't crash
+      };
       img.src = value;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // (F36) Guard against null canvas ref
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     if ("touches" in e) {
       const touch = e.touches[0] || e.changedTouches[0];
@@ -335,12 +343,17 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
     toast.success("DOCX genere avec succes");
   });
 
+  // (F38) Validate email format before opening mailto
   const handleEmail = () => {
     if (!emailTo) {
       toast.error("Adresse email requise");
       return;
     }
-    window.location.href = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(`Lettre de mission - ${data.raison_sociale}`)}&body=${encodeURIComponent("Veuillez trouver ci-joint la lettre de mission.")}`;
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(emailTo)) {
+      toast.error("Format d'email invalide");
+      return;
+    }
+    window.location.href = `mailto:${encodeURIComponent(emailTo)}?subject=${encodeURIComponent(`Lettre de mission - ${data.raison_sociale || "Client"}`)}&body=${encodeURIComponent("Veuillez trouver ci-joint la lettre de mission.")}`;
     toast.success("Client email ouvert");
   };
 
@@ -360,20 +373,28 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
     if (!file) return;
     if (file.size > 500_000) {
       toast.error("Image trop volumineuse (max 500 Ko)");
+      // (F37) Reset file input so same file can be re-selected
+      e.target.value = "";
       return;
     }
     if (!file.type.startsWith("image/") || file.type === "image/svg+xml") {
-      toast.error("Format d'image non supporte");
+      toast.error("Format d'image non supporte (PNG, JPG, WebP)");
+      e.target.value = "";
       return;
     }
     const reader = new FileReader();
     reader.onload = (ev) => {
-      onChange({ signature_expert: ev.target?.result as string });
+      const result = ev.target?.result;
+      if (typeof result === "string") {
+        onChange({ signature_expert: result });
+      }
     };
     reader.onerror = () => {
       toast.error("Impossible de lire le fichier");
     };
     reader.readAsDataURL(file);
+    // (F37) Reset input after reading so same file can be re-selected
+    e.target.value = "";
   };
 
   // (47) Copy summary to clipboard
@@ -386,10 +407,15 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       `Frequence : ${data.frequence_facturation}`,
       `Statut : ${data.statut}`,
     ].join("\n");
-    navigator.clipboard.writeText(summary).then(
-      () => toast.success("Resume copie dans le presse-papier"),
-      () => toast.error("Impossible de copier")
-    );
+    // (F39) Graceful clipboard fallback for browsers without Clipboard API
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(summary).then(
+        () => toast.success("Resume copie dans le presse-papier"),
+        () => toast.error("Impossible de copier — verifiez les permissions du navigateur")
+      );
+    } else {
+      toast.error("Le presse-papier n'est pas disponible dans ce navigateur");
+    }
   }, [data]);
 
   return (
@@ -593,13 +619,15 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <div className="flex items-center gap-1 overflow-x-auto pb-1">
           {LM_STATUTS.map((s, i) => {
             const isActive = data.statut === s.value;
-            const isPast = LM_STATUTS.findIndex((st) => st.value === data.statut) > i;
+            // (F40) Fix off-by-one: current index >= i means past, but exclude current
+            const currentIdx = LM_STATUTS.findIndex((st) => st.value === data.statut);
+            const isPast = currentIdx >= 0 && i < currentIdx;
             return (
               <div key={s.value} className="flex items-center shrink-0">
                 <button
                   onClick={() => onChange({ statut: s.value })}
                   className={`flex items-center gap-1.5 px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-200 active:scale-[0.97] min-h-[40px] focus:ring-2 focus:ring-blue-500/40 focus:outline-none ${
-                    isActive ? s.color : isPast ? "bg-emerald-500/5 border-emerald-500/15 text-emerald-400/70" : "bg-white/[0.02] border-white/[0.06] text-slate-500"
+                    isActive ? (s.color || "bg-blue-500/10 text-blue-400 border-blue-500/20") : isPast ? "bg-emerald-500/5 border-emerald-500/15 text-emerald-400/70" : "bg-white/[0.02] border-white/[0.06] text-slate-500"
                   }`}
                 >
                   {isPast && <Check className="w-3 h-3" />}

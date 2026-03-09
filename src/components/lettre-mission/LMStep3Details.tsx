@@ -43,7 +43,8 @@ export default function LMStep3Details({ data, onChange }: Props) {
     if (!data.associe_signataire && collaborateurs.length > 0) {
       const admin = collaborateurs.find((c) => {
         const fn = c.fonction?.toLowerCase() || "";
-        return fn === "associe" || fn === "associé" || fn.startsWith("associ") && !fn.includes("associatif");
+        // (F17) Fix operator precedence — parentheses around && condition
+        return fn === "associe" || fn === "associé" || (fn.startsWith("associ") && !fn.includes("associatif"));
       });
       if (admin) onChange({ associe_signataire: admin.nom });
     }
@@ -59,8 +60,17 @@ export default function LMStep3Details({ data, onChange }: Props) {
   const validateField = (field: string, value: any) => {
     let error = "";
     if (field === "cp" && value && !/^\d{5}$/.test(value)) error = "Code postal invalide (5 chiffres)";
-    if (field === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = "Format email invalide";
+    // (F19) Consistent email regex with lmValidation.ts — allows +, subdomains
+    if (field === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) error = "Format email invalide";
     setFieldErrors((prev) => ({ ...prev, [field]: error }));
+  };
+
+  // (F21) Clear field error when user starts typing (not just on blur)
+  const handleFieldChange = (field: string, value: string) => {
+    onChange({ [field]: value } as any);
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => ({ ...prev, [field]: "" }));
+    }
   };
 
   const inputCls = "bg-white/[0.04] border-white/[0.08] text-white focus:ring-2 focus:ring-blue-500/40";
@@ -77,9 +87,9 @@ export default function LMStep3Details({ data, onChange }: Props) {
   const filledCount = requiredFields.filter((f) => f.filled).length;
   const allFilled = filledCount === requiredFields.length;
 
-  // (26) Insert clause template
+  // (26) Insert clause template — (F20) trim whitespace
   const insertClause = (text: string) => {
-    const current = data.clauses_supplementaires || "";
+    const current = (data.clauses_supplementaires || "").trim();
     const newText = current ? `${current}\n\n${text}` : text;
     onChange({ clauses_supplementaires: newText });
     setShowClauseLibrary(false);
@@ -168,7 +178,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
                   {data.cp && /^\d{5}$/.test(data.cp) && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
                 </Label>
                 <Input
-                  value={data.cp} onChange={(e) => onChange({ cp: e.target.value })}
+                  value={data.cp} onChange={(e) => handleFieldChange("cp", e.target.value)}
                   onBlur={(e) => validateField("cp", e.target.value)}
                   inputMode="numeric" maxLength={5}
                   className={`${fieldErrors.cp ? errorCls : inputCls} h-11 sm:h-10`}
@@ -192,7 +202,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 <Label className="text-slate-400 text-xs">Email</Label>
                 <Input
                   type="email" inputMode="email" autoComplete="email"
-                  value={data.email} onChange={(e) => onChange({ email: e.target.value })}
+                  value={data.email} onChange={(e) => handleFieldChange("email", e.target.value)}
                   onBlur={(e) => validateField("email", e.target.value)}
                   className={fieldErrors.email ? errorCls : inputCls}
                 />
@@ -256,9 +266,12 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 <span className="text-blue-400 font-medium whitespace-nowrap">{new Date(data.date_debut).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}</span>
                 <div className="flex-1 h-px bg-gradient-to-r from-blue-500/40 to-emerald-500/40" />
                 <span className="text-emerald-400 font-medium whitespace-nowrap">
+                  {/* (F18) Guard against invalid duree or date */}
                   {(() => {
                     const end = new Date(data.date_debut);
-                    end.setFullYear(end.getFullYear() + parseInt(data.duree || "1"));
+                    if (isNaN(end.getTime())) return "—";
+                    const years = Math.max(1, parseInt(data.duree) || 1);
+                    end.setFullYear(end.getFullYear() + years);
                     return end.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
                   })()}
                 </span>

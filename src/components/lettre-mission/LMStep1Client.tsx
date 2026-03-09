@@ -154,7 +154,9 @@ export default function LMStep1Client({ data, onChange }: Props) {
       telephone: c.tel,
       iban: c.iban,
       bic: c.bic,
-      type_mission: c.mission?.includes("REVISION") || c.mission?.includes("SURVEILLANCE")
+      // (F12) Safer type_mission detection — exact match or substring
+      type_mission: (c.mission === "REVISION" || c.mission === "SURVEILLANCE" ||
+        c.mission?.toUpperCase().includes("REVISION") || c.mission?.toUpperCase().includes("SURVEILLANCE"))
         ? "SURVEILLANCE"
         : "TENUE",
     });
@@ -212,9 +214,16 @@ export default function LMStep1Client({ data, onChange }: Props) {
             />
           </div>
 
-          {/* (16) Client count indicator */}
+          {/* (16) Client count indicator — (F10) fix misleading "trouves" when 0 results */}
           <div className="flex items-center justify-between text-xs text-slate-600 px-1">
-            <span>{filtered.length} client{filtered.length > 1 ? "s" : ""}{search.length >= 2 ? " trouves" : ""}</span>
+            <span>
+              {search.length >= 2
+                ? filtered.length > 0
+                  ? `${filtered.length} client${filtered.length > 1 ? "s" : ""} trouve${filtered.length > 1 ? "s" : ""}`
+                  : "Aucun client trouve"
+                : `${filtered.length} client${filtered.length > 1 ? "s" : ""}`
+              }
+            </span>
             {recentClientRefs.length > 0 && !search && (
               <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> Recents en premier</span>
             )}
@@ -369,7 +378,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
                   </Badge>
                   <RiskIndicator score={selectedClient.scoreGlobal} />
                 </div>
-                {selectedClient.effectif && parseInt(selectedClient.effectif) > 0 && (
+                {/* (F11) Guard parseInt against NaN */}
+              {selectedClient.effectif && (parseInt(selectedClient.effectif) || 0) > 0 && (
                   <div className="flex items-center gap-1.5 p-2 rounded-lg bg-white/[0.03]">
                     <span className="text-slate-500">Effectif :</span>
                     <span className="text-slate-300 font-medium">{selectedClient.effectif}</span>

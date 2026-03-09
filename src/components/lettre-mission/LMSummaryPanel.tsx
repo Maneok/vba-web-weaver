@@ -20,30 +20,35 @@ function vigilanceColor(niv: string) {
 
 /** (50) Compact mobile summary band — enriched with step progress */
 function CompactSummary({ data }: { data: LMWizardData }) {
-  const missionCount = (data.missions_selected || []).filter((m) => m.selected).length;
-  const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
-  const ttc = data.honoraires_ht + tva;
+  // (F44) Guard against undefined sous_options and null missions_selected
+  const missions = Array.isArray(data.missions_selected) ? data.missions_selected : [];
+  const missionCount = missions.filter((m) => m?.selected).length;
+  const ht = data.honoraires_ht || 0;
+  const tva = Math.round(ht * (data.taux_tva || 0)) / 100;
+  const ttc = Math.round((ht + tva) * 100) / 100;
   const completion = getStepCompletion(data);
   const completedCount = completion.filter(Boolean).length;
 
   return (
     <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-white/[0.03] border-t border-white/[0.06] text-xs min-h-[40px]">
       <div className="flex items-center gap-2 truncate mr-2">
-        {/* (50) Step completion dots */}
-        <div className="flex items-center gap-0.5 shrink-0">
+        {/* (50) Step completion dots — (F45) accessible aria-label */}
+        <div className="flex items-center gap-0.5 shrink-0" role="group" aria-label="Progression des etapes">
           {completion.map((done, i) => (
             <div
               key={i}
               className={`w-1.5 h-1.5 rounded-full transition-colors ${
                 done ? "bg-emerald-500" : "bg-white/[0.1]"
               }`}
-              title={`${LM_STEP_LABELS[i]}: ${done ? "OK" : "Incomplet"}`}
+              role="img"
+              aria-label={`${LM_STEP_LABELS[i] || `Etape ${i + 1}`}: ${done ? "Complet" : "Incomplet"}`}
             />
           ))}
         </div>
         <span className="text-slate-400 truncate">
+          {/* (F46) Truncate long company names */}
           {data.raison_sociale
-            ? <><span className="text-white font-medium">{data.raison_sociale}</span> · {missionCount} mission{missionCount > 1 ? "s" : ""}</>
+            ? <><span className="text-white font-medium max-w-[120px] sm:max-w-[180px] truncate inline-block align-bottom">{data.raison_sociale}</span> · {missionCount} mission{missionCount > 1 ? "s" : ""}</>
             : missionCount > 0 ? `${missionCount} mission${missionCount > 1 ? "s" : ""}` : "Aucune mission"
           }
         </span>
@@ -57,9 +62,12 @@ function CompactSummary({ data }: { data: LMWizardData }) {
 
 /** (49) Full desktop summary panel — with validation indicators per section */
 function FullSummary({ data }: { data: LMWizardData }) {
-  const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
-  const ttc = data.honoraires_ht + tva;
-  const missions = (data.missions_selected || []).filter((m) => m.selected);
+  // (F47) Safer TVA calculation + guard against undefined
+  const ht = data.honoraires_ht || 0;
+  const tva = Math.round(ht * (data.taux_tva || 0)) / 100;
+  const ttc = Math.round((ht + tva) * 100) / 100;
+  const missionsList = Array.isArray(data.missions_selected) ? data.missions_selected : [];
+  const missions = missionsList.filter((m) => m?.selected);
   const completion = getStepCompletion(data);
 
   return (
@@ -151,7 +159,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
             <div className="h-px bg-white/[0.06] my-1" />
             <div className="flex justify-between items-baseline">
               <span className="text-xs font-medium text-slate-300">TTC</span>
-              <span className="text-sm lg:text-base font-bold text-white">{formatEur(ttc)}</span>
+              <span className="text-sm lg:text-base font-bold text-white truncate max-w-[140px]">{formatEur(ttc)}</span>
             </div>
           </div>
         </div>

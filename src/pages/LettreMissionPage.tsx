@@ -161,8 +161,13 @@ function LetterHistory({
         </div>
       </div>
 
-      {/* Results count */}
-      <p className="text-xs text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
+      {/* Results count — (F50) show total vs filtered when filtering */}
+      <p className="text-xs text-slate-600">
+        {filtered.length} lettre{filtered.length > 1 ? "s" : ""}
+        {(filterStatut !== "all" || filterPeriode !== "all" || searchQ.length >= 2) && filtered.length !== letters.length && (
+          <span className="text-slate-700"> sur {letters.length}</span>
+        )}
+      </p>
 
       {/* Table header (desktop) */}
       <div className="hidden lg:grid grid-cols-[1fr_110px_90px_100px_80px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
@@ -452,8 +457,9 @@ export default function LettreMissionPage() {
 
   // ── Auto-save debounce 2s ──
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
+  // (F48) Validate client_ref before save to prevent orphaned records
   const saveToSupabase = useCallback(async () => {
-    if (!data.client_id) return;
+    if (!data.client_id || !data.client_ref) return;
     try {
       const { data: authData } = await supabase.auth.getUser();
       if (!authData?.user) return;
@@ -578,7 +584,11 @@ export default function LettreMissionPage() {
 
     const sanitized = sanitizeWizardData(finalData);
     const { data: authData } = await supabase.auth.getUser();
+    // (F49) Persist the generated numero back to data so it doesn't change on next load
     const numero = sanitized.numero_lettre || `LM-${new Date().getFullYear()}-${String(Date.now()).slice(-6)}`;
+    if (!sanitized.numero_lettre) {
+      sanitized.numero_lettre = numero;
+    }
     const payload = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,

@@ -190,7 +190,8 @@ export interface SavedLetter {
 /** E) Compute auto annexes from wizard data */
 export function computeAnnexes(data: LMWizardData): string[] {
   const annexes: string[] = [];
-  const missions = data.missions_selected || [];
+  // (F7) Ensure missions is always an array with safe access
+  const missions = Array.isArray(data.missions_selected) ? data.missions_selected : [];
   // Always
   annexes.push("cgv_cabinet");
   annexes.push("clause_travail_dissimule");
@@ -219,9 +220,9 @@ export const ANNEXE_LABELS: Record<string, string> = {
   detail_missions_complementaires: "Detail des missions complementaires",
 };
 
-/** H) Format duration */
+/** H) Format duration — (F8) guard against NaN/Infinity */
 export function formatDuration(seconds: number): string {
-  if (!seconds || seconds <= 0 || !Number.isFinite(seconds)) return "—";
+  if (seconds == null || !Number.isFinite(seconds) || seconds <= 0) return "—";
   const totalSec = Math.round(seconds);
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
@@ -232,7 +233,9 @@ export function formatDuration(seconds: number): string {
 
 /** (49) Step completion status for progress indicators */
 export function getStepCompletion(data: LMWizardData): boolean[] {
-  const missions = (data.missions_selected || []).filter((m) => m.selected);
+  // (F6) Guard against undefined/null missions_selected with safe fallback
+  const missionsList = Array.isArray(data.missions_selected) ? data.missions_selected : [];
+  const missions = missionsList.filter((m) => m?.selected);
   return [
     // Step 0: Client + type
     !!(data.client_id && data.type_mission),
@@ -241,11 +244,11 @@ export function getStepCompletion(data: LMWizardData): boolean[] {
     // Step 2: Dirigeant + adresse + ville + associe
     !!(data.dirigeant && data.adresse && data.cp && data.ville && data.associe_signataire),
     // Step 3: Honoraires > 0
-    data.honoraires_ht > 0,
+    (data.honoraires_ht || 0) > 0,
     // Step 4: Preview always OK
     true,
     // Step 5: Export — signature or save
-    !!(data.signature_expert || data.statut !== "brouillon"),
+    !!(data.signature_expert || (data.statut && data.statut !== "brouillon")),
   ];
 }
 

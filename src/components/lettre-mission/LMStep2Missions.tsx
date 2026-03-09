@@ -55,10 +55,11 @@ export default function LMStep2Missions({ data, onChange }: Props) {
 
   // Init missions if empty + apply conditionals
   useEffect(() => {
+    // (F15) Deep copy with sous_options guard
     if (!data.missions_selected || data.missions_selected.length === 0) {
       const base = DEFAULT_MISSIONS.map((m) => ({
         ...m,
-        sous_options: m.sous_options.map((s) => ({ ...s })),
+        sous_options: (m.sous_options || []).map((s) => ({ ...s })),
       }));
       const applied = applyFormConditionals(base, data.forme_juridique, client?.effectif || "");
       onChange({ missions_selected: applied });
@@ -80,7 +81,8 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     suggestionsShown.current = true;
 
     // Effectif > 0 but social not checked
-    if (client?.effectif && parseInt(client.effectif) > 0) {
+    // (F16) Guard parseInt against NaN
+    if (client?.effectif && (parseInt(client.effectif) || 0) > 0) {
       const social = missions.find((m) => m.section_id === "social");
       if (social && !social.selected) {
         toast.info(`Ce client a ${client.effectif} salarie(s). Souhaitez-vous ajouter la mission sociale ?`, {
@@ -172,9 +174,10 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     });
   };
 
-  const totalSelected = missions.filter((m) => m.selected).length;
-  const totalSubSelected = missions.reduce((acc, m) => acc + (m.selected ? m.sous_options.filter((s) => s.selected).length : 0), 0);
-  const totalSubTotal = missions.reduce((acc, m) => acc + (m.selected ? m.sous_options.length : 0), 0);
+  // (F14) Don't count locked missions in totalSelected; (F13) guard sous_options
+  const totalSelected = missions.filter((m) => m.selected && !m.locked).length;
+  const totalSubSelected = missions.reduce((acc, m) => acc + (m.selected ? (m.sous_options || []).filter((s) => s.selected).length : 0), 0);
+  const totalSubTotal = missions.reduce((acc, m) => acc + (m.selected ? (m.sous_options || []).length : 0), 0);
 
   // Check for tenue+surveillance conflict
   const hasTenue = missions.some((m) => m.section_id === "comptabilite" && m.selected);
@@ -287,7 +290,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
         {missions.map((mission) => {
           const isLocked = !!mission.locked;
           const icon = ICON_MAP[mission.icon] || <Calculator className="w-5 h-5" />;
-          const subCount = mission.sous_options.filter((s) => s.selected).length;
+          const subCount = (mission.sous_options || []).filter((s) => s.selected).length;
           const categoryColor = CATEGORY_COLORS[mission.category || "core"] || "";
           const categoryBg = CATEGORY_BG[mission.category || "core"] || "";
           const isExpanded = mission.selected && (isLocked || expandedSections.has(mission.section_id));
@@ -353,10 +356,10 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                       <div className="w-8 h-1 rounded-full bg-white/[0.08] overflow-hidden">
                         <div
                           className="h-full rounded-full bg-blue-500 transition-all"
-                          style={{ width: `${mission.sous_options.length > 0 ? (subCount / mission.sous_options.length) * 100 : 0}%` }}
+                          style={{ width: `${(mission.sous_options || []).length > 0 ? (subCount / (mission.sous_options || []).length) * 100 : 0}%` }}
                         />
                       </div>
-                      <span className="text-[10px] text-slate-500 tabular-nums">{subCount}/{mission.sous_options.length}</span>
+                      <span className="text-[10px] text-slate-500 tabular-nums">{subCount}/{(mission.sous_options || []).length}</span>
                     </div>
                   )}
                   <Switch

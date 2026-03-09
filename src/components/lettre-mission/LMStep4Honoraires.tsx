@@ -15,15 +15,19 @@ interface Props {
   onChange: (updates: Partial<LMWizardData>) => void;
 }
 
+// (F23) Fix formatMontant edge case — handle "0.005" and empty decimal
 function formatMontant(value: string): string {
   const num = value.replace(/[^\d.,]/g, "").replace(/,/g, ".");
-  if (!num) return "";
+  if (!num || num === ".") return "";
   const parts = num.split(".");
+  if (!parts[0] && parts.length > 1) parts[0] = "0";
   const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
   return parts.length > 1 ? `${intPart},${parts[1].slice(0, 2)}` : intPart;
 }
 
+// (F27) Guard against null/undefined IBAN input
 function formatIBAN(value: string): string {
+  if (!value) return "";
   return value.replace(/\s/g, "").replace(/(.{4})/g, "$1 ").trim();
 }
 
@@ -46,8 +50,13 @@ const FREQ_ICONS: Record<string, React.ReactNode> = {
 export default function LMStep4Honoraires({ data, onChange }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const tva = useMemo(() => Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100, [data.honoraires_ht, data.taux_tva]);
-  const ttc = useMemo(() => Math.round((data.honoraires_ht + tva) * 100) / 100, [data.honoraires_ht, tva]);
+  // (F22) Safer currency rounding — avoid floating-point drift by working in cents
+  const tva = useMemo(() => {
+    const ht = data.honoraires_ht || 0;
+    const rate = data.taux_tva || 0;
+    return Math.round(ht * rate) / 100;
+  }, [data.honoraires_ht, data.taux_tva]);
+  const ttc = useMemo(() => Math.round(((data.honoraires_ht || 0) + tva) * 100) / 100, [data.honoraires_ht, tva]);
 
   const periodLabel = data.frequence_facturation === "MENSUEL" ? "mois" : data.frequence_facturation === "TRIMESTRIEL" ? "trimestre" : "an";
   const divisor = data.frequence_facturation === "MENSUEL" ? 12 : data.frequence_facturation === "TRIMESTRIEL" ? 4 : 1;
@@ -65,6 +74,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
     return 15000;
   }, [data.honoraires_ht]);
 
+  // (F28) Also clear errors on typing, not just on blur
   const validateField = (field: string, value: any) => {
     let error = "";
     if (field === "honoraires_ht" && (!value || value <= 0)) error = "Montant requis";
@@ -189,16 +199,17 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Slider optionnel — (32) dynamic max ── */}
       <div className="px-1 sm:px-2">
+        {/* (F24) Allow slider to go down to 0 — consistent with manual input */}
         <Slider
-          value={[Math.max(500, Math.min(data.honoraires_ht, sliderMax))]}
+          value={[Math.max(0, Math.min(data.honoraires_ht, sliderMax))]}
           onValueChange={([v]) => onChange({ honoraires_ht: v })}
-          min={500}
+          min={0}
           max={sliderMax}
           step={100}
           className="w-full touch-pan-x"
         />
         <div className="flex justify-between text-xs sm:text-[10px] text-slate-600 mt-2 sm:mt-1">
-          <span>500 €</span>
+          <span>0 €</span>
           <span>{new Intl.NumberFormat("fr-FR").format(sliderMax)} €</span>
         </div>
       </div>
@@ -307,10 +318,12 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-slate-400 text-xs">BIC</Label>
+            {/* (F25) Use onBlur for toUpperCase to avoid cursor jump */}
             <Input
               value={data.bic}
-              onChange={(e) => onChange({ bic: e.target.value.toUpperCase() })}
-              className={`${inputCls} font-mono text-sm`}
+              onChange={(e) => onChange({ bic: e.target.value })}
+              onBlur={(e) => { if (e.target.value !== e.target.value.toUpperCase()) onChange({ bic: e.target.value.toUpperCase() }); }}
+              className={`${inputCls} font-mono text-sm uppercase`}
               placeholder="BNPAFRPPXXX"
               autoComplete="off"
             />
@@ -324,7 +337,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
         <Input
           inputMode="decimal"
           value={data.taux_horaire_complementaire > 0 ? String(data.taux_horaire_complementaire) : ""}
-          onChange={(e) => onChange({ taux_horaire_complementaire: Math.max(0, Number(e.target.value) || 0) })}
+          onChange={(e) => onChange({ taux_horaire_complementaire: Math.min(9999, Math.max(0, Number(e.target.value) || 0)) })}
           className={`${inputCls} w-full sm:w-32 h-11 sm:h-10`}
           placeholder="150"
         />

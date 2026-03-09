@@ -131,12 +131,13 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
   // (38) Completion checklist
   const stepCompletion = useMemo(() => getStepCompletion(data), [data]);
 
-  // (40) Quick stats
+  // (40) Quick stats — (F29) guard sous_options against undefined
   const selectedMissions = missionsList.filter((m) => m.selected);
-  const totalSubOptions = selectedMissions.reduce((acc, m) => acc + m.sous_options.filter((s) => s.selected).length, 0);
+  const totalSubOptions = selectedMissions.reduce((acc, m) => acc + (m.sous_options || []).filter((s) => s.selected).length, 0);
   const annexeIds = missionsList.length > 0 ? computeAnnexes({ ...data, missions_selected: missionsList }) : [];
-  const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
-  const ttc = data.honoraires_ht + tva;
+  const ht = data.honoraires_ht || 0;
+  const tva = Math.round(ht * (data.taux_tva || 0)) / 100;
+  const ttc = Math.round((ht + tva) * 100) / 100;
 
   // Quick edit buttons with completion status
   const editButtons = [
@@ -167,9 +168,9 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
     </div>
   );
 
-  // (39) Zoom handlers
-  const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(z + 0.1, 1.2)), []);
-  const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(z - 0.1, 0.3)), []);
+  // (39) Zoom handlers — (F30) fix floating-point drift by rounding
+  const zoomIn = useCallback(() => setZoomLevel((z) => Math.min(Math.round((z + 0.1) * 10) / 10, 1.2)), []);
+  const zoomOut = useCallback(() => setZoomLevel((z) => Math.max(Math.round((z - 0.1) * 10) / 10, 0.3)), []);
 
   // (41) Print handler
   const handlePrint = useCallback(() => {
@@ -195,8 +196,8 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
 
   return (
     <div className="space-y-5">
-      {/* (38) Completion checklist */}
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Statut de completion">
+      {/* (38) Completion checklist — (F32) aria-live for screen readers */}
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Statut de completion" aria-live="polite">
         {editButtons.map((b) => (
           <button
             key={b.step}
@@ -237,7 +238,10 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
         <div className="flex flex-col items-center p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
           <span className="text-[10px] text-slate-500 mb-1">TTC</span>
           <span className="text-sm sm:text-lg font-bold text-white">{formatEur(ttc)}</span>
-          <span className="text-[10px] text-slate-500">{data.frequence_facturation?.toLowerCase() || ""}</span>
+          {/* (F33) Proper frequency label instead of raw lowercase */}
+          <span className="text-[10px] text-slate-500">
+            {data.frequence_facturation === "MENSUEL" ? "mensuel" : data.frequence_facturation === "TRIMESTRIEL" ? "trimestriel" : data.frequence_facturation === "ANNUEL" ? "annuel" : ""}
+          </span>
         </div>
       </div>
 
@@ -250,9 +254,11 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
       {/* (39) Zoom controls + (41) Print */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
+          {/* (F31) Disable zoom buttons at boundaries */}
           <button
             onClick={zoomOut}
-            className="p-1.5 rounded-lg hover:bg-white/[0.04] text-slate-500 hover:text-white transition-colors focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+            disabled={zoomLevel <= 0.3}
+            className="p-1.5 rounded-lg hover:bg-white/[0.04] text-slate-500 hover:text-white transition-colors focus:ring-2 focus:ring-blue-500/40 focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Zoom arriere"
           >
             <ZoomOut className="w-4 h-4" />
@@ -260,7 +266,8 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
           <span className="text-xs text-slate-500 tabular-nums min-w-[3rem] text-center">{Math.round(zoomLevel * 100)}%</span>
           <button
             onClick={zoomIn}
-            className="p-1.5 rounded-lg hover:bg-white/[0.04] text-slate-500 hover:text-white transition-colors focus:ring-2 focus:ring-blue-500/40 focus:outline-none"
+            disabled={zoomLevel >= 1.2}
+            className="p-1.5 rounded-lg hover:bg-white/[0.04] text-slate-500 hover:text-white transition-colors focus:ring-2 focus:ring-blue-500/40 focus:outline-none disabled:opacity-30 disabled:cursor-not-allowed"
             aria-label="Zoom avant"
           >
             <ZoomIn className="w-4 h-4" />
