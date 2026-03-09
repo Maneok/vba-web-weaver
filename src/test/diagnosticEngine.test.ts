@@ -1,0 +1,363 @@
+import { describe, it, expect } from "vitest";
+import { runDiagnostic360, type DiagnosticReport } from "../lib/diagnosticEngine";
+import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "../lib/types";
+
+// ---------------------------------------------------------------------------
+// Helpers to create test fixtures
+// ---------------------------------------------------------------------------
+function makeClient(overrides: Partial<Client> = {}): Client {
+  return {
+    ref: "CLI-26-001",
+    etat: "VALIDE",
+    comptable: "Dupont",
+    mission: "TENUE COMPTABLE",
+    raisonSociale: "Test SARL",
+    forme: "SARL",
+    adresse: "1 rue Test",
+    cp: "75001",
+    ville: "Paris",
+    siren: "123456789",
+    capital: 10000,
+    ape: "56.10A",
+    dirigeant: "Jean Test",
+    domaine: "Restauration",
+    effectif: "3 A 5 SALARIES",
+    tel: "0102030405",
+    mail: "test@example.com",
+    dateCreation: "2015-01-01",
+    dateReprise: "2020-01-01",
+    honoraires: 5000,
+    reprise: 0,
+    juridique: 0,
+    frequence: "MENSUEL",
+    iban: "FR7630006000011234567890189",
+    bic: "BNPAFRPP",
+    associe: "Martin",
+    superviseur: "Durand",
+    ppe: "NON",
+    paysRisque: "NON",
+    atypique: "NON",
+    distanciel: "NON",
+    cash: "NON",
+    pression: "NON",
+    scoreActivite: 30,
+    scorePays: 0,
+    scoreMission: 10,
+    scoreMaturite: 20,
+    scoreStructure: 20,
+    malus: 0,
+    scoreGlobal: 30,
+    nivVigilance: "STANDARD",
+    dateCreationLigne: "2024-01-01",
+    dateDerniereRevue: "2025-12-01",
+    dateButoir: "2027-01-01",
+    etatPilotage: "A JOUR",
+    dateExpCni: "2030-01-01",
+    statut: "ACTIF",
+    be: "Jean Test (100%)",
+    ...overrides,
+  };
+}
+
+function makeCollaborateur(overrides: Partial<Collaborateur> = {}): Collaborateur {
+  return {
+    nom: "Dupont",
+    fonction: "Expert-comptable",
+    referentLcb: false,
+    suppleant: "",
+    niveauCompetence: "SENIOR",
+    dateSignatureManuel: "2024-01-01",
+    derniereFormation: "2024-06-01",
+    statutFormation: "A JOUR",
+    email: "dupont@cabinet.fr",
+    ...overrides,
+  };
+}
+
+function makeAlerte(overrides: Partial<AlerteRegistre> = {}): AlerteRegistre {
+  return {
+    date: "2025-01-01",
+    clientConcerne: "Test SARL",
+    categorie: "SCORING",
+    details: "Anomalie detectee",
+    actionPrise: "Revue effectuee",
+    responsable: "Dupont",
+    qualification: "SOUPCON",
+    statut: "CLOS",
+    dateButoir: "2025-03-01",
+    typeDecision: "CLASSEMENT",
+    validateur: "Martin",
+    ...overrides,
+  };
+}
+
+function makeLog(overrides: Partial<LogEntry> = {}): LogEntry {
+  return {
+    horodatage: "2025-12-01 10:00:00",
+    utilisateur: "Dupont",
+    refClient: "CLI-26-001",
+    typeAction: "SCORING",
+    details: "Calcul scoring",
+    ...overrides,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+describe("diagnosticEngine - runDiagnostic360", () => {
+  it("should return a valid report structure", () => {
+    const report = runDiagnostic360([], [], [], []);
+    expect(report).toHaveProperty("dateGeneration");
+    expect(report).toHaveProperty("scoreGlobalDispositif");
+    expect(report).toHaveProperty("noteLettre");
+    expect(report).toHaveProperty("items");
+    expect(report).toHaveProperty("synthese");
+    expect(report).toHaveProperty("recommandationsPrioritaires");
+    expect(report).toHaveProperty("categoryStats");
+    expect(report).toHaveProperty("totalClients");
+    expect(report).toHaveProperty("totalCollaborateurs");
+    expect(report).toHaveProperty("totalAlertes");
+  });
+
+  it("should handle empty data gracefully", () => {
+    const report = runDiagnostic360([], [], [], []);
+    expect(report.items.length).toBeGreaterThan(0);
+    expect(report.noteLettre).toMatch(/^[A-D]$/);
+    expect(report.totalClients).toBe(0);
+  });
+
+  it("should detect SIREN format issues", () => {
+    const clients = [makeClient({ siren: "ABC" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const sirenItem = report.items.find(i => i.indicateur.includes("SIREN invalide"));
+    expect(sirenItem).toBeDefined();
+    expect(sirenItem?.statut).not.toBe("OK");
+  });
+
+  it("should detect PPE clients without reinforced vigilance", () => {
+    const clients = [makeClient({ ppe: "OUI", nivVigilance: "STANDARD" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const ppeItem = report.items.find(i => i.indicateur.includes("PPE"));
+    expect(ppeItem).toBeDefined();
+  });
+
+  it("should detect scoring incoherence (SIMPLIFIEE + risk factors)", () => {
+    const clients = [makeClient({ nivVigilance: "SIMPLIFIEE", ppe: "OUI" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("Coherence vigilance"));
+    expect(item).toBeDefined();
+    expect(item?.statut).toBe("CRITIQUE");
+  });
+
+  it("should mark classification as OK when all clients are validated", () => {
+    const clients = [makeClient({ etat: "VALIDE", statut: "ACTIF" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("classifies"));
+    expect(item).toBeDefined();
+    expect(item?.statut).toBe("OK");
+  });
+
+  it("should detect overdue revisions", () => {
+    const clients = [makeClient({ dateButoir: "2020-01-01" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("retard"));
+    expect(item).toBeDefined();
+    expect(item?.statut).not.toBe("OK");
+  });
+
+  it("should detect expired CNI", () => {
+    const clients = [makeClient({ dateExpCni: "2020-01-01" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("perimees"));
+    expect(item?.statut).toBe("CRITIQUE");
+  });
+
+  it("should detect missing beneficiaires effectifs", () => {
+    const clients = [makeClient({ be: "" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("Beneficiaires"));
+    expect(item?.statut).not.toBe("OK");
+  });
+
+  it("should detect missing referent LCB-FT", () => {
+    const collabs = [makeCollaborateur({ referentLcb: false })];
+    const report = runDiagnostic360([], collabs, [], []);
+    const item = report.items.find(i => i.indicateur.includes("Referent"));
+    expect(item?.statut).toBe("CRITIQUE");
+  });
+
+  it("should detect existing referent LCB-FT", () => {
+    const collabs = [makeCollaborateur({ referentLcb: true })];
+    const report = runDiagnostic360([], collabs, [], []);
+    const item = report.items.find(i => i.indicateur.includes("Referent LCB-FT designe"));
+    expect(item?.statut).toBe("OK");
+  });
+
+  it("should detect alertes en retard", () => {
+    const alertes = [makeAlerte({ statut: "EN COURS", dateButoir: "2020-01-01" })];
+    const report = runDiagnostic360([], [], alertes, []);
+    const item = report.items.find(i => i.indicateur.includes("Alertes en cours"));
+    expect(item?.statut).toBe("CRITIQUE");
+  });
+
+  it("should compute category stats", () => {
+    const clients = [makeClient()];
+    const collabs = [makeCollaborateur({ referentLcb: true })];
+    const report = runDiagnostic360(clients, collabs, [], []);
+    expect(report.categoryStats.length).toBeGreaterThan(0);
+    for (const cs of report.categoryStats) {
+      expect(cs.total).toBe(cs.ok + cs.alerte + cs.critique);
+      expect(cs.score).toBeGreaterThanOrEqual(0);
+      expect(cs.score).toBeLessThanOrEqual(100);
+    }
+  });
+
+  it("should assign note A for a well-configured cabinet", () => {
+    const clients = [
+      makeClient(),
+      makeClient({ ref: "CLI-26-002", raisonSociale: "Test2 SAS", siren: "987654321" }),
+    ];
+    const collabs = [
+      makeCollaborateur({ referentLcb: true, nom: "Referent" }),
+      makeCollaborateur({ suppleant: "Referent", nom: "Suppleant" }),
+    ];
+    const logs = Array.from({ length: 15 }, (_, i) =>
+      makeLog({
+        typeAction: ["SCORING", "SCREENING", "REVUE", "ALERTE", "KYC"][i % 5],
+        horodatage: `2026-02-${String(i + 1).padStart(2, "0")} 10:00:00`,
+      })
+    );
+    const report = runDiagnostic360(clients, collabs, [], logs);
+    expect(report.noteLettre).toBe("A");
+    expect(report.scoreGlobalDispositif).toBeGreaterThanOrEqual(80);
+  });
+
+  it("should assign note D for a poorly configured cabinet", () => {
+    const clients = [
+      makeClient({
+        etat: "PROSPECT",
+        be: "",
+        siren: "",
+        mail: "",
+        adresse: "",
+        dateExpCni: "2020-01-01",
+        dateButoir: "2020-01-01",
+        scoreGlobal: 0,
+        nivVigilance: "SIMPLIFIEE",
+        ppe: "OUI",
+        dirigeant: "",
+        iban: "",
+        superviseur: "",
+      }),
+    ];
+    const report = runDiagnostic360(clients, [], [], []);
+    expect(["C", "D"]).toContain(report.noteLettre);
+    expect(report.recommandationsPrioritaires.length).toBeGreaterThan(0);
+  });
+
+  it("should detect cash-intensive clients in simplified vigilance", () => {
+    const clients = [makeClient({ cash: "OUI", nivVigilance: "SIMPLIFIEE" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("cash-intensive"));
+    expect(item).toBeDefined();
+    expect(item?.statut).toBe("CRITIQUE");
+  });
+
+  it("should detect clients with pression flag", () => {
+    const clients = [makeClient({ pression: "OUI" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("pression"));
+    expect(item).toBeDefined();
+  });
+
+  it("should detect duplicate SIREN", () => {
+    const clients = [
+      makeClient({ ref: "CLI-26-001", siren: "123456789" }),
+      makeClient({ ref: "CLI-26-002", raisonSociale: "Test2", siren: "123456789" }),
+    ];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("Doublons SIREN"));
+    expect(item).toBeDefined();
+    expect(item?.statut).toBe("ALERTE");
+  });
+
+  it("should detect reinforced clients without recent review", () => {
+    const clients = [makeClient({ nivVigilance: "RENFORCEE", dateDerniereRevue: "2024-01-01" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("renforcees sans revue"));
+    expect(item).toBeDefined();
+    expect(item?.statut).toBe("CRITIQUE");
+  });
+
+  it("should include referenceReglementaire on key items", () => {
+    const clients = [makeClient()];
+    const report = runDiagnostic360(clients, [makeCollaborateur({ referentLcb: true })], [], []);
+    const itemsWithRef = report.items.filter(i => i.referenceReglementaire);
+    expect(itemsWithRef.length).toBeGreaterThan(5);
+  });
+
+  it("should detect missing IBAN", () => {
+    const clients = [makeClient({ iban: "" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("IBAN"));
+    expect(item).toBeDefined();
+  });
+
+  it("should detect missing dirigeant", () => {
+    const clients = [makeClient({ dirigeant: "" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("dirigeant"));
+    expect(item).toBeDefined();
+    expect(item?.statut).not.toBe("OK");
+  });
+
+  it("should track totalClients, totalCollaborateurs, totalAlertes", () => {
+    const report = runDiagnostic360(
+      [makeClient(), makeClient({ ref: "CLI-26-002", raisonSociale: "Other", siren: "111222333" })],
+      [makeCollaborateur()],
+      [makeAlerte()],
+      []
+    );
+    expect(report.totalClients).toBe(2);
+    expect(report.totalCollaborateurs).toBe(1);
+    expect(report.totalAlertes).toBe(1);
+  });
+
+  it("should detect insufficient training rate", () => {
+    const collabs = [
+      makeCollaborateur({ nom: "A", statutFormation: "A FORMER" }),
+      makeCollaborateur({ nom: "B", statutFormation: "A FORMER" }),
+      makeCollaborateur({ nom: "C", statutFormation: "A JOUR" }),
+    ];
+    const report = runDiagnostic360([], collabs, [], []);
+    const item = report.items.find(i => i.indicateur.includes("formation"));
+    expect(item).toBeDefined();
+    expect(item?.statut).not.toBe("OK");
+  });
+
+  it("should detect clients liés à des pays à risque", () => {
+    const clients = [
+      makeClient({ paysRisque: "OUI" }),
+      makeClient({ ref: "CLI-26-002", raisonSociale: "PaysRisque2", siren: "222333444", paysRisque: "OUI" }),
+      makeClient({ ref: "CLI-26-003", raisonSociale: "PaysRisque3", siren: "333444555", paysRisque: "OUI" }),
+      makeClient({ ref: "CLI-26-004", raisonSociale: "PaysRisque4", siren: "444555666", paysRisque: "OUI" }),
+    ];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("pays a risque"));
+    expect(item).toBeDefined();
+    expect(item?.statut).toBe("CRITIQUE");
+  });
+
+  it("should detect invalid email format", () => {
+    const clients = [makeClient({ mail: "not-an-email" })];
+    const report = runDiagnostic360(clients, [], [], []);
+    const item = report.items.find(i => i.indicateur.includes("email invalide"));
+    expect(item).toBeDefined();
+  });
+
+  it("should generate proper dateGeneration", () => {
+    const report = runDiagnostic360([], [], [], []);
+    expect(report.dateGeneration).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+});
