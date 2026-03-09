@@ -1,20 +1,33 @@
 // ──────────────────────────────────────────────
-// Types pour le wizard Lettre de Mission (10 étapes)
+// Types centraux du wizard Lettre de Mission (6 étapes)
 // ──────────────────────────────────────────────
 
+export interface MissionSubOption {
+  id: string;
+  label: string;
+  selected: boolean;
+}
+
+export interface MissionSelection {
+  section_id: string;
+  label: string;
+  description: string;
+  icon: string; // lucide icon name
+  selected: boolean;
+  locked?: boolean;
+  sous_options: MissionSubOption[];
+}
+
 export interface LMWizardData {
-  // Step 1 — Client
+  // Step 1 — Client & type
   client_id: string;
   client_ref: string;
   raison_sociale: string;
   siren: string;
-
-  // Step 2 — Type de lettre
-  template_id: string;
   forme_juridique: string;
-  type_mission: "TENUE" | "SURVEILLANCE" | "REVISION" | "CAC";
+  type_mission: string; // TENUE | SURVEILLANCE | REVISION
 
-  // Step 3 — Informations client
+  // Client info (pre-filled)
   dirigeant: string;
   qualite_dirigeant: string;
   adresse: string;
@@ -22,93 +35,80 @@ export interface LMWizardData {
   ville: string;
   capital: string;
   ape: string;
+  rcs: string;
   email: string;
   telephone: string;
-  rcs: string;
   date_cloture: string;
 
-  // Step 4 — Missions
+  // Step 2 — Missions
   missions_selected: MissionSelection[];
 
-  // Step 5 — Modalités
-  duree: string;
+  // Step 3 — Détails & modalités
+  duree: string; // "1" | "2" | "3"
   date_debut: string;
   tacite_reconduction: boolean;
   preavis_mois: number;
-  frequence_rdv: string;
-  lieu_execution: string;
-
-  // Step 6 — Honoraires
-  honoraires_ht: number;
-  taux_tva: number;
-  frequence_facturation: string;
-  mode_paiement: string;
-  iban: string;
-  bic: string;
-  echeance_jours: number;
-  taux_horaire_complementaire: number;
-
-  // Step 7 — Intervenants
   associe_signataire: string;
   chef_mission: string;
-  collaborateurs: string[];
   referent_lcb: string;
-  numero_oec: string;
-
-  // Step 8 — Clauses
   clause_lcbft: boolean;
   clause_travail_dissimule: boolean;
   clause_rgpd: boolean;
-  clause_responsabilite: boolean;
-  plafond_responsabilite: number;
   clauses_supplementaires: string;
 
+  // Step 4 — Honoraires
+  honoraires_ht: number;
+  taux_tva: number;
+  frequence_facturation: string; // MENSUEL | TRIMESTRIEL | ANNUEL
+  echeance_jours: number;
+  mode_paiement: string; // virement | prelevement | cheque
+  iban: string;
+  bic: string;
+  taux_horaire_complementaire: number;
+
+  // Step 5/6 — Preview & export
+  numero_lettre: string;
+  statut: string; // brouillon | envoyee | signee
+  signature_expert: string;
+  signature_client: string;
+  date_signature: string;
+
   // Meta
-  statut: "BROUILLON" | "ENVOYEE" | "SIGNEE" | "ARCHIVEE";
+  cabinet_id: string;
+  created_by: string;
   wizard_step: number;
 }
 
-export interface MissionSelection {
-  section_id: string;
-  label: string;
-  selected: boolean;
-  sous_options: { id: string; label: string; selected: boolean }[];
-}
+export const LM_TOTAL_STEPS = 6;
 
 export const LM_STEP_LABELS = [
   "Client",
-  "Type",
-  "Informations",
   "Missions",
-  "Modalites",
+  "Details",
   "Honoraires",
-  "Intervenants",
-  "Clauses",
   "Apercu",
   "Export",
 ] as const;
 
-export const LM_STEP_DESCRIPTIONS = [
-  "Selectionnez le client concerne",
-  "Choisissez le type de lettre de mission",
-  "Verifiez les informations du client",
-  "Selectionnez les missions a inclure",
-  "Definissez les modalites du contrat",
-  "Configurez les honoraires et la facturation",
-  "Designez l'equipe intervenante",
-  "Activez les clauses reglementaires",
-  "Previsualisation de la lettre",
-  "Exportez et envoyez la lettre",
+export const LM_STEP_TITLES = [
+  "Pour quel client ?",
+  "Quelles missions realiser ?",
+  "Precisez les modalites",
+  "Definissez vos honoraires",
+  "Verifiez votre lettre",
+  "Votre lettre est prete !",
 ] as const;
+
+/** Estimated seconds per step */
+export const LM_STEP_DURATIONS = [30, 60, 45, 30, 30, 15] as const;
 
 export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   client_id: "",
   client_ref: "",
   raison_sociale: "",
   siren: "",
-  template_id: "default",
-  forme_juridique: "SARL",
-  type_mission: "TENUE",
+  forme_juridique: "",
+  type_mission: "",
   dirigeant: "",
   qualite_dirigeant: "Gerant",
   adresse: "",
@@ -116,37 +116,37 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   ville: "",
   capital: "",
   ape: "",
+  rcs: "",
   email: "",
   telephone: "",
-  rcs: "",
   date_cloture: "",
   missions_selected: [],
-  duree: "1 an",
+  duree: "1",
   date_debut: new Date().toISOString().slice(0, 10),
   tacite_reconduction: true,
   preavis_mois: 3,
-  frequence_rdv: "TRIMESTRIEL",
-  lieu_execution: "cabinet",
+  associe_signataire: "",
+  chef_mission: "",
+  referent_lcb: "",
+  clause_lcbft: true,
+  clause_travail_dissimule: true,
+  clause_rgpd: true,
+  clauses_supplementaires: "",
   honoraires_ht: 0,
   taux_tva: 20,
   frequence_facturation: "MENSUEL",
+  echeance_jours: 30,
   mode_paiement: "virement",
   iban: "",
   bic: "",
-  echeance_jours: 30,
-  taux_horaire_complementaire: 150,
-  associe_signataire: "",
-  chef_mission: "",
-  collaborateurs: [],
-  referent_lcb: "",
-  numero_oec: "",
-  clause_lcbft: true,
-  clause_travail_dissimule: true,
-  clause_rgpd: false,
-  clause_responsabilite: false,
-  plafond_responsabilite: 0,
-  clauses_supplementaires: "",
-  statut: "BROUILLON",
+  taux_horaire_complementaire: 0,
+  numero_lettre: "",
+  statut: "brouillon",
+  signature_expert: "",
+  signature_client: "",
+  date_signature: "",
+  cabinet_id: "",
+  created_by: "",
   wizard_step: 0,
 };
 
@@ -156,7 +156,7 @@ export interface SavedLetter {
   client_ref: string;
   raison_sociale: string;
   type_mission: string;
-  statut: "BROUILLON" | "ENVOYEE" | "SIGNEE" | "ARCHIVEE";
+  statut: string;
   created_at: string;
   updated_at: string;
   wizard_data: LMWizardData;
