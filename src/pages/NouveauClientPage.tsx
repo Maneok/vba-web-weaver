@@ -3949,7 +3949,7 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
   const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(fullAddr || raisonSociale)}`;
 
   useEffect(() => {
-    if (lat && lng) { setGeoLat(lat); setGeoLng(lng); return; }
+    if (lat != null && lng != null) { setGeoLat(lat); setGeoLng(lng); return; }
     if (!fullAddr || fullAddr.length < 5) return;
     setGeoLoading(true);
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: AbortSignal.timeout(10000) })
