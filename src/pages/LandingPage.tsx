@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -13,7 +14,8 @@ import {
   ArrowRight, ClipboardCheck, Search, Monitor, Quote,
   ChevronRight, Menu, X as XIcon, ChevronDown, Sun, Moon,
   Lock, HelpCircle, CreditCard, Database, Globe, Users,
-  Sparkles, Play, Zap, Cookie, BarChart3, TrendingUp, Award, Brain,
+  Sparkles, Play, Zap, Cookie, BarChart3, TrendingUp, Award,
+  Star, ArrowUp,
 } from "lucide-react";
 
 /* ══════════════════════════════════════════════════════════════
@@ -677,8 +679,8 @@ function SocialTicker() {
     "Nouveau cabinet inscrit à Marseille",
   ];
   return (
-    <div className="overflow-hidden py-3">
-      <div className="flex animate-ticker whitespace-nowrap gap-12">
+    <div className="overflow-hidden py-3 group/ticker">
+      <div className="flex animate-ticker whitespace-nowrap gap-12 group-hover/ticker:[animation-play-state:paused]">
         {[...msgs, ...msgs].map((m, i) => (
           <span key={i} className="flex items-center gap-2 text-sm text-[--l-text-4]">
             <Zap className="h-3.5 w-3.5 text-blue-400/60 shrink-0" />
@@ -701,16 +703,16 @@ const NAV_LINKS = [
 ];
 
 const whyCards = [
-  { icon: Shield, title: "Screening automatique", desc: "9 APIs vérifiées en 30 secondes : INPI, OpenSanctions, BODACC, DG Trésor, Google Places... Adapté aux EC et CAC.", badge: null },
-  { icon: FileCheck, title: "Documents récupérés", desc: "Statuts, comptes annuels, Kbis — téléchargés automatiquement depuis l'INPI et stockés dans votre GED. Conforme NEP et NPLAB.", badge: null },
-  { icon: Calculator, title: "Scoring 6 axes", desc: "Activité, pays, mission, maturité, structure + malus. Évaluation objective, traçable et conforme NPLAB / H3C.", badge: null },
-  { icon: FileText, title: "Lettre de mission", desc: "Modèle réutilisable pour experts-comptables et commissaires aux comptes, remplissage auto, export PDF/DOCX.", badge: null },
+  { icon: Shield, title: "Screening automatique", desc: "9 APIs vérifiées en 30 secondes : INPI, OpenSanctions, BODACC, DG Trésor, Google Places... Adapté aux EC et CAC.", badge: null, iconBg: "bg-blue-500/10", iconColor: "text-blue-400" },
+  { icon: FileCheck, title: "Documents récupérés", desc: "Statuts, comptes annuels, Kbis — téléchargés automatiquement depuis l'INPI et stockés dans votre GED. Conforme NEP et NPLAB.", badge: null, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-400" },
+  { icon: Calculator, title: "Scoring 6 axes", desc: "Activité, pays, mission, maturité, structure + malus. Évaluation objective, traçable et conforme NPLAB / H3C.", badge: null, iconBg: "bg-violet-500/10", iconColor: "text-violet-400" },
+  { icon: FileText, title: "Lettre de mission", desc: "Modèle réutilisable pour experts-comptables et commissaires aux comptes, remplissage auto, export PDF/DOCX.", badge: null, iconBg: "bg-amber-500/10", iconColor: "text-amber-400" },
 ];
 
 const featureShowcase = [
-  { title: "Créez un dossier client en 2 minutes", desc: "Entrez un SIREN. GRIMY récupère automatiquement les données INPI, vérifie les sanctions, télécharge les statuts, calcule le score de risque et pré-remplit la lettre de mission.", icon: Search, mock: "step" as const, reverse: false },
-  { title: "Prêt pour le contrôle CROEC", desc: "Registre LCB-FT, journal d'audit, contrôle qualité — tout est documenté et traçable. Le contrôleur peut visualiser vos dossiers en autonomie.", icon: ClipboardCheck, mock: "audit" as const, reverse: true },
-  { title: "Dashboard de pilotage", desc: "Visualisez en un coup d'œil : clients actifs, alertes en cours, revues échues, score moyen. Diagnostic 360° avec recommandations.", icon: Monitor, mock: "dashboard" as const, reverse: false },
+  { title: "Créez un dossier client en 2 minutes", desc: "Entrez un SIREN. GRIMY récupère automatiquement les données INPI, vérifie les sanctions, télécharge les statuts, calcule le score de risque et pré-remplit la lettre de mission.", icon: Search, mock: "step" as const, reverse: false, iconBg: "bg-blue-500/10", iconColor: "text-blue-400" },
+  { title: "Prêt pour le contrôle CROEC", desc: "Registre LCB-FT, journal d'audit, contrôle qualité — tout est documenté et traçable. Le contrôleur peut visualiser vos dossiers en autonomie.", icon: ClipboardCheck, mock: "audit" as const, reverse: true, iconBg: "bg-emerald-500/10", iconColor: "text-emerald-400" },
+  { title: "Dashboard de pilotage", desc: "Visualisez en un coup d'œil : clients actifs, alertes en cours, revues échues, score moyen. Diagnostic 360° avec recommandations.", icon: Monitor, mock: "dashboard" as const, reverse: false, iconBg: "bg-violet-500/10", iconColor: "text-violet-400" },
 ];
 
 const MOCKS = { step: AnimatedMockStep, audit: AnimatedMockAudit, dashboard: AnimatedMockDashboard };
@@ -803,6 +805,43 @@ const footerSections = [
 ];
 
 /* ══════════════════════════════════════════════════════════════
+   Google OAuth SVG
+   ══════════════════════════════════════════════════════════════ */
+function GoogleIcon({ className = "" }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24">
+      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
+      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18A10.96 10.96 0 0 0 1 12c0 1.77.42 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+    </svg>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Scroll-to-top button
+   ══════════════════════════════════════════════════════════════ */
+function ScrollToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const h = () => setShow(window.scrollY > 600);
+    window.addEventListener("scroll", h, { passive: true });
+    return () => window.removeEventListener("scroll", h);
+  }, []);
+  if (!show) return null;
+  return (
+    <button
+      onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+      className="fixed bottom-20 right-6 z-40 flex h-10 w-10 items-center justify-center rounded-full border shadow-lg backdrop-blur-sm transition-all hover:scale-110 btn-press sm:bottom-6"
+      style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur)" }}
+      aria-label="Retour en haut"
+    >
+      <ArrowUp className="h-4 w-4" style={{ color: "var(--l-text-3)" }} />
+    </button>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ══════════════════════════════════════════════════════════════ */
 
@@ -822,6 +861,7 @@ export default function LandingPage() {
   const [showPricingTable, setShowPricingTable] = useState(false);
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
+  const { signInWithGoogle } = useAuth();
 
   /* #11 — Mobile menu scroll lock */
   useEffect(() => {
@@ -963,6 +1003,30 @@ export default function LandingPage() {
         .timeline-line-fill {
           transition: height 0.1s linear;
         }
+
+        /* Improved mobile safe area for sticky CTA */
+        .sticky-cta-safe {
+          padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+
+        /* Better focus outlines */
+        .landing-root button:focus-visible,
+        .landing-root a:focus-visible {
+          outline: 2px solid #3B82F6;
+          outline-offset: 2px;
+          border-radius: 4px;
+        }
+
+        /* Smooth section anchors offset */
+        .landing-root [id] {
+          scroll-margin-top: 80px;
+        }
+
+        /* Light mode text improvements for WCAG AA */
+        .theme-light .landing-root {
+          --l-text-2: #1f2937;
+          --l-text-3: #374151;
+        }
       `}</style>
 
       <div className="landing-bg-wrap">
@@ -1006,6 +1070,10 @@ export default function LandingPage() {
                 {theme.light ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </button>
 
+              <button onClick={() => signInWithGoogle()} className="hidden sm:inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors hover:bg-white/10 btn-press" style={{ color: "var(--l-text-3)" }}>
+                <GoogleIcon className="h-4 w-4" />
+                <span className="hidden lg:inline">Connexion Google</span>
+              </button>
               <Link to="/auth" className="hidden sm:inline-flex">
                 <Button variant="ghost" className="btn-press" style={{ color: "var(--l-text-3)" }}>Se connecter</Button>
               </Link>
@@ -1026,9 +1094,14 @@ export default function LandingPage() {
               {NAV_LINKS.map((l) => (
                 <button key={l.id} onClick={() => handleNavClick(l.id)} className="block w-full text-left py-3 text-sm transition-colors" style={{ color: "var(--l-text-2)" }}>{l.label}</button>
               ))}
-              <div className="pt-3 flex gap-3" style={{ borderTop: "1px solid var(--l-border)" }}>
-                <Link to="/auth" className="flex-1"><Button variant="outline" className="w-full" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>Connexion</Button></Link>
-                <Link to="/auth" className="flex-1"><Button className="w-full bg-blue-600 text-white">Démarrer</Button></Link>
+              <div className="pt-3 space-y-2" style={{ borderTop: "1px solid var(--l-border)" }}>
+                <button onClick={() => { setMobileMenu(false); signInWithGoogle(); }} className="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border text-sm font-medium transition-colors" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>
+                  <GoogleIcon className="h-4 w-4" />Continuer avec Google
+                </button>
+                <div className="flex gap-3">
+                  <Link to="/auth" className="flex-1"><Button variant="outline" className="w-full" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>Connexion</Button></Link>
+                  <Link to="/auth" className="flex-1"><Button className="w-full bg-blue-600 text-white">Démarrer</Button></Link>
+                </div>
               </div>
             </div>
           )}
@@ -1045,28 +1118,30 @@ export default function LandingPage() {
 
           <div className="relative mx-auto max-w-4xl px-6 text-center">
             <div className={`transition-all duration-1000 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-              <Badge className="mb-8 border-violet-500/20 bg-violet-500/10 text-violet-400 px-4 py-1.5 text-sm">IA + Conformité LCB-FT — Nouvelle génération</Badge>
+              <Badge className="mb-8 border-violet-500/20 bg-violet-500/10 text-violet-400 px-4 py-1.5 text-sm">Plateforme LCB-FT — Nouvelle génération</Badge>
             </div>
 
             <h1 className={`mb-8 font-serif text-4xl font-bold leading-[1.1] tracking-tight transition-all duration-1000 delay-150 sm:text-5xl md:text-[56px] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
               La conformité LCB-FT<br />
               <span className="bg-gradient-to-r from-violet-400 to-purple-300 bg-clip-text text-transparent">n'a jamais été aussi simple</span>
-              <Badge className="ml-3 align-middle border-purple-500/20 bg-purple-500/10 text-purple-400 px-2 py-0.5 text-[10px] font-semibold"><Brain className="inline h-3 w-3 mr-1" />Propulsé par l'IA</Badge>
             </h1>
 
             <p className={`mx-auto mb-10 max-w-2xl text-lg leading-relaxed transition-all duration-1000 delay-300 sm:text-xl ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-3)" }}>
-              Automatisez votre dispositif anti-blanchiment. Screening intelligent, documents INPI, lettre de mission.<br className="hidden sm:block" />
+              Automatisez votre dispositif anti-blanchiment. Screening automatique, documents INPI, lettre de mission.<br className="hidden sm:block" />
               <span style={{ color: "var(--l-text-4)" }}>Conçu par un expert-comptable, pour les experts-comptables et commissaires aux comptes.</span>
             </p>
 
-            <div className={`flex flex-col sm:flex-row items-center justify-center gap-4 transition-all duration-1000 delay-500 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
+            <div className={`flex flex-col sm:flex-row items-center justify-center gap-3 transition-all duration-1000 delay-500 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
               <Link to="/auth">
                 <Button size="lg" className="h-12 px-8 text-base bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-xl shadow-blue-600/25 btn-press text-white">
                   Démarrer gratuitement <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="h-12 px-8 text-base btn-press" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }} onClick={() => scrollTo("demo")}>
-                Voir la démo <ChevronDown className="ml-2 h-4 w-4" />
+              <Button size="lg" variant="outline" className="h-12 px-8 text-base btn-press" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}
+                onClick={() => signInWithGoogle()}
+              >
+                <GoogleIcon className="h-5 w-5 mr-2" />
+                Continuer avec Google
               </Button>
             </div>
 
@@ -1120,8 +1195,8 @@ export default function LandingPage() {
                 <TiltCard key={c.title}>
                   <GlowCard className="h-full rounded-2xl border p-8 backdrop-blur-sm" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
                     <div data-reveal className="opacity-0 translate-y-10 transition-[opacity,transform] duration-700" style={{ transitionDelay: `${i * 100 + 100}ms` }}>
-                      <div className="mb-5 flex h-14 w-14 items-center justify-center rounded-xl bg-blue-500/10">
-                        <c.icon className="h-7 w-7 text-blue-400" />
+                      <div className={`mb-5 flex h-14 w-14 items-center justify-center rounded-xl ${c.iconBg}`}>
+                        <c.icon className={`h-7 w-7 ${c.iconColor}`} />
                       </div>
                       <h3 className="mb-3 text-lg font-bold">{c.title}</h3>
                       <p className="text-sm leading-relaxed" style={{ color: "var(--l-text-3)" }}>{c.desc}</p>
@@ -1275,8 +1350,8 @@ export default function LandingPage() {
               return (
                 <div key={f.title} data-reveal className={`flex flex-col items-center gap-12 opacity-0 translate-y-10 transition-all duration-700 lg:flex-row ${f.reverse ? "lg:flex-row-reverse" : ""}`} style={{ transitionDelay: `${i * 80}ms` }}>
                   <div className="flex-1 space-y-5">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-500/10">
-                      <f.icon className="h-5 w-5 text-blue-400" />
+                    <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${f.iconBg}`}>
+                      <f.icon className={`h-5 w-5 ${f.iconColor}`} />
                     </div>
                     <h3 className="font-serif text-2xl font-bold sm:text-3xl">{f.title}</h3>
                     <p className="text-base leading-relaxed max-w-lg" style={{ color: "var(--l-text-3)" }}>{f.desc}</p>
@@ -1393,11 +1468,16 @@ export default function LandingPage() {
                             </li>
                           ))}
                         </ul>
-                        <Link to="/auth" className="block">
-                          <Button className={`w-full h-11 btn-press ${plan.popular ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-600/20 text-white" : "bg-white/10 hover:bg-white/15"}`} style={plan.popular ? {} : { color: "var(--l-text)" }}>
-                            {plan.cta}
-                          </Button>
-                        </Link>
+                        <div className="space-y-2">
+                          <Link to="/auth" className="block">
+                            <Button className={`w-full h-11 btn-press ${plan.popular ? "bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-600/20 text-white" : "bg-white/10 hover:bg-white/15"}`} style={plan.popular ? {} : { color: "var(--l-text)" }}>
+                              {plan.cta}
+                            </Button>
+                          </Link>
+                          {plan.price > 0 && (
+                            <p className="text-center text-xs" style={{ color: "var(--l-text-5)" }}>14 jours d'essai gratuit</p>
+                          )}
+                        </div>
                       </div>
                     </GlowCard>
                   </TiltCard>
@@ -1462,7 +1542,14 @@ export default function LandingPage() {
                 <TiltCard key={t.name}>
                   <GlowCard className="h-full rounded-2xl border p-7 backdrop-blur-sm" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
                     <div data-reveal className="opacity-0 translate-y-10 transition-[opacity,transform] duration-700" style={{ transitionDelay: `${i * 100}ms` }}>
-                      <Quote className="mb-4 h-7 w-7 text-blue-500/30" />
+                      <div className="flex items-center justify-between mb-4">
+                        <Quote className="h-6 w-6 text-blue-500/30" />
+                        <div className="flex gap-0.5">
+                          {Array.from({ length: 5 }).map((_, s) => (
+                            <Star key={s} className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                          ))}
+                        </div>
+                      </div>
                       <p className="mb-6 text-base leading-relaxed italic" style={{ color: "var(--l-text-2)" }}>
                         &laquo; {t.quote} &raquo;
                       </p>
@@ -1493,7 +1580,7 @@ export default function LandingPage() {
             </p>
 
             <div data-reveal className="opacity-0 translate-y-10 transition-all duration-700 delay-200">
-              <Accordion type="single" collapsible className="space-y-3">
+              <Accordion type="single" collapsible defaultValue="faq-0" className="space-y-3">
                 {faqItems.map((item, i) => (
                   <AccordionItem key={i} value={`faq-${i}`}
                     className="rounded-xl border px-6 backdrop-blur-sm overflow-hidden transition-colors hover:border-blue-500/20"
@@ -1545,6 +1632,19 @@ export default function LandingPage() {
                   {ctaError && <p id="cta-error" className="mt-2 text-xs text-red-400">{ctaError}</p>}
                   <p className="mt-3 text-xs" style={{ color: "var(--l-text-5)" }}>Aucune carte bancaire requise</p>
                 </form>
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <div className="h-px flex-1 max-w-[60px]" style={{ background: "var(--l-border)" }} />
+                  <span className="text-xs" style={{ color: "var(--l-text-5)" }}>ou</span>
+                  <div className="h-px flex-1 max-w-[60px]" style={{ background: "var(--l-border)" }} />
+                </div>
+                <button
+                  onClick={() => signInWithGoogle()}
+                  className="mt-4 mx-auto flex items-center gap-2 rounded-lg border px-5 py-2.5 text-sm font-medium transition-colors hover:bg-white/5 btn-press"
+                  style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}
+                >
+                  <GoogleIcon className="h-4 w-4" />
+                  Continuer avec Google
+                </button>
                 <div className="mt-8 flex flex-wrap items-center justify-center gap-6">
                   {[
                     { icon: Shield, label: "RGPD" },
@@ -1589,24 +1689,34 @@ export default function LandingPage() {
             </div>
             <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row" style={{ borderColor: "var(--l-border)" }}>
               <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; 2026 GRIMY — Conformité LCB-FT pour experts-comptables et commissaires aux comptes</p>
-              <div className="flex gap-6">
+              <div className="flex items-center gap-6">
                 {["LinkedIn", "Twitter"].map((s) => (
                   <a key={s} href="#" className="text-xs transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }}>{s}</a>
                 ))}
+                <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="text-xs transition-colors hover:text-blue-400 flex items-center gap-1" style={{ color: "var(--l-text-5)" }}>
+                  <ArrowUp className="h-3 w-3" />Haut de page
+                </button>
               </div>
             </div>
           </div>
         </footer>
       </div>
 
+      <ScrollToTop />
+
       {/* ══════ #4 — STICKY CTA BAR (appears after hero) ══════ */}
       {!heroInView && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t p-3 backdrop-blur-xl sm:hidden transition-all" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur)" }}>
-          <Link to="/auth" className="block">
-            <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-600/25 btn-press text-white">
-              Démarrer gratuitement <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t p-3 backdrop-blur-xl sm:hidden transition-all sticky-cta-safe" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur)" }}>
+          <div className="flex gap-2">
+            <Link to="/auth" className="flex-1">
+              <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-600/25 btn-press text-white">
+                Démarrer <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+            <button onClick={() => signInWithGoogle()} className="h-11 w-11 flex items-center justify-center rounded-lg border btn-press shrink-0" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
+              <GoogleIcon className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       )}
 
