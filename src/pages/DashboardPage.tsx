@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
@@ -727,7 +728,7 @@ export default function DashboardPage() {
         default: return null;
       }
     } catch (err) {
-      console.error(`Widget ${id} error:`, err);
+      logger.error("DashboardWidget", `Widget ${id} error:`, err);
       return <div className="glass-card p-6 h-full flex items-center justify-center text-slate-500"><AlertTriangle className="w-6 h-6 opacity-30 mr-2" /><span className="text-sm">Erreur</span></div>;
     }
   }, [
