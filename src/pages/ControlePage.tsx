@@ -2,10 +2,9 @@ import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import {
   ClipboardCheck, FileDown, RefreshCw, Plus, Eye, AlertTriangle, CheckCircle2,
   XCircle, Info, Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
-  Filter, Download, Trash2, Edit3, Calendar, TrendingUp, TrendingDown,
-  BarChart3, ShieldCheck, ShieldAlert, Target, Users, ArrowUpDown,
-  ChevronsLeft, ChevronsRight, Shuffle, UserCheck, FileText, Printer,
-  Copy, X, ListFilter, Percent, Hash, Clock, ArrowRight, Minus,
+  Download, Trash2, Edit3, BarChart3, ShieldCheck, ShieldAlert, Target,
+  ArrowUpDown, ChevronsLeft, ChevronsRight, Shuffle, UserCheck, FileText,
+  Printer, Copy, X, Percent, Hash, ArrowRight, Minus,
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { controlesService } from "@/lib/supabaseService";
@@ -93,9 +92,13 @@ function formatDateFR(iso: string): string {
   }
 }
 
+// BUG FIX #10: handle future dates and NaN
 function relativeDate(iso: string): string {
   if (!iso) return "";
-  const diff = Date.now() - new Date(iso).getTime();
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  const diff = Date.now() - d.getTime();
+  if (diff < 0) return "A venir";
   const days = Math.floor(diff / 86400000);
   if (days === 0) return "Aujourd'hui";
   if (days === 1) return "Hier";
@@ -105,9 +108,9 @@ function relativeDate(iso: string): string {
   return `Il y a ${Math.floor(days / 365)} an(s)`;
 }
 
+// BUG FIX #42: id handling — don't return undefined as value
 function mapDbToControle(row: Record<string, unknown>): ControleQualite {
-  return {
-    id: (row.id as string) || undefined,
+  const result: ControleQualite = {
     dateTirage: (row.date_tirage as string) || "",
     dossierAudite: (row.dossier_audite as string) || "",
     siren: (row.siren as string) || "",
@@ -118,7 +121,8 @@ function mapDbToControle(row: Record<string, unknown>): ControleQualite {
     distanciel: ((row.distanciel as string) || "NON") as "OUI" | "NON",
     cash: ((row.cash as string) || "NON") as "OUI" | "NON",
     pression: ((row.pression as string) || "NON") as "OUI" | "NON",
-    scoreGlobal: (row.score_global as number) || 0,
+    // BUG FIX #43: use ?? instead of || for score (0 is valid)
+    scoreGlobal: typeof row.score_global === "number" ? row.score_global : 0,
     nivVigilance: ((row.niv_vigilance as string) || "SIMPLIFIEE") as ControleQualite["nivVigilance"],
     point1: (row.point1 as string) || "",
     point2: (row.point2 as string) || "",
@@ -132,6 +136,8 @@ function mapDbToControle(row: Record<string, unknown>): ControleQualite {
     suiviStatut: (row.suivi_statut as string) || "",
     createdAt: (row.created_at as string) || "",
   };
+  if (row.id) result.id = row.id as string;
+  return result;
 }
 
 function mapControleToDb(c: ControleQualite): Record<string, unknown> {
@@ -230,7 +236,7 @@ function TableSkeleton() {
 }
 
 // ─── Flag Pills Component ───────────────────────────────────────────
-function FlagPills({ data }: { data: ControleQualite }) {
+function FlagPills({ data, className }: { data: ControleQualite; className?: string }) {
   const flags = [
     { label: "PPE", value: data.ppe },
     { label: "Pays risque", value: data.paysRisque },
@@ -240,7 +246,7 @@ function FlagPills({ data }: { data: ControleQualite }) {
     { label: "Pression", value: data.pression },
   ];
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className={`flex flex-wrap gap-1.5 ${className || ""}`}>
       {flags.map((flag) => (
         <span
           key={flag.label}
@@ -273,6 +279,7 @@ function StatCard({
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? (e) => e.key === "Enter" && onClick() : undefined}
+      aria-label={onClick ? `Filtrer par ${label}` : undefined}
     >
       <div className="flex items-center justify-center gap-2 mb-1">
         <Icon className={`w-4 h-4 ${color}`} />
@@ -284,6 +291,12 @@ function StatCard({
   );
 }
 
+// BUG FIX #5: SortIcon defined OUTSIDE component to avoid re-creation every render
+function SortIconIndicator({ field, currentField, currentDir }: { field: SortField; currentField: SortField; currentDir: SortDir }) {
+  if (currentField !== field) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
+  return currentDir === "asc" ? <ChevronUp className="w-3 h-3 text-blue-400" /> : <ChevronDown className="w-3 h-3 text-blue-400" />;
+}
+
 // ─── Main Component ─────────────────────────────────────────────────
 export default function ControlePage() {
   const { clients, addLog, isOnline } = useAppState();
@@ -292,7 +305,8 @@ export default function ControlePage() {
   const [loadError, setLoadError] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [detailIndex, setDetailIndex] = useState<number | null>(null);
+  // BUG FIX #7/#25: use ID-based detail tracking instead of index
+  const [detailId, setDetailId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -345,10 +359,12 @@ export default function ControlePage() {
     loadControles();
   }, [loadControles]);
 
-  // ── Keyboard shortcuts ──
+  // BUG FIX #23/#24: Keyboard shortcuts only when no dialog open
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || e.target instanceof HTMLSelectElement) return;
+      // BUG FIX #24: don't fire when any dialog is open
+      if (showForm || detailId !== null || showDrawOptions || showDeleteConfirm) return;
       if (e.key === "n" && !e.metaKey && !e.ctrlKey) {
         e.preventDefault();
         setShowDrawOptions(true);
@@ -360,7 +376,7 @@ export default function ControlePage() {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, []);
+  }, [showForm, detailId, showDrawOptions, showDeleteConfirm]);
 
   // ── Filtered & sorted data ──
   const filteredControles = useMemo(() => {
@@ -419,14 +435,18 @@ export default function ControlePage() {
   }, [controles, search, filterResultat, filterVigilance, filterDateFrom, filterDateTo, sortField, sortDir, activeStatFilter]);
 
   // ── Pagination ──
-  const totalPages = Math.ceil(filteredControles.length / pageSize);
+  const totalPages = Math.max(1, Math.ceil(filteredControles.length / pageSize));
   const paginatedControles = useMemo(
     () => filteredControles.slice(page * pageSize, (page + 1) * pageSize),
     [filteredControles, page, pageSize]
   );
 
-  // Reset page when filters change
-  useEffect(() => { setPage(0); }, [search, filterResultat, filterVigilance, filterDateFrom, filterDateTo, activeStatFilter]);
+  // BUG FIX #36: Reset page when filters change (useRef to skip mount)
+  const isMount = useRef(true);
+  useEffect(() => {
+    if (isMount.current) { isMount.current = false; return; }
+    setPage(0);
+  }, [search, filterResultat, filterVigilance, filterDateFrom, filterDateTo, activeStatFilter]);
 
   // ── Stats ──
   const stats = useMemo(() => {
@@ -438,7 +458,6 @@ export default function ControlePage() {
     const incidents = controles.filter((c) => c.incident).length;
     const tauxConformite = total > 0 ? Math.round(((conformes + reserves) / total) * 100) : 0;
 
-    // Trend: compare last 30 days vs previous 30 days
     const now = Date.now();
     const d30 = 30 * 86400000;
     const recent = controles.filter((c) => now - new Date(c.dateTirage).getTime() < d30);
@@ -448,9 +467,9 @@ export default function ControlePage() {
     });
     const recentRate = recent.length > 0 ? (recent.filter((c) => c.resultatGlobal === "CONFORME" || c.resultatGlobal === "CONFORME AVEC RESERVES").length / recent.length) * 100 : 0;
     const prevRate = previous.length > 0 ? (previous.filter((c) => c.resultatGlobal === "CONFORME" || c.resultatGlobal === "CONFORME AVEC RESERVES").length / previous.length) * 100 : 0;
-    const trend = recentRate - prevRate;
+    // BUG FIX #29: round trend to integer
+    const trend = Math.round(recentRate - prevRate);
 
-    // Coverage: unique clients controlled vs total valid clients
     const controlledSirens = new Set(controles.map((c) => c.siren));
     const validClients = clients.filter((c) => c.etat === "VALIDE");
     const coverageRate = validClients.length > 0 ? Math.round((controlledSirens.size / validClients.length) * 100) : 0;
@@ -459,94 +478,29 @@ export default function ControlePage() {
   }, [controles, clients]);
 
   // ── Sort handler ──
-  const handleSort = (field: SortField) => {
+  const handleSort = useCallback((field: SortField) => {
     if (sortField === field) {
       setSortDir((d) => (d === "asc" ? "desc" : "asc"));
     } else {
       setSortField(field);
       setSortDir("desc");
     }
-  };
+  }, [sortField]);
 
-  const SortIcon = ({ field }: { field: SortField }) => {
-    if (sortField !== field) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
-    return sortDir === "asc" ? <ChevronUp className="w-3 h-3 text-blue-400" /> : <ChevronDown className="w-3 h-3 text-blue-400" />;
-  };
+  // ── BUG FIX #7: Detail by ID instead of index ──
+  const detailControle = useMemo(
+    () => detailId ? filteredControles.find((c) => c.id === detailId) ?? null : null,
+    [detailId, filteredControles]
+  );
+
+  const detailIndexInFiltered = useMemo(
+    () => detailId ? filteredControles.findIndex((c) => c.id === detailId) : -1,
+    [detailId, filteredControles]
+  );
 
   // ── Draw logic ──
-  const executeRandomDraw = useCallback(() => {
-    const valides = clients.filter((c) => c.etat === "VALIDE");
-    let pool = valides;
-
-    if (excludeControlled) {
-      const controlledSirens = new Set(controles.map((c) => c.siren));
-      pool = valides.filter((c) => !controlledSirens.has(c.siren));
-      if (pool.length === 0) {
-        pool = valides; // fallback if all already controlled
-        toast.info("Tous les clients ont deja ete controles — tirage sur l'ensemble");
-      }
-    }
-
-    if (pool.length === 0) {
-      toast.error("Aucun client valide pour le tirage");
-      return;
-    }
-
-    let selected: Client[];
-
-    if (drawMode === "weighted") {
-      // Weight by risk score — higher score = more likely to be drawn
-      const totalScore = pool.reduce((sum, c) => sum + Math.max(c.scoreGlobal, 5), 0);
-      selected = [];
-      const remaining = [...pool];
-      const count = Math.min(drawCount, remaining.length);
-      for (let i = 0; i < count; i++) {
-        const totalW = remaining.reduce((sum, c) => sum + Math.max(c.scoreGlobal, 5), 0);
-        let r = Math.random() * totalW;
-        let picked = remaining[0];
-        for (const c of remaining) {
-          r -= Math.max(c.scoreGlobal, 5);
-          if (r <= 0) { picked = c; break; }
-        }
-        selected.push(picked);
-        const idx = remaining.indexOf(picked);
-        if (idx >= 0) remaining.splice(idx, 1);
-      }
-    } else if (drawMode === "manual") {
-      selected = valides.filter((c) => selectedClients.includes(c.siren));
-      if (selected.length === 0) {
-        toast.error("Selectionnez au moins un client");
-        return;
-      }
-    } else {
-      // Pure random
-      const shuffled = [...pool].sort(() => Math.random() - 0.5);
-      selected = shuffled.slice(0, Math.min(drawCount, shuffled.length));
-    }
-
-    if (selected.length === 1) {
-      // Single client → open form directly
-      const c = selected[0];
-      prefillForm(c);
-      setShowDrawOptions(false);
-      setShowForm(true);
-    } else {
-      // Multiple clients → create controls for each
-      for (const c of selected) {
-        prefillForm(c);
-        // For batch, we open the first one for editing
-      }
-      // Actually for batch, open first one
-      prefillForm(selected[0]);
-      setShowDrawOptions(false);
-      setShowForm(true);
-      if (selected.length > 1) {
-        toast.info(`${selected.length} clients tires — formulaire ouvert pour le premier. Repetez pour les suivants.`);
-      }
-    }
-  }, [clients, controles, drawCount, drawMode, excludeControlled, selectedClients]);
-
-  const prefillForm = (c: Client) => {
+  // BUG FIX #4/#6: proper prefillForm as callback + fix batch draw
+  const prefillForm = useCallback((c: Client) => {
     const today = new Date().toISOString().split("T")[0];
     setForm({
       ...emptyForm,
@@ -566,7 +520,68 @@ export default function ControlePage() {
     setFormErrors({});
     setFormDirty(false);
     setEditMode(false);
-  };
+    // BUG FIX #14: reset template state
+    setShowTemplates(null);
+  }, []);
+
+  const executeRandomDraw = useCallback(() => {
+    const valides = clients.filter((c) => c.etat === "VALIDE");
+    // BUG FIX #22: manual mode uses pool too
+    let pool = valides;
+
+    if (excludeControlled && drawMode !== "manual") {
+      const controlledSirens = new Set(controles.map((c) => c.siren));
+      pool = valides.filter((c) => !controlledSirens.has(c.siren));
+      if (pool.length === 0) {
+        pool = valides;
+        toast.info("Tous les clients ont deja ete controles — tirage sur l'ensemble");
+      }
+    }
+
+    if (drawMode !== "manual" && pool.length === 0) {
+      toast.error("Aucun client valide pour le tirage");
+      return;
+    }
+
+    let selected: Client[];
+
+    if (drawMode === "weighted") {
+      // BUG FIX #21: removed unused totalScore variable
+      selected = [];
+      const remaining = [...pool];
+      const count = Math.min(drawCount, remaining.length);
+      for (let i = 0; i < count; i++) {
+        const totalW = remaining.reduce((sum, c) => sum + Math.max(c.scoreGlobal, 5), 0);
+        let r = Math.random() * totalW;
+        let picked = remaining[0];
+        for (const c of remaining) {
+          r -= Math.max(c.scoreGlobal, 5);
+          if (r <= 0) { picked = c; break; }
+        }
+        selected.push(picked);
+        const idx = remaining.indexOf(picked);
+        if (idx >= 0) remaining.splice(idx, 1);
+      }
+    } else if (drawMode === "manual") {
+      // BUG FIX #22: manual mode uses valides (user chose explicitly)
+      selected = valides.filter((c) => selectedClients.includes(c.siren));
+      if (selected.length === 0) {
+        toast.error("Selectionnez au moins un client");
+        return;
+      }
+    } else {
+      const shuffled = [...pool].sort(() => Math.random() - 0.5);
+      selected = shuffled.slice(0, Math.min(drawCount, shuffled.length));
+    }
+
+    // BUG FIX #6: only prefill the first one (batch loop was useless)
+    prefillForm(selected[0]);
+    setShowDrawOptions(false);
+    setShowForm(true);
+    if (selected.length > 1) {
+      toast.info(`${selected.length} clients tires — formulaire ouvert pour le premier. Repetez pour les suivants.`);
+    }
+  }, [clients, controles, drawCount, drawMode, excludeControlled, selectedClients, prefillForm]);
 
   // ── Form validation ──
   const validateForm = (): boolean => {
@@ -592,25 +607,41 @@ export default function ControlePage() {
       return;
     }
 
-    // Check for duplicates (same siren + same month)
+    // BUG FIX #41: use exact month comparison (YYYY-MM)
     const month = form.dateTirage.slice(0, 7);
     const duplicate = controles.find(
-      (c) => c.siren === form.siren && c.dateTirage.startsWith(month) && (!editMode || c.id !== form.id)
+      (c) => c.siren === form.siren && c.dateTirage.slice(0, 7) === month && (!editMode || c.id !== form.id)
     );
     if (duplicate && !editMode) {
       toast.warning(`Ce client a deja ete controle ce mois (${formatDateFR(duplicate.dateTirage)}). Le controle sera quand meme enregistre.`);
     }
 
+    // BUG FIX #15/#33: clear NC-specific fields when result is not NC
+    const formToSave = { ...form };
+    if (!formToSave.resultatGlobal.startsWith("NON CONFORME")) {
+      formToSave.actionCorrectrice = "";
+      formToSave.dateEcheance = "";
+      formToSave.suiviStatut = "";
+    }
+
     setSaving(true);
     try {
-      const dbRow = mapControleToDb(form);
+      const dbRow = mapControleToDb(formToSave);
 
-      if (editMode && form.id) {
-        const result = await controlesService.update(form.id, dbRow);
+      if (editMode && formToSave.id) {
+        const result = await controlesService.update(formToSave.id, dbRow);
         if (result) {
           setControles((prev) =>
-            prev.map((c) => (c.id === form.id ? mapDbToControle(result) : c))
+            prev.map((c) => (c.id === formToSave.id ? mapDbToControle(result) : c))
           );
+          // BUG FIX #46: include controleur in edit audit log
+          addLog({
+            horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
+            utilisateur: formToSave.controleur || "Utilisateur",
+            refClient: formToSave.siren,
+            typeAction: "MODIFICATION_CONTROLE",
+            details: `Controle modifie: ${formToSave.dossierAudite} — ${formToSave.resultatGlobal}`,
+          });
           toast.success("Controle mis a jour");
         } else {
           toast.error("Erreur lors de la mise a jour");
@@ -621,10 +652,10 @@ export default function ControlePage() {
           setControles((prev) => [mapDbToControle(result), ...prev]);
           addLog({
             horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
-            utilisateur: form.controleur || "Utilisateur",
-            refClient: form.siren,
+            utilisateur: formToSave.controleur || "Utilisateur",
+            refClient: formToSave.siren,
             typeAction: "CONTROLE_QUALITE",
-            details: `Controle qualite: ${form.dossierAudite} — ${form.resultatGlobal}`,
+            details: `Controle qualite: ${formToSave.dossierAudite} — ${formToSave.resultatGlobal}`,
           });
           toast.success("Controle enregistre avec succes");
         } else {
@@ -633,6 +664,8 @@ export default function ControlePage() {
       }
       setShowForm(false);
       setFormDirty(false);
+      // BUG FIX #12: reset editMode after save
+      setEditMode(false);
     } catch {
       toast.error("Erreur lors de l'enregistrement");
     } finally {
@@ -640,24 +673,27 @@ export default function ControlePage() {
     }
   };
 
-  // ── Delete ──
+  // BUG FIX #25/#49: Delete uses captured ID to avoid stale ref
   const handleDelete = async () => {
-    if (!detailControle?.id) return;
+    const idToDelete = detailId;
+    const ctrl = detailControle;
+    if (!idToDelete || !ctrl) return;
     setDeleting(true);
     try {
-      const success = await controlesService.delete(detailControle.id);
+      const success = await controlesService.delete(idToDelete);
       if (success) {
-        setControles((prev) => prev.filter((c) => c.id !== detailControle.id));
+        setControles((prev) => prev.filter((c) => c.id !== idToDelete));
         addLog({
           horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
           utilisateur: "Utilisateur",
-          refClient: detailControle.siren,
+          refClient: ctrl.siren,
           typeAction: "SUPPRESSION_CONTROLE",
-          details: `Controle supprime: ${detailControle.dossierAudite}`,
+          details: `Controle supprime: ${ctrl.dossierAudite}`,
         });
         toast.success("Controle supprime");
-        setDetailIndex(null);
+        // BUG FIX #8: close both dialogs
         setShowDeleteConfirm(false);
+        setDetailId(null);
       } else {
         toast.error("Erreur lors de la suppression");
       }
@@ -673,21 +709,28 @@ export default function ControlePage() {
     if (!detailControle) return;
     setForm({ ...detailControle });
     setEditMode(true);
-    setDetailIndex(null);
+    setDetailId(null);
+    // BUG FIX #14: reset template state
+    setShowTemplates(null);
+    setFormDirty(false);
     setShowForm(true);
   };
 
-  // ── Detail navigation ──
+  // ── Detail navigation by ID ──
   const navigateDetail = (dir: 1 | -1) => {
-    if (detailIndex === null) return;
-    const newIdx = detailIndex + dir;
+    if (detailIndexInFiltered < 0) return;
+    const newIdx = detailIndexInFiltered + dir;
     if (newIdx >= 0 && newIdx < filteredControles.length) {
-      setDetailIndex(newIdx);
+      setDetailId(filteredControles[newIdx].id ?? null);
     }
   };
 
-  // ── Export CSV ──
+  // ── BUG FIX #17: Export CSV with sanitized multiline fields ──
   const handleExportCSV = () => {
+    if (filteredControles.length === 0) {
+      toast.error("Aucun controle a exporter");
+      return;
+    }
     const headers = [
       "Date tirage", "Dossier", "SIREN", "Forme", "Score", "Vigilance",
       "PPE", "Pays risque", "Atypique", "Distanciel", "Cash", "Pression",
@@ -700,48 +743,54 @@ export default function ControlePage() {
       c.point1, c.point2, c.point3, c.resultatGlobal, c.incident, c.commentaire,
       c.controleur, c.actionCorrectrice, c.dateEcheance, c.suiviStatut,
     ]);
-    const csv = [headers.join(";"), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";"))].join("\n");
+    // BUG FIX #17: replace newlines in field values to avoid breaking CSV rows
+    const csv = [headers.join(";"), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`).join(";"))].join("\n");
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
     a.download = `Controles_Qualite_${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
-    URL.revokeObjectURL(url);
+    // BUG FIX #18: delay revoke to let download start
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     toast.success(`${filteredControles.length} controles exportes en CSV`);
   };
 
   // ── Export PDF ──
+  // BUG FIX #20/#26: check both controles and clients
   const handleExportPDF = () => {
-    if (controles.length === 0) {
-      toast.error("Aucun controle pour le rapport");
+    const valides = clients.filter((c) => c.etat === "VALIDE");
+    if (controles.length === 0 && valides.length === 0) {
+      toast.error("Aucune donnee pour le rapport");
       return;
     }
     generateRapportControle(
-      clients.filter((c) => c.etat === "VALIDE").slice(0, 5),
+      valides.slice(0, 5),
       filteredControles
     );
     toast.success("Rapport de controle genere (PDF)");
   };
 
-  // ── Export single control PDF ──
   const handleExportSinglePDF = (c: ControleQualite) => {
     generateSingleControlePdf(c);
     toast.success("Fiche de controle generee (PDF)");
   };
 
-  // ── Close form with warning ──
-  const handleCloseForm = () => {
+  // BUG FIX #9: handleCloseForm properly handles Dialog's boolean param
+  const handleCloseForm = useCallback((open?: boolean | undefined) => {
+    // If Dialog calls with open=true, ignore
+    if (open === true) return;
     if (formDirty) {
       if (!window.confirm("Des modifications non enregistrees seront perdues. Fermer quand meme ?")) return;
     }
     setShowForm(false);
     setFormDirty(false);
     setEditMode(false);
-  };
+    setShowTemplates(null);
+  }, [formDirty]);
 
-  // ── Copy to clipboard ──
-  const handleCopyControl = (c: ControleQualite) => {
+  // BUG FIX #16: Copy with error handling
+  const handleCopyControl = async (c: ControleQualite) => {
     const text = [
       `Controle qualite — ${c.dossierAudite} (${c.siren})`,
       `Date: ${formatDateFR(c.dateTirage)}`,
@@ -756,8 +805,12 @@ export default function ControlePage() {
       c.actionCorrectrice ? `Action correctrice: ${c.actionCorrectrice}` : "",
       c.controleur ? `Controleur: ${c.controleur}` : "",
     ].filter(Boolean).join("\n");
-    navigator.clipboard.writeText(text);
-    toast.success("Controle copie dans le presse-papier");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success("Controle copie dans le presse-papier");
+    } catch {
+      toast.error("Impossible de copier dans le presse-papier");
+    }
   };
 
   // ── Clear all filters ──
@@ -770,23 +823,32 @@ export default function ControlePage() {
     setActiveStatFilter(null);
   };
 
-  const hasFilters = search || filterResultat !== "ALL" || filterVigilance !== "ALL" || filterDateFrom || filterDateTo || activeStatFilter;
+  const hasFilters = !!(search || filterResultat !== "ALL" || filterVigilance !== "ALL" || filterDateFrom || filterDateTo || activeStatFilter);
 
-  const detailControle = detailIndex !== null ? filteredControles[detailIndex] : null;
+  const formAnomalies = useMemo(() => detectAnomalies(form), [form.nivVigilance, form.ppe, form.paysRisque, form.atypique, form.distanciel, form.cash, form.pression, form.scoreGlobal, form.resultatGlobal, form.actionCorrectrice, form.dateEcheance]);
 
-  // Anomalies for current form
-  const formAnomalies = useMemo(() => detectAnomalies(form), [form]);
-
-  // Coverage data
+  // BUG FIX #11/#28: optimize coverageData computation (use map for O(n) controlCount)
   const coverageData = useMemo(() => {
     const validClients = clients.filter((c) => c.etat === "VALIDE");
-    const controlledSirens = new Set(controles.map((c) => c.siren));
-    return validClients.map((c) => ({
-      ...c,
-      controlled: controlledSirens.has(c.siren),
-      lastControl: controles.find((ctrl) => ctrl.siren === c.siren)?.dateTirage || "",
-      controlCount: controles.filter((ctrl) => ctrl.siren === c.siren).length,
-    }));
+    const controlCounts = new Map<string, { count: number; lastDate: string }>();
+    for (const ctrl of controles) {
+      const existing = controlCounts.get(ctrl.siren);
+      if (!existing) {
+        controlCounts.set(ctrl.siren, { count: 1, lastDate: ctrl.dateTirage });
+      } else {
+        existing.count++;
+        if (ctrl.dateTirage > existing.lastDate) existing.lastDate = ctrl.dateTirage;
+      }
+    }
+    return validClients.map((c) => {
+      const data = controlCounts.get(c.siren);
+      return {
+        ...c,
+        controlled: !!data,
+        lastControl: data?.lastDate || "",
+        controlCount: data?.count || 0,
+      };
+    });
   }, [clients, controles]);
 
   // Monthly stats for chart
@@ -794,20 +856,22 @@ export default function ControlePage() {
     const months: Record<string, { total: number; conformes: number; nc: number }> = {};
     for (const c of controles) {
       const m = c.dateTirage.slice(0, 7);
+      if (!m) continue;
       if (!months[m]) months[m] = { total: 0, conformes: 0, nc: 0 };
       months[m].total++;
       if (c.resultatGlobal === "CONFORME" || c.resultatGlobal === "CONFORME AVEC RESERVES") months[m].conformes++;
       else months[m].nc++;
     }
-    return Object.entries(months)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .slice(-12)
-      .map(([month, data]) => ({
-        month,
-        label: new Date(month + "-01").toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
-        ...data,
-        rate: data.total > 0 ? Math.round((data.conformes / data.total) * 100) : 0,
-      }));
+    // BUG FIX #19: compute global max for consistent bar scale
+    const entries = Object.entries(months).sort(([a], [b]) => a.localeCompare(b)).slice(-12);
+    const maxTotal = Math.max(...entries.map(([, d]) => d.total), 1);
+    return entries.map(([month, data]) => ({
+      month,
+      label: new Date(month + "-01").toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+      ...data,
+      rate: data.total > 0 ? Math.round((data.conformes / data.total) * 100) : 0,
+      maxTotal,
+    }));
   }, [controles]);
 
   // Clients available for manual selection
@@ -844,7 +908,8 @@ export default function ControlePage() {
             )}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportCSV}>
+                {/* BUG FIX #37: disabled when empty */}
+                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportCSV} disabled={filteredControles.length === 0}>
                   <Download className="w-3.5 h-3.5" /> CSV
                 </Button>
               </TooltipTrigger>
@@ -852,7 +917,7 @@ export default function ControlePage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportPDF}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportPDF} disabled={controles.length === 0 && clients.filter((c) => c.etat === "VALIDE").length === 0}>
                   <FileDown className="w-3.5 h-3.5" /> PDF
                 </Button>
               </TooltipTrigger>
@@ -866,9 +931,10 @@ export default function ControlePage() {
 
         {/* ── Stats Bar ── */}
         <div className="animate-fade-in-up grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {/* BUG FIX #3: Total stat card clears filter on click */}
           <StatCard
             label="Total controles" value={stats.total} color="text-blue-400" icon={Hash}
-            onClick={() => setActiveStatFilter(activeStatFilter === null ? null : null)}
+            onClick={() => setActiveStatFilter(null)}
             active={!activeStatFilter}
           />
           <StatCard
@@ -890,7 +956,7 @@ export default function ControlePage() {
           />
           <StatCard
             label="Taux conformite" value={`${stats.tauxConformite}%`} color={stats.tauxConformite >= 80 ? "text-emerald-400" : stats.tauxConformite >= 60 ? "text-amber-400" : "text-red-400"} icon={Percent}
-            subtitle={stats.trend > 0 ? `+${stats.trend.toFixed(0)}% vs mois prec.` : stats.trend < 0 ? `${stats.trend.toFixed(0)}% vs mois prec.` : undefined}
+            subtitle={stats.trend > 0 ? `+${stats.trend}% vs mois prec.` : stats.trend < 0 ? `${stats.trend}% vs mois prec.` : undefined}
           />
           <StatCard
             label="Couverture" value={`${stats.coverageRate}%`} color={stats.coverageRate >= 80 ? "text-emerald-400" : stats.coverageRate >= 50 ? "text-amber-400" : "text-red-400"} icon={Target}
@@ -899,7 +965,7 @@ export default function ControlePage() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="animate-fade-in-up flex gap-1 border-b border-white/[0.06] pb-0">
+        <div className="animate-fade-in-up flex gap-1 border-b border-white/[0.06]">
           {([
             { id: "historique" as const, label: "Historique", icon: ClipboardCheck },
             { id: "statistiques" as const, label: "Statistiques", icon: BarChart3 },
@@ -907,12 +973,14 @@ export default function ControlePage() {
           ]).map((tab) => (
             <button
               key={tab.id}
-              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors rounded-t-lg ${
+              className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors ${
                 activeTab === tab.id
-                  ? "text-blue-400 bg-white/[0.04] border-b-2 border-blue-400"
-                  : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.02]"
+                  ? "text-blue-400 border-b-2 border-blue-400 -mb-px"
+                  : "text-slate-500 hover:text-slate-300"
               }`}
               onClick={() => setActiveTab(tab.id)}
+              aria-selected={activeTab === tab.id}
+              role="tab"
             >
               <tab.icon className="w-3.5 h-3.5" />
               {tab.label}
@@ -924,63 +992,73 @@ export default function ControlePage() {
         {activeTab === "historique" && (
           <>
             {/* ── Filter Bar ── */}
-            <div className="animate-fade-in-up flex flex-col sm:flex-row gap-3 items-start sm:items-center">
-              <div className="relative flex-1 min-w-0">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-                <input
-                  ref={searchRef}
-                  type="text"
-                  placeholder="Rechercher par nom, SIREN, controleur... (Ctrl+F)"
-                  className="w-full pl-9 pr-3 py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                {search && (
-                  <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setSearch("")}>
-                    <X className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300" />
-                  </button>
-                )}
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <select
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                  value={filterResultat}
-                  onChange={(e) => setFilterResultat(e.target.value)}
-                >
-                  <option value="ALL" className="bg-slate-900">Tous les resultats</option>
-                  {RESULTAT_OPTIONS.map((opt) => (
-                    <option key={opt} value={opt} className="bg-slate-900">{opt}</option>
-                  ))}
-                </select>
-                <select
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                  value={filterVigilance}
-                  onChange={(e) => setFilterVigilance(e.target.value)}
-                >
-                  <option value="ALL" className="bg-slate-900">Toutes vigilances</option>
-                  <option value="SIMPLIFIEE" className="bg-slate-900">Simplifiee</option>
-                  <option value="STANDARD" className="bg-slate-900">Standard</option>
-                  <option value="RENFORCEE" className="bg-slate-900">Renforcee</option>
-                </select>
-                <input
-                  type="date"
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                  value={filterDateFrom}
-                  onChange={(e) => setFilterDateFrom(e.target.value)}
-                  title="Date debut"
-                />
-                <input
-                  type="date"
-                  className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
-                  value={filterDateTo}
-                  onChange={(e) => setFilterDateTo(e.target.value)}
-                  title="Date fin"
-                />
-                {hasFilters && (
-                  <Button variant="ghost" size="sm" className="text-xs text-slate-500 hover:text-slate-300 gap-1" onClick={clearFilters}>
-                    <X className="w-3 h-3" /> Effacer filtres
-                  </Button>
-                )}
+            <div className="animate-fade-in-up flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                <div className="relative flex-1 min-w-0 w-full sm:w-auto">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <input
+                    ref={searchRef}
+                    type="text"
+                    placeholder="Rechercher par nom, SIREN, controleur... (Ctrl+F)"
+                    className="w-full pl-9 pr-8 py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    aria-label="Rechercher des controles"
+                  />
+                  {search && (
+                    <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setSearch("")} aria-label="Effacer la recherche">
+                      <X className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300" />
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    value={filterResultat}
+                    onChange={(e) => setFilterResultat(e.target.value)}
+                    aria-label="Filtrer par resultat"
+                  >
+                    <option value="ALL" className="bg-slate-900">Tous les resultats</option>
+                    {RESULTAT_OPTIONS.map((opt) => (
+                      <option key={opt} value={opt} className="bg-slate-900">{opt}</option>
+                    ))}
+                  </select>
+                  <select
+                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    value={filterVigilance}
+                    onChange={(e) => setFilterVigilance(e.target.value)}
+                    aria-label="Filtrer par vigilance"
+                  >
+                    <option value="ALL" className="bg-slate-900">Toutes vigilances</option>
+                    <option value="SIMPLIFIEE" className="bg-slate-900">Simplifiee</option>
+                    <option value="STANDARD" className="bg-slate-900">Standard</option>
+                    <option value="RENFORCEE" className="bg-slate-900">Renforcee</option>
+                  </select>
+                  {/* BUG FIX #28: date from/to with max/min constraints */}
+                  <input
+                    type="date"
+                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    value={filterDateFrom}
+                    max={filterDateTo || undefined}
+                    onChange={(e) => setFilterDateFrom(e.target.value)}
+                    title="Date debut"
+                    aria-label="Date debut"
+                  />
+                  <input
+                    type="date"
+                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    value={filterDateTo}
+                    min={filterDateFrom || undefined}
+                    onChange={(e) => setFilterDateTo(e.target.value)}
+                    title="Date fin"
+                    aria-label="Date fin"
+                  />
+                  {hasFilters && (
+                    <Button variant="ghost" size="sm" className="text-xs text-slate-500 hover:text-slate-300 gap-1" onClick={clearFilters}>
+                      <X className="w-3 h-3" /> Effacer filtres
+                    </Button>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -1020,7 +1098,7 @@ export default function ControlePage() {
                     </>
                   ) : (
                     <>
-                      <Filter className="w-8 h-8 text-slate-600 mx-auto mb-3" />
+                      <Search className="w-8 h-8 text-slate-600 mx-auto mb-3" />
                       <p className="text-sm text-slate-400">Aucun controle ne correspond aux filtres</p>
                       <Button variant="ghost" size="sm" className="mt-2 text-xs text-slate-500" onClick={clearFilters}>
                         Effacer les filtres
@@ -1031,23 +1109,23 @@ export default function ControlePage() {
               ) : (
                 <>
                   <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
+                    <table className="w-full text-sm" role="table">
                       <thead>
                         <tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")}>
-                            <span className="flex items-center gap-1">Date <SortIcon field="dateTirage" /></span>
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")} aria-label="Trier par date">
+                            <span className="flex items-center gap-1">Date <SortIconIndicator field="dateTirage" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dossierAudite")}>
-                            <span className="flex items-center gap-1">Dossier audite <SortIcon field="dossierAudite" /></span>
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dossierAudite")} aria-label="Trier par dossier">
+                            <span className="flex items-center gap-1">Dossier audite <SortIconIndicator field="dossierAudite" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("scoreGlobal")}>
-                            <span className="flex items-center gap-1">Score <SortIcon field="scoreGlobal" /></span>
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("scoreGlobal")} aria-label="Trier par score">
+                            <span className="flex items-center gap-1">Score <SortIconIndicator field="scoreGlobal" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("nivVigilance")}>
-                            <span className="flex items-center gap-1">Vigilance <SortIcon field="nivVigilance" /></span>
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("nivVigilance")} aria-label="Trier par vigilance">
+                            <span className="flex items-center gap-1">Vigilance <SortIconIndicator field="nivVigilance" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("resultatGlobal")}>
-                            <span className="flex items-center gap-1">Resultat <SortIcon field="resultatGlobal" /></span>
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("resultatGlobal")} aria-label="Trier par resultat">
+                            <span className="flex items-center gap-1">Resultat <SortIconIndicator field="resultatGlobal" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
                           <th className="px-6 py-3 font-medium">Controleur</th>
                           <th className="px-6 py-3 font-medium">Suivi</th>
@@ -1055,16 +1133,15 @@ export default function ControlePage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.04]">
-                        {paginatedControles.map((c, idx) => {
+                        {paginatedControles.map((c) => {
                           const cfg = resultatConfig[c.resultatGlobal as ResultatGlobal];
                           const ResultIcon = cfg?.icon || CheckCircle2;
                           const anomalies = detectAnomalies(c);
-                          const globalIdx = page * pageSize + idx;
                           return (
                             <tr
-                              key={c.id || `${c.siren}-${c.dateTirage}-${idx}`}
+                              key={c.id || `${c.siren}-${c.dateTirage}`}
                               className={`${cfg?.rowBg || "hover:bg-white/[0.02]"} cursor-pointer transition-colors`}
-                              onClick={() => setDetailIndex(globalIdx)}
+                              onClick={() => setDetailId(c.id ?? null)}
                             >
                               <td className="px-6 py-3.5">
                                 <Tooltip>
@@ -1123,6 +1200,7 @@ export default function ControlePage() {
                   </div>
 
                   {/* ── Pagination ── */}
+                  {/* BUG FIX #35: don't show "1-0 sur 0" */}
                   <div className="px-6 py-3 border-t border-white/[0.06] flex items-center justify-between">
                     <div className="flex items-center gap-2 text-xs text-slate-500">
                       <span>Afficher</span>
@@ -1138,16 +1216,18 @@ export default function ControlePage() {
                       <span>par page</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-xs text-slate-500 mr-2">
-                        {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredControles.length)} sur {filteredControles.length}
-                      </span>
+                      {filteredControles.length > 0 && (
+                        <span className="text-xs text-slate-500 mr-2">
+                          {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredControles.length)} sur {filteredControles.length}
+                        </span>
+                      )}
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page === 0} onClick={() => setPage(0)}>
                         <ChevronsLeft className="w-3.5 h-3.5" />
                       </Button>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </Button>
-                      <span className="text-xs text-slate-400 mx-1">{page + 1}/{totalPages || 1}</span>
+                      <span className="text-xs text-slate-400 mx-1">{page + 1}/{totalPages}</span>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </Button>
@@ -1165,7 +1245,6 @@ export default function ControlePage() {
         {/* ── Tab: Statistiques ── */}
         {activeTab === "statistiques" && (
           <div className="animate-fade-in-up space-y-6">
-            {/* Monthly chart */}
             <div className="glass-card p-6">
               <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-blue-400" />
@@ -1175,21 +1254,21 @@ export default function ControlePage() {
                 <p className="text-xs text-slate-500 text-center py-8">Pas de donnees disponibles</p>
               ) : (
                 <div className="space-y-4">
-                  {/* Bar chart */}
+                  {/* BUG FIX #19: use global max for consistent bar scale */}
                   <div className="flex items-end gap-2 h-40">
                     {monthlyStats.map((m) => (
                       <Tooltip key={m.month}>
                         <TooltipTrigger asChild>
                           <div className="flex-1 flex flex-col items-center gap-1">
                             <span className="text-[10px] text-slate-500 tabular-nums">{m.rate}%</span>
-                            <div className="w-full flex flex-col gap-0.5" style={{ height: "120px" }}>
+                            <div className="w-full flex flex-col justify-end" style={{ height: "120px" }}>
                               <div
                                 className="w-full bg-emerald-500/30 rounded-t transition-all"
-                                style={{ height: `${(m.conformes / Math.max(m.total, 1)) * 120}px` }}
+                                style={{ height: `${(m.conformes / m.maxTotal) * 120}px` }}
                               />
                               <div
                                 className="w-full bg-red-500/30 rounded-b transition-all"
-                                style={{ height: `${(m.nc / Math.max(m.total, 1)) * 120}px` }}
+                                style={{ height: `${(m.nc / m.maxTotal) * 120}px` }}
                               />
                             </div>
                             <span className="text-[10px] text-slate-600">{m.label}</span>
@@ -1341,7 +1420,6 @@ export default function ControlePage() {
               </span>
             </div>
 
-            {/* Progress bar */}
             <div className="px-6 py-3 border-b border-white/[0.06]">
               <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
                 <div
@@ -1364,6 +1442,7 @@ export default function ControlePage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
+                  {/* BUG FIX #26/#27: sort by risk priority + limit to 50 rows */}
                   {coverageData
                     .sort((a, b) => (a.controlled ? 1 : 0) - (b.controlled ? 1 : 0) || b.scoreGlobal - a.scoreGlobal)
                     .slice(0, 50)
@@ -1395,6 +1474,11 @@ export default function ControlePage() {
                 </tbody>
               </table>
             </div>
+            {coverageData.length > 50 && (
+              <div className="px-6 py-3 border-t border-white/[0.06] text-xs text-slate-500 text-center">
+                Affichage limite aux 50 premiers clients (tries par priorite)
+              </div>
+            )}
           </div>
         )}
 
@@ -1409,13 +1493,12 @@ export default function ControlePage() {
               </DialogTitle>
             </DialogHeader>
             <div className="space-y-4 mt-2">
-              {/* Mode */}
               <div className="space-y-1">
                 <label className="text-xs font-medium text-slate-400">Mode de selection</label>
                 <div className="grid grid-cols-3 gap-2">
                   {([
                     { value: "random" as const, label: "Aleatoire", icon: Shuffle, desc: "Tirage pur" },
-                    { value: "weighted" as const, label: "Pondere", icon: Target, desc: "Priorise les risques eleves" },
+                    { value: "weighted" as const, label: "Pondere", icon: Target, desc: "Priorise les risques" },
                     { value: "manual" as const, label: "Manuel", icon: UserCheck, desc: "Choisir les clients" },
                   ]).map((m) => (
                     <button
@@ -1435,7 +1518,6 @@ export default function ControlePage() {
                 </div>
               </div>
 
-              {/* Count (for random/weighted) */}
               {drawMode !== "manual" && (
                 <div className="space-y-1">
                   <label className="text-xs font-medium text-slate-400">Nombre de clients a tirer</label>
@@ -1443,7 +1525,7 @@ export default function ControlePage() {
                     <input
                       type="range"
                       min={1}
-                      max={Math.min(10, clients.filter((c) => c.etat === "VALIDE").length)}
+                      max={Math.min(10, clients.filter((c) => c.etat === "VALIDE").length || 1)}
                       value={drawCount}
                       onChange={(e) => setDrawCount(Number(e.target.value))}
                       className="flex-1"
@@ -1453,7 +1535,6 @@ export default function ControlePage() {
                 </div>
               )}
 
-              {/* Exclude already controlled */}
               {drawMode !== "manual" && (
                 <label className="flex items-center gap-2 cursor-pointer">
                   <input
@@ -1466,7 +1547,6 @@ export default function ControlePage() {
                 </label>
               )}
 
-              {/* Manual client selection */}
               {drawMode === "manual" && (
                 <div className="space-y-2">
                   <label className="text-xs font-medium text-slate-400">Selectionner les clients</label>
@@ -1500,12 +1580,11 @@ export default function ControlePage() {
                 </div>
               )}
 
-              {/* Pool info */}
               <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-500">Clients valides disponibles</span>
                   <span className="text-slate-300 font-medium tabular-nums">
-                    {excludeControlled
+                    {excludeControlled && drawMode !== "manual"
                       ? clients.filter((c) => c.etat === "VALIDE" && !stats.controlledSirens.has(c.siren)).length
                       : clients.filter((c) => c.etat === "VALIDE").length}
                   </span>
@@ -1526,7 +1605,7 @@ export default function ControlePage() {
 
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── New/Edit Control Form Dialog ── */}
-        <Dialog open={showForm} onOpenChange={handleCloseForm}>
+        <Dialog open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>
           <DialogContent className="max-w-3xl bg-slate-900 border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-slate-100">
@@ -1549,7 +1628,8 @@ export default function ControlePage() {
                     <VigilanceBadge level={form.nivVigilance} />
                   </div>
                 </div>
-                <FlagPills data={form} />
+                {/* BUG FIX #31: add mt-3 margin like original */}
+                <FlagPills data={form} className="mt-3" />
               </div>
 
               {/* Controleur */}
@@ -1637,7 +1717,10 @@ export default function ControlePage() {
                           setForm((prev) => ({
                             ...prev,
                             resultatGlobal: opt,
-                            suiviStatut: opt.startsWith("NON CONFORME") ? "A_TRAITER" : prev.suiviStatut,
+                            // BUG FIX #15: auto-set suivi for NC, clear for non-NC
+                            suiviStatut: opt.startsWith("NON CONFORME") ? (prev.suiviStatut || "A_TRAITER") : "",
+                            actionCorrectrice: opt.startsWith("NON CONFORME") ? prev.actionCorrectrice : "",
+                            dateEcheance: opt.startsWith("NON CONFORME") ? prev.dateEcheance : "",
                           }));
                           setFormDirty(true);
                         }}
@@ -1679,6 +1762,7 @@ export default function ControlePage() {
                         type="date"
                         className={`w-full rounded-lg border ${formErrors.dateEcheance ? "border-red-500/50" : "border-white/[0.08]"} bg-white/[0.03] px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50`}
                         value={form.dateEcheance}
+                        min={new Date().toISOString().split("T")[0]}
                         onChange={(e) => { setForm((prev) => ({ ...prev, dateEcheance: e.target.value })); setFormDirty(true); }}
                       />
                       {formErrors.dateEcheance && <p className="text-xs text-red-400">{formErrors.dateEcheance}</p>}
@@ -1751,7 +1835,7 @@ export default function ControlePage() {
                   {formDirty && <span className="text-amber-400">Modifications non enregistrees</span>}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" className="border-white/[0.06]" onClick={handleCloseForm}>
+                  <Button variant="outline" className="border-white/[0.06]" onClick={() => handleCloseForm()}>
                     Annuler
                   </Button>
                   <Button className="bg-blue-600 hover:bg-blue-700 gap-1.5" onClick={handleSave} disabled={saving}>
@@ -1775,7 +1859,7 @@ export default function ControlePage() {
 
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── Detail Dialog ── */}
-        <Dialog open={detailIndex !== null} onOpenChange={() => setDetailIndex(null)}>
+        <Dialog open={detailId !== null} onOpenChange={(open) => { if (!open) { setDetailId(null); setShowDeleteConfirm(false); } }}>
           <DialogContent className="max-w-3xl bg-slate-900 border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
             {detailControle && (
               <>
@@ -1786,11 +1870,11 @@ export default function ControlePage() {
                       Detail du controle
                     </DialogTitle>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(-1)} disabled={detailIndex === 0}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(-1)} disabled={detailIndexInFiltered <= 0}>
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
-                      <span className="text-xs text-slate-500 tabular-nums">{(detailIndex ?? 0) + 1}/{filteredControles.length}</span>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(1)} disabled={detailIndex === filteredControles.length - 1}>
+                      <span className="text-xs text-slate-500 tabular-nums">{detailIndexInFiltered + 1}/{filteredControles.length}</span>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(1)} disabled={detailIndexInFiltered >= filteredControles.length - 1}>
                         <ChevronRight className="w-4 h-4" />
                       </Button>
                     </div>
@@ -1798,7 +1882,6 @@ export default function ControlePage() {
                 </DialogHeader>
 
                 <div className="space-y-5 mt-2">
-                  {/* Client info */}
                   <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
                     <div className="flex items-center justify-between">
                       <div>
@@ -1818,12 +1901,9 @@ export default function ControlePage() {
                         <VigilanceBadge level={detailControle.nivVigilance} />
                       </div>
                     </div>
-                    <div className="mt-3">
-                      <FlagPills data={detailControle} />
-                    </div>
+                    <FlagPills data={detailControle} className="mt-3" />
                   </div>
 
-                  {/* 3 checkpoints */}
                   <div className="space-y-3">
                     <p className="text-xs text-slate-500 uppercase tracking-wider">Points de controle</p>
                     {([
@@ -1838,7 +1918,6 @@ export default function ControlePage() {
                     ))}
                   </div>
 
-                  {/* Resultat */}
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-slate-500">Resultat:</span>
                     {(() => {
@@ -1858,7 +1937,6 @@ export default function ControlePage() {
                     )}
                   </div>
 
-                  {/* Action correctrice */}
                   {detailControle.actionCorrectrice && (
                     <div className="rounded-lg border border-blue-500/20 bg-blue-500/5 p-3">
                       <p className="text-xs font-medium text-blue-400 mb-1 flex items-center gap-1">
@@ -1866,14 +1944,11 @@ export default function ControlePage() {
                       </p>
                       <p className="text-sm text-slate-200">{detailControle.actionCorrectrice}</p>
                       {detailControle.dateEcheance && (
-                        <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
-                          <Calendar className="w-3 h-3" /> Echeance: {formatDateFR(detailControle.dateEcheance)}
-                        </p>
+                        <p className="text-xs text-slate-500 mt-1">Echeance: {formatDateFR(detailControle.dateEcheance)}</p>
                       )}
                     </div>
                   )}
 
-                  {/* Incident & Commentaire */}
                   {detailControle.incident && (
                     <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
                       <p className="text-xs font-medium text-orange-400 mb-1">Incident declare</p>
@@ -1888,7 +1963,6 @@ export default function ControlePage() {
                     </div>
                   )}
 
-                  {/* Anomalies */}
                   {(() => {
                     const anomalies = detectAnomalies(detailControle);
                     if (anomalies.length === 0) return null;
@@ -1907,7 +1981,7 @@ export default function ControlePage() {
                   })()}
 
                   {/* Actions bar */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-white/[0.06]">
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.06]">
                     <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleEditFromDetail}>
                       <Edit3 className="w-3.5 h-3.5" /> Modifier
                     </Button>
@@ -1916,9 +1990,6 @@ export default function ControlePage() {
                     </Button>
                     <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => handleCopyControl(detailControle)}>
                       <Copy className="w-3.5 h-3.5" /> Copier
-                    </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => window.print()}>
-                      <Printer className="w-3.5 h-3.5" /> Imprimer
                     </Button>
                     <div className="flex-1" />
                     <Button
