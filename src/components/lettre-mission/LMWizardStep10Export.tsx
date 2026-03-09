@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
+import { sanitizeWizardData } from "@/lib/lmValidation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,40 +46,62 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
   const { clients } = useAppState();
   const cabinet = useMemo(loadCabinet, []);
   const [saving, setSaving] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
   const [signatureFile, setSignatureFile] = useState<string | null>(null);
   const [dateSignature, setDateSignature] = useState("");
+  const generatingLockRef = useRef(false);
 
   const client = useMemo(
     () => clients.find((c) => c.ref === data.client_ref) || null,
     [clients, data.client_ref]
   );
 
-  const handleExportPdf = async () => {
+  // Anti double-click wrapper for generation
+  const withGenerationLock = async (fn: () => Promise<void>) => {
+    if (generatingLockRef.current || isGenerating) return;
+    generatingLockRef.current = true;
+    setIsGenerating(true);
     try {
-      const { LMPdfBuilder } = await import("@/lib/lettreMissionPdf");
-      const lm = buildLettreMission(data, client, cabinet);
-      const builder = new LMPdfBuilder(lm);
-      (builder as any).build();
-      toast.success("PDF genere avec succes");
-    } catch (err) {
-      console.error("PDF export error:", err);
-      toast.error("Erreur lors de la generation du PDF");
+      await fn();
+    } finally {
+      setTimeout(() => {
+        setIsGenerating(false);
+        generatingLockRef.current = false;
+      }, 3000);
     }
   };
 
-  const handleExportDocx = async () => {
-    try {
-      const { renderLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
-      const lm = buildLettreMission(data, client, cabinet);
-      await renderLettreMissionDocx(lm);
-      toast.success("DOCX genere avec succes");
-    } catch (err) {
-      console.error("DOCX export error:", err);
-      toast.error("Erreur lors de la generation du DOCX");
-    }
-  };
+  const handleExportPdf = () =>
+    withGenerationLock(async () => {
+      try {
+        const sanitized = sanitizeWizardData(data);
+        const { LMPdfBuilder } = await import("@/lib/lettreMissionPdf");
+        const lm = buildLettreMission(sanitized, client, cabinet);
+        const builder = new LMPdfBuilder(lm);
+        (builder as any).build();
+        toast.success("PDF genere avec succes");
+      } catch (err) {
+        console.error("PDF export error:", err);
+        toast.error("Erreur lors de la generation du PDF");
+      }
+    });
+
+  const handleExportDocx = () =>
+    withGenerationLock(async () => {
+      try {
+        const sanitized = sanitizeWizardData(data);
+        const { renderLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
+        const lm = buildLettreMission(sanitized, client, cabinet);
+        await renderLettreMissionDocx(lm);
+        toast.success("DOCX genere avec succes");
+      } catch (err) {
+        console.error("DOCX export error:", err);
+        toast.error("Erreur lors de la generation du DOCX");
+      }
+    });
 
   const handleSave = async () => {
+    if (saving) return;
     setSaving(true);
     try {
       await onSave();
@@ -109,10 +132,15 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <button
           onClick={handleExportPdf}
-          className="flex flex-col items-center gap-3 p-6 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-red-500/5 hover:border-red-500/20 transition-all duration-200"
+          disabled={isGenerating}
+          className={`flex flex-col items-center gap-3 p-6 rounded-xl border transition-all duration-200 ${
+            isGenerating
+              ? "border-white/[0.04] bg-white/[0.01] opacity-50 cursor-not-allowed"
+              : "border-white/[0.06] bg-white/[0.02] hover:bg-red-500/5 hover:border-red-500/20"
+          }`}
         >
           <div className="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center">
-            <FileText className="w-6 h-6 text-red-400" />
+            {isGenerating ? <Loader2 className="w-6 h-6 text-red-400 animate-spin" /> : <FileText className="w-6 h-6 text-red-400" />}
           </div>
           <span className="text-sm font-medium text-white">Export PDF</span>
           <span className="text-xs text-slate-500">Format A4, pret a imprimer</span>
@@ -120,10 +148,15 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
 
         <button
           onClick={handleExportDocx}
-          className="flex flex-col items-center gap-3 p-6 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-blue-500/5 hover:border-blue-500/20 transition-all duration-200"
+          disabled={isGenerating}
+          className={`flex flex-col items-center gap-3 p-6 rounded-xl border transition-all duration-200 ${
+            isGenerating
+              ? "border-white/[0.04] bg-white/[0.01] opacity-50 cursor-not-allowed"
+              : "border-white/[0.06] bg-white/[0.02] hover:bg-blue-500/5 hover:border-blue-500/20"
+          }`}
         >
           <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center">
-            <FileDown className="w-6 h-6 text-blue-400" />
+            {isGenerating ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
           </div>
           <span className="text-sm font-medium text-white">Export DOCX</span>
           <span className="text-xs text-slate-500">Format Word, modifiable</span>
