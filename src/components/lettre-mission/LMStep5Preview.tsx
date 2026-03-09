@@ -142,7 +142,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
         signatureClient={data.signature_client}
         customWatermark="BROUILLON"
         numeroLettre={numero}
-        zoom={isMobile && !fullscreen ? 0.55 : 0.75}
+        zoom={isMobile && !fullscreen ? 0.5 : fullscreen ? 0.65 : 0.75}
         responsableDossier={data.chef_mission}
         dateSignature={data.date_signature}
       />
@@ -152,14 +152,14 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
   // Fullscreen modal for mobile
   if (fullscreen) {
     return (
-      <div className="fixed inset-0 z-[100] bg-background overflow-auto">
-        <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-background/95 backdrop-blur-lg border-b border-white/[0.06]">
-          <p className="text-sm font-medium text-white">{numero}</p>
-          <Button variant="ghost" size="sm" onClick={() => setFullscreen(false)} className="text-slate-400">
-            <X className="w-4 h-4" />
+      <div className="fixed inset-0 z-[100] bg-background overflow-auto overscroll-contain" style={{ paddingTop: "env(safe-area-inset-top, 0px)" }}>
+        <div className="sticky top-0 z-10 flex items-center justify-between p-3 sm:p-4 bg-background/95 backdrop-blur-lg border-b border-white/[0.06]">
+          <p className="text-sm font-medium text-white truncate mr-2">{numero}</p>
+          <Button variant="ghost" onClick={() => setFullscreen(false)} className="text-slate-400 h-10 w-10 p-0 shrink-0">
+            <X className="w-5 h-5" />
           </Button>
         </div>
-        <div className="p-4 pb-20">
+        <div className="p-3 sm:p-4 pb-20 overflow-x-auto">
           {previewContent}
         </div>
       </div>
@@ -196,9 +196,9 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
         {isMobile && (
           <button
             onClick={() => setFullscreen(true)}
-            className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600/90 backdrop-blur text-white text-xs font-medium shadow-lg"
+            className="absolute bottom-3 right-3 flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-blue-600/90 backdrop-blur text-white text-sm font-medium shadow-lg active:scale-95 transition-transform min-h-[44px]"
           >
-            <Maximize2 className="w-3.5 h-3.5" /> Plein ecran
+            <Maximize2 className="w-4 h-4" /> Plein ecran
           </button>
         )}
       </div>
@@ -216,9 +216,9 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
               {annexeIds.map((id) => (
-                <div key={id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                <div key={id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] min-h-[40px]">
                   <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                  <span className="text-xs text-slate-400">{ANNEXE_LABELS[id] || id}</span>
+                  <span className="text-xs sm:text-sm text-slate-400">{ANNEXE_LABELS[id] || id}</span>
                 </div>
               ))}
             </div>

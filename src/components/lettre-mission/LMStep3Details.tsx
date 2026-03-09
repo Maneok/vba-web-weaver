@@ -103,24 +103,24 @@ export default function LMStep3Details({ data, onChange }: Props) {
               <Label className="text-slate-400 text-xs">Adresse *</Label>
               <Input value={data.adresse} onChange={(e) => onChange({ adresse: e.target.value })} className={inputCls} autoComplete="street-address" />
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs">Code postal *</Label>
                 <Input
                   value={data.cp} onChange={(e) => onChange({ cp: e.target.value })}
                   onBlur={(e) => validateField("cp", e.target.value)}
                   inputMode="numeric" maxLength={5}
-                  className={fieldErrors.cp ? errorCls : inputCls}
+                  className={`${fieldErrors.cp ? errorCls : inputCls} h-11 sm:h-10`}
                 />
                 {fieldErrors.cp && <p className="text-xs text-red-400">{fieldErrors.cp}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs">Ville *</Label>
-                <Input value={data.ville} onChange={(e) => onChange({ ville: e.target.value })} className={inputCls} />
+                <Input value={data.ville} onChange={(e) => onChange({ ville: e.target.value })} className={`${inputCls} h-11 sm:h-10`} />
               </div>
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
                 <Label className="text-slate-400 text-xs">RCS</Label>
-                <Input value={data.rcs} onChange={(e) => onChange({ rcs: e.target.value })} className={inputCls} />
+                <Input value={data.rcs} onChange={(e) => onChange({ rcs: e.target.value })} className={`${inputCls} h-11 sm:h-10`} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -150,30 +150,30 @@ export default function LMStep3Details({ data, onChange }: Props) {
       {/* ── Section 2: Durée & renouvellement ── */}
       <div className="space-y-3">
         <p className="text-sm font-medium text-slate-300">Duree et renouvellement</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {DUREES.map((d) => {
             const active = data.duree === d.value;
             return (
               <button
                 key={d.value}
                 onClick={() => onChange({ duree: d.value })}
-                className={`p-4 rounded-xl border-2 text-center transition-all duration-200 ${
+                className={`p-3 sm:p-4 rounded-xl border-2 text-center transition-all duration-200 active:scale-[0.98] min-h-[60px] ${
                   active
                     ? "border-blue-500 bg-blue-500/10"
                     : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]"
                 }`}
               >
-                <p className={`text-lg font-bold ${active ? "text-blue-300" : "text-slate-300"}`}>{d.label}</p>
-                <p className="text-[10px] text-slate-500 mt-1">{d.description}</p>
+                <p className={`text-base sm:text-lg font-bold ${active ? "text-blue-300" : "text-slate-300"}`}>{d.label}</p>
+                <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 sm:mt-1">{d.description}</p>
               </button>
             );
           })}
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
-          <div>
+        <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] min-h-[52px]">
+          <div className="min-w-0">
             <p className="text-sm text-slate-300">Tacite reconduction</p>
-            <p className="text-[10px] text-slate-500">Renouvellement automatique a echeance</p>
+            <p className="text-[11px] sm:text-[10px] text-slate-500">Renouvellement automatique</p>
           </div>
           <Switch checked={data.tacite_reconduction} onCheckedChange={(v) => onChange({ tacite_reconduction: v })} />
         </div>
@@ -182,7 +182,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
           <div className="space-y-1.5">
             <Label className="text-slate-400 text-xs">Preavis (mois)</Label>
             <Select value={String(data.preavis_mois)} onValueChange={(v) => onChange({ preavis_mois: Number(v) })}>
-              <SelectTrigger className={`${inputCls} w-32`}><SelectValue /></SelectTrigger>
+              <SelectTrigger className={`${inputCls} w-full sm:w-32 h-11 sm:h-10`}><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="1">1 mois</SelectItem>
                 <SelectItem value="2">2 mois</SelectItem>
@@ -249,15 +249,15 @@ export default function LMStep3Details({ data, onChange }: Props) {
 
         <div id="clauses-section" className={`overflow-hidden transition-all duration-200 ${showClauses ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
           <div className="px-4 pb-4 space-y-3 border-t border-white/[0.04]">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] mt-3">
+            <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-lg bg-white/[0.02] mt-3 min-h-[48px]">
               <span className="text-sm text-slate-300">LCB-FT</span>
               <Switch checked={data.clause_lcbft} disabled />
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02]">
+            <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-lg bg-white/[0.02] min-h-[48px]">
               <span className="text-sm text-slate-300">Travail dissimule</span>
               <Switch checked={data.clause_travail_dissimule} disabled />
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02]">
+            <div className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-lg bg-white/[0.02] min-h-[48px]">
               <span className="text-sm text-slate-300">RGPD</span>
               <Switch checked={data.clause_rgpd} onCheckedChange={(v) => onChange({ clause_rgpd: v })} />
             </div>

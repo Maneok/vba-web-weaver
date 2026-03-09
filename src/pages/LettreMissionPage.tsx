@@ -124,18 +124,19 @@ function LetterHistory({
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-3.5 sm:h-3.5 text-slate-500" />
           <Input
             placeholder="Rechercher par nom, numero..."
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
             aria-label="Rechercher une lettre de mission"
-            className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
+            className="pl-10 sm:pl-9 h-11 sm:h-9 bg-white/[0.04] border-white/[0.08] text-white text-sm sm:text-xs"
           />
         </div>
+        <div className="flex gap-2">
         <Select value={filterStatut} onValueChange={setFilterStatut}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-            <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
+          <SelectTrigger className="flex-1 sm:flex-none sm:w-[150px] h-11 sm:h-9 bg-white/[0.04] border-white/[0.08] text-sm sm:text-xs text-slate-300">
+            <Filter className="w-3.5 h-3.5 sm:w-3 sm:h-3 mr-1.5 text-slate-500" />
             <SelectValue placeholder="Statut" />
           </SelectTrigger>
           <SelectContent>
@@ -146,8 +147,8 @@ function LetterHistory({
           </SelectContent>
         </Select>
         <Select value={filterPeriode} onValueChange={setFilterPeriode}>
-          <SelectTrigger className="w-full sm:w-[140px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-            <Clock className="w-3 h-3 mr-1.5 text-slate-500" />
+          <SelectTrigger className="flex-1 sm:flex-none sm:w-[140px] h-11 sm:h-9 bg-white/[0.04] border-white/[0.08] text-sm sm:text-xs text-slate-300">
+            <Clock className="w-3.5 h-3.5 sm:w-3 sm:h-3 mr-1.5 text-slate-500" />
             <SelectValue placeholder="Periode" />
           </SelectTrigger>
           <SelectContent>
@@ -157,13 +158,14 @@ function LetterHistory({
             <SelectItem value="annee">Cette annee</SelectItem>
           </SelectContent>
         </Select>
+        </div>
       </div>
 
       {/* Results count */}
-      <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
+      <p className="text-xs text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
 
       {/* Table header (desktop) */}
-      <div className="hidden sm:grid grid-cols-[1fr_120px_100px_100px_80px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
+      <div className="hidden lg:grid grid-cols-[1fr_110px_90px_100px_80px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
         <span>Client</span>
         <span>Numero</span>
         <span>Type</span>
@@ -173,82 +175,83 @@ function LetterHistory({
       </div>
 
       {/* Rows */}
-      <div className="space-y-1.5">
+      <div className="space-y-2 sm:space-y-1.5">
         {filtered.map((letter) => (
           <div
             key={letter.id}
-            className="group sm:grid sm:grid-cols-[1fr_120px_100px_100px_80px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+            className="group lg:grid lg:grid-cols-[1fr_110px_90px_100px_80px_120px] lg:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] active:bg-white/[0.05] transition-colors"
           >
             {/* Client */}
-            <button onClick={() => onEdit(letter)} aria-label={`Modifier ${letter.raison_sociale}`} className="flex items-center gap-2 text-left min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+            <button onClick={() => onEdit(letter)} aria-label={`Modifier ${letter.raison_sociale}`} className="flex items-center gap-3 text-left min-w-0 w-full min-h-[44px]">
+              <div className="w-9 h-9 sm:w-8 sm:h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
                 <FileText className="w-4 h-4 text-blue-400" />
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-white truncate">{letter.raison_sociale}</p>
-                <p className="text-[10px] text-slate-500 sm:hidden">
-                  {letter.numero} · {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
+                <p className="text-xs text-slate-500 lg:hidden truncate">
+                  {letter.numero} · {letter.type_mission} · {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
                 </p>
               </div>
+              {/* Mobile status badge inline */}
+              <Badge variant="outline" className={`text-[9px] shrink-0 lg:hidden ${statusColor(letter.statut)}`}>{letter.statut}</Badge>
             </button>
 
             {/* Numero */}
-            <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{letter.numero}</span>
+            <span className="hidden lg:block text-xs text-slate-400 font-mono truncate">{letter.numero}</span>
 
             {/* Type */}
-            <span className="hidden sm:block text-xs text-slate-500">{letter.type_mission}</span>
+            <span className="hidden lg:block text-xs text-slate-500 truncate">{letter.type_mission}</span>
 
             {/* Statut */}
-            <div className="hidden sm:block">
+            <div className="hidden lg:block">
               <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>
                 {letter.statut}
               </Badge>
             </div>
 
             {/* H) Duration */}
-            <span className="hidden sm:block text-[10px] text-slate-600">
+            <span className="hidden lg:block text-[10px] text-slate-600">
               {letter.duration_seconds ? formatDuration(letter.duration_seconds) : "—"}
             </span>
 
-            {/* Actions */}
-            <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {/* Actions (desktop) */}
+            <div className="hidden lg:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => onEdit(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
+                className="p-2 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
                 title="Modifier"
               >
-                <Edit3 className="w-3.5 h-3.5" />
+                <Edit3 className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onDuplicate(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
+                className="p-2 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
                 title="Dupliquer"
               >
-                <Copy className="w-3.5 h-3.5" />
+                <Copy className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onDownloadPdf(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-purple-400 transition-colors"
+                className="p-2 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-purple-400 transition-colors"
                 title="PDF"
               >
-                <FileDown className="w-3.5 h-3.5" />
+                <FileDown className="w-4 h-4" />
               </button>
               <button
                 onClick={() => onArchive(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-amber-400 transition-colors"
+                className="p-2 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-amber-400 transition-colors"
                 title="Archiver"
               >
-                <Archive className="w-3.5 h-3.5" />
+                <Archive className="w-4 h-4" />
               </button>
             </div>
 
             {/* Mobile actions */}
-            <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
-              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>{letter.statut}</Badge>
+            <div className="flex lg:hidden items-center gap-2 mt-2 pt-2 border-t border-white/[0.04]">
               <div className="flex-1" />
-              <button onClick={() => onDuplicate(letter)} aria-label="Dupliquer" className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onDownloadPdf(letter)} aria-label="Telecharger PDF" className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onArchive(letter)} aria-label="Archiver" className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onDuplicate(letter)} aria-label="Dupliquer" className="p-2.5 rounded-md active:bg-white/[0.06] text-slate-500"><Copy className="w-4 h-4" /></button>
+              <button onClick={() => onDownloadPdf(letter)} aria-label="Telecharger PDF" className="p-2.5 rounded-md active:bg-white/[0.06] text-slate-500"><FileDown className="w-4 h-4" /></button>
+              <button onClick={() => onArchive(letter)} aria-label="Archiver" className="p-2.5 rounded-md active:bg-white/[0.06] text-slate-500"><Archive className="w-4 h-4" /></button>
             </div>
           </div>
         ))}
@@ -283,18 +286,18 @@ function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
   if (expiringSoon.length === 0) return null;
 
   return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-fade-in-up">
+    <div className="flex items-start gap-3 p-3 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-fade-in-up">
       <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-      <div>
+      <div className="min-w-0">
         <p className="text-sm font-medium text-amber-300">
           {expiringSoon.length} lettre{expiringSoon.length > 1 ? "s" : ""} expire{expiringSoon.length > 1 ? "nt" : ""} dans 60 jours
         </p>
         <div className="mt-1.5 space-y-1">
           {expiringSoon.slice(0, 3).map((l) => (
-            <p key={l.id} className="text-xs text-amber-400/70">{l.raison_sociale} — {l.numero}</p>
+            <p key={l.id} className="text-xs text-amber-400/70 truncate">{l.raison_sociale} — {l.numero}</p>
           ))}
           {expiringSoon.length > 3 && (
-            <p className="text-[10px] text-amber-400/50">+{expiringSoon.length - 3} autres</p>
+            <p className="text-xs text-amber-400/50">+{expiringSoon.length - 3} autres</p>
           )}
         </div>
       </div>
@@ -829,16 +832,16 @@ export default function LettreMissionPage() {
           <LMProgressBar currentStep={step} />
 
           {/* Step title + H) elapsed time */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-bold text-white">{LM_STEP_TITLES[step]}</h2>
-            <div className="flex items-center gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-base sm:text-lg md:text-xl font-bold text-white truncate">{LM_STEP_TITLES[step]}</h2>
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
               {elapsed > 0 && (
-                <span className="text-[10px] text-slate-600 flex items-center gap-1">
+                <span className="text-xs sm:text-[10px] text-slate-600 flex items-center gap-1">
                   <Clock className="w-3 h-3" /> {formatDuration(elapsed)}
                 </span>
               )}
               {lastSaved && (
-                <span className="text-[10px] text-slate-600 flex items-center gap-1">
+                <span className="hidden sm:flex text-[10px] text-slate-600 items-center gap-1">
                   <Save className="w-3 h-3" />
                   {lastSaved.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
@@ -852,7 +855,7 @@ export default function LettreMissionPage() {
             <div className={`${!isMobile ? "flex-[3] min-w-0" : "w-full"}`}>
               <div
                 className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6 transition-all duration-200 ${
-                  isMobile ? "pb-32" : ""
+                  isMobile ? "pb-36" : ""
                 } ${
                   fieldsVisible
                     ? "opacity-100 translate-y-0"
@@ -869,8 +872,8 @@ export default function LettreMissionPage() {
 
             {/* Right: summary panel (desktop only) */}
             {!isMobile && (
-              <div className="flex-[2] min-w-[260px] max-w-[360px]">
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+              <div className="flex-[2] min-w-[220px] max-w-[340px] lg:max-w-[380px] hidden md:block">
+                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 lg:p-5">
                   <LMSummaryPanel data={data} />
                 </div>
               </div>
@@ -881,27 +884,25 @@ export default function LettreMissionPage() {
           {isMobile ? (
             <>
               {/* Mobile: compact summary band */}
-              <div className="fixed bottom-[52px] left-0 right-0 z-40">
+              <div className="fixed bottom-[56px] left-0 right-0 z-40" style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}>
                 <LMSummaryPanel data={data} compact />
               </div>
               {/* Mobile: sticky bottom nav */}
-              <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-white/[0.06] p-3 pb-safe flex items-center justify-between z-50">
+              <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-white/[0.06] px-3 py-2 flex items-center justify-between z-50" style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom, 0px))" }}>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={handlePrevious}
                   disabled={step === 0}
-                  className="gap-1 border-white/[0.06]"
+                  className="gap-1 border-white/[0.06] h-11 min-w-[44px] px-3 text-sm"
                 >
                   <ChevronLeft className="w-4 h-4" /> Prec.
                 </Button>
-                <span className="text-xs text-slate-500 tabular-nums">{step + 1}/{LM_TOTAL_STEPS}</span>
+                <span className="text-sm text-slate-500 tabular-nums font-medium">{step + 1}/{LM_TOTAL_STEPS}</span>
                 {step < LM_TOTAL_STEPS - 1 ? (
                   <Button
-                    size="sm"
                     onClick={handleNext}
                     disabled={nextDisabled}
-                    className="gap-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40"
+                    className="gap-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 h-11 min-w-[44px] px-4 text-sm"
                   >
                     Suivant <ChevronRight className="w-4 h-4" />
                   </Button>

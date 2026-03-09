@@ -15,7 +15,7 @@ export default function LMProgressBar({ currentStep }: Props) {
     <div className="w-full space-y-1.5">
       {/* Bar */}
       <div
-        className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden"
+        className="h-2 sm:h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden"
         role="progressbar"
         aria-valuenow={currentStep + 1}
         aria-valuemin={1}
@@ -23,7 +23,7 @@ export default function LMProgressBar({ currentStep }: Props) {
         aria-label={`Etape ${currentStep + 1} sur ${LM_TOTAL_STEPS}`}
       >
         <div
-          className="h-full rounded-full transition-all duration-500 ease-out"
+          className="h-full rounded-full transition-all duration-500 ease-out will-change-[width]"
           style={{
             width: `${progress}%`,
             background: "linear-gradient(90deg, #22c55e, #3b82f6)",
@@ -31,7 +31,7 @@ export default function LMProgressBar({ currentStep }: Props) {
         />
       </div>
       {/* Time estimate */}
-      <p className="text-[11px] text-slate-500 text-center">
+      <p className="text-xs sm:text-[11px] text-slate-500 text-center">
         {currentStep < LM_TOTAL_STEPS - 1
           ? `Environ ${remainingMin} min restante${remainingMin > 1 ? "s" : ""}`
           : "Derniere etape"}

@@ -71,7 +71,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           <DollarSign className="w-5 h-5 text-blue-400" />
           <span className="text-sm font-medium">Honoraires annuels HT</span>
         </div>
-        <div className="relative max-w-xs mx-auto">
+        <div className="relative max-w-sm sm:max-w-xs mx-auto">
           <Input
             inputMode="decimal"
             aria-label="Montant des honoraires annuels HT en euros"
@@ -82,71 +82,71 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
               onChange({ honoraires_ht: num });
             }}
             onBlur={() => validateField("honoraires_ht", data.honoraires_ht)}
-            className={`${fieldErrors.honoraires_ht ? errorCls : inputCls} text-center text-4xl font-bold h-16`}
+            className={`${fieldErrors.honoraires_ht ? errorCls : inputCls} text-center text-3xl sm:text-4xl font-bold h-14 sm:h-16 pr-20`}
             placeholder="0"
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-500">€ HT / an</span>
+          <span className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 text-xs sm:text-sm text-slate-500 whitespace-nowrap">€ HT / an</span>
         </div>
         {fieldErrors.honoraires_ht && (
           <p className="text-xs text-red-400 animate-shake">{fieldErrors.honoraires_ht}</p>
         )}
 
         {/* TVA + TTC */}
-        <div className="flex items-center justify-center gap-6 text-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-6 text-sm">
           {data.taux_tva > 0 ? (
             <>
               <div>
                 <span className="text-slate-500">TVA {data.taux_tva}% : </span>
                 <span className="text-slate-300">{formatEur(tva)}</span>
               </div>
-              <div className="w-px h-4 bg-white/[0.1]" />
+              <div className="hidden sm:block w-px h-4 bg-white/[0.1]" />
               <div>
                 <span className="text-slate-500">TTC : </span>
-                <span className="text-xl font-bold text-white">{formatEur(ttc)}</span>
+                <span className="text-lg sm:text-xl font-bold text-white">{formatEur(ttc)}</span>
               </div>
             </>
           ) : (
-            <span className="text-slate-500">TVA exoneree — TTC = <span className="text-white font-bold">{formatEur(data.honoraires_ht)}</span></span>
+            <span className="text-slate-500 text-center">TVA exoneree — TTC = <span className="text-white font-bold">{formatEur(data.honoraires_ht)}</span></span>
           )}
         </div>
       </div>
 
       {/* ── Slider optionnel ── */}
-      <div className="px-2">
+      <div className="px-1 sm:px-2">
         <Slider
           value={[Math.max(500, Math.min(data.honoraires_ht, 15000))]}
           onValueChange={([v]) => onChange({ honoraires_ht: v })}
           min={500}
           max={15000}
           step={100}
-          className="w-full"
+          className="w-full touch-pan-x"
         />
-        <div className="flex justify-between text-[10px] text-slate-600 mt-1">
+        <div className="flex justify-between text-xs sm:text-[10px] text-slate-600 mt-2 sm:mt-1">
           <span>500 €</span>
           <span>15 000 €</span>
         </div>
         {data.honoraires_ht > 15000 && (
-          <p className="text-[10px] text-slate-500 text-center">Le curseur est plafonne a 15 000 € — utilisez le champ ci-dessus pour les montants superieurs</p>
+          <p className="text-xs sm:text-[10px] text-slate-500 text-center mt-1">Le curseur est plafonne a 15 000 € — utilisez le champ ci-dessus pour les montants superieurs</p>
         )}
       </div>
 
       {/* ── Fréquence facturation ── */}
       <div className="space-y-3">
         <p className="text-sm font-medium text-slate-300">Frequence de facturation</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {FREQUENCES.map((f) => {
             const active = data.frequence_facturation === f.value;
             return (
               <button
                 key={f.value}
                 onClick={() => onChange({ frequence_facturation: f.value })}
-                className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${
+                className={`p-2.5 sm:p-3 rounded-xl border-2 text-center transition-all duration-200 active:scale-[0.98] min-h-[44px] ${
                   active
                     ? "border-blue-500 bg-blue-500/10"
                     : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]"
                 }`}
               >
-                <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{f.label}</p>
+                <p className={`text-xs sm:text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{f.label}</p>
               </button>
             );
           })}
@@ -161,7 +161,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
       {/* ── Mode de paiement ── */}
       <div className="space-y-3">
         <p className="text-sm font-medium text-slate-300">Mode de paiement</p>
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {MODES_PAIEMENT.map(({ value, label }) => {
             const active = data.mode_paiement === value;
             const icon = PAIEMENT_ICONS[value];
@@ -169,14 +169,14 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
               <button
                 key={value}
                 onClick={() => onChange({ mode_paiement: value })}
-                className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 ${
+                className={`flex flex-col items-center gap-1.5 sm:gap-2 p-2.5 sm:p-3 rounded-xl border-2 transition-all duration-200 active:scale-[0.98] min-h-[60px] ${
                   active
                     ? "border-blue-500 bg-blue-500/10"
                     : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]"
                 }`}
               >
                 <div className={`${active ? "text-blue-400" : "text-slate-500"}`}>{icon}</div>
-                <p className={`text-xs font-medium ${active ? "text-blue-300" : "text-slate-400"}`}>{label}</p>
+                <p className={`text-[10px] sm:text-xs font-medium text-center ${active ? "text-blue-300" : "text-slate-400"}`}>{label}</p>
               </button>
             );
           })}
@@ -185,15 +185,15 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── SEPA fields ── */}
       {data.mode_paiement === "prelevement" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 sm:p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
           <div className="space-y-1.5">
             <Label className="text-slate-400 text-xs">IBAN</Label>
             <Input
               value={formatIBAN(data.iban)}
               onChange={(e) => onChange({ iban: e.target.value.replace(/\s/g, "") })}
               onBlur={() => validateField("iban", data.iban)}
-              className={`${fieldErrors.iban ? errorCls : inputCls} font-mono text-sm`}
-              placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
+              className={`${fieldErrors.iban ? errorCls : inputCls} font-mono text-xs sm:text-sm h-11 sm:h-10`}
+              placeholder="FR76 XXXX XXXX..."
               autoComplete="off"
             />
             {fieldErrors.iban && <p className="text-xs text-red-400">{fieldErrors.iban}</p>}
@@ -218,10 +218,10 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           inputMode="decimal"
           value={data.taux_horaire_complementaire > 0 ? String(data.taux_horaire_complementaire) : ""}
           onChange={(e) => onChange({ taux_horaire_complementaire: Math.max(0, Number(e.target.value) || 0) })}
-          className={`${inputCls} w-32`}
+          className={`${inputCls} w-full sm:w-32 h-11 sm:h-10`}
           placeholder="150"
         />
-        <p className="text-[10px] text-slate-600">Pour toute prestation hors perimetre</p>
+        <p className="text-xs sm:text-[10px] text-slate-600">Pour toute prestation hors perimetre</p>
       </div>
     </div>
   );

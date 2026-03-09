@@ -172,16 +172,16 @@ export default function LMStep1Client({ data, onChange }: Props) {
             />
           </div>
 
-          <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 -mx-1 px-1" role="listbox" aria-label="Liste des clients">
+          <div className="space-y-2 max-h-[50vh] sm:max-h-[360px] overflow-y-auto pr-1 -mx-1 px-1 overscroll-contain" role="listbox" aria-label="Liste des clients">
             {filtered.map((c) => (
               <button
                 key={c.ref}
                 role="option"
                 aria-selected={false}
                 onClick={() => selectClient(c)}
-                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
+                className="w-full flex items-center gap-3 p-3 sm:p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] active:bg-white/[0.07] active:scale-[0.99] transition-all duration-150 text-left min-h-[56px]"
               >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center shrink-0 ${
                   c.forme === "ENTREPRISE INDIVIDUELLE" ? "bg-purple-500/15" : "bg-blue-500/15"
                 }`}>
                   {c.forme === "ENTREPRISE INDIVIDUELLE"
@@ -190,9 +190,9 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-white truncate">{c.raisonSociale}</p>
-                  <p className="text-xs text-slate-500">{c.siren} · {c.forme}</p>
+                  <p className="text-xs text-slate-500 truncate">{c.siren} · {c.forme}</p>
                 </div>
-                <Badge variant="outline" className={`text-[10px] shrink-0 ${vigilanceColor(c.nivVigilance)}`}>
+                <Badge variant="outline" className={`text-[10px] shrink-0 hidden sm:inline-flex ${vigilanceColor(c.nivVigilance)}`}>
                   {c.nivVigilance}
                 </Badge>
               </button>
@@ -206,7 +206,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
           <Button
             variant="outline"
-            className="w-full gap-2 border-dashed border-white/[0.08] text-slate-400 hover:text-blue-400 hover:bg-blue-500/5 hover:border-blue-500/20 h-11"
+            className="w-full gap-2 border-dashed border-white/[0.08] text-slate-400 hover:text-blue-400 hover:bg-blue-500/5 hover:border-blue-500/20 h-12 sm:h-11 text-sm"
             onClick={() => navigate("/nouveau-client")}
           >
             <Plus className="w-4 h-4" /> Creer un nouveau client
@@ -216,11 +216,11 @@ export default function LMStep1Client({ data, onChange }: Props) {
         <>
           {/* I) Screening banners */}
           {screeningStatus === "missing" && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <div className="flex items-start gap-3 p-3 sm:p-4 rounded-xl bg-red-500/10 border border-red-500/20">
               <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-red-300">Dossier LCB-FT manquant</p>
-                <p className="text-xs text-red-400/70 mt-0.5">Ce client n'a pas de dossier LCB-FT. Completez le parcours client d'abord.</p>
+                <p className="text-xs text-red-400/70 mt-0.5 leading-relaxed">Ce client n'a pas de dossier LCB-FT. Completez le parcours client d'abord.</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -233,11 +233,11 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
           {screeningStatus === "expired" && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-start gap-3 p-3 sm:p-4 rounded-xl bg-amber-500/10 border border-amber-500/20">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-amber-300">Dossier LCB-FT perime</p>
-                <p className="text-xs text-amber-400/70 mt-0.5">Le dossier LCB-FT de ce client date de plus d'un an. Mettez-le a jour avant de generer la lettre.</p>
+                <p className="text-xs text-amber-400/70 mt-0.5 leading-relaxed">Le dossier LCB-FT de ce client date de plus d'un an. Mettez-le a jour avant de generer la lettre.</p>
                 <Button
                   variant="outline"
                   size="sm"
@@ -265,7 +265,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             <button
               onClick={clearClient}
               aria-label="Changer de client"
-              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors"
+              className="absolute top-2 right-2 w-9 h-9 sm:w-7 sm:h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.1] active:bg-white/[0.15] flex items-center justify-center transition-colors"
             >
               <X className="w-3.5 h-3.5 text-slate-400" />
             </button>
@@ -279,13 +279,13 @@ export default function LMStep1Client({ data, onChange }: Props) {
               </div>
             </div>
             {selectedClient && (
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div><span className="text-slate-500">Dirigeant : </span><span className="text-slate-300">{data.dirigeant || "—"}</span></div>
-                <div><span className="text-slate-500">Ville : </span><span className="text-slate-300">{data.ville || "—"}</span></div>
-                <div><span className="text-slate-500">APE : </span><span className="text-slate-300">{data.ape || "—"}</span></div>
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-1.5 sm:gap-2 text-xs">
+                <div className="truncate"><span className="text-slate-500">Dirigeant : </span><span className="text-slate-300">{data.dirigeant || "—"}</span></div>
+                <div className="truncate"><span className="text-slate-500">Ville : </span><span className="text-slate-300">{data.ville || "—"}</span></div>
+                <div className="truncate"><span className="text-slate-500">APE : </span><span className="text-slate-300">{data.ape || "—"}</span></div>
                 <div>
                   <span className="text-slate-500">Vigilance : </span>
-                  <Badge variant="outline" className={`text-[9px] ml-1 ${vigilanceColor(selectedClient.nivVigilance)}`}>
+                  <Badge variant="outline" className={`text-[10px] ml-1 ${vigilanceColor(selectedClient.nivVigilance)}`}>
                     {selectedClient.nivVigilance}
                   </Badge>
                 </div>
@@ -310,27 +310,27 @@ export default function LMStep1Client({ data, onChange }: Props) {
           {/* Type mission selection */}
           <div className="space-y-3">
             <p className="text-sm font-medium text-slate-300">Type de mission</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3">
               {TYPES_MISSION.map(({ value, label, description, icon: Icon }) => {
                 const active = data.type_mission === value;
                 return (
                   <button
                     key={value}
                     onClick={() => onChange({ type_mission: value })}
-                    className={`relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all duration-200 text-center ${
+                    className={`relative flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-5 rounded-xl border-2 transition-all duration-200 text-center active:scale-[0.98] min-h-[80px] ${
                       active
                         ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10"
                         : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]"
                     }`}
                   >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
+                    <div className={`w-9 h-9 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center transition-colors ${
                       active ? "bg-blue-500/20" : "bg-white/[0.04]"
                     }`}>
-                      <Icon className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-400"}`} />
+                      <Icon className={`w-4 h-4 sm:w-5 sm:h-5 ${active ? "text-blue-400" : "text-slate-400"}`} />
                     </div>
                     <div>
-                      <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{label}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
+                      <p className={`text-xs sm:text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{label}</p>
+                      <p className="text-[10px] sm:text-[11px] text-slate-500 mt-0.5 hidden sm:block">{description}</p>
                     </div>
                     {active && (
                       <div className="absolute top-2 right-2">

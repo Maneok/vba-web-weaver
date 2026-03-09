@@ -158,12 +158,12 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
 
   return (
     <div className="space-y-2">
-      <div className="relative rounded-lg border border-dashed border-white/[0.12] bg-white/[0.02] overflow-hidden">
+      <div className="relative rounded-lg border-2 border-dashed border-white/[0.12] bg-white/[0.02] overflow-hidden">
         <canvas
           ref={canvasRef}
           aria-label="Zone de signature tactile"
           role="img"
-          className="w-full h-[140px] cursor-crosshair touch-none"
+          className="w-full h-[160px] sm:h-[140px] cursor-crosshair touch-none"
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={endDraw}
@@ -172,16 +172,16 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
           onTouchMove={draw}
           onTouchEnd={endDraw}
         />
-        <p className="absolute bottom-1.5 left-3 text-[9px] text-slate-600 pointer-events-none">
+        <p className="absolute bottom-2 left-3 text-[10px] sm:text-[9px] text-slate-600 pointer-events-none">
           Dessinez votre signature
         </p>
       </div>
       <button
         type="button"
         onClick={clearCanvas}
-        className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-red-400 transition-colors"
+        className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-red-400 active:text-red-400 transition-colors py-1 min-h-[32px]"
       >
-        <Trash2 className="w-3 h-3" /> Effacer
+        <Trash2 className="w-3.5 h-3.5" /> Effacer
       </button>
     </div>
   );
@@ -346,39 +346,39 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       </div>
 
       {/* ── Export buttons ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <button
           onClick={handlePDF}
           disabled={!!generating || cooldown}
           aria-label="Telecharger au format PDF"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 active:bg-blue-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[80px]"
         >
-          {generating === "pdf" ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
-          <span className="text-sm font-medium text-slate-300">Telecharger PDF</span>
+          {generating === "pdf" ? <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400 animate-spin" /> : <FileDown className="w-5 h-5 sm:w-6 sm:h-6 text-blue-400" />}
+          <span className="text-xs sm:text-sm font-medium text-slate-300 text-center">PDF</span>
         </button>
 
         <button
           onClick={handleDOCX}
           disabled={!!generating || cooldown}
           aria-label="Telecharger au format DOCX"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 active:bg-purple-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed min-h-[80px]"
         >
-          {generating === "docx" ? <Loader2 className="w-6 h-6 text-purple-400 animate-spin" /> : <FileText className="w-6 h-6 text-purple-400" />}
-          <span className="text-sm font-medium text-slate-300">Telecharger DOCX</span>
+          {generating === "docx" ? <Loader2 className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400 animate-spin" /> : <FileText className="w-5 h-5 sm:w-6 sm:h-6 text-purple-400" />}
+          <span className="text-xs sm:text-sm font-medium text-slate-300 text-center">DOCX</span>
         </button>
 
         <button
           onClick={() => setShowEmail(!showEmail)}
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-200"
+          className="flex flex-col items-center gap-2 sm:gap-3 p-3 sm:p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5 active:bg-emerald-500/10 transition-all duration-200 min-h-[80px]"
         >
-          <Send className="w-6 h-6 text-emerald-400" />
-          <span className="text-sm font-medium text-slate-300">Envoyer par email</span>
+          <Send className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
+          <span className="text-xs sm:text-sm font-medium text-slate-300 text-center">Email</span>
         </button>
       </div>
 
       {/* Email field */}
       {showEmail && (
-        <div className="flex gap-2 items-end">
+        <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
           <div className="flex-1 space-y-1.5">
             <Label className="text-slate-400 text-xs">Adresse email</Label>
             <Input
@@ -386,11 +386,11 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
               inputMode="email"
               value={emailTo}
               onChange={(e) => setEmailTo(e.target.value)}
-              className="bg-white/[0.04] border-white/[0.08] text-white"
+              className="bg-white/[0.04] border-white/[0.08] text-white h-11 sm:h-10"
               placeholder="client@exemple.fr"
             />
           </div>
-          <Button onClick={handleEmail} className="bg-emerald-600 hover:bg-emerald-700 gap-1.5">
+          <Button onClick={handleEmail} className="bg-emerald-600 hover:bg-emerald-700 gap-1.5 h-11 sm:h-10 w-full sm:w-auto">
             <Send className="w-3.5 h-3.5" /> Envoyer
           </Button>
         </div>
@@ -403,11 +403,11 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
             <Paperclip className="w-4 h-4 text-slate-500" />
             <p className="text-sm font-medium text-slate-300">Annexes jointes ({annexes.length})</p>
           </div>
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             {annexes.map((id) => (
-              <div key={id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+              <div key={id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] min-h-[40px]">
                 <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="text-xs text-slate-400">{ANNEXE_LABELS[id] || id}</span>
+                <span className="text-xs sm:text-sm text-slate-400">{ANNEXE_LABELS[id] || id}</span>
               </div>
             ))}
           </div>
@@ -445,10 +445,10 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
             {/* Or upload image */}
             <div className="space-y-1.5">
               <Label className="text-slate-400 text-xs">Ou charger une image</Label>
-              <label className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-white/[0.1] bg-white/[0.02] cursor-pointer hover:border-white/[0.15] transition-colors">
-                <Upload className="w-4 h-4 text-slate-500" />
-                <span className="text-xs text-slate-400">
-                  {data.signature_expert ? "Signature chargee" : "Cliquez pour charger"}
+              <label className="flex items-center gap-2 p-3 sm:p-3 rounded-lg border border-dashed border-white/[0.1] bg-white/[0.02] cursor-pointer hover:border-white/[0.15] active:bg-white/[0.04] transition-colors min-h-[48px]">
+                <Upload className="w-4 h-4 text-slate-500 shrink-0" />
+                <span className="text-sm sm:text-xs text-slate-400">
+                  {data.signature_expert ? "Signature chargee" : "Appuyez pour charger une image"}
                 </span>
                 <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleSignatureUpload} className="hidden" />
               </label>
@@ -461,7 +461,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
                 type="date"
                 value={data.date_signature}
                 onChange={(e) => onChange({ date_signature: e.target.value })}
-                className="bg-white/[0.04] border-white/[0.08] text-white w-48"
+                className="bg-white/[0.04] border-white/[0.08] text-white w-full sm:w-48 h-11 sm:h-10"
               />
             </div>
           </div>
@@ -476,7 +476,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
             <button
               key={s.value}
               onClick={() => onChange({ statut: s.value })}
-              className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 ${
+              className={`px-3 sm:px-4 py-2.5 sm:py-2 rounded-lg border text-xs sm:text-sm font-medium transition-all duration-200 active:scale-[0.97] min-h-[40px] ${
                 data.statut === s.value ? s.color : "bg-white/[0.02] border-white/[0.06] text-slate-500"
               }`}
             >
@@ -488,10 +488,10 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
       {/* ── Save + Reset ── */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700 h-11 gap-2">
+        <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700 h-12 sm:h-11 gap-2 text-sm sm:text-base">
           <CheckCircle2 className="w-4 h-4" /> Sauvegarder
         </Button>
-        <Button variant="outline" onClick={onReset} className="gap-2 border-white/[0.06] text-slate-400 hover:text-white">
+        <Button variant="outline" onClick={onReset} className="gap-2 border-white/[0.06] text-slate-400 hover:text-white h-12 sm:h-11">
           <RotateCcw className="w-4 h-4" /> Nouvelle lettre
         </Button>
       </div>

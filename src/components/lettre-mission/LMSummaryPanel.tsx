@@ -24,12 +24,15 @@ function CompactSummary({ data }: { data: LMWizardData }) {
   const ttc = data.honoraires_ht + tva;
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-t border-white/[0.06] text-xs">
-      <span className="text-slate-400">
-        {missionCount > 0 ? `${missionCount} mission${missionCount > 1 ? "s" : ""}` : "Aucune mission"}
+    <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-white/[0.03] border-t border-white/[0.06] text-xs min-h-[40px]">
+      <span className="text-slate-400 truncate mr-2">
+        {data.raison_sociale
+          ? <><span className="text-white font-medium">{data.raison_sociale}</span> · {missionCount} mission{missionCount > 1 ? "s" : ""}</>
+          : missionCount > 0 ? `${missionCount} mission${missionCount > 1 ? "s" : ""}` : "Aucune mission"
+        }
       </span>
       {data.honoraires_ht > 0 && (
-        <span className="text-white font-semibold">{formatEur(ttc)} TTC</span>
+        <span className="text-white font-semibold whitespace-nowrap">{formatEur(ttc)} TTC</span>
       )}
     </div>
   );
@@ -42,20 +45,20 @@ function FullSummary({ data }: { data: LMWizardData }) {
   const missions = (data.missions_selected || []).filter((m) => m.selected);
 
   return (
-    <div className="sticky top-20 space-y-5" aria-label="Resume de la lettre de mission" role="complementary">
+    <div className="sticky top-20 space-y-4 lg:space-y-5" aria-label="Resume de la lettre de mission" role="complementary">
       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Resume</h3>
 
       {/* Client */}
       {data.raison_sociale ? (
         <div className="space-y-2">
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">Client</p>
-          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center shrink-0">
-              <Building2 className="w-4 h-4 text-blue-400" />
+          <div className="flex items-center gap-2 p-2.5 lg:p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+            <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-blue-500/15 flex items-center justify-center shrink-0">
+              <Building2 className="w-3.5 h-3.5 lg:w-4 lg:h-4 text-blue-400" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">{data.raison_sociale}</p>
-              <p className="text-[10px] text-slate-500">{data.siren || "—"} · {data.forme_juridique || "—"}</p>
+              <p className="text-xs lg:text-sm font-medium text-white truncate">{data.raison_sociale}</p>
+              <p className="text-[10px] text-slate-500 truncate">{data.siren || "—"} · {data.forme_juridique || "—"}</p>
             </div>
           </div>
           {data.type_mission && (
@@ -71,15 +74,15 @@ function FullSummary({ data }: { data: LMWizardData }) {
       {/* Missions */}
       {missions.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Missions</p>
+          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Missions ({missions.length})</p>
           <div className="flex flex-wrap gap-1.5">
             {missions.map((m) => (
               <span
                 key={m.section_id}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] text-slate-300"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] lg:text-[11px] text-slate-300"
               >
-                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
-                {m.label}
+                <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span className="truncate max-w-[100px] lg:max-w-none">{m.label}</span>
               </span>
             ))}
           </div>
@@ -90,27 +93,29 @@ function FullSummary({ data }: { data: LMWizardData }) {
       {data.duree && (
         <div className="space-y-1">
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">Duree</p>
-          <p className="text-sm text-slate-300">{data.duree} an{data.duree !== "1" ? "s" : ""} · {data.frequence_facturation || "—"}</p>
+          <p className="text-xs lg:text-sm text-slate-300">{data.duree} an{data.duree !== "1" ? "s" : ""} · {data.frequence_facturation || "—"}</p>
         </div>
       )}
 
       {/* Honoraires */}
       {data.honoraires_ht > 0 && (
-        <div className="space-y-2 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+        <div className="space-y-2 p-2.5 lg:p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">Honoraires</p>
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
               <span className="text-slate-400">HT</span>
               <span className="text-slate-300">{formatEur(data.honoraires_ht)}</span>
             </div>
-            <div className="flex justify-between text-xs">
-              <span className="text-slate-400">TVA ({data.taux_tva}%)</span>
-              <span className="text-slate-300">{formatEur(tva)}</span>
-            </div>
+            {data.taux_tva > 0 && (
+              <div className="flex justify-between text-xs">
+                <span className="text-slate-400">TVA ({data.taux_tva}%)</span>
+                <span className="text-slate-300">{formatEur(tva)}</span>
+              </div>
+            )}
             <div className="h-px bg-white/[0.06] my-1" />
-            <div className="flex justify-between">
+            <div className="flex justify-between items-baseline">
               <span className="text-xs font-medium text-slate-300">TTC</span>
-              <span className="text-base font-bold text-white">{formatEur(ttc)}</span>
+              <span className="text-sm lg:text-base font-bold text-white">{formatEur(ttc)}</span>
             </div>
           </div>
         </div>

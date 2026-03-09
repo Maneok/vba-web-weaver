@@ -147,9 +147,9 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     <div className="space-y-6">
       {/* A) Incompatibility warning */}
       {hasConflict && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake">
-          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
-          <p className="text-xs text-red-300">
+        <div className="flex items-start gap-3 p-3 sm:p-4 rounded-xl bg-red-500/10 border border-red-500/20">
+          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+          <p className="text-xs sm:text-sm text-red-300 leading-relaxed">
             <strong>Missions incompatibles :</strong> La tenue comptable et la mission de surveillance ne peuvent pas etre combinees.
           </p>
         </div>
@@ -176,11 +176,11 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 disabled={isLocked}
                 aria-expanded={mission.selected}
                 aria-controls={`mission-${mission.section_id}-options`}
-                className={`w-full flex items-center gap-3 p-4 text-left min-h-[56px] ${
+                className={`w-full flex items-center gap-2.5 sm:gap-3 p-3 sm:p-4 text-left min-h-[56px] ${
                   isLocked ? "cursor-default" : "cursor-pointer active:bg-white/[0.02]"
                 }`}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                <div className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
                   mission.selected ? "bg-blue-500/15 text-blue-400" : "bg-white/[0.04] text-slate-500"
                 }`}>
                   {icon}
@@ -189,13 +189,16 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                   <p className={`text-sm font-semibold ${mission.selected ? "text-white" : "text-slate-400"}`}>
                     {mission.label}
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{mission.description}</p>
+                  <p className="text-[11px] text-slate-500 mt-0.5 hidden sm:block">{mission.description}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                   {isLocked && (
-                    <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 gap-1">
+                    <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 gap-1 hidden sm:inline-flex">
                       <Lock className="w-3 h-3" /> Obligatoire
                     </Badge>
+                  )}
+                  {isLocked && (
+                    <Lock className="w-3.5 h-3.5 text-amber-400 sm:hidden" />
                   )}
                   {mission.selected && !isLocked && (
                     <span className="text-[10px] text-slate-500 tabular-nums">{subCount}/{mission.sous_options.length}</span>
@@ -216,11 +219,11 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                   mission.selected ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
                 }`}
               >
-                <div className="px-4 pb-4 pt-1 space-y-1 border-t border-white/[0.04]">
+                <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-1 space-y-0.5 border-t border-white/[0.04]">
                   {mission.sous_options.map((opt) => (
                     <label
                       key={opt.id}
-                      className={`flex items-center gap-3 p-2.5 rounded-lg transition-colors ${
+                      className={`flex items-center gap-3 p-2.5 sm:p-2.5 rounded-lg transition-colors min-h-[44px] ${
                         isLocked ? "cursor-default opacity-60" : "cursor-pointer hover:bg-white/[0.03] active:bg-white/[0.05]"
                       }`}
                     >
@@ -228,6 +231,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                         checked={opt.selected}
                         onCheckedChange={() => toggleSub(mission.section_id, opt.id)}
                         disabled={isLocked}
+                        className="w-5 h-5 sm:w-4 sm:h-4"
                       />
                       <span className={`text-sm ${opt.selected ? "text-slate-300" : "text-slate-500"}`}>
                         {opt.label}
