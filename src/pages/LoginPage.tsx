@@ -16,6 +16,11 @@ export default function LoginPage() {
   const [fullName, setFullName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState(0);
+
+  const isLocked = Date.now() < lockedUntil;
+  const lockRemaining = isLocked ? Math.ceil((lockedUntil - Date.now()) / 1000) : 0;
 
   if (loading) {
     return (
@@ -31,10 +36,15 @@ export default function LoginPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isLocked) {
+      toast.error(`Trop de tentatives. Reessayez dans ${lockRemaining}s.`);
+      return;
+    }
     setSubmitting(true);
     try {
       if (mode === "login") {
         await signInWithEmail(email, password);
+        setFailedAttempts(0);
         toast.success("Connexion reussie");
       } else {
         await signUp(email, password, fullName);
@@ -43,6 +53,15 @@ export default function LoginPage() {
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur de connexion";
       toast.error(message);
+      if (mode === "login") {
+        const attempts = failedAttempts + 1;
+        setFailedAttempts(attempts);
+        if (attempts >= 5) {
+          const lockDuration = Math.min(60000 * Math.pow(2, Math.floor(attempts / 5) - 1), 300000);
+          setLockedUntil(Date.now() + lockDuration);
+          toast.error(`Compte temporairement verrouille (${lockDuration / 1000}s)`);
+        }
+      }
     } finally {
       setSubmitting(false);
     }
@@ -184,7 +203,7 @@ export default function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={8}
                       className="h-11 pr-10"
                     />
                     <button
@@ -197,7 +216,7 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full h-11 font-semibold" disabled={submitting}>
+                <Button type="submit" className="w-full h-11 font-semibold" disabled={submitting || isLocked}>
                   {submitting ? (
                     <Loader2 className="w-4 h-4 animate-spin mr-2" />
                   ) : null}
@@ -232,7 +251,7 @@ export default function LoginPage() {
           </p>
 
           <p className="text-center text-[10px] text-muted-foreground/50">
-            Session securisee - Timeout automatique apres 30 min d'inactivite
+            Session securisee - Timeout automatique apres 15 min d'inactivite
           </p>
         </div>
       </div>

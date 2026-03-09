@@ -1,18 +1,16 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const { persons, siren } = await req.json();
+    const body = await req.json();
+    const persons = Array.isArray(body?.persons) ? body.persons : [];
+    const siren = typeof body?.siren === "string" ? body.siren : undefined;
 
-    if (!persons || persons.length === 0) {
+    if (persons.length === 0) {
       return new Response(JSON.stringify({ matches: [], checked: 0, status: "ok" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -28,7 +26,10 @@ Deno.serve(async (req) => {
     let checked = 0;
 
     for (const person of persons.slice(0, 10)) {
-      const fullName = `${person.prenom ?? ""} ${person.nom}`.trim();
+      if (typeof person?.nom !== "string") continue;
+      const prenom = typeof person.prenom === "string" ? person.prenom.slice(0, 100) : "";
+      const nom = person.nom.slice(0, 100);
+      const fullName = `${prenom} ${nom}`.trim();
       if (!fullName || fullName.length < 2) continue;
       checked++;
 
@@ -95,10 +96,13 @@ Deno.serve(async (req) => {
 
     // Also check company by SIREN
     if (siren) {
-      try {
+      const cleanSiren = siren.replace(/[\s.\-]/g, "");
+      if (!/^\d{9,14}$/.test(cleanSiren)) {
+        // Invalid SIREN format — skip company check
+      } else try {
         const companyBody = {
           schema: "Company",
-          properties: { registrationNumber: [(siren as string).replace(/\s/g, "")] },
+          properties: { registrationNumber: [cleanSiren] },
         };
         const res = await fetch("https://api.opensanctions.org/match/default", {
           method: "POST",
@@ -141,7 +145,8 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: (error as Error).message, matches: [], checked: 0, status: "unavailable" }), {
+    console.error("[sanctions-check] Error:", (error as Error).message);
+    return new Response(JSON.stringify({ error: "Erreur interne du service de sanctions", matches: [], checked: 0, status: "unavailable" }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

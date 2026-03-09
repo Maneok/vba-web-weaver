@@ -20,7 +20,7 @@ const STORAGE_KEY = "lcb-lettre-mission-history";
 
 function loadHistory(): LettreMissionRecord[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) return JSON.parse(stored);
   } catch { /* ignore */ }
   return [
@@ -69,7 +69,7 @@ export default function LettreMissionHistory() {
     };
     const updated = [...records, dup];
     setRecords(updated);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     toast.success("Lettre dupliquee en brouillon");
   };
 

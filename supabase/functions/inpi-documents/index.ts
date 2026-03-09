@@ -1,10 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 const INPI_BASE = "https://registre-national-entreprises.inpi.fr/api";
 
@@ -615,9 +611,9 @@ function extractCompanyData(companyRaw: any): any {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const { siren } = await req.json();
@@ -627,7 +623,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cleanSiren = (siren as string).replace(/\s/g, "");
+    const cleanSiren = String(siren).replace(/[\s.\-]/g, "");
+    if (!/^\d{9,14}$/.test(cleanSiren)) {
+      return new Response(JSON.stringify({ error: "Format SIREN invalide", status: "error", documents: [], companyData: null, financials: [], totalDocuments: 0, storedCount: 0 }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.log(`[INPI] === Start for SIREN ${cleanSiren} ===`);
 
     // CORRECTION 2: Use cached token
@@ -652,7 +653,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     try {
-      await supabase.storage.createBucket("kyc-documents", { public: true });
+      await supabase.storage.createBucket("kyc-documents", { public: false });
     } catch {
       // Bucket may already exist
     }

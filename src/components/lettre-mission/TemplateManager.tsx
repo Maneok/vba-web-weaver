@@ -91,7 +91,7 @@ const PRELOADED_TEMPLATES: Template[] = [
 
 function loadTemplates(): Template[] {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored) as Template[];
       if (parsed.length > 0) return parsed;
@@ -101,7 +101,7 @@ function loadTemplates(): Template[] {
 }
 
 function saveTemplates(templates: Template[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
 }
 
 interface TemplateManagerProps {

@@ -1,20 +1,31 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
+    // Verify caller is authenticated
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return new Response(JSON.stringify({ error: "Non autorise", extracted: null }), {
+        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const { imageBase64, mimeType, mode } = await req.json();
 
+    const MAX_IMAGE_SIZE = 10 * 1024 * 1024; // 10 MB base64
     if (!imageBase64) {
       return new Response(
         JSON.stringify({ error: "imageBase64 requis" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (imageBase64.length > MAX_IMAGE_SIZE) {
+      return new Response(
+        JSON.stringify({ error: "Image trop volumineuse (max 10 Mo)", extracted: null }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -27,8 +38,22 @@ Deno.serve(async (req) => {
       );
     }
 
+    const ALLOWED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+    if (mimeType && !ALLOWED_MEDIA.includes(mimeType)) {
+      return new Response(
+        JSON.stringify({ error: "Type de fichier non supporte", extracted: null }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const mediaType = mimeType || "image/jpeg";
-    const ocrMode = mode || "cni"; // "cni", "rib", "kbis"
+    const VALID_MODES = ["cni", "rib", "kbis"];
+    if (mode && !VALID_MODES.includes(mode)) {
+      return new Response(
+        JSON.stringify({ error: "Mode OCR invalide", extracted: null }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const ocrMode = mode || "cni";
 
     let systemPrompt: string;
     let userPrompt: string;
@@ -117,13 +142,21 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
 
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text();
-      console.error("Anthropic API error:", errText);
+      console.error("Anthropic API error:", anthropicRes.status);
       return new Response(
-        JSON.stringify({ error: "Erreur OCR", details: errText, extracted: null }),
+        JSON.stringify({ error: "Erreur OCR: service temporairement indisponible", extracted: null }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    const contentType = anthropicRes.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      console.error("Anthropic returned non-JSON response:", contentType);
+      return new Response(
+        JSON.stringify({ error: "Erreur OCR: reponse invalide", extracted: null }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const anthropicData = await anthropicRes.json();
     const textContent = anthropicData.content?.[0]?.text ?? "";
 
@@ -151,12 +184,13 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
     }
 
     return new Response(
-      JSON.stringify({ extracted, mode: ocrMode, raw: textContent }),
+      JSON.stringify({ extracted, mode: ocrMode }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    console.error("OCR error:", (error as Error).message);
     return new Response(
-      JSON.stringify({ error: (error as Error).message, extracted: null }),
+      JSON.stringify({ error: "Erreur interne OCR", extracted: null }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

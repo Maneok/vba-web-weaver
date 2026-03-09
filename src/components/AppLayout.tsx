@@ -25,6 +25,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: string[] }> = {
   "/ged": { title: "Documents / GED", breadcrumb: ["Accueil", "Documents / GED"] },
   "/parametres": { title: "Parametres", breadcrumb: ["Accueil", "Parametres"] },
   "/lettre-mission": { title: "Lettre de Mission", breadcrumb: ["Accueil", "Lettre de Mission"] },
+  "/aide": { title: "Aide", breadcrumb: ["Accueil", "Aide"] },
 };
 
 export default function AppLayout() {

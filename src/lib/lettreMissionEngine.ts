@@ -14,13 +14,13 @@ import { renderLettreMissionPdf } from "@/lib/lettreMissionPdf";
 import { toast } from "sonner";
 
 // ──────────────────────────────────────────────
-// Numérotation automatique (localStorage)
+// Numérotation automatique (sessionStorage)
 // ──────────────────────────────────────────────
 const LM_COUNTER_KEY = "lcb_lm_counter";
 
 function getStoredCounter(): { year: number; count: number } {
   try {
-    const stored = localStorage.getItem(LM_COUNTER_KEY);
+    const stored = sessionStorage.getItem(LM_COUNTER_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.year === new Date().getFullYear()) {
@@ -35,7 +35,7 @@ function incrementCounter(): string {
   const current = getStoredCounter();
   const year = new Date().getFullYear();
   const count = current.year === year ? current.count + 1 : 1;
-  localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count }));
+  sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count }));
   return `LM-${year}-${String(count).padStart(3, "0")}`;
 }
 
@@ -44,7 +44,7 @@ function incrementCounter(): string {
  */
 export function resetCounter(value: number = 0): void {
   const year = new Date().getFullYear();
-  localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value }));
+  sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value }));
 }
 
 // ──────────────────────────────────────────────

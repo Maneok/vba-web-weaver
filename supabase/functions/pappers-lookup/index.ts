@@ -4,11 +4,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const PAPPERS_API_KEY = Deno.env.get("PAPPERS_API_KEY") ?? "";
 const PAPPERS_BASE = "https://api.pappers.fr/v2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 interface CompanyData {
   siren: string;
@@ -371,9 +367,9 @@ function mapPappersCompany(company: PappersCompany): CompanyData {
 
 // ======= MAIN HANDLER =======
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const body = await req.json();
@@ -388,6 +384,32 @@ Deno.serve(async (req: Request) => {
         JSON.stringify({ error: "mode and query are required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    const validModes = ["siren", "nom", "dirigeant"];
+    if (!validModes.includes(mode)) {
+      return new Response(
+        JSON.stringify({ error: "mode invalide" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (typeof query !== "string" || query.length > 200) {
+      return new Response(
+        JSON.stringify({ error: "query invalide" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate SIREN format when in siren mode
+    if (mode === "siren") {
+      const cleanQuery = query.replace(/[\s.\-]/g, "");
+      if (!/^\d{9,14}$/.test(cleanQuery)) {
+        return new Response(
+          JSON.stringify({ error: "Format SIREN/SIRET invalide" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     let results: CompanyData[] = [];
@@ -474,9 +496,9 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("Error:", err);
+    console.error("[pappers-lookup] Error:", (err as Error).message);
     return new Response(
-      JSON.stringify({ error: (err as Error).message }),
+      JSON.stringify({ error: "Erreur interne du service Pappers" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

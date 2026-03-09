@@ -166,12 +166,12 @@ export default function NouveauClientPage() {
   useEffect(() => {
     if (step > 0 || form.siren) {
       const draftData = { form, step, beneficiaires, questions, decision, motifRefus, savedAt: Date.now() };
-      localStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
+      sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
       // Also save per-SIREN draft for multi-draft support
       if (form.siren) {
         const cleanSiren = form.siren.replace(/\s/g, "");
         if (cleanSiren.length === 9) {
-          localStorage.setItem(`draft_nc_${cleanSiren}`, JSON.stringify(draftData));
+          sessionStorage.setItem(`draft_nc_${cleanSiren}`, JSON.stringify(draftData));
         }
       }
     }
@@ -195,7 +195,7 @@ export default function NouveauClientPage() {
 
   // On mount: silently restore draft if exists
   useEffect(() => {
-    const draft = localStorage.getItem("draft_nouveau_client");
+    const draft = sessionStorage.getItem("draft_nouveau_client");
     if (draft) {
       try {
         const data = JSON.parse(draft);
@@ -652,7 +652,7 @@ export default function NouveauClientPage() {
     const cleanSearch = searchQuery.trim().replace(/\s/g, "");
     if (searchMode === "siren" && /^\d{9,14}$/.test(cleanSearch)) {
       const sirenKey = cleanSearch.slice(0, 9);
-      const existingDraft = localStorage.getItem(`draft_nc_${sirenKey}`);
+      const existingDraft = sessionStorage.getItem(`draft_nc_${sirenKey}`);
       if (existingDraft) {
         restoreDraft(existingDraft);
         // Continue with search to refresh screening data
@@ -980,9 +980,9 @@ export default function NouveauClientPage() {
       return;
     }
     // FIX 9: Clear draft on successful submission
-    localStorage.removeItem("draft_nouveau_client");
+    sessionStorage.removeItem("draft_nouveau_client");
     const cleanSiren = form.siren?.replace(/\s/g, "");
-    if (cleanSiren && cleanSiren.length === 9) localStorage.removeItem(`draft_nc_${cleanSiren}`);
+    if (cleanSiren && cleanSiren.length === 9) sessionStorage.removeItem(`draft_nc_${cleanSiren}`);
     const now = new Date().toISOString().split("T")[0];
     const year = new Date().getFullYear().toString().slice(-2);
 
@@ -1340,9 +1340,9 @@ export default function NouveauClientPage() {
             className="text-xs text-red-400 hover:text-red-300 hover:bg-red-500/10"
             onClick={() => {
               const cleanSiren = form.siren?.replace(/\s/g, "");
-              localStorage.removeItem("draft_nouveau_client");
+              sessionStorage.removeItem("draft_nouveau_client");
               if (cleanSiren && cleanSiren.length === 9) {
-                localStorage.removeItem(`draft_nc_${cleanSiren}`);
+                sessionStorage.removeItem(`draft_nc_${cleanSiren}`);
               }
               setDraftBanner(null);
               toast.success("Brouillon supprime");
@@ -2779,6 +2779,8 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
         <iframe
           src={`https://www.openstreetmap.org/export/embed.html?bbox=${geoLng - 0.005}%2C${geoLat - 0.005}%2C${geoLng + 0.005}%2C${geoLat + 0.005}&layer=mapnik&marker=${geoLat}%2C${geoLng}`}
           width="100%" height="250" style={{ border: 0 }} loading="lazy"
+          sandbox="allow-scripts allow-same-origin"
+          referrerPolicy="no-referrer"
         />
       )}
     </div>

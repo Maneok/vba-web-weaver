@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { logAudit } from "@/lib/auth/auditTrail";
 import type { UserProfile, UserRole } from "@/lib/auth/types";
+import { validateInvite, formatZodErrors } from "@/lib/validation";
 import { ROLE_LABELS } from "@/lib/auth/types";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
+import { logAudit } from "@/lib/auth/auditTrail";
 import { UserPlus, Shield, UserCheck, UserX, Users, Copy } from "lucide-react";
 
 const ROLE_COLORS: Record<UserRole, string> = {
@@ -33,12 +34,21 @@ export default function AdminUsersPage() {
 
   const loadUsers = useCallback(async () => {
     if (!profile?.cabinet_id) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("cabinet_id", profile.cabinet_id)
-      .order("created_at", { ascending: true });
-    if (data) setUsers(data as UserProfile[]);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("cabinet_id", profile.cabinet_id)
+        .order("created_at", { ascending: true });
+      if (error) {
+        toast.error("Erreur lors du chargement des utilisateurs");
+        return;
+      }
+      if (data) setUsers(data as UserProfile[]);
+    } catch (err) {
+      console.error("[Admin] loadUsers error:", err);
+      toast.error("Erreur lors du chargement des utilisateurs");
+    }
   }, [profile?.cabinet_id]);
 
   useEffect(() => {
@@ -48,31 +58,33 @@ export default function AdminUsersPage() {
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+
+    // Validate input with Zod
+    const validation = validateInvite({ email: inviteEmail.trim(), fullName: inviteName.trim(), role: inviteRole });
+    if (!validation.success) {
+      toast.error(formatZodErrors(validation.error));
+      return;
+    }
+
     setInviting(true);
 
     try {
-      // Create user via Supabase Auth admin (client-side invite)
-      const { error } = await supabase.auth.signUp({
-        email: inviteEmail,
-        password: crypto.randomUUID().slice(0, 16) + "A1!", // Temporary password
-        options: {
-          data: {
-            full_name: inviteName,
-            cabinet_id: profile.cabinet_id,
-            role: inviteRole,
-          },
+      // Invite via secure Edge Function (server-side, role-verified)
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error("Session expirée");
+
+      const { data, error } = await supabase.functions.invoke("invite-user", {
+        body: {
+          email: inviteEmail.trim(),
+          fullName: inviteName.trim(),
+          role: inviteRole,
         },
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
-      await logAudit({
-        action: "INVITATION_UTILISATEUR",
-        table_name: "profiles",
-        new_data: { email: inviteEmail, role: inviteRole, full_name: inviteName },
-      });
-
-      toast.success(`Invitation envoyee a ${inviteEmail}`);
+      toast.success(data?.message || `Invitation envoyee a ${inviteEmail}`);
       setInviteOpen(false);
       setInviteEmail("");
       setInviteName("");
@@ -89,54 +101,72 @@ export default function AdminUsersPage() {
   };
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
-    const user = users.find((u) => u.id === userId);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role: newRole })
-      .eq("id", userId);
+    try {
+      const user = users.find((u) => u.id === userId);
+      // Prevent removing the last admin
+      if (user?.role === "ADMIN" && newRole !== "ADMIN") {
+        const otherAdmins = users.filter((u) => u.role === "ADMIN" && u.is_active && u.id !== userId);
+        if (otherAdmins.length === 0) {
+          toast.error("Impossible : il doit rester au moins un administrateur actif");
+          return;
+        }
+      }
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role: newRole })
+        .eq("id", userId);
 
-    if (error) {
-      toast.error("Erreur lors de la mise a jour");
-      return;
+      if (error) {
+        toast.error("Erreur lors de la mise a jour");
+        return;
+      }
+
+      await logAudit({
+        action: "CHANGEMENT_ROLE",
+        table_name: "profiles",
+        record_id: userId,
+        old_data: { role: user?.role },
+        new_data: { role: newRole },
+      });
+
+      toast.success("Role mis a jour");
+      loadUsers();
+    } catch (err) {
+      console.error("[Admin] updateUserRole error:", err);
+      toast.error("Erreur lors de la mise a jour du role");
     }
-
-    await logAudit({
-      action: "CHANGEMENT_ROLE",
-      table_name: "profiles",
-      record_id: userId,
-      old_data: { role: user?.role },
-      new_data: { role: newRole },
-    });
-
-    toast.success("Role mis a jour");
-    loadUsers();
   };
 
   const toggleUserActive = async (userId: string) => {
-    const user = users.find((u) => u.id === userId);
-    if (!user || user.id === profile?.id) return;
+    try {
+      const user = users.find((u) => u.id === userId);
+      if (!user || user.id === profile?.id) return;
 
-    const newStatus = !user.is_active;
-    const { error } = await supabase
-      .from("profiles")
-      .update({ is_active: newStatus })
-      .eq("id", userId);
+      const newStatus = !user.is_active;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ is_active: newStatus })
+        .eq("id", userId);
 
-    if (error) {
-      toast.error("Erreur lors de la mise a jour");
-      return;
+      if (error) {
+        toast.error("Erreur lors de la mise a jour");
+        return;
+      }
+
+      await logAudit({
+        action: newStatus ? "ACTIVATION_UTILISATEUR" : "DESACTIVATION_UTILISATEUR",
+        table_name: "profiles",
+        record_id: userId,
+        old_data: { is_active: user.is_active },
+        new_data: { is_active: newStatus },
+      });
+
+      toast.success(newStatus ? "Utilisateur active" : "Utilisateur desactive");
+      loadUsers();
+    } catch (err) {
+      console.error("[Admin] toggleUserActive error:", err);
+      toast.error("Erreur lors de la mise a jour du statut");
     }
-
-    await logAudit({
-      action: newStatus ? "ACTIVATION_UTILISATEUR" : "DESACTIVATION_UTILISATEUR",
-      table_name: "profiles",
-      record_id: userId,
-      old_data: { is_active: user.is_active },
-      new_data: { is_active: newStatus },
-    });
-
-    toast.success(newStatus ? "Utilisateur active" : "Utilisateur desactive");
-    loadUsers();
   };
 
   const adminCount = users.filter((u) => u.role === "ADMIN" && u.is_active).length;
@@ -247,7 +277,7 @@ export default function AdminUsersPage() {
             <div className="flex items-center gap-3">
               <Copy className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="text-2xl font-bold truncate text-xs">{profile?.cabinet_id?.slice(0, 8)}...</p>
+                <p className="text-2xl font-bold truncate text-xs">********</p>
                 <p className="text-xs text-muted-foreground">Cabinet ID</p>
               </div>
             </div>

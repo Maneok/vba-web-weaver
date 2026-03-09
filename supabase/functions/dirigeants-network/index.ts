@@ -1,27 +1,29 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
-    const { siren, dirigeants } = await req.json();
-    if (!dirigeants || dirigeants.length === 0) {
+    const body = await req.json();
+    const dirigeants = Array.isArray(body?.dirigeants) ? body.dirigeants : [];
+    if (dirigeants.length === 0) {
       return new Response(JSON.stringify({ nodes: [], edges: [], alertes: [], status: "ok" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const cleanSiren = (siren ?? "").replace(/\s/g, "");
+    const cleanSiren = String(body?.siren ?? "").replace(/[\s.\-]/g, "");
+    if (cleanSiren && !/^\d{9,14}$/.test(cleanSiren)) {
+      return new Response(JSON.stringify({ error: "Format SIREN invalide", nodes: [], edges: [], alertes: [], status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const pappersKey = Deno.env.get("PAPPERS");
     const nodes: any[] = [];
     const edges: any[] = [];
@@ -176,8 +178,9 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    console.error("[dirigeants-network] Error:", (error as Error).message);
     return new Response(JSON.stringify({
-      error: (error as Error).message,
+      error: "Erreur interne du service reseau dirigeants",
       nodes: [],
       edges: [],
       alertes: [],

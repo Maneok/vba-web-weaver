@@ -52,14 +52,24 @@ export default function GouvernancePage() {
   // Load referent config from parametres
   useEffect(() => {
     async function loadConfig() {
-      const { data } = await supabase
-        .from("parametres")
-        .select("value")
-        .eq("key", "lcbft_config")
-        .single();
-      if (data?.value) {
-        const val = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
-        setReferentConfig(val as ReferentConfig);
+      try {
+        const { data } = await supabase
+          .from("parametres")
+          .select("value")
+          .eq("key", "lcbft_config")
+          .maybeSingle();
+        if (data?.value) {
+          let val;
+          try {
+            val = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+          } catch {
+            console.error("[Gouvernance] Invalid JSON in parametres.value");
+            return;
+          }
+          setReferentConfig(val as ReferentConfig);
+        }
+      } catch (err) {
+        console.error("[Gouvernance] Failed to load config:", err);
       }
     }
     loadConfig();
@@ -139,15 +149,15 @@ export default function GouvernancePage() {
 
   // Relance email
   const handleRelance = (collab: typeof collaborateurs[0]) => {
-    if (!collab.email) {
-      toast.error(`Email manquant pour ${collab.nom}`);
+    if (!collab.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(collab.email)) {
+      toast.error(`Email invalide ou manquant pour ${collab.nom}`);
       return;
     }
     const subject = encodeURIComponent(`Relance formation LCB-FT — ${collab.nom}`);
     const body = encodeURIComponent(
       `Bonjour ${collab.nom},\n\nVotre formation LCB-FT est expiree (derniere formation : ${collab.derniereFormation || "aucune"}).\n\nConformement aux obligations reglementaires (art. L.561-36 CMF), nous vous invitons a regulariser votre situation dans les meilleurs delais.\n\nCordialement,\nLe Referent LCB-FT`
     );
-    window.open(`mailto:${collab.email}?subject=${subject}&body=${body}`, "_self");
+    window.location.href = `mailto:${collab.email}?subject=${subject}&body=${body}`;
     toast.success(`Email de relance ouvert pour ${collab.nom}`);
   };
 

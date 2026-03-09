@@ -71,11 +71,14 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  const contextClient = clients.find(c => c.ref === ref);
+  // Validate ref format (alphanumeric + hyphens, max 50 chars)
+  const isValidRef = ref && /^[a-zA-Z0-9_-]{1,50}$/.test(ref);
+
+  const contextClient = isValidRef ? clients.find(c => c.ref === ref) : undefined;
 
   // Fallback: load from Supabase if context doesn't have the client (e.g. direct URL)
   useEffect(() => {
-    if (contextClient || fallbackClient || !ref) return;
+    if (contextClient || fallbackClient || !isValidRef) return;
     setLoading(true);
     clientsService.getByRef(ref).then(row => {
       if (row) {

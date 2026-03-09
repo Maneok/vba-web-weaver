@@ -471,6 +471,21 @@ const CACHE_TTL: Record<string, number> = {
   documents: 7 * 24 * 60 * 60 * 1000, // 7d
 };
 
+async function getUserCabinetId(): Promise<string | null> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data } = await supabase
+      .from("profiles")
+      .select("cabinet_id")
+      .eq("id", user.id)
+      .maybeSingle();
+    return data?.cabinet_id || null;
+  } catch {
+    return null;
+  }
+}
+
 async function getCachedResponse<T>(siren: string, apiName: string): Promise<T | null> {
   try {
     const { data } = await supabase
@@ -478,7 +493,7 @@ async function getCachedResponse<T>(siren: string, apiName: string): Promise<T |
       .select("response_data, expires_at")
       .eq("siren", siren.replace(/\s/g, ""))
       .eq("api_name", apiName)
-      .single();
+      .maybeSingle();
     if (data && new Date(data.expires_at) > new Date()) {
       return data.response_data as T;
     }
@@ -492,13 +507,16 @@ async function setCachedResponse(siren: string, apiName: string, responseData: u
   const ttl = CACHE_TTL[apiName] ?? 24 * 60 * 60 * 1000;
   const expiresAt = new Date(Date.now() + ttl).toISOString();
   try {
+    const cabinetId = await getUserCabinetId();
+    if (!cabinetId) return;
     await supabase.from("api_cache").upsert({
       siren: siren.replace(/\s/g, ""),
       api_name: apiName,
+      cabinet_id: cabinetId,
       response_data: responseData,
       cached_at: new Date().toISOString(),
       expires_at: expiresAt,
-    }, { onConflict: "siren,api_name" });
+    }, { onConflict: "siren,api_name,cabinet_id" });
   } catch {
     // Cache write failure is non-critical
   }

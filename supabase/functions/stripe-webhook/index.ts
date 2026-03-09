@@ -8,8 +8,13 @@ serve(async (req) => {
   });
 
   const signature = req.headers.get("stripe-signature");
+  const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!signature) {
     return new Response("Missing signature", { status: 400 });
+  }
+  if (!webhookSecret) {
+    console.error("STRIPE_WEBHOOK_SECRET is not configured");
+    return new Response("Server misconfiguration", { status: 500 });
   }
 
   const body = await req.text();
@@ -19,11 +24,11 @@ serve(async (req) => {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      Deno.env.get("STRIPE_WEBHOOK_SECRET") ?? ""
+      webhookSecret
     );
   } catch (err) {
-    console.error("Webhook signature verification failed:", err.message);
-    return new Response(`Webhook Error: ${err.message}`, { status: 400 });
+    console.error("Webhook signature verification failed:", (err as Error).message);
+    return new Response("Webhook signature verification failed", { status: 400 });
   }
 
   const supabase = createClient(
@@ -56,9 +61,10 @@ serve(async (req) => {
       if (authError) {
         // User might already exist
         if (authError.message?.includes("already been registered")) {
-          const { data: existingUsers } = await supabase.auth.admin.listUsers();
-          const existingUser = existingUsers?.users?.find((u) => u.email === email);
-          if (existingUser) {
+          // Use targeted lookup instead of listing all users
+          const { data: users } = await supabase.from("profiles").select("id").eq("email", email).maybeSingle();
+          if (users) {
+            const existingUser = { id: users.id };
             await supabase.from("subscriptions").upsert({
               user_id: existingUser.id,
               stripe_customer_id: customerId,
@@ -115,6 +121,9 @@ serve(async (req) => {
         .eq("stripe_subscription_id", subscription.id);
       break;
     }
+
+    default:
+      console.log(`Unhandled Stripe event type: ${event.type}`);
   }
 
   return new Response(JSON.stringify({ received: true }), {

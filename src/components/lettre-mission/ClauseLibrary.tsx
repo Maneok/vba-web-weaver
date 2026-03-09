@@ -141,7 +141,7 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
   const [showAddForm, setShowAddForm] = useState(false);
 
   useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
         setCustomClauses(JSON.parse(stored));
@@ -151,7 +151,7 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
 
   const saveCustomClauses = (clauses: Clause[]) => {
     setCustomClauses(clauses);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(clauses));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(clauses));
   };
 
   const allClauses = [...DEFAULT_CLAUSES, ...customClauses];
