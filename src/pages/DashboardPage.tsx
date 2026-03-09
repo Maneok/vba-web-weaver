@@ -3,33 +3,30 @@ import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Users, BarChart3, ShieldCheck, AlertTriangle, Clock, Euro,
-  Bell, RefreshCw, Printer, Eye, EyeOff, FileText,
+  Users, ShieldCheck, AlertTriangle, Euro,
+  Bell, RefreshCw, Printer, ChevronDown, BarChart3,
 } from "lucide-react";
 
 import { KPICard } from "@/components/dashboard/KPICard";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
-import { ComplianceGauge } from "@/components/dashboard/ComplianceGauge";
-import { VigilanceDonut } from "@/components/dashboard/VigilanceDonut";
 import { MonthlyChart } from "@/components/dashboard/MonthlyChart";
-import { UpcomingDeadlines, type Deadline } from "@/components/dashboard/UpcomingDeadlines";
-import { QuickActionsBar, QuickActionsFAB } from "@/components/dashboard/QuickActions";
-import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap";
 import { CabinetHealthScore } from "@/components/dashboard/CabinetHealthScore";
 import { ActionsOfDay } from "@/components/dashboard/ActionsOfDay";
 import { DrillDownSheet } from "@/components/dashboard/DrillDownSheet";
+
+// Advanced analytics (lazy-loaded in tab)
+import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap";
+import { VigilanceDonut } from "@/components/dashboard/VigilanceDonut";
+import { ComplianceGauge } from "@/components/dashboard/ComplianceGauge";
+
 import { useCountUp } from "@/hooks/useCountUp";
+import { QuickActionsFAB } from "@/components/dashboard/QuickActions";
 
 // ── Helpers ──────────────────────────────────────────────────
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
 function formatDateLong(): string {
   return new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -39,7 +36,10 @@ function formatDateLong(): string {
   });
 }
 
-// Generate sparkline data from clients (last 6 months trend)
+function formatTime(d: Date): string {
+  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 function generateSparkline(current: number): { v: number }[] {
   const points: { v: number }[] = [];
   let val = Math.max(1, current - Math.floor(Math.random() * 5 + 3));
@@ -60,7 +60,7 @@ export default function DashboardPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [notificationCount, setNotificationCount] = useState(0);
   const [lmRenewalCount, setLmRenewalCount] = useState(0);
-  const [controleurMode, setControleurMode] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [drillDown, setDrillDown] = useState<"clients" | "alertes" | "revues" | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
 
@@ -69,7 +69,6 @@ export default function DashboardPage() {
     function handleKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-
       switch (e.key) {
         case "n": navigate("/nouveau-client"); break;
         case "a": navigate("/registre"); break;
@@ -90,7 +89,6 @@ export default function DashboardPage() {
   // ── Load notification count + LM renewal count ────────────
   useEffect(() => {
     if (!user) return;
-    // Notifications
     supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
@@ -98,26 +96,18 @@ export default function DashboardPage() {
       .then(({ count }) => setNotificationCount(count || 0))
       .catch(() => {});
 
-    // LM expiring in 60 days (F)
     supabase
       .from("lettres_mission")
       .select("id", { count: "exact", head: true })
       .eq("status", "signee")
-      .then(({ count }) => {
-        // Approximate: count signed LMs as potentially renewable
-        setLmRenewalCount(Math.min(count || 0, 5));
-      })
+      .then(({ count }) => setLmRenewalCount(Math.min(count || 0, 5)))
       .catch(() => {});
   }, [user, lastRefresh]);
 
-  // ── Computed stats from context ───────────────────────────
+  // ── Computed stats ────────────────────────────────────────
   const stats = useMemo(() => {
     const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
     const totalClients = actifs.length;
-
-    const avgScore = totalClients > 0
-      ? Math.round(actifs.reduce((s, c) => s + (c.scoreGlobal || 0), 0) / totalClients)
-      : 0;
 
     const simplifiee = clients.filter(c => c.nivVigilance === "SIMPLIFIEE").length;
     const standard = clients.filter(c => c.nivVigilance === "STANDARD").length;
@@ -128,12 +118,12 @@ export default function DashboardPage() {
       return !s.includes("CLOS") && !s.includes("FERME") && !s.includes("RESOLU");
     }).length;
 
-    // MTTR: avg days between alert open and close
+    // MTTR
     const closedAlertes = alertes.filter(a => {
       const s = (a.statut || "").toUpperCase();
       return s.includes("CLOS") || s.includes("FERME") || s.includes("RESOLU");
     });
-    let mttrDays = 8; // default
+    let mttrDays = 8;
     if (closedAlertes.length > 0) {
       const totalDays = closedAlertes.reduce((sum, a) => {
         try {
@@ -160,7 +150,6 @@ export default function DashboardPage() {
     const withKyc = actifs.filter(c => c.lienCni && c.siren && c.dirigeant && c.adresse).length;
     const tauxConformite = totalClients > 0 ? Math.round((withKyc / totalClients) * 100) : 0;
 
-    // Formations a jour
     const collabTotal = collaborateurs.length || 1;
     const trained = collaborateurs.filter(col => {
       if (!col.derniereFormation) return false;
@@ -172,17 +161,43 @@ export default function DashboardPage() {
     const formationsAJour = Math.round((trained / collabTotal) * 100);
 
     return {
-      totalClients, avgScore, simplifiee, standard, renforcee,
+      totalClients, simplifiee, standard, renforcee,
       alertesEnCours, revuesEchues, revuesAJour, caPrevisionnel,
       tauxConformite, mttrDays, formationsAJour,
     };
   }, [clients, alertes, collaborateurs]);
 
+  // Count total actions for contextual phrase
+  const totalActions = useMemo(() => {
+    let count = 0;
+    count += stats.revuesEchues;
+    count += stats.alertesEnCours;
+    count += lmRenewalCount;
+    // expired trainings
+    const now = new Date();
+    count += collaborateurs.filter(col => {
+      if (!col.derniereFormation) return true;
+      try {
+        const d = new Date(col.derniereFormation);
+        return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365) >= 1;
+      } catch { return false; }
+    }).length;
+    return count;
+  }, [stats, lmRenewalCount, collaborateurs]);
+
   // ── Count-up animations ───────────────────────────────────
   const animClients = useCountUp(stats.totalClients);
-  const animScore = useCountUp(stats.avgScore);
   const animAlertes = useCountUp(stats.alertesEnCours);
-  const animRevues = useCountUp(stats.revuesEchues);
+
+  // ── "Pret controle" percentage ────────────────────────────
+  const pretControle = useMemo(() => {
+    const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
+    if (actifs.length === 0) return 0;
+    const complete = actifs.filter(c =>
+      c.lienCni && c.siren && c.dirigeant && c.adresse && c.honoraires > 0
+    ).length;
+    return Math.round((complete / actifs.length) * 100);
+  }, [clients]);
 
   // ── Monthly chart data ────────────────────────────────────
   const monthlyData = useMemo(() => {
@@ -206,36 +221,6 @@ export default function DashboardPage() {
     return result;
   }, [clients]);
 
-  // ── Upcoming deadlines ────────────────────────────────────
-  const deadlines = useMemo<Deadline[]>(() => {
-    const now = new Date();
-    const items: Deadline[] = [];
-    clients.forEach(c => {
-      if (!c.dateButoir) return;
-      try {
-        const d = new Date(c.dateButoir);
-        const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-        if (diff < 60) {
-          items.push({ id: `revue-${c.ref}`, title: `Revue ${c.raisonSociale}`, date: c.dateButoir, type: "revue", clientRef: c.ref });
-        }
-      } catch { /* skip */ }
-    });
-    collaborateurs.forEach(col => {
-      if (!col.derniereFormation) return;
-      try {
-        const lastF = new Date(col.derniereFormation);
-        const nextF = new Date(lastF);
-        nextF.setFullYear(nextF.getFullYear() + 1);
-        const diff = (nextF.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-        if (diff < 60) {
-          items.push({ id: `formation-${col.nom}`, title: `Formation ${col.nom}`, date: nextF.toISOString().split("T")[0], type: "formation" });
-        }
-      } catch { /* skip */ }
-    });
-    items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    return items.slice(0, 5);
-  }, [clients, collaborateurs]);
-
   // ── Compliance gauge items ────────────────────────────────
   const complianceItems = useMemo(() => {
     const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
@@ -252,9 +237,9 @@ export default function DashboardPage() {
     ];
   }, [clients, stats.formationsAJour]);
 
-  const scoreColor = stats.avgScore <= 30 ? "#22c55e" : stats.avgScore <= 55 ? "#f59e0b" : "#ef4444";
   const conformiteColor = stats.tauxConformite >= 80 ? "#22c55e" : stats.tauxConformite >= 50 ? "#f59e0b" : "#ef4444";
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
+  const firstName = userName.split(" ")[0];
 
   const handleRefresh = useCallback(() => {
     refreshAll().then(() => setLastRefresh(new Date())).catch(() => {});
@@ -262,143 +247,186 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen print:bg-white print:text-black">
-      {/* ── TOP BAR ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 print:mb-4">
-        <div>
-          <h1 className="text-xl font-bold">Bonjour, {userName}</h1>
-          <p className="text-sm text-muted-foreground capitalize">{formatDateLong()}</p>
-        </div>
 
-        <div className="flex items-center gap-2 print:hidden">
-          <QuickActionsBar notificationCount={notificationCount} />
+      {/* ═══════════════════════════════════════════════════════════
+          ZONE 1 — RASSURANCE (above the fold, ~40vh)
+          Centre: Score Sante Cabinet
+          Coin haut-gauche: Bonjour + date
+          Coin haut-droit: Pret controle badge
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="relative min-h-[40vh] flex flex-col items-center justify-center pb-6">
 
-          {/* Vue controleur toggle */}
-          <Button
-            size="sm"
-            variant={controleurMode ? "default" : "ghost"}
-            className="h-8 text-xs gap-1.5"
-            onClick={() => setControleurMode(!controleurMode)}
-            title={controleurMode ? "Quitter le mode controleur" : "Mode controleur"}
-          >
-            {controleurMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            <span className="hidden sm:inline">{controleurMode ? "Standard" : "Controleur"}</span>
-          </Button>
-
-          {/* LM renewal badge */}
-          {lmRenewalCount > 0 && (
-            <button
-              className="inline-flex"
-              onClick={() => navigate("/lettre-mission")}
-              title={`${lmRenewalCount} LM a renouveler`}
-            >
-              <Badge variant="outline" className="bg-violet-500/15 text-violet-500 border-violet-500/30 gap-1 text-xs">
-                <FileText className="w-3 h-3" />
-                {lmRenewalCount} LM
-              </Badge>
-            </button>
-          )}
-
-          {/* Notification bell */}
-          <button
-            className="relative w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors"
-            onClick={() => navigate("/registre")}
-            title="Notifications"
-          >
-            <Bell className="w-4 h-4" />
-            {notificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
-                {notificationCount > 9 ? "9+" : notificationCount}
-              </span>
-            )}
-          </button>
-
-          <Button size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => window.print()} title="Exporter / Imprimer">
-            <Printer className="w-4 h-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* ── ACTIONS DU JOUR ────────────────────────────────── */}
-      <div className="mb-4" style={{ animationDelay: "0ms" }}>
-        <ActionsOfDay
-          revuesEchues={stats.revuesEchues}
-          alertesOuvertes={stats.alertesEnCours}
-          lmARenouveler={lmRenewalCount}
-          userName={userName}
-          loading={isLoading}
-        />
-      </div>
-
-      {/* ── SECTION 1: KPI Cards with stagger animation ──── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        {[
-          { icon: Users, title: "Clients actifs", value: animClients, color: "#3b82f6", trendPercent: 12, trendUp: true, sparkline: generateSparkline(stats.totalClients), onClick: () => setDrillDown("clients") },
-          { icon: BarChart3, title: "Score moyen", value: animScore, color: scoreColor, sparkline: generateSparkline(stats.avgScore) },
-          { icon: ShieldCheck, title: "Taux conformite", value: `${stats.tauxConformite}%`, color: conformiteColor, sparkline: generateSparkline(stats.tauxConformite) },
-          { icon: AlertTriangle, title: "Alertes en cours", value: animAlertes, color: "#f59e0b", onClick: () => setDrillDown("alertes"), sparkline: generateSparkline(stats.alertesEnCours) },
-          { icon: Clock, title: "Revues echues", value: animRevues, color: stats.revuesEchues > 0 ? "#ef4444" : "#22c55e", onClick: () => setDrillDown("revues"), sparkline: generateSparkline(stats.revuesEchues) },
-          ...(controleurMode ? [] : [{ icon: Euro, title: "CA previsionnel", value: `${(stats.caPrevisionnel / 1000).toFixed(0)}k\u20AC`, color: "#3b82f6", sparkline: generateSparkline(stats.caPrevisionnel / 1000) }]),
-        ].map((card, i) => (
-          <div key={card.title} style={{ animationDelay: `${i * 50}ms` }} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
-            <KPICard
-              icon={card.icon}
-              title={card.title}
-              value={card.value}
-              color={card.color}
-              trendPercent={card.trendPercent}
-              trendUp={card.trendUp}
-              sparklineData={card.sparkline}
-              onClick={card.onClick}
-              loading={isLoading}
-            />
+        {/* Top bar: Greeting left / Badge + actions right */}
+        <div className="absolute top-0 left-0 right-0 flex items-start justify-between">
+          <div>
+            <h1 className="text-lg font-semibold">Bonjour, {firstName}</h1>
+            <p className="text-xs text-muted-foreground capitalize">{formatDateLong()}</p>
           </div>
-        ))}
-      </div>
 
-      {/* ── SECTION 2: Charts + Health Score ──────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
-        <div className="lg:col-span-3">
-          <MonthlyChart data={monthlyData} loading={isLoading} />
+          <div className="flex items-center gap-2 print:hidden">
+            {/* Pret controle badge */}
+            <Badge variant="outline" className="text-xs gap-1 text-muted-foreground">
+              <ShieldCheck className="w-3 h-3" />
+              Pret controle : {pretControle}%
+            </Badge>
+
+            {/* Notification bell */}
+            <button
+              className="relative w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors"
+              onClick={() => navigate("/registre")}
+              title="Notifications"
+            >
+              <Bell className="w-4 h-4" />
+              {notificationCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center">
+                  {notificationCount > 9 ? "9+" : notificationCount}
+                </span>
+              )}
+            </button>
+
+            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => window.print()} title="Imprimer">
+              <Printer className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
-        <div className="lg:col-span-2 flex flex-col gap-4">
-          <VigilanceDonut
-            simplifiee={stats.simplifiee}
-            standard={stats.standard}
-            renforcee={stats.renforcee}
+
+        {/* Central Health Score */}
+        <div className="mt-12">
+          <CabinetHealthScore
+            tauxConformite={stats.tauxConformite}
+            mttrDays={stats.mttrDays}
+            formationsAJour={stats.formationsAJour}
+            revuesAJour={stats.revuesAJour}
+            totalActions={totalActions}
             loading={isLoading}
           />
         </div>
       </div>
 
-      {/* ── SECTION 2.5: Health Score + Risk Heatmap ──────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-        <CabinetHealthScore
-          tauxConformite={stats.tauxConformite}
-          mttrDays={stats.mttrDays}
-          formationsAJour={stats.formationsAJour}
-          revuesAJour={stats.revuesAJour}
+      {/* ═══════════════════════════════════════════════════════════
+          ZONE 2 — ACTIONS DU JOUR (max 300px, 5 items max)
+          Ordonnees par urgence, sources multiples
+          ═══════════════════════════════════════════════════════════ */}
+      <div className="max-w-2xl mx-auto mb-8" style={{ maxHeight: 300 }}>
+        <ActionsOfDay
+          clients={clients}
+          alertes={alertes}
+          collaborateurs={collaborateurs}
+          lmRenewalCount={lmRenewalCount}
           loading={isLoading}
         />
-        <RiskHeatmap clients={clients} loading={isLoading} />
       </div>
 
-      {/* ── SECTION 3: Alerts + Deadlines ──────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      {/* ═══════════════════════════════════════════════════════════
+          ZONE 3 — DETAILS (sous le fold, scroll necessaire)
+          ═══════════════════════════════════════════════════════════ */}
+
+      {/* Section: Vue d'ensemble — 4 KPI cards 2x2 */}
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        Vue d'ensemble
+      </h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <KPICard
+            icon={Users}
+            title="Clients actifs"
+            value={animClients}
+            color="#3b82f6"
+            trendPercent={12}
+            trendUp={true}
+            sparklineData={generateSparkline(stats.totalClients)}
+            onClick={() => setDrillDown("clients")}
+            loading={isLoading}
+          />
+        </div>
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: "50ms" }}>
+          <KPICard
+            icon={AlertTriangle}
+            title="Alertes en cours"
+            value={animAlertes}
+            color="#f59e0b"
+            sparklineData={generateSparkline(stats.alertesEnCours)}
+            onClick={() => setDrillDown("alertes")}
+            loading={isLoading}
+          />
+        </div>
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: "100ms" }}>
+          <KPICard
+            icon={ShieldCheck}
+            title="Taux conformite"
+            value={`${stats.tauxConformite}%`}
+            color={conformiteColor}
+            sparklineData={generateSparkline(stats.tauxConformite)}
+            loading={isLoading}
+          />
+        </div>
+        <div className="animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: "150ms" }}>
+          <KPICard
+            icon={Euro}
+            title="CA previsionnel"
+            value={`${(stats.caPrevisionnel / 1000).toFixed(0)}k\u20AC`}
+            color="#3b82f6"
+            sparklineData={generateSparkline(stats.caPrevisionnel / 1000)}
+            loading={isLoading}
+          />
+        </div>
+      </div>
+
+      {/* Section: Evolution — Area chart 12 mois */}
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        Evolution
+      </h2>
+      <div className="mb-6">
+        <MonthlyChart data={monthlyData} loading={isLoading} />
+      </div>
+
+      {/* Section: Alertes recentes */}
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        Alertes recentes
+      </h2>
+      <div className="mb-6">
         <AlertsPanel alertes={alertes} loading={isLoading} />
-        <UpcomingDeadlines deadlines={deadlines} loading={isLoading} />
       </div>
 
-      {/* ── SECTION 4: Activity Feed ───────────────────────── */}
+      {/* Section: Activite */}
+      <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+        Activite
+      </h2>
       <div className="mb-6">
         <ActivityFeed logs={logs} loading={isLoading} />
       </div>
 
-      {/* ── SECTION 5: Compliance Gauges ───────────────────── */}
+      {/* ═══════════════════════════════════════════════════════════
+          ANALYSE AVANCEE — bouton discret pour ouvrir
+          Contient: heatmap, donut vigilance, compliance gauge
+          ═══════════════════════════════════════════════════════════ */}
       <div className="mb-6">
-        <ComplianceGauge items={complianceItems} loading={isLoading} />
+        <button
+          onClick={() => setShowAdvanced(!showAdvanced)}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto"
+        >
+          <BarChart3 className="w-4 h-4" />
+          Analyse avancee
+          <ChevronDown className={`w-4 h-4 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+        </button>
+
+        {showAdvanced && (
+          <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <RiskHeatmap clients={clients} loading={isLoading} />
+              <VigilanceDonut
+                simplifiee={stats.simplifiee}
+                standard={stats.standard}
+                renforcee={stats.renforcee}
+                loading={isLoading}
+              />
+            </div>
+            <ComplianceGauge items={complianceItems} loading={isLoading} />
+          </div>
+        )}
       </div>
 
-      {/* ── Footer: Last update ────────────────────────────── */}
+      {/* ── Footer: Last update ────────────────────────────────── */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pb-4 print:hidden">
         <span>Derniere mise a jour : {formatTime(lastRefresh)}</span>
         <button className="hover:text-foreground transition-colors" onClick={handleRefresh} title="Rafraichir">
@@ -406,10 +434,10 @@ export default function DashboardPage() {
         </button>
       </div>
 
-      {/* ── Mobile FAB ─────────────────────────────────────── */}
+      {/* ── Mobile FAB ─────────────────────────────────────────── */}
       <QuickActionsFAB />
 
-      {/* ── Drill-down Sheet ───────────────────────────────── */}
+      {/* ── Drill-down Sheet ───────────────────────────────────── */}
       <DrillDownSheet
         open={!!drillDown}
         onClose={() => setDrillDown(null)}
@@ -418,7 +446,7 @@ export default function DashboardPage() {
         alertes={alertes}
       />
 
-      {/* ── Print styles ───────────────────────────────────── */}
+      {/* ── Print styles ─────────────────────────────────────── */}
       <style>{`
         @media print {
           .print\\:hidden { display: none !important; }
