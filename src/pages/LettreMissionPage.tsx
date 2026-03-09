@@ -81,8 +81,11 @@ const DEFAULT_CABINET: CabinetInfo = {
 
 function loadCabinet(): CabinetInfo {
   try {
-    const stored = localStorage.getItem("lcb-cabinet-config");
-    if (stored) return { ...DEFAULT_CABINET, ...JSON.parse(stored) };
+    const stored = sessionStorage.getItem("lcb-cabinet-config");
+    if (stored) {
+      try { return { ...DEFAULT_CABINET, ...JSON.parse(stored) }; }
+      catch { /* corrupted data, use defaults */ }
+    }
   } catch { /* ignore */ }
   return DEFAULT_CABINET;
 }
@@ -518,9 +521,13 @@ export default function LettreMissionPage() {
   // ── Email (#12) ──
   const handleEmail = useCallback(() => {
     if (!client) return;
+    if (!client.mail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(client.mail)) {
+      toast.error("Adresse email client invalide");
+      return;
+    }
     const subject = encodeURIComponent(`Lettre de mission — ${client.raisonSociale}`);
     const body = encodeURIComponent("Veuillez trouver ci-joint votre lettre de mission.\n\nCordialement,\n" + cabinet.nom);
-    window.open(`mailto:${client.mail}?subject=${subject}&body=${body}`);
+    window.location.href = `mailto:${client.mail}?subject=${subject}&body=${body}`;
     handleExportPdf();
     toast.success("Client mail ouvert — PDF téléchargé");
   }, [client, cabinet, handleExportPdf]);

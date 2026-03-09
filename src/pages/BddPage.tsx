@@ -39,11 +39,11 @@ export default function BddPage() {
   const [drafts, setDrafts] = useState<DraftInfo[]>([]);
   useEffect(() => {
     const found: DraftInfo[] = [];
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
       if (key && key.startsWith("draft_nc_")) {
         try {
-          const data = JSON.parse(localStorage.getItem(key) || "");
+          const data = JSON.parse(sessionStorage.getItem(key) || "");
           if (data.form?.siren) {
             found.push({
               siren: data.form.siren,
@@ -58,7 +58,7 @@ export default function BddPage() {
     }
     // Also check the main draft
     try {
-      const main = JSON.parse(localStorage.getItem("draft_nouveau_client") || "");
+      const main = JSON.parse(sessionStorage.getItem("draft_nouveau_client") || "");
       if (main.form?.siren && !found.some(d => d.siren.replace(/\s/g, "") === main.form.siren.replace(/\s/g, ""))) {
         found.push({
           siren: main.form.siren,
@@ -264,8 +264,8 @@ export default function BddPage() {
                     size="sm"
                     className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0"
                     onClick={() => {
-                      localStorage.removeItem(draft.key);
-                      if (draft.key !== "draft_nouveau_client") localStorage.removeItem("draft_nouveau_client");
+                      sessionStorage.removeItem(draft.key);
+                      if (draft.key !== "draft_nouveau_client") sessionStorage.removeItem("draft_nouveau_client");
                       setDrafts(prev => prev.filter(d => d.key !== draft.key));
                       toast.success("Brouillon supprime");
                     }}

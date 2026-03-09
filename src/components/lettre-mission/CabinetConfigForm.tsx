@@ -50,7 +50,7 @@ const FONTS = ["Inter", "Roboto", "Times New Roman", "Arial"];
 
 export function loadCabinetConfig(): CabinetConfig {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) return { ...DEFAULT_CONFIG, ...JSON.parse(stored) };
   } catch { /* ignore */ }
   return DEFAULT_CONFIG;
@@ -70,7 +70,7 @@ export default function CabinetConfigForm() {
   };
 
   const handleSave = () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     toast.success("Configuration du cabinet sauvegardee");
   };
 

@@ -59,7 +59,13 @@ export default function GouvernancePage() {
           .eq("key", "lcbft_config")
           .maybeSingle();
         if (data?.value) {
-          const val = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+          let val;
+          try {
+            val = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+          } catch {
+            console.error("[Gouvernance] Invalid JSON in parametres.value");
+            return;
+          }
           setReferentConfig(val as ReferentConfig);
         }
       } catch (err) {
@@ -151,7 +157,7 @@ export default function GouvernancePage() {
     const body = encodeURIComponent(
       `Bonjour ${collab.nom},\n\nVotre formation LCB-FT est expiree (derniere formation : ${collab.derniereFormation || "aucune"}).\n\nConformement aux obligations reglementaires (art. L.561-36 CMF), nous vous invitons a regulariser votre situation dans les meilleurs delais.\n\nCordialement,\nLe Referent LCB-FT`
     );
-    window.open(`mailto:${collab.email}?subject=${subject}&body=${body}`, "_self");
+    window.location.href = `mailto:${collab.email}?subject=${subject}&body=${body}`;
     toast.success(`Email de relance ouvert pour ${collab.nom}`);
   };
 

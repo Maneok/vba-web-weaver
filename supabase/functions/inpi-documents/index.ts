@@ -623,7 +623,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cleanSiren = (siren as string).replace(/\s/g, "");
+    const cleanSiren = String(siren).replace(/[\s.\-]/g, "");
+    if (!/^\d{9,14}$/.test(cleanSiren)) {
+      return new Response(JSON.stringify({ error: "Format SIREN invalide", status: "error", documents: [], companyData: null, financials: [], totalDocuments: 0, storedCount: 0 }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     console.log(`[INPI] === Start for SIREN ${cleanSiren} ===`);
 
     // CORRECTION 2: Use cached token
@@ -648,7 +653,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     try {
-      await supabase.storage.createBucket("kyc-documents", { public: true });
+      await supabase.storage.createBucket("kyc-documents", { public: false });
     } catch {
       // Bucket may already exist
     }

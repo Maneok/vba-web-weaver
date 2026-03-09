@@ -737,7 +737,8 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: (error as Error).message, results: [], status: "unavailable" }), {
+    console.error("[enterprise-lookup] Error:", (error as Error).message);
+    return new Response(JSON.stringify({ error: "Erreur interne du service de recherche entreprise", results: [], status: "unavailable" }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

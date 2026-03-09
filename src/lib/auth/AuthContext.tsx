@@ -133,10 +133,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      // Log failed login attempt
+      // Log failed login attempt (hash email to prevent enumeration)
       logAudit({
         action: "CONNEXION_ECHOUEE",
-        new_data: { email, error: error.message },
+        new_data: { email_prefix: email.split("@")[0]?.slice(0, 3) + "***", error: "invalid_credentials" },
       }).catch(() => {});
       throw error;
     }
@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: import.meta.env.VITE_SITE_URL || window.location.origin },
     });
     if (error) throw error;
   }, []);

@@ -39,9 +39,21 @@ Deno.serve(async (req) => {
     }
 
     const ALLOWED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"];
-    const mediaType = ALLOWED_MEDIA.includes(mimeType) ? mimeType : "image/jpeg";
+    if (mimeType && !ALLOWED_MEDIA.includes(mimeType)) {
+      return new Response(
+        JSON.stringify({ error: "Type de fichier non supporte", extracted: null }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const mediaType = mimeType || "image/jpeg";
     const VALID_MODES = ["cni", "rib", "kbis"];
-    const ocrMode = VALID_MODES.includes(mode) ? mode : "cni";
+    if (mode && !VALID_MODES.includes(mode)) {
+      return new Response(
+        JSON.stringify({ error: "Mode OCR invalide", extracted: null }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const ocrMode = mode || "cni";
 
     let systemPrompt: string;
     let userPrompt: string;
@@ -137,6 +149,14 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
       );
     }
 
+    const contentType = anthropicRes.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      console.error("Anthropic returned non-JSON response:", contentType);
+      return new Response(
+        JSON.stringify({ error: "Erreur OCR: reponse invalide", extracted: null }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
     const anthropicData = await anthropicRes.json();
     const textContent = anthropicData.content?.[0]?.text ?? "";
 

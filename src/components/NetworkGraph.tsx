@@ -113,7 +113,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       } else {
         // Default: open Pappers for companies
         if (d.type === "company" && d.siren) {
-          window.open(`https://www.pappers.fr/entreprise/${d.siren}`, "_blank");
+          window.open(`https://www.pappers.fr/entreprise/${d.siren}`, "_blank", "noopener,noreferrer");
         }
       }
     });

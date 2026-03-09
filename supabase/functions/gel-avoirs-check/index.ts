@@ -16,7 +16,10 @@ Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
-    const { nom, prenom, denominationEntreprise } = await req.json();
+    const body = await req.json();
+    const nom = typeof body?.nom === "string" ? body.nom.slice(0, 200) : "";
+    const prenom = typeof body?.prenom === "string" ? body.prenom.slice(0, 200) : "";
+    const denominationEntreprise = typeof body?.denominationEntreprise === "string" ? body.denominationEntreprise.slice(0, 300) : "";
 
     if (!nom && !denominationEntreprise) {
       return new Response(
@@ -142,12 +145,13 @@ Deno.serve(async (req) => {
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
+    console.error("[gel-avoirs-check] Error:", (error as Error).message);
     return new Response(
       JSON.stringify({
         matches: [],
         checked: true,
         status: "unavailable",
-        error: (error as Error).message,
+        error: "Erreur interne du service gel d'avoirs",
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

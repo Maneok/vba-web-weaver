@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, Tooltip, ResponsiveContainer,
 } from "recharts";
@@ -61,6 +62,7 @@ export default function DashboardPage() {
         }
       } catch (err) {
         console.error("[Dashboard] loadParametres error:", err);
+        toast.error("Erreur lors du chargement des parametres");
       }
     }
     loadParametres();

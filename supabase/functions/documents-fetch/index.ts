@@ -7,9 +7,17 @@ const INPI_BASE = "https://registre-national-entreprises.inpi.fr/api";
 // ====== INPI Auth with token cache ======
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
+let tokenRefreshing: Promise<string | null> | null = null;
 
 async function getINPIToken(): Promise<string | null> {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
+  // Prevent thundering herd: reuse in-flight refresh
+  if (tokenRefreshing) return tokenRefreshing;
+  tokenRefreshing = _refreshINPIToken();
+  try { return await tokenRefreshing; } finally { tokenRefreshing = null; }
+}
+
+async function _refreshINPIToken(): Promise<string | null> {
   const username = Deno.env.get("INPI_USERNAME");
   const password = Deno.env.get("INPI_PASSWORD");
   if (!username || !password) { console.log("[docs] No INPI credentials"); return null; }
@@ -98,7 +106,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cleanSiren = (siren as string).replace(/\s/g, "");
+    const cleanSiren = String(siren).replace(/[\s.\-]/g, "");
+    if (!/^\d{9,14}$/.test(cleanSiren)) {
+      return new Response(JSON.stringify({ error: "Format SIREN invalide", documents: [], status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const documents: any[] = [];
     let beneficiaires: any[] = [];
     const sources: string[] = [];
@@ -114,7 +127,7 @@ Deno.serve(async (req) => {
       const { data: buckets } = await supabaseClient.storage.listBuckets();
       console.log(`[docs] Buckets: ${(buckets ?? []).map((b: any) => b.name).join(", ")}`);
       if (!buckets?.find((b: any) => b.name === "kyc-documents")) {
-        await supabaseClient.storage.createBucket("kyc-documents", { public: true });
+        await supabaseClient.storage.createBucket("kyc-documents", { public: false });
         console.log("[docs] Bucket kyc-documents created");
       }
     } catch (e) {
@@ -150,7 +163,9 @@ Deno.serve(async (req) => {
             const label = nature
               ? `${acteType} — ${nature} — ${acteDate}`
               : `${acteType} — ${nomDoc || "depot"} ${acteDate}`;
-            const storagePath = `${cleanSiren}/${acteType.replace(/\s/g, "_")}_${acteDate || acteId}.pdf`;
+            const safeType = acteType.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 50);
+            const safeDate = String(acteDate || acteId).replace(/[^a-zA-Z0-9_-]/g, "");
+            const storagePath = `${cleanSiren}/${safeType}_${safeDate}.pdf`;
 
             const downloadUrl = `${INPI_BASE}/actes/${acteId}/download`;
             const publicUrl = await downloadAndStore(supabaseClient, token, downloadUrl, storagePath);
@@ -177,7 +192,8 @@ Deno.serve(async (req) => {
             const bilanId = bilan.id;
             const dateCloture = String(bilan.dateCloture ?? bilan.date_cloture ?? "");
             const typeBilan = String(bilan.typeBilan ?? "Comptes annuels");
-            const storagePath = `${cleanSiren}/comptes_${dateCloture || bilanId}.pdf`;
+            const safeDateCloture = String(dateCloture || bilanId).replace(/[^a-zA-Z0-9_-]/g, "");
+            const storagePath = `${cleanSiren}/comptes_${safeDateCloture}.pdf`;
 
             const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;
             const publicUrl = await downloadAndStore(supabaseClient, token, downloadUrl, storagePath);

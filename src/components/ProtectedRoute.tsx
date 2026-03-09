@@ -61,11 +61,13 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   }
 
   if (!profile.is_active) {
+    // Auto sign-out deactivated accounts after showing message
+    setTimeout(() => signOut(), 3000);
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-3">
           <p className="text-lg font-semibold text-destructive">Compte desactive</p>
-          <p className="text-sm text-muted-foreground">Contactez votre administrateur.</p>
+          <p className="text-sm text-muted-foreground">Contactez votre administrateur. Deconnexion automatique...</p>
           <button
             onClick={() => signOut()}
             className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90"

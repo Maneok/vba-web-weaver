@@ -386,6 +386,32 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const validModes = ["siren", "nom", "dirigeant"];
+    if (!validModes.includes(mode)) {
+      return new Response(
+        JSON.stringify({ error: "mode invalide" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (typeof query !== "string" || query.length > 200) {
+      return new Response(
+        JSON.stringify({ error: "query invalide" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate SIREN format when in siren mode
+    if (mode === "siren") {
+      const cleanQuery = query.replace(/[\s.\-]/g, "");
+      if (!/^\d{9,14}$/.test(cleanQuery)) {
+        return new Response(
+          JSON.stringify({ error: "Format SIREN/SIRET invalide" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     let results: CompanyData[] = [];
     let source: "pappers" | "datagouv" = "pappers";
 
@@ -470,9 +496,9 @@ Deno.serve(async (req: Request) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("Error:", err);
+    console.error("[pappers-lookup] Error:", (err as Error).message);
     return new Response(
-      JSON.stringify({ error: (err as Error).message }),
+      JSON.stringify({ error: "Erreur interne du service Pappers" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

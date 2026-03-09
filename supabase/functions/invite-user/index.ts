@@ -102,9 +102,7 @@ serve(async (req) => {
 
     if (signUpError) {
       console.error("invite-user signUp error:", signUpError.message);
-      const userMessage = signUpError.message?.includes("already been registered")
-        ? "Cet email est deja enregistre"
-        : "Erreur lors de la creation du compte";
+      const userMessage = "Erreur lors de la creation du compte. Verifiez les informations.";
       return new Response(JSON.stringify({ error: userMessage }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

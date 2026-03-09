@@ -13,7 +13,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cleanSiren = (siren as string).replace(/\s/g, "");
+    const cleanSiren = String(siren).replace(/[\s.\-]/g, "");
+    if (!/^\d{9,14}$/.test(cleanSiren)) {
+      return new Response(JSON.stringify({ error: "Format SIREN/SIRET invalide", annonces: [], status: "error" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const procedureKeywords = [
       "redressement judiciaire", "liquidation judiciaire", "liquidation",
       "sauvegarde", "plan de cession", "plan de continuation",
@@ -96,8 +101,9 @@ Deno.serve(async (req) => {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
+    console.error("[bodacc-check] Error:", (error as Error).message);
     return new Response(JSON.stringify({
-      error: (error as Error).message,
+      error: "Erreur interne du service BODACC",
       annonces: [],
       hasProcedureCollective: false,
       alertes: [],

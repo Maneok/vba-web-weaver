@@ -121,6 +121,9 @@ serve(async (req) => {
         .eq("stripe_subscription_id", subscription.id);
       break;
     }
+
+    default:
+      console.log(`Unhandled Stripe event type: ${event.type}`);
   }
 
   return new Response(JSON.stringify({ received: true }), {

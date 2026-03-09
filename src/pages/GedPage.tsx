@@ -106,6 +106,7 @@ export default function GedPage() {
   const [filterExpiration, setFilterExpiration] = useState<string>("all");
   const [dragOver, setDragOver] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Upload dialog
@@ -129,25 +130,31 @@ export default function GedPage() {
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
 
-    if (error) {
+      if (error) {
+        toast.error("Erreur chargement documents");
+        console.error(error);
+      } else {
+        setDocuments((data as Document[]) || []);
+      }
+    } catch (err) {
+      console.error("[GED] fetchDocuments error:", err);
       toast.error("Erreur chargement documents");
-      console.error(error);
-    } else {
-      setDocuments((data as Document[]) || []);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const fetchStorageFiles = useCallback(async () => {
@@ -373,6 +380,8 @@ export default function GedPage() {
   };
 
   const deleteDocument = async (doc: Document) => {
+    if (deleting) return;
+    setDeleting(doc.id);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -393,6 +402,8 @@ export default function GedPage() {
     } catch (err) {
       console.error("[GED] Delete error:", err);
       toast.error("Erreur lors de la suppression");
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -800,6 +811,7 @@ export default function GedPage() {
                           size="icon"
                           className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
                           onClick={() => deleteDocument(doc)}
+                          disabled={deleting === doc.id}
                           title="Supprimer"
                         >
                           <Trash2 className="w-4 h-4" />
