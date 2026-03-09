@@ -935,7 +935,7 @@ export default function NouveauClientPage() {
         setGelAvoirsAlert([]);
       }
     }).catch(() => {
-      console.warn("[GelAvoirs] Service indisponible");
+      logger.warn("GelAvoirs", "Service indisponible");
       setGelAvoirsAlert([]);
     });
 
@@ -1038,7 +1038,7 @@ export default function NouveauClientPage() {
             prenom: names.slice(0, -1).join(" ") || "",
             dateNaissance: "",
             nationalite: "Francaise",
-            pourcentage: parseInt(match[2], 10),
+            pourcentage: parseInt(match[2], 10) || 0,
           };
         }
         return { nom: p, prenom: "", dateNaissance: "", nationalite: "Francaise", pourcentage: 0 };

@@ -79,16 +79,19 @@ export default function ClientDetailPage() {
   // Fallback: load from Supabase if context doesn't have the client (e.g. direct URL)
   useEffect(() => {
     if (contextClient || fallbackClient || !isValidRef) return;
+    let cancelled = false;
     setLoading(true);
     clientsService.getByRef(ref).then(row => {
+      if (cancelled) return;
       if (row) {
         setFallbackClient(mapDbClient(row));
       } else {
         setNotFound(true);
       }
     }).catch(() => {
-      setNotFound(true);
-    }).finally(() => setLoading(false));
+      if (!cancelled) setNotFound(true);
+    }).finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [ref, contextClient, fallbackClient]);
 
   const client = contextClient || fallbackClient;
