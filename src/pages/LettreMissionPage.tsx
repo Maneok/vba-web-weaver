@@ -80,7 +80,12 @@ import {
   Palette,
   Home,
   Paperclip,
+  Pen,
+  UserCheck,
+  ShieldAlert,
 } from "lucide-react";
+import { ScreeningAlert } from "@/components/lettre-mission/ScreeningAlert";
+import { useConditionalAlerts, VigilanceBanner, checkMissionIncompatibility } from "@/components/lettre-mission/ConditionalAlerts";
 
 // ══════════════════════════════════════════════
 // Types
@@ -242,6 +247,73 @@ function getSectionTypeIcon(section: TemplateSection): React.ReactNode {
   if (section.type === "annexe") return <Paperclip className="w-3.5 h-3.5 text-blue-400" />;
   if (section.id.startsWith("custom_")) return <Star className="w-3.5 h-3.5 text-purple-400" />;
   return <FileText className="w-3.5 h-3.5 text-slate-400" />;
+}
+
+// ══════════════════════════════════════════════
+// Inline Signature Pad (D) — Canvas-based signature
+// ══════════════════════════════════════════════
+function SignaturePadInline({ onSave, onCancel }: { onSave: (dataUrl: string) => void; onCancel: () => void }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const [hasStrokes, setHasStrokes] = useState(false);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = 400 * dpr;
+    canvas.height = 180 * dpr;
+    ctx.scale(dpr, dpr);
+    ctx.strokeStyle = "#1a1a2e";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+  }, []);
+
+  const getCoords = useCallback((e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    if ("touches" in e) {
+      const t = e.touches[0] || e.changedTouches[0];
+      return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+    }
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }, []);
+
+  return (
+    <div className="space-y-3">
+      <div className="border-2 border-dashed border-white/20 rounded-xl overflow-hidden bg-white touch-none" style={{ maxWidth: 400 }}>
+        <canvas
+          ref={canvasRef}
+          className="cursor-crosshair w-full"
+          style={{ height: 180 }}
+          onMouseDown={(e) => { e.preventDefault(); const ctx = canvasRef.current?.getContext("2d"); if (!ctx) return; const c = getCoords(e); ctx.beginPath(); ctx.moveTo(c.x, c.y); setIsDrawing(true); setHasStrokes(true); }}
+          onMouseMove={(e) => { e.preventDefault(); if (!isDrawing) return; const ctx = canvasRef.current?.getContext("2d"); if (!ctx) return; const c = getCoords(e); ctx.lineTo(c.x, c.y); ctx.stroke(); }}
+          onMouseUp={(e) => { e.preventDefault(); setIsDrawing(false); }}
+          onMouseLeave={() => setIsDrawing(false)}
+          onTouchStart={(e) => { e.preventDefault(); const ctx = canvasRef.current?.getContext("2d"); if (!ctx) return; const c = getCoords(e); ctx.beginPath(); ctx.moveTo(c.x, c.y); setIsDrawing(true); setHasStrokes(true); }}
+          onTouchMove={(e) => { e.preventDefault(); if (!isDrawing) return; const ctx = canvasRef.current?.getContext("2d"); if (!ctx) return; const c = getCoords(e); ctx.lineTo(c.x, c.y); ctx.stroke(); }}
+          onTouchEnd={(e) => { e.preventDefault(); setIsDrawing(false); }}
+        />
+      </div>
+      <p className="text-[10px] text-slate-500">Dessinez avec la souris ou le doigt (ecran tactile)</p>
+      <div className="flex gap-2">
+        <Button size="sm" variant="outline" className="text-xs" onClick={() => {
+          const ctx = canvasRef.current?.getContext("2d");
+          if (ctx) { const dpr = window.devicePixelRatio || 1; ctx.clearRect(0, 0, 400, 180); }
+          setHasStrokes(false);
+        }}>Effacer</Button>
+        <Button size="sm" className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white" disabled={!hasStrokes}
+          onClick={() => { if (canvasRef.current) onSave(canvasRef.current.toDataURL("image/png")); }}>
+          Valider la signature
+        </Button>
+        <Button size="sm" variant="ghost" className="text-xs" onClick={onCancel}>Annuler</Button>
+      </div>
+    </div>
+  );
 }
 
 // ══════════════════════════════════════════════
@@ -416,10 +488,36 @@ export default function LettreMissionPage() {
     } catch { return []; }
   });
 
+  // ── Co-edition: validateur (C) ──
+  const [validateur, setValidateur] = useState("");
+
+  // ── Signature tactile (D) ──
+  const [showSignaturePad, setShowSignaturePad] = useState<"expert" | "client" | null>(null);
+
+  // ── Creation timer (H) ──
+  const [wizardStartTime] = useState<number>(() => Date.now());
+  const [creationDuration, setCreationDuration] = useState<number | null>(null);
+
+  // ── Conditional alerts tracking (A) ──
+  const [shownAlerts] = useState<Set<string>>(() => new Set());
+  const handleAlertShown = useCallback((key: string) => { shownAlerts.add(key); }, [shownAlerts]);
+
   const client = useMemo(
     () => clients.find((c) => c.ref === selectedRef) ?? null,
     [clients, selectedRef]
   );
+
+  // ── (A) Conditional alerts — fire toasts on client change ──
+  useConditionalAlerts({ client, missions, shownAlerts, onAlertShown: handleAlertShown });
+
+  // ── (A) Mission incompatibility check ──
+  const missionError = useMemo(() => {
+    // Check if tenue AND surveillance are both selected
+    if (client?.mission?.toUpperCase().includes("TENUE") && client?.mission?.toUpperCase().includes("REVISION")) {
+      return "Missions incompatibles : Tenue comptable et Revision/Surveillance ne peuvent pas etre selectionnees simultanement.";
+    }
+    return null;
+  }, [client]);
 
   // Improvement #31: debounce client search 300ms
   useEffect(() => {
@@ -957,6 +1055,8 @@ export default function LettreMissionPage() {
           letter_number: letterNumber,
           section_comments: sectionComments,
           favorite_sections: favoriteSections,
+          validateur,
+          duration_seconds: Math.round((Date.now() - wizardStartTime) / 1000),
         },
         updated_at: new Date().toISOString(),
       }, { onConflict: "client_ref,user_id" });
@@ -1972,6 +2072,20 @@ export default function LettreMissionPage() {
 
                 {client && !leftPanelLoading && (
                   <>
+                    {/* (I) Screening alert — check if screening is complete/recent */}
+                    <ScreeningAlert client={client} />
+
+                    {/* (A) Vigilance renforcee banner */}
+                    <VigilanceBanner client={client} />
+
+                    {/* (A) Mission incompatibility error */}
+                    {missionError && (
+                      <div className="rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2.5 text-sm text-red-400 font-medium flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 shrink-0" />
+                        {missionError}
+                      </div>
+                    )}
+
                     {/* Missions summary strip */}
                     <div className="flex items-center gap-2 flex-wrap text-xs">
                       <span className="text-slate-400 font-medium">Missions :</span>
@@ -2020,22 +2134,49 @@ export default function LettreMissionPage() {
                       </div>
                     </div>
 
-                    {/* Status selector */}
-                    <div>
-                      <Label className="text-xs text-slate-400 mb-1.5 block">Statut</Label>
-                      <select
-                        value={status}
-                        onChange={(e) => handleStatusChange(e.target.value as LetterStatus)}
-                        className={STYLED_SELECT_CLS + " w-full"}
-                        style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
-                        aria-label="Statut de la lettre"
-                      >
-                        <option value="brouillon">Brouillon</option>
-                        <option value="en_attente">En attente de signature</option>
-                        <option value="signee">Sign\u00e9e</option>
-                        <option value="archivee">Archiv\u00e9e</option>
-                      </select>
+                    {/* Status selector + Validateur (C) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <Label className="text-xs text-slate-400 mb-1.5 block">Statut</Label>
+                        <select
+                          value={status}
+                          onChange={(e) => handleStatusChange(e.target.value as LetterStatus)}
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="Statut de la lettre"
+                        >
+                          <option value="brouillon">Brouillon</option>
+                          <option value="en_attente">En attente de validation</option>
+                          <option value="signee">Sign\u00e9e</option>
+                          <option value="archivee">Archiv\u00e9e</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-xs text-slate-400 mb-1.5 block flex items-center gap-1">
+                          <UserCheck className="w-3 h-3" /> Validateur
+                        </Label>
+                        <select
+                          value={validateur}
+                          onChange={(e) => { setValidateur(e.target.value); markDirty(); }}
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="Validateur de la lettre"
+                        >
+                          <option value="">-- Aucun --</option>
+                          {collaborateurs.map(col => (
+                            <option key={col.nom} value={col.nom}>{col.nom} ({col.fonction})</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
+
+                    {/* (C) Validation status info */}
+                    {status === "en_attente" && validateur && (
+                      <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-400 flex items-center gap-2">
+                        <UserCheck className="w-3.5 h-3.5" />
+                        En attente de validation par {validateur}
+                      </div>
+                    )}
 
                     {/* Genre + Objet (Feature #39: multiline) */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -2265,7 +2406,7 @@ export default function LettreMissionPage() {
                       )}
                     </div>
 
-                    {/* Signatures — BugFix #11, #26, Improvement #49: hover */}
+                    {/* Signatures — BugFix #11, #26, Improvement #49, + (D) Signature tactile */}
                     <div className="border border-white/10 rounded-lg p-3 space-y-3 hover:border-white/20 hover:bg-slate-800/30 transition-all duration-200">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Signatures</h3>
                       <div className="grid grid-cols-2 gap-3">
@@ -2283,13 +2424,23 @@ export default function LettreMissionPage() {
                                 </button>
                               </div>
                             ) : (
-                              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-white/20 rounded-lg py-8 cursor-pointer hover:border-white/40 text-xs text-slate-500 transition-colors">
-                                <Upload className="w-5 h-5" />
-                                <span className="font-medium text-slate-400">Importer votre signature</span>
-                                <span className="text-[10px]">PNG/JPG (max 2 Mo)</span>
-                                <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
-                                  onChange={(e) => { if (e.target.files?.[0]) handleSignatureUpload(type, e.target.files[0]); }} />
-                              </label>
+                              <div className="space-y-2">
+                                <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-white/20 rounded-lg py-6 cursor-pointer hover:border-white/40 text-xs text-slate-500 transition-colors">
+                                  <Upload className="w-5 h-5" />
+                                  <span className="font-medium text-slate-400">Importer</span>
+                                  <span className="text-[10px]">PNG/JPG (max 2 Mo)</span>
+                                  <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                                    onChange={(e) => { if (e.target.files?.[0]) handleSignatureUpload(type, e.target.files[0]); }} />
+                                </label>
+                                {/* (D) Signature tactile button */}
+                                <button
+                                  onClick={() => setShowSignaturePad(type)}
+                                  className="w-full flex items-center justify-center gap-1.5 text-xs text-blue-400 hover:text-blue-300 border border-blue-500/30 rounded-lg py-2 hover:bg-blue-500/10 transition-colors"
+                                >
+                                  <Pen className="w-3.5 h-3.5" />
+                                  Signer maintenant
+                                </button>
+                              </div>
                             )}
                           </div>
                         ))}
@@ -2794,6 +2945,34 @@ export default function LettreMissionPage() {
             <Button onClick={() => setShowQuickDuplicateDialog(false)} variant="outline" size="sm" className="flex-1">Annuler</Button>
             <Button onClick={handleQuickDuplicate} disabled={!quickDuplicateTargetRef} size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700 text-white">Dupliquer</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ══ SIGNATURE PAD DIALOG (D) ══ */}
+      <Dialog open={!!showSignaturePad} onOpenChange={(open) => { if (!open) setShowSignaturePad(null); }}>
+        <DialogContent className="bg-slate-900 border-white/10 max-w-lg data-[state=open]:animate-in data-[state=closed]:animate-out">
+          <DialogHeader>
+            <DialogTitle className="text-white flex items-center gap-2">
+              <Pen className="w-4 h-4" />
+              Signature {showSignaturePad === "expert" ? "expert-comptable" : "client"}
+            </DialogTitle>
+            <DialogDescription className="text-slate-400">
+              Dessinez votre signature avec la souris ou le doigt sur ecran tactile
+            </DialogDescription>
+          </DialogHeader>
+          {showSignaturePad && (
+            <div className="py-2">
+              <SignaturePadInline
+                onSave={(dataUrl) => {
+                  if (showSignaturePad === "expert") setSignatureExpert(dataUrl);
+                  else setSignatureClient(dataUrl);
+                  markDirty();
+                  setShowSignaturePad(null);
+                }}
+                onCancel={() => setShowSignaturePad(null)}
+              />
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

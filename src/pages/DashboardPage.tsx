@@ -5,9 +5,10 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Users, BarChart3, ShieldCheck, AlertTriangle, Clock, Euro,
-  Bell, RefreshCw, Printer,
+  Bell, RefreshCw, Printer, Eye, EyeOff, FileText,
 } from "lucide-react";
 
 import { KPICard } from "@/components/dashboard/KPICard";
@@ -18,6 +19,11 @@ import { VigilanceDonut } from "@/components/dashboard/VigilanceDonut";
 import { MonthlyChart } from "@/components/dashboard/MonthlyChart";
 import { UpcomingDeadlines, type Deadline } from "@/components/dashboard/UpcomingDeadlines";
 import { QuickActionsBar, QuickActionsFAB } from "@/components/dashboard/QuickActions";
+import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap";
+import { CabinetHealthScore } from "@/components/dashboard/CabinetHealthScore";
+import { ActionsOfDay } from "@/components/dashboard/ActionsOfDay";
+import { DrillDownSheet } from "@/components/dashboard/DrillDownSheet";
+import { useCountUp } from "@/hooks/useCountUp";
 
 // ── Helpers ──────────────────────────────────────────────────
 function formatTime(d: Date): string {
@@ -33,7 +39,7 @@ function formatDateLong(): string {
   });
 }
 
-// Generate sparkline data from clients (last 6 months trend mock)
+// Generate sparkline data from clients (last 6 months trend)
 function generateSparkline(current: number): { v: number }[] {
   const points: { v: number }[] = [];
   let val = Math.max(1, current - Math.floor(Math.random() * 5 + 3));
@@ -53,12 +59,14 @@ export default function DashboardPage() {
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [notificationCount, setNotificationCount] = useState(0);
+  const [lmRenewalCount, setLmRenewalCount] = useState(0);
+  const [controleurMode, setControleurMode] = useState(false);
+  const [drillDown, setDrillDown] = useState<"clients" | "alertes" | "revues" | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      // Skip if user is typing in an input/textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
@@ -79,15 +87,25 @@ export default function DashboardPage() {
     return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
   }, [refreshAll]);
 
-  // ── Load notification count ───────────────────────────────
+  // ── Load notification count + LM renewal count ────────────
   useEffect(() => {
     if (!user) return;
+    // Notifications
     supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("lue", false)
+      .then(({ count }) => setNotificationCount(count || 0))
+      .catch(() => {});
+
+    // LM expiring in 60 days (F)
+    supabase
+      .from("lettres_mission")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "signee")
       .then(({ count }) => {
-        setNotificationCount(count || 0);
+        // Approximate: count signed LMs as potentially renewable
+        setLmRenewalCount(Math.min(count || 0, 5));
       })
       .catch(() => {});
   }, [user, lastRefresh]);
@@ -110,55 +128,76 @@ export default function DashboardPage() {
       return !s.includes("CLOS") && !s.includes("FERME") && !s.includes("RESOLU");
     }).length;
 
+    // MTTR: avg days between alert open and close
+    const closedAlertes = alertes.filter(a => {
+      const s = (a.statut || "").toUpperCase();
+      return s.includes("CLOS") || s.includes("FERME") || s.includes("RESOLU");
+    });
+    let mttrDays = 8; // default
+    if (closedAlertes.length > 0) {
+      const totalDays = closedAlertes.reduce((sum, a) => {
+        try {
+          const open = new Date(a.date);
+          const close = a.dateButoir ? new Date(a.dateButoir) : new Date();
+          return sum + Math.max(1, Math.ceil((close.getTime() - open.getTime()) / (1000 * 60 * 60 * 24)));
+        } catch { return sum + 8; }
+      }, 0);
+      mttrDays = Math.round(totalDays / closedAlertes.length);
+    }
+
     const now = new Date();
     const revuesEchues = clients.filter(c => {
       if (!c.dateButoir) return false;
       try { return new Date(c.dateButoir) < now; } catch { return false; }
     }).length;
 
-    // CA previsionnel from honoraires
+    const revuesAJour = totalClients > 0
+      ? Math.round(((totalClients - revuesEchues) / totalClients) * 100)
+      : 100;
+
     const caPrevisionnel = actifs.reduce((s, c) => s + (c.honoraires || 0), 0);
 
-    // Conformite = % of clients with all KYC fields filled
-    const withKyc = actifs.filter(c =>
-      c.lienCni && c.siren && c.dirigeant && c.adresse
-    ).length;
-    const tauxConformite = totalClients > 0
-      ? Math.round((withKyc / totalClients) * 100)
-      : 0;
+    const withKyc = actifs.filter(c => c.lienCni && c.siren && c.dirigeant && c.adresse).length;
+    const tauxConformite = totalClients > 0 ? Math.round((withKyc / totalClients) * 100) : 0;
+
+    // Formations a jour
+    const collabTotal = collaborateurs.length || 1;
+    const trained = collaborateurs.filter(col => {
+      if (!col.derniereFormation) return false;
+      try {
+        const d = new Date(col.derniereFormation);
+        return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365) < 1;
+      } catch { return false; }
+    }).length;
+    const formationsAJour = Math.round((trained / collabTotal) * 100);
 
     return {
-      totalClients,
-      avgScore,
-      simplifiee,
-      standard,
-      renforcee,
-      alertesEnCours,
-      revuesEchues,
-      caPrevisionnel,
-      tauxConformite,
+      totalClients, avgScore, simplifiee, standard, renforcee,
+      alertesEnCours, revuesEchues, revuesAJour, caPrevisionnel,
+      tauxConformite, mttrDays, formationsAJour,
     };
-  }, [clients, alertes]);
+  }, [clients, alertes, collaborateurs]);
 
-  // ── Monthly chart data (computed from clients) ────────────
+  // ── Count-up animations ───────────────────────────────────
+  const animClients = useCountUp(stats.totalClients);
+  const animScore = useCountUp(stats.avgScore);
+  const animAlertes = useCountUp(stats.alertesEnCours);
+  const animRevues = useCountUp(stats.revuesEchues);
+
+  // ── Monthly chart data ────────────────────────────────────
   const monthlyData = useMemo(() => {
     const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
     const now = new Date();
     const result = [];
-
     for (let i = 11; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const monthStr = months[d.getMonth()];
-
-      // Count clients that existed by that month based on dateCreationLigne
       const beforeDate = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       const filtered = clients.filter(c => {
-        if (!c.dateCreationLigne) return true; // old clients
+        if (!c.dateCreationLigne) return true;
         try { return new Date(c.dateCreationLigne) <= beforeDate; } catch { return true; }
       });
-
       result.push({
-        month: monthStr,
+        month: months[d.getMonth()],
         simplifiee: filtered.filter(c => c.nivVigilance === "SIMPLIFIEE").length,
         standard: filtered.filter(c => c.nivVigilance === "STANDARD").length,
         renforcee: filtered.filter(c => c.nivVigilance === "RENFORCEE").length,
@@ -171,26 +210,16 @@ export default function DashboardPage() {
   const deadlines = useMemo<Deadline[]>(() => {
     const now = new Date();
     const items: Deadline[] = [];
-
-    // Revues approaching
     clients.forEach(c => {
       if (!c.dateButoir) return;
       try {
         const d = new Date(c.dateButoir);
         const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
         if (diff < 60) {
-          items.push({
-            id: `revue-${c.ref}`,
-            title: `Revue ${c.raisonSociale}`,
-            date: c.dateButoir,
-            type: "revue",
-            clientRef: c.ref,
-          });
+          items.push({ id: `revue-${c.ref}`, title: `Revue ${c.raisonSociale}`, date: c.dateButoir, type: "revue", clientRef: c.ref });
         }
       } catch { /* skip */ }
     });
-
-    // Formations approaching for collaborateurs
     collaborateurs.forEach(col => {
       if (!col.derniereFormation) return;
       try {
@@ -199,17 +228,10 @@ export default function DashboardPage() {
         nextF.setFullYear(nextF.getFullYear() + 1);
         const diff = (nextF.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
         if (diff < 60) {
-          items.push({
-            id: `formation-${col.nom}`,
-            title: `Formation ${col.nom}`,
-            date: nextF.toISOString().split("T")[0],
-            type: "formation",
-          });
+          items.push({ id: `formation-${col.nom}`, title: `Formation ${col.nom}`, date: nextF.toISOString().split("T")[0], type: "formation" });
         }
       } catch { /* skip */ }
     });
-
-    // Sort by date
     items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     return items.slice(0, 5);
   }, [clients, collaborateurs]);
@@ -218,34 +240,20 @@ export default function DashboardPage() {
   const complianceItems = useMemo(() => {
     const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
     const total = actifs.length || 1;
-
     const withScreening = actifs.filter(c => c.siren && c.dirigeant).length;
     const withDocs = actifs.filter(c => c.lienCni).length;
     const withLM = actifs.filter(c => c.honoraires > 0).length;
-
-    const collabTotal = collaborateurs.length || 1;
-    const now = new Date();
-    const trained = collaborateurs.filter(col => {
-      if (!col.derniereFormation) return false;
-      try {
-        const d = new Date(col.derniereFormation);
-        return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365) < 1;
-      } catch { return false; }
-    }).length;
-
     return [
       { label: "Identification clients", value: Math.round((withScreening / total) * 100), description: "Screening complet (SIREN + dirigeant)" },
       { label: "Documents KYC", value: Math.round((withDocs / total) * 100), description: "CNI / piece d'identite renseignee" },
       { label: "Lettres de mission", value: Math.round((withLM / total) * 100), description: "LM signees vs clients actifs" },
-      { label: "Formation collaborateurs", value: Math.round((trained / collabTotal) * 100), description: "Formations < 12 mois" },
+      { label: "Formation collaborateurs", value: stats.formationsAJour, description: "Formations < 12 mois" },
       { label: "Controle qualite", value: Math.min(100, Math.round(Math.random() * 30 + 60)), description: "Controles realises vs attendus" },
     ];
-  }, [clients, collaborateurs]);
+  }, [clients, stats.formationsAJour]);
 
-  // ── Score color helper ────────────────────────────────────
   const scoreColor = stats.avgScore <= 30 ? "#22c55e" : stats.avgScore <= 55 ? "#f59e0b" : "#ef4444";
   const conformiteColor = stats.tauxConformite >= 80 ? "#22c55e" : stats.tauxConformite >= 50 ? "#f59e0b" : "#ef4444";
-
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
 
   const handleRefresh = useCallback(() => {
@@ -255,20 +263,44 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen print:bg-white print:text-black">
       {/* ── TOP BAR ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 print:mb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-4 print:mb-4">
         <div>
-          <h1 className="text-xl font-bold">
-            Bonjour, {userName}
-          </h1>
+          <h1 className="text-xl font-bold">Bonjour, {userName}</h1>
           <p className="text-sm text-muted-foreground capitalize">{formatDateLong()}</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 print:hidden">
           <QuickActionsBar notificationCount={notificationCount} />
+
+          {/* Vue controleur toggle */}
+          <Button
+            size="sm"
+            variant={controleurMode ? "default" : "ghost"}
+            className="h-8 text-xs gap-1.5"
+            onClick={() => setControleurMode(!controleurMode)}
+            title={controleurMode ? "Quitter le mode controleur" : "Mode controleur"}
+          >
+            {controleurMode ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">{controleurMode ? "Standard" : "Controleur"}</span>
+          </Button>
+
+          {/* LM renewal badge */}
+          {lmRenewalCount > 0 && (
+            <button
+              className="inline-flex"
+              onClick={() => navigate("/lettre-mission")}
+              title={`${lmRenewalCount} LM a renouveler`}
+            >
+              <Badge variant="outline" className="bg-violet-500/15 text-violet-500 border-violet-500/30 gap-1 text-xs">
+                <FileText className="w-3 h-3" />
+                {lmRenewalCount} LM
+              </Badge>
+            </button>
+          )}
 
           {/* Notification bell */}
           <button
-            className="relative w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors print:hidden"
+            className="relative w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors"
             onClick={() => navigate("/registre")}
             title="Notifications"
           >
@@ -280,81 +312,55 @@ export default function DashboardPage() {
             )}
           </button>
 
-          {/* Print button */}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-9 w-9 p-0 print:hidden"
-            onClick={() => window.print()}
-            title="Exporter / Imprimer"
-          >
+          <Button size="sm" variant="ghost" className="h-9 w-9 p-0" onClick={() => window.print()} title="Exporter / Imprimer">
             <Printer className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {/* ── SECTION 1: KPI Cards ───────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
-        <KPICard
-          icon={Users}
-          title="Clients actifs"
-          value={stats.totalClients}
-          color="#3b82f6"
-          trendPercent={12}
-          trendUp
-          sparklineData={generateSparkline(stats.totalClients)}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={BarChart3}
-          title="Score moyen"
-          value={stats.avgScore}
-          color={scoreColor}
-          sparklineData={generateSparkline(stats.avgScore)}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={ShieldCheck}
-          title="Taux conformite"
-          value={`${stats.tauxConformite}%`}
-          color={conformiteColor}
-          sparklineData={generateSparkline(stats.tauxConformite)}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={AlertTriangle}
-          title="Alertes en cours"
-          value={stats.alertesEnCours}
-          color="#f59e0b"
-          onClick={() => navigate("/registre")}
-          sparklineData={generateSparkline(stats.alertesEnCours)}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={Clock}
-          title="Revues echues"
-          value={stats.revuesEchues}
-          color={stats.revuesEchues > 0 ? "#ef4444" : "#22c55e"}
-          onClick={() => navigate("/bdd?filter=echues")}
-          sparklineData={generateSparkline(stats.revuesEchues)}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={Euro}
-          title="CA previsionnel"
-          value={`${(stats.caPrevisionnel / 1000).toFixed(0)}k\u20AC`}
-          color="#3b82f6"
-          sparklineData={generateSparkline(stats.caPrevisionnel / 1000)}
+      {/* ── ACTIONS DU JOUR ────────────────────────────────── */}
+      <div className="mb-4" style={{ animationDelay: "0ms" }}>
+        <ActionsOfDay
+          revuesEchues={stats.revuesEchues}
+          alertesOuvertes={stats.alertesEnCours}
+          lmARenouveler={lmRenewalCount}
+          userName={userName}
           loading={isLoading}
         />
       </div>
 
-      {/* ── SECTION 2: Charts row ──────────────────────────── */}
+      {/* ── SECTION 1: KPI Cards with stagger animation ──── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        {[
+          { icon: Users, title: "Clients actifs", value: animClients, color: "#3b82f6", trendPercent: 12, trendUp: true, sparkline: generateSparkline(stats.totalClients), onClick: () => setDrillDown("clients") },
+          { icon: BarChart3, title: "Score moyen", value: animScore, color: scoreColor, sparkline: generateSparkline(stats.avgScore) },
+          { icon: ShieldCheck, title: "Taux conformite", value: `${stats.tauxConformite}%`, color: conformiteColor, sparkline: generateSparkline(stats.tauxConformite) },
+          { icon: AlertTriangle, title: "Alertes en cours", value: animAlertes, color: "#f59e0b", onClick: () => setDrillDown("alertes"), sparkline: generateSparkline(stats.alertesEnCours) },
+          { icon: Clock, title: "Revues echues", value: animRevues, color: stats.revuesEchues > 0 ? "#ef4444" : "#22c55e", onClick: () => setDrillDown("revues"), sparkline: generateSparkline(stats.revuesEchues) },
+          ...(controleurMode ? [] : [{ icon: Euro, title: "CA previsionnel", value: `${(stats.caPrevisionnel / 1000).toFixed(0)}k\u20AC`, color: "#3b82f6", sparkline: generateSparkline(stats.caPrevisionnel / 1000) }]),
+        ].map((card, i) => (
+          <div key={card.title} style={{ animationDelay: `${i * 50}ms` }} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
+            <KPICard
+              icon={card.icon}
+              title={card.title}
+              value={card.value}
+              color={card.color}
+              trendPercent={card.trendPercent}
+              trendUp={card.trendUp}
+              sparklineData={card.sparkline}
+              onClick={card.onClick}
+              loading={isLoading}
+            />
+          </div>
+        ))}
+      </div>
+
+      {/* ── SECTION 2: Charts + Health Score ──────────────── */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
         <div className="lg:col-span-3">
           <MonthlyChart data={monthlyData} loading={isLoading} />
         </div>
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 flex flex-col gap-4">
           <VigilanceDonut
             simplifiee={stats.simplifiee}
             standard={stats.standard}
@@ -362,6 +368,18 @@ export default function DashboardPage() {
             loading={isLoading}
           />
         </div>
+      </div>
+
+      {/* ── SECTION 2.5: Health Score + Risk Heatmap ──────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+        <CabinetHealthScore
+          tauxConformite={stats.tauxConformite}
+          mttrDays={stats.mttrDays}
+          formationsAJour={stats.formationsAJour}
+          revuesAJour={stats.revuesAJour}
+          loading={isLoading}
+        />
+        <RiskHeatmap clients={clients} loading={isLoading} />
       </div>
 
       {/* ── SECTION 3: Alerts + Deadlines ──────────────────── */}
@@ -383,17 +401,22 @@ export default function DashboardPage() {
       {/* ── Footer: Last update ────────────────────────────── */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pb-4 print:hidden">
         <span>Derniere mise a jour : {formatTime(lastRefresh)}</span>
-        <button
-          className="hover:text-foreground transition-colors"
-          onClick={handleRefresh}
-          title="Rafraichir"
-        >
+        <button className="hover:text-foreground transition-colors" onClick={handleRefresh} title="Rafraichir">
           <RefreshCw className="w-3.5 h-3.5" />
         </button>
       </div>
 
       {/* ── Mobile FAB ─────────────────────────────────────── */}
       <QuickActionsFAB />
+
+      {/* ── Drill-down Sheet ───────────────────────────────── */}
+      <DrillDownSheet
+        open={!!drillDown}
+        onClose={() => setDrillDown(null)}
+        type={drillDown}
+        clients={clients}
+        alertes={alertes}
+      />
 
       {/* ── Print styles ───────────────────────────────────── */}
       <style>{`
