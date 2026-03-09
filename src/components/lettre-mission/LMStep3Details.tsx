@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
@@ -23,14 +23,18 @@ export default function LMStep3Details({ data, onChange }: Props) {
   const [showClauses, setShowClauses] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
-  const referentLcb = collaborateurs.find((c) => c.referentLcb);
+  const referentLcb = useMemo(() => collaborateurs.find((c) => c.referentLcb), [collaborateurs]);
 
   // Auto pre-fill associe if not set (wrapped in useEffect to avoid setState during render)
   useEffect(() => {
     if (!data.associe_signataire && collaborateurs.length > 0) {
-      const admin = collaborateurs.find((c) => c.fonction?.toLowerCase().includes("associ"));
+      const admin = collaborateurs.find((c) => {
+        const fn = c.fonction?.toLowerCase() || "";
+        return fn === "associe" || fn === "associé" || fn.startsWith("associ") && !fn.includes("associatif");
+      });
       if (admin) onChange({ associe_signataire: admin.nom });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.associe_signataire, collaborateurs]);
 
   useEffect(() => {
@@ -58,6 +62,8 @@ export default function LMStep3Details({ data, onChange }: Props) {
         <button
           type="button"
           onClick={() => setShowClientInfo(!showClientInfo)}
+          aria-expanded={showClientInfo}
+          aria-controls="client-info-section"
           className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors"
         >
           <div className="flex items-center gap-3">
@@ -76,7 +82,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
           </div>
         </button>
 
-        <div className={`overflow-hidden transition-all duration-200 ${showClientInfo ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
+        <div id="client-info-section" className={`overflow-hidden transition-all duration-200 ${showClientInfo ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
           <div className="px-4 pb-4 space-y-4 border-t border-white/[0.04]">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
               <div className="space-y-1.5">
@@ -233,13 +239,15 @@ export default function LMStep3Details({ data, onChange }: Props) {
         <button
           type="button"
           onClick={() => setShowClauses(!showClauses)}
+          aria-expanded={showClauses}
+          aria-controls="clauses-section"
           className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors"
         >
           <p className="text-sm font-medium text-slate-300">Clauses obligatoires</p>
           <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showClauses ? "rotate-180" : ""}`} />
         </button>
 
-        <div className={`overflow-hidden transition-all duration-200 ${showClauses ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
+        <div id="clauses-section" className={`overflow-hidden transition-all duration-200 ${showClauses ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
           <div className="px-4 pb-4 space-y-3 border-t border-white/[0.04]">
             <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] mt-3">
               <span className="text-sm text-slate-300">LCB-FT</span>

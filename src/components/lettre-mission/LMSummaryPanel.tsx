@@ -42,7 +42,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
   const missions = (data.missions_selected || []).filter((m) => m.selected);
 
   return (
-    <div className="sticky top-20 space-y-5">
+    <div className="sticky top-20 space-y-5" aria-label="Resume de la lettre de mission" role="complementary">
       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Resume</h3>
 
       {/* Client */}

@@ -34,7 +34,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
   const { clients } = useAppState();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [previousLM, setPreviousLM] = useState<any>(null);
+  const [previousLM, setPreviousLM] = useState<{ id: string; wizard_data: any; numero: string; statut: string } | null>(null);
   const [screeningStatus, setScreeningStatus] = useState<"ok" | "expired" | "missing" | null>(null);
 
   const filtered = useMemo(() => {
@@ -127,6 +127,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
       client_id: "", client_ref: "", raison_sociale: "", siren: "",
       forme_juridique: "", dirigeant: "", adresse: "", cp: "", ville: "",
       capital: "", ape: "", email: "", telephone: "", iban: "", bic: "",
+      type_mission: "", rcs: "", date_cloture: "", qualite_dirigeant: "Gerant",
     });
     setSearch("");
   };
@@ -166,14 +167,17 @@ export default function LMStep1Client({ data, onChange }: Props) {
               inputMode="search"
               autoComplete="off"
               autoFocus
+              aria-label="Rechercher un client"
               className="pl-10 h-12 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600 text-base"
             />
           </div>
 
-          <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 -mx-1 px-1">
+          <div className="space-y-2 max-h-[360px] overflow-y-auto pr-1 -mx-1 px-1" role="listbox" aria-label="Liste des clients">
             {filtered.map((c) => (
               <button
                 key={c.ref}
+                role="option"
+                aria-selected={false}
                 onClick={() => selectClient(c)}
                 className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
               >
@@ -260,6 +264,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
           <div className="relative p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
             <button
               onClick={clearClient}
+              aria-label="Changer de client"
               className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors"
             >
               <X className="w-3.5 h-3.5 text-slate-400" />

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData, MissionSelection } from "@/lib/lmWizardTypes";
 import { DEFAULT_MISSIONS, applyFormConditionals } from "@/lib/lmDefaults";
@@ -45,7 +45,10 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data.forme_juridique]);
 
-  const missions = (data.missions_selected || []).length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
+  const missions = useMemo(
+    () => (data.missions_selected || []).length > 0 ? data.missions_selected : DEFAULT_MISSIONS,
+    [data.missions_selected]
+  );
 
   // A) Conditional logic toasts — show once
   const missionsRef = useRef(missions);
@@ -171,6 +174,8 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 type="button"
                 onClick={() => toggleSection(mission.section_id)}
                 disabled={isLocked}
+                aria-expanded={mission.selected}
+                aria-controls={`mission-${mission.section_id}-options`}
                 className={`w-full flex items-center gap-3 p-4 text-left min-h-[56px] ${
                   isLocked ? "cursor-default" : "cursor-pointer active:bg-white/[0.02]"
                 }`}
@@ -205,9 +210,12 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 </div>
               </button>
 
-              <div className={`overflow-hidden transition-all duration-200 ${
-                mission.selected ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
-              }`}>
+              <div
+                id={`mission-${mission.section_id}-options`}
+                className={`overflow-hidden transition-all duration-200 ${
+                  mission.selected ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
                 <div className="px-4 pb-4 pt-1 space-y-1 border-t border-white/[0.04]">
                   {mission.sous_options.map((opt) => (
                     <label

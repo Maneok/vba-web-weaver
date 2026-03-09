@@ -83,7 +83,13 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
     return () => window.removeEventListener("keydown", h, true);
   }, [fullscreen]);
 
-  const client = buildClientFromData(data);
+  const client = useMemo(() => buildClientFromData(data), [
+    data.client_ref, data.raison_sociale, data.forme_juridique, data.siren,
+    data.dirigeant, data.adresse, data.cp, data.ville, data.capital,
+    data.ape, data.email, data.telephone, data.iban, data.bic,
+    data.type_mission, data.honoraires_ht, data.frequence_facturation,
+    data.associe_signataire, data.chef_mission,
+  ]);
 
   const missionsList = data.missions_selected || [];
   const missions = {
@@ -163,10 +169,11 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
   return (
     <div className="space-y-6">
       {/* Quick edit bar */}
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Modifier une section">
         {editButtons.map((b) => (
           <button
             key={b.step}
+            aria-label={`Modifier ${b.label}`}
             onClick={() => onGoToStep(b.step)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs text-slate-400 hover:text-blue-400 hover:border-blue-500/20 transition-colors"
           >
@@ -198,7 +205,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
 
       {/* E) Auto annexes */}
       {(() => {
-        const annexeIds = missionsList.length > 0 ? computeAnnexes(data) : [];
+        const annexeIds = missionsList.length > 0 ? computeAnnexes({ ...data, missions_selected: missionsList }) : [];
         if (annexeIds.length === 0) return null;
         return (
           <div className="space-y-2">

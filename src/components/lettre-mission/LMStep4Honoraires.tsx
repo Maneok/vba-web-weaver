@@ -12,9 +12,12 @@ interface Props {
 }
 
 function formatMontant(value: string): string {
-  const num = value.replace(/[^\d]/g, "");
+  const num = value.replace(/[^\d.,]/g, "").replace(/,/g, ".");
   if (!num) return "";
-  return num.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  // Handle decimal part
+  const parts = num.split(".");
+  const intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return parts.length > 1 ? `${intPart},${parts[1].slice(0, 2)}` : intPart;
 }
 
 function formatIBAN(value: string): string {
@@ -39,7 +42,10 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
   const periodLabel = data.frequence_facturation === "MENSUEL" ? "mois" : data.frequence_facturation === "TRIMESTRIEL" ? "trimestre" : "an";
   const divisor = data.frequence_facturation === "MENSUEL" ? 12 : data.frequence_facturation === "TRIMESTRIEL" ? 4 : 1;
-  const perPeriod = data.honoraires_ht > 0 ? Math.round(ttc / divisor * 100) / 100 : 0;
+  const perPeriod = useMemo(
+    () => data.honoraires_ht > 0 && divisor > 0 ? Math.round(ttc / divisor * 100) / 100 : 0,
+    [ttc, divisor, data.honoraires_ht]
+  );
 
   const validateField = (field: string, value: any) => {
     let error = "";
@@ -68,10 +74,12 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
         <div className="relative max-w-xs mx-auto">
           <Input
             inputMode="decimal"
+            aria-label="Montant des honoraires annuels HT en euros"
             value={data.honoraires_ht ? formatMontant(String(data.honoraires_ht)) : ""}
             onChange={(e) => {
-              const raw = e.target.value.replace(/\s/g, "");
-              onChange({ honoraires_ht: Number(raw) || 0 });
+              const raw = e.target.value.replace(/[\s\u00a0]/g, "").replace(",", ".");
+              const num = Math.max(0, Number(raw) || 0);
+              onChange({ honoraires_ht: num });
             }}
             onBlur={() => validateField("honoraires_ht", data.honoraires_ht)}
             className={`${fieldErrors.honoraires_ht ? errorCls : inputCls} text-center text-4xl font-bold h-16`}

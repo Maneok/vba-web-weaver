@@ -78,11 +78,13 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size
+    // Set canvas size with proper DPR
     const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
+    const dpr = window.devicePixelRatio || 1;
+    if (rect.width === 0 || rect.height === 0) return;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.lineWidth = 2;
@@ -93,6 +95,9 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
       const img = new Image();
       img.onload = () => {
         ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      };
+      img.onerror = () => {
+        // Silently ignore invalid signature images
       };
       img.src = value;
     }
@@ -156,7 +161,9 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
       <div className="relative rounded-lg border border-dashed border-white/[0.12] bg-white/[0.02] overflow-hidden">
         <canvas
           ref={canvasRef}
-          className="w-full h-[120px] cursor-crosshair touch-none"
+          aria-label="Zone de signature tactile"
+          role="img"
+          className="w-full h-[140px] cursor-crosshair touch-none"
           onMouseDown={startDraw}
           onMouseMove={draw}
           onMouseUp={endDraw}
@@ -183,6 +190,11 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
 export default function LMStep6Export({ data, onChange, onSave, onReset }: Props) {
   const [showSignature, setShowSignature] = useState(false);
   const [emailTo, setEmailTo] = useState(data.email || "");
+
+  // Sync emailTo when data.email changes (e.g. after editing step 3)
+  useEffect(() => {
+    if (data.email && !emailTo) setEmailTo(data.email);
+  }, [data.email]);
   const [showEmail, setShowEmail] = useState(false);
   const lockRef = useRef(false);
   const [generating, setGenerating] = useState<string | null>(null);
@@ -201,6 +213,13 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   }, [annexesKey]);
 
   const [cooldown, setCooldown] = useState(false);
+  const cooldownTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  // Cleanup cooldown timer on unmount
+  useEffect(() => {
+    return () => { if (cooldownTimer.current) clearTimeout(cooldownTimer.current); };
+  }, []);
+
   const withLock = useCallback(async (key: string, fn: () => Promise<void>) => {
     if (lockRef.current) return;
     lockRef.current = true;
@@ -212,7 +231,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
     } finally {
       setGenerating(null);
       setCooldown(true);
-      setTimeout(() => { lockRef.current = false; setCooldown(false); }, 3000);
+      cooldownTimer.current = setTimeout(() => { lockRef.current = false; setCooldown(false); }, 3000);
     }
   }, []);
 
@@ -308,6 +327,9 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
     reader.onload = (ev) => {
       onChange({ signature_expert: ev.target?.result as string });
     };
+    reader.onerror = () => {
+      toast.error("Impossible de lire le fichier");
+    };
     reader.readAsDataURL(file);
   };
 
@@ -328,7 +350,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           onClick={handlePDF}
           disabled={!!generating || cooldown}
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-50"
+          aria-label="Telecharger au format PDF"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {generating === "pdf" ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
           <span className="text-sm font-medium text-slate-300">Telecharger PDF</span>
@@ -337,7 +360,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           onClick={handleDOCX}
           disabled={!!generating || cooldown}
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-50"
+          aria-label="Telecharger au format DOCX"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {generating === "docx" ? <Loader2 className="w-6 h-6 text-purple-400 animate-spin" /> : <FileText className="w-6 h-6 text-purple-400" />}
           <span className="text-sm font-medium text-slate-300">Telecharger DOCX</span>
@@ -395,6 +419,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           type="button"
           onClick={() => setShowSignature(!showSignature)}
+          aria-expanded={showSignature}
+          aria-controls="signature-section"
           className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors"
         >
           <div className="flex items-center gap-2">
@@ -405,7 +431,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           </div>
           <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showSignature ? "rotate-180" : ""}`} />
         </button>
-        <div className={`overflow-hidden transition-all duration-200 ${showSignature ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"}`}>
+        <div id="signature-section" className={`overflow-hidden transition-all duration-200 ${showSignature ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
           <div className="px-4 pb-4 space-y-4 border-t border-white/[0.04]">
             {/* Canvas signature */}
             <div className="pt-3">

@@ -14,7 +14,14 @@ export default function LMProgressBar({ currentStep }: Props) {
   return (
     <div className="w-full space-y-1.5">
       {/* Bar */}
-      <div className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden">
+      <div
+        className="h-1.5 w-full rounded-full bg-white/[0.06] overflow-hidden"
+        role="progressbar"
+        aria-valuenow={currentStep + 1}
+        aria-valuemin={1}
+        aria-valuemax={LM_TOTAL_STEPS}
+        aria-label={`Etape ${currentStep + 1} sur ${LM_TOTAL_STEPS}`}
+      >
         <div
           className="h-full rounded-full transition-all duration-500 ease-out"
           style={{

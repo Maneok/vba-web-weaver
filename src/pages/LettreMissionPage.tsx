@@ -102,8 +102,8 @@ function LetterHistory({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+      <div className="flex items-center justify-center py-20" aria-busy="true" aria-live="polite">
+        <Loader2 className="w-6 h-6 animate-spin text-blue-400" aria-hidden="true" />
         <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
       </div>
     );
@@ -129,6 +129,7 @@ function LetterHistory({
             placeholder="Rechercher par nom, numero..."
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
+            aria-label="Rechercher une lettre de mission"
             className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
           />
         </div>
@@ -179,7 +180,7 @@ function LetterHistory({
             className="group sm:grid sm:grid-cols-[1fr_120px_100px_100px_80px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
           >
             {/* Client */}
-            <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
+            <button onClick={() => onEdit(letter)} aria-label={`Modifier ${letter.raison_sociale}`} className="flex items-center gap-2 text-left min-w-0">
               <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
                 <FileText className="w-4 h-4 text-blue-400" />
               </div>
@@ -245,9 +246,9 @@ function LetterHistory({
             <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
               <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>{letter.statut}</Badge>
               <div className="flex-1" />
-              <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onDuplicate(letter)} aria-label="Dupliquer" className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onDownloadPdf(letter)} aria-label="Telecharger PDF" className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onArchive(letter)} aria-label="Archiver" className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
             </div>
           </div>
         ))}
@@ -339,8 +340,11 @@ export default function LettreMissionPage() {
     return () => clearInterval(iv);
   }, []);
 
-  // ── H) Time tracking + date_debut init ──
+  // ── H) Time tracking + date_debut init (only for NEW letters, not edits/resumes) ──
+  const timeInitDone = useRef(false);
   useEffect(() => {
+    if (timeInitDone.current) return;
+    timeInitDone.current = true;
     setData((prev) => {
       const updates: Partial<LMWizardData> = {};
       if (!prev.started_at) updates.started_at = new Date().toISOString();
@@ -385,26 +389,35 @@ export default function LettreMissionPage() {
 
   const loadSupabaseDraft = async () => {
     try {
-      const { data: drafts } = await supabase
+      const { data: drafts, error } = await supabase
         .from("lettres_mission")
         .select("id, wizard_data, wizard_step, created_at")
         .eq("statut", "brouillon")
         .order("updated_at", { ascending: false })
         .limit(1);
+      if (error) { console.warn("Draft load error:", error.message); return; }
       if (drafts && drafts.length > 0 && drafts[0].wizard_data?.client_id) {
-        setDraftInfo(drafts[0] as any);
+        setDraftInfo({ id: drafts[0].id, wizard_data: drafts[0].wizard_data, wizard_step: drafts[0].wizard_step ?? 0 });
         setShowDraftBanner(true);
       }
-    } catch {}
+    } catch (e) { console.warn("Draft load failed:", e); }
   };
 
   const resumeDraft = () => {
     if (draftInfo) {
-      setData({ ...INITIAL_LM_WIZARD_DATA, ...draftInfo.wizard_data });
+      const wd = draftInfo.wizard_data || {};
+      // Validate essential fields exist before restoring
+      setData({
+        ...INITIAL_LM_WIZARD_DATA,
+        ...wd,
+        // Preserve started_at from draft if present, otherwise keep existing
+        started_at: wd.started_at || new Date().toISOString(),
+      });
       setLmId(draftInfo.id);
-      setStep(draftInfo.wizard_step || 0);
+      setStep(Math.min(draftInfo.wizard_step || 0, LM_TOTAL_STEPS - 1));
       setShowDraftBanner(false);
       setActiveTab("wizard");
+      warningShown.current = false;
     }
   };
 
@@ -416,22 +429,22 @@ export default function LettreMissionPage() {
   }, [data.forme_juridique]);
 
   // ── Existing LM warning ──
-  const warningShown = useRef(false);
+  const warningShown = useRef<string>("");
   useEffect(() => {
-    if (data.client_id && !warningShown.current) {
-      warningShown.current = true;
-      supabase
-        .from("lettres_mission")
-        .select("id")
-        .eq("client_ref", data.client_id)
-        .neq("statut", "archivee")
-        .then(({ data: existing }) => {
-          if (existing && existing.length > 0) {
-            toast.warning("Ce client a deja une lettre de mission active");
-          }
-        })
-        .catch(() => {});
-    }
+    if (!data.client_id) { warningShown.current = ""; return; }
+    if (data.client_id === warningShown.current) return;
+    warningShown.current = data.client_id;
+    supabase
+      .from("lettres_mission")
+      .select("id")
+      .eq("client_ref", data.client_id)
+      .neq("statut", "archivee")
+      .then(({ data: existing }) => {
+        if (existing && existing.length > 0) {
+          toast.warning("Ce client a deja une lettre de mission active");
+        }
+      })
+      .catch(() => {});
   }, [data.client_id]);
 
   // ── Auto-save debounce 2s ──
@@ -464,7 +477,9 @@ export default function LettreMissionPage() {
       }
       setLastSaved(new Date());
       toast.success("Sauvegarde", { duration: 1500 });
-    } catch {}
+    } catch (e) {
+      console.warn("Auto-save failed:", e);
+    }
   }, [data, step, lmId, profile?.cabinet_id]);
 
   // Trigger auto-save on data change (debounced 2s)
@@ -474,6 +489,11 @@ export default function LettreMissionPage() {
     saveTimer.current = setTimeout(saveToSupabase, 2000);
     return () => clearTimeout(saveTimer.current);
   }, [data, step, saveToSupabase]);
+
+  // Cleanup save timer on component unmount
+  useEffect(() => {
+    return () => clearTimeout(saveTimer.current);
+  }, []);
 
   const loadSavedLetters = async () => {
     setHistoryLoading(true);
@@ -500,7 +520,9 @@ export default function LettreMissionPage() {
           }))
         );
       }
-    } catch {}
+    } catch (e) {
+      console.warn("History load failed:", e);
+    }
     setHistoryLoading(false);
   };
 
@@ -590,23 +612,30 @@ export default function LettreMissionPage() {
     setData({ ...INITIAL_LM_WIZARD_DATA, started_at: new Date().toISOString() });
     setLmId(null);
     setStep(0);
-    warningShown.current = false;
+    warningShown.current = "";
     setExpressMode(false);
     sessionStorage.removeItem("lm_wizard_draft");
   };
 
   const handleEditLetter = (letter: SavedLetter) => {
     if (letter.wizard_data) {
-      setData({ ...INITIAL_LM_WIZARD_DATA, ...letter.wizard_data });
+      const wd = letter.wizard_data;
+      setData({
+        ...INITIAL_LM_WIZARD_DATA,
+        ...wd,
+        // Preserve existing started_at, don't overwrite with fresh timestamp
+        started_at: wd.started_at || new Date().toISOString(),
+      });
       setLmId(letter.id);
       setStep(0);
       setActiveTab("wizard");
+      warningShown.current = "";
     }
   };
 
   // G) Duplicate
   const handleDuplicate = async (letter: SavedLetter) => {
-    if (!letter.wizard_data) return;
+    if (!letter.wizard_data || !letter.wizard_data.client_id) return;
     const newData = {
       ...INITIAL_LM_WIZARD_DATA,
       ...letter.wizard_data,
@@ -622,7 +651,7 @@ export default function LettreMissionPage() {
     setLmId(null);
     setStep(0);
     setActiveTab("wizard");
-    warningShown.current = false;
+    warningShown.current = "";
     toast.success("Lettre dupliquee — modifiez et sauvegardez");
   };
 
@@ -639,7 +668,10 @@ export default function LettreMissionPage() {
 
   // G) Download PDF from history
   const handleDownloadPdf = async (letter: SavedLetter) => {
-    if (!letter.wizard_data) return;
+    if (!letter.wizard_data || !letter.wizard_data.raison_sociale) {
+      toast.error("Donnees insuffisantes pour generer le PDF");
+      return;
+    }
     try {
       const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
       const wd = letter.wizard_data;
@@ -685,10 +717,12 @@ export default function LettreMissionPage() {
     }
   };
 
-  // Keyboard: Escape → prev
+  // Keyboard: Escape → prev (skip when user is typing in input/textarea/select)
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (activeTab !== "wizard") return;
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (e.key === "Escape") {
         e.preventDefault();
         setStep((s) => (s > 0 ? s - 1 : s));
@@ -777,7 +811,7 @@ export default function LettreMissionPage() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-white/[0.04] border border-white/[0.06] w-full sm:w-auto">
+        <TabsList className="bg-white/[0.04] border border-white/[0.06] w-full sm:w-auto" aria-label="Lettres de mission">
           <TabsTrigger value="wizard" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
             <FileText className="w-3.5 h-3.5" /> {isMobile ? "Nouvelle" : "Nouvelle lettre"}
           </TabsTrigger>

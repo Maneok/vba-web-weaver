@@ -37,7 +37,7 @@ export function validateStep3(data: any): ValidationError[] {
   if (!data.cp || !/^\d{5}$/.test(data.cp)) errors.push({ field: "cp", message: "Code postal invalide (5 chiffres)" });
   if (!data.ville) errors.push({ field: "ville", message: "Ville requise" });
   if (!data.associe_signataire) errors.push({ field: "associe_signataire", message: "Associe signataire requis" });
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(data.email))
     errors.push({ field: "email", message: "Email invalide" });
   return errors;
 }
@@ -82,13 +82,16 @@ export const VALIDATORS: Record<number, (data: any) => ValidationError[]> = {
 
 /** Sanitize HTML/XSS dans les champs texte (safe against double-encoding) */
 export function sanitizeText(text: string): string {
+  if (!text || typeof text !== "string") return "";
   // First decode any existing entities to avoid double-encoding
   const decoded = text
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'");
+    .replace(/&#39;/g, "'")
+    .replace(/&#x[0-9a-fA-F]+;/g, (m) => String.fromCharCode(parseInt(m.slice(3, -1), 16)))
+    .replace(/&#\d+;/g, (m) => String.fromCharCode(parseInt(m.slice(2, -1), 10)));
   return decoded.replace(/[<>&"']/g, (c) => {
     const map: Record<string, string> = {
       "<": "&lt;",

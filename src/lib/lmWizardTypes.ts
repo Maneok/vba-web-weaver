@@ -220,9 +220,10 @@ export const ANNEXE_LABELS: Record<string, string> = {
 
 /** H) Format duration */
 export function formatDuration(seconds: number): string {
-  if (!seconds || seconds <= 0) return "—";
-  const min = Math.floor(seconds / 60);
-  const sec = Math.round(seconds % 60);
+  if (!seconds || seconds <= 0 || !Number.isFinite(seconds)) return "—";
+  const totalSec = Math.round(seconds);
+  const min = Math.floor(totalSec / 60);
+  const sec = totalSec % 60;
   if (min === 0) return `${sec} s`;
   if (sec === 0) return `${min} min`;
   return `${min} min ${sec} s`;
