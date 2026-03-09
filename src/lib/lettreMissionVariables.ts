@@ -1,6 +1,11 @@
 import type { Client } from "@/lib/types";
 import type { CabinetConfig, LettreMissionOptions } from "@/types/lettreMission";
 
+/** Escape regex metacharacters to prevent ReDoS */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 // ──────────────────────────────────────────────
 // Textes LCB-FT dynamiques selon le niveau de vigilance
 // ──────────────────────────────────────────────
@@ -169,7 +174,7 @@ export function replaceVariables(
 
   // Replace client variables
   for (const [key, getter] of Object.entries(CLIENT_VARIABLE_MAP)) {
-    const regex = new RegExp(`\\{\\{${key}\\}\\}`, "gi");
+    const regex = new RegExp(`\\{\\{${escapeRegex(key)}\\}\\}`, "gi");
     try {
       result = result.replace(regex, getter(client) ?? "");
     } catch {
@@ -180,7 +185,7 @@ export function replaceVariables(
   // Replace cabinet variables
   if (cabinet) {
     for (const [key, getter] of Object.entries(CABINET_VARIABLE_MAP)) {
-      const regex = new RegExp(`\\{\\{${key}\\}\\}`, "gi");
+      const regex = new RegExp(`\\{\\{${escapeRegex(key)}\\}\\}`, "gi");
       try {
         result = result.replace(regex, getter(cabinet) ?? "");
       } catch {
@@ -191,13 +196,13 @@ export function replaceVariables(
 
   // Replace date variables
   for (const [key, value] of Object.entries(dateVars)) {
-    const regex = new RegExp(`\\{\\{${key}\\}\\}`, "gi");
+    const regex = new RegExp(`\\{\\{${escapeRegex(key)}\\}\\}`, "gi");
     result = result.replace(regex, value);
   }
 
   // Replace options variables
   for (const [key, value] of Object.entries(optVars)) {
-    const regex = new RegExp(`\\{\\{${key}\\}\\}`, "gi");
+    const regex = new RegExp(`\\{\\{${escapeRegex(key)}\\}\\}`, "gi");
     result = result.replace(regex, value);
   }
 

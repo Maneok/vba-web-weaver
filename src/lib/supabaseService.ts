@@ -1,6 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
+// Strip fields that should never be overwritten by client code
+const PROTECTED_FIELDS = ["id", "cabinet_id", "created_at", "user_id"] as const;
+function stripProtected(updates: Record<string, unknown>): Record<string, unknown> {
+  const safe = { ...updates };
+  for (const f of PROTECTED_FIELDS) delete safe[f];
+  return safe;
+}
+
 // Helper: get current user's cabinet_id from profile
 async function getCabinetId(): Promise<string | null> {
   try {
@@ -55,10 +63,13 @@ export const clientsService = {
   },
 
   async update(id: string, updates: Record<string, unknown>) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return null;
     const { data, error } = await supabase
       .from("clients")
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update({ ...stripProtected(updates), updated_at: new Date().toISOString() })
       .eq("id", id)
+      .eq("cabinet_id", cabinetId)
       .select()
       .single();
     if (error) {
@@ -73,7 +84,7 @@ export const clientsService = {
     if (!cabinetId) return null;
     const { data, error } = await supabase
       .from("clients")
-      .update({ ...updates, updated_at: new Date().toISOString() })
+      .update({ ...stripProtected(updates), updated_at: new Date().toISOString() })
       .eq("cabinet_id", cabinetId)
       .eq("ref", ref)
       .select()
@@ -86,7 +97,9 @@ export const clientsService = {
   },
 
   async delete(id: string) {
-    const { error } = await supabase.from("clients").delete().eq("id", id);
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return;
+    const { error } = await supabase.from("clients").delete().eq("id", id).eq("cabinet_id", cabinetId);
     if (error) logger.error("DB", "clients delete:", error);
   },
 
@@ -145,17 +158,22 @@ export const collaborateursService = {
   },
 
   async update(id: string, updates: Record<string, unknown>) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return null;
     const { data } = await supabase
       .from("collaborateurs")
-      .update(updates)
+      .update(stripProtected(updates))
       .eq("id", id)
+      .eq("cabinet_id", cabinetId)
       .select()
       .single();
     return data;
   },
 
   async delete(id: string) {
-    await supabase.from("collaborateurs").delete().eq("id", id);
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return;
+    await supabase.from("collaborateurs").delete().eq("id", id).eq("cabinet_id", cabinetId);
   },
 };
 
@@ -188,10 +206,13 @@ export const registreService = {
   },
 
   async update(id: string, updates: Record<string, unknown>) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return null;
     const { data } = await supabase
       .from("alertes_registre")
-      .update(updates)
+      .update(stripProtected(updates))
       .eq("id", id)
+      .eq("cabinet_id", cabinetId)
       .select()
       .single();
     return data;
@@ -281,7 +302,8 @@ export const brouillonsService = {
       await supabase
         .from("brouillons")
         .update({ data: formData, step, updated_at: new Date().toISOString() })
-        .eq("id", existing.id);
+        .eq("id", existing.id)
+        .eq("user_id", user.id);
     } else {
       await supabase
         .from("brouillons")

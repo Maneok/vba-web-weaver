@@ -23,13 +23,14 @@ const ROLE_COLORS: Record<UserRole, string> = {
 };
 
 export default function AdminUsersPage() {
-  const { profile } = useAuth();
+  const { profile, hasPermission } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<UserRole>("COLLABORATEUR");
   const [inviting, setInviting] = useState(false);
+  const isAdmin = profile?.role === "ADMIN";
 
   const loadUsers = useCallback(async () => {
     if (!profile?.cabinet_id) return;
@@ -90,6 +91,7 @@ export default function AdminUsersPage() {
   };
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
+    if (!isAdmin) { toast.error("Acces refuse"); return; }
     const user = users.find((u) => u.id === userId);
     const { error } = await supabase
       .from("profiles")
@@ -114,6 +116,7 @@ export default function AdminUsersPage() {
   };
 
   const toggleUserActive = async (userId: string) => {
+    if (!isAdmin) { toast.error("Acces refuse"); return; }
     const user = users.find((u) => u.id === userId);
     if (!user || user.id === profile?.id) return;
 
@@ -142,6 +145,17 @@ export default function AdminUsersPage() {
 
   const adminCount = users.filter((u) => u.role === "ADMIN" && u.is_active).length;
   const activeCount = users.filter((u) => u.is_active).length;
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center space-y-2">
+          <p className="text-lg font-semibold text-destructive">Acces refuse</p>
+          <p className="text-sm text-muted-foreground">Seuls les administrateurs peuvent gerer les utilisateurs.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
