@@ -13,8 +13,8 @@ if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
 // import { supabase } from "@/integrations/supabase/client";
 
 export const supabase = createClient<Database>(
-  SUPABASE_URL || 'https://placeholder.supabase.co',
-  SUPABASE_PUBLISHABLE_KEY || 'placeholder',
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
       storage: typeof window !== 'undefined' ? localStorage : undefined,

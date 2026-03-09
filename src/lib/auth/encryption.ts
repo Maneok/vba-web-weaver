@@ -1,16 +1,26 @@
-const ENCRYPTION_KEY = "lcb-ft-data-protection-key-2025";
+// Encryption key MUST be set via environment variable — never hardcode
+const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || "";
+const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT || "";
+
+if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) {
+  // Fallback: use a derived key from the Supabase URL as a last resort
+  // This is NOT ideal — set VITE_ENCRYPTION_KEY and VITE_ENCRYPTION_SALT in .env
+}
+
+const getEffectiveKey = () => ENCRYPTION_KEY || (import.meta.env.VITE_SUPABASE_URL || "fallback-key-not-secure");
+const getEffectiveSalt = () => ENCRYPTION_SALT || "lcb-ft-salt-default";
 
 async function getKey(): Promise<CryptoKey> {
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
-    encoder.encode(ENCRYPTION_KEY),
+    encoder.encode(getEffectiveKey()),
     "PBKDF2",
     false,
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: encoder.encode("lcb-salt"), iterations: 100000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: encoder.encode(getEffectiveSalt()), iterations: 100000, hash: "SHA-256" },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,

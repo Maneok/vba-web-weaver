@@ -1792,8 +1792,8 @@ export default function NouveauClientPage() {
                 </div>
                 <FormField label="Frais constitution" value={form.reprise} onChange={v => set("reprise", Number(v))} type="number" />
                 <FormField label="Honoraires juridique" value={form.juridique} onChange={v => set("juridique", Number(v))} type="number" />
-                <FormField label="IBAN" value={form.iban} onChange={v => set("iban", v)} error={validationErrors.iban} placeholder="FR76..." />
-                <FormField label="BIC" value={form.bic} onChange={v => set("bic", v)} placeholder="BNPAFRPP" />
+                <FormField label="IBAN" value={form.iban} onChange={v => set("iban", v)} error={validationErrors.iban} placeholder="FR76..." autoComplete="off" />
+                <FormField label="BIC" value={form.bic} onChange={v => set("bic", v)} placeholder="BNPAFRPP" autoComplete="off" />
                 <FormField label="Date de reprise" value={form.dateReprise} onChange={v => set("dateReprise", v)} type="date" />
                 <FormField label="Date de fin (optionnel)" value={form.dateFin} onChange={v => set("dateFin", v)} type="date" />
               </div>
@@ -1810,11 +1810,19 @@ export default function NouveauClientPage() {
                       {autoFields.has("siteWeb") && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
                     </div>
                     <Input value={form.siteWeb} onChange={e => set("siteWeb", e.target.value)} placeholder="https://..." className="bg-white/[0.03] mt-1 border-white/[0.06]" />
-                    {form.siteWeb && (
-                      <a href={form.siteWeb.startsWith("http") ? form.siteWeb : `https://${form.siteWeb}`} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 mt-0.5 inline-flex items-center gap-1">
-                        <ExternalLink className="w-3 h-3" /> Ouvrir le site
-                      </a>
-                    )}
+                    {form.siteWeb && (() => {
+                      try {
+                        const url = new URL(form.siteWeb.startsWith("http") ? form.siteWeb : `https://${form.siteWeb}`);
+                        if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+                        return (
+                          <a href={url.href} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-400 hover:text-blue-300 mt-0.5 inline-flex items-center gap-1">
+                            <ExternalLink className="w-3 h-3" /> Ouvrir le site
+                          </a>
+                        );
+                      } catch {
+                        return null;
+                      }
+                    })()}
                   </div>
                 </div>
               </div>
@@ -2861,7 +2869,7 @@ function SourceField({ label, value, onChange, type = "text", error, placeholder
   );
 }
 
-function FormField({ label, value, onChange, type = "text", error, placeholder, options, isAuto, required, hint, needsCompletion, sourceType }: {
+function FormField({ label, value, onChange, type = "text", error, placeholder, options, isAuto, required, hint, needsCompletion, sourceType, autoComplete }: {
   label: string;
   value: string | number;
   onChange: (v: string) => void;
@@ -2874,6 +2882,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
   hint?: string;
   needsCompletion?: boolean;
   sourceType?: "INPI" | "AnnuaireEntreprises" | null;
+  autoComplete?: string;
 }) {
   const isEmpty = !value || value === "" || value === 0;
   const showOrange = (required && isEmpty && !error) || needsCompletion;
@@ -2919,6 +2928,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         className={`bg-white/[0.03] mt-1 ${error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : "border-white/[0.06]"}`}
       />
       {error && <p className="text-[10px] text-red-400 mt-0.5">{error}</p>}

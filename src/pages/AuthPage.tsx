@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,7 +15,7 @@ function translateError(msg: string): string {
     "Invalid login credentials": "Email ou mot de passe incorrect.",
     "Email not confirmed": "Veuillez confirmer votre email avant de vous connecter.",
     "User already registered": "Un compte avec cet email existe deja.",
-    "Password should be at least 6 characters": "Le mot de passe doit contenir au moins 6 caracteres.",
+    "Password should be at least 6 characters": "Le mot de passe doit contenir au moins 8 caracteres.",
     "Signup requires a valid password": "Veuillez saisir un mot de passe valide.",
     "Unable to validate email address: invalid format": "Format d'email invalide.",
     "Email rate limit exceeded": "Trop de tentatives. Reessayez dans quelques minutes.",
@@ -24,8 +24,22 @@ function translateError(msg: string): string {
   for (const [en, fr] of Object.entries(map)) {
     if (msg.includes(en)) return fr;
   }
-  return msg;
+  return "Une erreur est survenue. Veuillez reessayer.";
 }
+
+// Password strength validation
+function validatePassword(password: string): string | null {
+  if (password.length < 8) return "Le mot de passe doit contenir au moins 8 caracteres.";
+  if (!/[A-Z]/.test(password)) return "Le mot de passe doit contenir au moins une majuscule.";
+  if (!/[a-z]/.test(password)) return "Le mot de passe doit contenir au moins une minuscule.";
+  if (!/[0-9]/.test(password)) return "Le mot de passe doit contenir au moins un chiffre.";
+  if (!/[^A-Za-z0-9]/.test(password)) return "Le mot de passe doit contenir au moins un caractere special.";
+  return null;
+}
+
+// Rate limiting constants
+const MAX_LOGIN_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 30_000;
 
 export default function AuthPage() {
   const navigate = useNavigate();
@@ -35,6 +49,32 @@ export default function AuthPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+
+  // Rate limiting state
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
+  const [lockoutCountdown, setLockoutCountdown] = useState(0);
+  const lockoutTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (lockoutUntil) {
+      const tick = () => {
+        const remaining = Math.ceil((lockoutUntil - Date.now()) / 1000);
+        if (remaining <= 0) {
+          setLockoutUntil(null);
+          setLockoutCountdown(0);
+          setLoginAttempts(0);
+          if (lockoutTimerRef.current) clearInterval(lockoutTimerRef.current);
+        } else {
+          setLockoutCountdown(remaining);
+        }
+      };
+      tick();
+      lockoutTimerRef.current = setInterval(tick, 1000);
+      return () => { if (lockoutTimerRef.current) clearInterval(lockoutTimerRef.current); };
+    }
+  }, [lockoutUntil]);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
@@ -56,17 +96,34 @@ export default function AuthPage() {
   // Avoid importing supabase directly — use the AuthContext methods
   const { signInWithEmail, signUp: authSignUp } = useAuth();
 
+  const isLockedOut = lockoutUntil !== null && Date.now() < lockoutUntil;
+
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (isLockedOut) {
+      setError(`Trop de tentatives. Reessayez dans ${lockoutCountdown} secondes.`);
+      return;
+    }
+
     setLoading(true);
     try {
       await signInWithEmail(loginEmail, loginPassword);
+      setLoginAttempts(0);
       // Don't navigate here — the useEffect above will redirect
       // once AuthContext picks up the session change
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Erreur de connexion";
-      setError(translateError(msg));
+      const newAttempts = loginAttempts + 1;
+      setLoginAttempts(newAttempts);
+      if (newAttempts >= MAX_LOGIN_ATTEMPTS) {
+        const until = Date.now() + LOCKOUT_DURATION_MS;
+        setLockoutUntil(until);
+        setError(`Trop de tentatives echouees. Connexion desactivee pendant 30 secondes.`);
+      } else {
+        const msg = err instanceof Error ? err.message : "Erreur de connexion";
+        setError(translateError(msg));
+      }
     } finally {
       setLoading(false);
     }
@@ -76,6 +133,13 @@ export default function AuthPage() {
     e.preventDefault();
     setError(null);
     setMessage(null);
+
+    const pwError = validatePassword(regPassword);
+    if (pwError) {
+      setError(pwError);
+      return;
+    }
+
     setLoading(true);
     try {
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
@@ -180,9 +244,9 @@ export default function AuthPage() {
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full" disabled={loading || isLockedOut}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Se connecter
+                    {isLockedOut ? `Verrouille (${lockoutCountdown}s)` : "Se connecter"}
                   </Button>
                 </form>
               </TabsContent>
@@ -220,11 +284,11 @@ export default function AuthPage() {
                     <Input
                       id="reg-password"
                       type="password"
-                      placeholder="Min. 6 caracteres"
+                      placeholder="Min. 8 car., 1 maj., 1 min., 1 chiffre, 1 special"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={8}
                       autoComplete="new-password"
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />

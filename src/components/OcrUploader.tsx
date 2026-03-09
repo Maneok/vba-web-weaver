@@ -74,6 +74,23 @@ const MODE_CONFIG: Record<OcrMode, { label: string; icon: React.ReactNode; accep
   },
 };
 
+// ====== FILE VALIDATION ======
+const MAX_OCR_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_OCR_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+
+function validateOcrFile(file: File): string | null {
+  if (file.size > MAX_OCR_FILE_SIZE) {
+    return `Fichier trop volumineux (${(file.size / 1024 / 1024).toFixed(1)} Mo). Maximum : 10 Mo.`;
+  }
+  if (!ALLOWED_OCR_TYPES.has(file.type)) {
+    return `Type de fichier non autorisé (${file.type || "inconnu"}). Formats acceptés : JPG, PNG, WebP, PDF.`;
+  }
+  if (/\.\./.test(file.name) || /[/\\]/.test(file.name)) {
+    return "Nom de fichier invalide.";
+  }
+  return null;
+}
+
 // ====== HELPERS ======
 
 function fileToBase64(file: File): Promise<string> {
@@ -126,6 +143,14 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
       setErrorMsg("");
       setAlerts([]);
       setFileName(file.name);
+
+      // Validate file before processing
+      const validationError = validateOcrFile(file);
+      if (validationError) {
+        setStatus("error");
+        setErrorMsg(validationError);
+        return;
+      }
 
       try {
         const base64 = await fileToBase64(file);

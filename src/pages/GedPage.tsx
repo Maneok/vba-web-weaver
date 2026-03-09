@@ -295,11 +295,34 @@ export default function GedPage() {
       return;
     }
 
+    // Validate file size and type
+    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+    const ALLOWED_TYPES = ["application/pdf", "image/png", "image/jpeg", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"];
+    const ALLOWED_EXTENSIONS = [".pdf", ".png", ".jpg", ".jpeg", ".doc", ".docx", ".xls", ".xlsx"];
+
+    for (const file of pendingFiles) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`"${file.name}" depasse la taille maximale (20 Mo)`);
+        return;
+      }
+      const ext = "." + file.name.split(".").pop()?.toLowerCase();
+      if (!ALLOWED_EXTENSIONS.includes(ext) && !ALLOWED_TYPES.includes(file.type)) {
+        toast.error(`"${file.name}" : type de fichier non autorise`);
+        return;
+      }
+      // Sanitize filename — remove path traversal characters
+      if (file.name.includes("..") || file.name.includes("/") || file.name.includes("\\")) {
+        toast.error(`"${file.name}" : nom de fichier invalide`);
+        return;
+      }
+    }
+
     setUploading(true);
     try {
       for (const file of pendingFiles) {
         const timestamp = Date.now();
-        const filePath = `${user.id}/${timestamp}_${file.name}`;
+        const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const filePath = `${user.id}/${timestamp}_${safeName}`;
 
         const { error: uploadError } = await supabase.storage
           .from("documents")

@@ -112,8 +112,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         onNodeClick(d as NetworkNode);
       } else {
         // Default: open Pappers for companies
-        if (d.type === "company" && d.siren) {
-          window.open(`https://www.pappers.fr/entreprise/${d.siren}`, "_blank");
+        if (d.type === "company" && d.siren && /^\d{9,}$/.test(d.siren.replace(/\s/g, ""))) {
+          window.open(`https://www.pappers.fr/entreprise/${encodeURIComponent(d.siren.replace(/\s/g, ""))}`, "_blank", "noopener,noreferrer");
         }
       }
     });
