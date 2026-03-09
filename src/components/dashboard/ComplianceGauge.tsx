@@ -57,7 +57,7 @@ export function ComplianceGauge({ items, loading = false }: ComplianceGaugeProps
             <div className="h-2.5 bg-muted rounded-full overflow-hidden">
               <div
                 className={`h-full rounded-full bg-gradient-to-r ${barColor(item.value)} transition-all duration-700`}
-                style={{ width: `${Math.min(item.value, 100)}%` }}
+                style={{ width: `${Math.max(0, Math.min(item.value, 100))}%` }}
               />
             </div>
             {item.description && (

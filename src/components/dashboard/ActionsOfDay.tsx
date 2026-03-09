@@ -45,7 +45,7 @@ export function useActionItems(
       items.push({
         id: "revues-echues",
         label: `${revuesEchues.length} revue${revuesEchues.length > 1 ? "s" : ""} echue${revuesEchues.length > 1 ? "s" : ""}`,
-        description: revuesEchues.slice(0, 2).map(c => c.raisonSociale).join(", ") + (revuesEchues.length > 2 ? "..." : ""),
+        description: revuesEchues.slice(0, 2).map(c => c.raisonSociale || "Sans nom").join(", ") + (revuesEchues.length > 2 ? "..." : ""),
         path: "/bdd?filter=echues",
         urgency: 100,
         color: "bg-red-50 dark:bg-red-500/10",
@@ -58,18 +58,16 @@ export function useActionItems(
     const alertesAnciennes = alertes.filter(a => {
       const s = (a.statut || "").toUpperCase();
       if (s.includes("CLOS") || s.includes("FERME") || s.includes("RESOLU")) return false;
-      try {
-        const d = new Date(a.date);
-        return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) > 30;
-      } catch { return false; }
+      const d = new Date(a.date);
+      if (isNaN(d.getTime())) return false;
+      return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) > 30;
     });
     const alertesRecentes = alertes.filter(a => {
       const s = (a.statut || "").toUpperCase();
       if (s.includes("CLOS") || s.includes("FERME") || s.includes("RESOLU")) return false;
-      try {
-        const d = new Date(a.date);
-        return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 30;
-      } catch { return true; }
+      const d = new Date(a.date);
+      if (isNaN(d.getTime())) return false;
+      return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24) <= 30;
     });
 
     if (alertesAnciennes.length > 0) {
@@ -145,7 +143,7 @@ export function useActionItems(
       items.push({
         id: "formations-echues",
         label: `${formationsEchues.length} formation${formationsEchues.length > 1 ? "s" : ""} a mettre a jour`,
-        description: formationsEchues.slice(0, 2).map(c => c.nom).join(", ") + (formationsEchues.length > 2 ? "..." : ""),
+        description: formationsEchues.slice(0, 2).map(c => c.nom || "Sans nom").join(", ") + (formationsEchues.length > 2 ? "..." : ""),
         path: "/gouvernance",
         urgency: 40,
         color: "bg-blue-50 dark:bg-blue-500/10",

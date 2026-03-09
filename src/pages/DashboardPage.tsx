@@ -137,6 +137,7 @@ export default function DashboardPage() {
         try {
           const open = new Date(a.date);
           const close = a.dateButoir ? new Date(a.dateButoir) : new Date();
+          if (isNaN(open.getTime()) || isNaN(close.getTime())) return sum + 8;
           return sum + Math.max(1, Math.ceil((close.getTime() - open.getTime()) / (1000 * 60 * 60 * 24)));
         } catch { return sum + 8; }
       }, 0);
@@ -250,7 +251,7 @@ export default function DashboardPage() {
   const firstName = userName.split(" ")[0];
 
   const handleRefresh = useCallback(() => {
-    refreshAll().then(() => setLastRefresh(new Date())).catch(() => {});
+    refreshAll().then(() => setLastRefresh(new Date())).catch(e => logger.warn("Dashboard", "Manual refresh failed:", e));
   }, [refreshAll]);
 
   return (

@@ -97,7 +97,9 @@ export function DrillDownSheet({ open, onClose, type, clients, alertes }: DrillD
               })
               .slice(0, 20)
               .map((c) => {
-                const daysOverdue = Math.ceil((now.getTime() - new Date(c.dateButoir).getTime()) / (1000 * 60 * 60 * 24));
+                const butoir = new Date(c.dateButoir);
+                const daysOverdue = isNaN(butoir.getTime()) ? 0 : Math.ceil((now.getTime() - butoir.getTime()) / (1000 * 60 * 60 * 24));
+                const fmtDate = isNaN(butoir.getTime()) ? c.dateButoir : butoir.toLocaleDateString("fr-FR");
                 return (
                   <button
                     key={c.ref}
@@ -105,9 +107,9 @@ export function DrillDownSheet({ open, onClose, type, clients, alertes }: DrillD
                     onClick={() => { onClose(); navigate(`/client/${c.ref}`); }}
                   >
                     <div>
-                      <p className="text-sm font-medium">{c.raisonSociale}</p>
+                      <p className="text-sm font-medium">{c.raisonSociale || c.ref}</p>
                       <p className="text-xs text-muted-foreground">
-                        Echeance : {new Date(c.dateButoir).toLocaleDateString("fr-FR")}
+                        Echeance : {fmtDate}
                       </p>
                     </div>
                     <Badge variant="destructive" className="text-[10px]">
