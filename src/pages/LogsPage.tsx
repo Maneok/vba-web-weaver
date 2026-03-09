@@ -26,13 +26,18 @@ const FRENCH_MONTHS = [
 
 function formatHorodatage(h: string): string {
   // h = "2026-03-08 14:49"
+  if (!h) return "—";
   const parts = h.split(" ");
   if (parts.length < 2) return h;
   const [datePart, timePart] = parts;
-  const [year, month, day] = datePart.split("-");
+  const dateParts = datePart.split("-");
+  if (dateParts.length < 3) return h;
+  const [year, month, day] = dateParts;
   const monthIdx = parseInt(month, 10) - 1;
-  const monthName = FRENCH_MONTHS[monthIdx] || month;
+  if (isNaN(monthIdx) || monthIdx < 0 || monthIdx > 11) return h;
+  const monthName = FRENCH_MONTHS[monthIdx];
   const dayNum = parseInt(day, 10);
+  if (isNaN(dayNum)) return h;
   return `${dayNum < 10 ? "0" + dayNum : dayNum} ${monthName} ${year} a ${timePart}`;
 }
 

@@ -52,10 +52,10 @@ export default function DashboardPage() {
         .eq("cle", "lcbft_config")
         .maybeSingle();
 
-      if (data?.valeur) {
+      if (data?.valeur && typeof data.valeur === "object") {
         const valeur = data.valeur as Record<string, unknown>;
-        if (valeur.date_derniere_formation) {
-          setDerniereFormation(valeur.date_derniere_formation as string);
+        if (typeof valeur.date_derniere_formation === "string") {
+          setDerniereFormation(valeur.date_derniere_formation);
         }
       }
     }

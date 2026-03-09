@@ -54,11 +54,12 @@ export default function GouvernancePage() {
     async function loadConfig() {
       const { data } = await supabase
         .from("parametres")
-        .select("value")
-        .eq("key", "lcbft_config")
-        .single();
-      if (data?.value) {
-        const val = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
+        .select("valeur")
+        .eq("cle", "lcbft_config")
+        .maybeSingle();
+      if (data?.valeur) {
+        const val = typeof data.valeur === "object" ? data.valeur : (typeof data.valeur === "string" ? JSON.parse(data.valeur) : null);
+        if (!val) return;
         setReferentConfig(val as ReferentConfig);
       }
     }

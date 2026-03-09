@@ -106,22 +106,24 @@ export default function DiagnosticPage() {
   const [derniereFormation, setDerniereFormation] = useState<string | null>(null);
 
   useEffect(() => {
-    controlesService.getAll().then((data) => setControles(data as Record<string, unknown>[]));
+    controlesService.getAll().then((data) => setControles((data || []) as Record<string, unknown>[])).catch(() => {});
 
     async function loadParametres() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      const { data } = await supabase
-        .from("parametres")
-        .select("valeur")
-        .eq("cle", "lcbft_config")
-        .maybeSingle();
-      if (data?.valeur) {
-        const valeur = data.valeur as Record<string, unknown>;
-        if (valeur.date_derniere_formation) {
-          setDerniereFormation(valeur.date_derniere_formation as string);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data } = await supabase
+          .from("parametres")
+          .select("valeur")
+          .eq("cle", "lcbft_config")
+          .maybeSingle();
+        if (data?.valeur && typeof data.valeur === "object") {
+          const valeur = data.valeur as Record<string, unknown>;
+          if (valeur.date_derniere_formation) {
+            setDerniereFormation(valeur.date_derniere_formation as string);
+          }
         }
-      }
+      } catch { /* ignore */ }
     }
     loadParametres();
   }, []);
