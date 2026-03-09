@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,18 +31,21 @@ export default function AuthPage() {
   const navigate = useNavigate();
   const { session, loading: authLoading } = useAuth();
 
-  const [tab, setTab] = useState<"login" | "register">("login");
+  const [searchParams] = useSearchParams();
+  const prefillEmail = searchParams.get("email") || "";
+
+  const [tab, setTab] = useState<"login" | "register">(prefillEmail ? "register" : "login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   // Login state
-  const [loginEmail, setLoginEmail] = useState("");
+  const [loginEmail, setLoginEmail] = useState(prefillEmail);
   const [loginPassword, setLoginPassword] = useState("");
 
   // Register state
   const [regName, setRegName] = useState("");
-  const [regEmail, setRegEmail] = useState("");
+  const [regEmail, setRegEmail] = useState(prefillEmail);
   const [regPassword, setRegPassword] = useState("");
   const [regCabinet, setRegCabinet] = useState("");
 

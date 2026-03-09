@@ -1,14 +1,13 @@
-User-agent: Googlebot
-Allow: /
-
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
 User-agent: *
-Allow: /
+Allow: /landing
+Allow: /auth
+Disallow: /bdd
+Disallow: /gouvernance
+Disallow: /controle
+Disallow: /registre
+Disallow: /logs
+Disallow: /ged
+Disallow: /parametres
+Disallow: /diagnostic
+
+Sitemap: https://grimy.fr/sitemap.xml

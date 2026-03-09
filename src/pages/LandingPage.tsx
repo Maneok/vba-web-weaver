@@ -13,8 +13,43 @@ import {
   ArrowRight, ClipboardCheck, Search, Monitor, Quote,
   ChevronRight, Menu, X as XIcon, ChevronDown, Sun, Moon,
   Lock, HelpCircle, CreditCard, Database, Globe, Users,
-  Sparkles, Play, Zap,
+  Sparkles, Play, Zap, Cookie,
 } from "lucide-react";
+
+/* ══════════════════════════════════════════════════════════════
+   #6 — Dark mode persistence via localStorage
+   ══════════════════════════════════════════════════════════════ */
+function usePersistedTheme() {
+  const [light, setLight] = useState(() => {
+    try { return localStorage.getItem("grimy-theme") === "light"; } catch { return false; }
+  });
+  const toggle = useCallback(() => {
+    setLight((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("grimy-theme", next ? "light" : "dark"); } catch { /* noop */ }
+      return next;
+    });
+  }, []);
+  return { light, toggle };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   #18 — Cookie consent banner (RGPD)
+   ══════════════════════════════════════════════════════════════ */
+function useCookieConsent() {
+  const [show, setShow] = useState(() => {
+    try { return !localStorage.getItem("grimy-cookies"); } catch { return true; }
+  });
+  const accept = useCallback(() => {
+    try { localStorage.setItem("grimy-cookies", "accepted"); } catch { /* noop */ }
+    setShow(false);
+  }, []);
+  const reject = useCallback(() => {
+    try { localStorage.setItem("grimy-cookies", "rejected"); } catch { /* noop */ }
+    setShow(false);
+  }, []);
+  return { show, accept, reject };
+}
 
 /* ══════════════════════════════════════════════════════════════
    HOOKS
@@ -708,20 +743,35 @@ export default function LandingPage() {
   const [annual, setAnnual] = useState(false);
   const [mobileMenu, setMobileMenu] = useState(false);
   const [ctaEmail, setCtaEmail] = useState("");
-  const [lightMode, setLightMode] = useState(false);
+  const [ctaError, setCtaError] = useState("");
+  const [ctaLoading, setCtaLoading] = useState(false);
+  const theme = usePersistedTheme();
+  const cookies = useCookieConsent();
   const [showPricingTable, setShowPricingTable] = useState(false);
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
 
+  /* #11 — Mobile menu scroll lock */
+  useEffect(() => {
+    document.body.style.overflow = mobileMenu ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [mobileMenu]);
+
   const handleNavClick = useCallback((id: string) => { scrollTo(id); setMobileMenu(false); }, []);
 
-  /* #6 — Email passthrough */
+  /* #7 — Email validation + #16 loading state + #6 passthrough */
   const handleCtaSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
+    setCtaError("");
+    if (ctaEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ctaEmail)) {
+      setCtaError("Veuillez entrer un email valide.");
+      return;
+    }
+    setCtaLoading(true);
     navigate(ctaEmail ? `/auth?email=${encodeURIComponent(ctaEmail)}` : "/auth");
   }, [ctaEmail, navigate]);
 
-  const themeClass = lightMode ? "theme-light" : "theme-dark";
+  const themeClass = theme.light ? "theme-light" : "theme-dark";
 
   return (
     <div ref={revealRef} className={`landing-root ${themeClass} min-h-screen font-sans`}>
@@ -744,13 +794,13 @@ export default function LandingPage() {
           --l-bg-primary: #fafbfc;
           --l-bg-alt: #f0f2f5;
           --l-surface: rgba(0,0,0,0.03);
-          --l-border: rgba(0,0,0,0.08);
+          --l-border: rgba(0,0,0,0.1);
           --l-text: #111827;
           --l-text-2: #374151;
-          --l-text-3: #6b7280;
-          --l-text-4: #9ca3af;
-          --l-text-5: #d1d5db;
-          --l-mock-bg: #f9fafb;
+          --l-text-3: #4b5563;
+          --l-text-4: #6b7280;
+          --l-text-5: #9ca3af;
+          --l-mock-bg: #f3f4f6;
         }
         .landing-root { color: var(--l-text); }
 
@@ -804,7 +854,7 @@ export default function LandingPage() {
           0% { transform: translateX(0); }
           100% { transform: translateX(-50%); }
         }
-        .animate-ticker { animation: ticker 40s linear infinite; }
+        .animate-ticker { animation: ticker 40s linear infinite; will-change: transform; }
 
         /* #14 — GRIMY column highlight */
         .grimy-col { background: rgba(16,185,129,0.04); }
@@ -840,15 +890,15 @@ export default function LandingPage() {
           backdropFilter: navScrolled ? "blur(16px)" : "none",
         }}>
           <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-            <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="text-xl font-bold tracking-tight font-serif" style={{ color: "var(--l-text)" }}>
+            <a href="#hero" onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: "smooth" }); }} className="text-xl font-bold tracking-tight font-serif" style={{ color: "var(--l-text)" }}>
               GRIMY
-            </button>
+            </a>
 
             {/* Desktop links with #3 active state */}
             <div className="hidden items-center gap-8 md:flex">
               {NAV_LINKS.map((l) => (
                 <button key={l.id} onClick={() => handleNavClick(l.id)}
-                  className={`text-sm transition-colors relative py-1 ${activeSection === l.id ? "" : "hover:opacity-80"}`}
+                  className="text-sm transition-colors relative py-1 hover:text-blue-400"
                   style={{ color: activeSection === l.id ? "var(--l-text)" : "var(--l-text-3)" }}
                 >
                   {l.label}
@@ -858,14 +908,14 @@ export default function LandingPage() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* #12 — Theme toggle */}
+              {/* #12 — Theme toggle (persisted) */}
               <button
-                onClick={() => setLightMode(!lightMode)}
-                className="p-2 rounded-lg transition-colors"
+                onClick={theme.toggle}
+                className="p-2 rounded-lg transition-colors hover:bg-white/10"
                 style={{ color: "var(--l-text-3)" }}
-                aria-label={lightMode ? "Passer en mode sombre" : "Passer en mode clair"}
+                aria-label={theme.light ? "Passer en mode sombre" : "Passer en mode clair"}
               >
-                {lightMode ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                {theme.light ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
               </button>
 
               <Link to="/auth" className="hidden sm:inline-flex">
@@ -1105,7 +1155,7 @@ export default function LandingPage() {
 
         {/* ══════ FEATURE SHOWCASE — #11 animated mocks ══════ */}
         <section className="py-28">
-          <div className="mx-auto max-w-6xl px-6 space-y-28">
+          <div className="mx-auto max-w-6xl px-6 space-y-16 lg:space-y-28">
             {featureShowcase.map((f, i) => {
               const Mock = MOCKS[f.mock];
               return (
@@ -1358,21 +1408,27 @@ export default function LandingPage() {
               <div className="relative">
                 <h2 className="mb-4 font-serif text-3xl font-bold sm:text-4xl">Prêt à automatiser votre conformité ?</h2>
                 <p className="mx-auto mb-8 max-w-lg text-lg" style={{ color: "var(--l-text-3)" }}>Rejoignez les cabinets qui ont choisi l'efficacité.</p>
-                {/* #6 — Email passthrough form */}
-                <form onSubmit={handleCtaSubmit} className="mx-auto flex max-w-md flex-col sm:flex-row items-stretch gap-3">
-                  <input
-                    type="email"
-                    placeholder="votre@email.com"
-                    value={ctaEmail}
-                    onChange={(e) => setCtaEmail(e.target.value)}
-                    className="flex-1 h-12 rounded-lg border px-4 text-sm backdrop-blur-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-                    style={{ borderColor: "var(--l-border)", background: "var(--l-surface)", color: "var(--l-text)" }}
-                  />
-                  <Button type="submit" className="h-12 px-6 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-xl shadow-blue-600/25 btn-press whitespace-nowrap text-white">
-                    Démarrer — 14 jours gratuits <ArrowRight className="ml-2 h-4 w-4" />
-                  </Button>
+                {/* #6 — Email passthrough form + #7 validation + #16 loading */}
+                <form onSubmit={handleCtaSubmit} className="mx-auto max-w-md">
+                  <div className="flex flex-col sm:flex-row items-stretch gap-3">
+                    <input
+                      type="email"
+                      placeholder="votre@email.com"
+                      value={ctaEmail}
+                      onChange={(e) => { setCtaEmail(e.target.value); setCtaError(""); }}
+                      className={`flex-1 h-12 rounded-lg border px-4 text-sm backdrop-blur-sm focus:outline-none focus:ring-1 focus:ring-blue-500 ${ctaError ? "border-red-500 focus:border-red-500 focus:ring-red-500" : "focus:border-blue-500"}`}
+                      style={{ borderColor: ctaError ? undefined : "var(--l-border)", background: "var(--l-surface)", color: "var(--l-text)" }}
+                      aria-invalid={!!ctaError}
+                      aria-describedby={ctaError ? "cta-error" : undefined}
+                    />
+                    <Button type="submit" disabled={ctaLoading} className="h-12 px-6 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-xl shadow-blue-600/25 btn-press whitespace-nowrap text-white disabled:opacity-60">
+                      {ctaLoading ? <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin mr-2" /> : null}
+                      Démarrer — 14 jours gratuits {!ctaLoading && <ArrowRight className="ml-2 h-4 w-4" />}
+                    </Button>
+                  </div>
+                  {ctaError && <p id="cta-error" className="mt-2 text-xs text-red-400">{ctaError}</p>}
+                  <p className="mt-3 text-xs" style={{ color: "var(--l-text-5)" }}>Aucune carte bancaire requise</p>
                 </form>
-                <p className="mt-4 text-xs" style={{ color: "var(--l-text-5)" }}>Aucune carte bancaire requise</p>
               </div>
             </div>
           </div>
@@ -1393,9 +1449,9 @@ export default function LandingPage() {
                     {sec.links.map((link) => (
                       <li key={link.label}>
                         {link.id ? (
-                          <button onClick={() => scrollTo(link.id)} className="text-sm transition-colors hover:text-blue-400" style={{ color: "var(--l-text-4)" }}>{link.label}</button>
+                          <a href={`#${link.id}`} onClick={(e) => { e.preventDefault(); scrollTo(link.id!); }} className="text-sm transition-colors hover:text-blue-400" style={{ color: "var(--l-text-4)" }}>{link.label}</a>
                         ) : (
-                          <span className="text-sm cursor-default" style={{ color: "var(--l-text-5)" }}>{link.label}</span>
+                          <span className="text-sm cursor-default opacity-50" style={{ color: "var(--l-text-5)" }}>{link.label}</span>
                         )}
                       </li>
                     ))}
@@ -1417,12 +1473,35 @@ export default function LandingPage() {
 
       {/* ══════ #4 — STICKY CTA BAR (appears after hero) ══════ */}
       {!heroInView && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 border-t p-3 backdrop-blur-xl sm:hidden transition-all" style={{ borderColor: "var(--l-border)", background: "color-mix(in srgb, var(--l-bg-primary) 90%, transparent)" }}>
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t p-3 backdrop-blur-xl sm:hidden transition-all" style={{ borderColor: "var(--l-border)", background: "color-mix(in srgb, var(--l-bg-primary) 90%, transparent)" }}>
           <Link to="/auth" className="block">
             <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-blue-500 shadow-lg shadow-blue-600/25 btn-press text-white">
               Démarrer gratuitement <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>
+        </div>
+      )}
+
+      {/* ══════ #18 — Cookie consent banner (RGPD) ══════ */}
+      {cookies.show && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 border-t p-4 backdrop-blur-xl" style={{ borderColor: "var(--l-border)", background: "color-mix(in srgb, var(--l-bg-primary) 95%, transparent)" }}>
+          <div className="mx-auto max-w-4xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+            <div className="flex items-start gap-3 flex-1">
+              <Cookie className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
+              <p className="text-sm leading-relaxed" style={{ color: "var(--l-text-3)" }}>
+                Ce site utilise des cookies pour améliorer votre expérience. En continuant, vous acceptez notre{" "}
+                <a href="#" className="text-blue-400 underline">politique de confidentialité</a>.
+              </p>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button onClick={cookies.reject} className="px-4 py-2 text-sm rounded-lg transition-colors" style={{ color: "var(--l-text-3)", border: "1px solid var(--l-border)" }}>
+                Refuser
+              </button>
+              <button onClick={cookies.accept} className="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors btn-press">
+                Accepter
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

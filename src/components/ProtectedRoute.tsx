@@ -52,12 +52,12 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return (
       <div className="flex flex-col min-h-screen bg-background">
         <div className="bg-destructive/10 border-b border-destructive/20 px-4 py-2 text-center text-sm text-destructive flex items-center justify-center gap-3">
-          <span>Profil non charge — certaines fonctionnalites peuvent etre limitees.</span>
+          <span>Profil non chargé — certaines fonctionnalités peuvent être limitées.</span>
           <button
             onClick={() => signOut()}
             className="px-3 py-1 text-xs rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            Se deconnecter
+            Se déconnecter
           </button>
         </div>
         {children}
@@ -69,13 +69,13 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-3">
-          <p className="text-lg font-semibold text-destructive">Compte desactive</p>
+          <p className="text-lg font-semibold text-destructive">Compte désactivé</p>
           <p className="text-sm text-muted-foreground">Contactez votre administrateur.</p>
           <button
             onClick={() => signOut()}
             className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            Se deconnecter
+            Se déconnecter
           </button>
         </div>
       </div>
@@ -86,9 +86,9 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-2">
-          <p className="text-lg font-semibold text-destructive">Acces refuse</p>
+          <p className="text-lg font-semibold text-destructive">Accès refusé</p>
           <p className="text-sm text-muted-foreground">
-            Vous n'avez pas les droits necessaires pour acceder a cette page.
+            Vous n'avez pas les droits nécessaires pour accéder à cette page.
           </p>
         </div>
       </div>
