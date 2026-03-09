@@ -42,6 +42,7 @@ import {
   RotateCcw,
   Save,
   Eye,
+  EyeOff,
   Lock,
   Plus,
   Trash2,
@@ -77,6 +78,8 @@ import {
   ChevronsUpDown,
   Filter,
   Palette,
+  Home,
+  Paperclip,
 } from "lucide-react";
 
 // ══════════════════════════════════════════════
@@ -187,6 +190,58 @@ function generateLetterNumber(): string {
   const year = new Date().getFullYear();
   const seq = String(Math.floor(Math.random() * 999) + 1).padStart(3, "0");
   return `LM-${year}-${seq}`;
+}
+
+// Improvement #7: status dot colors
+const STATUS_DOT_COLOR: Record<LetterStatus, string> = {
+  brouillon: "bg-slate-400",
+  en_attente: "bg-amber-400",
+  signee: "bg-emerald-400",
+  archivee: "bg-blue-400",
+};
+
+// Improvement #13/#35: tag color palette
+const TAG_COLORS = [
+  "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  "bg-green-500/20 text-green-300 border-green-500/30",
+  "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  "bg-pink-500/20 text-pink-300 border-pink-500/30",
+  "bg-orange-500/20 text-orange-300 border-orange-500/30",
+];
+
+function hashString(s: string): number {
+  let hash = 0;
+  for (let i = 0; i < s.length; i++) {
+    hash = ((hash << 5) - hash) + s.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getTagColor(tag: string, index: number): string {
+  const h = hashString(tag);
+  return TAG_COLORS[(h + index) % TAG_COLORS.length];
+}
+
+// Improvement #3: custom select chevron SVG data URI
+const SELECT_CHEVRON_SVG = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E";
+
+const STYLED_SELECT_CLS = `appearance-none bg-no-repeat bg-[length:16px] rounded-xl border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm pr-8 hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors`;
+
+// Improvement #29: checklist categories
+const CHECKLIST_CATEGORIES = [
+  { label: "Identit\u00e9 client", indices: [0, 1, 2] },
+  { label: "Configuration", indices: [3, 4, 7, 8] },
+  { label: "Signatures", indices: [5, 6, 9] },
+];
+
+// Improvement #42: section type icons
+function getSectionTypeIcon(section: TemplateSection): React.ReactNode {
+  if (!section.editable) return <Lock className="w-3.5 h-3.5 text-slate-500" />;
+  if (section.type === "conditional") return <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />;
+  if (section.type === "annexe") return <Paperclip className="w-3.5 h-3.5 text-blue-400" />;
+  if (section.id.startsWith("custom_")) return <Star className="w-3.5 h-3.5 text-purple-400" />;
+  return <FileText className="w-3.5 h-3.5 text-slate-400" />;
 }
 
 // ══════════════════════════════════════════════
@@ -336,8 +391,13 @@ export default function LettreMissionPage() {
   const [quickDuplicateTargetRef, setQuickDuplicateTargetRef] = useState("");
   const [sectionFilter, setSectionFilter] = useState("");
   const [clientSearch, setClientSearch] = useState("");
+  const [debouncedClientSearch, setDebouncedClientSearch] = useState("");
   const [activeTab, setActiveTab] = useState("modele");
   const [savingLetter, setSavingLetter] = useState(false);
+  const [exportProgress, setExportProgress] = useState<number | null>(null);
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [leftPanelLoading, setLeftPanelLoading] = useState(false);
+  const [initialFieldValues, setInitialFieldValues] = useState<Record<string, unknown>>({});
 
   // ── Autosave ──
   const [isDirty, setIsDirty] = useState(false);
@@ -361,17 +421,23 @@ export default function LettreMissionPage() {
     [clients, selectedRef]
   );
 
+  // Improvement #31: debounce client search 300ms
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedClientSearch(clientSearch), 300);
+    return () => clearTimeout(timer);
+  }, [clientSearch]);
+
   // Feature #2: client search filtering
   const filteredClients = useMemo(() => {
-    if (!clientSearch.trim()) return clients;
-    const q = clientSearch.toLowerCase();
+    if (!debouncedClientSearch.trim()) return clients;
+    const q = debouncedClientSearch.toLowerCase();
     return clients.filter(
       (c) =>
         c.raisonSociale?.toLowerCase().includes(q) ||
         c.ref?.toLowerCase().includes(q) ||
         c.siren?.toLowerCase().includes(q)
     );
-  }, [clients, clientSearch]);
+  }, [clients, debouncedClientSearch]);
 
   // Feature #47: group by vigilance
   const clientsByVigilance = useMemo(() => {
@@ -565,6 +631,27 @@ export default function LettreMissionPage() {
       autoPopulateFromLastLetter(savedLetters[0]);
     }
   }, [savedLetters]);
+
+  // Improvement #32: left panel loading skeleton on client change
+  useEffect(() => {
+    if (client) {
+      setLeftPanelLoading(true);
+      const timer = setTimeout(() => setLeftPanelLoading(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [client?.ref]);
+
+  // Improvement #40: track initial field values for dirty indicator
+  useEffect(() => {
+    if (client) {
+      setInitialFieldValues({
+        genre, honoraires_comptable: honoraires.comptable, honoraires_constitution: honoraires.constitution,
+        honoraires_juridique: honoraires.juridique, honoraires_frequence: honoraires.frequence,
+        objetContrat, regimeFiscal, regimeTVA, volumeComptable, notesInternes,
+        signatureExpert, signatureClient, status, priority,
+      });
+    }
+  }, [client?.ref]);
 
   // ── Autosave with countdown (Feature #10) ──
   useEffect(() => {
@@ -997,6 +1084,11 @@ export default function LettreMissionPage() {
     return { sectionCount: activeSections.length, wordCount, estimatedPages };
   }, [template, missions, estimatedPages]);
 
+  // Improvement #40: check if field is dirty
+  const isFieldDirty = useCallback((fieldKey: string, currentValue: unknown): boolean => {
+    return initialFieldValues[fieldKey] !== undefined && initialFieldValues[fieldKey] !== currentValue;
+  }, [initialFieldValues]);
+
   // ── Unresolved variables ──
   const unresolvedVars = useMemo(() => {
     if (!client) return [];
@@ -1067,11 +1159,24 @@ export default function LettreMissionPage() {
     markDirty();
   }, [signatureExpert, signatureClient, markDirty]);
 
+  // Improvement #28: export progress simulation
+  const startExportProgress = useCallback(() => {
+    setExportProgress(0);
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += Math.random() * 15 + 5;
+      if (progress >= 90) { progress = 90; clearInterval(interval); }
+      setExportProgress(Math.min(90, Math.round(progress)));
+    }, 200);
+    return () => { clearInterval(interval); setExportProgress(100); setTimeout(() => setExportProgress(null), 500); };
+  }, []);
+
   // ── Export PDF — BugFix #20: loading state ──
   const handleExportPdf = useCallback(async () => {
     if (!client) return;
     setExportLoading(true);
     setShowExportDialog(null);
+    const finishProgress = startExportProgress();
     try {
       const { renderNewLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
       renderNewLettreMissionPdf({
@@ -1080,20 +1185,23 @@ export default function LettreMissionPage() {
       });
       // Feature #18: log export
       setExportHistory((prev) => [...prev, { date: new Date().toISOString(), type: "pdf", clientRef: client.ref }]);
+      finishProgress();
       toast.success("PDF g\u00e9n\u00e9r\u00e9");
     } catch (err) {
       logger.error("[PDF]", err);
+      setExportProgress(null);
       toast.error("Erreur PDF");
     } finally {
       setExportLoading(false);
     }
-  }, [client, template, genre, missions, honoraires, cabinet, previewVariables, status, signatureExpert, signatureClient]);
+  }, [client, template, genre, missions, honoraires, cabinet, previewVariables, status, signatureExpert, signatureClient, startExportProgress]);
 
   // ── Export DOCX ──
   const handleExportDocx = useCallback(async () => {
     if (!client) return;
     setExportLoading(true);
     setShowExportDialog(null);
+    const finishProgress = startExportProgress();
     try {
       const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
       await renderNewLettreMissionDocx({
@@ -1101,14 +1209,16 @@ export default function LettreMissionPage() {
         variables: previewVariables, status, signatureExpert, signatureClient,
       });
       setExportHistory((prev) => [...prev, { date: new Date().toISOString(), type: "docx", clientRef: client.ref }]);
+      finishProgress();
       toast.success("DOCX g\u00e9n\u00e9r\u00e9");
     } catch (err) {
       logger.error("[DOCX]", err);
+      setExportProgress(null);
       toast.error("Erreur DOCX");
     } finally {
       setExportLoading(false);
     }
-  }, [client, template, genre, missions, honoraires, cabinet, previewVariables, status, signatureExpert, signatureClient]);
+  }, [client, template, genre, missions, honoraires, cabinet, previewVariables, status, signatureExpert, signatureClient, startExportProgress]);
 
   // ── Email ──
   const handleEmail = useCallback(() => {
@@ -1212,13 +1322,15 @@ export default function LettreMissionPage() {
   // RENDER
   // ══════════════════════════════════════════════
   return (
-    <TooltipProvider>
+    <TooltipProvider delayDuration={200}>
     <div className="flex flex-col print:block" style={{ height: "calc(100vh - 4rem)" }}>
       {/* ══ TOOLBAR ══ */}
-      <div className="sticky top-0 z-20 bg-slate-900 border-b border-white/10 shrink-0 print:hidden">
-        {/* BugFix #48: breadcrumb navigation */}
+      <div className="sticky top-0 z-20 bg-slate-900 border-b border-transparent shrink-0 print:hidden" style={{ borderImage: "linear-gradient(to right, rgba(59,130,246,0.3), rgba(168,85,247,0.3), rgba(59,130,246,0.3)) 1" }}>
+        {/* Improvement #2: breadcrumb with Home icon */}
         <div className="flex items-center gap-1.5 px-4 pt-1.5 text-[10px] text-slate-500">
-          <button onClick={() => navigate("/")} className="hover:text-slate-300">Accueil</button>
+          <button onClick={() => navigate("/")} className="hover:text-slate-300 flex items-center gap-1">
+            <Home className="w-3 h-3" /> Accueil
+          </button>
           <ChevronRight className="w-3 h-3" />
           <span className="text-slate-300">Lettre de Mission</span>
           {client && (
@@ -1228,28 +1340,34 @@ export default function LettreMissionPage() {
             </>
           )}
         </div>
+        {/* Improvement #1: toolbar grouped with dividers [Nav | Info | Actions | Export] */}
         <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* ── Nav group ── */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-slate-400 hover:text-white gap-1" aria-label="Retour">
+                <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="text-slate-400 hover:text-white gap-1 hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Retour">
                   <ArrowLeft className="w-4 h-4" /> Retour
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Retour \u00e0 la page pr\u00e9c\u00e9dente</TooltipContent>
             </Tooltip>
+            <div className="w-px h-5 bg-white/10" />
+            {/* ── Info group ── */}
             <h1 className="text-sm font-semibold text-white">Lettre de Mission</h1>
-            {/* Letter number (Feature #12) */}
-            <span className="text-[10px] text-slate-500 font-mono">{letterNumber}</span>
-            {/* Status badge */}
-            <Badge variant="outline" className={`text-xs ${statusConf.bg} ${statusConf.color}`}>
+            {/* Improvement #24: letter number styled badge */}
+            <span className="bg-slate-800 border border-white/10 rounded-md px-2 py-1 text-xs font-mono text-slate-400">{letterNumber}</span>
+            {/* Improvement #7: status badge with colored dot */}
+            <Badge variant="outline" className={`text-xs ${statusConf.bg} ${statusConf.color} flex items-center gap-1.5`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT_COLOR[status]} animate-pulse inline-block`} />
               {statusConf.label}
             </Badge>
-            {/* Feature #21: quick status toolbar */}
+            {/* Improvement #3: styled selects */}
             <select
               value={status}
               onChange={(e) => handleStatusChange(e.target.value as LetterStatus)}
-              className="text-[10px] rounded border border-white/10 bg-slate-800 text-slate-300 px-1 py-0.5"
+              className={`text-[10px] rounded-xl border border-white/10 bg-slate-800 text-slate-300 px-2 py-0.5 pr-6 appearance-none bg-no-repeat bg-[length:12px] hover:border-white/20 focus:outline-none transition-colors`}
+              style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 4px center" }}
               aria-label="Changer le statut rapidement"
             >
               <option value="brouillon">Brouillon</option>
@@ -1257,22 +1375,22 @@ export default function LettreMissionPage() {
               <option value="signee">Sign\u00e9e</option>
               <option value="archivee">Archiv\u00e9e</option>
             </select>
-            {/* Feature #47: priority */}
             <select
               value={priority}
               onChange={(e) => { setPriority(e.target.value as LetterPriority); markDirty(); }}
-              className={`text-[10px] rounded border border-white/10 bg-slate-800 px-1 py-0.5 ${PRIORITY_CONFIG[priority].color}`}
+              className={`text-[10px] rounded-xl border border-white/10 bg-slate-800 px-2 py-0.5 pr-6 appearance-none bg-no-repeat bg-[length:12px] hover:border-white/20 focus:outline-none transition-colors ${PRIORITY_CONFIG[priority].color}`}
+              style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 4px center" }}
               aria-label="Priorit\u00e9"
             >
               <option value="urgent">Urgent</option>
               <option value="normal">Normal</option>
               <option value="low">Basse</option>
             </select>
-            {/* Estimated pages */}
             {client && (
               <span className="text-[10px] text-slate-500">~{estimatedPages} pages</span>
             )}
-            {/* Autosave indicator — BugFix #45 */}
+            <div className="w-px h-5 bg-white/10" />
+            {/* ── Status indicators ── */}
             {lastSaved && (
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -1287,28 +1405,40 @@ export default function LettreMissionPage() {
             {isDirty && (
               <span className="text-[10px] text-amber-500 flex items-center gap-1">
                 Modifications non sauvegard\u00e9es
-                {/* Feature #10: countdown */}
+                {/* Improvement #8: autosave countdown visible */}
                 {autoSaveCountdown !== null && (
-                  <span className="text-slate-500">(sauvegarde dans {autoSaveCountdown}s)</span>
+                  <span className="bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 rounded-full text-amber-400 animate-pulse">
+                    {autoSaveCountdown}s
+                  </span>
                 )}
               </span>
             )}
-            {/* Completion progress */}
+            {/* Improvement #6: wider progress bar */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <div className="flex items-center gap-1 cursor-pointer" onClick={() => setShowValidationChecklist(true)}>
-                  <Progress value={completionInfo.pct} className="w-16 h-1.5" />
-                  <span className="text-[10px] text-slate-500">{completionInfo.pct}%</span>
+                <div className="flex items-center gap-1.5 cursor-pointer" onClick={() => setShowValidationChecklist(true)}>
+                  <Progress value={completionInfo.pct} className="w-24 h-2 [&>div]:transition-all [&>div]:duration-500 [&>div]:ease-out" />
+                  <span className={`text-[10px] font-medium ${completionInfo.pct === 100 ? "text-emerald-400" : completionInfo.pct >= 70 ? "text-blue-400" : "text-amber-400"}`}>
+                    {completionInfo.pct}%
+                  </span>
                 </div>
               </TooltipTrigger>
               <TooltipContent>{completionInfo.doneCount}/{completionInfo.total} champs compl\u00e9t\u00e9s</TooltipContent>
             </Tooltip>
+            {/* Improvement #28: export progress bar */}
+            {exportProgress !== null && (
+              <div className="flex items-center gap-1.5">
+                <Progress value={exportProgress} className="w-20 h-1.5 [&>div]:transition-all [&>div]:duration-300" />
+                <span className="text-[10px] text-blue-400">{exportProgress}%</span>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-1.5">
-            {/* BugFix #13: Ctrl+S tooltip */}
+          {/* Improvement #1: Actions + Export groups */}
+          <div className="flex items-center gap-1">
+            {/* ── Actions group ── */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={() => handleSave(false)} disabled={!isDirty || !client || savingLetter} className="gap-1 text-xs" aria-label="Sauvegarder (Ctrl+S)">
+                <Button size="sm" variant="outline" onClick={() => handleSave(false)} disabled={!isDirty || !client || savingLetter} className="gap-1 text-xs hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Sauvegarder (Ctrl+S)">
                   {savingLetter ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
                 </Button>
               </TooltipTrigger>
@@ -1316,15 +1446,17 @@ export default function LettreMissionPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={() => setShowPreviewModal(true)} disabled={!client} className="gap-1 text-xs" aria-label="Aper\u00e7u plein \u00e9cran (Ctrl+P)">
+                <Button size="sm" variant="outline" onClick={() => setShowPreviewModal(true)} disabled={!client} className="gap-1 text-xs hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Aper\u00e7u plein \u00e9cran (Ctrl+P)">
                   <Eye className="h-3.5 w-3.5" /> Aper\u00e7u
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Aper\u00e7u plein \u00e9cran (Ctrl+P)</TooltipContent>
             </Tooltip>
+            <div className="w-px h-5 bg-white/10" />
+            {/* ── Export group ── */}
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={() => setShowExportDialog("pdf")} disabled={!client} className="gap-1 text-xs" aria-label="Exporter en PDF">
+                <Button size="sm" variant="outline" onClick={() => setShowExportDialog("pdf")} disabled={!client} className="gap-1 text-xs hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Exporter en PDF">
                   <FileDown className="h-3.5 w-3.5" /> PDF
                 </Button>
               </TooltipTrigger>
@@ -1332,7 +1464,7 @@ export default function LettreMissionPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={() => setShowExportDialog("docx")} disabled={!client} className="gap-1 text-xs" aria-label="Exporter en DOCX">
+                <Button size="sm" variant="outline" onClick={() => setShowExportDialog("docx")} disabled={!client} className="gap-1 text-xs hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Exporter en DOCX">
                   <FileText className="h-3.5 w-3.5" /> DOCX
                 </Button>
               </TooltipTrigger>
@@ -1340,7 +1472,7 @@ export default function LettreMissionPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={handleEmail} disabled={!client} className="gap-1 text-xs" aria-label="Envoyer par email">
+                <Button size="sm" variant="outline" onClick={handleEmail} disabled={!client} className="gap-1 text-xs hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Envoyer par email">
                   <Mail className="h-3.5 w-3.5" /> Email
                 </Button>
               </TooltipTrigger>
@@ -1348,7 +1480,7 @@ export default function LettreMissionPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={handlePrint} disabled={!client} className="text-xs" aria-label="Imprimer">
+                <Button size="sm" variant="outline" onClick={handlePrint} disabled={!client} className="text-xs hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Imprimer">
                   <Printer className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -1356,15 +1488,16 @@ export default function LettreMissionPage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="outline" onClick={handleCopyContent} disabled={!client} className="text-xs" aria-label="Copier le contenu">
+                <Button size="sm" variant="outline" onClick={handleCopyContent} disabled={!client} className="text-xs hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Copier le contenu">
                   <ClipboardCopy className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Copier le contenu</TooltipContent>
             </Tooltip>
+            <div className="w-px h-5 bg-white/10" />
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button size="sm" variant="ghost" onClick={() => setShowKeyboardShortcuts(true)} className="text-xs text-slate-500" aria-label="Raccourcis clavier (Ctrl+K)">
+                <Button size="sm" variant="ghost" onClick={() => setShowKeyboardShortcuts(true)} className="text-xs text-slate-500 hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Raccourcis clavier (Ctrl+K)">
                   <Keyboard className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
@@ -1378,12 +1511,13 @@ export default function LettreMissionPage() {
       <div className="flex-1 overflow-auto print:overflow-visible">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
           <div className="px-4 pt-3 shrink-0 print:hidden">
+            {/* Improvement #30: active tab indicator with blue underline */}
             <TabsList className="bg-slate-800/50">
-              <TabsTrigger value="modele" className="gap-1">
+              <TabsTrigger value="modele" className="gap-1 data-[state=active]:border-b-2 data-[state=active]:border-blue-500">
                 Mod\u00e8le
                 {templateIssueCount > 0 && <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1 bg-red-500/20 text-red-400 border-red-500/30">{templateIssueCount}</Badge>}
               </TabsTrigger>
-              <TabsTrigger value="generer" className="gap-1">
+              <TabsTrigger value="generer" className="gap-1 data-[state=active]:border-b-2 data-[state=active]:border-blue-500">
                 G\u00e9n\u00e9rer
                 {generateIssueCount > 0 && <Badge variant="outline" className="text-[9px] px-1 py-0 ml-1 bg-amber-500/20 text-amber-400 border-amber-500/30">{generateIssueCount}</Badge>}
               </TabsTrigger>
@@ -1391,7 +1525,7 @@ export default function LettreMissionPage() {
           </div>
 
           {/* ══ TAB 1: MODELE ══ */}
-          <TabsContent value="modele" className="flex-1 overflow-auto px-4 pb-6 print:hidden">
+          <TabsContent value="modele" className="flex-1 overflow-auto px-4 pb-6 print:hidden transition-opacity duration-150">
             {/* BugFix #43: loading skeleton */}
             {!templateLoaded ? (
               <div className="space-y-3 py-4">
@@ -1409,7 +1543,8 @@ export default function LettreMissionPage() {
                       setActiveModelKey(e.target.value);
                       loadModelTemplate(e.target.value);
                     }}
-                    className="rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-1.5 text-xs"
+                    className={STYLED_SELECT_CLS + " text-xs py-1.5"}
+                    style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
                     aria-label="S\u00e9lectionner un mod\u00e8le"
                   >
                     {modelList.map((m) => (
@@ -1500,7 +1635,8 @@ export default function LettreMissionPage() {
                   <select
                     value={sectionFilter}
                     onChange={(e) => setSectionFilter(e.target.value)}
-                    className="rounded-md border border-white/10 bg-slate-800 text-slate-200 px-2 py-1.5 text-xs"
+                    className={STYLED_SELECT_CLS + " text-xs py-1.5"}
+                    style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
                     aria-label="Filtrer par type de section"
                   >
                     <option value="">Toutes les sections</option>
@@ -1540,11 +1676,18 @@ export default function LettreMissionPage() {
                     return displaySections.map((section) => {
                       // BugFix #15: show original index
                       const originalIdx = template.findIndex((s) => s.id === section.id);
-                      const isCollapsed2 = collapsed[section.id] ?? true;
+                      // Improvement #9: sections start expanded (default false = not collapsed)
+                      const isCollapsed2 = collapsed[section.id] ?? false;
                       const isCustom = section.id.startsWith("custom_");
                       const isAnnexe = section.type === "annexe";
                       const isFavorite = favoriteSections.includes(section.id);
                       const commentsForSection = sectionComments.filter((c) => c.sectionId === section.id);
+                      // Improvement #25: conditional hidden indicator
+                      const isConditionalHidden = section.type === "conditional" && (
+                        (section.condition === "sociale" && !missions.sociale) ||
+                        (section.condition === "juridique" && !missions.juridique) ||
+                        (section.condition === "fiscal" && !missions.fiscal)
+                      );
 
                       return (
                         <div key={section.id}>
@@ -1556,7 +1699,7 @@ export default function LettreMissionPage() {
                               <div className="flex-1 h-px bg-blue-500/30" />
                             </div>
                           )}
-                          <div className="border border-white/10 rounded-lg overflow-hidden">
+                          <div className={`border border-white/10 rounded-lg overflow-hidden hover:border-white/20 transition-all duration-200 ${isConditionalHidden ? "opacity-50" : ""}`}>
                             <button
                               onClick={() => toggleCollapse(section.id)}
                               className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-800/50 hover:bg-slate-800 transition-colors text-left"
@@ -1567,6 +1710,8 @@ export default function LettreMissionPage() {
                                 <span className="text-[10px] text-slate-600 font-mono w-5">{originalIdx + 1}.</span>
                                 <GripVertical className="w-3.5 h-3.5 text-slate-600 cursor-grab" />
                                 {isCollapsed2 ? <ChevronRight className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+                                {/* Improvement #42: section type icons */}
+                                {getSectionTypeIcon(section)}
                                 {isCustom ? (
                                   <input
                                     value={section.title}
@@ -1591,12 +1736,23 @@ export default function LettreMissionPage() {
                                     <MessageSquare className="w-3 h-3 inline" /> {commentsForSection.length}
                                   </span>
                                 )}
+                                {/* Improvement #25: crossed-eye icon for hidden conditionals */}
+                                {isConditionalHidden && (
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <span className="flex items-center gap-1 text-[10px] text-slate-500">
+                                        <EyeOff className="w-3 h-3" />
+                                      </span>
+                                    </TooltipTrigger>
+                                    <TooltipContent>Cette section conditionnelle est masqu\u00e9e car la mission &laquo;{section.condition}&raquo; n&apos;est pas activ\u00e9e</TooltipContent>
+                                  </Tooltip>
+                                )}
                               </div>
                               <div className="flex items-center gap-1">
                                 {/* Feature #23: favorite toggle */}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); toggleFavorite(section.id); }}
-                                  className="p-1"
+                                  className="p-1 hover:scale-[1.02] active:scale-[0.98] transition-transform"
                                   aria-label={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
                                 >
                                   {isFavorite ? <Star className="w-3.5 h-3.5 text-yellow-400 fill-yellow-400" /> : <StarOff className="w-3.5 h-3.5 text-slate-600 hover:text-yellow-400" />}
@@ -1604,20 +1760,24 @@ export default function LettreMissionPage() {
                                 {/* Feature #9: duplicate section */}
                                 <button
                                   onClick={(e) => { e.stopPropagation(); duplicateSection(section.id); }}
-                                  className="p-1"
+                                  className="p-1 hover:scale-[1.02] active:scale-[0.98] transition-transform"
                                   aria-label="Dupliquer cette section"
                                 >
                                   <Copy className="w-3.5 h-3.5 text-slate-500 hover:text-blue-400" />
                                 </button>
                                 {isCustom && (
-                                  <button onClick={(e) => { e.stopPropagation(); removeSection(section.id); }} className="p-1" aria-label="Supprimer cette section">
+                                  <button onClick={(e) => { e.stopPropagation(); removeSection(section.id); }} className="p-1 hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Supprimer cette section">
                                     <Trash2 className="w-3.5 h-3.5 text-slate-500 hover:text-red-400" />
                                   </button>
                                 )}
                                 {!section.editable && <Lock className="w-3.5 h-3.5 text-slate-500" />}
                               </div>
                             </button>
-                            {!isCollapsed2 && (
+                            {/* Improvement #10: smooth section open/close animation */}
+                            <div
+                              className="transition-all duration-200 ease-in-out overflow-hidden"
+                              style={{ maxHeight: isCollapsed2 ? 0 : 2000, opacity: isCollapsed2 ? 0 : 1 }}
+                            >
                               <div className="px-4 py-3 border-t border-white/[0.06]">
                                 {!section.editable ? (
                                   <div>
@@ -1627,10 +1787,11 @@ export default function LettreMissionPage() {
                                     <div className="text-sm text-slate-400 bg-slate-800/30 rounded p-3 whitespace-pre-wrap font-mono">{section.content}</div>
                                   </div>
                                 ) : (
-                                  /* BugFix #38: auto-grow textarea */
+                                  /* BugFix #38: auto-grow textarea + Improvement #11: placeholder */
                                   <textarea
                                     value={section.content}
                                     onChange={(e) => updateSectionContent(section.id, e.target.value)}
+                                    placeholder="Saisissez le contenu de cette section..."
                                     className="w-full rounded-md border border-white/10 p-3 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-y"
                                     style={{
                                       fontSize: 15, color: "#e2e8f0", backgroundColor: "hsl(217 33% 14%)",
@@ -1671,18 +1832,22 @@ export default function LettreMissionPage() {
                                   </details>
                                 </div>
                               </div>
-                            )}
+                            </div>
                           </div>
-                          {/* Add clause button */}
-                          <div className="flex justify-center py-0.5">
-                            <button
-                              onClick={() => addCustomClause(section.id)}
-                              className="text-slate-600 hover:text-blue-400 transition-colors p-0.5"
-                              title="Ajouter une clause"
-                              aria-label="Ajouter une clause apr\u00e8s cette section"
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
+                          {/* Improvement #12: visible add clause button */}
+                          <div className="flex justify-center py-1">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={() => addCustomClause(section.id)}
+                                  className="text-slate-600 hover:text-blue-400 transition-all p-0.5 w-5 h-5 flex items-center justify-center rounded-full border border-dashed border-slate-700 hover:border-blue-400"
+                                  aria-label="Ajouter une clause apr\u00e8s cette section"
+                                >
+                                  <Plus className="w-3.5 h-3.5" />
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent>Ajouter une clause</TooltipContent>
+                            </Tooltip>
                           </div>
                         </div>
                       );
@@ -1694,32 +1859,38 @@ export default function LettreMissionPage() {
           </TabsContent>
 
           {/* ══ TAB 2: GENERER ══ */}
-          <TabsContent value="generer" className="flex-1 overflow-auto print:hidden">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 h-full">
+          {/* Improvement #17: tab transition */}
+          <TabsContent value="generer" className="flex-1 overflow-auto print:hidden transition-opacity duration-150">
+            {/* Improvement #38: mobile responsive layout */}
+            <div className="flex flex-col lg:grid lg:grid-cols-2 gap-0 h-full">
               {/* Left panel */}
-              <div ref={leftPanelRef} className="overflow-auto border-r border-white/10 p-4 space-y-4">
+              <div ref={leftPanelRef} className="overflow-auto border-r border-white/10 p-4 space-y-4 relative">
+                {/* Improvement #18: sticky left panel header */}
+                <div className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur pb-2 -mx-4 px-4 -mt-4 pt-4">
                 {/* Client selector with search (Feature #2) */}
                 <div className="flex gap-2">
                   <div className="flex-1 space-y-1.5">
                     <Label className="text-xs text-slate-400 mb-1.5 block">
-                      Client
+                      {/* Improvement #44: required field asterisk */}
+                      Client <span className="text-red-400">*</span>
                       {/* BugFix #14: client count */}
                       <Badge variant="outline" className="ml-2 text-[9px] px-1 py-0">{clients.length}</Badge>
                     </Label>
-                    {/* Feature #2: search input */}
+                    {/* Feature #2: search input (Improvement #31: debounced) */}
                     <div className="relative">
                       <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
                       <input
                         value={clientSearch}
                         onChange={(e) => setClientSearch(e.target.value)}
                         placeholder="Rechercher par nom, r\u00e9f\u00e9rence, SIREN..."
-                        className="w-full pl-7 pr-3 py-1.5 rounded-md border border-white/10 bg-slate-800 text-slate-200 text-xs"
+                        className="w-full pl-7 pr-3 py-1.5 rounded-xl border border-white/10 bg-slate-800 text-slate-200 text-xs hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors"
                       />
                     </div>
                     <select
                       value={selectedRef}
                       onChange={(e) => { setSelectedRef(e.target.value); markDirty(); }}
-                      className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm"
+                      className={STYLED_SELECT_CLS}
+                      style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center", width: "100%" }}
                       aria-label="S\u00e9lectionner un client"
                     >
                       <option value="">-- Choisir un client --</option>
@@ -1746,15 +1917,22 @@ export default function LettreMissionPage() {
                     </select>
                   </div>
                   <div className="flex items-end gap-1">
-                    <Button size="sm" variant="outline" onClick={() => setShowDuplicateDialog(true)} className="gap-1 text-xs h-9" aria-label="Dupliquer depuis une lettre existante">
-                      <Copy className="h-3.5 w-3.5" /> Dupliquer
-                    </Button>
+                    {/* Improvement #39: highlight duplicate button when letters exist */}
+                    <div className="relative">
+                      <Button size="sm" variant="outline" onClick={() => setShowDuplicateDialog(true)} className="gap-1 text-xs h-9 hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Dupliquer depuis une lettre existante">
+                        <Copy className="h-3.5 w-3.5" /> Dupliquer
+                      </Button>
+                      {savedLetters.length > 0 && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse" />
+                      )}
+                    </div>
                     {/* Feature #50: quick duplicate to other client */}
-                    <Button size="sm" variant="outline" onClick={() => setShowQuickDuplicateDialog(true)} disabled={!client} className="text-xs h-9" aria-label="Dupliquer vers un autre client">
+                    <Button size="sm" variant="outline" onClick={() => setShowQuickDuplicateDialog(true)} disabled={!client} className="text-xs h-9 hover:scale-[1.02] active:scale-[0.98] transition-transform" aria-label="Dupliquer vers un autre client">
                       <Users className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 </div>
+                </div>{/* end sticky header */}
 
                 {/* Existing letters badge */}
                 {savedLetters.length > 0 && (
@@ -1768,7 +1946,29 @@ export default function LettreMissionPage() {
                   </button>
                 )}
 
-                {client && (
+                {/* Improvement #4: beautiful empty state */}
+                {!client && (
+                  <div className="flex flex-col items-center justify-center py-16">
+                    <div className="bg-slate-800/50 border border-white/10 rounded-2xl p-8 flex flex-col items-center gap-4 max-w-sm">
+                      <FileText className="w-12 h-12 text-slate-500 animate-pulse" />
+                      <div className="text-center">
+                        <h3 className="text-base font-semibold text-slate-300 mb-1">S\u00e9lectionnez un client</h3>
+                        <p className="text-sm text-slate-500">Choisissez un client dans la liste ci-dessus pour g\u00e9n\u00e9rer ou modifier sa lettre de mission.</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Improvement #32: left panel loading skeleton */}
+                {client && leftPanelLoading && (
+                  <div className="space-y-3 py-4">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <Skeleton key={i} className="h-12 w-full bg-slate-800/50 rounded-lg" />
+                    ))}
+                  </div>
+                )}
+
+                {client && !leftPanelLoading && (
                   <>
                     {/* Missions summary strip */}
                     <div className="flex items-center gap-2 flex-wrap text-xs">
@@ -1780,10 +1980,11 @@ export default function LettreMissionPage() {
                       <span className={missions.fiscal ? "text-emerald-400" : "text-slate-600"}>Fiscal {missions.fiscal ? "OK" : "\u2014"}</span>
                     </div>
 
-                    {/* Client info — BugFix #32: tooltip on truncated text */}
-                    <div className="border border-white/10 rounded-lg p-3">
+                    {/* Improvement #5: client info card gradient border */}
+                    <div className="bg-gradient-to-br from-blue-500/20 via-transparent to-purple-500/20 p-[1px] rounded-lg">
+                    <div className="border-0 rounded-lg p-3 bg-slate-900 hover:bg-slate-800/30 transition-all duration-200">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Client</h3>
-                      <div className="grid grid-cols-2 gap-y-1.5 gap-x-4 text-sm">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 gap-x-4 text-sm">
                         {([
                           ["Raison sociale", client.raisonSociale], ["Forme", client.forme],
                           ["SIREN", client.siren], ["Dirigeant", client.dirigeant],
@@ -1801,6 +2002,7 @@ export default function LettreMissionPage() {
                         ))}
                       </div>
                     </div>
+                    </div>{/* end gradient wrapper */}
 
                     {/* Letter number + reference externe */}
                     <div className="grid grid-cols-2 gap-3">
@@ -1822,7 +2024,8 @@ export default function LettreMissionPage() {
                       <select
                         value={status}
                         onChange={(e) => handleStatusChange(e.target.value as LetterStatus)}
-                        className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm"
+                        className={STYLED_SELECT_CLS + " w-full"}
+                        style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
                         aria-label="Statut de la lettre"
                       >
                         <option value="brouillon">Brouillon</option>
@@ -1833,42 +2036,51 @@ export default function LettreMissionPage() {
                     </div>
 
                     {/* Genre + Objet (Feature #39: multiline) */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
+                        {/* Improvement #45: genre selector with icon */}
                         <Label className="text-xs text-slate-400 mb-1.5 block">Formule</Label>
                         <select value={genre} onChange={(e) => { setGenre(e.target.value as "M" | "Mme"); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" aria-label="Formule de politesse">
-                          <option value="M">M. (Monsieur)</option>
-                          <option value="Mme">Mme (Madame)</option>
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="Formule de politesse">
+                          <option value="M">{"\ud83d\udc64"} M. (Monsieur)</option>
+                          <option value="Mme">{"\ud83d\udc64"} Mme (Madame)</option>
                         </select>
                       </div>
                       <div>
-                        <Label className="text-xs text-slate-400 mb-1.5 block">Objet du contrat</Label>
+                        {/* Improvement #44: required field asterisk */}
+                        <Label className="text-xs text-slate-400 mb-1.5 block flex items-center gap-1">
+                          Objet du contrat <span className="text-red-400">*</span>
+                          {isFieldDirty("objetContrat", objetContrat) && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />}
+                        </Label>
                         <textarea value={objetContrat} onChange={(e) => { setObjetContrat(e.target.value); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm resize-y" rows={2} />
+                          className="w-full rounded-xl border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm resize-y hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors" rows={2} />
                       </div>
                     </div>
 
-                    {/* Feature #1: Exercise dates */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Feature #1: Exercise dates (Improvement #36: French lang) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">D\u00e9but exercice</Label>
-                        <input type="date" value={dateDebutExercice} onChange={(e) => { setDateDebutExercice(e.target.value); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" />
+                        <input type="date" lang="fr" value={dateDebutExercice} onChange={(e) => { setDateDebutExercice(e.target.value); markDirty(); }}
+                          className="w-full rounded-xl border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors" />
                       </div>
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">Fin exercice</Label>
-                        <input type="date" value={dateFinExercice} onChange={(e) => { setDateFinExercice(e.target.value); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" />
+                        <input type="date" lang="fr" value={dateFinExercice} onChange={(e) => { setDateFinExercice(e.target.value); markDirty(); }}
+                          className="w-full rounded-xl border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors" />
                       </div>
                     </div>
 
-                    {/* Feature #3, #4, #5: regime fiscal, TVA, volume */}
-                    <div className="grid grid-cols-3 gap-3">
+                    {/* Feature #3, #4, #5: regime fiscal, TVA, volume (Improvement #15: responsive) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">R\u00e9gime fiscal</Label>
                         <select value={regimeFiscal} onChange={(e) => { setRegimeFiscal(e.target.value as RegimeFiscal); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" aria-label="R\u00e9gime fiscal">
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="R\u00e9gime fiscal">
                           <option value="IS">IS</option>
                           <option value="IR">IR</option>
                           <option value="BIC">BIC</option>
@@ -1881,7 +2093,9 @@ export default function LettreMissionPage() {
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">R\u00e9gime TVA</Label>
                         <select value={regimeTVA} onChange={(e) => { setRegimeTVA(e.target.value as RegimeTVA); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" aria-label="R\u00e9gime TVA">
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="R\u00e9gime TVA">
                           <option value="reel_normal">R\u00e9el normal</option>
                           <option value="reel_simplifie">R\u00e9el simplifi\u00e9</option>
                           <option value="franchise">Franchise en base</option>
@@ -1890,7 +2104,9 @@ export default function LettreMissionPage() {
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">Volume comptable</Label>
                         <select value={volumeComptable} onChange={(e) => { setVolumeComptable(e.target.value as VolumeComptable); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" aria-label="Volume comptable">
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="Volume comptable">
                           <option value="moins_500">&lt; 500 \u00e9critures</option>
                           <option value="500_2000">500 \u2013 2000 \u00e9critures</option>
                           <option value="plus_2000">&gt; 2000 \u00e9critures</option>
@@ -1899,12 +2115,12 @@ export default function LettreMissionPage() {
                     </div>
 
                     {/* Feature #6: outil comptable + Feature #8: CAC + Feature #45: responsable */}
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">Outil comptable</Label>
                         <input value={outilComptable} onChange={(e) => { setOutilComptable(e.target.value); markDirty(); }}
                           placeholder="Ex: Sage, Cegid..."
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" />
+                          className="w-full rounded-xl border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors" />
                       </div>
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">CAC</Label>
@@ -1916,7 +2132,9 @@ export default function LettreMissionPage() {
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">Responsable dossier</Label>
                         <select value={responsableDossier} onChange={(e) => { setResponsableDossier(e.target.value); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" aria-label="Responsable du dossier">
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="Responsable du dossier">
                           <option value="">-- Choisir --</option>
                           {collaborateurs.map((c) => (
                             <option key={c.nom} value={c.nom}>{c.nom} ({c.fonction})</option>
@@ -1925,8 +2143,8 @@ export default function LettreMissionPage() {
                       </div>
                     </div>
 
-                    {/* Missions */}
-                    <div className="border border-white/10 rounded-lg p-3 space-y-2">
+                    {/* Missions (Improvement #49: card hover) */}
+                    <div className="border border-white/10 rounded-lg p-3 space-y-2 hover:border-white/20 hover:bg-slate-800/30 transition-all duration-200">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Missions compl\u00e9mentaires</h3>
                       {[
                         { key: "sociale" as const, label: "Mission sociale" },
@@ -1940,16 +2158,22 @@ export default function LettreMissionPage() {
                       ))}
                     </div>
 
-                    {/* Honoraires — BugFix #10: min={0} */}
-                    <div className="border border-white/10 rounded-lg p-3 space-y-2">
-                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Honoraires</h3>
+                    {/* Honoraires — BugFix #10: min={0}, Improvement #34: icon, #49: hover */}
+                    <div className="border border-white/10 rounded-lg p-3 space-y-2 hover:border-white/20 hover:bg-slate-800/30 transition-all duration-200">
+                      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                        <Calculator className="w-3.5 h-3.5" /> Honoraires
+                      </h3>
                       {[
                         { key: "comptable" as const, label: "Forfait comptable annuel (\u20ac HT)" },
                         { key: "constitution" as const, label: "Constitution / Reprise (\u20ac HT)" },
                         { key: "juridique" as const, label: "Juridique annuel (\u20ac HT)" },
                       ].map(({ key, label }) => (
                         <div key={key}>
-                          <Label className="text-[10px] text-slate-500">{label}</Label>
+                          <Label className="text-[10px] text-slate-500 flex items-center gap-1">
+                            {label}
+                            {key === "comptable" && <span className="text-red-400">*</span>}
+                            {isFieldDirty(`honoraires_${key}`, honoraires[key]) && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />}
+                          </Label>
                           <input type="number" min={0} step="0.01" value={honoraires[key]}
                             onChange={(e) => { setHonoraires((p) => ({ ...p, [key]: Math.max(0, Number(e.target.value)) })); markDirty(); }}
                             className="w-full mt-0.5 rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-1.5 text-sm" />
@@ -1964,7 +2188,9 @@ export default function LettreMissionPage() {
                       <div>
                         <Label className="text-[10px] text-slate-500">P\u00e9riodicit\u00e9</Label>
                         <select value={honoraires.frequence} onChange={(e) => { setHonoraires((p) => ({ ...p, frequence: e.target.value as Periodicite })); markDirty(); }}
-                          className="w-full mt-0.5 rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-1.5 text-sm" aria-label="P\u00e9riodicit\u00e9 de facturation">
+                          className={STYLED_SELECT_CLS + " w-full mt-0.5 py-1.5"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="P\u00e9riodicit\u00e9 de facturation">
                           <option value="MENSUEL">Mensuel</option>
                           <option value="TRIMESTRIEL">Trimestriel</option>
                           <option value="SEMESTRIEL">Semestriel</option>
@@ -1991,7 +2217,9 @@ export default function LettreMissionPage() {
                       <div>
                         <Label className="text-[10px] text-slate-500">Conditions de paiement</Label>
                         <select value={conditionsPaiement} onChange={(e) => { setConditionsPaiement(e.target.value as ConditionsPaiement); markDirty(); }}
-                          className="w-full mt-0.5 rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-1.5 text-sm" aria-label="Conditions de paiement">
+                          className={STYLED_SELECT_CLS + " w-full mt-0.5 py-1.5"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="Conditions de paiement">
                           <option value="comptant">Comptant</option>
                           <option value="30j">30 jours</option>
                           <option value="45j">45 jours</option>
@@ -2005,25 +2233,38 @@ export default function LettreMissionPage() {
                           <div className="flex justify-between text-emerald-400"><span>Remise {remisePourcent}%</span><span>-{formatMontant(Math.round((honoraires.comptable + honoraires.constitution + (missions.juridique ? honoraires.juridique : 0)) * remisePourcent / 100))}</span></div>
                         )}
                         <div className="flex justify-between"><span className="text-slate-400">TVA 20%</span><span className="text-slate-200">{formatMontant(totalTVA)}</span></div>
-                        <div className="flex justify-between font-semibold"><span className="text-slate-300">Total TTC</span><span className="text-white">{formatMontant(totalTTC)}</span></div>
+                        {/* Improvement #22: prominent total TTC */}
+                        <div className="flex justify-between font-bold text-lg bg-emerald-500/10 rounded-lg px-3 py-2 -mx-1"><span className="text-slate-200">Total TTC</span><span className="text-white">{formatMontant(totalTTC)}</span></div>
                         <div className="text-slate-500 text-[10px]">Soit {formatMontant(montantPeriodiqueTTC)} TTC / {freqLabel}</div>
                         {acompte > 0 && (
                           <div className="flex justify-between text-blue-400"><span>Acompte</span><span>{formatMontant(acompte)}</span></div>
                         )}
                       </div>
-                      {/* Feature #49: smart suggestion */}
+                      {/* Improvement #21: bigger honoraires suggestion with apply button */}
                       {honorairesSuggestion && (
-                        <div className={`flex items-center gap-1 text-[10px] p-1.5 rounded ${honorairesSuggestion.type === "low" ? "bg-amber-500/10 text-amber-400" : "bg-blue-500/10 text-blue-400"}`}>
-                          <Calculator className="w-3 h-3" />
-                          {honorairesSuggestion.type === "low"
-                            ? `Honoraires possiblement bas. Suggestion : ${formatMontant(honorairesSuggestion.suggested)}`
-                            : `Honoraires \u00e9lev\u00e9s pour ce profil. Suggestion : ${formatMontant(honorairesSuggestion.suggested)}`}
+                        <div className={`flex items-center gap-2 text-xs p-3 rounded-lg ${honorairesSuggestion.type === "low" ? "bg-amber-500/10 text-amber-400 border border-amber-500/20" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"}`}>
+                          <Calculator className="w-4 h-4 shrink-0" />
+                          <div className="flex-1">
+                            <span className="font-bold">
+                              {honorairesSuggestion.type === "low" ? "Honoraires possiblement bas" : "Honoraires \u00e9lev\u00e9s pour ce profil"}
+                            </span>
+                            <br />
+                            Suggestion : <span className="font-semibold">{formatMontant(honorairesSuggestion.suggested)}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setHonoraires((p) => ({ ...p, comptable: honorairesSuggestion.suggested })); markDirty(); }}
+                            className="text-xs h-7 shrink-0 hover:scale-[1.02] active:scale-[0.98] transition-transform"
+                          >
+                            Appliquer
+                          </Button>
                         </div>
                       )}
                     </div>
 
-                    {/* Signatures — BugFix #11, #26 */}
-                    <div className="border border-white/10 rounded-lg p-3 space-y-3">
+                    {/* Signatures — BugFix #11, #26, Improvement #49: hover */}
+                    <div className="border border-white/10 rounded-lg p-3 space-y-3 hover:border-white/20 hover:bg-slate-800/30 transition-all duration-200">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Signatures</h3>
                       <div className="grid grid-cols-2 gap-3">
                         {[
@@ -2040,8 +2281,10 @@ export default function LettreMissionPage() {
                                 </button>
                               </div>
                             ) : (
-                              <label className="flex items-center justify-center gap-1 border border-dashed border-white/20 rounded p-3 cursor-pointer hover:border-white/40 text-xs text-slate-500">
-                                <Upload className="w-3.5 h-3.5" /> PNG/JPG (max 2 Mo)
+                              <label className="flex flex-col items-center justify-center gap-2 border-2 border-dashed border-white/20 rounded-lg py-8 cursor-pointer hover:border-white/40 text-xs text-slate-500 transition-colors">
+                                <Upload className="w-5 h-5" />
+                                <span className="font-medium text-slate-400">Importer votre signature</span>
+                                <span className="text-[10px]">PNG/JPG (max 2 Mo)</span>
                                 <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
                                   onChange={(e) => { if (e.target.files?.[0]) handleSignatureUpload(type, e.target.files[0]); }} />
                               </label>
@@ -2049,17 +2292,16 @@ export default function LettreMissionPage() {
                           </div>
                         ))}
                       </div>
-                      {/* Feature #13: signature date */}
-                      <div>
+                      {/* Improvement #48: distinct signature dates with colored borders */}
+                      <div className={`${signatureDate ? "border-l-2 border-l-emerald-500 pl-2" : ""}`}>
                         <Label className="text-[10px] text-slate-500 mb-1 block">Date de signature</Label>
-                        <input type="date" value={signatureDate} onChange={(e) => { setSignatureDate(e.target.value); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-1.5 text-sm" />
+                        <input type="date" lang="fr" value={signatureDate} onChange={(e) => { setSignatureDate(e.target.value); markDirty(); }}
+                          className="w-full rounded-xl border border-white/10 bg-slate-800 text-slate-200 px-3 py-1.5 text-sm hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors" />
                       </div>
-                      {/* Feature #44: date signature prevue */}
-                      <div>
+                      <div className={`${dateSignaturePrevue ? "border-l-2 border-l-amber-500 pl-2" : ""}`}>
                         <Label className="text-[10px] text-slate-500 mb-1 block">Date de signature pr\u00e9vue</Label>
-                        <input type="date" value={dateSignaturePrevue} onChange={(e) => { setDateSignaturePrevue(e.target.value); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-1.5 text-sm" />
+                        <input type="date" lang="fr" value={dateSignaturePrevue} onChange={(e) => { setDateSignaturePrevue(e.target.value); markDirty(); }}
+                          className="w-full rounded-xl border border-white/10 bg-slate-800 text-slate-200 px-3 py-1.5 text-sm hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors" />
                       </div>
                     </div>
 
@@ -2079,15 +2321,15 @@ export default function LettreMissionPage() {
                       </div>
                     </div>
 
-                    {/* Feature #36: tags */}
-                    <div className="border border-white/10 rounded-lg p-3">
+                    {/* Feature #36: tags (Improvement #13: bigger, #35: colored, #49: hover) */}
+                    <div className="border border-white/10 rounded-lg p-3 hover:border-white/20 hover:bg-slate-800/30 transition-all duration-200">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">\u00c9tiquettes</h3>
-                      <div className="flex flex-wrap gap-1 mb-2">
+                      <div className="flex flex-wrap gap-1.5 mb-2">
                         {tags.map((tag, i) => (
-                          <Badge key={i} variant="outline" className="text-[10px] gap-1 bg-slate-800">
-                            <Tag className="w-2.5 h-2.5" /> {tag}
-                            <button onClick={() => setTags((prev) => prev.filter((_, j) => j !== i))} className="ml-0.5" aria-label={`Supprimer l'\u00e9tiquette ${tag}`}>
-                              <X className="w-2.5 h-2.5" />
+                          <Badge key={i} variant="outline" className={`text-xs gap-1.5 px-2.5 py-1 border ${getTagColor(tag, i)}`}>
+                            <Tag className="w-3 h-3" /> {tag}
+                            <button onClick={() => setTags((prev) => prev.filter((_, j) => j !== i))} className="ml-0.5 hover:scale-[1.1] transition-transform" aria-label={`Supprimer l'\u00e9tiquette ${tag}`}>
+                              <X className="w-3 h-3" />
                             </button>
                           </Badge>
                         ))}
@@ -2102,12 +2344,14 @@ export default function LettreMissionPage() {
                       </div>
                     </div>
 
-                    {/* Feature #35: color theme + Feature #27: orientation */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Feature #35: color theme + Feature #27: orientation (Improvement #15: responsive) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">Couleur PDF</Label>
                         <select value={pdfColorTheme} onChange={(e) => { setPdfColorTheme(e.target.value as PdfColorTheme); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" aria-label="Th\u00e8me de couleur du PDF">
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="Th\u00e8me de couleur du PDF">
                           <option value="navy">Bleu marine</option>
                           <option value="green">Vert</option>
                           <option value="red">Rouge</option>
@@ -2116,15 +2360,17 @@ export default function LettreMissionPage() {
                       <div>
                         <Label className="text-xs text-slate-400 mb-1.5 block">Orientation PDF</Label>
                         <select value={pdfOrientation} onChange={(e) => { setPdfOrientation(e.target.value as "portrait" | "landscape"); markDirty(); }}
-                          className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm" aria-label="Orientation du PDF">
+                          className={STYLED_SELECT_CLS + " w-full"}
+                          style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
+                          aria-label="Orientation du PDF">
                           <option value="portrait">Portrait</option>
                           <option value="landscape">Paysage</option>
                         </select>
                       </div>
                     </div>
 
-                    {/* Notes internes — BugFix #35: clear button */}
-                    <div className="border border-white/10 rounded-lg p-3">
+                    {/* Notes internes — BugFix #35: clear button, Improvement #14: maxLength, #49: hover */}
+                    <div className="border border-white/10 rounded-lg p-3 hover:border-white/20 hover:bg-slate-800/30 transition-all duration-200">
                       <div className="flex items-center justify-between mb-2">
                         <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
                           Notes internes (non imprim\u00e9es)
@@ -2139,13 +2385,15 @@ export default function LettreMissionPage() {
                         value={notesInternes}
                         onChange={(e) => { setNotesInternes(e.target.value); markDirty(); }}
                         placeholder="Notes visibles uniquement par le cabinet..."
-                        className="w-full rounded-md border border-white/10 bg-slate-800/50 text-slate-300 px-3 py-2 text-sm resize-y"
+                        maxLength={2000}
+                        className="w-full rounded-xl border border-white/10 bg-slate-800/50 text-slate-300 px-3 py-2 text-sm resize-y hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors"
                         style={{ minHeight: 60 }}
                       />
+                      <div className="text-[10px] text-slate-600 text-right mt-1">{notesInternes.length} / 2000</div>
                     </div>
 
-                    {/* Feature #32: client notes */}
-                    <div className="border border-white/10 rounded-lg p-3">
+                    {/* Feature #32: client notes, Improvement #49: hover */}
+                    <div className="border border-white/10 rounded-lg p-3 hover:border-white/20 hover:bg-slate-800/30 transition-all duration-200">
                       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">
                         Notes client (sp\u00e9cifiques \u00e0 cette lettre)
                       </h3>
@@ -2153,7 +2401,7 @@ export default function LettreMissionPage() {
                         value={clientNotes}
                         onChange={(e) => { setClientNotes(e.target.value); markDirty(); }}
                         placeholder="Notes sp\u00e9cifiques au client pour cette lettre..."
-                        className="w-full rounded-md border border-white/10 bg-slate-800/50 text-slate-300 px-3 py-2 text-sm resize-y"
+                        className="w-full rounded-xl border border-white/10 bg-slate-800/50 text-slate-300 px-3 py-2 text-sm resize-y hover:border-white/20 focus:border-blue-500/50 focus:ring-1 focus:ring-blue-500/30 focus:outline-none transition-colors"
                         style={{ minHeight: 60 }}
                       />
                     </div>
@@ -2164,31 +2412,48 @@ export default function LettreMissionPage() {
                     </div>
 
                     {/* Save button — BugFix #31: disabled when no changes */}
-                    <Button onClick={() => handleSave(false)} disabled={!isDirty || savingLetter} className="w-full gap-1 bg-emerald-600 hover:bg-emerald-700 text-white">
+                    <Button onClick={() => handleSave(false)} disabled={!isDirty || savingLetter} className="w-full gap-1 bg-emerald-600 hover:bg-emerald-700 text-white hover:scale-[1.01] active:scale-[0.99] transition-transform">
                       {savingLetter ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
                       Sauvegarder
                     </Button>
                   </>
                 )}
+                {/* Improvement #37: left panel scroll fade */}
+                <div className="sticky bottom-0 h-6 bg-gradient-to-t from-slate-900 to-transparent pointer-events-none -mx-4 -mb-4" />
               </div>
 
+              {/* Improvement #38: mobile toggle for preview */}
+              <div className="lg:hidden px-4 py-2 border-t border-white/10">
+                <Button size="sm" variant="outline" onClick={() => setShowMobilePreview(!showMobilePreview)} className="w-full gap-1 text-xs">
+                  <Eye className="w-3.5 h-3.5" /> {showMobilePreview ? "Masquer l'aper\u00e7u" : "Afficher l'aper\u00e7u"}
+                </Button>
+              </div>
               {/* Right panel — Live preview */}
-              <div className="overflow-auto bg-slate-950/50">
-                {/* Feature #20: zoom controls + Feature #26: dark mode */}
+              <div className={`overflow-auto bg-slate-950/50 ${showMobilePreview ? "block" : "hidden lg:block"}`}>
+                {/* Improvement #19: zoom slider, #20: dark toggle label, #33: bigger zoom */}
                 <div className="sticky top-0 z-10 flex items-center justify-between px-3 py-1.5 bg-slate-900/90 backdrop-blur border-b border-white/5">
-                  <div className="flex items-center gap-1">
-                    <Button size="sm" variant="ghost" onClick={() => setPreviewZoom((z) => Math.max(50, z - 10))} className="h-6 w-6 p-0" aria-label="Zoom arri\u00e8re">
-                      <ZoomOut className="w-3.5 h-3.5 text-slate-400" />
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => setPreviewZoom((z) => Math.max(50, z - 10))} className="h-8 w-8 p-0 border border-white/10" aria-label="Zoom arri\u00e8re">
+                      <ZoomOut className="w-4 h-4 text-slate-400" />
+                    </Button>
+                    {/* Improvement #19: range slider for zoom */}
+                    <input
+                      type="range" min={50} max={200} step={10} value={previewZoom}
+                      onChange={(e) => setPreviewZoom(Number(e.target.value))}
+                      className="w-24 h-1.5 accent-blue-500"
+                      aria-label="Zoom"
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => setPreviewZoom((z) => Math.min(200, z + 10))} className="h-8 w-8 p-0 border border-white/10" aria-label="Zoom avant">
+                      <ZoomIn className="w-4 h-4 text-slate-400" />
                     </Button>
                     <span className="text-[10px] text-slate-500 w-8 text-center">{previewZoom}%</span>
-                    <Button size="sm" variant="ghost" onClick={() => setPreviewZoom((z) => Math.min(200, z + 10))} className="h-6 w-6 p-0" aria-label="Zoom avant">
-                      <ZoomIn className="w-3.5 h-3.5 text-slate-400" />
-                    </Button>
                   </div>
+                  {/* Improvement #20: dark toggle with label */}
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button size="sm" variant="ghost" onClick={() => setDarkPreview((v) => !v)} className="h-6 w-6 p-0" aria-label={darkPreview ? "Mode clair" : "Mode sombre"}>
+                      <Button size="sm" variant="ghost" onClick={() => setDarkPreview((v) => !v)} className="h-8 gap-1.5 px-2" aria-label={darkPreview ? "Mode clair" : "Mode sombre"}>
                         {darkPreview ? <Sun className="w-3.5 h-3.5 text-yellow-400" /> : <Moon className="w-3.5 h-3.5 text-slate-400" />}
+                        <span className="text-[10px] text-slate-400">Sombre</span>
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>{darkPreview ? "Aper\u00e7u clair" : "Aper\u00e7u sombre"}</TooltipContent>
@@ -2203,7 +2468,8 @@ export default function LettreMissionPage() {
                       objetContrat={objetContrat}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-full text-slate-500 text-sm py-20">
+                    <div className="flex flex-col items-center justify-center h-full text-slate-500 text-sm py-20 gap-3">
+                      <FileText className="w-10 h-10 text-slate-600 animate-pulse" />
                       S\u00e9lectionnez un client pour pr\u00e9visualiser la lettre
                     </div>
                   )}
@@ -2214,16 +2480,31 @@ export default function LettreMissionPage() {
         </Tabs>
       </div>
 
-      {/* ══ FULLSCREEN PREVIEW MODAL — BugFix #41: focus trap via Dialog ══ */}
+      {/* ══ FULLSCREEN PREVIEW MODAL — Improvement #50: with action toolbar ══ */}
       <Dialog open={showPreviewModal} onOpenChange={setShowPreviewModal}>
-        <DialogContent className="max-w-[95vw] h-[95vh] overflow-auto bg-white p-0 print:bg-white print:static">
+        <DialogContent className="max-w-[95vw] h-[95vh] overflow-auto bg-white p-0 print:bg-white print:static data-[state=open]:animate-in data-[state=closed]:animate-out">
           <DialogHeader className="sr-only">
-            <DialogTitle>Aperçu de la lettre de mission</DialogTitle>
-            <DialogDescription>Prévisualisation plein écran de la lettre de mission</DialogDescription>
+            <DialogTitle>Aper\u00e7u de la lettre de mission</DialogTitle>
+            <DialogDescription>Pr\u00e9visualisation plein \u00e9cran de la lettre de mission</DialogDescription>
           </DialogHeader>
-          <div className="print:hidden sticky top-0 z-10 flex justify-end p-2 bg-white/80 backdrop-blur">
+          {/* Improvement #50: preview modal toolbar */}
+          <div className="print:hidden sticky top-0 z-10 flex items-center justify-between p-2 bg-white/80 backdrop-blur border-b">
+            <div className="flex items-center gap-1.5">
+              <Button size="sm" variant="outline" onClick={handlePrint} className="gap-1 text-xs">
+                <Printer className="h-3.5 w-3.5" /> Imprimer
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setShowPreviewModal(false); setShowExportDialog("pdf"); }} className="gap-1 text-xs">
+                <FileDown className="h-3.5 w-3.5" /> PDF
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setShowPreviewModal(false); setShowExportDialog("docx"); }} className="gap-1 text-xs">
+                <FileText className="h-3.5 w-3.5" /> DOCX
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => { setShowPreviewModal(false); handleEmail(); }} disabled={!client} className="gap-1 text-xs">
+                <Mail className="h-3.5 w-3.5" /> Email
+              </Button>
+            </div>
             <DialogClose asChild>
-              <Button size="sm" variant="outline">Fermer (Échap)</Button>
+              <Button size="sm" variant="outline">Fermer (\u00c9chap)</Button>
             </DialogClose>
           </div>
           {client && (
@@ -2239,7 +2520,7 @@ export default function LettreMissionPage() {
 
       {/* ══ EXPORT DIALOG — BugFix #20, #28 ══ */}
       <Dialog open={!!showExportDialog} onOpenChange={(open) => { if (!open) setShowExportDialog(null); }}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-md">
+        <DialogContent className="bg-slate-900 border-white/10 max-w-md data-[state=open]:animate-in data-[state=closed]:animate-out">
           <DialogHeader>
             <DialogTitle className="text-white">
               Export {showExportDialog?.toUpperCase()}
@@ -2307,7 +2588,7 @@ export default function LettreMissionPage() {
 
       {/* ══ NEW MODEL DIALOG ══ */}
       <Dialog open={showNewModelDialog} onOpenChange={setShowNewModelDialog}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-sm">
+        <DialogContent className="bg-slate-900 border-white/10 max-w-md data-[state=open]:animate-in data-[state=closed]:animate-out">
           <DialogHeader>
             <DialogTitle className="text-white">Nouveau modèle</DialogTitle>
             <DialogDescription className="text-slate-400">Créer un nouveau modèle de lettre de mission</DialogDescription>
@@ -2323,7 +2604,7 @@ export default function LettreMissionPage() {
 
       {/* ══ RENAME DIALOG ══ */}
       <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-sm">
+        <DialogContent className="bg-slate-900 border-white/10 max-w-md data-[state=open]:animate-in data-[state=closed]:animate-out">
           <DialogHeader>
             <DialogTitle className="text-white">Renommer le modèle</DialogTitle>
             <DialogDescription className="text-slate-400">Saisissez le nouveau nom du modèle</DialogDescription>
@@ -2339,7 +2620,7 @@ export default function LettreMissionPage() {
 
       {/* ══ RESET CONFIRM DIALOG (BugFix #17) ══ */}
       <Dialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-sm">
+        <DialogContent className="bg-slate-900 border-white/10 max-w-md data-[state=open]:animate-in data-[state=closed]:animate-out">
           <DialogHeader>
             <DialogTitle className="text-white">Réinitialiser le modèle ?</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -2383,13 +2664,19 @@ export default function LettreMissionPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ══ HISTORY DIALOG — BugFix #19: delete option ══ */}
+      {/* ══ HISTORY DIALOG — BugFix #19: delete option, Improvement #43: empty state ══ */}
       <Dialog open={showHistoryDialog} onOpenChange={setShowHistoryDialog}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-lg">
+        <DialogContent className="bg-slate-900 border-white/10 max-w-lg data-[state=open]:animate-in data-[state=closed]:animate-out">
           <DialogHeader>
             <DialogTitle className="text-white">Historique des lettres</DialogTitle>
-            <DialogDescription className="text-slate-400">Gérez vos lettres sauvegardées</DialogDescription>
+            <DialogDescription className="text-slate-400">G\u00e9rez vos lettres sauvegard\u00e9es</DialogDescription>
           </DialogHeader>
+          {savedLetters.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-8 text-slate-500">
+              <History className="w-10 h-10 mb-2 text-slate-600" />
+              <p className="text-sm">Aucune lettre sauvegard\u00e9e pour ce client</p>
+            </div>
+          )}
           <div className="space-y-2 max-h-64 overflow-auto">
             {savedLetters.map((l) => (
               <div key={l.id} className="flex items-center justify-between p-3 rounded border border-white/10">
@@ -2440,22 +2727,33 @@ export default function LettreMissionPage() {
         </DialogContent>
       </Dialog>
 
-      {/* ══ VALIDATION CHECKLIST (Feature #19, #48) ══ */}
+      {/* ══ VALIDATION CHECKLIST — Improvement #29: categorized ══ */}
       <Dialog open={showValidationChecklist} onOpenChange={setShowValidationChecklist}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-sm">
+        <DialogContent className="bg-slate-900 border-white/10 max-w-md data-[state=open]:animate-in data-[state=closed]:animate-out">
           <DialogHeader>
             <DialogTitle className="text-white">Checklist de validation</DialogTitle>
-            <DialogDescription className="text-slate-400">Vérifiez les éléments avant export</DialogDescription>
+            <DialogDescription className="text-slate-400">V\u00e9rifiez les \u00e9l\u00e9ments avant export</DialogDescription>
           </DialogHeader>
-          <div className="space-y-2">
-            {completionInfo.items.map((item, i) => (
-              <div key={i} className="flex items-center gap-2 text-sm">
-                {item.done ? (
-                  <Check className="w-4 h-4 text-emerald-400 shrink-0" />
-                ) : (
-                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                )}
-                <span className={item.done ? "text-slate-300" : "text-amber-300"}>{item.label}</span>
+          <div className="space-y-4">
+            {CHECKLIST_CATEGORIES.map((cat) => (
+              <div key={cat.label}>
+                <h4 className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{cat.label}</h4>
+                <div className="space-y-1.5">
+                  {cat.indices.map((idx) => {
+                    const item = completionInfo.items[idx];
+                    if (!item) return null;
+                    return (
+                      <div key={idx} className="flex items-center gap-2 text-sm">
+                        {item.done ? (
+                          <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                        )}
+                        <span className={item.done ? "text-slate-300" : "text-amber-300"}>{item.label}</span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             ))}
           </div>
@@ -2471,7 +2769,7 @@ export default function LettreMissionPage() {
 
       {/* ══ QUICK DUPLICATE TO NEW CLIENT (Feature #50) ══ */}
       <Dialog open={showQuickDuplicateDialog} onOpenChange={setShowQuickDuplicateDialog}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-sm">
+        <DialogContent className="bg-slate-900 border-white/10 max-w-md data-[state=open]:animate-in data-[state=closed]:animate-out">
           <DialogHeader>
             <DialogTitle className="text-white">Dupliquer vers un autre client</DialogTitle>
             <DialogDescription className="text-slate-400">
@@ -2481,7 +2779,8 @@ export default function LettreMissionPage() {
           <select
             value={quickDuplicateTargetRef}
             onChange={(e) => setQuickDuplicateTargetRef(e.target.value)}
-            className="w-full rounded-md border border-white/10 bg-slate-800 text-slate-200 px-3 py-2 text-sm"
+            className={STYLED_SELECT_CLS + " w-full"}
+            style={{ backgroundImage: `url("${SELECT_CHEVRON_SVG}")`, backgroundPosition: "right 8px center" }}
             aria-label="Client cible"
           >
             <option value="">-- Choisir un client cible --</option>
@@ -2501,7 +2800,7 @@ export default function LettreMissionPage() {
 
       {/* Feature #28: letter comparison — would compare current vs last saved (placeholder for complex diff UI) */}
 
-      {/* BugFix #49: print-specific CSS */}
+      {/* BugFix #49: print-specific CSS — Improvement #41: better print CSS */}
       <style>{`
         @media print {
           body > *:not(.print-target) { display: none !important; }
@@ -2511,7 +2810,7 @@ export default function LettreMissionPage() {
           .print\\:static { position: static !important; }
           .print\\:overflow-visible { overflow: visible !important; }
           @page {
-            margin: 15mm;
+            margin: 20mm;
             size: A4;
           }
           * {
@@ -2519,6 +2818,10 @@ export default function LettreMissionPage() {
             print-color-adjust: exact !important;
           }
           .no-print { display: none !important; }
+          [role="dialog"], [data-radix-popper-content-wrapper],
+          [data-sonner-toaster], [role="tooltip"] {
+            display: none !important;
+          }
         }
       `}</style>
     </div>
