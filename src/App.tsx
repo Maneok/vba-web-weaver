@@ -26,6 +26,9 @@ const GedPage = lazy(() => import("@/pages/GedPage"));
 const LettreMissionPage = lazy(() => import("@/pages/LettreMissionPage"));
 const HelpPage = lazy(() => import("@/pages/HelpPage"));
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
+const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
+const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
+const AuditTrailPage = lazy(() => import("@/pages/AuditTrailPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -71,6 +74,7 @@ const App = () => (
               <Routes>
                 <Route path="/landing" element={<SafePage><LandingPage /></SafePage>} />
                 <Route path="/auth" element={<SafePage><AuthPage /></SafePage>} />
+                <Route path="/checkout/success" element={<SafePage><CheckoutSuccessPage /></SafePage>} />
                 <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route index element={<SafePage><DashboardPage /></SafePage>} />
                   <Route path="bdd" element={<SafePage><BddPage /></SafePage>} />
@@ -86,6 +90,8 @@ const App = () => (
                   <Route path="diagnostic" element={<SafePage><DiagnosticPage /></SafePage>} />
                   <Route path="parametres" element={<SafePage><SettingsPage /></SafePage>} />
                   <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
+                  <Route path="admin/users" element={<SafePage><AdminUsersPage /></SafePage>} />
+                  <Route path="audit-trail" element={<SafePage><AuditTrailPage /></SafePage>} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />
                 </Route>
