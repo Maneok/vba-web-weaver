@@ -252,24 +252,6 @@ export default function NouveauClientPage() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges, step]);
 
-  // #51: Animate score on step 4
-  useEffect(() => {
-    if (step === 4) {
-      setAnimatedScore(0);
-      const target = adjustedScore;
-      const duration = 1200;
-      const start = performance.now();
-      const animate = (now: number) => {
-        const elapsed = now - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setAnimatedScore(Math.round(eased * target));
-        if (progress < 1) requestAnimationFrame(animate);
-      };
-      requestAnimationFrame(animate);
-    }
-  }, [step, adjustedScore]);
-
   // FIX 9: Save draft to localStorage on step change (silent)
   useEffect(() => {
     if (step > 0 || form.siren) {
@@ -447,6 +429,24 @@ export default function NouveauClientPage() {
   const bodaccMalus = screening.bodacc.data?.malus ?? 0;
   const totalMalus = risk.malus + extraMalus + bodaccMalus;
   const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus, 120);
+
+  // #51: Animate score on step 4
+  useEffect(() => {
+    if (step === 4) {
+      setAnimatedScore(0);
+      const target = adjustedScore;
+      const duration = 1200;
+      const start = performance.now();
+      const animate = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setAnimatedScore(Math.round(eased * target));
+        if (progress < 1) requestAnimationFrame(animate);
+      };
+      requestAnimationFrame(animate);
+    }
+  }, [step, adjustedScore]);
 
   // Radar data
   const radarData = useMemo(() => [
