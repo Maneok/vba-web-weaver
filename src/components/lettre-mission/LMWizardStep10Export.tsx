@@ -294,7 +294,7 @@ function buildLettreMission(data: LMWizardData, client: Client | null, cabinet: 
       },
       associe: data.associe_signataire,
       superviseur: data.chef_mission,
-      comptable: data.collaborateurs[0] || "",
+      comptable: data.collaborateurs?.[0] || "",
     },
     numero: `LM-${new Date().getFullYear()}-001`,
     date: new Date().toLocaleDateString("fr-FR"),

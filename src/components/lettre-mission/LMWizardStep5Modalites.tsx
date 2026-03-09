@@ -80,7 +80,7 @@ export default function LMWizardStep5Modalites({ data, onChange }: Props) {
           <div className="space-y-1.5 pt-2 border-t border-white/[0.04]">
             <Label className="text-slate-400 text-xs">Preavis de resiliation</Label>
             <Select
-              value={String(data.preavis_mois)}
+              value={String(data.preavis_mois ?? 3)}
               onValueChange={(v) => onChange({ preavis_mois: Number(v) })}
             >
               <SelectTrigger className="bg-white/[0.04] border-white/[0.08] text-white w-48">
