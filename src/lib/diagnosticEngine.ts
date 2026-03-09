@@ -170,7 +170,7 @@ export function runDiagnostic360(
 
   // === 9. COMPLETUDE KYC ===
   const kycIncomplets = actifs.filter(c =>
-    !c.siren.trim() || !c.mail.trim() || !c.adresse.trim()
+    !(c.siren || "").trim() || !(c.mail || "").trim() || !(c.adresse || "").trim()
   );
   items.push({
     categorie: "KYC",

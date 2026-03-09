@@ -73,10 +73,10 @@ export function generateLettreMission(client: Client) {
   y += 7;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(client.raisonSociale, marginL, y); y += 5;
-  doc.text(`${client.forme} — SIREN ${client.siren}`, marginL, y); y += 5;
-  doc.text(`${client.adresse}, ${client.cp} ${client.ville}`, marginL, y); y += 5;
-  doc.text(`A l'attention de ${client.dirigeant}`, marginL, y); y += 10;
+  doc.text(client.raisonSociale || "—", marginL, y); y += 5;
+  doc.text(`${client.forme || "—"} — SIREN ${client.siren || "—"}`, marginL, y); y += 5;
+  doc.text(`${client.adresse || "—"}, ${client.cp || ""} ${client.ville || ""}`, marginL, y); y += 5;
+  doc.text(`A l'attention de ${client.dirigeant || "—"}`, marginL, y); y += 10;
 
   // === OBJET ===
   doc.setFontSize(11);
@@ -100,12 +100,12 @@ export function generateLettreMission(client: Client) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   const missionDetails = [
-    ["Type de mission", client.mission],
-    ["Frequence", client.frequence],
-    ["Associe signataire", client.associe],
-    ["Superviseur", client.superviseur],
-    ["Comptable referent", client.comptable],
-    ["Honoraires HT", `${client.honoraires.toLocaleString("fr-FR")} EUR`],
+    ["Type de mission", client.mission || "—"],
+    ["Frequence", client.frequence || "—"],
+    ["Associe signataire", client.associe || "—"],
+    ["Superviseur", client.superviseur || "—"],
+    ["Comptable referent", client.comptable || "—"],
+    ["Honoraires HT", `${(client.honoraires || 0).toLocaleString("fr-FR")} EUR`],
   ];
   for (const [label, val] of missionDetails) {
     doc.setFont("helvetica", "bold");

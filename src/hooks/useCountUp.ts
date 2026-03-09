@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 /**
  * Animated count-up hook.
@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
  */
 export function useCountUp(target: number, duration = 1500): number {
   const [count, setCount] = useState(0);
+  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (target === 0) {
@@ -22,11 +23,18 @@ export function useCountUp(target: number, duration = 1500): number {
       const eased = 1 - (1 - progress) * (1 - progress);
       setCount(Math.floor(eased * target));
       if (progress < 1) {
-        requestAnimationFrame(animate);
+        rafRef.current = requestAnimationFrame(animate);
       }
     }
 
-    requestAnimationFrame(animate);
+    rafRef.current = requestAnimationFrame(animate);
+
+    // Bug fix #1: cancel rAF on unmount to prevent memory leak / setState after unmount
+    return () => {
+      if (rafRef.current !== null) {
+        cancelAnimationFrame(rafRef.current);
+      }
+    };
   }, [target, duration]);
 
   return count;

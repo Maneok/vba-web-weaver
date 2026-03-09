@@ -149,11 +149,11 @@ export default function BddPage() {
     const q = debouncedSearch.toLowerCase();
     const result = clients.filter(c => {
       const matchSearch = !q ||
-        c.raisonSociale.toLowerCase().includes(q) ||
-        c.ref.toLowerCase().includes(q) ||
-        c.siren.includes(debouncedSearch) ||
-        c.dirigeant.toLowerCase().includes(q) ||
-        c.comptable.toLowerCase().includes(q);
+        (c.raisonSociale || "").toLowerCase().includes(q) ||
+        (c.ref || "").toLowerCase().includes(q) ||
+        (c.siren || "").includes(debouncedSearch) ||
+        (c.dirigeant || "").toLowerCase().includes(q) ||
+        (c.comptable || "").toLowerCase().includes(q);
       const matchVig = filterVigilance === "all" || c.nivVigilance === filterVigilance;
       const matchPil = filterPilotage === "all" || c.etatPilotage === filterPilotage;
       const matchEtat = filterEtat === "all" ||

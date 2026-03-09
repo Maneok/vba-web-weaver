@@ -578,9 +578,11 @@ export default function LettreMissionPage() {
 
   // ── Load models list and active template from Supabase on mount ──
   useEffect(() => {
+    let cancelled = false;
     async function loadModels() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled) return;
         if (!user) { setTemplateLoaded(true); return; }
 
         const { data: allParams } = await supabase
@@ -588,6 +590,8 @@ export default function LettreMissionPage() {
           .select("cle, valeur")
           .eq("user_id", user.id)
           .like("cle", "modele_lm_%");
+
+        if (cancelled) return;
 
         if (allParams && allParams.length > 0) {
           const models = allParams.map((p) => {
@@ -613,10 +617,11 @@ export default function LettreMissionPage() {
       } catch (err) {
         logger.warn("[loadModels]", err);
       } finally {
-        setTemplateLoaded(true);
+        if (!cancelled) setTemplateLoaded(true);
       }
     }
     loadModels();
+    return () => { cancelled = true; };
   }, []);
 
   // ── Load template when active model changes ──

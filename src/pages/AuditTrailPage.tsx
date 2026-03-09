@@ -58,7 +58,7 @@ function exportAuditCSV(entries: AuditRow[]) {
     e.record_id || "",
     e.new_data ? JSON.stringify(e.new_data).slice(0, 500) : "",
   ]);
-  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""')}"`).join(";"))].join("\n");
+  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`).join(";"))].join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");

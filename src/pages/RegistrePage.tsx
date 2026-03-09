@@ -15,19 +15,23 @@ import { toast } from "sonner";
 import { ALERT_CATEGORIES as CATEGORIES, DEFAULT_ASSOCIES, DEFAULT_SUPERVISEURS } from "@/lib/constants";
 
 const PAGE_SIZE = 20;
-const TODAY = new Date().toISOString().split("T")[0];
+function getToday(): string {
+  return new Date().toISOString().split("T")[0];
+}
 
 function formatDateFR(dateStr: string | undefined): string {
   if (!dateStr) return "—";
   try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
     return dateStr;
   }
 }
 
 function sanitizeCSVValue(val: string | undefined): string {
-  const v = (val || "").replace(/"/g, '""');
+  const v = (val || "").replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "");
   if (/^[=+\-@\t\r]/.test(v)) return "'" + v;
   return v;
 }
@@ -117,9 +121,9 @@ export default function RegistrePage() {
   const filtered = useMemo(() => {
     const result = alertes.filter(a => {
       const matchSearch = !debouncedSearch ||
-        a.clientConcerne.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        a.categorie.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        a.details.toLowerCase().includes(debouncedSearch.toLowerCase());
+        (a.clientConcerne || "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (a.categorie || "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (a.details || "").toLowerCase().includes(debouncedSearch.toLowerCase());
       const matchStatut = filterStatut === "all" || a.statut === filterStatut;
       const matchCategorie = filterCategorie === "all" || a.categorie === filterCategorie;
       const matchDateStart = !dateStart || a.date >= dateStart;
@@ -316,7 +320,7 @@ export default function RegistrePage() {
               {paginatedData.map((a, i) => {
                 const globalIndex = (safePage - 1) * PAGE_SIZE + i;
                 const alerteId = (a as AlerteRegistre & { id?: string }).id || `ALR-${String(globalIndex + 1).padStart(4, "0")}`;
-                const isOverdue = a.dateButoir && a.dateButoir < TODAY && a.statut !== "CLÔTURÉ";
+                const isOverdue = a.dateButoir && a.dateButoir < getToday() && a.statut !== "CLÔTURÉ";
                 return (
                   <TableRow
                     key={alerteId}

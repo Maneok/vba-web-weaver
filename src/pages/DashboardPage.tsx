@@ -25,6 +25,7 @@ import { ComplianceGauge } from "@/components/dashboard/ComplianceGauge";
 
 import { useCountUp } from "@/hooks/useCountUp";
 import { QuickActionsFAB } from "@/components/dashboard/QuickActions";
+import { logger } from "@/lib/logger";
 
 // ── Helpers ──────────────────────────────────────────────────
 function formatDateLong(): string {
@@ -41,11 +42,14 @@ function formatTime(d: Date): string {
 }
 
 function generateSparkline(current: number): { v: number }[] {
+  // Deterministic sparkline based on current value (avoids Math.random in render)
   const points: { v: number }[] = [];
-  let val = Math.max(1, current - Math.floor(Math.random() * 5 + 3));
+  const seed = Math.abs(current) + 1;
+  let val = Math.max(1, current - ((seed * 7) % 5 + 3));
   for (let i = 0; i < 6; i++) {
     points.push({ v: val });
-    val = Math.max(0, val + Math.floor(Math.random() * 5 - 2));
+    const delta = ((seed * (i + 3) * 13) % 5) - 2;
+    val = Math.max(0, val + delta);
   }
   points.push({ v: current });
   return points;
@@ -81,7 +85,7 @@ export default function DashboardPage() {
   // ── Auto-refresh every 60s ────────────────────────────────
   useEffect(() => {
     refreshTimer.current = setInterval(() => {
-      refreshAll().then(() => setLastRefresh(new Date())).catch(() => {});
+      refreshAll().then(() => setLastRefresh(new Date())).catch(e => logger.warn("Dashboard", "Auto-refresh failed:", e));
     }, 60000);
     return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
   }, [refreshAll]);
@@ -89,19 +93,23 @@ export default function DashboardPage() {
   // ── Load notification count + LM renewal count ────────────
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
+
     supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("lue", false)
-      .then(({ count }) => setNotificationCount(count || 0))
-      .catch(() => {});
+      .then(({ count }) => { if (!cancelled) setNotificationCount(count || 0); })
+      .catch(e => logger.warn("Dashboard", "Notification count fetch failed:", e));
 
     supabase
       .from("lettres_mission")
       .select("id", { count: "exact", head: true })
       .eq("status", "signee")
-      .then(({ count }) => setLmRenewalCount(Math.min(count || 0, 5)))
-      .catch(() => {});
+      .then(({ count }) => { if (!cancelled) setLmRenewalCount(Math.min(count || 0, 5)); })
+      .catch(e => logger.warn("Dashboard", "LM renewal count fetch failed:", e));
+
+    return () => { cancelled = true; };
   }, [user, lastRefresh]);
 
   // ── Computed stats ────────────────────────────────────────
@@ -233,7 +241,7 @@ export default function DashboardPage() {
       { label: "Documents KYC", value: Math.round((withDocs / total) * 100), description: "CNI / piece d'identite renseignee" },
       { label: "Lettres de mission", value: Math.round((withLM / total) * 100), description: "LM signees vs clients actifs" },
       { label: "Formation collaborateurs", value: stats.formationsAJour, description: "Formations < 12 mois" },
-      { label: "Controle qualite", value: Math.min(100, Math.round(Math.random() * 30 + 60)), description: "Controles realises vs attendus" },
+      { label: "Controle qualite", value: Math.min(100, Math.round((withScreening / total) * 80 + 20)), description: "Controles realises vs attendus" },
     ];
   }, [clients, stats.formationsAJour]);
 

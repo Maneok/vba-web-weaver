@@ -52,7 +52,9 @@ function formatDate(dateStr: string) {
 
 function daysSince(dateStr: string): string {
   if (!dateStr) return "";
-  const diffMs = Date.now() - new Date(dateStr).getTime();
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "";
+  const diffMs = Date.now() - d.getTime();
   const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   if (days < 30) return `il y a ${days}j`;
   if (days < 365) return `il y a ${Math.floor(days / 30)} mois`;
@@ -70,7 +72,7 @@ function exportCollaborateursCSV(collaborateurs: typeof import("@/lib/types").Co
     c.derniereFormation || "", c.statutFormation, c.referentLcb ? "OUI" : "NON",
     c.suppleant || "", c.dateSignatureManuel || "",
   ]);
-  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""')}"`).join(";"))].join("\n");
+  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`).join(";"))].join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -261,9 +263,9 @@ export default function GouvernancePage() {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(c =>
-        c.nom.toLowerCase().includes(q) ||
-        c.fonction.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q)
+        (c.nom || "").toLowerCase().includes(q) ||
+        (c.fonction || "").toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q)
       );
     }
 

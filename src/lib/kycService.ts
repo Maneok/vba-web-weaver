@@ -615,7 +615,7 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
       capital_source: (r.capital as number) > 0 ? "data.gouv" : "",
       date_creation: (r.date_creation as string) ?? "",
       effectif: (r.tranche_effectif_salarie as string) ?? "0 SALARIE",
-      dirigeant: dirigeants.length > 0 ? `${dirigeants[0].nom} ${dirigeants[0].prenom}`.trim().toUpperCase() : "",
+      dirigeant: dirigeants.length > 0 ? `${dirigeants[0].nom || ""} ${dirigeants[0].prenom || ""}`.trim().toUpperCase() : "",
       dirigeants,
       nombre_etablissements: (r.nombre_etablissements as number) ?? 1,
       etat_administratif: (r.etat_administratif as string) ?? "A",

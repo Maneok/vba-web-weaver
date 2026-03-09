@@ -259,14 +259,16 @@ export default function NouveauClientPage() {
       const target = adjustedScore;
       const duration = 1200;
       const start = performance.now();
+      let rafId: number;
       const animate = (now: number) => {
         const elapsed = now - start;
         const progress = Math.min(elapsed / duration, 1);
         const eased = 1 - Math.pow(1 - progress, 3);
         setAnimatedScore(Math.round(eased * target));
-        if (progress < 1) requestAnimationFrame(animate);
+        if (progress < 1) rafId = requestAnimationFrame(animate);
       };
-      requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(rafId);
     }
   }, [step, adjustedScore]);
 

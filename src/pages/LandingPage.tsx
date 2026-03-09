@@ -179,6 +179,7 @@ function useTimelineProgress() {
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const total = el.offsetHeight - window.innerHeight * 0.6;
+      if (total <= 0) return;
       const scrolled = -rect.top + window.innerHeight * 0.3;
       setProgress(Math.min(Math.max(scrolled / total, 0), 1));
     };

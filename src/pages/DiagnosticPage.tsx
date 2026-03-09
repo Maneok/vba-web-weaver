@@ -174,6 +174,10 @@ export default function DiagnosticPage() {
     let formationLabel = "Aucune formation";
     if (derniereFormation) {
       const formDate = new Date(derniereFormation);
+      if (isNaN(formDate.getTime())) {
+        formationPct = 0;
+        formationLabel = "Date invalide";
+      } else {
       const now = new Date();
       const diffMonths = (now.getFullYear() - formDate.getFullYear()) * 12 + (now.getMonth() - formDate.getMonth());
       if (diffMonths < 12) {
@@ -185,6 +189,7 @@ export default function DiagnosticPage() {
       } else {
         formationPct = 10;
         formationLabel = `Il y a ${Math.floor(diffMonths / 12)} ans`;
+      }
       }
     }
 

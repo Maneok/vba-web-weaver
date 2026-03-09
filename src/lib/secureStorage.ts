@@ -7,7 +7,14 @@
 const PREFIX = "__lcb_";
 
 function utf8ToBase64(str: string): string {
-  return btoa(new TextEncoder().encode(str).reduce((s, b) => s + String.fromCharCode(b), ""));
+  const bytes = new TextEncoder().encode(str);
+  // Chunked conversion to avoid stack overflow on large data
+  const CHUNK = 8192;
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+  }
+  return btoa(binary);
 }
 
 function base64ToUtf8(b64: string): string {

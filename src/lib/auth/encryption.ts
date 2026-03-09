@@ -41,10 +41,11 @@ export async function encryptField(plaintext: string): Promise<string> {
   const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
   combined.set(iv);
   combined.set(new Uint8Array(ciphertext), iv.length);
-  // Use chunked conversion to avoid "Maximum call stack size exceeded" on large data
+  // Chunked conversion to avoid stack overflow on large data
+  const CHUNK = 8192;
   let binary = "";
-  for (let i = 0; i < combined.length; i++) {
-    binary += String.fromCharCode(combined[i]);
+  for (let i = 0; i < combined.length; i += CHUNK) {
+    binary += String.fromCharCode(...combined.subarray(i, i + CHUNK));
   }
   return btoa(binary);
 }

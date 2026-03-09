@@ -131,29 +131,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
 
   const updateClient = useCallback((ref: string, updates: Partial<Client>) => {
-    // Snapshot for rollback
-    const snapshot = clients.find(c => c.ref === ref);
+    // Snapshot captured via functional updater to avoid stale closure
+    setClients(prev => {
+      const snapshot = prev.find(c => c.ref === ref);
+      const updated = prev.map(c => c.ref === ref ? { ...c, ...updates } : c);
 
-    // Optimistic update
-    setClients(prev => prev.map(c => c.ref === ref ? { ...c, ...updates } : c));
-
-    // Persist to Supabase (with rollback on failure)
-    if (isOnline) {
-      const dbUpdates = mapClientToDb(updates);
-      clientsService.updateByRef(ref, dbUpdates).then((result) => {
-        if (!result) {
-          logger.error("AppContext", "Failed to update client in Supabase");
-          if (snapshot) setClients(prev => prev.map(c => c.ref === ref ? snapshot : c));
+      // Persist to Supabase (with rollback on failure)
+      if (isOnline) {
+        const dbUpdates = mapClientToDb(updates);
+        clientsService.updateByRef(ref, dbUpdates).then((result) => {
+          if (!result) {
+            logger.error("AppContext", "Failed to update client in Supabase");
+            if (snapshot) setClients(p => p.map(c => c.ref === ref ? snapshot : c));
+            toast.error("Erreur lors de la mise a jour du client");
+            return;
+          }
+          logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients").catch(() => {});
+        }).catch((err) => {
+          logger.error("AppContext", "Update client exception:", err);
+          if (snapshot) setClients(p => p.map(c => c.ref === ref ? snapshot : c));
           toast.error("Erreur lors de la mise a jour du client");
-          return;
-        }
-        logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients");
-      }).catch((err) => {
-        logger.error("AppContext", "Update client exception:", err);
-        if (snapshot) setClients(prev => prev.map(c => c.ref === ref ? snapshot : c));
-        toast.error("Erreur lors de la mise a jour du client");
-      });
-    }
+        });
+      }
+
+      return updated;
+    });
 
     setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
@@ -162,14 +164,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       typeAction: "REVUE/MAJ",
       details: `Mise a jour du dossier`,
     }, ...prev]);
-  }, [isOnline, clients]);
+  }, [isOnline]);
 
   const deleteClient = useCallback((ref: string) => {
-    const client = clients.find(c => c.ref === ref);
-    const snapshot = [...clients];
-    setClients(prev => prev.filter(c => c.ref !== ref));
+    // Capture snapshot via functional updater to avoid stale closure
+    let snapshot: Client[] = [];
+    let deletedClient: Client | undefined;
+    setClients(prev => {
+      snapshot = prev;
+      deletedClient = prev.find(c => c.ref === ref);
+      return prev.filter(c => c.ref !== ref);
+    });
 
-    if (isOnline && client) {
+    if (isOnline) {
       clientsService.getByRef(ref).then((dbClient) => {
         if (dbClient?.id) {
           clientsService.delete(dbClient.id as string).catch(() => {
@@ -177,7 +184,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             setClients(snapshot);
             toast.error("Erreur lors de la suppression du client");
           });
-          logsService.add("SUPPRESSION", `Dossier supprime: ${client.raisonSociale}`, ref, "clients");
+          logsService.add("SUPPRESSION", `Dossier supprime: ${deletedClient?.raisonSociale ?? ref}`, ref, "clients").catch(() => {});
         }
       }).catch((err) => {
         logger.error("AppContext", "Delete client lookup exception:", err);
@@ -185,7 +192,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toast.error("Erreur lors de la suppression du client");
       });
     }
-  }, [isOnline, clients]);
+  }, [isOnline]);
 
   const addLog = useCallback((log: LogEntry) => {
     setLogs(prev => [log, ...prev]);
@@ -200,8 +207,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (isOnline) {
       const dbRow = mapAlerteToDb(alerte);
-      registreService.create(dbRow);
-      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre");
+      registreService.create(dbRow).catch((err) => {
+        logger.error("AppContext", "Failed to create alerte:", err);
+      });
+      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre").catch(() => {});
     }
   }, [isOnline]);
 

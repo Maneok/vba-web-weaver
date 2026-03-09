@@ -124,10 +124,10 @@ export default function LogsPage() {
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(log =>
-        log.typeAction.toLowerCase().includes(q) ||
-        log.details.toLowerCase().includes(q) ||
-        log.refClient.toLowerCase().includes(q) ||
-        log.utilisateur.toLowerCase().includes(q)
+        (log.typeAction || "").toLowerCase().includes(q) ||
+        (log.details || "").toLowerCase().includes(q) ||
+        (log.refClient || "").toLowerCase().includes(q) ||
+        (log.utilisateur || "").toLowerCase().includes(q)
       );
     }
     if (filterAction !== "all") result = result.filter(l => l.typeAction === filterAction);
@@ -186,7 +186,8 @@ export default function LogsPage() {
           className="gap-1.5 border-white/[0.06]"
           onClick={() => {
             const headers = ["Horodatage", "Utilisateur", "Action", "Reference", "Details"];
-            const rows = filtered.map(l => [l.horodatage, l.utilisateur, l.typeAction, l.refClient, `"${l.details.replace(/"/g, '""')}"`]);
+            const csvSafe = (v: string) => `"${(v || "").replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`;
+            const rows = filtered.map(l => [l.horodatage, l.utilisateur, l.typeAction, l.refClient, l.details].map(csvSafe));
             const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
             const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
             const url = URL.createObjectURL(blob);

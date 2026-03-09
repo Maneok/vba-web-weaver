@@ -221,7 +221,7 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
 
   // === NON-CONFORMITY ACTION PLAN ===
   if (controles) {
-    const ncControles = controles.filter((c) => c.resultatGlobal.startsWith("NON CONFORME"));
+    const ncControles = controles.filter((c) => c.resultatGlobal?.startsWith("NON CONFORME"));
     if (ncControles.length > 0) {
       y = pageGuard(doc, y, 30);
 
@@ -246,7 +246,13 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
       doc.setFont("helvetica", "normal");
       for (const nc of ncControles) {
         y = pageGuard(doc, y, 8);
-        const fmtEch = nc.dateEcheance ? new Date(nc.dateEcheance).toLocaleDateString("fr-FR") : "—";
+        let fmtEch = "—";
+        if (nc.dateEcheance) {
+          try {
+            const d = new Date(nc.dateEcheance);
+            fmtEch = isNaN(d.getTime()) ? nc.dateEcheance : d.toLocaleDateString("fr-FR");
+          } catch { fmtEch = nc.dateEcheance; }
+        }
         const suiviLabel: Record<string, string> = { A_TRAITER: "A traiter", EN_COURS: "En cours", RESOLU: "Resolu", CLOTURE: "Cloture" };
         const acRow = [
           safe(nc.dossierAudite, 25),
