@@ -143,8 +143,8 @@ export default function GouvernancePage() {
 
   // Relance email
   const handleRelance = (collab: typeof collaborateurs[0]) => {
-    if (!collab.email) {
-      toast.error(`Email manquant pour ${collab.nom}`);
+    if (!collab.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(collab.email)) {
+      toast.error(`Email invalide ou manquant pour ${collab.nom}`);
       return;
     }
     const subject = encodeURIComponent(`Relance formation LCB-FT — ${collab.nom}`);

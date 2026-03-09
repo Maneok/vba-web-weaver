@@ -2,10 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@14.14.0?target=deno";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 const PLANS: Record<string, { priceId: string; name: string }> = {
   essentiel: {
@@ -23,9 +20,9 @@ const PLANS: Record<string, { priceId: string; name: string }> = {
 };
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
@@ -34,6 +31,21 @@ serve(async (req) => {
 
     const { plan, email, returnUrl } = await req.json();
 
+    // Validate returnUrl against allowed origins to prevent open redirect
+    const siteUrl = Deno.env.get("SITE_URL") || "http://localhost:5173";
+    let safeOrigin = siteUrl;
+    if (returnUrl) {
+      try {
+        const parsed = new URL(returnUrl);
+        const allowed = (Deno.env.get("ALLOWED_ORIGINS") || siteUrl).split(",");
+        if (allowed.includes(parsed.origin)) {
+          safeOrigin = parsed.origin;
+        }
+      } catch {
+        // Invalid URL, use default
+      }
+    }
+
     if (!plan || !PLANS[plan]) {
       return new Response(
         JSON.stringify({ error: "Plan invalide. Choisissez: essentiel, pro, cabinet" }),
@@ -41,15 +53,14 @@ serve(async (req) => {
       );
     }
 
-    if (!email) {
+    if (!email || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return new Response(
-        JSON.stringify({ error: "Email requis" }),
+        JSON.stringify({ error: "Adresse email invalide" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     const selectedPlan = PLANS[plan];
-    const origin = returnUrl || Deno.env.get("SITE_URL") || "http://localhost:5173";
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -65,8 +76,8 @@ serve(async (req) => {
         plan,
         email,
       },
-      success_url: `${origin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/pricing?canceled=true`,
+      success_url: `${safeOrigin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${safeOrigin}/pricing?canceled=true`,
     });
 
     return new Response(
@@ -74,9 +85,9 @@ serve(async (req) => {
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
-    console.error("Stripe checkout error:", err);
+    console.error("Stripe checkout error:", (err as Error).message);
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: "Erreur lors de la creation de la session de paiement" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }

@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = useCallback(async (userId: string, accessToken: string): Promise<UserProfile | null> => {
     try {
-      console.log("[Auth] fetchProfile for:", userId);
+      if (isDev) console.log("[Auth] fetchProfile for:", userId);
       const url = import.meta.env.VITE_SUPABASE_URL;
       const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
@@ -44,19 +44,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       );
       clearTimeout(timeout);
-      console.log("[Auth] fetch status:", res.status);
+      if (isDev) console.log("[Auth] fetch status:", res.status);
 
       if (!res.ok) {
         const errText = await res.text();
-        console.error("[Auth] fetch error:", res.status, errText);
+        if (isDev) console.error("[Auth] fetch error:", res.status, errText);
         return null;
       }
 
       const data = await res.json();
-      console.log("[Auth] Profile loaded:", data?.full_name || "no name");
+      if (isDev) console.log("[Auth] Profile loaded:", data?.full_name || "no name");
       return data as UserProfile;
     } catch (e: any) {
-      console.error("[Auth] fetchProfile error:", e.name, e.message);
+      if (isDev) console.error("[Auth] fetchProfile error:", e.name, e.message);
       return null;
     }
   }, []);

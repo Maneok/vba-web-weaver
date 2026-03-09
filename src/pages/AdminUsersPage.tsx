@@ -101,6 +101,14 @@ export default function AdminUsersPage() {
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
     const user = users.find((u) => u.id === userId);
+    // Prevent removing the last admin
+    if (user?.role === "ADMIN" && newRole !== "ADMIN") {
+      const otherAdmins = users.filter((u) => u.role === "ADMIN" && u.is_active && u.id !== userId);
+      if (otherAdmins.length === 0) {
+        toast.error("Impossible : il doit rester au moins un administrateur actif");
+        return;
+      }
+    }
     const { error } = await supabase
       .from("profiles")
       .update({ role: newRole })

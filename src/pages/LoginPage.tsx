@@ -184,7 +184,7 @@ export default function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={8}
                       className="h-11 pr-10"
                     />
                     <button
@@ -232,7 +232,7 @@ export default function LoginPage() {
           </p>
 
           <p className="text-center text-[10px] text-muted-foreground/50">
-            Session securisee - Timeout automatique apres 30 min d'inactivite
+            Session securisee - Timeout automatique apres 15 min d'inactivite
           </p>
         </div>
       </div>

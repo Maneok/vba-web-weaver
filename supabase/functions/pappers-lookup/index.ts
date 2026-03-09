@@ -4,11 +4,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 const PAPPERS_API_KEY = Deno.env.get("PAPPERS_API_KEY") ?? "";
 const PAPPERS_BASE = "https://api.pappers.fr/v2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 interface CompanyData {
   siren: string;
@@ -371,9 +367,9 @@ function mapPappersCompany(company: PappersCompany): CompanyData {
 
 // ======= MAIN HANDLER =======
 Deno.serve(async (req: Request) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const body = await req.json();

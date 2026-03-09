@@ -1,6 +1,10 @@
-// Clé lue depuis variable d'environnement — ne JAMAIS hardcoder
-const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY || "lcb-ft-data-protection-key-2025";
-const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT || "lcb-salt";
+// Clé lue depuis variable d'environnement — OBLIGATOIRE, pas de fallback
+const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY;
+const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT;
+
+if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) {
+  console.error("[Encryption] VITE_ENCRYPTION_KEY and VITE_ENCRYPTION_SALT must be set");
+}
 
 async function getKey(): Promise<CryptoKey> {
   const encoder = new TextEncoder();
@@ -12,7 +16,7 @@ async function getKey(): Promise<CryptoKey> {
     ["deriveKey"]
   );
   return crypto.subtle.deriveKey(
-    { name: "PBKDF2", salt: encoder.encode(ENCRYPTION_SALT), iterations: 600000, hash: "SHA-256" },
+    { name: "PBKDF2", salt: encoder.encode(ENCRYPTION_SALT || ""), iterations: 1000000, hash: "SHA-256" },
     keyMaterial,
     { name: "AES-GCM", length: 256 },
     false,
@@ -22,6 +26,7 @@ async function getKey(): Promise<CryptoKey> {
 
 export async function encryptField(plaintext: string): Promise<string> {
   if (!plaintext) return "";
+  if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) throw new Error("Encryption keys not configured");
   const key = await getKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const encoded = new TextEncoder().encode(plaintext);
@@ -34,6 +39,7 @@ export async function encryptField(plaintext: string): Promise<string> {
 
 export async function decryptField(encrypted: string): Promise<string> {
   if (!encrypted) return "";
+  if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) throw new Error("Encryption keys not configured");
   try {
     const key = await getKey();
     const combined = Uint8Array.from(atob(encrypted), (c) => c.charCodeAt(0));

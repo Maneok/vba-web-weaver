@@ -285,8 +285,32 @@ export default function GedPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+  const MAX_FILE_COUNT = 10;
+  const ALLOWED_MIME_TYPES = [
+    "application/pdf", "image/png", "image/jpeg", "image/jpg",
+    "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  ];
+
   const uploadFiles = async () => {
     if (pendingFiles.length === 0) return;
+
+    if (pendingFiles.length > MAX_FILE_COUNT) {
+      toast.error(`Maximum ${MAX_FILE_COUNT} fichiers a la fois`);
+      return;
+    }
+
+    for (const file of pendingFiles) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`"${file.name}" depasse la limite de 20 Mo`);
+        return;
+      }
+      if (!ALLOWED_MIME_TYPES.includes(file.type)) {
+        toast.error(`Type de fichier non autorise: ${file.type || "inconnu"}`);
+        return;
+      }
+    }
 
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {

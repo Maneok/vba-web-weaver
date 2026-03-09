@@ -1,15 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     // Verify caller is authenticated
@@ -63,6 +60,20 @@ serve(async (req) => {
       });
     }
 
+    if (typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return new Response(JSON.stringify({ error: "Adresse email invalide" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (typeof fullName !== "string" || fullName.length < 2 || fullName.length > 100) {
+      return new Response(JSON.stringify({ error: "Nom invalide (2-100 caracteres)" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     const validRoles = ["ADMIN", "SUPERVISEUR", "COLLABORATEUR", "STAGIAIRE"];
     if (!validRoles.includes(role)) {
       return new Response(JSON.stringify({ error: "Role invalide" }), {
@@ -90,7 +101,11 @@ serve(async (req) => {
     });
 
     if (signUpError) {
-      return new Response(JSON.stringify({ error: signUpError.message }), {
+      console.error("invite-user signUp error:", signUpError.message);
+      const userMessage = signUpError.message?.includes("already been registered")
+        ? "Cet email est deja enregistre"
+        : "Erreur lors de la creation du compte";
+      return new Response(JSON.stringify({ error: userMessage }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -101,7 +116,7 @@ serve(async (req) => {
       type: "recovery",
       email,
       options: {
-        redirectTo: `${req.headers.get("origin") || supabaseUrl}/auth?reset=true`,
+        redirectTo: `${Deno.env.get("SITE_URL") || supabaseUrl}/auth?reset=true`,
       },
     });
 

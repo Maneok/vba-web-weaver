@@ -1,8 +1,4 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 // Probleme 5: Mapping codes INSEE -> libelles
 const FORMES_JURIDIQUES: Record<string, string> = {
@@ -317,9 +313,9 @@ async function geocodeAddress(adresse: string, codePostal: string, ville: string
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const { mode, query } = await req.json();

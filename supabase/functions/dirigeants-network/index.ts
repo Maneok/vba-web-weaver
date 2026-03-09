@@ -1,17 +1,13 @@
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
-};
+import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
+  const optRes = handleCorsOptions(req);
+  if (optRes) return optRes;
+  const corsHeaders = getCorsHeaders(req);
 
   try {
     const { siren, dirigeants } = await req.json();

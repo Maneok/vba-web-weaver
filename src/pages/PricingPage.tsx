@@ -80,8 +80,10 @@ export default function PricingPage() {
       });
 
       if (error) throw error;
-      if (data?.url) {
+      if (data?.url && typeof data.url === "string" && data.url.startsWith("https://checkout.stripe.com")) {
         window.location.href = data.url;
+      } else if (data?.url) {
+        throw new Error("URL de paiement invalide");
       } else {
         throw new Error("Pas d'URL de paiement recue");
       }
