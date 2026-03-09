@@ -78,7 +78,10 @@ export default function OrganigrammeLCB() {
     const associes = collaborateurs.filter(c => c.fonction === "ASSOCIE SIGNATAIRE");
     const referentLcb = collaborateurs.find(c => c.referentLcb);
     // The suppleant field can reference the TRACFIN correspondent
-    const correspondantTracfin = collaborateurs.find(c => c.suppleant?.toLowerCase().includes("tracfin") || (c.referentLcb && c.suppleant));
+    const correspondantTracfin = collaborateurs.find(c =>
+      (c.suppleant && c.suppleant.toLowerCase().includes("tracfin")) ||
+      (c.fonction && c.fonction.toLowerCase().includes("tracfin"))
+    );
     const superviseurs = collaborateurs.filter(c => c.fonction === "SUPERVISEUR");
     const collabsEtStagiaires = collaborateurs.filter(c =>
       ["COLLABORATEUR", "STAGIAIRE", "ALTERNANT", "SECRETAIRE"].includes(c.fonction) && !c.referentLcb

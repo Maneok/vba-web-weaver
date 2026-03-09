@@ -1,5 +1,7 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { formationsService, type FormationRecord } from "@/lib/gouvernanceService";
+import { logsService } from "@/lib/supabaseService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,33 +14,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import {
   GraduationCap, Plus, AlertTriangle, Clock, Users, Calendar,
-  Filter, Search, Upload,
+  Filter, Search, Loader2, Trash2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
-interface Formation {
-  id: string;
-  collaborateur: string;
-  date: string;
-  organisme: string;
-  duree_heures: number;
-  theme: string;
-  attestation_url: string;
-  quiz_score: string;
-  notes: string;
-}
-
-function isFormationExpired(dateStr: string) {
+export function isFormationExpired(dateStr: string): boolean {
   if (!dateStr) return true;
   const ts = new Date(dateStr).getTime();
   if (isNaN(ts)) return true;
   return (Date.now() - ts) / (1000 * 60 * 60 * 24) > 365;
 }
 
-function formatDate(dateStr: string) {
+export function formatDate(dateStr: string): string {
   if (!dateStr) return "---";
   try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "---";
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
     return dateStr;
   }
@@ -51,8 +44,10 @@ const EMPTY_FORMATION = {
 
 export default function FormationsPanel() {
   const { collaborateurs } = useAppState();
-  const [formations, setFormations] = useState<Formation[]>([]);
+  const [formations, setFormations] = useState<FormationRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showAddDialog, setShowAddDialog] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [newFormation, setNewFormation] = useState({ ...EMPTY_FORMATION });
   const [filterYear, setFilterYear] = useState<string>("all");
   const [filterCollab, setFilterCollab] = useState<string>("all");
@@ -60,10 +55,25 @@ export default function FormationsPanel() {
 
   const currentYear = new Date().getFullYear();
 
-  // Build formations from collaborateur data + local state
+  useEffect(() => {
+    loadFormations();
+  }, []);
+
+  const loadFormations = async () => {
+    try {
+      const data = await formationsService.getAll();
+      setFormations(data);
+    } catch (err) {
+      logger.error("FormationsPanel", "loadFormations error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const allFormations = useMemo(() => {
-    const fromCollabs: Formation[] = collaborateurs
-      .filter(c => c.derniereFormation)
+    const storedCollabNames = new Set(formations.map(f => f.collaborateur));
+    const fromCollabs: FormationRecord[] = collaborateurs
+      .filter(c => c.derniereFormation && !storedCollabNames.has(c.nom))
       .map(c => ({
         id: `collab-${c.id || c.nom}`,
         collaborateur: c.nom,
@@ -97,38 +107,62 @@ export default function FormationsPanel() {
     return result.sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   }, [allFormations, filterYear, filterCollab, search]);
 
-  // KPIs
   const kpis = useMemo(() => {
     const thisYearFormations = allFormations.filter(f => f.date && new Date(f.date).getFullYear() === currentYear);
     const formedCollabs = new Set(thisYearFormations.map(f => f.collaborateur));
     const totalCollabs = collaborateurs.length;
     const formedCount = Math.min(formedCollabs.size, totalCollabs);
     const totalHeures = thisYearFormations.reduce((sum, f) => sum + (f.duree_heures || 0), 0);
-
     const expiredCollabs = collaborateurs.filter(c => isFormationExpired(c.derniereFormation));
-
-    // Next planned formation (future dates)
     const futureFormations = allFormations.filter(f => f.date && new Date(f.date) > new Date());
     const nextFormation = futureFormations.sort((a, b) => a.date.localeCompare(b.date))[0];
-
     return { formedCount, totalCollabs, totalHeures, expiredCollabs, nextFormation };
   }, [allFormations, collaborateurs, currentYear]);
 
-  const handleAddFormation = useCallback(() => {
+  const handleAddFormation = useCallback(async () => {
     if (!newFormation.collaborateur || !newFormation.date) {
       toast.error("Collaborateur et date sont requis");
       return;
     }
-    const formation: Formation = {
-      ...newFormation,
-      id: `f-${Date.now()}`,
-      duree_heures: Number(newFormation.duree_heures) || 0,
-    };
-    setFormations(prev => [formation, ...prev]);
-    setNewFormation({ ...EMPTY_FORMATION });
-    setShowAddDialog(false);
-    toast.success("Formation ajoutee avec succes");
+    if (newFormation.duree_heures < 0) {
+      toast.error("La duree ne peut pas etre negative");
+      return;
+    }
+    setSaving(true);
+    try {
+      const record: Omit<FormationRecord, "id"> & { id?: string } = {
+        ...newFormation,
+        duree_heures: Math.max(0, Number(newFormation.duree_heures) || 0),
+      };
+      const created = await formationsService.create(record);
+      if (created) {
+        setFormations(prev => [created, ...prev]);
+        toast.success("Formation ajoutee avec succes");
+        logsService.add("ADD_FORMATION", `Formation ajoutee pour ${newFormation.collaborateur}`, undefined, "formations").catch(() => {});
+      } else {
+        toast.error("Erreur lors de l'ajout");
+      }
+      setNewFormation({ ...EMPTY_FORMATION });
+      setShowAddDialog(false);
+    } catch (err) {
+      logger.error("FormationsPanel", "handleAddFormation error:", err);
+      toast.error("Erreur lors de l'ajout de la formation");
+    } finally {
+      setSaving(false);
+    }
   }, [newFormation]);
+
+  const handleDeleteFormation = useCallback(async (id: string) => {
+    if (id.startsWith("collab-")) return;
+    try {
+      await formationsService.delete(id);
+      setFormations(prev => prev.filter(f => f.id !== id));
+      toast.success("Formation supprimee");
+    } catch (err) {
+      logger.error("FormationsPanel", "handleDeleteFormation error:", err);
+      toast.error("Erreur lors de la suppression");
+    }
+  }, []);
 
   const progressPct = kpis.totalCollabs > 0 ? Math.round((kpis.formedCount / kpis.totalCollabs) * 100) : 0;
 
@@ -187,16 +221,13 @@ export default function FormationsPanel() {
                     </Badge>
                   ))}
                 </div>
-                <Button variant="outline" size="sm" className="mt-3 gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10">
-                  <Calendar className="w-3.5 h-3.5" /> Planifier
-                </Button>
               </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Filtres + Tableau */}
+      {/* Tableau */}
       <Card className="border-white/[0.06] bg-white/[0.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -208,16 +239,10 @@ export default function FormationsPanel() {
           </Button>
         </CardHeader>
         <CardContent>
-          {/* Filtres */}
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-500" />
-              <Input
-                placeholder="Rechercher..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9"
-              />
+              <Input placeholder="Rechercher..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
             </div>
             <Select value={filterYear} onValueChange={setFilterYear}>
               <SelectTrigger className="w-[130px]">
@@ -244,7 +269,6 @@ export default function FormationsPanel() {
             </Select>
           </div>
 
-          {/* Tableau */}
           <div className="rounded-md border border-white/[0.06] overflow-hidden">
             <Table>
               <TableHeader>
@@ -256,12 +280,19 @@ export default function FormationsPanel() {
                   <TableHead>Theme</TableHead>
                   <TableHead>Attestation</TableHead>
                   <TableHead>Quiz</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredFormations.length === 0 ? (
+                {loading ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                      <Loader2 className="w-5 h-5 animate-spin mx-auto" />
+                    </TableCell>
+                  </TableRow>
+                ) : filteredFormations.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center py-8 text-slate-500">
                       Aucune formation enregistree
                     </TableCell>
                   </TableRow>
@@ -287,6 +318,14 @@ export default function FormationsPanel() {
                           <span className="text-xs text-slate-500">---</span>
                         )}
                       </TableCell>
+                      <TableCell>
+                        {!f.id.startsWith("collab-") && (
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300"
+                            onClick={() => handleDeleteFormation(f.id)} aria-label="Supprimer">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))
                 )}
@@ -304,9 +343,7 @@ export default function FormationsPanel() {
               <GraduationCap className="w-5 h-5 text-blue-400" />
               Ajouter une formation
             </DialogTitle>
-            <DialogDescription>
-              Enregistrez une formation suivie par un collaborateur
-            </DialogDescription>
+            <DialogDescription>Enregistrez une formation suivie par un collaborateur</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
@@ -327,7 +364,7 @@ export default function FormationsPanel() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-slate-400">Duree (heures)</Label>
-                <Input type="number" min="0" value={newFormation.duree_heures || ""} onChange={e => setNewFormation(p => ({ ...p, duree_heures: Number(e.target.value) || 0 }))} />
+                <Input type="number" min="0" max="200" value={newFormation.duree_heures || ""} onChange={e => setNewFormation(p => ({ ...p, duree_heures: Math.max(0, Number(e.target.value) || 0) }))} />
               </div>
             </div>
             <div className="space-y-1.5">
@@ -347,9 +384,10 @@ export default function FormationsPanel() {
               <Textarea value={newFormation.notes} onChange={e => setNewFormation(p => ({ ...p, notes: e.target.value }))} rows={2} />
             </div>
             <div className="flex gap-2 justify-end">
-              <Button variant="outline" onClick={() => setShowAddDialog(false)}>Annuler</Button>
-              <Button onClick={handleAddFormation} className="gap-1.5">
-                <Plus className="w-3.5 h-3.5" /> Ajouter
+              <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={saving}>Annuler</Button>
+              <Button onClick={handleAddFormation} className="gap-1.5" disabled={saving}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+                Ajouter
               </Button>
             </div>
           </div>

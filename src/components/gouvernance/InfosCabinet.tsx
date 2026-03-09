@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
-import { Building2, Pencil, Save, X, Shield, AlertTriangle } from "lucide-react";
+import { parametresGovService } from "@/lib/gouvernanceService";
+import { logsService } from "@/lib/supabaseService";
+import { Building2, Pencil, Save, X, Shield, AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
-interface CabinetInfo {
+export interface CabinetInfo {
   siret: string;
   numero_oec: string;
   croec: string;
@@ -21,16 +23,38 @@ interface CabinetInfo {
   raison_sociale: string;
 }
 
-const EMPTY_INFO: CabinetInfo = {
+export const EMPTY_CABINET_INFO: CabinetInfo = {
   siret: "", numero_oec: "", croec: "", adresse: "", cp: "", ville: "",
   rc_pro_assureur: "", rc_pro_police: "", rc_pro_expiration: "", raison_sociale: "",
 };
 
+export function validateSiret(siret: string): boolean {
+  const clean = siret.replace(/\s/g, "");
+  return clean === "" || /^\d{14}$/.test(clean);
+}
+
+export function isRcProExpired(dateStr: string): boolean {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return false;
+  return d < new Date();
+}
+
+export function isRcProExpiringSoon(dateStr: string, thresholdDays = 90): boolean {
+  if (!dateStr) return false;
+  const exp = new Date(dateStr);
+  if (isNaN(exp.getTime())) return false;
+  const now = new Date();
+  const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  return diff > 0 && diff < thresholdDays;
+}
+
 export default function InfosCabinet() {
-  const [info, setInfo] = useState<CabinetInfo>({ ...EMPTY_INFO });
+  const [info, setInfo] = useState<CabinetInfo>({ ...EMPTY_CABINET_INFO });
   const [editing, setEditing] = useState(false);
-  const [editForm, setEditForm] = useState<CabinetInfo>({ ...EMPTY_INFO });
+  const [editForm, setEditForm] = useState<CabinetInfo>({ ...EMPTY_CABINET_INFO });
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     loadCabinetInfo();
@@ -38,17 +62,10 @@ export default function InfosCabinet() {
 
   const loadCabinetInfo = async () => {
     try {
-      const { data } = await supabase
-        .from("parametres")
-        .select("value")
-        .eq("key", "cabinet_info")
-        .maybeSingle();
-      if (data?.value) {
-        const parsed = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
-        setInfo({ ...EMPTY_INFO, ...parsed });
-      }
-    } catch {
-      // silent — will use defaults
+      const data = await parametresGovService.get<CabinetInfo>("cabinet_info", { ...EMPTY_CABINET_INFO });
+      setInfo({ ...EMPTY_CABINET_INFO, ...data });
+    } catch (err) {
+      logger.error("InfosCabinet", "loadCabinetInfo error:", err);
     } finally {
       setLoading(false);
     }
@@ -59,32 +76,37 @@ export default function InfosCabinet() {
     setEditing(true);
   };
 
+  const handleCancel = () => {
+    setEditForm({ ...info });
+    setEditing(false);
+  };
+
   const handleSave = useCallback(async () => {
+    // Validate SIRET
+    if (editForm.siret && !validateSiret(editForm.siret)) {
+      toast.error("Le SIRET doit contenir 14 chiffres");
+      return;
+    }
+
+    setSaving(true);
     try {
-      const { error } = await supabase
-        .from("parametres")
-        .upsert({ key: "cabinet_info", value: editForm as unknown as Record<string, unknown> }, { onConflict: "key" });
-      if (error) throw error;
+      const success = await parametresGovService.set("cabinet_info", editForm);
+      if (!success) {
+        logger.warn("InfosCabinet", "Sauvegarde via fallback localStorage");
+      }
       setInfo({ ...editForm });
       setEditing(false);
       toast.success("Informations du cabinet mises a jour");
-    } catch {
+
+      // Audit trail
+      logsService.add("UPDATE_CABINET_INFO", "Mise a jour des informations du cabinet", undefined, "parametres").catch(() => {});
+    } catch (err) {
+      logger.error("InfosCabinet", "handleSave error:", err);
       toast.error("Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
     }
   }, [editForm]);
-
-  const isRcProExpired = () => {
-    if (!info.rc_pro_expiration) return false;
-    return new Date(info.rc_pro_expiration) < new Date();
-  };
-
-  const isRcProSoon = () => {
-    if (!info.rc_pro_expiration) return false;
-    const exp = new Date(info.rc_pro_expiration);
-    const now = new Date();
-    const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    return diff > 0 && diff < 90;
-  };
 
   if (loading) {
     return (
@@ -107,16 +129,17 @@ export default function InfosCabinet() {
           Informations du cabinet
         </CardTitle>
         {!editing ? (
-          <Button variant="outline" size="sm" onClick={handleEdit} className="gap-1.5">
+          <Button variant="outline" size="sm" onClick={handleEdit} className="gap-1.5" aria-label="Modifier les informations">
             <Pencil className="w-3.5 h-3.5" /> Modifier
           </Button>
         ) : (
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setEditing(false)} className="gap-1.5">
+            <Button variant="outline" size="sm" onClick={handleCancel} className="gap-1.5" disabled={saving}>
               <X className="w-3.5 h-3.5" /> Annuler
             </Button>
-            <Button size="sm" onClick={handleSave} className="gap-1.5">
-              <Save className="w-3.5 h-3.5" /> Enregistrer
+            <Button size="sm" onClick={handleSave} className="gap-1.5" disabled={saving}>
+              {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+              Enregistrer
             </Button>
           </div>
         )}
@@ -130,7 +153,15 @@ export default function InfosCabinet() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-400">SIRET</Label>
-              <Input value={editForm.siret} onChange={e => setEditForm(p => ({ ...p, siret: e.target.value }))} placeholder="123 456 789 00012" />
+              <Input
+                value={editForm.siret}
+                onChange={e => setEditForm(p => ({ ...p, siret: e.target.value }))}
+                placeholder="123 456 789 00012"
+                maxLength={17}
+              />
+              {editForm.siret && !validateSiret(editForm.siret) && (
+                <p className="text-[10px] text-red-400">Format invalide (14 chiffres attendus)</p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-400">N° OEC</Label>
@@ -146,7 +177,7 @@ export default function InfosCabinet() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-400">Code postal</Label>
-              <Input value={editForm.cp} onChange={e => setEditForm(p => ({ ...p, cp: e.target.value }))} />
+              <Input value={editForm.cp} onChange={e => setEditForm(p => ({ ...p, cp: e.target.value }))} maxLength={5} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-400">Ville</Label>
@@ -178,11 +209,11 @@ export default function InfosCabinet() {
                 <span className="text-sm">{info.rc_pro_assureur || "---"}</span>
                 {info.rc_pro_police && <span className="text-xs text-slate-500">({info.rc_pro_police})</span>}
                 {info.rc_pro_expiration && (
-                  isRcProExpired() ? (
+                  isRcProExpired(info.rc_pro_expiration) ? (
                     <Badge variant="destructive" className="text-xs gap-1">
                       <AlertTriangle className="w-3 h-3" /> Expiree
                     </Badge>
-                  ) : isRcProSoon() ? (
+                  ) : isRcProExpiringSoon(info.rc_pro_expiration) ? (
                     <Badge className="bg-amber-500/15 text-amber-400 text-xs gap-1">
                       <AlertTriangle className="w-3 h-3" /> Expire bientot
                     </Badge>

@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { collaborateursService } from "@/lib/supabaseService";
-import { supabase } from "@/integrations/supabase/client";
+import { logsService } from "@/lib/supabaseService";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,8 @@ import FormationsPanel from "@/components/gouvernance/FormationsPanel";
 import ManuelProcedures from "@/components/gouvernance/ManuelProcedures";
 import ControleInterne from "@/components/gouvernance/ControleInterne";
 import DeclarationsSoupcon from "@/components/gouvernance/DeclarationsSoupcon";
+import CartographieRisques from "@/components/gouvernance/CartographieRisques";
+import AutoEvaluationNPMQ from "@/components/gouvernance/AutoEvaluationNPMQ";
 
 // ─── Helpers ────────────────────────────────────────────────
 
@@ -293,6 +295,9 @@ export default function GouvernancePage() {
             {/* Organigramme */}
             <OrganigrammeLCB />
 
+            {/* Cartographie des risques */}
+            <CartographieRisques />
+
             {/* Infos cabinet */}
             <InfosCabinet />
 
@@ -463,6 +468,9 @@ export default function GouvernancePage() {
           {/* ─── ONGLET 4 : Controle interne ─── */}
           <TabsContent value="controle" className="mt-6">
             <ControleInterne />
+            <div className="mt-8">
+              <AutoEvaluationNPMQ />
+            </div>
           </TabsContent>
 
           {/* ─── ONGLET 5 : TRACFIN ─── */}

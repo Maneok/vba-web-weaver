@@ -1,5 +1,7 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { declarationsService, type DeclarationSoupconRecord } from "@/lib/gouvernanceService";
+import { logsService } from "@/lib/supabaseService";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,45 +12,36 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  AlertTriangle, Plus, Shield, FileText, ExternalLink,
-  Phone, User, ChevronRight, ChevronLeft, Info, Archive,
+  AlertTriangle, Plus, Shield, ExternalLink,
+  User, ChevronRight, ChevronLeft, Info, Archive, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
-interface DeclarationSoupcon {
-  id: string;
-  dateDetection: string;
-  client: string;
-  motif: string;
-  decision: "DECLARE" | "CLASSE" | "EN_ANALYSE";
-  justification: string;
-  refTracfin: string;
-  statut: "EN_COURS" | "TRANSMISE" | "CLASSEE";
-  elementsSuspects: string;
-}
-
-function formatDate(dateStr: string) {
+function formatDate(dateStr: string): string {
   if (!dateStr) return "---";
   try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "---";
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
   } catch {
     return dateStr;
   }
 }
 
-const DECISION_COLORS = {
+const DECISION_COLORS: Record<string, string> = {
   DECLARE: "bg-red-500/15 text-red-400",
   CLASSE: "bg-slate-500/15 text-slate-400",
   EN_ANALYSE: "bg-amber-500/15 text-amber-400",
 };
 
-const DECISION_LABELS = {
+const DECISION_LABELS: Record<string, string> = {
   DECLARE: "Declare",
   CLASSE: "Classe sans suite",
   EN_ANALYSE: "En analyse",
 };
 
-const STATUT_COLORS = {
+const STATUT_COLORS: Record<string, string> = {
   EN_COURS: "bg-amber-500/15 text-amber-400",
   TRANSMISE: "bg-emerald-500/15 text-emerald-400",
   CLASSEE: "bg-slate-500/15 text-slate-400",
@@ -56,66 +49,95 @@ const STATUT_COLORS = {
 
 export default function DeclarationsSoupcon() {
   const { collaborateurs, clients } = useAppState();
-  const [declarations, setDeclarations] = useState<DeclarationSoupcon[]>([]);
+  const [declarations, setDeclarations] = useState<DeclarationSoupconRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [newDs, setNewDs] = useState({
-    client: "", elementsSuspects: "", motif: "",
-    decision: "EN_ANALYSE" as const, justification: "", refTracfin: "",
+    client: "", elements_suspects: "", motif: "",
+    decision: "EN_ANALYSE" as DeclarationSoupconRecord["decision"],
+    justification: "", ref_tracfin: "",
   });
 
-  // Registre des abstentions (classes sans suite)
-  const abstentions = useMemo(() =>
-    declarations.filter(d => d.decision === "CLASSE"),
-    [declarations]
-  );
+  useEffect(() => {
+    loadData();
+  }, []);
 
-  const declarees = useMemo(() =>
-    declarations.filter(d => d.decision === "DECLARE"),
-    [declarations]
-  );
+  const loadData = async () => {
+    try {
+      const data = await declarationsService.getAll();
+      setDeclarations(data);
+    } catch (err) {
+      logger.error("DeclarationsSoupcon", "loadData error:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Referent LCB info
-  const referentLcb = useMemo(() =>
-    collaborateurs.find(c => c.referentLcb),
-    [collaborateurs]
-  );
+  const abstentions = useMemo(() => declarations.filter(d => d.decision === "CLASSE"), [declarations]);
 
-  const handleWizardFinish = useCallback(() => {
+  const referentLcb = useMemo(() => collaborateurs.find(c => c.referentLcb), [collaborateurs]);
+
+  const handleWizardFinish = useCallback(async () => {
     if (!newDs.client) {
       toast.error("Selectionnez un client");
       return;
     }
-    const ds: DeclarationSoupcon = {
-      id: `ds-${Date.now()}`,
-      dateDetection: new Date().toISOString().split("T")[0],
-      client: newDs.client,
-      motif: newDs.motif,
-      decision: newDs.decision,
-      justification: newDs.justification,
-      refTracfin: newDs.refTracfin,
-      statut: newDs.decision === "DECLARE" ? "EN_COURS" : "CLASSEE",
-      elementsSuspects: newDs.elementsSuspects,
-    };
-    setDeclarations(prev => [ds, ...prev]);
-    setNewDs({ client: "", elementsSuspects: "", motif: "", decision: "EN_ANALYSE", justification: "", refTracfin: "" });
-    setWizardStep(1);
-    setShowWizard(false);
-    toast.success(newDs.decision === "DECLARE"
-      ? "Declaration de soupcon enregistree"
-      : "Analyse classee sans suite"
-    );
+    if (newDs.decision === "CLASSE" && !newDs.justification) {
+      toast.error("La justification est requise pour classer sans suite");
+      return;
+    }
+    if (!newDs.elements_suspects) {
+      toast.error("Decrivez les elements suspects");
+      return;
+    }
+    setSaving(true);
+    try {
+      const ds: Omit<DeclarationSoupconRecord, "id"> & { id?: string } = {
+        date_detection: new Date().toISOString().split("T")[0],
+        client: newDs.client,
+        motif: newDs.motif,
+        decision: newDs.decision,
+        justification: newDs.justification,
+        ref_tracfin: newDs.ref_tracfin,
+        statut: newDs.decision === "DECLARE" ? "EN_COURS" : "CLASSEE",
+        elements_suspects: newDs.elements_suspects,
+      };
+      const created = await declarationsService.create(ds);
+      if (created) {
+        setDeclarations(prev => [created, ...prev]);
+        const action = newDs.decision === "DECLARE" ? "DECLARATION_TRACFIN" : "ABSTENTION_DS";
+        logsService.add(action, `${action} pour ${newDs.client}: ${newDs.motif}`, undefined, "declarations_soupcon").catch(() => {});
+        toast.success(newDs.decision === "DECLARE"
+          ? "Declaration de soupcon enregistree"
+          : "Analyse classee sans suite"
+        );
+      }
+      setNewDs({ client: "", elements_suspects: "", motif: "", decision: "EN_ANALYSE", justification: "", ref_tracfin: "" });
+      setWizardStep(1);
+      setShowWizard(false);
+    } catch (err) {
+      logger.error("DeclarationsSoupcon", "handleWizardFinish error:", err);
+      toast.error("Erreur lors de l'enregistrement");
+    } finally {
+      setSaving(false);
+    }
   }, [newDs]);
 
   const openWizard = () => {
     setWizardStep(1);
-    setNewDs({ client: "", elementsSuspects: "", motif: "", decision: "EN_ANALYSE", justification: "", refTracfin: "" });
+    setNewDs({ client: "", elements_suspects: "", motif: "", decision: "EN_ANALYSE", justification: "", ref_tracfin: "" });
     setShowWizard(true);
   };
 
+  if (loading) {
+    return <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-slate-500" /></div>;
+  }
+
   return (
     <div className="space-y-6">
-      {/* Registre des declarations */}
+      {/* Registre */}
       <Card className="border-white/[0.06] bg-white/[0.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -133,7 +155,6 @@ export default function DeclarationsSoupcon() {
               <p className="text-sm">Aucune declaration de soupcon enregistree.</p>
               <p className="text-xs mt-1 max-w-md mx-auto">
                 C'est normal si vous n'avez pas detecte de situation suspecte.
-                En cas de doute, utilisez le bouton "Nouvelle analyse" pour documenter votre reflexion.
               </p>
             </div>
           ) : (
@@ -152,17 +173,17 @@ export default function DeclarationsSoupcon() {
                 <TableBody>
                   {declarations.map(ds => (
                     <TableRow key={ds.id}>
-                      <TableCell className="text-sm">{formatDate(ds.dateDetection)}</TableCell>
+                      <TableCell className="text-sm">{formatDate(ds.date_detection)}</TableCell>
                       <TableCell className="text-sm font-medium">{ds.client}</TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">{ds.motif || "---"}</TableCell>
                       <TableCell>
-                        <Badge className={`text-xs ${DECISION_COLORS[ds.decision]}`}>
-                          {DECISION_LABELS[ds.decision]}
+                        <Badge className={`text-xs ${DECISION_COLORS[ds.decision] || ""}`}>
+                          {DECISION_LABELS[ds.decision] || ds.decision}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-slate-400">{ds.refTracfin || "---"}</TableCell>
+                      <TableCell className="text-sm text-slate-400">{ds.ref_tracfin || "---"}</TableCell>
                       <TableCell>
-                        <Badge className={`text-xs ${STATUT_COLORS[ds.statut]}`}>
+                        <Badge className={`text-xs ${STATUT_COLORS[ds.statut] || ""}`}>
                           {ds.statut === "EN_COURS" ? "En cours" : ds.statut === "TRANSMISE" ? "Transmise" : "Classee"}
                         </Badge>
                       </TableCell>
@@ -175,7 +196,7 @@ export default function DeclarationsSoupcon() {
         </CardContent>
       </Card>
 
-      {/* Procedure de declaration */}
+      {/* Procedure */}
       <Card className="border-blue-500/20 bg-blue-500/5">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -187,10 +208,10 @@ export default function DeclarationsSoupcon() {
           <div className="space-y-3">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
               {[
-                { step: "1", title: "Ne pas alerter le client", desc: "Le secret de la declaration est absolu. Ne jamais informer le client de vos soupcons." },
-                { step: "2", title: "Rassembler les elements", desc: "Documenter tous les elements factuels qui motivent le soupcon." },
-                { step: "3", title: "Informer le referent LCB", desc: "Le referent LCB-FT analyse la situation et prend la decision." },
-                { step: "4", title: "Declarer sur ERMES", desc: "Effectuer la declaration sur la plateforme ERMES de TRACFIN." },
+                { step: "1", title: "Ne pas alerter le client", desc: "Le secret de la declaration est absolu." },
+                { step: "2", title: "Rassembler les elements", desc: "Documenter tous les elements factuels." },
+                { step: "3", title: "Informer le referent LCB", desc: "Le referent analyse et prend la decision." },
+                { step: "4", title: "Declarer sur ERMES", desc: "Effectuer la declaration sur ERMES." },
               ].map(item => (
                 <div key={item.step} className="p-3 rounded-md bg-white/[0.03] border border-white/[0.06]">
                   <div className="flex items-center gap-2 mb-1.5">
@@ -213,9 +234,7 @@ export default function DeclarationsSoupcon() {
                 <div className="flex items-center gap-2 text-sm text-slate-400 px-3 py-1.5 rounded-md bg-white/[0.03] border border-white/[0.06]">
                   <User className="w-3.5 h-3.5" />
                   Correspondant TRACFIN : <strong className="text-slate-300">{referentLcb.nom}</strong>
-                  {referentLcb.email && (
-                    <span className="text-xs">({referentLcb.email})</span>
-                  )}
+                  {referentLcb.email && <span className="text-xs">({referentLcb.email})</span>}
                 </div>
               )}
             </div>
@@ -223,7 +242,7 @@ export default function DeclarationsSoupcon() {
         </CardContent>
       </Card>
 
-      {/* Registre des abstentions */}
+      {/* Abstentions */}
       <Card className="border-white/[0.06] bg-white/[0.02]">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -231,7 +250,7 @@ export default function DeclarationsSoupcon() {
             Registre des abstentions
           </CardTitle>
           <p className="text-xs text-slate-500 mt-1">
-            Situations analysees mais classees sans declaration — chaque abstention est documentee avec sa justification
+            Situations analysees mais classees sans declaration
           </p>
         </CardHeader>
         <CardContent>
@@ -244,7 +263,7 @@ export default function DeclarationsSoupcon() {
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{a.client}</span>
-                      <span className="text-xs text-slate-500">{formatDate(a.dateDetection)}</span>
+                      <span className="text-xs text-slate-500">{formatDate(a.date_detection)}</span>
                     </div>
                     <Badge className="bg-slate-500/15 text-slate-400 text-xs">Classe sans suite</Badge>
                   </div>
@@ -257,7 +276,7 @@ export default function DeclarationsSoupcon() {
         </CardContent>
       </Card>
 
-      {/* Wizard 3 etapes */}
+      {/* Wizard */}
       <Dialog open={showWizard} onOpenChange={setShowWizard}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -271,15 +290,12 @@ export default function DeclarationsSoupcon() {
               {wizardStep === 3 && "Prenez votre decision"}
             </DialogDescription>
           </DialogHeader>
-
-          {/* Progress */}
           <div className="flex gap-1 mb-4">
             {[1, 2, 3].map(s => (
               <div key={s} className={`h-1 flex-1 rounded-full ${s <= wizardStep ? "bg-blue-500" : "bg-slate-700"}`} />
             ))}
           </div>
 
-          {/* Step 1 : Client */}
           {wizardStep === 1 && (
             <div className="space-y-4">
               <div className="space-y-1.5">
@@ -297,32 +313,26 @@ export default function DeclarationsSoupcon() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs text-slate-400">Motif de l'analyse</Label>
-                <Input value={newDs.motif} onChange={e => setNewDs(p => ({ ...p, motif: e.target.value }))} placeholder="Ex: Operation atypique, comportement suspect..." />
+                <Input value={newDs.motif} onChange={e => setNewDs(p => ({ ...p, motif: e.target.value }))} placeholder="Ex: Operation atypique..." />
               </div>
             </div>
           )}
 
-          {/* Step 2 : Elements suspects */}
           {wizardStep === 2 && (
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label className="text-xs text-slate-400">Elements suspects *</Label>
-                <Textarea
-                  value={newDs.elementsSuspects}
-                  onChange={e => setNewDs(p => ({ ...p, elementsSuspects: e.target.value }))}
-                  rows={6}
-                  placeholder="Decrivez les elements factuels qui motivent cette analyse...&#10;&#10;Ex:&#10;- Mouvement de tresorerie inhabituel de XX EUR&#10;- Incoherence entre l'activite declaree et les flux&#10;- Changement brutal de comportement"
-                />
+                <Textarea value={newDs.elements_suspects} onChange={e => setNewDs(p => ({ ...p, elements_suspects: e.target.value }))} rows={6}
+                  placeholder="Decrivez les elements factuels..." />
               </div>
             </div>
           )}
 
-          {/* Step 3 : Decision */}
           {wizardStep === 3 && (
             <div className="space-y-4">
               <div className="space-y-1.5">
                 <Label className="text-xs text-slate-400">Decision *</Label>
-                <Select value={newDs.decision} onValueChange={v => setNewDs(p => ({ ...p, decision: v as DeclarationSoupcon["decision"] }))}>
+                <Select value={newDs.decision} onValueChange={v => setNewDs(p => ({ ...p, decision: v as DeclarationSoupconRecord["decision"] }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="DECLARE">Declarer a TRACFIN</SelectItem>
@@ -333,41 +343,41 @@ export default function DeclarationsSoupcon() {
               {newDs.decision === "DECLARE" && (
                 <div className="space-y-1.5">
                   <Label className="text-xs text-slate-400">Reference TRACFIN (si connue)</Label>
-                  <Input value={newDs.refTracfin} onChange={e => setNewDs(p => ({ ...p, refTracfin: e.target.value }))} placeholder="Numero de declaration" />
+                  <Input value={newDs.ref_tracfin} onChange={e => setNewDs(p => ({ ...p, ref_tracfin: e.target.value }))} />
                 </div>
               )}
               {newDs.decision === "CLASSE" && (
                 <div className="space-y-1.5">
                   <Label className="text-xs text-slate-400">Justification du classement *</Label>
-                  <Textarea
-                    value={newDs.justification}
-                    onChange={e => setNewDs(p => ({ ...p, justification: e.target.value }))}
-                    rows={4}
-                    placeholder="Expliquez pourquoi vous avez decide de ne pas declarer..."
-                  />
+                  <Textarea value={newDs.justification} onChange={e => setNewDs(p => ({ ...p, justification: e.target.value }))} rows={4}
+                    placeholder="Expliquez pourquoi vous avez decide de ne pas declarer..." />
                 </div>
               )}
               {newDs.decision === "DECLARE" && (
                 <div className="p-3 rounded-md bg-red-500/5 border border-red-500/20 text-xs text-red-400">
-                  <strong>Rappel :</strong> La declaration doit etre effectuee sur la plateforme ERMES.
-                  Ne communiquez jamais au client l'existence de cette declaration.
+                  <strong>Rappel :</strong> La declaration doit etre effectuee sur ERMES. Ne communiquez jamais au client l'existence de cette declaration.
                 </div>
               )}
             </div>
           )}
 
           <div className="flex justify-between mt-4">
-            <Button variant="outline" onClick={() => wizardStep > 1 ? setWizardStep(s => s - 1) : setShowWizard(false)} className="gap-1.5">
+            <Button variant="outline" onClick={() => wizardStep > 1 ? setWizardStep(s => s - 1) : setShowWizard(false)} className="gap-1.5" disabled={saving}>
               <ChevronLeft className="w-3.5 h-3.5" />
               {wizardStep === 1 ? "Annuler" : "Precedent"}
             </Button>
             {wizardStep < 3 ? (
-              <Button onClick={() => setWizardStep(s => s + 1)} className="gap-1.5">
+              <Button onClick={() => {
+                if (wizardStep === 1 && !newDs.client) { toast.error("Selectionnez un client"); return; }
+                if (wizardStep === 2 && !newDs.elements_suspects) { toast.error("Decrivez les elements suspects"); return; }
+                setWizardStep(s => s + 1);
+              }} className="gap-1.5">
                 Suivant <ChevronRight className="w-3.5 h-3.5" />
               </Button>
             ) : (
-              <Button onClick={handleWizardFinish} className="gap-1.5">
-                <Shield className="w-3.5 h-3.5" /> Valider
+              <Button onClick={handleWizardFinish} className="gap-1.5" disabled={saving}>
+                {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shield className="w-3.5 h-3.5" />}
+                Valider
               </Button>
             )}
           </div>
