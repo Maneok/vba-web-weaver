@@ -15,6 +15,7 @@ export interface MissionSelection {
   icon: string; // lucide icon name
   selected: boolean;
   locked?: boolean;
+  category?: "core" | "obligatoire" | "optionnel";
   sous_options: MissionSubOption[];
 }
 
@@ -228,3 +229,29 @@ export function formatDuration(seconds: number): string {
   if (sec === 0) return `${min} min`;
   return `${min} min ${sec} s`;
 }
+
+/** (49) Step completion status for progress indicators */
+export function getStepCompletion(data: LMWizardData): boolean[] {
+  const missions = (data.missions_selected || []).filter((m) => m.selected);
+  return [
+    // Step 0: Client + type
+    !!(data.client_id && data.type_mission),
+    // Step 1: At least 1 mission
+    missions.length > 0,
+    // Step 2: Dirigeant + adresse + ville + associe
+    !!(data.dirigeant && data.adresse && data.cp && data.ville && data.associe_signataire),
+    // Step 3: Honoraires > 0
+    data.honoraires_ht > 0,
+    // Step 4: Preview always OK
+    true,
+    // Step 5: Export — signature or save
+    !!(data.signature_expert || data.statut !== "brouillon"),
+  ];
+}
+
+/** Mission category color mapping */
+export const CATEGORY_COLORS: Record<string, string> = {
+  core: "border-l-blue-500",
+  obligatoire: "border-l-amber-500",
+  optionnel: "border-l-purple-500",
+};

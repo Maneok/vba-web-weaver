@@ -829,7 +829,7 @@ export default function LettreMissionPage() {
         {/* ─── WIZARD TAB ─── */}
         <TabsContent value="wizard" className="mt-4 space-y-4">
           {/* Progress bar */}
-          <LMProgressBar currentStep={step} />
+          <LMProgressBar currentStep={step} data={data} />
 
           {/* Step title + H) elapsed time */}
           <div className="flex items-center justify-between gap-2">

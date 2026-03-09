@@ -1,6 +1,7 @@
 import type { LMWizardData } from "@/lib/lmWizardTypes";
+import { getStepCompletion, LM_STEP_LABELS } from "@/lib/lmWizardTypes";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CheckCircle2 } from "lucide-react";
+import { Building2, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -17,20 +18,36 @@ function vigilanceColor(niv: string) {
   return "bg-red-500/20 text-red-400 border-red-500/30";
 }
 
-/** Compact mobile summary band */
+/** (50) Compact mobile summary band — enriched with step progress */
 function CompactSummary({ data }: { data: LMWizardData }) {
   const missionCount = (data.missions_selected || []).filter((m) => m.selected).length;
   const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
   const ttc = data.honoraires_ht + tva;
+  const completion = getStepCompletion(data);
+  const completedCount = completion.filter(Boolean).length;
 
   return (
     <div className="flex items-center justify-between px-3 sm:px-4 py-2.5 bg-white/[0.03] border-t border-white/[0.06] text-xs min-h-[40px]">
-      <span className="text-slate-400 truncate mr-2">
-        {data.raison_sociale
-          ? <><span className="text-white font-medium">{data.raison_sociale}</span> · {missionCount} mission{missionCount > 1 ? "s" : ""}</>
-          : missionCount > 0 ? `${missionCount} mission${missionCount > 1 ? "s" : ""}` : "Aucune mission"
-        }
-      </span>
+      <div className="flex items-center gap-2 truncate mr-2">
+        {/* (50) Step completion dots */}
+        <div className="flex items-center gap-0.5 shrink-0">
+          {completion.map((done, i) => (
+            <div
+              key={i}
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${
+                done ? "bg-emerald-500" : "bg-white/[0.1]"
+              }`}
+              title={`${LM_STEP_LABELS[i]}: ${done ? "OK" : "Incomplet"}`}
+            />
+          ))}
+        </div>
+        <span className="text-slate-400 truncate">
+          {data.raison_sociale
+            ? <><span className="text-white font-medium">{data.raison_sociale}</span> · {missionCount} mission{missionCount > 1 ? "s" : ""}</>
+            : missionCount > 0 ? `${missionCount} mission${missionCount > 1 ? "s" : ""}` : "Aucune mission"
+          }
+        </span>
+      </div>
       {data.honoraires_ht > 0 && (
         <span className="text-white font-semibold whitespace-nowrap">{formatEur(ttc)} TTC</span>
       )}
@@ -38,15 +55,34 @@ function CompactSummary({ data }: { data: LMWizardData }) {
   );
 }
 
-/** Full desktop summary panel */
+/** (49) Full desktop summary panel — with validation indicators per section */
 function FullSummary({ data }: { data: LMWizardData }) {
   const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
   const ttc = data.honoraires_ht + tva;
   const missions = (data.missions_selected || []).filter((m) => m.selected);
+  const completion = getStepCompletion(data);
 
   return (
     <div className="sticky top-20 space-y-4 lg:space-y-5" aria-label="Resume de la lettre de mission" role="complementary">
       <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Resume</h3>
+
+      {/* (49) Section validation indicators */}
+      <div className="flex items-center gap-1.5">
+        {LM_STEP_LABELS.slice(0, 4).map((label, i) => (
+          <div
+            key={label}
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[9px] font-medium ${
+              completion[i]
+                ? "bg-emerald-500/10 text-emerald-400"
+                : "bg-amber-500/10 text-amber-400"
+            }`}
+            title={`${label}: ${completion[i] ? "Complet" : "Incomplet"}`}
+          >
+            {completion[i] ? <CheckCircle2 className="w-2.5 h-2.5" /> : <AlertCircle className="w-2.5 h-2.5" />}
+            {label}
+          </div>
+        ))}
+      </div>
 
       {/* Client */}
       {data.raison_sociale ? (
@@ -118,6 +154,19 @@ function FullSummary({ data }: { data: LMWizardData }) {
               <span className="text-sm lg:text-base font-bold text-white">{formatEur(ttc)}</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Intervenants */}
+      {(data.associe_signataire || data.chef_mission) && (
+        <div className="space-y-1">
+          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Intervenants</p>
+          {data.associe_signataire && (
+            <p className="text-[11px] text-slate-400">Signataire : <span className="text-slate-300">{data.associe_signataire}</span></p>
+          )}
+          {data.chef_mission && (
+            <p className="text-[11px] text-slate-400">Chef mission : <span className="text-slate-300">{data.chef_mission}</span></p>
+          )}
         </div>
       )}
     </div>
