@@ -21,9 +21,9 @@ export function validateStep2(data: any): ValidationError[] {
   const selected = (data.missions_selected || []).filter((m: any) => m.selected);
   if (selected.length === 0) errors.push({ field: "missions", message: "Selectionnez au moins une mission" });
 
-  // Tenue + surveillance incompatibles
+  // Tenue (comptabilite) + surveillance incompatibles
   const ids = selected.map((m: any) => m.section_id);
-  if (ids.includes("tenue") && ids.includes("surveillance")) {
+  if (ids.includes("comptabilite") && data.type_mission === "SURVEILLANCE") {
     errors.push({ field: "missions", message: "Tenue et surveillance sont incompatibles" });
   }
   return errors;
@@ -37,7 +37,7 @@ export function validateStep3(data: any): ValidationError[] {
   if (!data.cp || !/^\d{5}$/.test(data.cp)) errors.push({ field: "cp", message: "Code postal invalide (5 chiffres)" });
   if (!data.ville) errors.push({ field: "ville", message: "Ville requise" });
   if (!data.associe_signataire) errors.push({ field: "associe_signataire", message: "Associe signataire requis" });
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(data.email))
     errors.push({ field: "email", message: "Email invalide" });
   return errors;
 }
@@ -61,12 +61,12 @@ export function validateStep4(data: any): ValidationError[] {
 }
 
 /** Step 5 — Preview (always valid) */
-export function validateStep5(): ValidationError[] {
+export function validateStep5(_data: any): ValidationError[] {
   return [];
 }
 
 /** Step 6 — Export (always valid) */
-export function validateStep6(): ValidationError[] {
+export function validateStep6(_data: any): ValidationError[] {
   return [];
 }
 
@@ -80,9 +80,19 @@ export const VALIDATORS: Record<number, (data: any) => ValidationError[]> = {
   5: validateStep6,
 };
 
-/** Sanitize HTML/XSS dans les champs texte */
+/** Sanitize HTML/XSS dans les champs texte (safe against double-encoding) */
 export function sanitizeText(text: string): string {
-  return text.replace(/[<>&"']/g, (c) => {
+  if (!text || typeof text !== "string") return "";
+  // First decode any existing entities to avoid double-encoding
+  const decoded = text
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&#x[0-9a-fA-F]+;/g, (m) => String.fromCharCode(parseInt(m.slice(3, -1), 16)))
+    .replace(/&#\d+;/g, (m) => String.fromCharCode(parseInt(m.slice(2, -1), 10)));
+  return decoded.replace(/[<>&"']/g, (c) => {
     const map: Record<string, string> = {
       "<": "&lt;",
       ">": "&gt;",
@@ -100,7 +110,7 @@ export function sanitizeWizardData<T extends Record<string, any>>(data: T): T {
   const textFields = [
     "dirigeant", "raison_sociale", "adresse", "ville", "rcs",
     "qualite_dirigeant", "clauses_supplementaires", "associe_signataire",
-    "chef_mission", "referent_lcb",
+    "chef_mission", "referent_lcb", "validateur", "email", "telephone",
   ];
   for (const field of textFields) {
     if (typeof result[field] === "string") {
