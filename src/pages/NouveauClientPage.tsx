@@ -342,14 +342,14 @@ export default function NouveauClientPage() {
   }, [sanctionsCritical]);
 
   // P6-25: Auto-suggest frequency based on mission type — only on mission change (not frequence)
-  const prevMissionRef = useMemo(() => ({ current: form.mission }), []);
+  const prevMissionRef = useRef(form.mission);
   useEffect(() => {
     const suggested = MISSION_FREQUENCE[form.mission];
     if (suggested && form.mission !== prevMissionRef.current) {
       set("frequence", suggested);
     }
     prevMissionRef.current = form.mission;
-  }, [form.mission, set, prevMissionRef]);
+  }, [form.mission, set]);
 
   // #24: Auto-detect domiciliataire → mission DOMICILIATION
   const inpiDomiciliataire = screening.inpi.data?.companyData?.domiciliataire;
