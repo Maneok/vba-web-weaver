@@ -91,7 +91,7 @@ function honoRow(label: string, montant: number, shade: boolean): TableRow {
 }
 
 function honoRow4Col(label: string, ht: number, shade: boolean): TableRow {
-  const tva = Math.round(ht * 0.2 * 100) / 100;
+  const tva = Math.round(ht * 20) / 100;
   const ttc = ht + tva;
   return new TableRow({
     children: [
@@ -133,7 +133,7 @@ function honoHeader4Col(): TableRow {
 }
 
 function honoTotal4Col(label: string, ht: number): TableRow {
-  const tva = Math.round(ht * 0.2 * 100) / 100;
+  const tva = Math.round(ht * 20) / 100;
   const ttc = ht + tva;
   return new TableRow({
     children: [

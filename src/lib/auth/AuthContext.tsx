@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Session timeout after 15 minutes of inactivity (conformité LCB-FT)
   useSessionTimeout(
     useCallback(() => {
-      toast.warning("Session expiree apres 30 minutes d'inactivite");
+      toast.warning("Session expiree apres 15 minutes d'inactivite");
       handleSignOut();
     }, [handleSignOut]),
     !!session

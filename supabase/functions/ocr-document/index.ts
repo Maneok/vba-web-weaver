@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     if (!anthropicKey) {
       return new Response(
         JSON.stringify({ error: "ANTHROPIC_API_KEY non configurée", extracted: null }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 

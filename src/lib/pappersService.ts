@@ -85,7 +85,7 @@ async function fallbackDataGouv(mode: SearchMode, query: string): Promise<Papper
         results: [{
           siren: `${siren.slice(0, 3)} ${siren.slice(3, 6)} ${siren.slice(6, 9)}`,
           raison_sociale: (ul.denomination || ul.nom_raison_sociale || "").toUpperCase(),
-          forme_juridique: "SARL",
+          forme_juridique: ul.categorie_juridique ?? "SARL",
           forme_juridique_raw: ul.categorie_juridique ?? "",
           adresse: (siege?.geo_adresse || "").toUpperCase(),
           code_postal: siege?.code_postal ?? "",

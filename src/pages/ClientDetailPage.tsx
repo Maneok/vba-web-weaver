@@ -998,8 +998,8 @@ function ClientDetailContent({ client }: { client: Client }) {
                           <MapPin className="w-3 h-3" /> Google Maps <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
-                      {(screening.google.data as any).streetViewUrl && (
-                        <a href={(screening.google.data as any).streetViewUrl} target="_blank" rel="noopener noreferrer"
+                      {(screening.google.data as Record<string, unknown>)?.streetViewUrl && (
+                        <a href={String((screening.google.data as Record<string, unknown>).streetViewUrl)} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1 text-xs text-blue-400 hover:underline">
                           Street View <ExternalLink className="w-3 h-3" />
                         </a>

@@ -212,9 +212,9 @@ export function calculateRiskScore(params: {
 
 // ====== REVIEW DATE CALCULATION ======
 export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview: string): string {
-  const d = new Date(lastReview);
-  // P5-11: Guard against invalid date — fallback to today
-  if (isNaN(d.getTime())) return calculateNextReviewDate(nivVigilance, new Date().toISOString().split("T")[0]);
+  let d = new Date(lastReview);
+  // Guard against invalid date — fallback to today (no recursion)
+  if (isNaN(d.getTime())) d = new Date();
   switch (nivVigilance) {
     case "SIMPLIFIEE": d.setMonth(d.getMonth() + 36); break;
     case "STANDARD": d.setMonth(d.getMonth() + 12); break;

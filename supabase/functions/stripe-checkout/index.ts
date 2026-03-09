@@ -80,6 +80,13 @@ serve(async (req) => {
       cancel_url: `${safeOrigin}/pricing?canceled=true`,
     });
 
+    if (!session.url) {
+      return new Response(
+        JSON.stringify({ error: "Stripe n'a pas retourné d'URL de checkout" }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     return new Response(
       JSON.stringify({ url: session.url, sessionId: session.id }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }

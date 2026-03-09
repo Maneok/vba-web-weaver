@@ -53,6 +53,9 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     statut: ((row.statut as string) || "ACTIF") as Client["statut"],
     be: (row.be as string) || "",
     dateFin: (row.date_fin as string) || undefined,
+    lienKbis: (row.lien_kbis as string) || "",
+    lienStatuts: (row.lien_statuts as string) || "",
+    lienCni: (row.lien_cni as string) || "",
   };
 }
 
@@ -110,6 +113,9 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.statut !== undefined) row.statut = client.statut;
   if (client.be !== undefined) row.be = client.be;
   if (client.dateFin !== undefined) row.date_fin = client.dateFin;
+  if (client.lienKbis !== undefined) row.lien_kbis = client.lienKbis;
+  if (client.lienStatuts !== undefined) row.lien_statuts = client.lienStatuts;
+  if (client.lienCni !== undefined) row.lien_cni = client.lienCni;
 
   return row;
 }
@@ -119,7 +125,7 @@ export function mapDbCollaborateur(row: Record<string, unknown>): Collaborateur 
     id: (row.id as string) || undefined,
     nom: (row.nom as string) || "",
     fonction: (row.fonction as string) || "",
-    referentLcb: !!(row.referent_lcb as boolean),
+    referentLcb: row.referent_lcb === true || row.referent_lcb === "OUI" || row.referent_lcb === 1,
     suppleant: (row.suppleant as string) || "",
     niveauCompetence: (row.niveau_competence as string) || "",
     dateSignatureManuel: (row.date_signature_manuel as string) || "",

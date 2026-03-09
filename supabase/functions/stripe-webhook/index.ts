@@ -10,11 +10,11 @@ serve(async (req) => {
   const signature = req.headers.get("stripe-signature");
   const webhookSecret = Deno.env.get("STRIPE_WEBHOOK_SECRET");
   if (!signature) {
-    return new Response("Missing signature", { status: 400, headers: { "X-Content-Type-Options": "nosniff" } });
+    return new Response(JSON.stringify({ error: "Missing signature" }), { status: 400, headers: { "Content-Type": "application/json", "X-Content-Type-Options": "nosniff" } });
   }
   if (!webhookSecret) {
     console.error("STRIPE_WEBHOOK_SECRET is not configured");
-    return new Response("Server misconfiguration", { status: 500, headers: { "X-Content-Type-Options": "nosniff" } });
+    return new Response(JSON.stringify({ error: "Server misconfiguration" }), { status: 500, headers: { "Content-Type": "application/json", "X-Content-Type-Options": "nosniff" } });
   }
 
   const body = await req.text();

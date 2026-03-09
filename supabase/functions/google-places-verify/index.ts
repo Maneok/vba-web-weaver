@@ -112,11 +112,11 @@ Deno.serve(async (req) => {
         lng,
       },
       alertes,
-      mapsUrl: lat && lng
+      mapsUrl: lat != null && lng != null
         ? `https://www.google.com/maps/search/?api=1&query=${lat},${lng}`
         : `https://www.google.com/maps/search/${encodeURIComponent(searchQuery)}`,
       mapsEmbedUrl: null,
-      streetViewUrl: lat && lng
+      streetViewUrl: lat != null && lng != null
         ? `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat},${lng}`
         : null,
       status: alertes.length > 0 ? "ATTENTION" : "ok",

@@ -154,7 +154,7 @@ export default function DashboardPage() {
       const beforeDate = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       const filtered = clients.filter(c => {
         if (!c.dateCreationLigne) return true; // old clients
-        try { return new Date(c.dateCreationLigne) <= beforeDate; } catch { return true; }
+        try { return new Date(c.dateCreationLigne) <= beforeDate; } catch { return false; }
       });
 
       result.push({

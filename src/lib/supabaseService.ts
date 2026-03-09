@@ -98,9 +98,13 @@ export const clientsService = {
 
   async delete(id: string) {
     const cabinetId = await getCabinetId();
-    if (!cabinetId) return;
+    if (!cabinetId) return false;
     const { error } = await supabase.from("clients").delete().eq("id", id).eq("cabinet_id", cabinetId);
-    if (error) logger.error("DB", "clients delete:", error);
+    if (error) {
+      logger.error("DB", "clients delete:", error);
+      return false;
+    }
+    return true;
   },
 
   async getByRef(ref: string) {
@@ -160,13 +164,17 @@ export const collaborateursService = {
   async update(id: string, updates: Record<string, unknown>) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("collaborateurs")
       .update(stripProtected(updates))
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
       .single();
+    if (error) {
+      logger.error("DB", "collab update:", error);
+      return null;
+    }
     return data;
   },
 

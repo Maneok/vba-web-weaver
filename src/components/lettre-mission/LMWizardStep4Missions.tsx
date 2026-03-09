@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import type { LMWizardData, MissionSelection } from "@/lib/lmWizardTypes";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -108,12 +108,14 @@ const SECTION_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function LMWizardStep4Missions({ data, onChange }: Props) {
-  // Initialize missions if empty
+  // Initialize missions if empty (only runs on mount — intentional one-time init)
+  const initialized = useRef(false);
   useEffect(() => {
-    if (data.missions_selected.length === 0) {
+    if (!initialized.current && data.missions_selected.length === 0) {
+      initialized.current = true;
       onChange({ missions_selected: DEFAULT_MISSIONS });
     }
-  }, []);
+  }, [data.missions_selected.length, onChange]);
 
   const missions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
 

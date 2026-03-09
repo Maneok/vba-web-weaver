@@ -301,7 +301,7 @@ export default function AuditTrailPage() {
                   >
                     <span className="flex items-center gap-1">
                       Date/Heure
-                      <ArrowUpDown className={`w-3 h-3 ${sortDir ? "text-blue-400" : "text-slate-600"}`} />
+                      <ArrowUpDown className="w-3 h-3 text-blue-400" />
                     </span>
                   </TableHead>
                   <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Utilisateur</TableHead>
