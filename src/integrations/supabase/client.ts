@@ -20,6 +20,8 @@ export const supabase = createClient<Database>(
       storage: typeof window !== 'undefined' ? localStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
+      detectSessionInUrl: true, // Required for OAuth redirect (Google login)
+      flowType: 'pkce', // More secure OAuth flow
     },
   }
 );

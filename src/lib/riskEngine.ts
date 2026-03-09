@@ -117,7 +117,8 @@ function scoreMaturite(
   const ancienneteYears = (now.getTime() - creation.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
   // P5-9: More robust employee detection — old check only matched exact "0 SALARIÉ"
   const hasSalaries = effectif && !/^0\b|^0 |AUCUN|NEANT|0 SALAR/i.test(effectif.trim()) && effectif.trim() !== "0";
-  const isSCI = forme.toUpperCase().includes("SCI") || forme.toUpperCase().includes("HOLDING");
+  const formeUpper = (forme || "").toUpperCase();
+  const isSCI = formeUpper.includes("SCI") || formeUpper.includes("HOLDING");
 
   // P6-52: Score by anciennete regardless of reprise status
   // isReprise=false means client was created by firm → lower risk for mature companies

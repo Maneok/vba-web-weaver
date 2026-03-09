@@ -341,22 +341,27 @@ export default function ControlePage() {
   const searchRef = useRef<HTMLInputElement>(null);
 
   // ── Load controles ──
+  const loadControlesRef = useRef(false);
   const loadControles = useCallback(async () => {
     setLoadError(false);
     setLoading(true);
     try {
       const rows = await controlesService.getAll();
+      if (!loadControlesRef.current) return;
       setControles(rows.map((r: Record<string, unknown>) => mapDbToControle(r)));
     } catch {
+      if (!loadControlesRef.current) return;
       setLoadError(true);
       toast.error("Erreur lors du chargement des controles");
     } finally {
-      setLoading(false);
+      if (loadControlesRef.current) setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    loadControlesRef.current = true;
     loadControles();
+    return () => { loadControlesRef.current = false; };
   }, [loadControles]);
 
   // BUG FIX #23/#24: Keyboard shortcuts only when no dialog open
@@ -460,9 +465,11 @@ export default function ControlePage() {
 
     const now = Date.now();
     const d30 = 30 * 86400000;
-    const recent = controles.filter((c) => now - new Date(c.dateTirage).getTime() < d30);
+    const recent = controles.filter((c) => { const t = new Date(c.dateTirage).getTime(); return !isNaN(t) && now - t < d30; });
     const previous = controles.filter((c) => {
-      const diff = now - new Date(c.dateTirage).getTime();
+      const t = new Date(c.dateTirage).getTime();
+      if (isNaN(t)) return false;
+      const diff = now - t;
       return diff >= d30 && diff < d30 * 2;
     });
     const recentRate = recent.length > 0 ? (recent.filter((c) => c.resultatGlobal === "CONFORME" || c.resultatGlobal === "CONFORME AVEC RESERVES").length / recent.length) * 100 : 0;

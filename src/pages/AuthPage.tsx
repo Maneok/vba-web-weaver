@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -82,25 +81,11 @@ export default function AuthPage() {
     setMessage(null);
     setLoading(true);
     try {
-      const { data: authData, error: signUpError } = await supabase.auth.signUp({
-        email: regEmail,
-        password: regPassword,
-        options: {
-          data: {
-            full_name: regName,
-            cabinet_name: regCabinet,
-          },
-        },
-      });
-      if (signUpError) throw signUpError;
-
-      if (authData.session) {
-        // Email confirmation disabled — the useEffect will redirect
-      } else if (authData.user) {
-        // Email confirmation required
-        setMessage("Compte cree ! Verifiez votre email pour confirmer votre inscription.");
-        setTab("login");
-      }
+      await authSignUp(regEmail, regPassword, regName, regCabinet || undefined);
+      // If email confirmation is disabled, session will be detected by AuthContext
+      // and the useEffect above will redirect. Otherwise show confirmation message.
+      setMessage("Compte cree ! Verifiez votre email pour confirmer votre inscription.");
+      setTab("login");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur lors de l'inscription";
       setError(translateError(msg));
@@ -109,8 +94,15 @@ export default function AuthPage() {
     }
   }
 
-  // Show a spinner while checking initial auth state
-  if (authLoading) {
+  // Show a spinner while checking initial auth state (with 6s max)
+  const [authTimedOut, setAuthTimedOut] = useState(false);
+  useEffect(() => {
+    if (!authLoading) { setAuthTimedOut(false); return; }
+    const t = setTimeout(() => setAuthTimedOut(true), 6000);
+    return () => clearTimeout(t);
+  }, [authLoading]);
+
+  if (authLoading && !authTimedOut) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950">
         <Loader2 className="w-8 h-8 animate-spin text-blue-400" />

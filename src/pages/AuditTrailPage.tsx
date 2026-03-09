@@ -152,8 +152,8 @@ export default function AuditTrailPage() {
   // Stats
   const stats = useMemo(() => {
     const now = Date.now();
-    const last24h = entries.filter(e => (now - new Date(e.created_at).getTime()) < 86400000).length;
-    const last7d = entries.filter(e => (now - new Date(e.created_at).getTime()) < 7 * 86400000).length;
+    const last24h = entries.filter(e => { const t = new Date(e.created_at).getTime(); return !isNaN(t) && (now - t) < 86400000; }).length;
+    const last7d = entries.filter(e => { const t = new Date(e.created_at).getTime(); return !isNaN(t) && (now - t) < 7 * 86400000; }).length;
     const modifications = entries.filter(e => e.action === "MODIFICATION").length;
     const connexions = entries.filter(e => e.action === "CONNEXION").length;
     return { total: entries.length, last24h, last7d, modifications, connexions };
