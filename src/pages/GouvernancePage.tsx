@@ -52,6 +52,7 @@ export default function GouvernancePage() {
 
   // Load referent config from parametres
   useEffect(() => {
+    let cancelled = false;
     async function loadConfig() {
       try {
         const { data } = await supabase
@@ -59,6 +60,7 @@ export default function GouvernancePage() {
           .select("value")
           .eq("key", "lcbft_config")
           .maybeSingle();
+        if (cancelled) return;
         if (data?.value) {
           let val;
           try {
@@ -74,6 +76,7 @@ export default function GouvernancePage() {
       }
     }
     loadConfig();
+    return () => { cancelled = true; };
   }, []);
 
   // Add collaborateur

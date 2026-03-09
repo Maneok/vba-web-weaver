@@ -201,8 +201,12 @@ export default function GedPage() {
   }, []);
 
   useEffect(() => {
-    fetchDocuments();
-    fetchStorageFiles();
+    let cancelled = false;
+    if (!cancelled) {
+      fetchDocuments();
+      fetchStorageFiles();
+    }
+    return () => { cancelled = true; };
   }, [fetchDocuments, fetchStorageFiles]);
 
   const toggleFolder = (siren: string) => {

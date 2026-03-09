@@ -112,6 +112,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients");
+      }).catch((err) => {
+        logger.error("AppContext", "Create client exception:", err);
+        setClients(prev => prev.filter(c => c.ref !== client.ref));
+        toast.error("Erreur lors de la sauvegarde du client");
       });
     }
 
@@ -143,6 +147,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           return;
         }
         logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients");
+      }).catch((err) => {
+        logger.error("AppContext", "Update client exception:", err);
+        if (snapshot) setClients(prev => prev.map(c => c.ref === ref ? snapshot : c));
+        toast.error("Erreur lors de la mise a jour du client");
       });
     }
 
@@ -170,6 +178,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           });
           logsService.add("SUPPRESSION", `Dossier supprime: ${client.raisonSociale}`, ref, "clients");
         }
+      }).catch((err) => {
+        logger.error("AppContext", "Delete client lookup exception:", err);
+        setClients(snapshot);
+        toast.error("Erreur lors de la suppression du client");
       });
     }
   }, [isOnline, clients]);

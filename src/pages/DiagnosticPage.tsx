@@ -108,22 +108,24 @@ export default function DiagnosticPage() {
   const [derniereFormation, setDerniereFormation] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     controlesService.getAll()
-      .then((data) => setControles(data as Record<string, unknown>[]))
+      .then((data) => { if (!cancelled) setControles(data as Record<string, unknown>[]); })
       .catch((err) => {
         logger.error("[Diagnostic] controles error:", err);
-        toast.error("Erreur lors du chargement des controles");
+        if (!cancelled) toast.error("Erreur lors du chargement des controles");
       });
 
     async function loadParametres() {
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
+        if (cancelled || !user) return;
         const { data } = await supabase
           .from("parametres")
           .select("valeur")
           .eq("cle", "lcbft_config")
           .maybeSingle();
+        if (cancelled) return;
         if (data?.valeur) {
           const valeur = data.valeur as Record<string, unknown>;
           if (valeur.date_derniere_formation) {
@@ -132,10 +134,11 @@ export default function DiagnosticPage() {
         }
       } catch (err) {
         logger.error("[Diagnostic] loadParametres error:", err);
-        toast.error("Erreur lors du chargement des parametres");
+        if (!cancelled) toast.error("Erreur lors du chargement des parametres");
       }
     }
     loadParametres();
+    return () => { cancelled = true; };
   }, []);
 
   // --- Diagnostic engine report ---

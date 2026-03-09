@@ -20,7 +20,10 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       .eq("id", user.id)
       .single();
 
-    if (!profileRes.data) return;
+    if (profileRes.error || !profileRes.data) {
+      if (profileRes.error) logger.warn("Audit", "profile lookup failed:", profileRes.error.message);
+      return;
+    }
 
     await supabase.from("audit_trail").insert({
       cabinet_id: profileRes.data.cabinet_id,

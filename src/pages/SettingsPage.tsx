@@ -104,8 +104,10 @@ export default function SettingsPage() {
 
   /* --- load --- */
   useEffect(() => {
+    let cancelled = false;
     async function load() {
       const { data: { user } } = await supabase.auth.getUser();
+      if (cancelled) return;
       if (!user) {
         setLoading(false);
         return;
@@ -116,6 +118,8 @@ export default function SettingsPage() {
         .from("parametres")
         .select("*")
         .eq("user_id", user.id);
+
+      if (cancelled) return;
 
       if (error) {
         logger.error("Settings", "Error loading parametres:", error);
@@ -141,6 +145,7 @@ export default function SettingsPage() {
       setLoading(false);
     }
     load();
+    return () => { cancelled = true; };
   }, []);
 
   /* --- save helpers --- */

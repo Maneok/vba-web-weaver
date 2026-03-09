@@ -373,9 +373,13 @@ function InteractiveDemo() {
     timers.current.forEach((id) => { clearTimeout(id); clearInterval(id); });
     timers.current = [];
   }, []);
+  // Note: running ref is reset in run() completion or by Relancer button guard
 
+  const running = useRef(false);
   const run = () => {
+    if (running.current) return;
     cleanup();
+    running.current = true;
     setStage("running");
     setCompleted(0);
     setScore(0);
@@ -385,6 +389,7 @@ function InteractiveDemo() {
         if (i === DEMO_APIS.length - 1) {
           timers.current.push(window.setTimeout(() => {
             setStage("done");
+            running.current = false;
             let s = 0;
             const iv = window.setInterval(() => { s += 3; setScore(s); if (s >= 72) clearInterval(iv); }, 25);
             timers.current.push(iv);
@@ -860,10 +865,7 @@ const LEGAL_CONTENT: Record<Exclude<LegalModalType, null>, { title: string; cont
 
 function LegalModal({ type, onClose }: { type: Exclude<LegalModalType, null>; onClose: () => void }) {
   const content = LEGAL_CONTENT[type];
-  useEffect(() => {
-    document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
-  }, []);
+  // Scroll lock handled by parent (LandingPage useEffect on legalModal state)
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
@@ -936,11 +938,11 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
 
-  /* #11 — Mobile menu scroll lock */
+  /* #11 — Scroll lock (mobile menu OR legal modal) */
   useEffect(() => {
-    document.body.style.overflow = mobileMenu ? "hidden" : "";
+    document.body.style.overflow = (mobileMenu || legalModal) ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
-  }, [mobileMenu]);
+  }, [mobileMenu, legalModal]);
 
   const handleNavClick = useCallback((id: string) => { scrollTo(id); setMobileMenu(false); }, []);
 
@@ -948,12 +950,16 @@ export default function LandingPage() {
   const handleCtaSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
     setCtaError("");
-    if (ctaEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(ctaEmail)) {
+    if (ctaEmail && !/^[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}$/.test(ctaEmail)) {
       setCtaError("Veuillez entrer un email valide.");
       return;
     }
     setCtaLoading(true);
-    navigate(ctaEmail ? `/auth?email=${encodeURIComponent(ctaEmail)}` : "/auth");
+    try {
+      navigate(ctaEmail ? `/auth?email=${encodeURIComponent(ctaEmail)}` : "/auth");
+    } catch {
+      setCtaLoading(false);
+    }
   }, [ctaEmail, navigate]);
 
   const themeClass = theme.light ? "theme-light" : "theme-dark";
@@ -1816,7 +1822,7 @@ export default function LandingPage() {
             <div className="flex items-start gap-3 flex-1">
               <Cookie className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
               <p className="text-sm leading-relaxed" style={{ color: "var(--l-text-3)" }}>
-                Ce site utilise des cookies pour améliorer votre expérience. En continuant, vous acceptez notre{" "}
+                Ce site utilise le stockage local pour mémoriser vos préférences (thème, consentement). Aucun cookie tiers ni tracker publicitaire. Consultez notre{" "}
                 <button onClick={() => { cookies.accept(); setLegalModal("legal-rgpd"); }} className="text-blue-400 underline">politique de confidentialité</button>.
               </p>
             </div>

@@ -37,7 +37,7 @@ export default function AppLayout() {
   const { isOnline } = useAppState();
 
   const userInitials = profile?.full_name
-    ? profile.full_name.split(" ").map(n => n[0]).join("").toUpperCase().slice(0, 2)
+    ? profile.full_name.split(" ").filter(Boolean).map(n => n[0]).join("").toUpperCase().slice(0, 2) || "U"
     : "U";
 
   const handleSignOut = async () => {
