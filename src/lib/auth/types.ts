@@ -21,7 +21,7 @@ export interface AuthState {
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
-  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signUp: (email: string, password: string, fullName: string, cabinetName?: string) => Promise<void>;
   signOut: () => Promise<void>;
   hasPermission: (action: PermissionAction) => boolean;
   refreshProfile: () => Promise<UserProfile | null>;

@@ -119,7 +119,15 @@ export default function LoginPage() {
 
   const strength = getPasswordStrength(password);
 
-  if (loading) {
+  // Loading spinner with 6s max timeout — never block forever
+  const [loadTimedOut, setLoadTimedOut] = useState(false);
+  useEffect(() => {
+    if (!loading) { setLoadTimedOut(false); return; }
+    const t = setTimeout(() => setLoadTimedOut(true), 6000);
+    return () => clearTimeout(t);
+  }, [loading]);
+
+  if (loading && !loadTimedOut) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-[hsl(220,30%,12%)] to-[hsl(220,40%,8%)]">
         <div className="flex flex-col items-center gap-4">

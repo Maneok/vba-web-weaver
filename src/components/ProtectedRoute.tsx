@@ -14,20 +14,19 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   const [timedOut, setTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
-  // FIX 23: Guard setTimeout for deactivated accounts
   const signOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // FIX 21: Safety timeout — 12s (must exceed fetchProfile retry total ~10s)
+  // Safety timeout — 10s max spinner (AuthContext safety is 8s, this is a fallback)
   useEffect(() => {
     if (!loading) {
       setTimedOut(false);
       return;
     }
-    const timer = setTimeout(() => setTimedOut(true), 12000);
+    const timer = setTimeout(() => setTimedOut(true), 10000);
     return () => clearTimeout(timer);
   }, [loading]);
 
-  // FIX 22: Auto-retry profile fetch once on timeout (before showing error)
+  // Auto-retry profile fetch once on timeout (before showing error)
   useEffect(() => {
     if (timedOut && session && !profile && retryCount === 0) {
       setRetryCount(1);
@@ -38,14 +37,14 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     }
   }, [timedOut, session, profile, retryCount, refreshProfile]);
 
-  // FIX 23: Cleanup signout timer on unmount
+  // Cleanup signout timer on unmount
   useEffect(() => {
     return () => {
       if (signOutTimerRef.current) clearTimeout(signOutTimerRef.current);
     };
   }, []);
 
-  // FIX 22: Manual retry handler
+  // Manual retry handler
   const handleRetry = useCallback(async () => {
     setRetrying(true);
     setRetryCount((c) => c + 1);
@@ -63,14 +62,14 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-3">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        {retrying && (
-          <p className="text-sm text-muted-foreground">Nouvelle tentative de chargement...</p>
-        )}
+        <p className="text-sm text-muted-foreground animate-pulse">
+          Chargement de votre espace...
+        </p>
       </div>
     );
   }
 
-  // No session at all -> go to login
+  // No session at all -> go to landing
   if (!session) {
     return <Navigate to="/landing" replace />;
   }
@@ -116,20 +115,19 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   }
 
   if (!profile.is_active) {
-    // FIX 23: Use ref to prevent multiple setTimeout calls on re-render
     if (!signOutTimerRef.current) {
       signOutTimerRef.current = setTimeout(() => signOut(), 3000);
     }
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-3">
-          <p className="text-lg font-semibold text-destructive">Compte désactivé</p>
-          <p className="text-sm text-muted-foreground">Contactez votre administrateur. Déconnexion automatique...</p>
+          <p className="text-lg font-semibold text-destructive">Compte desactive</p>
+          <p className="text-sm text-muted-foreground">Contactez votre administrateur. Deconnexion automatique...</p>
           <button
             onClick={() => signOut()}
             className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
           >
-            Se déconnecter
+            Se deconnecter
           </button>
         </div>
       </div>
@@ -140,9 +138,9 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-2">
-          <p className="text-lg font-semibold text-destructive">Accès refusé</p>
+          <p className="text-lg font-semibold text-destructive">Acces refuse</p>
           <p className="text-sm text-muted-foreground">
-            Vous n'avez pas les droits nécessaires pour accéder à cette page.
+            Vous n'avez pas les droits necessaires pour acceder a cette page.
           </p>
         </div>
       </div>

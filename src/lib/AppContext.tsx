@@ -78,11 +78,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (initialized.current) return;
     initialized.current = true;
-    loadData();
 
-    // Re-load when auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
-      loadData();
+    // Re-load on meaningful auth events (not TOKEN_REFRESHED which fires frequently)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT") {
+        loadData();
+      }
     });
     return () => subscription.unsubscribe();
   }, [loadData]);
