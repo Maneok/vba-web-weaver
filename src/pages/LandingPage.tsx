@@ -402,8 +402,8 @@ function InteractiveDemo() {
         {/* Header */}
         <div className="flex items-center gap-2 mb-5">
           <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" />
-          <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
-          <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
+          <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" aria-hidden="true" />
+          <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" aria-hidden="true" />
           <span className="ml-3 text-[11px] text-[--l-text-4]">Screening — Démonstration</span>
         </div>
 
@@ -467,7 +467,7 @@ function InteractiveDemo() {
             </div>
             {/* Radar chart */}
             <div className="rounded-lg bg-[--l-surface] border border-[--l-border] p-4">
-              <p className="text-[11px] text-[--l-text-5] mb-3 text-center">Scoring NPLAB — 6 axes</p>
+              <p className="text-[11px] text-[--l-text-5] mb-3 text-center">Scoring des risques — 6 axes</p>
               <RadarChart />
             </div>
           </div>
@@ -543,8 +543,8 @@ function AnimatedMockStep() {
       <div className="rounded-xl p-5" style={{ background: "var(--l-mock-bg)" }}>
         <div className="flex items-center gap-2 mb-4">
           <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" />
-          <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" />
-          <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
+          <div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" aria-hidden="true" />
+          <div className="h-2.5 w-2.5 rounded-full bg-green-400/60" aria-hidden="true" />
           <span className="ml-3 text-[11px] text-[--l-text-5]">Nouvelle fiche client — Étape 1/6</span>
         </div>
         <div className="h-1.5 rounded-full bg-[--l-mock-bar-bg] mb-5">
@@ -591,7 +591,7 @@ function AnimatedMockAudit() {
     <div className="rounded-2xl border border-[--l-border] bg-[--l-surface] p-1.5 backdrop-blur-sm">
       <div className="rounded-xl p-5" style={{ background: "var(--l-mock-bg)" }}>
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" /><div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" /><div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
+          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" /><div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" aria-hidden="true" /><div className="h-2.5 w-2.5 rounded-full bg-green-400/60" aria-hidden="true" />
           <span className="ml-3 text-[11px] text-[--l-text-5]">Contrôle qualité</span>
         </div>
         <div className="space-y-4">
@@ -622,7 +622,7 @@ function AnimatedMockDashboard() {
     <div className="rounded-2xl border border-[--l-border] bg-[--l-surface] p-1.5 backdrop-blur-sm">
       <div className="rounded-xl p-5" style={{ background: "var(--l-mock-bg)" }}>
         <div className="flex items-center gap-2 mb-4">
-          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" /><div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" /><div className="h-2.5 w-2.5 rounded-full bg-green-400/60" />
+          <div className="h-2.5 w-2.5 rounded-full bg-red-400/60" aria-hidden="true" /><div className="h-2.5 w-2.5 rounded-full bg-yellow-400/60" aria-hidden="true" /><div className="h-2.5 w-2.5 rounded-full bg-green-400/60" aria-hidden="true" />
           <span className="ml-3 text-[11px] text-[--l-text-5]">Dashboard — Vue d'ensemble</span>
         </div>
         <div className="grid grid-cols-3 gap-2 mb-5">
@@ -789,6 +789,7 @@ const testimonials = [
   { quote: "Enfin un outil simple qui comprend nos obligations LAB. Fini les tableaux Excel ingérables.", name: "Thomas R.", title: "Avocat", cabinet: "Cabinet d'avocats — Paris", initials: "TR", color: "bg-purple-500/20 text-purple-400" },
   { quote: "En tant qu'agent immobilier, la LAB est une obligation souvent négligée. GRIMY rend ça concret et rapide.", name: "Claire B.", title: "Agent immobilier", cabinet: "Agence — Lyon", initials: "CB", color: "bg-amber-500/20 text-amber-400" },
   { quote: "Le scoring multi-critères est redoutable de précision. Nos contrôleurs ACPR sont impressionnés.", name: "Philippe M.", title: "CIF — Conseiller en investissements", cabinet: "Cabinet de gestion de patrimoine", initials: "PM", color: "bg-pink-500/20 text-pink-400" },
+  { quote: "La GED intégrée et le registre LAB automatique nous ont permis de passer sereinement notre audit DGCCRF.", name: "Antoine V.", title: "Société de domiciliation", cabinet: "DomServices — Nantes", initials: "AV", color: "bg-indigo-500/20 text-indigo-400" },
 ];
 
 const faqItems = [
@@ -802,11 +803,12 @@ const faqItems = [
 ];
 
 /* #8 — Footer with working links */
-const footerSections = [
-  { title: "Produit", links: [{ label: "Fonctionnalités", id: "fonctionnalites" }, { label: "Tarifs", id: "tarifs" }, { label: "Démo", id: "demo" }, { label: "Changelog", id: null }] },
-  { title: "Ressources", links: [{ label: "Documentation", id: null }, { label: "Blog", id: null }, { label: "Guide LCB-FT", id: null }, { label: "FAQ", id: "faq" }] },
-  { title: "Entreprise", links: [{ label: "À propos", id: "temoignages" }, { label: "Contact", id: null }, { label: "CGV", id: null }, { label: "Mentions légales", id: null }] },
-  { title: "Conformité", links: [{ label: "Obligations LAB", id: null }, { label: "Art. L.561-2 CMF", id: null }, { label: "RGPD", id: null }, { label: "Hébergement France", id: null }] },
+type FooterLink = { label: string; id?: string; href?: string; mailto?: string };
+const footerSections: { title: string; links: FooterLink[] }[] = [
+  { title: "Produit", links: [{ label: "Fonctionnalités", id: "fonctionnalites" }, { label: "Tarifs", id: "tarifs" }, { label: "Démo", id: "demo" }, { label: "Comment ça marche", id: "timeline" }] },
+  { title: "Ressources", links: [{ label: "FAQ", id: "faq" }, { label: "Comparatif GRIMY vs Excel", id: "comparaison" }, { label: "Sécurité & chiffrement", id: "securite" }, { label: "Témoignages", id: "temoignages" }] },
+  { title: "Entreprise", links: [{ label: "À propos", id: "temoignages" }, { label: "Contact", mailto: "contact@grimy.fr" }, { label: "CGV", id: "legal-cgv" }, { label: "Mentions légales", id: "legal-mentions" }] },
+  { title: "Conformité", links: [{ label: "Obligations LAB", id: "legal-lab" }, { label: "Politique de confidentialité", id: "legal-rgpd" }, { label: "Hébergement France", id: "securite" }, { label: "RGPD", id: "legal-rgpd" }] },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -833,6 +835,86 @@ function ScrollToTop() {
 }
 
 /* ══════════════════════════════════════════════════════════════
+   LEGAL MODAL
+   ══════════════════════════════════════════════════════════════ */
+type LegalModalType = "legal-cgv" | "legal-mentions" | "legal-lab" | "legal-rgpd" | null;
+
+const LEGAL_CONTENT: Record<Exclude<LegalModalType, null>, { title: string; content: string }> = {
+  "legal-cgv": {
+    title: "Conditions Générales de Vente",
+    content: `Article 1 — Objet\nLes présentes CGV régissent les conditions de souscription et d'utilisation du service GRIMY, plateforme SaaS de conformité LCB-FT.\n\nArticle 2 — Abonnement\nL'abonnement prend effet à la date de souscription. Les plans Solo (29€/mois) et Pro (79€/mois) sont sans engagement. La facturation est mensuelle ou annuelle selon le choix du client.\n\nArticle 3 — Essai gratuit\n14 jours d'essai complet sans carte bancaire. À l'issue de l'essai, le client choisit son plan ou ses données restent exportables 30 jours.\n\nArticle 4 — Résiliation\nRésiliation possible à tout moment depuis les paramètres du compte. Les données restent exportables pendant 30 jours après résiliation. Aucun remboursement au prorata.\n\nArticle 5 — Responsabilité\nGRIMY fournit un outil d'aide à la conformité. Le professionnel reste seul responsable du respect de ses obligations LAB. GRIMY ne se substitue pas au jugement professionnel.\n\nArticle 6 — Disponibilité\nGRIMY s'engage sur une disponibilité de 99,5% hors maintenance programmée. Les maintenances sont notifiées 48h à l'avance.\n\nArticle 7 — Droit applicable\nLes présentes CGV sont soumises au droit français. Tout litige relève de la compétence des tribunaux de Paris.`,
+  },
+  "legal-mentions": {
+    title: "Mentions Légales",
+    content: `Éditeur\nGRIMY — Plateforme de conformité LCB-FT\nContact : contact@grimy.fr\n\nHébergement\nSupabase Inc. — Région EU-West (France)\nDonnées hébergées en Union Européenne\n\nDirecteur de la publication\nLe représentant légal de GRIMY\n\nPropriété intellectuelle\nL'ensemble du contenu du site (textes, graphismes, logos, icônes, logiciels) est la propriété de GRIMY et est protégé par les lois françaises et internationales relatives à la propriété intellectuelle.\n\nDonnées personnelles\nConformément au RGPD, vous disposez d'un droit d'accès, de rectification, de suppression et de portabilité de vos données. Contact DPO : contact@grimy.fr\n\nCookies\nCe site utilise uniquement des cookies techniques nécessaires au fonctionnement du service (authentification, préférences de thème). Aucun cookie publicitaire ou de tracking tiers n'est utilisé.`,
+  },
+  "legal-lab": {
+    title: "Obligations LAB — Art. L.561-2 CMF",
+    content: `Professionnels assujettis\nL'article L.561-2 du Code monétaire et financier liste les professionnels soumis aux obligations de lutte anti-blanchiment :\n\n• Experts-comptables et commissaires aux comptes\n• Avocats (dans le cadre de certaines activités)\n• Notaires\n• Commissaires de justice (ex-huissiers)\n• Agents immobiliers\n• Conseillers en investissements financiers (CIF)\n• Sociétés de domiciliation\n• Mandataires judiciaires\n• Opérateurs de ventes volontaires de meubles aux enchères\n\nObligations principales\n1. Vigilance à l'égard de la clientèle — identification et vérification de l'identité\n2. Déclaration de soupçon à TRACFIN\n3. Conservation des documents (5 ans après la fin de la relation d'affaires)\n4. Mise en place de procédures internes\n5. Formation du personnel\n6. Évaluation et classification des risques\n\nComment GRIMY vous aide\nGRIMY automatise les étapes 1, 3, 4 et 6 en centralisant l'identification client, le screening automatique (9 APIs), le scoring des risques et l'archivage sécurisé des documents justificatifs.`,
+  },
+  "legal-rgpd": {
+    title: "Politique de Confidentialité — RGPD",
+    content: `Responsable du traitement\nGRIMY — contact@grimy.fr\n\nDonnées collectées\n• Données d'identification : nom, prénom, email, mot de passe (haché)\n• Données professionnelles : SIREN, raison sociale, adresse\n• Données clients : informations de vos clients dans le cadre de vos obligations LAB\n\nFinalités du traitement\n• Fourniture du service de conformité LCB-FT\n• Gestion de votre compte utilisateur\n• Support client\n\nBase légale\n• Exécution du contrat (art. 6.1.b RGPD)\n• Obligation légale pour les données LAB (art. 6.1.c RGPD)\n\nSécurité des données\n• Hébergement en France (Supabase EU-West)\n• Chiffrement au repos AES-256\n• Chiffrement en transit TLS 1.3\n• Chiffrement applicatif AES-GCM pour les champs sensibles (IBAN, CNI)\n• Audit trail immutable\n\nDurée de conservation\n• Données de compte : durée de la relation + 30 jours\n• Données LAB : 5 ans conformément au Code monétaire\n\nVos droits\nConformément au RGPD, vous disposez d'un droit d'accès, de rectification, d'effacement, de portabilité et d'opposition. Contactez-nous : contact@grimy.fr\n\nCookies\nSeuls des cookies techniques sont utilisés (authentification, thème). Aucun tracker publicitaire.`,
+  },
+};
+
+function LegalModal({ type, onClose }: { type: Exclude<LegalModalType, null>; onClose: () => void }) {
+  const content = LEGAL_CONTENT[type];
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => { document.body.style.overflow = ""; };
+  }, []);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [onClose]);
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative max-h-[85vh] w-full max-w-2xl overflow-y-auto rounded-2xl border p-8 shadow-2xl"
+        style={{ borderColor: "var(--l-border)", background: "var(--l-bg-primary)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-lg hover:opacity-70 transition-opacity" style={{ color: "var(--l-text-3)" }} aria-label="Fermer">
+          <XIcon className="h-5 w-5" />
+        </button>
+        <h2 className="text-xl font-bold font-serif mb-6" style={{ color: "var(--l-text)" }}>{content.title}</h2>
+        <div className="space-y-4 text-sm leading-relaxed" style={{ color: "var(--l-text-3)" }}>
+          {content.content.split("\n\n").map((paragraph, i) => {
+            const lines = paragraph.split("\n");
+            const firstLine = lines[0];
+            const isHeading = firstLine && !firstLine.startsWith("•") && !firstLine.startsWith("-") && lines.length > 1;
+            return (
+              <div key={i}>
+                {isHeading ? (
+                  <>
+                    <p className="font-semibold mb-1" style={{ color: "var(--l-text-2)" }}>{firstLine}</p>
+                    {lines.slice(1).map((line, j) => (
+                      <p key={j} className={line.startsWith("•") ? "pl-4" : ""}>{line}</p>
+                    ))}
+                  </>
+                ) : (
+                  lines.map((line, j) => (
+                    <p key={j} className={line.startsWith("•") ? "pl-4" : ""}>{line}</p>
+                  ))
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-8 pt-4 border-t flex justify-end" style={{ borderColor: "var(--l-border)" }}>
+          <button onClick={onClose} className="px-6 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors btn-press">
+            Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    MAIN COMPONENT
    ══════════════════════════════════════════════════════════════ */
 
@@ -850,6 +932,7 @@ export default function LandingPage() {
   const theme = usePersistedTheme();
   const cookies = useCookieConsent();
   const [showPricingTable, setShowPricingTable] = useState(false);
+  const [legalModal, setLegalModal] = useState<LegalModalType>(null);
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
 
@@ -1014,9 +1097,16 @@ export default function LandingPage() {
         .theme-light .text-amber-400 { color: #d97706 !important; }
         .theme-light .text-purple-400 { color: #7c3aed !important; }
         .theme-light .text-pink-400 { color: #db2777 !important; }
+        .theme-light .text-red-400 { color: #dc2626 !important; }
         .theme-light .text-red-400\\/60 { color: rgba(220,38,38,0.7) !important; }
+        .theme-light .text-yellow-400 { color: #b45309 !important; }
+        .theme-light .text-gray-400 { color: #6b7280 !important; }
+        .theme-light .text-indigo-400 { color: #4f46e5 !important; }
         .theme-light .fill-amber-400 { fill: #d97706 !important; }
         .theme-light .text-amber-400.fill-amber-400 { color: #d97706 !important; }
+        .theme-light .text-emerald-400\\/60 { color: rgba(5,150,105,0.7) !important; }
+        .theme-light .text-emerald-400\\/70 { color: rgba(5,150,105,0.8) !important; }
+        .theme-light .text-blue-400\\/60 { color: rgba(37,99,235,0.7) !important; }
 
         /* Timeline line fill */
         .timeline-line-fill {
@@ -1254,7 +1344,7 @@ export default function LandingPage() {
         </section>
 
         {/* ══════ Sécurité & Conformité ══════ */}
-        <section className="py-16 border-y" style={{ borderColor: "var(--l-border)" }}>
+        <section id="securite" className="py-16 border-y" style={{ borderColor: "var(--l-border)" }}>
           <div className="mx-auto max-w-5xl px-6">
             <div data-reveal className="grid grid-cols-2 sm:grid-cols-4 gap-8 opacity-0 translate-y-10 transition-all duration-700">
               {[
@@ -1677,11 +1767,13 @@ export default function LandingPage() {
                   <ul className="space-y-2.5">
                     {sec.links.map((link) => (
                       <li key={link.label}>
-                        {link.id ? (
-                          <a href={`#${link.id}`} onClick={(e) => { e.preventDefault(); scrollTo(link.id!); }} className="text-sm transition-colors hover:text-blue-400" style={{ color: "var(--l-text-4)" }}>{link.label}</a>
-                        ) : (
-                          <span className="text-sm cursor-default opacity-50" style={{ color: "var(--l-text-5)" }}>{link.label}</span>
-                        )}
+                        {link.mailto ? (
+                          <a href={`mailto:${link.mailto}`} className="text-sm transition-colors hover:text-blue-400" style={{ color: "var(--l-text-4)" }}>{link.label}</a>
+                        ) : link.href ? (
+                          <a href={link.href} target="_blank" rel="noopener noreferrer" className="text-sm transition-colors hover:text-blue-400" style={{ color: "var(--l-text-4)" }}>{link.label}</a>
+                        ) : link.id ? (
+                          <a href={`#${link.id}`} onClick={(e) => { e.preventDefault(); scrollTo(link.id!); setLegalModal(link.id!.startsWith("legal-") ? link.id! as LegalModalType : null); }} className="text-sm transition-colors hover:text-blue-400" style={{ color: "var(--l-text-4)" }}>{link.label}</a>
+                        ) : null}
                       </li>
                     ))}
                   </ul>
@@ -1689,11 +1781,9 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row" style={{ borderColor: "var(--l-border)" }}>
-              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; 2026 GRIMY — Conformité LAB pour professionnels assujettis</p>
+              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; {new Date().getFullYear()} GRIMY — Conformité LAB pour professionnels assujettis</p>
               <div className="flex items-center gap-6">
-                {["LinkedIn", "Twitter"].map((s) => (
-                  <a key={s} href="#" className="text-xs transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }}>{s}</a>
-                ))}
+                <a href="mailto:contact@grimy.fr" className="text-xs transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }}>Contact</a>
                 <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="text-xs transition-colors hover:text-blue-400 flex items-center gap-1" style={{ color: "var(--l-text-5)" }}>
                   <ArrowUp className="h-3 w-3" />Haut de page
                 </button>
@@ -1716,6 +1806,9 @@ export default function LandingPage() {
         </div>
       )}
 
+      {/* ══════ Legal modal ══════ */}
+      {legalModal && <LegalModal type={legalModal} onClose={() => setLegalModal(null)} />}
+
       {/* ══════ #18 — Cookie consent banner (RGPD) ══════ */}
       {cookies.show && (
         <div className="fixed bottom-0 left-0 right-0 z-50 border-t p-4 backdrop-blur-xl" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur-heavy)" }}>
@@ -1724,7 +1817,7 @@ export default function LandingPage() {
               <Cookie className="h-5 w-5 text-blue-400 shrink-0 mt-0.5" />
               <p className="text-sm leading-relaxed" style={{ color: "var(--l-text-3)" }}>
                 Ce site utilise des cookies pour améliorer votre expérience. En continuant, vous acceptez notre{" "}
-                <a href="#" className="text-blue-400 underline">politique de confidentialité</a>.
+                <button onClick={() => { cookies.accept(); setLegalModal("legal-rgpd"); }} className="text-blue-400 underline">politique de confidentialité</button>.
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
