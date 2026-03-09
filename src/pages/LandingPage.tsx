@@ -660,7 +660,7 @@ function InteractiveDemo() {
             <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-4 py-3 flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-emerald-400">Screening terminé</p>
-                <p className="text-xs text-emerald-400/60">9/9 sources vérifiées — 0 alerte</p>
+                <p className="text-xs text-emerald-400/60">9/9 sources vérifiées — 0 alerte — Vigilance standard</p>
               </div>
               <div className="text-right">
                 <span className="text-2xl font-bold text-emerald-400 font-serif">{score}</span>
@@ -878,12 +878,12 @@ function CompCell({ value, accent }: { value: CompValue; accent?: boolean }) {
 /* #20 — Social proof ticker */
 function SocialTicker() {
   const msgs = [
-    "Cabinet Dupont a créé 3 fiches clients aujourd'hui",
-    "42 screenings lancés cette semaine",
-    "Score moyen des utilisateurs : 78/100",
-    "Étude Martin — contrôle passé sans observation",
-    "12 fiches clients complétées aujourd'hui",
-    "Nouveau professionnel inscrit à Marseille",
+    "Un cabinet a finalisé 3 dossiers clients ce matin",
+    "Screening lancé — 9 APIs vérifiées en 28 secondes",
+    "Contrôle CROEC passé sans observation — Bordeaux",
+    "Nouveau dossier LCB-FT complété en 2 min",
+    "Revue annuelle effectuée pour 45 clients",
+    "Fiche client exportée en PDF pour le contrôleur",
   ];
   return (
     <div className="overflow-hidden py-3 group/ticker">
@@ -907,7 +907,7 @@ const NAV_LINKS = [
   { label: "Fonctionnalités", id: "fonctionnalites" },
   { label: "Tarifs", id: "tarifs" },
   { label: "FAQ", id: "faq" },
-  { label: "À propos", id: "temoignages" },
+  { label: "Témoignages", id: "temoignages" },
 ];
 
 const whyCards = [
@@ -964,13 +964,13 @@ const allFeatures = [
   { name: "OCR Cloud Vision", badge: "Nouveau" as const },
   { name: "Diagnostic 360°", badge: null },
   { name: "Gouvernance équipe", badge: null },
-  { name: "API publique", badge: "Bientôt" as const },
+  { name: "API publique", badge: "Q2 2026" as const },
 ];
 
 const plans = [
-  { name: "Solo", price: 29, desc: "Pour les indépendants", features: ["1 utilisateur", "50 clients", "Screening complet", "Fiche client complète", "GED 5 Go"], cta: "Commencer", popular: false },
-  { name: "Pro", price: 79, desc: "Pour les structures en croissance", features: ["5 utilisateurs", "200 clients", "Tout Solo +", "Contrôle qualité", "Multi-rôles", "Support prioritaire"], cta: "Commencer", popular: true },
-  { name: "Enterprise", price: 0, desc: "Pour les grandes structures", features: ["Utilisateurs illimités", "Clients illimités", "Tout Pro +", "SSO", "API", "Formation", "Référent dédié"], cta: "Nous contacter", popular: false },
+  { name: "Solo", price: 29, desc: "Pour les indépendants", features: ["1 utilisateur", "50 clients", "Screening complet", "Fiche client complète", "GED 5 Go"], cta: "Essai gratuit 14 jours", popular: false },
+  { name: "Pro", price: 79, desc: "Pour les structures en croissance", features: ["5 utilisateurs", "200 clients", "Tout Solo +", "Contrôle qualité", "Multi-rôles", "Support prioritaire"], cta: "Essai gratuit 14 jours", popular: true },
+  { name: "Enterprise", price: 0, desc: "Pour les grandes structures", features: ["Utilisateurs illimités", "Clients illimités", "Tout Pro +", "SSO / SAML", "API dédiée", "Formation sur site", "Référent dédié"], cta: "Réserver un appel", popular: false },
 ];
 
 /* #3 — Pricing comparison features */
@@ -991,9 +991,6 @@ const testimonials = [
   { quote: "Nous avons passé notre dernier contrôle LAB sans aucune observation. GRIMY avait tout préparé.", name: "Marc D.", title: "Expert-comptable", cabinet: "Cabinet EC — Marseille", detail: "25 collaborateurs · 320 clients", initials: "MD", color: "bg-blue-500/20 text-blue-400" },
   { quote: "Le screening automatique nous fait gagner 2 heures par nouveau client. La lettre de mission se génère en 3 clics.", name: "Sophie L.", title: "Notaire associée", cabinet: "Étude notariale — Bordeaux", detail: "12 personnes · 180 clients", initials: "SL", color: "bg-emerald-500/20 text-emerald-400" },
   { quote: "Enfin un outil pensé par quelqu'un qui comprend nos obligations. Pas un truc générique adapté à la va-vite.", name: "Thomas R.", title: "Avocat", cabinet: "Cabinet d'avocats — Paris", detail: "8 associés · 450 dossiers", initials: "TR", color: "bg-purple-500/20 text-purple-400" },
-  { quote: "En tant qu'agent immobilier, la LAB est une obligation souvent négligée. GRIMY rend ça concret et rapide.", name: "Claire B.", title: "Agent immobilier", cabinet: "Agence — Lyon", detail: "3 agences · 90 mandats/an", initials: "CB", color: "bg-amber-500/20 text-amber-400" },
-  { quote: "Le scoring multi-critères est redoutable de précision. Nos contrôleurs ACPR sont impressionnés.", name: "Philippe M.", title: "CIF — Conseiller en investissements", cabinet: "Cabinet de gestion de patrimoine", detail: "Indépendant · 75 clients", initials: "PM", color: "bg-pink-500/20 text-pink-400" },
-  { quote: "La GED intégrée et le registre LAB automatique nous ont permis de passer sereinement notre audit DGCCRF.", name: "Antoine V.", title: "Société de domiciliation", cabinet: "DomServices — Nantes", detail: "6 personnes · 200 sociétés domiciliées", initials: "AV", color: "bg-indigo-500/20 text-indigo-400" },
 ];
 
 const faqItems = [
@@ -1004,18 +1001,15 @@ const faqItems = [
   { q: "Mes données sont-elles sécurisées ?", a: "Absolument. Chiffrement AES-256 au repos, TLS 1.3 en transit, hébergement en France (Supabase EU-West), conformité RGPD, accès par rôle et journal d'audit complet immutable.", icon: Lock },
   { q: "Y a-t-il un engagement ?", a: "Non. Tous nos plans sont sans engagement. Vous pouvez annuler à tout moment depuis votre espace. Vos données restent exportables 30 jours après résiliation.", icon: CreditCard },
   { q: "Comment se passe un contrôle LAB avec GRIMY ?", a: "GRIMY génère un dossier de conformité complet en un clic : cartographie des risques, registre LCB-FT, historique des diligences, formations. Le mode contrôleur permet au contrôleur CROEC de naviguer en autonomie.", icon: Eye },
-  { q: "GRIMY remplace-t-il mon logiciel comptable ?", a: "Non. GRIMY est complémentaire. Il couvre uniquement la conformité LCB-FT et la lettre de mission. Il ne fait pas de comptabilité, de paie ou de fiscalité.", icon: HelpCircle },
   { q: "Le logiciel convient-il à un indépendant ?", a: "Absolument. Le plan Solo à 29€/mois couvre 50 clients, largement suffisant pour un professionnel indépendant. L'interface est conçue pour être utilisable sans formation.", icon: Award },
-  { q: "Proposez-vous un accompagnement ?", a: "Oui. Le plan Cabinet inclut un support prioritaire. Le plan Enterprise inclut une formation sur site et un référent dédié. Vous pouvez aussi réserver un appel de 15 min avec notre équipe.", icon: CalendarClock },
 ];
 
 /* #8 — Footer with working links */
 type FooterLink = { label: string; id?: string; href?: string; mailto?: string };
 const footerSections: { title: string; links: FooterLink[] }[] = [
-  { title: "Produit", links: [{ label: "Fonctionnalités", id: "fonctionnalites" }, { label: "Tarifs", id: "tarifs" }, { label: "Démo", id: "demo" }, { label: "Comment ça marche", id: "timeline" }] },
-  { title: "Ressources", links: [{ label: "FAQ", id: "faq" }, { label: "Comparatif GRIMY vs Excel", id: "comparaison" }, { label: "Sécurité & chiffrement", id: "securite" }, { label: "Témoignages", id: "temoignages" }] },
-  { title: "Entreprise", links: [{ label: "À propos", id: "temoignages" }, { label: "Contact", mailto: "contact@grimy.fr" }, { label: "CGV", id: "legal-cgv" }, { label: "Mentions légales", id: "legal-mentions" }] },
-  { title: "Conformité", links: [{ label: "Obligations LAB", id: "legal-lab" }, { label: "Politique de confidentialité", id: "legal-rgpd" }, { label: "Hébergement France", id: "securite" }, { label: "RGPD", id: "legal-rgpd" }] },
+  { title: "Produit", links: [{ label: "Fonctionnalités", id: "fonctionnalites" }, { label: "Tarifs", id: "tarifs" }, { label: "Démo", id: "demo" }, { label: "FAQ", id: "faq" }] },
+  { title: "Entreprise", links: [{ label: "Témoignages", id: "temoignages" }, { label: "Contact", mailto: "contact@grimy.fr" }, { label: "CGV", id: "legal-cgv" }, { label: "Mentions légales", id: "legal-mentions" }] },
+  { title: "Conformité", links: [{ label: "Obligations LAB", id: "legal-lab" }, { label: "Politique de confidentialité", id: "legal-rgpd" }, { label: "Sécurité", id: "securite" }] },
 ];
 
 /* ══════════════════════════════════════════════════════════════
@@ -1404,7 +1398,7 @@ export default function LandingPage() {
 
         {/* ══════ URGENCY BANNER ══════ */}
         {showUrgencyBanner && (
-          <div className="fixed top-0.5 left-0 right-0 z-[55] bg-gradient-to-r from-amber-600/90 to-orange-600/90 backdrop-blur-sm">
+          <div className="fixed top-0.5 left-0 right-0 z-[58] bg-gradient-to-r from-amber-600/90 to-orange-600/90 backdrop-blur-sm">
             <div className="mx-auto max-w-7xl flex items-center justify-center gap-3 px-4 py-2">
               <AlertTriangle className="h-3.5 w-3.5 text-white shrink-0" />
               <p className="text-xs font-medium text-white">
@@ -1461,7 +1455,7 @@ export default function LandingPage() {
               </button>
 
               {/* Réserver une démo */}
-              <button onClick={() => scrollTo("demo")} className="hidden lg:inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors hover:text-blue-400" style={{ color: "var(--l-text-3)" }}>
+              <button onClick={() => scrollTo("demo")} className="hidden md:inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg transition-colors hover:text-blue-400" style={{ color: "var(--l-text-3)" }}>
                 <Play className="h-3.5 w-3.5" /> Démo
               </button>
 
@@ -1506,14 +1500,9 @@ export default function LandingPage() {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-64 w-64 rounded-full bg-purple-600/6 blur-3xl" style={{ animation: "blob3 10s ease-in-out infinite" }} />
 
           <div className="relative mx-auto max-w-4xl px-6 text-center">
-            {/* NPLAB/NPMQ Badge (#10) */}
+            {/* Single clear badge */}
             <div className={`transition-all duration-1000 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-              <Badge className="mb-4 border-blue-500/20 bg-blue-500/10 text-blue-400 px-3 py-1 text-xs rounded-full cursor-pointer hover:bg-blue-500/15 transition-colors" onClick={() => scrollTo("fonctionnalites")}>
-                Conforme NPLAB 2020 · NPMQ 2025
-              </Badge>
-            </div>
-            <div className={`transition-all duration-1000 delay-75 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-              <Badge className="mb-8 border-violet-500/20 bg-violet-500/10 text-violet-400 px-4 py-1.5 text-sm">Plateforme LCB-FT — Nouvelle génération</Badge>
+              <Badge className="mb-8 border-blue-500/20 bg-blue-500/10 text-blue-400 px-4 py-1.5 text-sm">Plateforme LCB-FT — Nouvelle génération</Badge>
             </div>
 
             <h1 className={`mb-8 font-serif text-4xl font-bold leading-[1.1] tracking-tight transition-all duration-1000 delay-150 sm:text-5xl md:text-[56px] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ letterSpacing: "-0.02em" }}>
@@ -1521,15 +1510,12 @@ export default function LandingPage() {
               <span className="bg-gradient-to-r from-violet-400 to-purple-300 bg-clip-text text-transparent">Toujours.</span>
             </h1>
 
-            <p className={`mx-auto mb-6 max-w-3xl text-lg leading-relaxed transition-all duration-1000 delay-300 sm:text-xl ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-3)" }}>
-              GRIMY automatise votre conformité LCB-FT de A à Z : identification des risques, classification NPLAB, vigilance continue et traçabilité complète.
-              <br className="hidden sm:block" />
-              <span style={{ color: "var(--l-text-4)" }}>Créé par un expert-comptable, pour les professionnels assujettis.</span>
+            <p className={`mx-auto mb-8 max-w-2xl text-lg leading-relaxed transition-all duration-1000 delay-300 sm:text-xl ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-3)" }}>
+              Identification, scoring des risques, screening automatique et traçabilité complète — en 2 minutes par client.
             </p>
 
             {/* #21 — Profile switcher */}
             <div className={`mb-8 transition-all duration-1000 delay-400 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-              <p className="text-xs mb-3" style={{ color: "var(--l-text-5)" }}>Je suis :</p>
               <div className="flex flex-wrap items-center justify-center gap-2">
                 {PROFILES.map((p, i) => (
                   <button key={p.id} onClick={() => setSelectedProfile(i)}
@@ -1545,38 +1531,23 @@ export default function LandingPage() {
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] mt-2 transition-colors" style={{ color: "var(--l-text-5)" }}>
-                Autorité de contrôle : {PROFILES[selectedProfile].authority}
-              </p>
             </div>
 
             <div className={`flex flex-col sm:flex-row items-center justify-center gap-3 transition-all duration-1000 delay-500 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
               <Link to="/auth">
                 <Button size="lg" className="h-12 px-8 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-blue-600/25 btn-press text-white cta-glow">
-                  Démarrer mon essai gratuit <ArrowRight className="ml-2 h-4 w-4" />
+                  Essai gratuit 14 jours <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
               <Button size="lg" variant="outline" className="h-12 px-8 text-base btn-press" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }} onClick={() => scrollTo("demo")}>
-                Voir la démo <ChevronDown className="ml-2 h-4 w-4" />
+                Voir la démo <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
 
-            <p className={`mt-6 text-sm transition-all duration-1000 delay-700 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-5)" }}>
-              Sans carte bancaire · 14 jours gratuits · Données hébergées en France 🇫🇷
-            </p>
-            <p className={`mt-3 text-sm font-medium transition-all duration-1000 delay-[800ms] ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-4)" }}>
-              <TrendingUp className="inline h-3.5 w-3.5 mr-1 text-emerald-400" />+150 professionnels nous font confiance
-            </p>
-
-            {/* #7 — Onboarding stepper */}
-            <div className={`mt-12 flex items-center justify-center gap-2 sm:gap-4 transition-all duration-1000 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ transitionDelay: "900ms" }}>
-              {["Créez votre compte", "Ajoutez un client", "Lancez le screening"].map((step, i) => (
-                <div key={step} className="flex items-center gap-2 sm:gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-500/20 text-xs font-bold text-blue-400">{i + 1}</div>
-                  <span className="text-xs sm:text-sm" style={{ color: "var(--l-text-4)" }}>{step}</span>
-                  {i < 2 && <ChevronRight className="h-3 w-3" style={{ color: "var(--l-text-5)" }} />}
-                </div>
-              ))}
+            <div className={`mt-6 flex flex-wrap items-center justify-center gap-4 text-sm transition-all duration-1000 delay-700 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`} style={{ color: "var(--l-text-5)" }}>
+              <span className="flex items-center gap-1.5"><CreditCard className="h-3.5 w-3.5" />Sans carte bancaire</span>
+              <span className="flex items-center gap-1.5"><Globe className="h-3.5 w-3.5" />Hébergé en France</span>
+              <span className="flex items-center gap-1.5"><Lock className="h-3.5 w-3.5" />Chiffrement AES-256</span>
             </div>
           </div>
         </section>
@@ -1585,7 +1556,7 @@ export default function LandingPage() {
         <section className="border-y py-10" style={{ borderColor: "var(--l-border)" }}>
           <div className="mx-auto max-w-5xl px-6">
             <p className="text-center text-sm mb-6" style={{ color: "var(--l-text-4)" }}>
-              Conforme aux exigences des ordres professionnels et autorités de contrôle
+              Utilisé par des cabinets soumis au contrôle de :
             </p>
             {/* Logo bar with stagger animation */}
             <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 mb-6">
@@ -1615,7 +1586,7 @@ export default function LandingPage() {
               Votre conformité LCB-FT repose encore sur Excel ?
             </h2>
             <p data-reveal className="mx-auto mb-14 max-w-2xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
-              Vous n'êtes pas seul. 80% des cabinets gèrent encore leur LAB avec des tableurs, des dossiers papier et beaucoup de bonne volonté. Jusqu'au jour du contrôle.
+              Vous n'êtes pas seul. La majorité des cabinets gèrent encore leur LAB avec des tableurs et des dossiers papier. Jusqu'au jour du contrôle.
             </p>
 
             <div className="grid gap-6 sm:grid-cols-3">
@@ -1634,9 +1605,13 @@ export default function LandingPage() {
               ))}
             </div>
 
-            <p data-reveal className="mt-12 text-center italic opacity-0 translate-y-10 transition-all duration-700 delay-500" style={{ color: "var(--l-text-4)" }}>
-              Il existe une meilleure façon de faire. ↓
-            </p>
+            <div data-reveal className="mt-12 text-center opacity-0 translate-y-10 transition-all duration-700 delay-500">
+              <Link to="/auth">
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/20 btn-press text-white h-11 px-6">
+                  Découvrir la solution <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -1644,7 +1619,7 @@ export default function LandingPage() {
         <section id="fonctionnalites" className="py-28">
           <div className="mx-auto max-w-7xl px-6">
             <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">
-              Tout ce dont vous avez besoin
+              Votre conformité LAB, automatisée
             </h2>
             <p data-reveal className="mx-auto mb-16 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
               Une base de données client simple et intuitive, conçue pour répondre à vos obligations LAB.
@@ -1673,7 +1648,7 @@ export default function LandingPage() {
                   <Check className="h-3 w-3 text-blue-400" />
                   {f.name}
                   {f.badge && (
-                    <Badge className={`ml-1 text-[10px] px-1.5 py-0 ${f.badge === "Nouveau" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border-amber-500/20"}`}>
+                    <Badge className={`ml-1 text-[10px] px-1.5 py-0 ${f.badge === "Nouveau" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-blue-500/10 text-blue-400 border-blue-500/20"}`}>
                       {f.badge}
                     </Badge>
                   )}
@@ -1688,14 +1663,14 @@ export default function LandingPage() {
                 <CircleCounter value={9} label="APIs vérifiées" color="#3B82F6" />
                 <CircleCounter value={30} suffix="s" label="par screening" color="#3B82F6" />
                 <CircleCounter value={98} suffix="%" label="taux de conformité" color="#10B981" />
-                <CircleCounter value={0} label="observations contrôle" color="#10B981" />
+                <CircleCounter value={150} suffix="+" label="cabinets équipés" color="#10B981" />
               </div>
               {/* #5 — Before/after results */}
               <div className="mt-12 grid gap-4 sm:grid-cols-3 max-w-2xl mx-auto">
                 {[
                   { label: "Temps de screening", before: "2 heures", after: "30 secondes" },
                   { label: "Taux de conformité", before: "60%", after: "98%" },
-                  { label: "Coût par dossier", before: "45€", after: "3€" },
+                  { label: "Coût par dossier*", before: "45€", after: "3€" },
                 ].map((r) => (
                   <div key={r.label} className="rounded-xl border p-4 text-center" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
                     <p className="text-xs mb-2" style={{ color: "var(--l-text-4)" }}>{r.label}</p>
@@ -1747,9 +1722,7 @@ export default function LandingPage() {
             <div data-reveal className="opacity-0 translate-y-10 transition-all duration-700 delay-200">
               <InteractiveDemo />
             </div>
-            <div data-reveal className="mt-20 opacity-0 translate-y-10 transition-all duration-700 delay-300">
-              <VideoPlayer />
-            </div>
+            {/* Video section removed — placeholder not professional */}
           </div>
         </section>
 
@@ -1976,7 +1949,7 @@ export default function LandingPage() {
                             </Link>
                           )}
                           <p className="text-center text-xs" style={{ color: "var(--l-text-5)" }}>
-                            {plan.price > 0 ? "14 jours d'essai gratuit" : "Démonstration personnalisée"}
+                            {plan.price > 0 ? "Sans carte bancaire" : "Démonstration personnalisée"}
                           </p>
                         </div>
                       </div>
@@ -1996,9 +1969,17 @@ export default function LandingPage() {
                   Si GRIMY ne vous convient pas, nous vous remboursons intégralement. Sans question. Sans condition.
                 </p>
               </div>
-              <p className="mt-4 text-center text-xs" style={{ color: "var(--l-text-5)" }}>
-                Tous les plans incluent : hébergement France, mises à jour gratuites, export PDF illimité
-              </p>
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-4">
+                {[
+                  { icon: Globe, label: "Hébergement France" },
+                  { icon: Sparkles, label: "Mises à jour gratuites" },
+                  { icon: FileText, label: "Export PDF illimité" },
+                ].map((item) => (
+                  <span key={item.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--l-text-5)" }}>
+                    <item.icon className="h-3 w-3" />{item.label}
+                  </span>
+                ))}
+              </div>
             </div>
 
             {/* #3 — Pricing feature comparison table */}
@@ -2145,6 +2126,13 @@ export default function LandingPage() {
                 ))}
               </Accordion>
             </div>
+
+            <div data-reveal className="mt-10 text-center opacity-0 translate-y-10 transition-all duration-700 delay-300">
+              <p className="text-sm mb-3" style={{ color: "var(--l-text-4)" }}>Vous avez d'autres questions ?</p>
+              <a href="mailto:contact@grimy.fr?subject=Question" className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                <MessageCircle className="h-4 w-4" />Écrivez-nous — réponse sous 24h
+              </a>
+            </div>
           </div>
         </section>
 
@@ -2175,9 +2163,8 @@ export default function LandingPage() {
                     </Button>
                   </div>
                   {ctaError && <p id="cta-error" className="mt-2 text-xs text-red-400">{ctaError}</p>}
-                  <p className="mt-3 text-xs" style={{ color: "var(--l-text-5)" }}>Aucune carte bancaire requise</p>
                 </form>
-                <p className="mt-3 text-xs" style={{ color: "var(--l-text-5)" }}>Sans carte bancaire · 14 jours gratuits · Annulation en 1 clic</p>
+                <p className="mt-4 text-xs" style={{ color: "var(--l-text-5)" }}>Sans carte bancaire · 14 jours gratuits · Annulation en 1 clic</p>
                 <div className="mt-6 flex flex-wrap items-center justify-center gap-6">
                   {[
                     { icon: Shield, label: "RGPD" },
@@ -2205,7 +2192,7 @@ export default function LandingPage() {
         {/* ══════ FOOTER — #8 working links ══════ */}
         <footer className="border-t py-16" style={{ borderColor: "var(--l-border)" }}>
           <div className="mx-auto max-w-7xl px-6">
-            <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div className="lg:col-span-1">
                 <span className="text-lg font-bold font-serif">GRIMY</span>
                 <p className="mt-3 text-sm leading-relaxed" style={{ color: "var(--l-text-4)" }}>Base de données client<br />et conformité LAB<br />pour professionnels assujettis</p>
@@ -2230,16 +2217,8 @@ export default function LandingPage() {
               ))}
             </div>
             <div className="mt-14 flex flex-col items-center justify-between gap-4 border-t pt-8 sm:flex-row" style={{ borderColor: "var(--l-border)" }}>
-              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; {new Date().getFullYear()} GRIMY — Conformité LCB-FT pour professionnels assujettis</p>
+              <p className="text-xs" style={{ color: "var(--l-text-5)" }}>&copy; {new Date().getFullYear()} GRIMY — Conformité LCB-FT</p>
               <div className="flex items-center gap-4">
-                {/* Social icons */}
-                <a href="#" className="transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }} aria-label="LinkedIn">
-                  <Linkedin className="h-4 w-4" />
-                </a>
-                <a href="#" className="transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }} aria-label="Twitter / X">
-                  <Twitter className="h-4 w-4" />
-                </a>
-                <span className="w-px h-4 mx-1" style={{ background: "var(--l-border)" }} />
                 <a href="mailto:contact@grimy.fr" className="text-xs transition-colors hover:text-blue-400" style={{ color: "var(--l-text-5)" }}>Contact</a>
                 <button onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="text-xs transition-colors hover:text-blue-400 flex items-center gap-1" style={{ color: "var(--l-text-5)" }}>
                   <ArrowUp className="h-3 w-3" />Haut
