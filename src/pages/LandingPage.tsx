@@ -1,3 +1,14 @@
+/* ═══════════════════════════════════════════════════════════════
+   LANDING PAGE « SCREENING SIREN »
+   Version de référence avec :
+   - InteractiveDemo (test SIREN 831 562 749 + 9 APIs)
+   - RadarChart (graphique radar 6 axes)
+   - VideoPlayer (section vidéo de démo)
+   - Comparaison GRIMY vs Excel
+   - Timeline 6 étapes avec scroll progress
+   - Témoignages, FAQ, Pricing, Footer légal
+   NE PAS REMPLACER — améliorer en place uniquement.
+   ═══════════════════════════════════════════════════════════════ */
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";

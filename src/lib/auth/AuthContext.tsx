@@ -4,8 +4,13 @@ import type { User, Session } from "@supabase/supabase-js";
 import type { AuthState, UserProfile, PermissionAction } from "./types";
 import { ROLE_PERMISSIONS } from "./types";
 import { useSessionTimeout } from "./useSessionTimeout";
-import { logAudit } from "./auditTrail";
 import { toast } from "sonner";
+
+// Lazy import to break potential circular dependency (auditTrail → supabase/client → logger)
+const doAudit = async (entry: { action: string; table_name?: string; record_id?: string }) => {
+  const { logAudit } = await import("./auditTrail");
+  return logAudit(entry);
+};
 import { logger } from "@/lib/logger";
 
 const AuthContext = createContext<AuthState | null>(null);
@@ -61,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     if (userRef.current) {
-      await logAudit({ action: "DECONNEXION" }).catch(() => {});
+      await doAudit({ action: "DECONNEXION" }).catch(() => {});
     }
     await supabase.auth.signOut();
     setUser(null);
@@ -145,7 +150,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Only log audit on actual sign-in (not page refresh)
         if (p && signedInRef.current) {
-          logAudit({ action: "CONNEXION" }).catch(() => {});
+          doAudit({ action: "CONNEXION" }).catch(() => {});
           signedInRef.current = false;
         }
       })
