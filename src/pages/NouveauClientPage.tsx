@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { clientsService } from "@/lib/supabaseService";
@@ -1162,12 +1163,12 @@ export default function NouveauClientPage() {
               upsert: true,
             });
           if (uploadErr) {
-            console.error(`[Submit] Upload failed for ${doc.name}:`, uploadErr.message);
+            logger.error(`[Submit] Upload failed for ${doc.name}:`, uploadErr.message);
           } else {
-            console.log(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
+            logger.debug(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
           }
         } catch (err) {
-          console.error(`[Submit] Upload error for ${doc.name}:`, err);
+          logger.error(`[Submit] Upload error for ${doc.name}:`, err);
         }
       }
     }
@@ -1187,7 +1188,7 @@ export default function NouveauClientPage() {
     setCreatedClientRef(ref);
     setShowSuccessModal(true);
     } catch (err) {
-      console.error("[Submit] Error:", err);
+      logger.error("[Submit] Error:", err);
       toast.error("Erreur lors de la creation du client");
     } finally {
       setIsSubmitting(false);

@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
+import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { runDiagnostic360, type DiagnosticReport, type DiagnosticItem } from "@/lib/diagnosticEngine";
 import { generateDiagnosticPdf } from "@/lib/generateDiagnosticPdf";
@@ -110,7 +111,7 @@ export default function DiagnosticPage() {
     controlesService.getAll()
       .then((data) => setControles(data as Record<string, unknown>[]))
       .catch((err) => {
-        console.error("[Diagnostic] controles error:", err);
+        logger.error("[Diagnostic] controles error:", err);
         toast.error("Erreur lors du chargement des controles");
       });
 
@@ -130,7 +131,7 @@ export default function DiagnosticPage() {
           }
         }
       } catch (err) {
-        console.error("[Diagnostic] loadParametres error:", err);
+        logger.error("[Diagnostic] loadParametres error:", err);
         toast.error("Erreur lors du chargement des parametres");
       }
     }

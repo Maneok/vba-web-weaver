@@ -1,9 +1,11 @@
+import { logger } from "@/lib/logger";
+
 // Clé lue depuis variable d'environnement — OBLIGATOIRE, pas de fallback
 const ENCRYPTION_KEY = import.meta.env.VITE_ENCRYPTION_KEY;
 const ENCRYPTION_SALT = import.meta.env.VITE_ENCRYPTION_SALT;
 
 if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) {
-  console.error("[Encryption] VITE_ENCRYPTION_KEY and VITE_ENCRYPTION_SALT must be set");
+  logger.error("[Encryption] VITE_ENCRYPTION_KEY and VITE_ENCRYPTION_SALT must be set");
 }
 
 // FIX 14: Cache derived key — PBKDF2 with 1M iterations is expensive

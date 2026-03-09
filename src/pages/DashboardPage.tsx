@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useCallback, useRef, useId } from "react";
 import { useNavigate } from "react-router-dom";
+import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -955,7 +956,7 @@ export default function DashboardPage() {
       }
     } catch (err) {
       // FIX 28: error boundary per widget
-      console.error(`Widget ${id} render error:`, err);
+      logger.error(`Widget ${id} render error:`, err);
       return (
         <div className="glass-card p-6 h-full flex flex-col items-center justify-center text-slate-500">
           <AlertTriangle className="w-8 h-8 mb-2 opacity-30" />

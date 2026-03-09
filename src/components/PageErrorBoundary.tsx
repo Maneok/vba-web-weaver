@@ -1,5 +1,6 @@
 import React from "react";
 import { AlertTriangle } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface PageErrorBoundaryState {
   hasError: boolean;
@@ -20,7 +21,7 @@ export default class PageErrorBoundary extends React.Component<
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("[PageError]", error, errorInfo);
+    logger.error("[PageError]", error, errorInfo);
   }
 
   render() {

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -45,14 +46,14 @@ export default function AuditTrailPage() {
           .limit(500);
         if (!mounted) return;
         if (error) {
-          console.error("[AuditTrail] load error:", error);
+          logger.error("[AuditTrail] load error:", error);
           toast.error("Erreur lors du chargement du journal d'audit");
         } else if (data) {
           setEntries(data as AuditRow[]);
         }
       } catch (err) {
         if (mounted) {
-          console.error("[AuditTrail] exception:", err);
+          logger.error("[AuditTrail] exception:", err);
           toast.error("Erreur lors du chargement du journal d'audit");
         }
       } finally {

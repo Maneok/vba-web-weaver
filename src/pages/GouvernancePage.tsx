@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { collaborateursService } from "@/lib/supabaseService";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,13 +64,13 @@ export default function GouvernancePage() {
           try {
             val = typeof data.value === "string" ? JSON.parse(data.value) : data.value;
           } catch {
-            console.error("[Gouvernance] Invalid JSON in parametres.value");
+            logger.error("[Gouvernance] Invalid JSON in parametres.value");
             return;
           }
           setReferentConfig(val as ReferentConfig);
         }
       } catch (err) {
-        console.error("[Gouvernance] Failed to load config:", err);
+        logger.error("[Gouvernance] Failed to load config:", err);
       }
     }
     loadConfig();
@@ -97,7 +98,7 @@ export default function GouvernancePage() {
       setNewCollab({ ...EMPTY_FORM });
       toast.success("Collaborateur ajoute");
     } catch (err) {
-      console.error("[Gouvernance] handleAddCollab error:", err);
+      logger.error("[Gouvernance] handleAddCollab error:", err);
       toast.error("Erreur lors de l'ajout du collaborateur");
     }
   }, [newCollab, isOnline, refreshAll]);
@@ -132,7 +133,7 @@ export default function GouvernancePage() {
       setEditingCollab(null);
       toast.success("Collaborateur mis a jour");
     } catch (err) {
-      console.error("[Gouvernance] handleSaveEdit error:", err);
+      logger.error("[Gouvernance] handleSaveEdit error:", err);
       toast.error("Erreur lors de la mise a jour");
     }
   }, [editingCollab, editForm, isOnline, refreshAll]);
