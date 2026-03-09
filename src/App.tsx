@@ -24,6 +24,7 @@ const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 const GedPage = lazy(() => import("@/pages/GedPage"));
 const LettreMissionPage = lazy(() => import("@/pages/LettreMissionPage"));
 const HelpPage = lazy(() => import("@/pages/HelpPage"));
+const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
           <BrowserRouter>
             <Suspense fallback={<PageLoader />}>
               <Routes>
+                <Route path="/landing" element={<LandingPage />} />
                 <Route path="/auth" element={<AuthPage />} />
                 <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route index element={<DashboardPage />} />

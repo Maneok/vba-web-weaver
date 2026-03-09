@@ -185,6 +185,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [profile]
   );
 
+  const refreshProfile = useCallback(async (): Promise<UserProfile | null> => {
+    const currentUser = user;
+    if (!currentUser) return null;
+    const p = await fetchProfile(currentUser.id);
+    setProfile(p);
+    return p;
+  }, [user, fetchProfile]);
+
   return (
     <AuthContext.Provider
       value={{
@@ -197,6 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signOut: handleSignOut,
         hasPermission,
+        refreshProfile,
       }}
     >
       {children}
