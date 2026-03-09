@@ -380,19 +380,25 @@ export default function GedPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    await supabase.storage.from("documents").remove([doc.file_path]);
-    const { data: versionData } = await supabase
-      .from("document_versions")
-      .select("file_path")
-      .eq("document_id", doc.id);
-    if (versionData) {
-      const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
-      if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
-    }
+    try {
+      await supabase.storage.from("documents").remove([doc.file_path]);
+      const { data: versionData } = await supabase
+        .from("document_versions")
+        .select("file_path")
+        .eq("document_id", doc.id);
+      if (versionData) {
+        const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
+        if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
+      }
 
-    await supabase.from("documents").delete().eq("id", doc.id);
-    toast.success("Document supprime");
-    fetchDocuments();
+      const { error } = await supabase.from("documents").delete().eq("id", doc.id);
+      if (error) throw error;
+      toast.success("Document supprime");
+      fetchDocuments();
+    } catch (err) {
+      logger.error("GED", "Erreur suppression document", err);
+      toast.error("Erreur lors de la suppression du document");
+    }
   };
 
   const downloadDocument = async (filePath: string, fileName: string) => {
