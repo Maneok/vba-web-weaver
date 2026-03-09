@@ -48,6 +48,23 @@ Deno.serve(async (req) => {
     });
     seenSirens.add(cleanSiren);
 
+    // P5-13: Fetch Pappers data once and process all dirigeants in parallel
+    let pappersReps: any[] = [];
+    if (pappersKey) {
+      try {
+        const pRes = await fetch(
+          `https://api.pappers.fr/v2/entreprise?api_token=${pappersKey}&siren=${cleanSiren}`,
+          { signal: AbortSignal.timeout(8000) }
+        );
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          pappersReps = pData.representants ?? [];
+        }
+      } catch {
+        // Pappers failed
+      }
+    }
+
     for (const dir of (dirigeants as Array<{ nom: string; prenom: string; qualite: string }>).slice(0, 5)) {
       const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
       if (!fullName || fullName.length < 3) continue;
@@ -63,78 +80,62 @@ Deno.serve(async (req) => {
       const recentCreations: string[] = [];
       let matchingRepOuter: any = null;
 
-      // Strategy 1: Use Pappers API if available (most reliable)
-      if (pappersKey) {
-        try {
-          // Search for this person's other companies via Pappers
-          const pRes = await fetch(
-            `https://api.pappers.fr/v2/entreprise?api_token=${pappersKey}&siren=${cleanSiren}`,
-            { signal: AbortSignal.timeout(8000) }
-          );
-          if (pRes.ok) {
-            const pData = await pRes.json();
-            // Find the matching representant
-            const reps = pData.representants ?? [];
-            const matchingRep = reps.find((rep: any) => {
-              const rNom = normalize(rep.nom ?? "");
-              const rPrenom = normalize(rep.prenom ?? "");
-              return rNom === normNom && rPrenom === normPrenom;
-            });
+      // Use pre-fetched Pappers data
+      if (pappersReps.length > 0) {
+        const matchingRep = pappersReps.find((rep: any) => {
+          const rNom = normalize(rep.nom ?? "");
+          const rPrenom = normalize(rep.prenom ?? "");
+          return rNom === normNom && rPrenom === normPrenom;
+        });
 
-            matchingRepOuter = matchingRep;
-            if (matchingRep?.entreprises_dirigees) {
-              for (const ent of matchingRep.entreprises_dirigees) {
-                const eSiren = (ent.siren ?? "").replace(/\s/g, "");
-                if (!eSiren || eSiren === cleanSiren) continue;
+        matchingRepOuter = matchingRep;
+        if (matchingRep?.entreprises_dirigees) {
+          for (const ent of matchingRep.entreprises_dirigees) {
+            const eSiren = (ent.siren ?? "").replace(/\s/g, "");
+            if (!eSiren || eSiren === cleanSiren) continue;
 
-                mandatCount++;
+            mandatCount++;
 
-                if (!seenSirens.has(eSiren)) {
-                  seenSirens.add(eSiren);
-                  const companyId = `company-${eSiren}`;
-                  nodes.push({
-                    id: companyId,
-                    label: (ent.denomination ?? ent.nom_entreprise ?? "").toUpperCase(),
-                    type: "company",
-                    siren: eSiren,
-                    dateCreation: ent.date_creation ?? "",
-                    ville: "",
-                  });
-                  const role = ent.qualite ?? matchingRep.qualite ?? "Dirigeant";
-                  const dateNom = ent.date_prise_de_poste ?? "";
-                  const edgeLabel = dateNom ? `${role} (${dateNom})` : role;
-                  edges.push({ source: personId, target: companyId, label: edgeLabel });
+            if (!seenSirens.has(eSiren)) {
+              seenSirens.add(eSiren);
+              const companyId = `company-${eSiren}`;
+              nodes.push({
+                id: companyId,
+                label: (ent.denomination ?? ent.nom_entreprise ?? "").toUpperCase(),
+                type: "company",
+                siren: eSiren,
+                dateCreation: ent.date_creation ?? "",
+                ville: "",
+              });
+              const role = ent.qualite ?? matchingRep.qualite ?? "Dirigeant";
+              const dateNom = ent.date_prise_de_poste ?? "";
+              const edgeLabel = dateNom ? `${role} (${dateNom})` : role;
+              edges.push({ source: personId, target: companyId, label: edgeLabel });
 
-                  if (ent.date_creation) {
-                    const created = new Date(ent.date_creation);
-                    const oneYearAgo = new Date();
-                    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-                    if (created > oneYearAgo) {
-                      recentCreations.push(ent.denomination ?? eSiren);
-                    }
-                  }
-
-                  if (ent.statut_rcs === "Radié" || ent.etat_administratif === "F") {
-                    alertes.push({
-                      type: "societe_fermee",
-                      message: `Societe fermee dans le reseau : ${ent.denomination ?? ""} (SIREN ${eSiren})`,
-                      severity: "orange",
-                    });
-                  }
+              if (ent.date_creation) {
+                const created = new Date(ent.date_creation);
+                const oneYearAgo = new Date();
+                oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+                if (created > oneYearAgo) {
+                  recentCreations.push(ent.denomination ?? eSiren);
                 }
+              }
+
+              if (ent.statut_rcs === "Radié" || ent.etat_administratif === "F") {
+                alertes.push({
+                  type: "societe_fermee",
+                  message: `Societe fermee dans le reseau : ${ent.denomination ?? ""} (SIREN ${eSiren})`,
+                  severity: "orange",
+                });
               }
             }
           }
-        } catch {
-          // Pappers failed, fallback to Annuaire below
         }
       }
 
-      // #13: No Annuaire fallback by name — only SIREN-based Pappers links
-
       // #15: Count only active companies for mandat threshold
       let activeMandatCount = mandatCount;
-      if (pappersKey && matchingRepOuter?.entreprises_dirigees) {
+      if (matchingRepOuter?.entreprises_dirigees) {
         activeMandatCount = (matchingRepOuter.entreprises_dirigees as any[]).filter((ent: any) => {
           const st = (ent.statut_rcs ?? "").toLowerCase();
           const ea = (ent.etat_administratif ?? "").toUpperCase();

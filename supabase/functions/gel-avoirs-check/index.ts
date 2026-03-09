@@ -54,7 +54,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    const data = await res.json();
+    let data: any;
+    try {
+      data = await res.json();
+    } catch {
+      return new Response(
+        JSON.stringify({ matches: [], checked: true, status: "unavailable", error: "Reponse API DG Tresor non-JSON" }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     // The API returns { publicationDate, sanctions: [...] } or similar structure
     const sanctions: GelSanction[] = data.sanctions ?? data.Sanctions ?? data.registreDesSanctions ?? [];

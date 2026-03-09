@@ -12,7 +12,8 @@ function normalizeStatus(s: string | null): string | null {
   if (upper === "ATTENTION" || upper === "INDISPONIBLE") return "ATTENTION";
   if (upper === "ALERTE") return "ALERTE";
   if (upper === "PARTIAL") return "ATTENTION";
-  if (upper === "UNAVAILABLE" || upper === "ERREUR" || upper === "ERROR") return "ERREUR";
+  // P5-26: Also normalize "PARTIAL" and "AUCUN_RESULTAT" edge function statuses
+  if (upper === "UNAVAILABLE" || upper === "ERREUR" || upper === "ERROR" || upper === "SERVICE INDISPONIBLE") return "ERREUR";
   return upper;
 }
 

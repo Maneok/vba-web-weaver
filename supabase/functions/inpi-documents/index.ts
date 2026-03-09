@@ -4,9 +4,11 @@ import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
 const INPI_BASE = "https://registre-national-entreprises.inpi.fr/api";
 
-// ====== CORRECTION 2: Token cache ======
+// ====== CORRECTION 2: Token cache with thundering herd protection ======
 let cachedToken: string | null = null;
 let tokenExpiry = 0;
+// FIX P4-1: Thundering herd protection — reuse in-flight refresh (matching documents-fetch)
+let tokenRefreshing: Promise<{ token: string | null; error: string | null }> | null = null;
 
 async function getINPIToken(): Promise<{ token: string | null; error: string | null }> {
   const now = Date.now();
@@ -14,7 +16,16 @@ async function getINPIToken(): Promise<{ token: string | null; error: string | n
     console.log("[INPI] Using cached token");
     return { token: cachedToken, error: null };
   }
+  // Prevent thundering herd: reuse in-flight refresh
+  if (tokenRefreshing) {
+    console.log("[INPI] Reusing in-flight token refresh");
+    return tokenRefreshing;
+  }
+  tokenRefreshing = _refreshINPIToken();
+  try { return await tokenRefreshing; } finally { tokenRefreshing = null; }
+}
 
+async function _refreshINPIToken(): Promise<{ token: string | null; error: string | null }> {
   const username = Deno.env.get("INPI_USERNAME");
   const password = Deno.env.get("INPI_PASSWORD");
   if (!username || !password) {
@@ -43,7 +54,7 @@ async function getINPIToken(): Promise<{ token: string | null; error: string | n
     const token = data.token ?? null;
     if (token) {
       cachedToken = token;
-      tokenExpiry = now + 8 * 60 * 1000; // 8 minutes
+      tokenExpiry = Date.now() + 8 * 60 * 1000; // 8 minutes
       console.log("[INPI] Auth OK — token cached for 8 min");
     } else {
       console.error("[INPI] Auth response sans token:", JSON.stringify(data));
@@ -57,85 +68,120 @@ async function getINPIToken(): Promise<{ token: string | null; error: string | n
   }
 }
 
+// FIX P4-36: Retry on 401 with fresh token
 async function getCompanyData(token: string, siren: string): Promise<any> {
-  try {
-    console.log(`[INPI] GET /companies/${siren}`);
-    const res = await fetch(`${INPI_BASE}/companies/${siren}`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) {
-      // Invalidate token on 401
-      if (res.status === 401) { cachedToken = null; tokenExpiry = 0; }
-      console.error(`[INPI] companies/${siren}: ${res.status}`);
+  let currentTk = token;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      console.log(`[INPI] GET /companies/${siren} (attempt ${attempt + 1})`);
+      const res = await fetch(`${INPI_BASE}/companies/${siren}`, {
+        headers: { Authorization: `Bearer ${currentTk}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) {
+        if (res.status === 401 && attempt === 0) {
+          cachedToken = null; tokenExpiry = 0;
+          const refreshed = await getINPIToken();
+          if (refreshed.token) { currentTk = refreshed.token; continue; }
+        }
+        console.error(`[INPI] companies/${siren}: ${res.status}`);
+        return null;
+      }
+      const data = await res.json();
+      console.log(`[INPI] Company data OK for ${siren}`);
+      return data;
+    } catch (e) {
+      console.error("[INPI] getCompanyData error:", (e as Error).message);
       return null;
     }
-    const data = await res.json();
-    console.log(`[INPI] Company data OK for ${siren}`);
-    return data;
-  } catch (e) {
-    console.error("[INPI] getCompanyData error:", (e as Error).message);
-    return null;
   }
+  return null;
 }
 
+// FIX P4-37: Retry on 401 with fresh token
 async function getAttachments(token: string, siren: string): Promise<any> {
-  try {
-    console.log(`[INPI] GET /companies/${siren}/attachments`);
-    const res = await fetch(`${INPI_BASE}/companies/${siren}/attachments`, {
-      headers: { Authorization: `Bearer ${token}` },
-      signal: AbortSignal.timeout(15000),
-    });
-    if (!res.ok) {
-      if (res.status === 401) { cachedToken = null; tokenExpiry = 0; }
-      console.error(`[INPI] attachments/${siren}: ${res.status}`);
+  let currentTk = token;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      console.log(`[INPI] GET /companies/${siren}/attachments (attempt ${attempt + 1})`);
+      const res = await fetch(`${INPI_BASE}/companies/${siren}/attachments`, {
+        headers: { Authorization: `Bearer ${currentTk}` },
+        signal: AbortSignal.timeout(15000),
+      });
+      if (!res.ok) {
+        if (res.status === 401 && attempt === 0) {
+          cachedToken = null; tokenExpiry = 0;
+          const refreshed = await getINPIToken();
+          if (refreshed.token) { currentTk = refreshed.token; continue; }
+        }
+        console.error(`[INPI] attachments/${siren}: ${res.status}`);
+        return null;
+      }
+      const data = await res.json();
+      console.log(`[INPI] Attachments OK — actes: ${(data.actes ?? []).length}, bilans: ${(data.bilans ?? []).length}`);
+      return data;
+    } catch (e) {
+      console.error("[INPI] getAttachments error:", (e as Error).message);
       return null;
     }
-    const data = await res.json();
-    console.log(`[INPI] Attachments OK — actes: ${(data.actes ?? []).length}, bilans: ${(data.bilans ?? []).length}`);
-    return data;
-  } catch (e) {
-    console.error("[INPI] getAttachments error:", (e as Error).message);
-    return null;
   }
+  return null;
 }
 
 // FIX 8: dlLogs was module-level and grew unboundedly across requests
 // Now reset per request in the handler
 let dlLogs: string[] = [];
 
+// FIX 33: Retry logic with exponential backoff for transient failures
 async function downloadAndStore(
   supabase: any,
-  token: string,
+  token: string,  // FIX P4-21: mutable for 401 retry with fresh token
   url: string,
   path: string,
+  retries = 2,
 ): Promise<string | null> {
-  try {
-    dlLogs.push(`[DL] === DEBUT URL=${url} PATH=${path}`);
-    dlLogs.push(`[DL] Token: ${token ? "present" : "missing"}`);
-
-    const res = await fetch(url, {
-      headers: {
-        "Authorization": "Bearer " + token,
-        "Accept": "application/pdf, application/octet-stream, */*",
-      },
-      redirect: "follow",
-      signal: AbortSignal.timeout(60000),
-    });
-
-    dlLogs.push(`[DL] HTTP ${res.status} | CT=${res.headers.get("content-type")} | CL=${res.headers.get("content-length")} | CD=${res.headers.get("content-disposition")}`);
-
-    if (!res.ok) {
-      const errorBody = await res.text().catch(() => "impossible de lire le body");
-      dlLogs.push(`[DL] ERREUR HTTP ${res.status} ${res.statusText}: ${errorBody.substring(0, 200)}`);
-
-      if (res.status === 401) {
-        dlLogs.push("[DL] TOKEN EXPIRÉ");
-        cachedToken = null;
-        tokenExpiry = 0;
+  let currentDlToken = token;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      if (attempt > 0) {
+        const delay = 1000 * Math.pow(2, attempt - 1);
+        dlLogs.push(`[DL] Retry ${attempt}/${retries} after ${delay}ms`);
+        await new Promise(r => setTimeout(r, delay));
       }
-      return null;
-    }
+      dlLogs.push(`[DL] === DEBUT URL=${url} PATH=${path}`);
+      dlLogs.push(`[DL] Token: ${currentDlToken ? "present" : "missing"}`);
+
+      const res = await fetch(url, {
+        headers: {
+          "Authorization": "Bearer " + currentDlToken,
+          "Accept": "application/pdf, application/octet-stream, */*",
+        },
+        redirect: "follow",
+        // FIX P4-38: Increase download timeout to 90s for large PDFs
+        signal: AbortSignal.timeout(90000),
+      });
+
+      dlLogs.push(`[DL] HTTP ${res.status} | CT=${res.headers.get("content-type")} | CL=${res.headers.get("content-length")} | CD=${res.headers.get("content-disposition")}`);
+
+      if (!res.ok) {
+        const errorBody = await res.text().catch(() => "impossible de lire le body");
+        dlLogs.push(`[DL] ERREUR HTTP ${res.status} ${res.statusText}: ${errorBody.substring(0, 200)}`);
+
+        if (res.status === 401) {
+          dlLogs.push("[DL] TOKEN EXPIRÉ — invalidation et retry");
+          cachedToken = null;
+          tokenExpiry = 0;
+          // FIX P4-21: Retry on 401 with fresh token
+          if (attempt < retries) {
+            const refreshed = await getINPIToken();
+            if (refreshed.token) currentDlToken = refreshed.token;
+            continue;
+          }
+        }
+        // FIX 34: Retry on 429 (rate limit) and 5xx (server errors)
+        if ((res.status === 429 || res.status >= 500) && attempt < retries) continue;
+        return null;
+      }
 
     const buffer = await res.arrayBuffer();
     dlLogs.push(`[DL] Buffer: ${buffer.byteLength} bytes`);
@@ -147,9 +193,17 @@ async function downloadAndStore(
     const isPDF = headerStr.startsWith("%PDF");
     const isHTML = headerStr.toLowerCase().startsWith("<!doc") || headerStr.toLowerCase().startsWith("<html");
 
+    // FIX P4-23: HTML response = auth redirect — retry with fresh token
     if (isHTML) {
       const htmlContent = new TextDecoder().decode(buffer).substring(0, 300);
       dlLogs.push(`[DL] HTML DETECTE (pas un PDF!): ${htmlContent}`);
+      cachedToken = null;
+      tokenExpiry = 0;
+      if (attempt < retries) {
+        const refreshed = await getINPIToken();
+        if (refreshed.token) currentDlToken = refreshed.token;
+        continue;
+      }
       return null;
     }
 
@@ -181,17 +235,18 @@ async function downloadAndStore(
     if (signedData?.signedUrl) {
       finalUrl = signedData.signedUrl;
     } else {
-      dlLogs.push(`[DL] SignedUrl fallback: ${signErr?.message}`);
-      const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(path);
-      finalUrl = urlData?.publicUrl || null;
+      // P5-18: Don't fallback to public URL on private bucket
+      dlLogs.push(`[DL] SignedUrl error: ${signErr?.message} — no fallback for private bucket`);
     }
     dlLogs.push(`[DL] STOCKÉ OK: ${finalUrl}`);
     return finalUrl;
 
-  } catch (e) {
-    dlLogs.push(`[DL] EXCEPTION: ${(e as Error).message} | ${(e as Error).stack?.substring(0, 200)}`);
-    return null;
+    } catch (e) {
+      dlLogs.push(`[DL] EXCEPTION (attempt ${attempt + 1}): ${(e as Error).message} | ${(e as Error).stack?.substring(0, 200)}`);
+      if (attempt >= retries) return null;
+    }
   }
+  return null;
 }
 
 // Financial parsing — supports both complete and simplified formats
@@ -199,8 +254,11 @@ function parseFinancials(bilansSaisis: any[]): any[] {
   if (!bilansSaisis || bilansSaisis.length === 0) return [];
 
   return bilansSaisis.slice(0, 3).map((bilan: any) => {
+    if (!bilan) return null;
     // Handle both flat structure and nested bilanSaisi structure
     const data = bilan.data ?? bilan.donnees ?? {};
+    // P5-14: Guard against non-object data (string, null, etc.)
+    if (typeof data !== "object" || data === null) return null;
     const nestedPages = bilan?.bilanSaisi?.bilan?.detail?.pages ?? [];
     const pages = data.pages ?? data;
 
@@ -253,7 +311,7 @@ function parseFinancials(bilansSaisis: any[]): any[] {
       dettes: getValue(["EC"], 2),
       capitauxPropres: getValue(["DL"], 2),
     };
-  });
+  }).filter(Boolean);
 }
 
 // ====== CORRECTION 1: Parse Personne Morale ======
@@ -317,7 +375,7 @@ function parsePersonneMorale(companyRaw: any): any {
     const isAssocieUnique = description.indicateurAssocieUnique === true ||
       forme.includes("SASU") || forme.includes("EURL") || forme.includes("SNC");
 
-    if (isAssocieUnique || dirigeants.length === 1) {
+    if ((isAssocieUnique || dirigeants.length === 1) && dirigeants[0]) {
       beneficiaires.push({
         nom: dirigeants[0].nom,
         prenom: dirigeants[0].prenom,
@@ -635,12 +693,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    const cleanSiren = String(siren).replace(/[\s.\-]/g, "");
+    // FIX 31: Truncate SIRET (14 digits) to SIREN (9 digits) for INPI API
+    let cleanSiren = String(siren).replace(/[\s.\-]/g, "");
     if (!/^\d{9,14}$/.test(cleanSiren)) {
       return new Response(JSON.stringify({ error: "Format SIREN invalide", status: "error", documents: [], companyData: null, financials: [], totalDocuments: 0, storedCount: 0 }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    if (cleanSiren.length === 14) cleanSiren = cleanSiren.slice(0, 9);
     // FIX 8: Reset dlLogs per request to prevent unbounded growth
     dlLogs = [];
     console.log(`[INPI] === Start for SIREN ${cleanSiren} ===`);
@@ -672,17 +732,29 @@ Deno.serve(async (req) => {
       // Bucket may already exist
     }
 
-    // CORRECTION 1: Smart dispatch for PM / PP / Exploitation
-    const companyRaw = await getCompanyData(token, cleanSiren);
-    const companyData = extractCompanyData(companyRaw);
+    // FIX P4-33: Check existing stored files to skip re-downloads
+    let existingPaths: string[] = [];
+    try {
+      const { data: existing } = await supabase.storage
+        .from("kyc-documents")
+        .list(cleanSiren, { limit: 50 });
+      existingPaths = (existing ?? []).map((f: any) => `${cleanSiren}/${f.name}`);
+      if (existingPaths.length > 0) console.log(`[INPI] Found ${existingPaths.length} existing files for ${cleanSiren}`);
+    } catch { /* non-critical */ }
 
-    // Get attachments (actes + bilans)
-    const attachments = await getAttachments(token, cleanSiren);
+    // CORRECTION 1: Smart dispatch for PM / PP / Exploitation
+    // FIX 53: Parallel fetch of company data and attachments for faster response
+    const [companyRaw, attachments] = await Promise.all([
+      getCompanyData(token, cleanSiren),
+      getAttachments(token, cleanSiren),
+    ]);
+    const companyData = extractCompanyData(companyRaw);
     const documents: any[] = [];
     let financials: any[] = [];
 
     // Track auth time for token refresh
-    const authTime = Date.now();
+    // P5-19: Use let so authTime updates after token refresh
+    let authTime = Date.now();
     let currentToken = token;
 
     if (attachments) {
@@ -693,22 +765,40 @@ Deno.serve(async (req) => {
       console.log(`[INPI] Found ${actes.length} actes, ${bilans.length} bilans, ${bilansSaisis.length} bilansSaisis`);
 
       // Separate statuts from other actes, prioritize statuts
+      // FIX P4-3: Handle empty typeRdd array + fallback to type/nature/nomDocument fields
       const statutsActes: any[] = [];
       const autresActes: any[] = [];
       for (const acte of actes) {
         let isStatutActe = false;
-        if (acte.typeRdd && Array.isArray(acte.typeRdd)) {
+        if (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0) {
           isStatutActe = acte.typeRdd.some((t: any) => {
             const ta = String(t.typeActe || "").toLowerCase();
             const dec = String(t.decision || "").toLowerCase();
             return ta.includes("statut") || dec.includes("statut");
           });
         }
+        // Fallback: check type, nature, nomDocument when typeRdd is empty or absent
+        if (!isStatutActe) {
+          const fallbackStr = [
+            typeof acte.typeRdd === "string" ? acte.typeRdd : "",
+            acte.type ?? "", acte.nature ?? "", acte.nomDocument ?? "",
+          ].join(" ").toLowerCase();
+          isStatutActe = fallbackStr.includes("statut");
+        }
         if (isStatutActe) statutsActes.push(acte);
         else autresActes.push(acte);
       }
       console.log(`[INPI] Statuts: ${statutsActes.length}, Autres actes: ${autresActes.length}`);
-      const actesToProcess = [...statutsActes.slice(0, 2), ...autresActes.slice(0, 3)];
+      // FIX P4-43: Sort by date descending — most recent first
+      const sortByDate = (a: any, b: any) => {
+        const da = a.dateDepot || a.date || "";
+        const db = b.dateDepot || b.date || "";
+        return db.localeCompare(da);
+      };
+      statutsActes.sort(sortByDate);
+      autresActes.sort(sortByDate);
+      // FIX P4-19: Increase statuts limit to 3, keep autres at 3 (total 6 max)
+      const actesToProcess = [...statutsActes.slice(0, 3), ...autresActes.slice(0, 3)];
 
       for (const acte of actesToProcess) {
         // Re-auth if token is older than 5 minutes
@@ -719,13 +809,15 @@ Deno.serve(async (req) => {
           const newAuth = await getINPIToken();
           if (newAuth.token) {
             currentToken = newAuth.token;
+            authTime = Date.now(); // P5-19: Reset timer after refresh
             console.log("[INPI] Nouveau token obtenu");
           } else {
             console.error("[INPI] Re-auth failed:", newAuth.error);
           }
         }
 
-        const acteId = acte.id;
+        // P5-12: Guard against null/undefined acteId
+        const acteId = acte.id ?? `unknown_${Date.now()}`;
         let acteType = "Acte";
         if (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0) {
           acteType = String(acte.typeRdd[0]?.typeActe || acte.typeRdd[0]?.decision || "Acte");
@@ -744,16 +836,29 @@ Deno.serve(async (req) => {
         const nomDoc = String(acte.nomDocument ?? "");
         const label = nature ? `${acteType} — ${nature} — ${acteDate}` : `${acteType} — ${nomDoc || "depot"} ${acteDate}`;
         const safeType = acteType.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9_-]/g, "_");
-        const storagePath = `${cleanSiren}/${safeType}_${acteDate || acteId}.pdf`;
+        // FIX 35: Include acteId in path to avoid storage collisions
+        const storagePath = `${cleanSiren}/${safeType}_${acteDate || ""}_${acteId}.pdf`;
 
-        const downloadUrl = `${INPI_BASE}/actes/${acteId}/download`;
-        const publicUrl = await downloadAndStore(supabase, currentToken, downloadUrl, storagePath);
+        // FIX P4-34: Skip download if already stored
+        let publicUrl: string | null = null;
+        if (existingPaths.includes(storagePath)) {
+          const { data: signed } = await supabase.storage.from("kyc-documents").createSignedUrl(storagePath, 7 * 24 * 60 * 60);
+          if (signed?.signedUrl) {
+            publicUrl = signed.signedUrl;
+            dlLogs.push(`[DL] REUSE existing: ${storagePath}`);
+          }
+        }
+        if (!publicUrl) {
+          const downloadUrl = `${INPI_BASE}/actes/${acteId}/download`;
+          publicUrl = await downloadAndStore(supabase, currentToken, downloadUrl, storagePath);
+        }
 
-        const isStatuts = (acte.typeRdd && Array.isArray(acte.typeRdd))
+        // FIX P4-20: Include nomDocument in statuts detection
+        const isStatuts = (acte.typeRdd && Array.isArray(acte.typeRdd) && acte.typeRdd.length > 0)
           ? acte.typeRdd.some((t: any) =>
               String(t.typeActe || "").toLowerCase().includes("statut") ||
               String(t.decision || "").toLowerCase().includes("statut"))
-          : String(acteType).toLowerCase().includes("statut");
+          : (String(acteType).toLowerCase().includes("statut") || String(acte.nomDocument || "").toLowerCase().includes("statut"));
         const isPV = acteType.toLowerCase().includes("pv") || nature.toLowerCase().includes("pv") || nature.toLowerCase().includes("assembl");
 
         if (publicUrl) {
@@ -791,6 +896,7 @@ Deno.serve(async (req) => {
           const newAuth = await getINPIToken();
           if (newAuth.token) {
             currentToken = newAuth.token;
+            authTime = Date.now(); // P5-19: Reset timer after refresh
             console.log("[INPI] Nouveau token obtenu");
           }
         }
@@ -798,10 +904,23 @@ Deno.serve(async (req) => {
         const bilanId = bilan.id;
         const dateCloture = String(bilan.dateCloture ?? bilan.date_cloture ?? "");
         const typeBilan = String(bilan.typeBilan ?? "Comptes annuels");
-        const storagePath = `${cleanSiren}/comptes_${dateCloture || bilanId}.pdf`;
+        // FIX 35: Include bilanId to avoid collisions
+        const storagePath = `${cleanSiren}/comptes_${dateCloture || ""}_${bilanId}.pdf`;
 
+        // FIX P4-34: Skip download if already stored
+        let publicUrl: string | null = null;
+        if (existingPaths.includes(storagePath)) {
+          const { data: signed } = await supabase.storage.from("kyc-documents").createSignedUrl(storagePath, 7 * 24 * 60 * 60);
+          if (signed?.signedUrl) {
+            publicUrl = signed.signedUrl;
+            dlLogs.push(`[DL] REUSE existing bilan: ${storagePath}`);
+          }
+        }
+        // P5-20: Move downloadUrl outside conditional to fix scope issue
         const downloadUrl = `${INPI_BASE}/bilans/${bilanId}/download`;
-        const publicUrl = await downloadAndStore(supabase, currentToken, downloadUrl, storagePath);
+        if (!publicUrl) {
+          publicUrl = await downloadAndStore(supabase, currentToken, downloadUrl, storagePath);
+        }
 
         if (publicUrl) {
           documents.push({
@@ -909,10 +1028,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun b�
           const { data: signedRne } = await supabase.storage
             .from("kyc-documents")
             .createSignedUrl(extraitPath, 7 * 24 * 60 * 60);
-          const rneUrl = signedRne?.signedUrl || (() => {
-            const { data: urlData } = supabase.storage.from("kyc-documents").getPublicUrl(extraitPath);
-            return urlData?.publicUrl || "";
-          })();
+          // P5-18: Don't fallback to public URL on private bucket
+          const rneUrl = signedRne?.signedUrl || "";
           documents.unshift({
             type: "kbis",
             label: "Extrait RNE (équivalent Kbis) — " + today,

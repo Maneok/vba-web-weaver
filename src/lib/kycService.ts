@@ -189,7 +189,8 @@ export interface DocumentInfo {
   type: string;
   label: string;
   url: string | null;
-  source: "pappers" | "inpi" | "auto" | "Pappers" | "INPI" | null;
+  // FIX P4-9: Normalized source type — always lowercase from edge functions
+  source: "pappers" | "inpi" | "auto" | string | null;
   available: boolean;
   status?: "auto" | "lien" | "lien_direct" | "manquant";
   storedInSupabase?: boolean;
@@ -391,7 +392,8 @@ export function detectAmlSignals(
 
   // Effectif = 0 and CA > 500k
   const latestCA = financials?.[0]?.chiffreAffaires;
-  const hasZeroEmployees = effectif.includes("0") && !effectif.includes("10") && !effectif.includes("20");
+  // P5-22: More robust zero-employee detection (matching riskEngine fix)
+  const hasZeroEmployees = /^0\b|^0 |AUCUN|NEANT/i.test(effectif.trim()) || effectif.trim() === "0";
   if (hasZeroEmployees && latestCA && latestCA > 500000) {
     signals.push({
       type: "ca_sans_salaries",
@@ -527,23 +529,36 @@ async function setCachedResponse(siren: string, apiName: string, responseData: u
 
 // ====== API CALLS ======
 
-// #30: 30s timeout for all edge function calls using Promise.race
-async function callEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
-  const timeoutMs = 30000;
-  const timeoutPromise = new Promise<never>((_, reject) =>
-    setTimeout(() => reject(new Error(`Edge function "${name}" timed out after ${timeoutMs / 1000}s`)), timeoutMs)
-  );
+// FIX P4-7: Per-function timeout — INPI/documents need more time due to PDF downloads
+const EDGE_FUNCTION_TIMEOUTS: Record<string, number> = {
+  "inpi-documents": 90000,
+  "documents-fetch": 60000,
+};
 
-  const invokePromise = (async () => {
-    const { data, error } = await supabase.functions.invoke(name, { body });
+async function callEdgeFunction<T>(name: string, body: Record<string, unknown>): Promise<T> {
+  const timeoutMs = EDGE_FUNCTION_TIMEOUTS[name] ?? 30000;
+  // P5-15: Use AbortController to cancel the underlying request on timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const { data, error } = await supabase.functions.invoke(name, {
+      body,
+      signal: controller.signal as AbortSignal,
+    });
     if (error) throw new Error(error.message);
     if (data && typeof data === "object" && (data as Record<string, unknown>).status === "unavailable") {
       throw new Error("Service indisponible");
     }
     return data as T;
-  })();
-
-  return Promise.race([invokePromise, timeoutPromise]);
+  } catch (e) {
+    if (controller.signal.aborted) {
+      throw new Error(`Edge function "${name}" timed out after ${timeoutMs / 1000}s`);
+    }
+    throw e;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 // Direct client-side fallback for enterprise-lookup
@@ -582,7 +597,8 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
     if (!adresse) adresse = String(siege.geo_adresse ?? siege.adresse ?? "");
 
     return {
-      siren: r.siren ? `${(r.siren as string).slice(0, 3)} ${(r.siren as string).slice(3, 6)} ${(r.siren as string).slice(6, 9)}` : "",
+      // P5-25: Guard against short SIREN (less than 9 chars)
+      siren: r.siren && (r.siren as string).length >= 9 ? `${(r.siren as string).slice(0, 3)} ${(r.siren as string).slice(3, 6)} ${(r.siren as string).slice(6, 9)}` : (r.siren as string) ?? "",
       siret: (siege.siret as string) ?? "",
       raison_sociale: ((r.nom_complet as string) ?? "").toUpperCase(),
       forme_juridique: formeLabel,
@@ -692,11 +708,14 @@ export async function fetchDocuments(siren: string, raison_sociale?: string): Pr
   }
 }
 
-export async function fetchInpiDocuments(siren: string): Promise<InpiResult> {
+// FIX P4-48: Add forceRefresh parameter to bypass cache
+export async function fetchInpiDocuments(siren: string, forceRefresh = false): Promise<InpiResult> {
   const cleanSiren = siren.replace(/\s/g, "");
-  // CORRECTION 4: Check cache first
-  const cached = await getCachedResponse<InpiResult>(cleanSiren, "inpi");
-  if (cached && cached.status === "ok") return cached;
+  // CORRECTION 4: Check cache first (unless forceRefresh)
+  if (!forceRefresh) {
+    const cached = await getCachedResponse<InpiResult>(cleanSiren, "inpi");
+    if (cached && cached.status === "ok") return cached;
+  }
   try {
     const result = await callEdgeFunction<InpiResult>("inpi-documents", { siren });
     if (result.status === "ok") await setCachedResponse(cleanSiren, "inpi", result);
@@ -788,8 +807,9 @@ export function computeKycCompleteness(
     ...(docs?.documents ?? []),
     ...(inpiDocs ?? []),
   ];
+  // FIX P4-8: Accept all stored/available statuses, not just "auto"
   const hasDocType = (typePattern: string) =>
-    allDocs.some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()) && (d.status === "auto" || d.storedInSupabase)) ||
+    allDocs.some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()) && (d.status === "auto" || d.status === "lien_direct" || d.storedInSupabase || d.downloadable)) ||
     (uploadedDocs ?? []).some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()));
 
   const fields: Array<{ label: string; ok: boolean }> = [

@@ -111,9 +111,12 @@ function scoreMaturite(
 ): number {
   const now = new Date();
   const creation = new Date(dateCreation);
+  // P5-10: Guard against invalid/missing date — treat as recent creation (higher risk)
+  if (!dateCreation || isNaN(creation.getTime())) return 65;
   const isReprise = dateReprise && dateReprise !== dateCreation;
   const ancienneteYears = (now.getTime() - creation.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
-  const hasSalaries = effectif && !effectif.includes("0 SALARIÉ");
+  // P5-9: More robust employee detection — old check only matched exact "0 SALARIÉ"
+  const hasSalaries = effectif && !/^0\b|^0 |AUCUN|NEANT|0 SALAR/i.test(effectif.trim()) && effectif.trim() !== "0";
   const isSCI = forme.toUpperCase().includes("SCI") || forme.toUpperCase().includes("HOLDING");
 
   if (!isReprise) return 10; // Created by firm
@@ -209,6 +212,8 @@ export function calculateRiskScore(params: {
 // ====== REVIEW DATE CALCULATION ======
 export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview: string): string {
   const d = new Date(lastReview);
+  // P5-11: Guard against invalid date — fallback to today
+  if (isNaN(d.getTime())) return calculateNextReviewDate(nivVigilance, new Date().toISOString().split("T")[0]);
   switch (nivVigilance) {
     case "SIMPLIFIEE": d.setMonth(d.getMonth() + 36); break;
     case "STANDARD": d.setMonth(d.getMonth() + 12); break;

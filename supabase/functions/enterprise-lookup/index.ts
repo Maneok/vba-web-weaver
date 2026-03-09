@@ -159,7 +159,8 @@ function parseINPICompany(raw: any): any {
       const isAssocieUnique = description.indicateurAssocieUnique === true ||
         forme.includes("SASU") || forme.includes("EURL") || forme.includes("SNC");
 
-      if (isAssocieUnique || dirigeants.length === 1) {
+      // P5-21: Guard against empty dirigeants array
+      if ((isAssocieUnique || dirigeants.length === 1) && dirigeants[0]) {
         beneficiaires.push({
           nom: dirigeants[0].nom,
           prenom: dirigeants[0].prenom,
@@ -553,7 +554,7 @@ Deno.serve(async (req) => {
         })),
       }));
 
-      const dirigeantPrincipal = dirigeants.length > 0
+      const dirigeantPrincipal = dirigeants.length > 0 && dirigeants[0]
         ? `${dirigeants[0].nom} ${dirigeants[0].prenom}`.trim().toUpperCase()
         : "";
 
@@ -717,7 +718,7 @@ Deno.serve(async (req) => {
           capital, capital_source: capitalSource,
           date_creation: r.date_creation ?? "",
           effectif: r.tranche_effectif_salarie ?? siege.tranche_effectif_salarie ?? "0 SALARIE",
-          dirigeant: dirigeants.length > 0 ? `${dirigeants[0].nom} ${dirigeants[0].prenom}`.trim().toUpperCase() : "",
+          dirigeant: dirigeants.length > 0 && dirigeants[0] ? `${dirigeants[0].nom} ${dirigeants[0].prenom}`.trim().toUpperCase() : "",
           dirigeants, telephone, email, site_web: siteWeb,
           beneficiaires_effectifs: beneficiaires,
           finances, representants,

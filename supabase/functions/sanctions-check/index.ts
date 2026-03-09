@@ -62,7 +62,8 @@ Deno.serve(async (req) => {
 
         if (!res.ok) continue;
 
-        const data = await res.json();
+        let data: any;
+        try { data = await res.json(); } catch { continue; }
         const responses = data.responses?.default ?? data.results ?? [];
 
         for (const result of responses) {
@@ -119,7 +120,8 @@ Deno.serve(async (req) => {
           signal: AbortSignal.timeout(8000),
         });
         if (res.ok) {
-          const data = await res.json();
+          let data: any;
+          try { data = await res.json(); } catch { data = {}; }
           const responses = data.responses?.default ?? data.results ?? [];
           for (const result of responses) {
             if ((result.score ?? 0) >= 0.5) {

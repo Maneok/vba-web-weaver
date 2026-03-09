@@ -146,6 +146,10 @@ export default function NouveauClientPage() {
   const [dragOver, setDragOver] = useState(false);
   // FIX 18: Submission loading state to prevent double-click
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // FIX 36: Loading state for generate PDF buttons
+  const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
+  // FIX 37: Drag-over highlight per upload zone
+  const [dragOverZone, setDragOverZone] = useState<string | null>(null);
 
   // Draft banner state
   const [draftBanner, setDraftBanner] = useState<{ restoredAt: Date } | null>(null);
@@ -203,14 +207,15 @@ export default function NouveauClientPage() {
         }
       } catch {}
     }
-  }, []);
+  }, [restoreDraft]);
 
   // Auto-flag PPE if sanctions screening detects it
   const sanctionsPPE = screening.sanctions.data?.hasPPE ?? false;
   const sanctionsCritical = screening.sanctions.data?.hasCriticalMatch ?? false;
 
+  // P5-16: Fix useMemo misuse — all these trigger side effects (setState/toast) so must be useEffect
   // Auto-set questionnaire answers based on screening results
-  useMemo(() => {
+  useEffect(() => {
     if (sanctionsPPE) {
       setQuestions(prev => prev.map(q =>
         q.id === "ppe" && q.value !== "OUI"
@@ -221,23 +226,23 @@ export default function NouveauClientPage() {
   }, [sanctionsPPE]);
 
   // Idée 7: Auto-suggest frequency based on mission type
-  useMemo(() => {
+  useEffect(() => {
     const suggested = MISSION_FREQUENCE[form.mission];
     if (suggested && form.frequence !== suggested) {
       set("frequence", suggested);
     }
-  }, [form.mission]);
+  }, [form.mission, set]);
 
   // #24: Auto-detect domiciliataire → mission DOMICILIATION
   const inpiDomiciliataire = screening.inpi.data?.companyData?.domiciliataire;
-  useMemo(() => {
+  useEffect(() => {
     if (inpiDomiciliataire) {
       set("mission", "DOMICILIATION");
     }
-  }, [inpiDomiciliataire]);
+  }, [inpiDomiciliataire, set]);
 
   // Idée 4: Auto-detect cash-intensive APE
-  useMemo(() => {
+  useEffect(() => {
     if (form.ape && APE_CASH.includes(form.ape)) {
       setQuestions(prev => {
         const cashQ = prev.find(q => q.id === "cash");
@@ -255,7 +260,7 @@ export default function NouveauClientPage() {
   }, [form.ape]);
 
   // Idée 5: Auto-detect pays risque from BE nationalities
-  useMemo(() => {
+  useEffect(() => {
     if (beneficiaires.length > 0) {
       const paysRisqueMatch = beneficiaires.find(b => {
         const nat = (b.nationalite || "").toUpperCase();
@@ -274,7 +279,7 @@ export default function NouveauClientPage() {
 
   // #25: Auto-detect pays risque from address or dirigeant nationality
   const inpiPays = screening.inpi.data?.companyData?.adresse?.pays;
-  useMemo(() => {
+  useEffect(() => {
     const paysAddr = (inpiPays || "").toUpperCase();
     const isForeignAddress = paysAddr && paysAddr !== "" && paysAddr !== "FRANCE" && paysAddr !== "FR";
     const dirNationalites = screening.inpi.data?.companyData?.dirigeants?.map(d => (d.nationalite || "").toUpperCase()) ?? [];
@@ -342,6 +347,7 @@ export default function NouveauClientPage() {
   // KYC completeness
   // FIX 13: Corrected KBIS matching — "Actes" is NOT a KBIS equivalent
   // Only "kbis", "extrait rne", "extrait rbe" count as KBIS
+  // FIX P4-11: Accept lien_direct status, fix KBIS matching, exclude needsAuth-only docs
   const kycCompleteness = useMemo(() => {
     const required = ["KBIS", "Statuts", "CNI", "RIB"];
     const autoDocs = [
@@ -355,7 +361,9 @@ export default function NouveauClientPage() {
         const typeMatch = typeUp.includes(r.toUpperCase());
         // Only Extrait RNE/RBE count as KBIS equivalent, NOT generic "Actes"
         const kbisMatch = r === "KBIS" && (typeUp.includes("EXTRAIT") || typeUp === "KBIS");
-        return (typeMatch || kbisMatch) && (d.status === "auto" || (d as any).storedInSupabase);
+        const isAvailable = d.status === "auto" || d.status === "lien_direct" || (d as any).storedInSupabase === true;
+        const notAuthOnly = !(d as any).needsAuth || (d as any).storedInSupabase;
+        return (typeMatch || kbisMatch) && isAvailable && notAuthOnly;
       })
     );
     return Math.round((found.length / required.length) * 100);
@@ -486,8 +494,8 @@ export default function NouveauClientPage() {
         if (addr) inpiAutoSet("adresse", addr);
         if (inpi.adresse.codePostal) inpiAutoSet("cp", inpi.adresse.codePostal);
         if (inpi.adresse.commune) inpiAutoSet("ville", inpi.adresse.commune.toUpperCase());
-        if (inpi.dirigeants.length > 0) {
-          inpiAutoSet("dirigeant", `${inpi.dirigeants[0].nom} ${inpi.dirigeants[0].prenom}`.trim().toUpperCase());
+        if (inpi.dirigeants?.length > 0 && inpi.dirigeants[0]) {
+          inpiAutoSet("dirigeant", `${inpi.dirigeants[0].nom ?? ""} ${inpi.dirigeants[0].prenom ?? ""}`.trim().toUpperCase());
         }
         // FIX 4+5+6: Enrich with INPI-specific fields
         if (inpi.objetSocial) inpiAutoSet("objetSocial", inpi.objetSocial);
@@ -964,9 +972,14 @@ export default function NouveauClientPage() {
 
   const handleFileUpload = (files: FileList | null) => {
     if (!files) return;
+    // FIX 50: Extended type detection with more keywords
     const typeMap: Record<string, string> = {
-      kbis: "KBIS", statuts: "Statuts", cni: "CNI", rib: "RIB",
-      identite: "CNI", passeport: "CNI",
+      kbis: "KBIS", extrait: "KBIS", statuts: "Statuts", statut: "Statuts",
+      cni: "CNI", identite: "CNI", passeport: "CNI", carte_identite: "CNI",
+      rib: "RIB", iban: "RIB", releve: "RIB",
+      justificatif: "Justificatif", domicile: "Justificatif", edf: "Justificatif",
+      organigramme: "Organigramme", bilan: "Comptes annuels", comptes: "Comptes annuels",
+      pv: "PV AG", assemblee: "PV AG",
     };
     const validFiles: File[] = [];
     for (const f of Array.from(files)) {
@@ -1014,6 +1027,17 @@ export default function NouveauClientPage() {
       setIsSubmitting(false);
       return;
     }
+    // FIX P4-27: Warn if essential documents are missing (non-blocking)
+    const autoDocs = [
+      ...(screening.documents.data?.documents ?? []),
+      ...(screening.inpi.data?.documents ?? []),
+    ];
+    const hasKbis = autoDocs.some(d => d.type?.toUpperCase().includes("KBIS") && (d.storedInSupabase || d.status === "auto"));
+    const hasStatuts = autoDocs.some(d => d.type?.toUpperCase().includes("STATUT") && (d.storedInSupabase || d.status === "auto"));
+    if (!hasKbis && !hasStatuts && form.forme !== "ENTREPRISE INDIVIDUELLE") {
+      toast.warning("Attention : ni le Kbis ni les Statuts n'ont ete recuperes automatiquement. Verifiez les documents.");
+    }
+
     // FIX 10: Check for duplicate SIREN before creating
     const existingSiren = clients.find(c => c.siren?.replace(/\s/g, "") === form.siren?.replace(/\s/g, ""));
     if (existingSiren) {
@@ -1021,10 +1045,6 @@ export default function NouveauClientPage() {
       setIsSubmitting(false);
       return;
     }
-    // FIX 9: Clear draft on successful submission
-    sessionStorage.removeItem("draft_nouveau_client");
-    const cleanSiren = form.siren?.replace(/\s/g, "");
-    if (cleanSiren && cleanSiren.length === 9) sessionStorage.removeItem(`draft_nc_${cleanSiren}`);
     const now = new Date().toISOString().split("T")[0];
     const year = new Date().getFullYear().toString().slice(-2);
 
@@ -1037,14 +1057,14 @@ export default function NouveauClientPage() {
           const match = (c.ref || "").match(/CLI-\d{2}-(\d+)/);
           return match ? parseInt(match[1], 10) : 0;
         });
-        nextNum = Math.max(0, ...dbNums) + 1;
+        nextNum = (dbNums.length > 0 ? Math.max(...dbNums) : 0) + 1;
       } else {
         // Fallback to local
         const existingNums = clients.map(c => {
           const match = c.ref.match(/CLI-\d{2}-(\d+)/);
           return match ? parseInt(match[1], 10) : 0;
         });
-        nextNum = Math.max(0, ...existingNums) + 1;
+        nextNum = (existingNums.length > 0 ? Math.max(...existingNums) : 0) + 1;
       }
     } catch {
       // Fallback to local calculation
@@ -1131,6 +1151,11 @@ export default function NouveauClientPage() {
 
     addClient(newClient);
 
+    // P5-3: Clear draft AFTER successful addClient (was before, losing data on failure)
+    sessionStorage.removeItem("draft_nouveau_client");
+    const cleanSirenDraft = form.siren?.replace(/\s/g, "");
+    if (cleanSirenDraft && cleanSirenDraft.length === 9) sessionStorage.removeItem(`draft_nc_${cleanSirenDraft}`);
+
     // FIX 22: Store motifRefus in audit trail when client is refused
     if (decision === "REFUSER" && motifRefus.trim()) {
       try {
@@ -1198,7 +1223,12 @@ export default function NouveauClientPage() {
   const canGoNext = useMemo(() => {
     switch (step) {
       case 0: return true;
-      case 1: return !!(form.raisonSociale && form.siren && form.siren.replace(/\s/g, "").length === 9 && form.forme && form.ape && form.dirigeant && form.adresse && form.cp && form.ville);
+      // FIX P4-28: Also validate capital > 0 for non-EI forms
+      case 1: {
+        const baseValid = !!(form.raisonSociale && form.siren && form.siren.replace(/\s/g, "").length === 9 && form.forme && form.ape && form.dirigeant && form.adresse && form.cp && form.ville);
+        const needsCapital = form.forme !== "ENTREPRISE INDIVIDUELLE" && form.forme !== "ASSOCIATION";
+        return baseValid && (!needsCapital || form.capital > 0);
+      }
       case 2: return true;
       case 3: return questionsValid;
       case 4: return decision !== "";
@@ -1213,13 +1243,17 @@ export default function NouveauClientPage() {
     if (step >= 1) {
       if (!form.raisonSociale) errors.raisonSociale = "Obligatoire";
       if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) errors.siren = "Le SIREN doit comporter 9 chiffres";
-      if (form.tel && !/^0\d{9}$/.test(form.tel.replace(/\s/g, ""))) errors.tel = "Format: 0XXXXXXXXX";
+      // P5-7: Accept French (0X) and international (+33X) formats, strip spaces/dots/dashes
+      if (form.tel) {
+        const cleanTel = form.tel.replace(/[\s.\-()]/g, "");
+        if (!/^(0\d{9}|\+\d{10,14})$/.test(cleanTel)) errors.tel = "Format: 0XXXXXXXXX ou +33XXXXXXXXX";
+      }
       if (form.mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.mail)) errors.mail = "Email invalide";
-      // FIX 23: Simplified IBAN validation — FR prefix + 27 chars
+      // FIX P4-30: Accept international IBANs (15-34 chars), validate format
       if (form.iban) {
-        const cleanIban = form.iban.replace(/\s/g, "");
-        if (!cleanIban.startsWith("FR") || cleanIban.length !== 27) {
-          errors.iban = "IBAN invalide (FR + 25 caracteres)";
+        const cleanIban = form.iban.replace(/\s/g, "").toUpperCase();
+        if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(cleanIban)) {
+          errors.iban = "IBAN invalide (ex: FR76 XXXX ...)";
         }
       }
     }
@@ -1238,6 +1272,8 @@ export default function NouveauClientPage() {
   const societeRecenteAlert = useMemo(() => {
     if (!form.dateCreation) return null;
     const created = new Date(form.dateCreation);
+    // P5-23: Guard against invalid date
+    if (isNaN(created.getTime())) return null;
     const now = new Date();
     const diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
     if (diffMonths >= 0 && diffMonths < 12) return diffMonths;
@@ -1250,7 +1286,8 @@ export default function NouveauClientPage() {
     if (!financials || financials.length === 0) return null;
     const latestCA = financials[0]?.chiffreAffaires;
     const effectif = form.effectif || "";
-    const hasZeroEmployees = effectif.includes("0") && !effectif.includes("10") && !effectif.includes("20");
+    // P5-8: More robust zero-employee detection (old: includes("0") matched "10", "20", "100", etc.)
+    const hasZeroEmployees = /^0\b|^0 |AUCUN|NEANT/i.test(effectif.trim()) || effectif.trim() === "0";
     if (hasZeroEmployees && latestCA && latestCA > 500000) {
       return latestCA;
     }
@@ -1298,20 +1335,30 @@ export default function NouveauClientPage() {
   const isPersonnePhysique = screening.inpi.data?.companyData?.typePersonne === "physique";
 
   // Idee 30: Dynamic doc checklist per vigilance level
+  // FIX 43: Vigilance-level checklist — STANDARD adds Justificatif, RENFORCEE adds more
+  // FIX P4-31: Adapt checklist for EI (no KBIS/Statuts needed)
   const vigilanceDocChecklist = useMemo(() => {
-    const base = [
+    const isEI = isPersonnePhysique || form.forme === "ENTREPRISE INDIVIDUELLE";
+    const base = isEI ? [
+      { key: "KBIS", label: "Extrait RNE / Avis SIRENE", types: ["KBIS", "EXTRAIT", "SIRENE"] },
+      { key: "CNI", label: "CNI entrepreneur", types: ["CNI", "IDENTITE", "PASSEPORT"] },
+      { key: "RIB", label: "RIB / IBAN", types: ["RIB"] },
+    ] : [
       { key: "KBIS", label: "Extrait Kbis / RNE", types: ["KBIS", "EXTRAIT"] },
       { key: "Statuts", label: "Statuts a jour", types: ["STATUTS", "STATUT"] },
       { key: "CNI", label: "CNI dirigeant", types: ["CNI", "IDENTITE", "PASSEPORT"] },
       { key: "RIB", label: "RIB / IBAN", types: ["RIB"] },
     ];
-    if (risk.nivVigilance === "RENFORCEE") {
+    if (risk.nivVigilance === "STANDARD" || risk.nivVigilance === "RENFORCEE") {
       base.push({ key: "Justificatif", label: "Justificatif domicile", types: ["JUSTIFICATIF", "DOMICILE"] });
+    }
+    if (risk.nivVigilance === "RENFORCEE") {
       base.push({ key: "Comptes", label: "Comptes annuels", types: ["COMPTES", "BILAN"] });
+      base.push({ key: "PV", label: "PV d'AG / Actes", types: ["PV", "ACTE"] });
       base.push({ key: "Organigramme", label: "Organigramme", types: ["ORGANIGRAMME"] });
     }
     return base;
-  }, [risk.nivVigilance]);
+  }, [risk.nivVigilance, isPersonnePhysique, form.forme]);
 
   // Idee 24: Keyboard navigation
   useEffect(() => {
@@ -1443,27 +1490,30 @@ export default function NouveauClientPage() {
         </div>
       )}
 
-      {/* Stepper */}
+      {/* FIX 46: Improved stepper with animated transitions */}
       <div className="glass-card p-4">
         <div className="flex items-center justify-between">
           {STEP_LABELS.map((label, i) => (
             <button
               key={i}
               onClick={() => i <= step && setStep(i)}
-              className={`flex items-center gap-2 ${i <= step ? "cursor-pointer" : "cursor-default"}`}
+              aria-label={`Etape ${i + 1}: ${label}${i < step ? " (complétée)" : i === step ? " (en cours)" : ""}`}
+              aria-current={i === step ? "step" : undefined}
+              disabled={i > step}
+              className={`flex items-center gap-2 transition-opacity ${i <= step ? "cursor-pointer opacity-100" : "cursor-default opacity-50"}`}
             >
-              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                i < step ? "bg-emerald-500 text-white" :
-                i === step ? "bg-blue-500 text-white ring-4 ring-blue-500/20" :
+              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
+                i < step ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20" :
+                i === step ? "bg-blue-500 text-white ring-4 ring-blue-500/20 shadow-lg shadow-blue-500/20" :
                 "bg-white/[0.06] text-slate-500"
               }`}>
                 {i < step ? <Check className="w-4 h-4" /> : i + 1}
               </div>
-              <span className={`text-xs font-medium hidden sm:inline ${
-                i <= step ? "text-slate-200" : "text-slate-600"
+              <span className={`text-xs font-medium hidden sm:inline transition-colors ${
+                i < step ? "text-emerald-400" : i === step ? "text-slate-200" : "text-slate-600"
               }`}>{label}</span>
               {i < STEP_LABELS.length - 1 && (
-                <div className={`w-8 lg:w-16 h-px mx-2 ${i < step ? "bg-emerald-500" : "bg-white/[0.06]"}`} />
+                <div className={`w-8 lg:w-16 h-0.5 mx-2 rounded-full transition-colors duration-300 ${i < step ? "bg-emerald-500" : "bg-white/[0.06]"}`} />
               )}
             </button>
           ))}
@@ -1497,7 +1547,12 @@ export default function NouveauClientPage() {
                 <Input
                   value={searchQuery}
                   onChange={e => {
-                    const val = e.target.value;
+                    let val = e.target.value;
+                    // FIX P4-40: Auto-format SIREN with spaces (123 456 789)
+                    const digitsOnly = val.replace(/[^\d]/g, "");
+                    if (/^\d+$/.test(digitsOnly) && digitsOnly.length <= 14) {
+                      val = digitsOnly.replace(/(\d{3})(?=\d)/g, "$1 ").trim();
+                    }
                     setSearchQuery(val);
                     // #11: Auto-detect SIREN vs company name
                     const trimmed = val.trim().replace(/\s/g, "");
@@ -1650,23 +1705,23 @@ export default function NouveauClientPage() {
             )}
 
             {/* Network Graph preview (Probleme 9) */}
-            {screening.network.data && screening.network.data.nodes.length > 0 && (
+            {screening.network.data && screening.network.data.nodes?.length > 0 && (
               <div className="rounded-lg border border-white/[0.06] overflow-hidden">
                 <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <User className="w-4 h-4 text-cyan-400" />
                   <h3 className="text-sm font-semibold text-slate-300">Reseau dirigeants</h3>
                   <span className="text-[10px] text-slate-500 ml-auto">
-                    {screening.network.data.totalCompanies} societe(s), {screening.network.data.totalPersons} personne(s) — cliquez un noeud pour plus d'infos
+                    {screening.network.data.totalCompanies ?? 0} societe(s), {screening.network.data.totalPersons ?? 0} personne(s) — cliquez un noeud pour plus d'infos
                   </span>
                 </div>
                 <div className="p-2">
                   <NetworkGraph
                     nodes={screening.network.data.nodes}
-                    edges={screening.network.data.edges}
+                    edges={screening.network.data.edges ?? []}
                     height={350}
                   />
                 </div>
-                {screening.network.data.alertes.length > 0 && (
+                {(screening.network.data.alertes?.length ?? 0) > 0 && (
                   <div className="px-4 py-3 border-t border-white/[0.06] space-y-1">
                     {screening.network.data.alertes.slice(0, 5).map((a, i) => (
                       <div key={i} className="flex items-start gap-2 text-xs">
@@ -1696,7 +1751,7 @@ export default function NouveauClientPage() {
                   <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; const forme = (selectedResult.forme_juridique_raw || "").toUpperCase(); const isEI = forme.includes("INDIVIDUEL") || forme.includes("EI"); if (isEI && cap === 0) return "N/A"; return cap > 0 ? `${cap.toLocaleString()} EUR` : "Non renseigne"; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-500">({capitalSource})</span>}</p></div>
                   <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{selectedResult.dirigeant || "—"}</p></div>
                   <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
-                  <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation ? selectedResult.date_creation.split("-").reverse().join("/") : "—"}</p></div>
+                  <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation ? formatDateFR(selectedResult.date_creation) : "—"}</p></div>
                 </div>
                 {dataSource !== "pappers" && (
                   <div className="mt-3 pt-3 border-t border-emerald-500/10 flex items-center gap-2 text-xs">
@@ -1858,10 +1913,14 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* ===== SEPARATEUR ===== */}
+            {/* FIX 54: Improved separator with icon */}
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.08]" /></div>
-              <div className="relative flex justify-center"><span className="bg-[hsl(217,33%,12%)] px-4 text-xs text-slate-500 uppercase tracking-widest">Informations a completer</span></div>
+              <div className="relative flex justify-center">
+                <span className="bg-[hsl(217,33%,12%)] px-4 text-xs text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                  <ChevronDown className="w-3 h-3" /> Informations a completer <ChevronDown className="w-3 h-3" />
+                </span>
+              </div>
             </div>
 
             {/* ===== SECTION 2: Informations cabinet (a completer) ===== */}
@@ -1928,14 +1987,22 @@ export default function NouveauClientPage() {
         {/* STEP 2: BENEFICIAIRES */}
         {step === 2 && (
           <div className="space-y-6">
+            {/* FIX 59: Improved BE header with count */}
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-white">Beneficiaires effectifs</h2>
                 <p className="text-sm text-slate-500 mt-0.5">Personnes detenant plus de 25% du capital ou des droits de vote</p>
               </div>
-              <Button onClick={addBeneficiaire} variant="outline" className="gap-1.5 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400">
-                <Plus className="w-4 h-4" /> Ajouter
-              </Button>
+              <div className="flex items-center gap-2">
+                {beneficiaires.length > 0 && (
+                  <Badge className={`text-[9px] border-0 ${beSumOk ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
+                    {beneficiaires.length} BE — {beneficiaires.reduce((s, b) => s + b.pourcentage, 0)}%
+                  </Badge>
+                )}
+                <Button onClick={addBeneficiaire} variant="outline" className="gap-1.5 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400">
+                  <Plus className="w-4 h-4" /> Ajouter
+                </Button>
+              </div>
             </div>
 
             {!beSumOk && beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && (
@@ -2017,22 +2084,23 @@ export default function NouveauClientPage() {
                       <Trash2 className="w-3.5 h-3.5" />
                     </Button>
                   </div>
-                  <div className="grid grid-cols-4 gap-3">
+                  {/* FIX 55: Responsive beneficiaire grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     <div>
-                      <Label className="text-[10px] text-slate-500">Nom</Label>
-                      <Input value={b.nom} onChange={e => updateBeneficiaire(i, "nom", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" />
+                      <Label className="text-[10px] text-slate-500 uppercase">Nom</Label>
+                      <Input value={b.nom} onChange={e => updateBeneficiaire(i, "nom", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" placeholder="NOM" />
                     </div>
                     <div>
-                      <Label className="text-[10px] text-slate-500">Prenom</Label>
-                      <Input value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" />
+                      <Label className="text-[10px] text-slate-500 uppercase">Prenom</Label>
+                      <Input value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" placeholder="Prenom" />
                     </div>
                     <div>
-                      <Label className="text-[10px] text-slate-500">Date naissance</Label>
+                      <Label className="text-[10px] text-slate-500 uppercase">Date naissance</Label>
                       <Input type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" />
                     </div>
                     <div>
-                      <Label className="text-[10px] text-slate-500">Nationalite</Label>
-                      <Input value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" />
+                      <Label className="text-[10px] text-slate-500 uppercase">Nationalite</Label>
+                      <Input value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm" placeholder="FRANCAISE" />
                     </div>
                   </div>
                   {/* Idee 23: Slider for % parts */}
@@ -2065,9 +2133,22 @@ export default function NouveauClientPage() {
         {/* STEP 3: QUESTIONNAIRE LCB-FT */}
         {step === 3 && (
           <div className="space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Questionnaire LCB-FT</h2>
-              <p className="text-sm text-slate-500 mt-0.5">Evaluation des facteurs de risque reglementaires</p>
+            {/* FIX 58: Questionnaire header with OUI count */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg font-semibold text-white">Questionnaire LCB-FT</h2>
+                <p className="text-sm text-slate-500 mt-0.5">Evaluation des facteurs de risque reglementaires</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {questions.filter(q => q.value === "OUI").length > 0 && (
+                  <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0">
+                    {questions.filter(q => q.value === "OUI").length} risque(s) identifie(s)
+                  </Badge>
+                )}
+                <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">
+                  {questions.filter(q => q.value !== "NON" && q.value !== "N/A").length > 0 ? `+${extraMalus} pts` : "0 malus"}
+                </Badge>
+              </div>
             </div>
 
             <div className="space-y-3">
@@ -2169,22 +2250,33 @@ export default function NouveauClientPage() {
                 <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
                   <h3 className="text-xs font-semibold text-slate-300 mb-3">Decomposition</h3>
                   <div className="space-y-2">
+                    {/* FIX 49: Score decomposition with visual bars */}
                     {[
-                      { label: "Activite (APE)", score: risk.scoreActivite, desc: `Code ${form.ape}` },
-                      { label: "Pays", score: risk.scorePays, desc: riskFlags.paysRisque ? "Pays a risque detecte" : "Aucun risque pays" },
-                      { label: "Mission", score: risk.scoreMission, desc: form.mission },
-                      { label: "Maturite", score: risk.scoreMaturite, desc: "Anciennete de la relation" },
-                      { label: "Structure", score: risk.scoreStructure, desc: form.forme },
-                      { label: "Malus", score: totalMalus, desc: `${questions.filter(q => q.value === "OUI").length} facteur(s) actif(s)` },
+                      { label: "Activite (APE)", score: risk.scoreActivite, max: 100, desc: `Code ${form.ape}` },
+                      { label: "Pays", score: risk.scorePays, max: 100, desc: riskFlags.paysRisque ? "Pays a risque detecte" : "Aucun risque pays" },
+                      { label: "Mission", score: risk.scoreMission, max: 100, desc: form.mission },
+                      { label: "Maturite", score: risk.scoreMaturite, max: 100, desc: "Anciennete de la relation" },
+                      { label: "Structure", score: risk.scoreStructure, max: 100, desc: form.forme },
+                      { label: "Malus", score: totalMalus, max: 100, desc: `${questions.filter(q => q.value === "OUI").length} facteur(s) actif(s)` },
                     ].map(item => (
-                      <div key={item.label} className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xs text-slate-300">{item.label}</span>
-                          <span className="text-[10px] text-slate-500 ml-2">{item.desc}</span>
+                      <div key={item.label} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="text-xs text-slate-300">{item.label}</span>
+                            <span className="text-[10px] text-slate-500 ml-2">{item.desc}</span>
+                          </div>
+                          <span className={`text-sm font-bold font-mono tabular-nums ${
+                            item.score >= 60 ? "text-red-400" : item.score >= 25 ? "text-amber-400" : "text-emerald-400"
+                          }`}>{item.score}</span>
                         </div>
-                        <span className={`text-sm font-bold font-mono ${
-                          item.score >= 60 ? "text-red-400" : item.score >= 25 ? "text-amber-400" : "text-emerald-400"
-                        }`}>{item.score}</span>
+                        <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              item.score >= 60 ? "bg-red-500" : item.score >= 25 ? "bg-amber-500" : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${Math.min((item.score / item.max) * 100, 100)}%` }}
+                          />
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -2199,7 +2291,7 @@ export default function NouveauClientPage() {
                 <span className="text-xs text-slate-300">Date butoir prochaine revue</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-200 font-mono">{calculateDateButoir(risk.nivVigilance).split("-").reverse().join("/")}</span>
+                <span className="text-sm font-bold text-slate-200 font-mono">{formatDateFR(calculateDateButoir(risk.nivVigilance))}</span>
                 <span className="text-[10px] text-slate-500">
                   ({risk.nivVigilance === "SIMPLIFIEE" ? "+3 ans" : risk.nivVigilance === "STANDARD" ? "+2 ans" : "+1 an"})
                 </span>
@@ -2213,35 +2305,38 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* Decision */}
+            {/* FIX 52: Improved decision section with shadows and transitions */}
             <div className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.06] lg:col-span-2">
               <h3 className="text-sm font-semibold text-slate-300 mb-4">Decision</h3>
               <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setDecision("ACCEPTER")}
-                  className={`p-4 rounded-lg border-2 transition-all text-center ${
-                    decision === "ACCEPTER" ? "border-emerald-500 bg-emerald-500/10" : "border-white/[0.06] hover:border-emerald-500/30"
+                  aria-pressed={decision === "ACCEPTER"}
+                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:outline-none ${
+                    decision === "ACCEPTER" ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10" : "border-white/[0.06] hover:border-emerald-500/30 hover:bg-emerald-500/5"
                   }`}
                 >
-                  <Check className={`w-6 h-6 mx-auto mb-2 ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-500"}`} />
+                  <Check className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-500"}`} />
                   <p className={`text-sm font-semibold ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-400"}`}>Accepter</p>
                 </button>
                 <button
                   onClick={() => setDecision("ACCEPTER_RESERVE")}
-                  className={`p-4 rounded-lg border-2 transition-all text-center ${
-                    decision === "ACCEPTER_RESERVE" ? "border-amber-500 bg-amber-500/10" : "border-white/[0.06] hover:border-amber-500/30"
+                  aria-pressed={decision === "ACCEPTER_RESERVE"}
+                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none ${
+                    decision === "ACCEPTER_RESERVE" ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10" : "border-white/[0.06] hover:border-amber-500/30 hover:bg-amber-500/5"
                   }`}
                 >
-                  <AlertTriangle className={`w-6 h-6 mx-auto mb-2 ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-500"}`} />
+                  <AlertTriangle className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-500"}`} />
                   <p className={`text-sm font-semibold ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-400"}`}>Accepter sous reserve</p>
                 </button>
                 <button
                   onClick={() => setDecision("REFUSER")}
-                  className={`p-4 rounded-lg border-2 transition-all text-center ${
-                    decision === "REFUSER" ? "border-red-500 bg-red-500/10" : "border-white/[0.06] hover:border-red-500/30"
+                  aria-pressed={decision === "REFUSER"}
+                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:outline-none ${
+                    decision === "REFUSER" ? "border-red-500 bg-red-500/10 shadow-lg shadow-red-500/10" : "border-white/[0.06] hover:border-red-500/30 hover:bg-red-500/5"
                   }`}
                 >
-                  <X className={`w-6 h-6 mx-auto mb-2 ${decision === "REFUSER" ? "text-red-400" : "text-slate-500"}`} />
+                  <X className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "REFUSER" ? "text-red-400" : "text-slate-500"}`} />
                   <p className={`text-sm font-semibold ${decision === "REFUSER" ? "text-red-400" : "text-slate-400"}`}>Refuser</p>
                 </button>
               </div>
@@ -2271,6 +2366,37 @@ export default function NouveauClientPage() {
                 <p className="text-sm text-slate-500 mt-0.5">Verifiez les pieces collectees et uploadez les justificatifs manquants</p>
               </div>
               <div className="flex items-center gap-3">
+                {/* FIX 38: Refresh documents button */}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-blue-400 hover:text-blue-300 h-7 px-2"
+                  disabled={screening.inpi.loading || screening.documents.loading}
+                  onClick={async () => {
+                    if (form.siren && selectedEnterprise) {
+                      const siren = form.siren.replace(/\s/g, "");
+                      // FIX P4-26: Invalidate cache before refresh to force fresh data
+                      try {
+                        await supabase.from("api_cache").delete().eq("siren", siren).in("api_name", ["inpi", "documents"]);
+                      } catch { /* non-critical */ }
+                      setScreening(prev => ({
+                        ...prev,
+                        inpi: { loading: true, data: null, error: null },
+                        documents: { loading: true, data: null, error: null },
+                      }));
+                      fetchInpiDocuments(siren).then(data => {
+                        setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: data.error || null } }));
+                        if (data.totalDocuments > 0) toast.success(`${data.totalDocuments} document(s) INPI re-recupere(s)`);
+                      }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Echec" } })));
+                      fetchDocuments(siren, form.raisonSociale).then(data => {
+                        setScreening(prev => ({ ...prev, documents: { loading: false, data, error: null } }));
+                      }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Echec" } })));
+                    }
+                  }}
+                >
+                  {(screening.inpi.loading || screening.documents.loading) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                  <span className="ml-1">Rafraichir</span>
+                </Button>
                 <span className="text-xs text-slate-500">KYC</span>
                 <Progress value={kycCompleteness} className="w-28 h-2.5" />
                 <span className={`text-sm font-bold tabular-nums ${kycCompleteness === 100 ? "text-emerald-400" : kycCompleteness >= 60 ? "text-amber-400" : "text-red-400"}`}>{kycCompleteness}%</span>
@@ -2313,24 +2439,80 @@ export default function NouveauClientPage() {
               </CollapsibleContent>
             </Collapsible>
 
+            {/* FIX 56: Show INPI/document fetch errors */}
+            {screening.inpi.error && !screening.inpi.loading && (
+              <div className="p-3 rounded-lg border border-red-500/20 bg-red-500/5 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                <div>
+                  <p className="text-xs font-medium text-red-400">Erreur INPI : {screening.inpi.error}</p>
+                  <p className="text-[10px] text-red-400/70 mt-0.5">Cliquez "Rafraichir" pour reessayer</p>
+                </div>
+              </div>
+            )}
+            {/* FIX P4-49: Better error display with inline retry */}
+            {screening.documents.error && !screening.documents.loading && (
+              <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <p className="text-xs text-amber-400">Documents : {screening.documents.error}</p>
+                </div>
+                <Button variant="ghost" size="sm" className="text-[10px] text-amber-400 h-6 px-2" onClick={() => {
+                  if (form.siren) {
+                    setScreening(prev => ({ ...prev, documents: { loading: true, data: null, error: null } }));
+                    fetchDocuments(form.siren.replace(/\s/g, ""), form.raisonSociale).then(data => {
+                      setScreening(prev => ({ ...prev, documents: { loading: false, data, error: null } }));
+                    }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Echec" } })));
+                  }
+                }}>Reessayer</Button>
+              </div>
+            )}
+
             {/* SECTION 1: Extrait RNE / Kbis — affiché en premier car c'est le doc le plus important */}
             {(() => {
+              // FIX P4-24+46: Deduplicate KBIS/RBE extraits from both sources
               const extraitInpi = (screening.inpi.data?.documents ?? []).filter(d =>
-                d.type?.toLowerCase() === "kbis" && d.storedInSupabase
+                (d.type?.toLowerCase() === "kbis") && d.storedInSupabase
               );
               const extraitPappers = (screening.documents.data?.documents ?? []).filter(d =>
-                d.type?.toLowerCase() === "kbis" && d.url
+                (d.type?.toLowerCase() === "kbis" || d.type?.toLowerCase() === "extrait rbe") && d.url
               );
-              const allExtraits = [...extraitInpi, ...extraitPappers];
-              if (allExtraits.length === 0 && !screening.inpi.loading && !screening.documents.loading) {
+              // Prefer INPI stored docs, add Pappers only if it provides different source
+              const seenSources = new Set(extraitInpi.map(d => String(d.source || "").toLowerCase()));
+              const uniquePappers = extraitPappers.filter(d => !seenSources.has(String(d.source || "").toLowerCase()));
+              const allExtraits = [...extraitInpi, ...uniquePappers];
+              const isLoading = screening.inpi.loading || screening.documents.loading;
+              if (isLoading && allExtraits.length === 0) {
+                return (
+                  <div className="p-4 rounded-lg border border-blue-500/20 bg-blue-500/5">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="w-4 h-4 text-blue-400 animate-spin shrink-0" />
+                      <p className="text-sm text-blue-400">Recuperation de l'extrait Kbis / RNE en cours...</p>
+                    </div>
+                  </div>
+                );
+              }
+              if (allExtraits.length === 0 && !isLoading) {
                 return (
                   <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
-                    <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-amber-400">Aucun extrait Kbis / RNE disponible</p>
-                        <p className="text-[10px] text-amber-500/70 mt-0.5">L&apos;extrait sera genere automatiquement a partir des donnees INPI si disponible</p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                        <div>
+                          <p className="text-sm font-medium text-amber-400">Aucun extrait Kbis / RNE disponible</p>
+                          <p className="text-[10px] text-amber-500/70 mt-0.5">L'extrait sera genere automatiquement lors du rafraichissement si les donnees INPI sont disponibles</p>
+                        </div>
                       </div>
+                      {/* FIX P4-50: Inline retry for missing KBIS */}
+                      <Button variant="ghost" size="sm" className="text-[10px] text-amber-400 h-6 px-2 shrink-0" onClick={() => {
+                        if (form.siren) {
+                          const siren = form.siren.replace(/\s/g, "");
+                          setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
+                          fetchInpiDocuments(siren, true).then(data => {
+                            setScreening(prev => ({ ...prev, inpi: { loading: false, data, error: data.error || null } }));
+                            if (data.totalDocuments > 0) toast.success(`${data.totalDocuments} document(s) recupere(s)`);
+                          }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Echec" } })));
+                        }
+                      }}>Reessayer</Button>
                     </div>
                   </div>
                 );
@@ -2344,7 +2526,7 @@ export default function NouveauClientPage() {
                   </div>
                   {allExtraits.map((doc, i) => {
                     const isHtml = doc.url?.includes(".html") || doc.label?.includes("RNE");
-                    const source = (doc as any).source === "pappers" ? "Pappers" : "INPI";
+                    const source = String(doc.source || "inpi").toLowerCase() === "pappers" ? "Pappers" : "INPI";
                     return (
                       <div key={`kbis-${i}`} className="flex items-center justify-between p-4 rounded-xl border border-blue-500/20 bg-gradient-to-r from-blue-500/5 to-transparent">
                         <div className="flex items-center gap-3 min-w-0">
@@ -2356,7 +2538,7 @@ export default function NouveauClientPage() {
                             <div className="flex items-center gap-2 mt-1">
                               <Badge className="text-[9px] bg-blue-500/15 text-blue-400 border-0">{source}</Badge>
                               <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{isHtml ? "HTML" : "PDF"}</Badge>
-                              {doc.dateDepot && <span className="text-[9px] text-slate-500">{doc.dateDepot.split("-").reverse().join("/")}</span>}
+                              {doc.dateDepot && <span className="text-[9px] text-slate-500">{formatDateFR(doc.dateDepot)}</span>}
                             </div>
                           </div>
                         </div>
@@ -2375,20 +2557,22 @@ export default function NouveauClientPage() {
 
             {/* SECTION 2: Statuts & Actes INPI recuperes */}
             {(() => {
-              // Merge ALL document sources, deduplicate
+              // FIX P4-17: Merge sources, prefer stored PDFs, better dedup
               const inpiDocs = (screening.inpi.data?.documents ?? []).filter(d => d.type?.toLowerCase() !== "kbis");
               const fetchDocs = (screening.documents.data?.documents ?? []).filter(d =>
                 d.type?.toLowerCase() !== "kbis" && d.status !== "manquant"
               );
               const seen = new Set<string>();
+              // Prefer inpi docs first (more likely to have stored PDFs)
               const allDocs = [...inpiDocs, ...fetchDocs].filter(d => {
-                const key = `${d.type}-${d.label}`.toLowerCase();
+                const dateKey = (d as any).dateDepot || (d as any).dateCloture || "";
+                const key = `${d.type}-${(d as any).source || ""}-${dateKey}`.toLowerCase();
                 if (seen.has(key)) return false;
                 seen.add(key);
                 return true;
               });
               const storedDocs = allDocs.filter(d => d.storedInSupabase);
-              const linkDocs = allDocs.filter(d => !d.storedInSupabase && d.url && d.status !== "manquant");
+              const linkDocs = allDocs.filter(d => !d.storedInSupabase && d.url && d.status !== "manquant" && !(d as any).needsAuth);
               const isLoading = screening.inpi.loading || screening.documents.loading;
 
               if (storedDocs.length === 0 && linkDocs.length === 0 && !isLoading) {
@@ -2441,8 +2625,9 @@ export default function NouveauClientPage() {
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
                             <span className="text-[8px] text-emerald-500/70">PDF stocke</span>
-                            {doc.dateDepot && <span className="text-[8px] text-slate-500">{doc.dateDepot.split("-").reverse().join("/")}</span>}
-                            {doc.dateCloture && <span className="text-[8px] text-slate-500">Cloture {doc.dateCloture.split("-").reverse().join("/")}</span>}
+                            {doc.source && <span className="text-[8px] text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
+                            {doc.dateDepot && <span className="text-[8px] text-slate-500">{formatDateFR(doc.dateDepot)}</span>}
+                            {doc.dateCloture && <span className="text-[8px] text-slate-500">Cloture {formatDateFR(doc.dateCloture)}</span>}
                           </div>
                         </div>
                       </div>
@@ -2460,13 +2645,14 @@ export default function NouveauClientPage() {
                     <div key={`link-${i}`} className="flex items-center justify-between p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors group">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${typeColor(doc.type)}`}>
-                          <FileText className="w-4 h-4" />
+                          <ExternalLink className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-sm text-slate-300 truncate max-w-[400px]">{doc.label}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <Badge className="text-[8px] bg-white/[0.06] text-slate-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
                             <span className="text-[8px] text-amber-400/70">Lien externe</span>
+                            {doc.source && <span className="text-[8px] text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
                           </div>
                         </div>
                       </div>
@@ -2498,7 +2684,7 @@ export default function NouveauClientPage() {
                           <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
                           {screening.inpi.data.financials.map((f, i) => (
                             <th key={i} className="text-right py-2.5 px-3 text-slate-400 font-medium">
-                              {f.dateCloture ? f.dateCloture.split("-").reverse().join("/") : `Exercice ${i + 1}`}
+                              {f.dateCloture ? formatDateFR(f.dateCloture) : `Exercice ${i + 1}`}
                             </th>
                           ))}
                         </tr>
@@ -2515,7 +2701,7 @@ export default function NouveauClientPage() {
                           const hasData = screening.inpi.data!.financials.some(f => f[row.key] != null);
                           if (!hasData) return null;
                           return (
-                            <tr key={row.key} className="border-t border-white/[0.04] hover:bg-white/[0.02]">
+                            <tr key={row.key} className="border-t border-white/[0.04] hover:bg-white/[0.03] even:bg-white/[0.01]">
                               <td className="py-2 px-3 text-slate-400">{row.label}</td>
                               {screening.inpi.data!.financials.map((f, i) => {
                                 const val = f[row.key];
@@ -2548,73 +2734,82 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* Idée 16: INPI Historique Timeline */}
+            {/* FIX 40: Improved INPI Historique Timeline */}
             {inpiHistorique.length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs text-slate-400">Historique INPI ({inpiHistorique.length} evenement(s))</Label>
-                  {recentDirigeantChange && (
-                    <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0 flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" /> Changement de dirigeant &lt; 6 mois
-                    </Badge>
-                  )}
-                </div>
-                <div className="relative pl-6 space-y-0">
-                  {inpiHistorique.slice(0, 10).map((evt, i) => {
-                    const evtDate = new Date(evt.date);
-                    const sixMonthsAgo = new Date();
-                    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
-                    const isRecent = evtDate >= sixMonthsAgo;
-                    const isDirigeant = evt.type.toLowerCase().includes("dirigeant") || evt.description.toLowerCase().includes("dirigeant");
-                    return (
-                      <div key={i} className="relative pb-4">
-                        {/* Vertical line */}
-                        {i < inpiHistorique.slice(0, 10).length - 1 && (
-                          <div className="absolute left-[-16px] top-3 bottom-0 w-px bg-white/[0.08]" />
-                        )}
-                        {/* Dot */}
-                        <div className={`absolute left-[-20px] top-1.5 w-2.5 h-2.5 rounded-full border-2 ${
-                          isRecent && isDirigeant ? "bg-red-400 border-red-500" :
-                          isRecent ? "bg-amber-400 border-amber-500" :
-                          "bg-slate-600 border-slate-500"
-                        }`} />
-                        <div className={`p-2 rounded-lg ${isRecent && isDirigeant ? "bg-red-500/5 border border-red-500/20" : "bg-white/[0.02]"}`}>
-                          <div className="flex items-center gap-2">
-                            <span className="text-[10px] text-slate-500 font-mono">{evt.date.split("-").reverse().join("/")}</span>
-                            <Badge className={`text-[9px] border-0 ${
-                              isDirigeant ? "bg-red-500/20 text-red-400" : "bg-slate-500/20 text-slate-400"
-                            }`}>{evt.type}</Badge>
+              <Collapsible defaultOpen={recentDirigeantChange}>
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-slate-400" />
+                    <h3 className="text-xs font-semibold text-slate-300">Historique INPI</h3>
+                    <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{inpiHistorique.length}</Badge>
+                    {recentDirigeantChange && (
+                      <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Dirigeant modifie
+                      </Badge>
+                    )}
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="relative pl-6 space-y-0">
+                    {inpiHistorique.slice(0, 10).map((evt, i) => {
+                      const evtDate = new Date(evt.date);
+                      const sixMonthsAgo = new Date();
+                      sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+                      const isRecent = evtDate >= sixMonthsAgo;
+                      const isDirigeant = evt.type.toLowerCase().includes("dirigeant") || evt.description.toLowerCase().includes("dirigeant");
+                      return (
+                        <div key={i} className="relative pb-4">
+                          {i < inpiHistorique.slice(0, 10).length - 1 && (
+                            <div className="absolute left-[-16px] top-3 bottom-0 w-px bg-white/[0.08]" />
+                          )}
+                          <div className={`absolute left-[-20px] top-1.5 w-2.5 h-2.5 rounded-full border-2 ${
+                            isRecent && isDirigeant ? "bg-red-400 border-red-500" :
+                            isRecent ? "bg-amber-400 border-amber-500" :
+                            "bg-slate-600 border-slate-500"
+                          }`} />
+                          <div className={`p-2 rounded-lg ${isRecent && isDirigeant ? "bg-red-500/5 border border-red-500/20" : "bg-white/[0.02]"}`}>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] text-slate-500 font-mono">{formatDateFR(evt.date)}</span>
+                              <Badge className={`text-[9px] border-0 ${
+                                isDirigeant ? "bg-red-500/20 text-red-400" : "bg-slate-500/20 text-slate-400"
+                              }`}>{evt.type}</Badge>
+                            </div>
+                            <p className="text-xs text-slate-300 mt-1">{evt.description}</p>
+                            {evt.detail && <p className="text-[10px] text-slate-500 mt-0.5">{evt.detail}</p>}
                           </div>
-                          <p className="text-xs text-slate-300 mt-1">{evt.description}</p>
-                          {evt.detail && <p className="text-[10px] text-slate-500 mt-0.5">{evt.detail}</p>}
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-                {inpiHistorique.length > 10 && (
-                  <p className="text-[10px] text-slate-500 text-center">+ {inpiHistorique.length - 10} evenement(s) anterieurs</p>
-                )}
-              </div>
+                      );
+                    })}
+                  </div>
+                  {inpiHistorique.length > 10 && (
+                    <p className="text-[10px] text-slate-500 text-center mt-2">+ {inpiHistorique.length - 10} evenement(s) anterieurs</p>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
             )}
 
             {/* SECTION 2: Checklist documentaire dynamique (Idee 30) */}
             {(() => {
               // FIX 29: Deduplicate documents from both sources before checklist matching
               const rawDocs = [
-                ...(screening.documents.data?.documents ?? []),
+                // FIX P4-12: Prefer INPI docs first (higher quality), then documents-fetch
                 ...(screening.inpi.data?.documents ?? []),
+                ...(screening.documents.data?.documents ?? []),
               ];
-              const seenLabels = new Set<string>();
+              const seenKeys = new Set<string>();
               const allDocs = rawDocs.filter(d => {
-                const key = `${d.type.toUpperCase()}-${d.label}`;
-                if (seenLabels.has(key)) return false;
-                seenLabels.add(key);
+                // FIX P4-12: Better dedup key — type+source+date instead of type+label
+                const dateKey = (d as any).dateDepot || (d as any).dateCloture || "";
+                const key = `${d.type.toUpperCase()}-${(d as any).source || ""}-${dateKey}`;
+                if (seenKeys.has(key)) return false;
+                seenKeys.add(key);
                 return true;
               });
+              // FIX P4-10: needsAuth docs are NOT accessible — don't count them as stored
               const hasStoredPdf = (types: string[]) => allDocs.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t)) &&
-                ((d as any).storedInSupabase === true || (d as any).needsAuth)
+                (d as any).storedInSupabase === true
               );
               const hasUpload = (types: string[]) => documents.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t))
@@ -2646,17 +2841,18 @@ export default function NouveauClientPage() {
                       <span className={`text-sm font-bold ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
                     </div>
                   </div>
-                  <div className="grid grid-cols-3 gap-3">
+                  {/* FIX 41: Responsive checklist grid with better mobile layout */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                     {results.map(item => (
-                      <div key={item.key} className={`p-3 rounded-lg border text-center ${
-                        item.found ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/20 bg-red-500/5"
+                      <div key={item.key} className={`p-2.5 rounded-lg border text-center transition-colors ${
+                        item.found ? "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10" : "border-red-500/20 bg-red-500/5 hover:bg-red-500/10"
                       }`}>
-                        {item.found ? <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" /> : <X className="w-5 h-5 text-red-400 mx-auto mb-1" />}
-                        <p className={`text-xs font-medium ${item.found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
-                        {item.hasPdf && <p className="text-[9px] text-emerald-500 mt-0.5">PDF INPI</p>}
-                        {item.hasUpload && !item.hasPdf && <p className="text-[9px] text-amber-400 mt-0.5">Upload manuel</p>}
-                        {!item.found && item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manuel requis</p>}
-                        {!item.found && !item.manual && <p className="text-[9px] text-red-400 mt-0.5">Manquant</p>}
+                        {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5" /> : <X className="w-4 h-4 text-red-400 mx-auto mb-0.5" />}
+                        <p className={`text-[11px] font-medium leading-tight ${item.found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
+                        {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">PDF INPI</p>}
+                        {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
+                        {!item.found && item.manual && <p className="text-[8px] text-red-400 mt-0.5">Manuel requis</p>}
+                        {!item.found && !item.manual && <p className="text-[8px] text-red-400 mt-0.5">Manquant</p>}
                       </div>
                     ))}
                   </div>
@@ -2666,11 +2862,22 @@ export default function NouveauClientPage() {
 
             {/* SECTION 3: Upload zones for manual documents */}
             <div className="space-y-3">
-              <Label className="text-xs text-slate-400">Documents manuels a fournir</Label>
+              {/* FIX 60: Improved manual docs header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-amber-400" />
+                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Documents manuels a fournir</Label>
+                </div>
+                {documents.length > 0 && (
+                  <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{documents.length} fichier(s)</Badge>
+                )}
+              </div>
+              {/* FIX 44: Dynamic upload zones based on vigilance level */}
               {[
                 { type: "CNI", label: "CNI du dirigeant", desc: "Carte d'identite ou passeport en cours de validite" },
                 { type: "RIB", label: "RIB / IBAN", desc: "Releve d'identite bancaire du compte professionnel" },
-                { type: "Justificatif", label: "Justificatif de domicile", desc: "Justificatif de domicile du siege (< 3 mois)" },
+                ...(risk.nivVigilance !== "SIMPLIFIEE" ? [{ type: "Justificatif", label: "Justificatif de domicile", desc: "Justificatif de domicile du siege (< 3 mois)" }] : []),
+                ...(risk.nivVigilance === "RENFORCEE" ? [{ type: "Organigramme", label: "Organigramme de la structure", desc: "Schema de l'organisation capitalistique et des liens" }] : []),
               ].map(zone => {
                 const uploaded = documents.filter(d => d.type.toUpperCase().includes(zone.type.toUpperCase()));
                 return (
@@ -2692,11 +2899,12 @@ export default function NouveauClientPage() {
                           const docIdx = documents.findIndex(d => d === doc);
                           return (
                             <div key={i} className="flex items-center justify-between p-2 rounded bg-emerald-500/5">
-                              <div className="flex items-center gap-2">
-                                <FileText className="w-3.5 h-3.5 text-emerald-400" />
-                                <span className="text-xs text-slate-300">{doc.name}</span>
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                                <span className="text-xs text-slate-300 truncate">{doc.name}</span>
+                                {doc.file && <span className="text-[9px] text-slate-500 shrink-0">{(doc.file.size / 1024).toFixed(0)} Ko</span>}
                               </div>
-                              <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 h-6 w-6 p-0">
+                              <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 h-6 w-6 p-0 shrink-0">
                                 <Trash2 className="w-3 h-3" />
                               </Button>
                             </div>
@@ -2706,16 +2914,18 @@ export default function NouveauClientPage() {
                     ) : (
                       <label className="block px-4 pb-3">
                         <div
-                          onDragOver={e => { e.preventDefault(); e.stopPropagation(); }}
+                          onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOverZone(zone.type); }}
+                          onDragLeave={() => setDragOverZone(null)}
                           onDrop={e => {
                             e.preventDefault(); e.stopPropagation();
+                            setDragOverZone(null);
                             const files = e.dataTransfer.files;
                             if (files.length > 0) {
-                              // FIX 20: Validate files same as main handler
                               const validFiles = Array.from(files).filter(f => {
                                 if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
-                                const ext = "." + f.name.split(".").pop()?.toLowerCase();
-                                if (!ALLOWED_EXTENSIONS.includes(ext)) { toast.error(`Type non autorise : ${ext}`); return false; }
+                                const rawExt = f.name.split(".").pop()?.toLowerCase();
+                                const ext = rawExt && rawExt !== f.name.toLowerCase() ? "." + rawExt : "";
+                                if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) { toast.error(`Type non autorise : ${ext || "inconnu"}`); return false; }
                                 return true;
                               });
                               const newDocs: UploadedDoc[] = validFiles.map(f => ({
@@ -2724,15 +2934,21 @@ export default function NouveauClientPage() {
                               if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
                             }
                           }}
-                          className="border border-dashed border-white/[0.08] hover:border-blue-500/30 rounded-lg p-4 text-center cursor-pointer transition-colors"
+                          className={`border border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${
+                            dragOverZone === zone.type
+                              ? "border-blue-400 bg-blue-500/10 scale-[1.01]"
+                              : "border-white/[0.08] hover:border-blue-500/30"
+                          }`}
                         >
-                          <Upload className="w-5 h-5 text-slate-600 mx-auto mb-1" />
+                          <Upload className={`w-5 h-5 mx-auto mb-1 ${dragOverZone === zone.type ? "text-blue-400" : "text-slate-600"}`} />
                           <p className="text-[10px] text-slate-500">Glissez ou cliquez pour uploader</p>
-                          <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx" onChange={e => {
+                          <p className="text-[9px] text-slate-600 mt-0.5">PDF, JPG, PNG — max 10 Mo</p>
+                          <input type="file" multiple className="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx" onChange={e => {
                             if (e.target.files) {
-                              // FIX 20: Validate files same as main handler
                               const validFiles = Array.from(e.target.files).filter(f => {
                                 if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
+                                const ext = "." + (f.name.split(".").pop()?.toLowerCase() ?? "");
+                                if (!ALLOWED_EXTENSIONS.includes(ext)) { toast.error(`Type non autorise : ${ext}`); return false; }
                                 return true;
                               });
                               const newDocs: UploadedDoc[] = validFiles.map(f => ({
@@ -2749,22 +2965,27 @@ export default function NouveauClientPage() {
               })}
             </div>
 
-            {/* Other uploaded documents */}
+            {/* Other uploaded documents — FIX 42: Show file size and type */}
             {documents.filter(d => !["CNI", "RIB", "JUSTIFICATIF"].some(t => d.type.toUpperCase().includes(t))).length > 0 && (
               <div className="space-y-2">
                 <Label className="text-xs text-slate-400">Autres documents uploades</Label>
                 {documents.filter(d => !["CNI", "RIB", "JUSTIFICATIF"].some(t => d.type.toUpperCase().includes(t))).map((doc, i) => {
                   const docIdx = documents.findIndex(d => d === doc);
+                  const ext = doc.name.split(".").pop()?.toUpperCase() || "?";
                   return (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                      <div className="flex items-center gap-3">
-                        <FileText className="w-4 h-4 text-slate-500" />
-                        <div>
-                          <p className="text-sm text-slate-200">{doc.name}</p>
-                          <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0 mt-0.5">Upload manuel</Badge>
+                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <FileText className="w-4 h-4 text-slate-500 shrink-0" />
+                        <div className="min-w-0">
+                          <p className="text-sm text-slate-200 truncate">{doc.name}</p>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Upload manuel</Badge>
+                            <span className="text-[9px] text-slate-500">{ext}</span>
+                            {doc.file && <span className="text-[9px] text-slate-500">{(doc.file.size / 1024).toFixed(0)} Ko</span>}
+                          </div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 h-7 w-7 p-0">
+                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 h-7 w-7 p-0 shrink-0">
                         <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -2773,42 +2994,82 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* Generate buttons */}
+            {/* Generate buttons + batch download */}
             <div className="flex flex-wrap gap-3">
               <Button
                 variant="outline"
                 className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
+                disabled={generatingPdf === "fiche"}
                 onClick={() => {
                   const tempClient = buildTempClient();
                   if (!tempClient) { toast.error("Impossible de generer la fiche : donnees manquantes"); return; }
+                  setGeneratingPdf("fiche");
                   try {
                     generateFicheAcceptation(tempClient);
                     toast.success("Fiche LCB-FT generee");
                   } catch { toast.error("Erreur lors de la generation de la fiche"); }
+                  finally { setGeneratingPdf(null); }
                 }}
               >
-                <FileDown className="w-4 h-4" /> Generer fiche LCB-FT (PDF)
+                {generatingPdf === "fiche" ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Generer fiche LCB-FT (PDF)
               </Button>
               <Button
                 variant="outline"
                 className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
+                disabled={generatingPdf === "lettre"}
                 onClick={() => {
                   const tempClient = buildTempClient();
                   if (!tempClient) { toast.error("Impossible de generer la lettre : donnees manquantes"); return; }
+                  setGeneratingPdf("lettre");
                   try {
                     generateLettreMission(tempClient);
                     toast.success("Lettre de mission generee");
                   } catch { toast.error("Erreur lors de la generation de la lettre"); }
+                  finally { setGeneratingPdf(null); }
                 }}
               >
-                <FileDown className="w-4 h-4" /> Generer lettre de mission (PDF)
+                {generatingPdf === "lettre" ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Generer lettre de mission (PDF)
               </Button>
+              {/* FIX 39+P4-25: Batch download all stored documents, deduplicated */}
+              {(() => {
+                const rawStoredDocs = [
+                  ...(screening.inpi.data?.documents ?? []),
+                  ...(screening.documents.data?.documents ?? []),
+                ].filter(d => d.url && (d.storedInSupabase || d.status === "auto"));
+                const seenUrls = new Set<string>();
+                const allStoredDocs = rawStoredDocs.filter(d => {
+                  if (!d.url || seenUrls.has(d.url)) return false;
+                  seenUrls.add(d.url);
+                  return true;
+                });
+                if (allStoredDocs.length < 2) return null;
+                return (
+                  <Button
+                    variant="outline"
+                    className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400"
+                    onClick={() => {
+                      allStoredDocs.forEach((doc, i) => {
+                        setTimeout(() => {
+                          const a = document.createElement("a");
+                          a.href = doc.url!;
+                          a.target = "_blank";
+                          a.rel = "noopener noreferrer";
+                          a.click();
+                        }, i * 300);
+                      });
+                      toast.success(`Ouverture de ${allStoredDocs.length} document(s)`);
+                    }}
+                  >
+                    <FileDown className="w-4 h-4" /> Tout telecharger ({allStoredDocs.length})
+                  </Button>
+                );
+              })()}
             </div>
           </div>
         )}
       </div>
 
-      {/* Navigation buttons */}
+      {/* FIX 47: Improved navigation buttons with step indicator */}
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
@@ -2818,6 +3079,8 @@ export default function NouveauClientPage() {
           <ChevronLeft className="w-4 h-4" />
           {step === 0 ? "Annuler" : "Precedent"}
         </Button>
+
+        <span className="text-[10px] text-slate-500 tabular-nums">Etape {step + 1} / {STEP_LABELS.length}</span>
 
         {step < 5 ? (
           <Button
@@ -2850,7 +3113,7 @@ export default function NouveauClientPage() {
           <Button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+            className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20"
           >
             {isSubmitting ? (
               <><Loader2 className="w-4 h-4 animate-spin" /> Creation en cours...</>
@@ -2861,10 +3124,17 @@ export default function NouveauClientPage() {
         )}
       </div>
 
-      {/* Idee 28: Success modal */}
+      {/* Idee 28: Success modal — FIX P4-13: Backdrop click + Escape key dismissal */}
       {showSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in-up">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in-up"
+          onClick={() => navigate("/bdd")}
+          onKeyDown={e => { if (e.key === "Escape") navigate("/bdd"); }}
+          role="dialog"
+          aria-modal="true"
+          tabIndex={-1}
+        >
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-6">
               <div className="w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4">
                 <CheckCircle2 className="w-8 h-8 text-emerald-400" />
@@ -2872,6 +3142,22 @@ export default function NouveauClientPage() {
               <h2 className="text-xl font-bold text-white">Client cree avec succes</h2>
               <p className="text-sm text-slate-400 mt-2">{form.raisonSociale} — {createdClientRef}</p>
               <p className="text-xs text-slate-500 mt-1">Fiche LCB-FT generee automatiquement</p>
+              {/* FIX 45: Show document count in success modal */}
+              <div className="flex items-center justify-center gap-3 mt-3">
+                <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
+                  {(screening.inpi.data?.documents ?? []).filter(d => d.storedInSupabase).length + documents.length} doc(s)
+                </span>
+                <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
+                  Score {adjustedScore}/120
+                </span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${
+                  risk.nivVigilance === "SIMPLIFIEE" ? "text-emerald-400 bg-emerald-500/10" :
+                  risk.nivVigilance === "STANDARD" ? "text-amber-400 bg-amber-500/10" :
+                  "text-red-400 bg-red-500/10"
+                }`}>
+                  {risk.nivVigilance}
+                </span>
+              </div>
             </div>
             <div className="space-y-3">
               <Button

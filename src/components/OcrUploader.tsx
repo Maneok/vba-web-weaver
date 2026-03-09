@@ -280,7 +280,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
         onDrop={handleDrop}
         onClick={() => status !== "loading" && inputRef.current?.click()}
         className={`
-          relative border-2 border-dashed rounded-lg p-${compact ? "3" : "6"} text-center cursor-pointer transition-all
+          relative border-2 border-dashed rounded-lg ${compact ? "p-3" : "p-6"} text-center cursor-pointer transition-all
           ${dragOver ? "border-blue-400 bg-blue-500/10" : "border-white/10 hover:border-white/20 bg-white/[0.02]"}
           ${status === "loading" ? "pointer-events-none opacity-60" : ""}
         `}
