@@ -60,7 +60,7 @@ function getVigilanceBadge(level: VigilanceLevel) {
     SIMPLIFIEE: { bg: "bg-green-100", text: "text-green-800", label: "Simplifiée" },
     STANDARD: { bg: "bg-amber-100", text: "text-amber-800", label: "Standard" },
     RENFORCEE: { bg: "bg-red-100", text: "text-red-800", label: "Renforcée" },
-  }[level];
+  }[level] ?? { bg: "bg-gray-100", text: "text-gray-800", label: level };
 
   return (
     <span

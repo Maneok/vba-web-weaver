@@ -152,6 +152,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
       if (validationError) {
         setStatus("error");
         setErrorMsg(validationError);
+        if (inputRef.current) inputRef.current.value = "";
         return;
       }
 
@@ -317,7 +318,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
       {/* Alerts (expiration, IBAN, SIREN mismatch) */}
       {alerts.map((alert, i) => (
         <div
-          key={i}
+          key={`${alert.type}-${alert.message.slice(0, 30)}-${i}`}
           className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
             alert.type === "error"
               ? "bg-red-500/10 border border-red-500/20 text-red-400"

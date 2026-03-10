@@ -5,6 +5,7 @@ import type { AuthState, UserProfile, PermissionAction } from "./types";
 import { ROLE_PERMISSIONS } from "./types";
 import { useSessionTimeout } from "./useSessionTimeout";
 import { logAudit } from "./auditTrail";
+import { clearCabinetCache } from "@/lib/supabaseService";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 
@@ -46,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // PGRST116 = row not found — worth retrying (trigger may not be done)
           if (error.code !== "PGRST116") return null;
         }
-      } catch (err) {
+      } catch (err: unknown) {
         logger.warn(`[Auth] Profile fetch attempt ${attempt + 1}/${maxRetries} exception:`, err);
       }
 
@@ -64,6 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await logAudit({ action: "DECONNEXION" }).catch(() => {});
     }
     await supabase.auth.signOut();
+    clearCabinetCache();
     setUser(null);
     setSession(null);
     setProfile(null);

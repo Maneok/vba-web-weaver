@@ -177,12 +177,15 @@ export const collaborateursService = {
     if (!cabinetId) return null;
     const { data, error } = await supabase
       .from("collaborateurs")
-      .update(stripProtected(updates))
+      .update({ ...stripProtected(updates), updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
       .single();
-    if (error) logger.error("DB", "collab update:", error);
+    if (error) {
+      logger.error("DB", "collab update:", error);
+      return null;
+    }
     return data;
   },
 
@@ -228,12 +231,15 @@ export const registreService = {
     if (!cabinetId) return null;
     const { data, error } = await supabase
       .from("alertes_registre")
-      .update(stripProtected(updates))
+      .update({ ...stripProtected(updates), updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
       .single();
-    if (error) logger.error("DB", "registre update:", error);
+    if (error) {
+      logger.error("DB", "registre update:", error);
+      return null;
+    }
     return data;
   },
 };

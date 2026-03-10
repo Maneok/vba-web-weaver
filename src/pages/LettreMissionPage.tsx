@@ -474,7 +474,7 @@ export default function LettreMissionPage() {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(saveToSupabase, 2000);
     return () => clearTimeout(saveTimer.current);
-  }, [data, step]);
+  }, [data, step, saveToSupabase]);
 
   const loadSavedLetters = async () => {
     setHistoryLoading(true);
@@ -580,6 +580,10 @@ export default function LettreMissionPage() {
     sessionStorage.removeItem("lm_wizard_draft");
     setLastSaved(new Date());
     await loadSavedLetters();
+   } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Erreur lors de la sauvegarde";
+    toast.error(msg);
+   }
   };
 
   const handleReset = () => {

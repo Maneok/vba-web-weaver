@@ -1121,7 +1121,7 @@ export function renderLettreMissionPdf(lm: LettreMission): jsPDF {
   try {
     const builder = new LMPdfBuilder(lm);
     return builder.build();
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error("PDF", "Erreur lors de la génération du PDF", err);
     // Return a minimal error PDF so callers never get undefined
     const fallback = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });

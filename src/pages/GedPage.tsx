@@ -132,25 +132,31 @@ export default function GedPage() {
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
 
-    if (error) {
+      if (error) {
+        toast.error("Erreur chargement documents");
+        logger.error("GED", "Erreur chargement documents", error);
+      } else {
+        setDocuments((data as Document[]) || []);
+      }
+    } catch (err) {
       toast.error("Erreur chargement documents");
-      logger.error("GED", "Erreur chargement documents", error);
-    } else {
-      setDocuments((data as Document[]) || []);
+      logger.error("GED", "fetchDocuments exception", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const fetchStorageFiles = useCallback(async () => {
@@ -378,22 +384,30 @@ export default function GedPage() {
   };
 
   const deleteDocument = async (doc: Document) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    await supabase.storage.from("documents").remove([doc.file_path]);
-    const { data: versionData } = await supabase
-      .from("document_versions")
-      .select("file_path")
-      .eq("document_id", doc.id);
-    if (versionData) {
-      const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
-      if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
+      const { error: storageErr } = await supabase.storage.from("documents").remove([doc.file_path]);
+      if (storageErr) logger.warn("GED", "Storage delete warning:", storageErr);
+
+      const { data: versionData } = await supabase
+        .from("document_versions")
+        .select("file_path")
+        .eq("document_id", doc.id);
+      if (versionData) {
+        const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
+        if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
+      }
+
+      const { error: dbErr } = await supabase.from("documents").delete().eq("id", doc.id);
+      if (dbErr) throw dbErr;
+      toast.success("Document supprime");
+      fetchDocuments();
+    } catch (err) {
+      toast.error("Erreur lors de la suppression");
+      logger.error("GED", "deleteDocument error", err);
     }
-
-    await supabase.from("documents").delete().eq("id", doc.id);
-    toast.success("Document supprime");
-    fetchDocuments();
   };
 
   const downloadDocument = async (filePath: string, fileName: string) => {
@@ -401,7 +415,7 @@ export default function GedPage() {
       .from("documents")
       .download(filePath);
 
-    if (error) {
+    if (error || !data || data.size === 0) {
       toast.error("Erreur telechargement");
       return;
     }

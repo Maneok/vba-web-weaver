@@ -52,7 +52,7 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     dateExpCni: (row.date_exp_cni as string) || "",
     statut: ((row.statut as string) || "ACTIF") as Client["statut"],
     be: (row.be as string) || "",
-    dateFin: (row.date_fin as string) || undefined,
+    dateFin: row.date_fin != null ? (row.date_fin as string) : undefined,
     lienKbis: (row.lien_kbis as string) || "",
     lienStatuts: (row.lien_statuts as string) || "",
     lienCni: (row.lien_cni as string) || "",
@@ -112,7 +112,7 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.dateExpCni !== undefined) row.date_exp_cni = client.dateExpCni;
   if (client.statut !== undefined) row.statut = client.statut;
   if (client.be !== undefined) row.be = client.be;
-  if (client.dateFin !== undefined) row.date_fin = client.dateFin;
+  if (client.dateFin !== undefined) row.date_fin = client.dateFin ?? null;
   if (client.lienKbis !== undefined) row.lien_kbis = client.lienKbis;
   if (client.lienStatuts !== undefined) row.lien_statuts = client.lienStatuts;
   if (client.lienCni !== undefined) row.lien_cni = client.lienCni;
@@ -137,6 +137,7 @@ export function mapDbCollaborateur(row: Record<string, unknown>): Collaborateur 
 
 export function mapDbAlerte(row: Record<string, unknown>): AlerteRegistre {
   return {
+    id: (row.id as string) || undefined,
     date: (row.date as string) || "",
     clientConcerne: (row.client_concerne as string) || "",
     categorie: (row.categorie as string) || "",

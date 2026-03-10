@@ -256,7 +256,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
             {row.alertes && row.alertes.length > 0 && (
               <div className="mt-2 ml-7 space-y-1">
                 {row.alertes.slice(0, 3).map((alert, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs">
+                  <div key={`${row.key}-alert-${i}`} className="flex items-start gap-2 text-xs">
                     <AlertTriangle className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
                     <span className="text-red-300">{alert}</span>
                   </div>

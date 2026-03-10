@@ -18,6 +18,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import type { LettreMission } from "@/types/lettreMission";
+import type { Client } from "@/lib/types";
 
 const NAVY = "1A1A2E";
 const GREY = "F5F5F8";
@@ -473,7 +474,6 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
 
 import type { TemplateSection } from "@/lib/lettreMissionTemplate";
 import { replaceTemplateVariables } from "@/lib/lettreMissionTemplate";
-import type { Client } from "@/lib/types";
 
 interface NewDocxParams {
   sections: TemplateSection[];

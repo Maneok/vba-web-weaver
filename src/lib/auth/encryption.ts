@@ -60,8 +60,9 @@ export async function decryptField(encrypted: string): Promise<string> {
     const ciphertext = combined.slice(12);
     const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
     return new TextDecoder().decode(decrypted);
-  } catch {
-    // FIX 15: Never return raw ciphertext — return masked placeholder
+  } catch (err) {
+    // Never return raw ciphertext — log and return masked placeholder
+    logger.warn("[Encryption] Decryption failed:", err instanceof Error ? err.message : String(err));
     return "••••••••";
   }
 }
