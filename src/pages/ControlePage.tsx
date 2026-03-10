@@ -347,6 +347,13 @@ export default function ControlePage() {
     return () => { loadControlesRef.current = false; };
   }, [loadControles]);
 
+  // Clear detailId when the selected control no longer exists in the list
+  useEffect(() => {
+    if (detailId && !controles.find(c => c.id === detailId)) {
+      setDetailId(null);
+    }
+  }, [controles, detailId]);
+
   // BUG FIX #23/#24: Keyboard shortcuts only when no dialog open
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

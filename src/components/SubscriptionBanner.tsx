@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AlertTriangle, CreditCard, Clock, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -17,6 +17,7 @@ interface AccessCheckResult {
 export default function SubscriptionBanner() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem("subscription-banner-dismissed") === "true");
   const [accessData, setAccessData] = useState<AccessCheckResult | null>(null);
 
@@ -32,19 +33,19 @@ export default function SubscriptionBanner() {
           logger.warn("[SubscriptionBanner] RPC error:", error.message);
           return;
         }
-        if (data) {
-          setAccessData(data as unknown as AccessCheckResult);
+        if (data && typeof data === "object" && "allowed" in data && "sub_status" in data) {
+          const result = data as unknown as AccessCheckResult;
+          setAccessData(result);
+          // Navigate immediately if suspended — avoids separate effect race condition
+          // Guard against redirect loop if already on /suspended
+          if (result.sub_status === "suspended" && !result.allowed && location.pathname !== "/suspended") {
+            navigate("/suspended", { replace: true });
+          }
         }
       });
 
     return () => { cancelled = true; };
-  }, [user]);
-
-  useEffect(() => {
-    if (accessData && accessData.sub_status === "suspended" && !accessData.allowed) {
-      navigate("/suspended", { replace: true });
-    }
-  }, [accessData, navigate]);
+  }, [user, navigate]);
 
   if (!accessData || dismissed) return null;
 

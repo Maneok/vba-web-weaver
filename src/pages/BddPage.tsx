@@ -156,8 +156,8 @@ export default function BddPage() {
       : <ChevronDown className="w-3 h-3 text-blue-400" />;
   };
 
-  // Reset to page 0 when filters change
-  useEffect(() => { setPage(0); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
+  // Reset to page 0 and clear selectAllPages when filters change
+  useEffect(() => { setPage(0); setSelectAllPages(false); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.toLowerCase();
@@ -433,24 +433,30 @@ export default function BddPage() {
             className="gap-1 text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
             onClick={() => {
               // 15. Confirmation toast with undo for archive action
-              const refsToArchive = new Set(selectedRefs);
-              const previousStates = new Map<string, string>();
-              refsToArchive.forEach(ref => {
-                const client = clients.find(c => c.ref === ref);
-                if (client) previousStates.set(ref, client.etat);
-              });
-              refsToArchive.forEach(ref => updateClient(ref, { etat: "ARCHIVE" }));
-              setSelectedRefs(new Set());
-              setSelectAllPages(false);
-              toast.success(`${refsToArchive.size} client(s) archive(s)`, {
-                action: {
-                  label: "Annuler",
-                  onClick: () => {
-                    previousStates.forEach((etat, ref) => updateClient(ref, { etat: etat as Client["etat"] }));
-                    toast.info("Archivage annule");
+              try {
+                const validRefs = [...selectedRefs].filter(ref => clients.some(c => c.ref === ref));
+                if (validRefs.length === 0) return;
+                const refsToArchive = new Set(validRefs);
+                const previousStates = new Map<string, string>();
+                refsToArchive.forEach(ref => {
+                  const client = clients.find(c => c.ref === ref);
+                  if (client) previousStates.set(ref, client.etat);
+                });
+                refsToArchive.forEach(ref => updateClient(ref, { etat: "ARCHIVE" }));
+                setSelectedRefs(new Set());
+                setSelectAllPages(false);
+                toast.success(`${refsToArchive.size} client(s) archive(s)`, {
+                  action: {
+                    label: "Annuler",
+                    onClick: () => {
+                      previousStates.forEach((etat, ref) => updateClient(ref, { etat: etat as Client["etat"] }));
+                      toast.info("Archivage annule");
+                    },
                   },
-                },
-              });
+                });
+              } catch (err) {
+                toast.error("Erreur lors de l'archivage des clients");
+              }
             }}
           >
             <Archive className="w-3 h-3" /> Archiver
@@ -461,10 +467,16 @@ export default function BddPage() {
               variant="outline"
               className="gap-1 text-xs border-red-500/30 text-red-300 hover:bg-red-500/10"
               onClick={() => {
-                if (!confirm(`Supprimer ${selectedRefs.size} client(s) ?`)) return;
-                selectedRefs.forEach(ref => deleteClient(ref));
-                setSelectedRefs(new Set());
-                toast.success("Clients supprimes");
+                const validRefs = [...selectedRefs].filter(ref => clients.some(c => c.ref === ref));
+                if (validRefs.length === 0) return;
+                if (!confirm(`Supprimer ${validRefs.length} client(s) ?`)) return;
+                try {
+                  validRefs.forEach(ref => deleteClient(ref));
+                  setSelectedRefs(new Set());
+                  toast.success("Clients supprimes");
+                } catch (err) {
+                  toast.error("Erreur lors de la suppression des clients");
+                }
               }}
             >
               <Trash2 className="w-3 h-3" /> Supprimer
@@ -521,7 +533,7 @@ export default function BddPage() {
               {paginated.map((client, idx) => (
                 <TableRow
                   key={client.ref}
-                  className={`cursor-pointer border-white/[0.04] transition-colors hover:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "even:bg-white/[0.01]" : ""}`}
+                  className={`cursor-pointer border-white/[0.04] transition-colors hover:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "bg-white/[0.01]" : ""}`}
                   onClick={() => navigate(`/client/${client.ref}`)}
                 >
                   <TableCell onClick={e => e.stopPropagation()}>
@@ -533,6 +545,7 @@ export default function BddPage() {
                         const next = new Set(selectedRefs);
                         e.target.checked ? next.add(client.ref) : next.delete(client.ref);
                         setSelectedRefs(next);
+                        if (selectAllPages && !e.target.checked) setSelectAllPages(false);
                       }}
                       aria-label={`Selectionner ${client.raisonSociale}`}
                     />

@@ -13,8 +13,9 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   const { session, profile, loading, hasPermission, signOut, refreshProfile } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const retriedRef = useRef(false);
   const signOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
 
   // Safety timeout — 10s max spinner (AuthContext safety is 8s, this is a fallback)
   useEffect(() => {
@@ -26,23 +27,23 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return () => clearTimeout(timer);
   }, [loading]);
 
-  // Reset retry counter when session changes (new login)
+  // Reset retry flag when session changes (new login)
   useEffect(() => {
-    setRetryCount(0);
+    retriedRef.current = false;
+    retryCountRef.current = 0;
   }, [session?.access_token]);
 
   // Auto-retry profile fetch once on timeout (before showing error)
   useEffect(() => {
-    if (timedOut && session && !profile && retryCount === 0) {
-      let cancelled = false;
-      setRetryCount(1);
+    if (timedOut && session && !profile && !retriedRef.current) {
+      retriedRef.current = true;
+      retryCountRef.current = 1;
       setRetrying(true);
       refreshProfile()
-        .catch(() => { /* retry handled by state */ })
-        .finally(() => { if (!cancelled) setRetrying(false); });
-      return () => { cancelled = true; };
+        .catch(() => {})
+        .finally(() => setRetrying(false));
     }
-  }, [timedOut, session, profile, retryCount, refreshProfile]);
+  }, [timedOut, session, profile, refreshProfile]);
 
   // Cleanup signout timer on unmount
   useEffect(() => {
@@ -51,10 +52,23 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     };
   }, []);
 
+  // Auto sign-out for deactivated accounts
+  useEffect(() => {
+    if (!profile) return;
+    if (profile.is_active) {
+      if (signOutTimerRef.current) { clearTimeout(signOutTimerRef.current); signOutTimerRef.current = null; }
+      return;
+    }
+    if (!signOutTimerRef.current) {
+      signOutTimerRef.current = setTimeout(() => signOut(), 3000);
+    }
+    return () => { if (signOutTimerRef.current) { clearTimeout(signOutTimerRef.current); signOutTimerRef.current = null; } };
+  }, [profile, profile?.is_active, signOut]);
+
   // Manual retry handler
   const handleRetry = useCallback(async () => {
     setRetrying(true);
-    setRetryCount((c) => c + 1);
+    retryCountRef.current += 1;
     try {
       await refreshProfile();
     } catch {
@@ -112,7 +126,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
             Se deconnecter
           </button>
         </div>
-        {retryCount > 1 && (
+        {retryCountRef.current > 1 && (
           <p className="text-xs text-muted-foreground/60 max-w-sm text-center">
             Si le probleme persiste, essayez de vous deconnecter puis de vous reconnecter.
           </p>
@@ -121,15 +135,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     );
   }
 
-  if (profile.is_active && signOutTimerRef.current) {
-    clearTimeout(signOutTimerRef.current);
-    signOutTimerRef.current = null;
-  }
-
   if (!profile.is_active) {
-    if (!signOutTimerRef.current) {
-      signOutTimerRef.current = setTimeout(() => signOut(), 3000);
-    }
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
         <div className="text-center space-y-3" role="alert">

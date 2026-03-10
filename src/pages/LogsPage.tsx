@@ -120,7 +120,9 @@ export default function LogsPage() {
     if (dateStr === today) return "Aujourd'hui";
     if (dateStr === yesterday) return "Hier";
     try {
-      return new Date(dateStr).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "Date inconnue";
+      return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     } catch { return dateStr; }
   }, [today, yesterday]);
 

@@ -73,7 +73,7 @@ export default function OnboardingWizard() {
 
     const { error } = await supabase
       .from("cabinets")
-      .update({ nom: cabinetNom.trim(), siren: cabinetSiret.trim() || null })
+      .update({ nom: cabinetNom.trim(), siren: cabinetSiret.trim() || null, adresse: cabinetAdresse.trim() || null })
       .eq("id", cabinetId);
 
     setSavingCabinet(false);
@@ -90,6 +90,10 @@ export default function OnboardingWizard() {
   async function handleInvite() {
     if (!inviteEmail.trim()) {
       toast.error("L'email est requis");
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(inviteEmail.trim())) {
+      toast.error("Format email invalide");
       return;
     }
 

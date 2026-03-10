@@ -117,7 +117,7 @@ function scoreMaturite(
   const isReprise = dateReprise && dateReprise !== dateCreation;
   const ancienneteYears = (now.getTime() - creation.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
   // P5-9: More robust employee detection — old check only matched exact "0 SALARIÉ"
-  const hasSalaries = effectif && !/^0\b|^0 |AUCUN|NEANT|0 SALAR/i.test(effectif.trim()) && effectif.trim() !== "0";
+  const hasSalaries = effectif && !/^0\b|^0 |AUCUN|N[EÉ]ANT|0 SALAR/i.test(effectif.trim()) && effectif.trim() !== "0";
   const formeUpper = (forme || "").toUpperCase();
   const isSCI = formeUpper.includes("SCI") || formeUpper.includes("HOLDING");
 
@@ -154,17 +154,21 @@ export function calculateRiskScore(params: {
   scoreGlobal: number;
   nivVigilance: VigilanceLevel;
 } {
-  // PPE or Atypique = forced 100
+  // PPE or Atypique = forced 100, but still compute malus for audit trail
   if (params.ppe || params.atypique) {
     const sa = APE_SCORES[params.ape] ?? 25;
     const sp = params.paysRisque ? 100 : 0;
     const sm = MISSION_SCORES[params.mission] ?? 25;
     const smat = scoreMaturite(params.dateCreation, params.dateReprise, params.effectif, params.forme);
     const ss = scoreStructure(params.forme);
+    let mal = 0;
+    if (params.cash) mal += 40;
+    if (params.pression) mal += 40;
+    if (params.distanciel) mal += 30;
     return {
       scoreActivite: sa, scorePays: sp, scoreMission: sm,
       scoreMaturite: smat, scoreStructure: ss,
-      malus: 0, scoreGlobal: 100, nivVigilance: "RENFORCEE",
+      malus: mal, scoreGlobal: 100, nivVigilance: "RENFORCEE",
     };
   }
 
@@ -214,9 +218,9 @@ export function calculateRiskScore(params: {
 
 // ====== REVIEW DATE CALCULATION ======
 export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview: string): string {
-  const d = new Date(lastReview);
-  // P5-11: Guard against invalid date — fallback to today
-  if (isNaN(d.getTime())) return calculateNextReviewDate(nivVigilance, new Date().toISOString().split("T")[0]);
+  let d = new Date(lastReview);
+  // P5-11: Guard against invalid date — fallback to today (iterative, no recursion)
+  if (isNaN(d.getTime())) d = new Date();
   switch (nivVigilance) {
     case "SIMPLIFIEE": d.setFullYear(d.getFullYear() + 3); break;
     case "STANDARD": d.setFullYear(d.getFullYear() + 1); break;

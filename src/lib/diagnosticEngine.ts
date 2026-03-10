@@ -405,7 +405,7 @@ export function runDiagnostic360(
     const cap = c.capital ?? 0;
     const hon = c.honoraires ?? 0;
     if (cap <= 0 || hon <= 0) return false;
-    return c.capital < THRESHOLD_CAPITAL_LOW && c.honoraires > THRESHOLD_HONORAIRES_HIGH;
+    return cap < THRESHOLD_CAPITAL_LOW && hon > THRESHOLD_HONORAIRES_HIGH;
   });
   if (capitalAnomalie.length > 0) {
     items.push({

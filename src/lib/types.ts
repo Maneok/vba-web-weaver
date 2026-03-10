@@ -38,7 +38,7 @@ export interface Client {
   cp: string;
   ville: string;
   siren: string;
-  capital: number;
+  capital: number | null;
   ape: string;
   dirigeant: string;
   domaine: string;
@@ -47,7 +47,7 @@ export interface Client {
   mail: string;
   dateCreation: string;
   dateReprise: string;
-  honoraires: number;
+  honoraires: number | null;
   reprise: number;
   juridique: number;
   frequence: string;

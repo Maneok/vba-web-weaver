@@ -218,8 +218,9 @@ export default function GedPage() {
     } catch (err: unknown) {
       logger.error("GED", "Error fetching storage", err);
       toast.error("Erreur lors du chargement des documents KYC");
+    } finally {
+      setStorageLoading(false);
     }
-    setStorageLoading(false);
   }, []);
 
   useEffect(() => {
@@ -325,8 +326,8 @@ export default function GedPage() {
         toast.error(`"${file.name}" depasse la taille maximale (20 Mo)`);
         return;
       }
-      const ext = "." + file.name.split(".").pop()?.toLowerCase();
-      if (!ALLOWED_EXTENSIONS.includes(ext) && !ALLOWED_TYPES.includes(file.type)) {
+      const ext = "." + (file.name.split(".").pop()?.toLowerCase() || "");
+      if (!ALLOWED_EXTENSIONS.includes(ext) || (!ALLOWED_TYPES.includes(file.type) && file.type !== "")) {
         toast.error(`"${file.name}" : type de fichier non autorise`);
         return;
       }
@@ -435,7 +436,7 @@ export default function GedPage() {
     a.href = url;
     a.download = fileName;
     a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   const openVersionDialog = async (doc: Document) => {
@@ -506,11 +507,13 @@ export default function GedPage() {
       if (filterExpiration === "all") return true;
       if (filterExpiration === "expired") {
         const status = getExpirationStatus(doc.expiration_date);
-        return status && status.daysLeft < 0;
+        if (!status) return false;
+        return status.daysLeft < 0;
       }
       if (filterExpiration === "soon") {
         const status = getExpirationStatus(doc.expiration_date);
-        return status && status.daysLeft >= 0 && status.daysLeft <= 90;
+        if (!status) return false;
+        return status.daysLeft >= 0 && status.daysLeft <= 90;
       }
       return true;
     })();

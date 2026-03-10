@@ -14,7 +14,7 @@ interface AppState {
   logs: LogEntry[];
   isLoading: boolean;
   isOnline: boolean; // true = connected to Supabase
-  addClient: (client: Client) => void;
+  addClient: (client: Client) => Promise<void>;
   updateClient: (ref: string, updates: Partial<Client>) => void;
   deleteClient: (ref: string) => void;
   addLog: (log: LogEntry) => void;
@@ -109,26 +109,27 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     await loadData();
   }, [loadData]);
 
-  const addClient = useCallback((client: Client) => {
+  const addClient = useCallback(async (client: Client) => {
     // Optimistic update
     setClients(prev => [client, ...prev]);
 
-    // Persist to Supabase in background (with rollback on failure)
+    // Persist to Supabase (with rollback on failure)
     if (isOnline) {
       const dbRow = mapClientToDb(client);
-      clientsService.create(dbRow).then((result) => {
+      try {
+        const result = await clientsService.create(dbRow);
         if (!result) {
           logger.error("AppContext", "Failed to persist client to Supabase");
           setClients(prev => prev.filter(c => c.ref !== client.ref));
           toast.error("Erreur lors de la sauvegarde du client");
           return;
         }
-        logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients");
-      }).catch((err) => {
+        logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients").catch(err => logger.error("AppContext", "Audit log failed:", err));
+      } catch (err) {
         logger.error("AppContext", "Create client exception:", err);
         setClients(prev => prev.filter(c => c.ref !== client.ref));
         toast.error("Erreur lors de la sauvegarde du client");
-      });
+      }
     }
 
     // Local log entry
@@ -142,30 +143,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
 
   const updateClient = useCallback((ref: string, updates: Partial<Client>) => {
-    // Capture snapshot inside updater to avoid stale closure
-    let snapshot: Client | undefined;
     setClients(prev => {
-      snapshot = prev.find(c => c.ref === ref);
-      return prev.map(c => c.ref === ref ? { ...c, ...updates } : c);
-    });
+      const snapshot = prev.find(c => c.ref === ref);
+      const next = prev.map(c => c.ref === ref ? { ...c, ...updates } : c);
 
-    // Persist to Supabase (with rollback on failure)
-    if (isOnline) {
-      const dbUpdates = mapClientToDb(updates);
-      clientsService.updateByRef(ref, dbUpdates).then((result) => {
-        if (!result) {
-          logger.error("AppContext", "Failed to update client in Supabase");
-          if (snapshot) setClients(prev => prev.map(c => c.ref === ref ? snapshot! : c));
+      // Persist to Supabase (with rollback on failure)
+      if (isOnline && snapshot) {
+        const dbUpdates = mapClientToDb(updates);
+        clientsService.updateByRef(ref, dbUpdates).then((result) => {
+          if (!result) {
+            logger.error("AppContext", "Failed to update client in Supabase");
+            setClients(p => p.map(c => c.ref === ref ? snapshot : c));
+            toast.error("Erreur lors de la mise a jour du client");
+            return;
+          }
+          logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients").catch(err => logger.error("AppContext", "Audit log failed:", err));
+        }).catch((err) => {
+          logger.error("AppContext", "Update client exception:", err);
+          setClients(p => p.map(c => c.ref === ref ? snapshot : c));
           toast.error("Erreur lors de la mise a jour du client");
-          return;
-        }
-        logsService.add("REVUE/MAJ", `Mise a jour du dossier ${ref}`, ref, "clients");
-      }).catch((err) => {
-        logger.error("AppContext", "Update client exception:", err);
-        if (snapshot) setClients(prev => prev.map(c => c.ref === ref ? snapshot! : c));
-        toast.error("Erreur lors de la mise a jour du client");
-      });
-    }
+        });
+      }
+
+      return next;
+    });
 
     setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
@@ -177,43 +178,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
 
   const deleteClient = useCallback((ref: string) => {
-    let removedClient: Client | undefined;
     setClients(prev => {
-      removedClient = prev.find(c => c.ref === ref);
-      return prev.filter(c => c.ref !== ref);
-    });
+      const removedClient = prev.find(c => c.ref === ref);
+      if (!removedClient) return prev;
 
-    if (isOnline && removedClient) {
-      const clientName = removedClient.raisonSociale;
-      clientsService.deleteByRef(ref).then(() => {
-        logsService.add("SUPPRESSION", `Dossier supprime: ${clientName}`, ref, "clients");
-      }).catch((err) => {
-        logger.error("AppContext", "Failed to delete client:", err);
-        if (removedClient) setClients(prev => [removedClient!, ...prev]);
-        toast.error("Erreur lors de la suppression du client");
-      });
-    }
+      const next = prev.filter(c => c.ref !== ref);
+
+      if (isOnline) {
+        const clientName = removedClient.raisonSociale;
+        clientsService.deleteByRef(ref).then(() => {
+          logsService.add("SUPPRESSION", `Dossier supprime: ${clientName}`, ref, "clients").catch(err => logger.error("AppContext", "Audit log failed:", err));
+        }).catch((err) => {
+          logger.error("AppContext", "Failed to delete client:", err);
+          setClients(p => [removedClient, ...p]);
+          toast.error("Erreur lors de la suppression du client");
+        });
+      }
+
+      return next;
+    });
   }, [isOnline]);
 
   const addLog = useCallback((log: LogEntry) => {
     setLogs(prev => [log, ...prev]);
 
     if (isOnline) {
-      logsService.add(log.typeAction, log.details, log.refClient, "");
+      logsService.add(log.typeAction, log.details, log.refClient, "").catch(err => logger.error("AppContext", "Audit log failed:", err));
     }
   }, [isOnline]);
 
   const addAlerte = useCallback((alerte: AlerteRegistre) => {
-    setAlertes(prev => [alerte, ...prev]);
+    // Use a stable temp ID for rollback — object reference equality fails after re-renders
+    const tempId = alerte.id || `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const alerteWithId = alerte.id ? alerte : { ...alerte, id: tempId };
+    setAlertes(prev => [alerteWithId, ...prev]);
 
     if (isOnline) {
       const dbRow = mapAlerteToDb(alerte);
-      registreService.create(dbRow).catch((err) => {
+      registreService.create(dbRow).then((result) => {
+        if (!result) {
+          logger.error("AppContext", "Failed to persist alerte to Supabase");
+          setAlertes(prev => prev.filter(a => a.id !== tempId));
+          toast.error("Erreur lors de la sauvegarde de l'alerte");
+          return;
+        }
+        // Replace temp ID with real DB id
+        if (result.id) {
+          setAlertes(prev => prev.map(a => a.id === tempId ? { ...a, id: String(result.id) } : a));
+        }
+      }).catch((err) => {
         logger.error("AppContext", "Create alerte exception:", err);
-        setAlertes(prev => prev.filter(a => a !== alerte));
+        setAlertes(prev => prev.filter(a => a.id !== tempId));
         toast.error("Erreur lors de la sauvegarde de l'alerte");
       });
-      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre");
+      logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre").catch(err => logger.error("AppContext", "Audit log failed:", err));
     }
   }, [isOnline]);
 

@@ -12,6 +12,8 @@ export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {
   const warnedRef = useRef(false);
   const sessionStartRef = useRef(Date.now());
   const prevEnabledRef = useRef(false);
+  const onTimeoutRef = useRef(onTimeout);
+  useEffect(() => { onTimeoutRef.current = onTimeout; }, [onTimeout]);
 
   // Reset session start when re-enabled (e.g., re-login without page reload)
   useEffect(() => {
@@ -23,8 +25,9 @@ export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {
 
   const resetTimer = useCallback(() => {
     // Absolute session max (8 hours)
-    if (Date.now() - sessionStartRef.current >= MAX_SESSION_MS) {
-      onTimeout();
+    const elapsed = Date.now() - sessionStartRef.current;
+    if (elapsed >= MAX_SESSION_MS) {
+      onTimeoutRef.current();
       return;
     }
 
@@ -32,17 +35,25 @@ export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {
     if (warningRef.current) clearTimeout(warningRef.current);
     warnedRef.current = false;
 
-    warningRef.current = setTimeout(() => {
-      warnedRef.current = true;
-      toast.warning("Votre session expire dans 2 minutes. Bougez la souris pour rester connecte.");
-    }, WARNING_MS);
+    // Cap inactivity timeout to remaining session time so it can't exceed absolute max
+    const remaining = MAX_SESSION_MS - elapsed;
+    const effectiveTimeout = Math.min(TIMEOUT_MS, remaining);
+    const effectiveWarning = Math.min(WARNING_MS, remaining);
 
-    timerRef.current = setTimeout(onTimeout, TIMEOUT_MS);
-  }, [onTimeout]);
+    if (effectiveWarning < remaining) {
+      warningRef.current = setTimeout(() => {
+        warnedRef.current = true;
+        toast.warning("Votre session expire dans 2 minutes. Bougez la souris pour rester connecte.");
+      }, effectiveWarning);
+    }
+
+    timerRef.current = setTimeout(() => onTimeoutRef.current(), effectiveTimeout);
+  }, []);
 
   useEffect(() => {
     if (!enabled) return;
-    sessionStartRef.current = Date.now();
+    // Do NOT reset sessionStartRef here — it's only set on login (prevEnabled transition).
+    // Resetting here would extend the 8h absolute max on every effect re-run.
 
     resetTimer();
 

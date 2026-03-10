@@ -51,10 +51,27 @@ export default function AuthPage() {
   const [regPassword, setRegPassword] = useState("");
   const [regCabinet, setRegCabinet] = useState("");
 
+  // Sanitize redirect parameter to prevent open redirect attacks
+  function sanitizeRedirect(url: string | null): string {
+    if (!url) return "/";
+    // Only allow relative paths starting with a single "/"
+    // Block protocol-relative URLs ("//"), absolute URLs, and javascript: URIs
+    if (
+      !url.startsWith("/") ||
+      url.startsWith("//") ||
+      url.toLowerCase().startsWith("/\\") ||
+      url.includes(":") ||
+      url.includes("@")
+    ) {
+      return "/";
+    }
+    return url;
+  }
+
   // Auto-redirect when session is detected (after login or if already logged in)
   useEffect(() => {
     if (!authLoading && session) {
-      const redirect = searchParams.get("redirect") || "/";
+      const redirect = sanitizeRedirect(searchParams.get("redirect"));
       navigate(redirect, { replace: true });
     }
   }, [session, authLoading, navigate, searchParams]);

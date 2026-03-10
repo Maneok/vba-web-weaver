@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Bell, AlertTriangle, CreditCard, Clock, Check, CheckCheck, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,11 +57,15 @@ export default function NotificationsPage() {
 
   useDocumentTitle("Notifications");
 
+  const filterRef = useRef(filter);
+  filterRef.current = filter;
+
   const fetchNotifications = useCallback(async (reset = false) => {
     if (!session) return;
     setLoading(true);
     setFetchError(false);
     try {
+      const currentFilter = filterRef.current;
       const currentPage = reset ? 0 : page;
       let query = supabase
         .from("notifications")
@@ -69,9 +73,9 @@ export default function NotificationsPage() {
         .order("created_at", { ascending: false })
         .range(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE - 1);
 
-      if (filter === "unread") {
+      if (currentFilter === "unread") {
         query = query.eq("lue", false);
-      } else if (filter === "urgent") {
+      } else if (currentFilter === "urgent") {
         query = query.eq("type", "SUSPENSION");
       }
 
@@ -92,16 +96,18 @@ export default function NotificationsPage() {
     } finally {
       setLoading(false);
     }
-  }, [session, filter, page]);
+  }, [session, page]);
 
   useEffect(() => {
     setPage(0);
     setNotifications([]);
     setSelectedId(null);
+    // fetchNotifications will be triggered by the page change effect
   }, [filter]);
 
   useEffect(() => {
     fetchNotifications(page === 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchNotifications, page]);
 
   const markAsRead = useCallback(async (id: string) => {

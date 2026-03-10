@@ -145,6 +145,13 @@ function ClientDetailContent({ client }: { client: Client }) {
   const [editForm, setEditForm] = useState({ ...client });
   const [tab, setTab] = useState("informations");
 
+  // Sync editForm when client data changes (e.g. from external updates)
+  useEffect(() => {
+    if (!editing) {
+      setEditForm({ ...client });
+    }
+  }, [client, editing]);
+
   // Screening state
   const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
   const [screeningLaunched, setScreeningLaunched] = useState(false);
@@ -165,6 +172,7 @@ function ClientDetailContent({ client }: { client: Client }) {
     // Enterprise lookup to get dirigeants
     setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
     searchEnterprise("siren", siren.replace(/\s/g, "")).then(res => {
+      if (!screeningMountedRef.current) return;
       const data = res.results ?? [];
       setScreening(prev => ({ ...prev, enterprise: { loading: false, data, error: null } }));
 
@@ -177,47 +185,54 @@ function ClientDetailContent({ client }: { client: Client }) {
       // Sanctions
       setScreening(prev => ({ ...prev, sanctions: { loading: true, data: null, error: null } }));
       checkSanctions(personsToCheck, siren.replace(/\s/g, "")).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, sanctions: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur" } })));
+      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur" } })); });
 
       // BODACC
       setScreening(prev => ({ ...prev, bodacc: { loading: true, data: null, error: null } }));
       checkBodacc(siren, raisonSociale).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, bodacc: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur" } })));
+      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur" } })); });
 
       // Google Places
       setScreening(prev => ({ ...prev, google: { loading: true, data: null, error: null } }));
       verifyGooglePlaces(raisonSociale, ville).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, google: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur" } })));
+      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur" } })); });
 
       // News
       setScreening(prev => ({ ...prev, news: { loading: true, data: null, error: null } }));
       checkNews(raisonSociale, dirigeant).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, news: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur" } })));
+      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur" } })); });
 
       // Network
       if (dirigeants.length > 0) {
         setScreening(prev => ({ ...prev, network: { loading: true, data: null, error: null } }));
         analyzeNetwork(siren, dirigeants).then(d => {
+          if (!screeningMountedRef.current) return;
           setScreening(prev => ({ ...prev, network: { loading: false, data: d, error: null } }));
-        }).catch(() => setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur" } })));
+        }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur" } })); });
       }
 
       // Documents
       setScreening(prev => ({ ...prev, documents: { loading: true, data: null, error: null } }));
       fetchDocuments(siren, raisonSociale).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, documents: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })));
+      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })); });
 
       // INPI
       setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
       fetchInpiDocuments(siren.replace(/\s/g, "")).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, inpi: { loading: false, data: d, error: d.error || null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })));
-    }).catch(() => setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur" } })));
+      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })); });
+    }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur" } })); });
   }, [screeningLaunched, client]);
 
   // Auto-launch screening on compliance/reseau/financier/historique_legal tab

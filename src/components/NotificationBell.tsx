@@ -64,10 +64,11 @@ export default function NotificationBell() {
   }, [session]);
 
   useEffect(() => {
+    if (!session) return;
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 60000);
     return () => clearInterval(interval);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, session]);
 
   // Refresh when popover opens
   useEffect(() => {

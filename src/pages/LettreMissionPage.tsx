@@ -315,19 +315,7 @@ export default function LettreMissionPage() {
 
   useDocumentTitle("Lettre de Mission");
 
-  // ── Permission check ──
-  if (!hasPermission("write_clients")) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
-        <ShieldAlert className="w-12 h-12 text-red-400" />
-        <p className="text-white font-medium">Acces refuse</p>
-        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
-        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
-      </div>
-    );
-  }
-
-  // ── Wizard state ──
+  // ── Wizard state (all hooks must be declared before any early return) ──
   const [step, setStep] = useState(0);
   const [data, setData] = useState<LMWizardData>({ ...INITIAL_LM_WIZARD_DATA });
   const [stepDirection, setStepDirection] = useState<"left" | "right">("right");
@@ -346,7 +334,19 @@ export default function LettreMissionPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
 
   // Swipe
-  const touchStartX = useRef(0);
+  const touchStartX = useRef<number | null>(null);
+
+  // ── Permission check (after all hooks) ──
+  if (!hasPermission("write_clients")) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
+        <ShieldAlert className="w-12 h-12 text-red-400" />
+        <p className="text-white font-medium">Acces refuse</p>
+        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
+        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
+      </div>
+    );
+  }
 
   // ── H) Time tracking ──
   useEffect(() => {
@@ -387,6 +387,7 @@ export default function LettreMissionPage() {
 
   // ── Init: restore draft + load Supabase ──
   useEffect(() => {
+    let cancelled = false;
     try {
       const raw = sessionStorage.getItem("lm_wizard_draft");
       if (raw) {
@@ -399,11 +400,12 @@ export default function LettreMissionPage() {
     } catch (e) {
       logger.warn("LM", "Failed to restore session draft:", e);
     }
-    loadSupabaseDraft();
+    loadSupabaseDraft(cancelled);
     loadSavedLetters();
+    return () => { cancelled = true; };
   }, []);
 
-  const loadSupabaseDraft = async () => {
+  const loadSupabaseDraft = async (cancelled: boolean) => {
     try {
       const { data: drafts } = await supabase
         .from("lettres_mission")
@@ -411,6 +413,7 @@ export default function LettreMissionPage() {
         .eq("statut", "brouillon")
         .order("updated_at", { ascending: false })
         .limit(1);
+      if (cancelled) return;
       if (drafts && drafts.length > 0 && drafts[0].wizard_data?.client_id) {
         setDraftInfo(drafts[0] as any);
         setShowDraftBanner(true);
@@ -427,6 +430,7 @@ export default function LettreMissionPage() {
       setStep(draftInfo.wizard_step || 0);
       setShowDraftBanner(false);
       setActiveTab("wizard");
+      warningShown.current = false;
     }
   };
 
@@ -566,7 +570,9 @@ export default function LettreMissionPage() {
   const handleTouchStart = (e: React.TouchEvent) => { if (e.targetTouches.length > 0) touchStartX.current = e.targetTouches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (e.changedTouches.length === 0) return;
+    if (touchStartX.current === null) return;
     const diff = touchStartX.current - e.changedTouches[0].clientX;
+    touchStartX.current = null;
     if (Math.abs(diff) > 75) { diff > 0 ? handleNext() : handlePrevious(); }
   };
 
@@ -581,6 +587,7 @@ export default function LettreMissionPage() {
     const finalData = { ...data, duration_seconds: duration };
 
     const sanitized = sanitizeWizardData(finalData);
+    const { data: authData } = await supabase.auth.getUser();
     const payload = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,
@@ -593,7 +600,7 @@ export default function LettreMissionPage() {
       const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmId);
       if (error) throw error;
     } else {
-      const { data: ins, error } = await supabase.from("lettres_mission").insert(payload).select("id").maybeSingle();
+      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, user_id: authData?.user?.id, cabinet_id: profile?.cabinet_id }).select("id").maybeSingle();
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }

@@ -393,7 +393,7 @@ export function detectAmlSignals(
   // Effectif = 0 and CA > 500k
   const latestCA = financials?.[0]?.chiffreAffaires;
   // P5-22: More robust zero-employee detection (matching riskEngine fix)
-  const hasZeroEmployees = /^0\b|^0 |AUCUN|NEANT/i.test(effectif.trim()) || effectif.trim() === "0";
+  const hasZeroEmployees = /^0\b|^0 |AUCUN|N[EÉ]ANT/i.test(effectif.trim()) || effectif.trim() === "0";
   if (hasZeroEmployees && latestCA && latestCA > 500000) {
     signals.push({
       type: "ca_sans_salaries",
@@ -408,7 +408,8 @@ export function detectAmlSignals(
     const created = new Date(dateCreation);
     if (!isNaN(created.getTime())) {
     const now = new Date();
-    const diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+    let diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+    if (now.getDate() < created.getDate()) diffMonths--;
     if (diffMonths < 12 && diffMonths >= 0) {
       signals.push({
         type: "societe_recente",

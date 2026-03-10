@@ -193,6 +193,7 @@ export default function NouveauClientPage() {
 
   // #40: Collapsed beneficiaires
   const [collapsedBE, setCollapsedBE] = useState<Record<number, boolean>>({});
+  useEffect(() => { setCollapsedBE({}); }, [beneficiaires.length]);
 
   // #51: Animated score
   const [animatedScore, setAnimatedScore] = useState(0);
@@ -329,7 +330,7 @@ export default function NouveauClientPage() {
       set("frequence", suggested);
     }
     prevMissionRef.current = form.mission;
-  }, [form.mission, set, prevMissionRef]);
+  }, [form.mission, set]);
 
   // #24: Auto-detect domiciliataire → mission DOMICILIATION
   const inpiDomiciliataire = screening.inpi.data?.companyData?.domiciliataire;
@@ -435,14 +436,16 @@ export default function NouveauClientPage() {
       const target = adjustedScore;
       const duration = 1200;
       const start = performance.now();
+      let rafId: number;
       const animate = (now: number) => {
         const elapsed = now - start;
         const progress = Math.min(elapsed / duration, 1);
         const eased = 1 - Math.pow(1 - progress, 3);
         setAnimatedScore(Math.round(eased * target));
-        if (progress < 1) requestAnimationFrame(animate);
+        if (progress < 1) rafId = requestAnimationFrame(animate);
       };
-      requestAnimationFrame(animate);
+      rafId = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(rafId);
     }
   }, [step, adjustedScore]);
 
@@ -1321,7 +1324,7 @@ export default function NouveauClientPage() {
       else if (newClient.scoreGlobal >= 25) newClient.nivVigilance = "STANDARD";
     }
 
-    addClient(newClient);
+    await addClient(newClient);
 
     // P5-3: Clear draft AFTER successful addClient (was before, losing data on failure)
     sessionStorage.removeItem("draft_nouveau_client");
@@ -1544,11 +1547,9 @@ export default function NouveauClientPage() {
       }
       if (e.key === "Enter" && !e.shiftKey) {
         const active = document.activeElement;
-        if (active && (active.tagName === "TEXTAREA")) return;
-        if (active && active.tagName === "INPUT") {
-          e.preventDefault();
-          if (step < 5 && canGoNext) setStep(s => s + 1);
-        }
+        if (active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT" || active.tagName === "SELECT")) return;
+        e.preventDefault();
+        if (step < 5 && canGoNext) setStep(s => s + 1);
       }
     };
     window.addEventListener("keydown", handler);

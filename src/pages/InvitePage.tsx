@@ -41,12 +41,16 @@ export default function InvitePage() {
       return;
     }
 
+    let cancelled = false;
+
     async function fetchInvitation() {
       const { data, error: fetchErr } = await supabase
         .from("invitations")
         .select("id, email, role, status, expires_at, cabinet_id, cabinets(nom)")
         .eq("token", token!)
         .maybeSingle();
+
+      if (cancelled) return;
 
       if (fetchErr || !data) {
         setError("Invitation introuvable ou lien invalide.");
@@ -66,7 +70,8 @@ export default function InvitePage() {
         return;
       }
 
-      const cabinetName = (data.cabinets as any)?.nom || "Cabinet inconnu";
+      const cabinets = data.cabinets as Record<string, unknown> | null;
+      const cabinetName = (cabinets && typeof cabinets.nom === "string") ? cabinets.nom : "Cabinet inconnu";
 
       setInvitation({
         id: data.id,
@@ -80,6 +85,7 @@ export default function InvitePage() {
     }
 
     fetchInvitation();
+    return () => { cancelled = true; };
   }, [token]);
 
   async function handleAccept() {

@@ -12,6 +12,8 @@ interface Props {
 
 export default function NetworkGraph({ nodes, edges, width = 700, height = 500, onNodeClick }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const onNodeClickRef = useRef(onNodeClick);
+  onNodeClickRef.current = onNodeClick;
 
   useEffect(() => {
     // P6-81: Skip simulation for single node (no edges to display)
@@ -25,7 +27,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       d3.select(svgRef.current).selectAll("*").remove();
       return;
     }
-    const safeEdges = edges ?? [];
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const safeEdges = (edges ?? []).filter(e => e.source && e.target && nodeIds.has(e.source) && nodeIds.has(e.target));
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
@@ -117,10 +120,10 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         })
       );
 
-    // Click handler
+    // Click handler (use ref to always get latest callback without re-running effect)
     node.on("click", (_event, d: any) => {
-      if (onNodeClick) {
-        onNodeClick(d as NetworkNode);
+      if (onNodeClickRef.current) {
+        onNodeClickRef.current(d as NetworkNode);
       } else {
         // Default: open Pappers for companies
         if (d.type === "company" && d.siren) {

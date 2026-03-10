@@ -48,5 +48,8 @@ export function timeAgo(dateStr: string): string {
 export function daysUntil(dateStr: string): number {
   const target = new Date(dateStr);
   if (isNaN(target.getTime())) return -9999;
-  return Math.ceil((target.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+  const diff = target.getTime() - Date.now();
+  // Use floor for consistent behavior: past dates return negative, future dates count full days
+  // e.g. deadline 1 second ago → -1, deadline 23h from now → 0
+  return Math.floor(diff / (1000 * 60 * 60 * 24));
 }

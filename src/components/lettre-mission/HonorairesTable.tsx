@@ -65,12 +65,13 @@ export default function HonorairesTable({
                     type="number"
                     min="0"
                     value={values[ligne.editKey]}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
                       onChange({
                         ...values,
-                        [ligne.editKey!]: Number(e.target.value) || 0,
-                      })
-                    }
+                        [ligne.editKey!]: val >= 0 ? val : 0,
+                      });
+                    }}
                     aria-label={`Montant ${ligne.label}`}
                     className="w-24 text-right border rounded px-2 py-0.5 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />

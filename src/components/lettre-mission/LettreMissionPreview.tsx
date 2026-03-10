@@ -147,7 +147,7 @@ export default function LettreMissionPreview({
                         ["Reprise comptable", client.reprise],
                         ["Mission juridique", client.juridique],
                       ].map(([label, amount], i) => (
-                        <tr key={i} className={i % 2 === 0 ? "bg-slate-50" : ""}>
+                        <tr key={label as string} className={i % 2 === 0 ? "bg-slate-50" : ""}>
                           <td className="p-2">{label as string}</td>
                           <td className="p-2 text-right">
                             {(Number(amount) || 0).toLocaleString("fr-FR")} €
@@ -211,8 +211,8 @@ export default function LettreMissionPreview({
                 <div key={bloc.id} className="mb-6">
                   <SectionTitle num={sectionNum} title="Pièces justificatives (KYC)" color={primaryColor} />
                   <div className="space-y-2">
-                    {checks.map(([label, done], i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm">
+                    {checks.map(([label, done]) => (
+                      <div key={label as string} className="flex items-center gap-2 text-sm">
                         <div
                           className={`w-4 h-4 border rounded flex items-center justify-center text-xs ${
                             done ? "bg-green-100 border-green-500 text-green-700" : "border-gray-300"

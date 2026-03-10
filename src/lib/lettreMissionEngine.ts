@@ -21,14 +21,16 @@ const LM_COUNTER_KEY = "lcb_lm_counter";
 
 function getStoredCounter(): { year: number; count: number } {
   try {
-    const stored = localStorage.getItem(LM_COUNTER_KEY);
+    const stored = sessionStorage.getItem(LM_COUNTER_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (parsed.year === new Date().getFullYear()) {
+      if (typeof parsed?.year === "number" && typeof parsed?.count === "number" && parsed.year === new Date().getFullYear()) {
         return parsed;
       }
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    logger.warn("LM", "Failed to parse counter from sessionStorage:", err);
+  }
   return { year: new Date().getFullYear(), count: 0 };
 }
 
@@ -36,7 +38,7 @@ function incrementCounter(): string {
   const current = getStoredCounter();
   const year = new Date().getFullYear();
   const count = current.year === year ? current.count + 1 : 1;
-  try { localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count })); } catch { /* storage full */ }
+  try { sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count })); } catch { /* storage full */ }
   return `LM-${year}-${String(count).padStart(3, "0")}`;
 }
 
@@ -45,7 +47,7 @@ function incrementCounter(): string {
  */
 export function resetCounter(value: number = 0): void {
   const year = new Date().getFullYear();
-  try { localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value })); } catch { /* storage full */ }
+  try { sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value })); } catch { /* storage full */ }
 }
 
 // ──────────────────────────────────────────────

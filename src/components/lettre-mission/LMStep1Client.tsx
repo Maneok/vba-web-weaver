@@ -59,6 +59,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
       return;
     }
 
+    let cancelled = false;
+
     // B) Previous LM
     supabase
       .from("lettres_mission")
@@ -68,10 +70,11 @@ export default function LMStep1Client({ data, onChange }: Props) {
       .order("updated_at", { ascending: false })
       .limit(1)
       .then(({ data: rows }) => {
+        if (cancelled) return;
         if (rows && rows.length > 0) setPreviousLM(rows[0]);
         else setPreviousLM(null);
       })
-      .catch((e) => logger.warn("LM", "Previous LM check failed:", e));
+      .catch((e) => { if (!cancelled) logger.warn("LM", "Previous LM check failed:", e); });
 
     // I) Screening check — look at dateDerniereRevue
     if (selectedClient) {
@@ -89,6 +92,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
         toast.warning("Client a vigilance renforcee — envisagez un complement d'honoraires", { duration: 5000 });
       }
     }
+
+    return () => { cancelled = true; };
   }, [data.client_id, selectedClient]);
 
   const selectClient = (c: Client) => {

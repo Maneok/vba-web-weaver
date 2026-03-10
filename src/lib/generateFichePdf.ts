@@ -259,5 +259,6 @@ export function generateFicheAcceptation(client: Client) {
     );
   }
 
-  doc.save(`Fiche_LCB-FT_${client.ref}_${client.raisonSociale.replace(/\s/g, "_")}.pdf`);
+  const safeName = (client.raisonSociale || "client").replace(/[<>:"/\\|?*\x00-\x1f]/g, "_").replace(/_+/g, "_");
+  doc.save(`Fiche_LCB-FT_${client.ref}_${safeName}.pdf`);
 }

@@ -147,7 +147,8 @@ async function searchPappersBySiren(siren: string): Promise<PappersCompany | nul
   try {
     const clean = siren.replace(/\s/g, "");
     const res = await fetch(
-      `${PAPPERS_BASE}/entreprise?api_token=${PAPPERS_API_KEY}&siren=${clean}`
+      `${PAPPERS_BASE}/entreprise?api_token=${PAPPERS_API_KEY}&siren=${clean}`,
+      { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return null;
     return await res.json();
@@ -160,7 +161,8 @@ async function searchPappersByName(nom: string): Promise<PappersCompany[]> {
   if (!PAPPERS_API_KEY) return [];
   try {
     const res = await fetch(
-      `${PAPPERS_BASE}/recherche?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`
+      `${PAPPERS_BASE}/recherche?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`,
+      { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -174,7 +176,8 @@ async function searchPappersByDirigeant(nom: string): Promise<PappersCompany[]> 
   if (!PAPPERS_API_KEY) return [];
   try {
     const res = await fetch(
-      `${PAPPERS_BASE}/recherche-dirigeants?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`
+      `${PAPPERS_BASE}/recherche-dirigeants?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`,
+      { signal: AbortSignal.timeout(8000) }
     );
     if (!res.ok) return [];
     const data = await res.json();
@@ -379,8 +382,17 @@ Deno.serve(async (req: Request) => {
   if (optRes) return optRes;
   const corsHeaders = getCorsHeaders(req);
 
+  let body;
   try {
-    const body = await req.json();
+    body = await req.json();
+  } catch {
+    return new Response(
+      JSON.stringify({ error: "Corps de requete invalide" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+
+  try {
     const { mode, query, download_docs } = body as {
       mode: "siren" | "nom" | "dirigeant";
       query: string;
@@ -478,8 +490,14 @@ Deno.serve(async (req: Request) => {
 
     // Download documents if requested (Pappers only)
     if (download_docs && source === "pappers" && PAPPERS_API_KEY) {
-      const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+      const supabaseUrl = Deno.env.get("SUPABASE_URL");
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+      if (!supabaseUrl || !serviceKey) {
+        return new Response(
+          JSON.stringify({ error: "Configuration serveur manquante" }),
+          { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
 
       for (const company of results) {
         for (const doc of company.documents_disponibles.slice(0, 3)) {

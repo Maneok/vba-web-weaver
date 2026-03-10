@@ -111,7 +111,7 @@ async function fallbackDataGouv(mode: SearchMode, query: string, signal?: AbortS
         results: [{
           siren: `${siren.slice(0, 3)} ${siren.slice(3, 6)} ${siren.slice(6, 9)}`,
           raison_sociale: String(ul.denomination || ul.nom_raison_sociale || "").toUpperCase(),
-          forme_juridique: "SARL",
+          forme_juridique: String(ul.nature_juridique || ul.categorie_juridique || "Non specifie"),
           forme_juridique_raw: String(ul.categorie_juridique ?? ""),
           adresse: String(siege?.geo_adresse || "").toUpperCase(),
           code_postal: String(siege?.code_postal ?? ""),
@@ -144,7 +144,7 @@ async function fallbackDataGouv(mode: SearchMode, query: string, signal?: AbortS
       const results: PappersResult[] = (data.etablissement ?? []).slice(0, 5).map((e: Record<string, string>) => ({
         siren: e.siren ? `${e.siren.slice(0, 3)} ${e.siren.slice(3, 6)} ${e.siren.slice(6, 9)}` : "",
         raison_sociale: (e.nom_raison_sociale || e.l1_normalisee || "").toUpperCase(),
-        forme_juridique: "SARL",
+        forme_juridique: e.libelle_nature_juridique_entreprise || "Non specifie",
         forme_juridique_raw: e.libelle_nature_juridique_entreprise ?? "",
         adresse: (e.geo_adresse || "").toUpperCase(),
         code_postal: e.code_postal ?? "",
@@ -192,24 +192,35 @@ export async function checkGelAvoirs(siren: string, dirigeant: string): Promise<
     if (!data || typeof data !== "object") return { matched: false, matches: [] };
     const registreNational = data.Publications ?? data.registreNationalDesGels ?? [];
 
-    const cleanSiren = (siren ?? "").replace(/\s/g, "").toLowerCase();
+    const cleanSiren = (siren ?? "").replace(/\s/g, "");
     const cleanDirigeant = (dirigeant ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const matches: string[] = [];
 
-    const searchText = JSON.stringify(registreNational).toLowerCase();
+    // Structured search: iterate records instead of JSON.stringify to avoid false positives
+    const entries = Array.isArray(registreNational) ? registreNational : [];
+    for (const entry of entries) {
+      if (!entry || typeof entry !== "object") continue;
+      const entryStr = JSON.stringify(entry).toLowerCase();
 
-    if (cleanSiren && searchText.includes(cleanSiren)) {
-      matches.push(`SIREN ${siren} trouve dans le registre des gels d'avoirs`);
-    }
-
-    if (cleanDirigeant && cleanDirigeant.length > 3) {
-      const nameParts = cleanDirigeant.split(/\s+/).filter(p => p.length > 2);
-      for (const part of nameParts) {
-        if (searchText.includes(part)) {
-          matches.push(`Nom "${part}" trouve dans le registre des gels d'avoirs`);
-          break;
+      // SIREN match: only match exact 9-digit boundaries
+      if (cleanSiren && cleanSiren.length >= 9) {
+        const sirenLower = cleanSiren.toLowerCase();
+        // Check structured fields first, fall back to entry-level text search
+        const entrySiren = String(entry.siren ?? entry.registrationNumber ?? "").replace(/\s/g, "").toLowerCase();
+        if (entrySiren === sirenLower || entryStr.includes(sirenLower)) {
+          matches.push(`SIREN ${siren} trouve dans le registre des gels d'avoirs`);
         }
       }
+
+      // Name match: require ALL name parts (>2 chars) to match in same entry
+      if (cleanDirigeant && cleanDirigeant.length > 3 && matches.length === 0) {
+        const nameParts = cleanDirigeant.split(/\s+/).filter(p => p.length > 2);
+        if (nameParts.length > 0 && nameParts.every(part => entryStr.includes(part))) {
+          matches.push(`Nom "${dirigeant}" trouve dans le registre des gels d'avoirs`);
+        }
+      }
+
+      if (matches.length > 0) break; // Stop at first match
     }
 
     return { matched: matches.length > 0, matches };

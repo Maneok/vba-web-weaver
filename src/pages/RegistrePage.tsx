@@ -112,10 +112,11 @@ export default function RegistrePage() {
   // --- Filtered data ---
   const filtered = useMemo(() => {
     const result = alertes.filter(a => {
+      const q = debouncedSearch.toLowerCase();
       const matchSearch = !debouncedSearch ||
-        a.clientConcerne.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        a.categorie.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        a.details.toLowerCase().includes(debouncedSearch.toLowerCase());
+        (a.clientConcerne ?? "").toLowerCase().includes(q) ||
+        (a.categorie ?? "").toLowerCase().includes(q) ||
+        (a.details ?? "").toLowerCase().includes(q);
       const matchStatut = filterStatut === "all" || a.statut === filterStatut;
       const matchCategorie = filterCategorie === "all" || a.categorie === filterCategorie;
       const matchDateStart = !dateStart || a.date >= dateStart;
@@ -447,13 +448,14 @@ export default function RegistrePage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-xs text-slate-400">Client concerne</Label>
-              <Select value={newAlerte.client} onValueChange={v => setNewAlerte(p => ({ ...p, client: v }))}>
-                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
+              <Label className="text-xs text-slate-400">Client concerne <span className="text-red-400">*</span></Label>
+              <Select value={newAlerte.client} onValueChange={v => { setNewAlerte(p => ({ ...p, client: v })); setFormErrors(p => { const n = { ...p }; delete n.client; return n; }); }}>
+                <SelectTrigger className={`bg-white/[0.03] border-white/[0.06] ${formErrors.client ? "border-red-500" : ""}`} aria-invalid={!!formErrors.client}><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
                 <SelectContent>
                   {clients.map(c => <SelectItem key={c.ref} value={c.ref}>{c.raisonSociale} ({c.ref})</SelectItem>)}
                 </SelectContent>
               </Select>
+              {formErrors.client && <p className="text-xs text-red-400 mt-1">{formErrors.client}</p>}
             </div>
             <div>
               <Label className="text-xs text-slate-400">Categorie</Label>
@@ -465,21 +467,24 @@ export default function RegistrePage() {
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Details</Label>
-              <Textarea value={newAlerte.details} onChange={e => setNewAlerte(p => ({ ...p, details: e.target.value }))} className="bg-white/[0.03] border-white/[0.06]" placeholder="Description de l'alerte..." />
+              <Label className="text-xs text-slate-400">Details <span className="text-red-400">*</span></Label>
+              <Textarea value={newAlerte.details} onChange={e => { setNewAlerte(p => ({ ...p, details: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.details; return n; }); }} className={`bg-white/[0.03] border-white/[0.06] ${formErrors.details ? "border-red-500" : ""}`} placeholder="Description de l'alerte..." aria-invalid={!!formErrors.details} />
+              {formErrors.details && <p className="text-xs text-red-400 mt-1">{formErrors.details}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Responsable</Label>
-              <Select value={newAlerte.responsable} onValueChange={v => setNewAlerte(p => ({ ...p, responsable: v }))}>
-                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue placeholder="Selectionnez" /></SelectTrigger>
+              <Label className="text-xs text-slate-400">Responsable <span className="text-red-400">*</span></Label>
+              <Select value={newAlerte.responsable} onValueChange={v => { setNewAlerte(p => ({ ...p, responsable: v })); setFormErrors(p => { const n = { ...p }; delete n.responsable; return n; }); }}>
+                <SelectTrigger className={`bg-white/[0.03] border-white/[0.06] ${formErrors.responsable ? "border-red-500" : ""}`} aria-invalid={!!formErrors.responsable}><SelectValue placeholder="Selectionnez" /></SelectTrigger>
                 <SelectContent>
                   {[...DEFAULT_ASSOCIES, ...DEFAULT_SUPERVISEURS].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {formErrors.responsable && <p className="text-xs text-red-400 mt-1">{formErrors.responsable}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Date echeance</Label>
-              <Input type="date" value={newAlerte.dateEcheance} onChange={e => setNewAlerte(p => ({ ...p, dateEcheance: e.target.value }))} className="bg-white/[0.03] border-white/[0.06]" />
+              <Label className="text-xs text-slate-400">Date echeance <span className="text-red-400">*</span></Label>
+              <Input type="date" value={newAlerte.dateEcheance} onChange={e => { setNewAlerte(p => ({ ...p, dateEcheance: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.dateEcheance; return n; }); }} className={`bg-white/[0.03] border-white/[0.06] ${formErrors.dateEcheance ? "border-red-500" : ""}`} aria-invalid={!!formErrors.dateEcheance} />
+              {formErrors.dateEcheance && <p className="text-xs text-red-400 mt-1">{formErrors.dateEcheance}</p>}
             </div>
             <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleAddAlerte} disabled={!newAlerte.client || !newAlerte.details}>
               Enregistrer l'alerte

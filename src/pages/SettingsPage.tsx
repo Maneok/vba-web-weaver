@@ -168,7 +168,7 @@ export default function SettingsPage() {
   // Cleanup timers on unmount
   useEffect(() => {
     const timers = savedTimersRef.current;
-    return () => { timers.forEach(clearTimeout); };
+    return () => { timers.forEach(clearTimeout); timers.length = 0; };
   }, []);
 
   const [cabinet, setCabinet] = useState<CabinetInfo>(DEFAULT_CABINET);
@@ -281,7 +281,7 @@ export default function SettingsPage() {
       setSavedCabinetSnapshot({ ...cabinet });
       setLastSavedCabinet(now);
       setSavedCabinet(true);
-      const t = setTimeout(() => setSavedCabinet(false), 1500);
+      const t = setTimeout(() => { setSavedCabinet(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
       savedTimersRef.current.push(t);
       toast.success("Informations cabinet enregistrees");
     }
@@ -309,7 +309,7 @@ export default function SettingsPage() {
       setSavedScoringSnapshot({ ...scoring });
       setLastSavedScoring(now);
       setSavedScoring(true);
-      const t = setTimeout(() => setSavedScoring(false), 1500);
+      const t = setTimeout(() => { setSavedScoring(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
       savedTimersRef.current.push(t);
       toast.success("Configuration scoring enregistree");
     }
@@ -337,7 +337,7 @@ export default function SettingsPage() {
       setSavedLcbftSnapshot({ ...lcbft });
       setLastSavedLcbft(now);
       setSavedLcbft(true);
-      const t = setTimeout(() => setSavedLcbft(false), 1500);
+      const t = setTimeout(() => { setSavedLcbft(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
       savedTimersRef.current.push(t);
       toast.success("Configuration LCB-FT enregistree");
     }

@@ -87,7 +87,7 @@ export function analyzeCockpit(
       if (daysUntil < CNI_WARNING_DAYS) {
         const u: CockpitUrgency = {
           type: "cni",
-          severity: daysUntil < CNI_URGENT_DAYS ? "warning" : "info",
+          severity: daysUntil < CNI_URGENT_DAYS ? "critique" : "warning",
           title: `${c.raisonSociale || c.ref || "Client inconnu"} — CNI bientot expiree`,
           detail: `Expire dans ${daysUntil} jours (${c.dateExpCni})`,
           ref: c.ref,
@@ -233,12 +233,13 @@ export function analyzeCockpit(
   const sirenMap = new Map<string, { names: string[]; refs: string[] }>();
   for (const c of safeClients) {
     if (!c.siren || c.siren.trim() === "") continue;
+    if (!c.ref || c.ref.trim() === "") continue;
     // Normalize SIREN by removing spaces for consistent dedup
     const normalizedSiren = c.siren.replace(/\s/g, "");
     if (normalizedSiren.length < 9) continue;
     const existing = sirenMap.get(normalizedSiren) || { names: [], refs: [] };
-    existing.names.push(c.raisonSociale ?? c.ref ?? "Inconnu");
-    existing.refs.push(c.ref ?? "???");
+    existing.names.push(c.raisonSociale || c.ref);
+    existing.refs.push(c.ref);
     sirenMap.set(normalizedSiren, existing);
   }
   for (const [siren, { names, refs }] of sirenMap) {

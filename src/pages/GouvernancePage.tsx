@@ -129,21 +129,24 @@ export default function GouvernancePage() {
     }
     setSaving(true);
     try {
-      if (isOnline) {
-        await collaborateursService.create({
-          nom: newCollab.nom.trim(),
-          fonction: newCollab.fonction,
-          email: newCollab.email.trim(),
-          niveau_competence: newCollab.niveau_competence,
-          suppleant: newCollab.suppleant,
-          telephone: newCollab.telephone,
-          derniere_formation: newCollab.derniereFormation || null,
-          date_signature_manuel: newCollab.dateSignatureManuel || null,
-          referent_lcb: newCollab.referentLcb,
-          statut_formation: newCollab.derniereFormation ? getFormationBadge(newCollab.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
-        });
-        await refreshAll();
+      if (!isOnline) {
+        toast.warning("Vous etes hors ligne. Les donnees n'ont pas ete sauvegardees. Reessayez avec une connexion internet.");
+        setSaving(false);
+        return;
       }
+      await collaborateursService.create({
+        nom: newCollab.nom.trim(),
+        fonction: newCollab.fonction,
+        email: newCollab.email.trim(),
+        niveau_competence: newCollab.niveau_competence,
+        suppleant: newCollab.suppleant,
+        telephone: newCollab.telephone,
+        derniere_formation: newCollab.derniereFormation || null,
+        date_signature_manuel: newCollab.dateSignatureManuel || null,
+        referent_lcb: newCollab.referentLcb,
+        statut_formation: newCollab.derniereFormation ? getFormationBadge(newCollab.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
+      });
+      await refreshAll();
       setNewCollab({ ...EMPTY_FORM });
       setShowAddDialog(false);
       toast.success("Collaborateur ajoute avec succes");
@@ -159,21 +162,24 @@ export default function GouvernancePage() {
     if (!editingCollab?.id || !editForm.nom.trim()) return;
     setSaving(true);
     try {
-      if (isOnline) {
-        await collaborateursService.update(editingCollab.id, {
-          nom: editForm.nom.trim(),
-          fonction: editForm.fonction,
-          email: editForm.email.trim(),
-          niveau_competence: editForm.niveau_competence,
-          suppleant: editForm.suppleant,
-          telephone: editForm.telephone,
-          derniere_formation: editForm.derniereFormation || null,
-          date_signature_manuel: editForm.dateSignatureManuel || null,
-          referent_lcb: editForm.referentLcb,
-          statut_formation: editForm.derniereFormation ? getFormationBadge(editForm.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
-        });
-        await refreshAll();
+      if (!isOnline) {
+        toast.warning("Vous etes hors ligne. Les modifications n'ont pas ete sauvegardees. Reessayez avec une connexion internet.");
+        setSaving(false);
+        return;
       }
+      await collaborateursService.update(editingCollab.id, {
+        nom: editForm.nom.trim(),
+        fonction: editForm.fonction,
+        email: editForm.email.trim(),
+        niveau_competence: editForm.niveau_competence,
+        suppleant: editForm.suppleant,
+        telephone: editForm.telephone,
+        derniere_formation: editForm.derniereFormation || null,
+        date_signature_manuel: editForm.dateSignatureManuel || null,
+        referent_lcb: editForm.referentLcb,
+        statut_formation: editForm.derniereFormation ? getFormationBadge(editForm.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
+      });
+      await refreshAll();
       setShowEditDialog(false);
       setEditingCollab(null);
       toast.success("Collaborateur modifie");
@@ -185,19 +191,27 @@ export default function GouvernancePage() {
     }
   }, [editingCollab, editForm, isOnline, refreshAll]);
 
+  const [deleting, setDeleting] = useState(false);
+
   const handleDelete = useCallback(async () => {
     if (!deletingCollab?.id) return;
+    setDeleting(true);
     try {
-      if (isOnline) {
-        await collaborateursService.delete(deletingCollab.id);
-        await refreshAll();
+      if (!isOnline) {
+        toast.warning("Vous etes hors ligne. La suppression n'a pas ete effectuee. Reessayez avec une connexion internet.");
+        setDeleting(false);
+        return;
       }
+      await collaborateursService.delete(deletingCollab.id);
+      await refreshAll();
       setShowDeleteDialog(false);
       setDeletingCollab(null);
       toast.success("Collaborateur supprime");
     } catch (err: unknown) {
       logger.error("Erreur suppression collaborateur", err);
       toast.error("Erreur lors de la suppression du collaborateur");
+    } finally {
+      setDeleting(false);
     }
   }, [deletingCollab, isOnline, refreshAll]);
 
@@ -522,9 +536,9 @@ export default function GouvernancePage() {
                 <Label htmlFor="new-referent" className="text-sm">Referent LCB-FT</Label>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowAddDialog(false)}>Annuler</Button>
-                <Button onClick={handleAdd} className="gap-1.5">
-                  <UserPlus className="w-3.5 h-3.5" /> Ajouter
+                <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={saving}>Annuler</Button>
+                <Button onClick={handleAdd} disabled={saving} className="gap-1.5">
+                  <UserPlus className="w-3.5 h-3.5" /> {saving ? "Ajout..." : "Ajouter"}
                 </Button>
               </div>
             </div>
@@ -570,9 +584,9 @@ export default function GouvernancePage() {
                 <Label htmlFor="edit-referent" className="text-sm">Referent LCB-FT</Label>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowEditDialog(false)}>Annuler</Button>
-                <Button onClick={handleEdit} className="gap-1.5">
-                  <Pencil className="w-3.5 h-3.5" /> Enregistrer
+                <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={saving}>Annuler</Button>
+                <Button onClick={handleEdit} disabled={saving} className="gap-1.5">
+                  <Pencil className="w-3.5 h-3.5" /> {saving ? "Enregistrement..." : "Enregistrer"}
                 </Button>
               </div>
             </div>
@@ -592,9 +606,9 @@ export default function GouvernancePage() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 justify-end mt-4">
-              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Annuler</Button>
-              <Button variant="destructive" onClick={handleDelete} className="gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" /> Desactiver
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>Annuler</Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="gap-1.5">
+                <Trash2 className="w-3.5 h-3.5" /> {deleting ? "Suppression..." : "Desactiver"}
               </Button>
             </div>
           </DialogContent>

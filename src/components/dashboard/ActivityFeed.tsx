@@ -1,5 +1,6 @@
 import { Activity } from "lucide-react";
 import type { LogEntry } from "@/lib/types";
+import { timeAgo } from "@/lib/dateUtils";
 
 interface ActivityFeedProps {
   logs: LogEntry[];
@@ -13,22 +14,6 @@ function getInitials(name: string): string {
     .join("")
     .toUpperCase()
     .slice(0, 2);
-}
-
-function timeAgo(dateStr: string): string {
-  const now = new Date();
-  const date = new Date(dateStr.includes("T") ? dateStr : dateStr.replace(" ", "T"));
-  if (isNaN(date.getTime())) return dateStr;
-
-  const diffMs = now.getTime() - date.getTime();
-  const minutes = Math.floor(diffMs / 60000);
-  if (minutes < 1) return "a l'instant";
-  if (minutes < 60) return `il y a ${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `il y a ${hours}h`;
-  const days = Math.floor(hours / 24);
-  if (days < 7) return `il y a ${days}j`;
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
 }
 
 const ACTION_COLORS: Record<string, string> = {

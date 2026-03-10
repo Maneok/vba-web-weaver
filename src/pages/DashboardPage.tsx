@@ -64,9 +64,12 @@ export default function DashboardPage() {
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
+      // Require Ctrl (or Cmd on Mac) modifier to avoid firing while typing
+      if (!(e.ctrlKey || e.metaKey)) return;
+
       switch (e.key) {
-        case "n": navigate("/nouveau-client"); break;
-        case "a": navigate("/registre"); break;
+        case "n": e.preventDefault(); navigate("/nouveau-client"); break;
+        case "a": e.preventDefault(); navigate("/registre"); break;
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -96,10 +99,14 @@ export default function DashboardPage() {
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("lue", false)
-      .then(({ count }) => {
-        if (!cancelled) setNotificationCount(count || 0);
+      .then(({ count, error }) => {
+        if (cancelled) return;
+        if (error) { logger.warn("Dashboard", "Notification count error:", error.message); return; }
+        setNotificationCount(typeof count === "number" ? count : 0);
       })
-      .catch((err: unknown) => logger.warn("Dashboard", "Echec du chargement du compteur de notifications", { error: err instanceof Error ? err.message : String(err) }));
+      .catch((err: unknown) => {
+        if (!cancelled) logger.warn("Dashboard", "Echec du chargement du compteur de notifications", { error: err instanceof Error ? err.message : String(err) });
+      });
     return () => { cancelled = true; };
   }, [user, lastRefresh]);
 
@@ -272,7 +279,7 @@ export default function DashboardPage() {
     refreshAll().then(() => setLastRefresh(new Date())).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
   }, [refreshAll]);
 
-  const showOnboarding = clients.length === 0 && !isOnboardingComplete();
+  const showOnboarding = !isLoading && clients.length === 0 && !isOnboardingComplete();
 
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in-up print:bg-white print:text-black" role="main" aria-label="Tableau de bord">

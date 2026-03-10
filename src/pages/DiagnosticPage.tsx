@@ -127,6 +127,7 @@ export default function DiagnosticPage() {
           .from("parametres")
           .select("valeur")
           .eq("cle", "lcbft_config")
+          .eq("user_id", user.id)
           .maybeSingle();
         if (cancelled) return;
         if (data?.valeur) {

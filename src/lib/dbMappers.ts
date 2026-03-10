@@ -15,6 +15,13 @@ function num(value: unknown, fallback = 0): number {
   return Number.isFinite(n) ? n : fallback;
 }
 
+/** Coerce to number but preserve null when value is absent — for fields where null ≠ 0 */
+function numOrNull(v: unknown): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = Number(v);
+  return isNaN(n) ? null : n;
+}
+
 export function mapDbClient(row: Record<string, unknown>): Client {
   return {
     ref: str(row.ref),
@@ -27,7 +34,7 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     cp: str(row.cp),
     ville: str(row.ville),
     siren: str(row.siren),
-    capital: num(row.capital),
+    capital: numOrNull(row.capital),
     ape: str(row.ape),
     dirigeant: str(row.dirigeant),
     domaine: str(row.domaine),
@@ -36,7 +43,7 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     mail: str(row.mail),
     dateCreation: str(row.date_creation),
     dateReprise: str(row.date_reprise),
-    honoraires: num(row.honoraires),
+    honoraires: numOrNull(row.honoraires),
     reprise: num(row.reprise),
     juridique: num(row.juridique),
     frequence: str(row.frequence, "MENSUEL"),
@@ -87,7 +94,7 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.cp !== undefined) row.cp = client.cp;
   if (client.ville !== undefined) row.ville = client.ville;
   if (client.siren !== undefined) row.siren = client.siren?.replace(/\s/g, "");
-  if (client.capital !== undefined) row.capital = num(client.capital);
+  if (client.capital !== undefined) row.capital = client.capital;
   if (client.ape !== undefined) row.ape = client.ape;
   if (client.dirigeant !== undefined) row.dirigeant = client.dirigeant;
   if (client.domaine !== undefined) row.domaine = client.domaine;
@@ -96,7 +103,7 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.mail !== undefined) row.mail = client.mail;
   if (client.dateCreation !== undefined) row.date_creation = client.dateCreation;
   if (client.dateReprise !== undefined) row.date_reprise = client.dateReprise;
-  if (client.honoraires !== undefined) row.honoraires = num(client.honoraires);
+  if (client.honoraires !== undefined) row.honoraires = client.honoraires;
   if (client.reprise !== undefined) row.reprise = num(client.reprise);
   if (client.juridique !== undefined) row.juridique = num(client.juridique);
   if (client.frequence !== undefined) row.frequence = client.frequence;

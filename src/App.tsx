@@ -105,7 +105,7 @@ const App = () => (
                   <Route path="parametres" element={<SafePage><SettingsPage /></SafePage>} />
                   <Route path="notifications" element={<SafePage><NotificationsPage /></SafePage>} />
                   <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
-                  <Route path="admin/users" element={<SafePage><AdminUsersPage /></SafePage>} />
+                  <Route path="admin/users" element={<ProtectedRoute requiredPermission="manage_users"><SafePage><AdminUsersPage /></SafePage></ProtectedRoute>} />
                   <Route path="audit" element={<SafePage><AuditTrailPage /></SafePage>} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />

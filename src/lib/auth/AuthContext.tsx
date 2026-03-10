@@ -27,18 +27,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const REQUEST_TIMEOUT = 4000;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
       try {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT);
-
         const { data, error } = await supabase
           .from("profiles")
           .select("*")
           .eq("id", userId)
           .single()
           .abortSignal(controller.signal);
-
-        clearTimeout(timer);
 
         if (data) return data as UserProfile;
 
@@ -49,6 +46,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err: unknown) {
         logger.warn(`[Auth] Profile fetch attempt ${attempt + 1}/${maxRetries} exception:`, err);
+      } finally {
+        clearTimeout(timer);
       }
 
       // Wait before retry (trigger handle_new_user may still be running)

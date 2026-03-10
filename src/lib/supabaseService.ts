@@ -402,10 +402,13 @@ export const brouillonsService = {
   async getBySiren(siren: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return null;
     const { data } = await supabase
       .from("brouillons")
       .select("*")
       .eq("user_id", user.id)
+      .eq("cabinet_id", cabinetId)
       .eq("siren", siren.replace(/\s/g, ""))
       .maybeSingle();
     return data;
@@ -414,28 +417,37 @@ export const brouillonsService = {
   async save(siren: string, formData: unknown, step: number) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return;
     const clean = siren.replace(/\s/g, "");
     const existing = await brouillonsService.getBySiren(clean);
     if (existing) {
-      await supabase
+      const { error } = await supabase
         .from("brouillons")
         .update({ data: formData, step, updated_at: new Date().toISOString() })
         .eq("id", existing.id)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .eq("cabinet_id", cabinetId);
+      if (error) logger.error("DB", "brouillon update:", error);
     } else {
-      await supabase
+      const { error } = await supabase
         .from("brouillons")
-        .insert({ user_id: user.id, siren: clean, data: formData, step });
+        .insert({ user_id: user.id, cabinet_id: cabinetId, siren: clean, data: formData, step });
+      if (error) logger.error("DB", "brouillon insert:", error);
     }
   },
 
   async delete(siren: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return;
+    const { error } = await supabase
       .from("brouillons")
       .delete()
       .eq("user_id", user.id)
+      .eq("cabinet_id", cabinetId)
       .eq("siren", siren.replace(/\s/g, ""));
+    if (error) logger.error("DB", "brouillon delete:", error);
   },
 };

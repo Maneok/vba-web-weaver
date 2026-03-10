@@ -6,8 +6,13 @@ export default function CookieBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    const consent = localStorage.getItem(COOKIE_KEY);
-    if (!consent) setVisible(true);
+    try {
+      const consent = localStorage.getItem(COOKIE_KEY);
+      if (!consent) setVisible(true);
+    } catch {
+      // Private browsing or storage unavailable
+      setVisible(true);
+    }
   }, []);
 
   const respond = (accepted: boolean) => {

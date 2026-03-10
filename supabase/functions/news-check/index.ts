@@ -86,8 +86,8 @@ Deno.serve(async (req) => {
             );
           }
         }
-      } catch {
-        // Non-blocking per query
+      } catch (err) {
+        console.warn(`[news-check] Query failed:`, (err as Error).message);
       }
     }
 
