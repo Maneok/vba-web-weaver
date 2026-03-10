@@ -222,7 +222,7 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
 
   // === NON-CONFORMITY ACTION PLAN ===
   if (controles) {
-    const ncControles = controles.filter((c) => c.resultatGlobal.startsWith("NON CONFORME"));
+    const ncControles = controles.filter((c) => (c.resultatGlobal ?? "").startsWith("NON CONFORME"));
     if (ncControles.length > 0) {
       y = pageGuard(doc, y, 30);
 

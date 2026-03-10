@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { AlerteRegistre } from "@/lib/types";
@@ -81,6 +81,9 @@ export default function RegistrePage() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
 
   const debouncedSearch = useDebounce(search, 250);
+
+  // Reset page when search changes
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch]);
 
   useEffect(() => { document.title = "Registre LCB-FT | GRIMY"; }, []);
 

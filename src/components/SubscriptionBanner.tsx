@@ -17,7 +17,7 @@ interface AccessCheckResult {
 export default function SubscriptionBanner() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissed, setDismissed] = useState(() => sessionStorage.getItem("subscription-banner-dismissed") === "true");
   const [accessData, setAccessData] = useState<AccessCheckResult | null>(null);
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function SubscriptionBanner() {
           Gerer mon abonnement
         </button>
         <button
-          onClick={() => setDismissed(true)}
+          onClick={() => { setDismissed(true); sessionStorage.setItem("subscription-banner-dismissed", "true"); }}
           className="p-1 rounded hover:bg-white/10 transition-colors"
           aria-label="Fermer le bandeau"
         >

@@ -93,7 +93,7 @@ interface UploadedDoc {
 
 export default function NouveauClientPage() {
   const navigate = useNavigate();
-  const { clients, addClient, refreshClients } = useAppState();
+  const { clients, addClient, refreshClients, isOnline } = useAppState();
   const [step, setStep] = useState(0);
 
   useEffect(() => { document.title = "Nouveau Client | GRIMY"; }, []);
@@ -187,9 +187,6 @@ export default function NouveauClientPage() {
   // #81: Search debounce timer
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // #90: Online status
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-
   // #11: Collapsible sections state for step 1
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
@@ -232,15 +229,6 @@ export default function NouveauClientPage() {
       setPlaceholderIdx(prev => prev + 1);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
-
-  // #90: Online status tracking
-  useEffect(() => {
-    const onLine = () => setIsOnline(true);
-    const offLine = () => setIsOnline(false);
-    window.addEventListener("online", onLine);
-    window.addEventListener("offline", offLine);
-    return () => { window.removeEventListener("online", onLine); window.removeEventListener("offline", offLine); };
   }, []);
 
   // #77: Warn before leaving with unsaved changes

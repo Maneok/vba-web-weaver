@@ -220,12 +220,14 @@ export default function ScreeningPanel({ screening, compact }: Props) {
     },
   ];
 
+  const anyLoading = screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading || screening.network.loading || screening.inpi.loading || screening.documents.loading;
+
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
         <Shield className="w-4 h-4 text-blue-400" />
         <h3 className="text-sm font-semibold text-slate-300">Screening automatique</h3>
-        {(screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading || screening.network.loading || screening.inpi.loading || screening.documents.loading) && (
+        {anyLoading && (
           <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin ml-auto" />
         )}
       </div>

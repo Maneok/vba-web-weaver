@@ -242,8 +242,8 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
   children.push(new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      tableRow2Col("Périodicité", opts.periodicite, true),
-      tableRow2Col("Outil comptable", opts.outilComptable, false),
+      tableRow2Col("Périodicité", opts?.periodicite ?? "—", true),
+      tableRow2Col("Outil comptable", opts?.outilComptable ?? "—", false),
     ],
   }));
 
@@ -280,7 +280,7 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
   children.push(bodyText(`Notre cabinet s'engage à exécuter la mission de ${str(client?.mission)} conformément aux normes professionnelles et au Code de déontologie.`));
 
   children.push(subHeading("Durée de la mission"));
-  children.push(bodyText(`La mission prend effet du ${opts.exerciceDebut} au ${opts.exerciceFin}, renouvelable par tacite reconduction avec préavis de 3 mois.`));
+  children.push(bodyText(`La mission prend effet du ${opts?.exerciceDebut ?? "—"} au ${opts?.exerciceFin ?? "—"}, renouvelable par tacite reconduction avec préavis de 3 mois.`));
 
   children.push(subHeading("Nature et limites"));
   children.push(bodyText("Notre mission consiste en la tenue/surveillance de votre comptabilité et présentation des comptes annuels. Elle ne constitue ni un audit, ni un commissariat aux comptes."));

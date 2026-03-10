@@ -179,29 +179,27 @@ export default function GedPage() {
         return;
       }
 
-      // For each folder (SIREN), list its files
-      const sirenFolders: SirenFolder[] = [];
-      for (const folder of folders) {
-        // Skip non-folder entries (files at root level)
-        if (folder.id) {
-          // This is a file, not a folder — treat root files separately
-          continue;
-        }
+      // For each folder (SIREN), list its files in parallel
+      const folderEntries = folders.filter(folder => !folder.id);
 
-        const { data: files } = await supabase.storage
-          .from("kyc-documents")
-          .list(folder.name, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+      const results = await Promise.all(
+        folderEntries.map(async (folder) => {
+          const { data: files } = await supabase.storage
+            .from("kyc-documents")
+            .list(folder.name, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
 
-        if (files && files.length > 0) {
-          sirenFolders.push({
-            siren: folder.name,
-            files: files as StorageFile[],
-            expanded: false,
-          });
-        }
-      }
+          if (files && files.length > 0) {
+            return {
+              siren: folder.name,
+              files: files as StorageFile[],
+              expanded: false,
+            } as SirenFolder;
+          }
+          return null;
+        })
+      );
 
-      setStorageFolders(sirenFolders);
+      setStorageFolders(results.filter(Boolean) as SirenFolder[]);
     } catch (err: unknown) {
       logger.error("GED", "Error fetching storage", err);
       toast.error("Erreur lors du chargement des documents KYC");
@@ -641,6 +639,9 @@ export default function GedPage() {
       {/* Drop zone                                                    */}
       {/* ============================================================ */}
       <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}

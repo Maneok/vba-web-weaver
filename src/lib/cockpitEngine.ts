@@ -272,7 +272,7 @@ export function analyzeCockpit(
   const tauxKycComplet = actifs.length > 0 ? Math.round((kycComplets / actifs.length) * 100) : 0;
 
   const scoreMoyen = actifs.length > 0
-    ? Math.round(actifs.reduce((sum, c) => sum + c.scoreGlobal, 0) / actifs.length)
+    ? Math.round(actifs.reduce((sum, c) => sum + (c.scoreGlobal ?? 0), 0) / actifs.length)
     : 0;
 
   const alertesEnRetard = alertesNonTraitees.filter(u => u.severity === "critique").length;

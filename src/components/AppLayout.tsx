@@ -165,26 +165,28 @@ export default function AppLayout() {
           )}
 
           <nav className="flex items-center gap-1.5 text-sm" aria-label="Fil d'ariane">
-            {page.breadcrumb.map((item, i) => {
-              const isLast = i === page.breadcrumb.length - 1;
-              return (
-                <span key={i} className="flex items-center gap-1.5">
-                  {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-600" />}
-                  {!isLast && item.path ? (
-                    <button
-                      onClick={() => startTransition(() => navigate(item.path!))}
-                      className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-                    >
-                      {item.label}
-                    </button>
-                  ) : (
-                    <span className={isLast ? "text-slate-200 font-medium" : "text-slate-500"}>
-                      {item.label}
-                    </span>
-                  )}
-                </span>
-              );
-            })}
+            <ol className="flex items-center gap-1.5 list-none m-0 p-0">
+              {page.breadcrumb.map((item, i) => {
+                const isLast = i === page.breadcrumb.length - 1;
+                return (
+                  <li key={i} className="flex items-center gap-1.5">
+                    {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-600" />}
+                    {!isLast && item.path ? (
+                      <button
+                        onClick={() => startTransition(() => navigate(item.path!))}
+                        className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {item.label}
+                      </button>
+                    ) : (
+                      <span className={isLast ? "text-slate-200 font-medium" : "text-slate-500"}>
+                        {item.label}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
