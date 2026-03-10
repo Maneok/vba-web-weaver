@@ -102,7 +102,7 @@ function LetterHistory({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <div className="flex items-center justify-center py-20 p-6 lg:p-8">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
         <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
       </div>
@@ -111,7 +111,7 @@ function LetterHistory({
 
   if (letters.length === 0) {
     return (
-      <div className="text-center py-20">
+      <div className="text-center py-20 p-6 lg:p-8">
         <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
         <p className="text-slate-400 text-sm">Aucune lettre de mission</p>
         <p className="text-slate-500 text-xs mt-1">Creez votre premiere lettre</p>
@@ -120,7 +120,7 @@ function LetterHistory({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
@@ -708,7 +708,7 @@ export default function LettreMissionPage() {
   const nextDisabled = !isStepValid(step);
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in-up">
+    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4 sm:space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

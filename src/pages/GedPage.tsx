@@ -221,19 +221,17 @@ export default function GedPage() {
     const filePath = `${siren}/${fileName}`;
     const { data, error } = await supabase.storage
       .from("kyc-documents")
-      .download(filePath);
+      .createSignedUrl(filePath, 3600);
 
-    if (error) {
+    if (error || !data?.signedUrl) {
       toast.error("Erreur telechargement");
       return;
     }
 
-    const url = URL.createObjectURL(data);
     const a = document.createElement("a");
-    a.href = url;
+    a.href = data.signedUrl;
     a.download = fileName;
     a.click();
-    URL.revokeObjectURL(url);
   };
 
   const filteredStorageFolders = storageFolders

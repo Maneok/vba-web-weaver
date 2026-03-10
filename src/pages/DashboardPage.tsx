@@ -253,14 +253,14 @@ export default function DashboardPage() {
   }, [refreshAll]);
 
   return (
-    <div className="min-h-screen print:bg-white print:text-black">
+    <div className="p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in-up print:bg-white print:text-black">
       {/* ── TOP BAR ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 print:mb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8 pb-6 border-b border-white/[0.06] print:mb-4 print:border-0">
         <div>
-          <h1 className="text-xl font-bold">
-            Bonjour, {userName}
+          <h1 className="text-2xl font-bold tracking-tight">
+            {new Date().getHours() < 18 ? "Bonjour" : "Bonsoir"}, {userName}
           </h1>
-          <p className="text-sm text-muted-foreground capitalize">{formatDateLong()}</p>
+          <p className="text-sm text-muted-foreground capitalize mt-1">{formatDateLong()}</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -294,7 +294,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── SECTION 1: KPI Cards ───────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 lg:gap-5 mb-8">
         <KPICard
           icon={Users}
           title="Clients actifs"
@@ -350,7 +350,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── SECTION 2: Charts row ──────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 mb-8">
         <div className="lg:col-span-3">
           <MonthlyChart data={monthlyData} loading={isLoading} />
         </div>
@@ -365,23 +365,23 @@ export default function DashboardPage() {
       </div>
 
       {/* ── SECTION 3: Alerts + Deadlines ──────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-8">
         <AlertsPanel alertes={alertes} loading={isLoading} />
         <UpcomingDeadlines deadlines={deadlines} loading={isLoading} />
       </div>
 
       {/* ── SECTION 4: Activity Feed ───────────────────────── */}
-      <div className="mb-6">
+      <div className="mb-8">
         <ActivityFeed logs={logs} loading={isLoading} />
       </div>
 
       {/* ── SECTION 5: Compliance Gauges ───────────────────── */}
-      <div className="mb-6">
+      <div className="mb-8">
         <ComplianceGauge items={complianceItems} loading={isLoading} />
       </div>
 
       {/* ── Footer: Last update ────────────────────────────── */}
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pb-4 print:hidden">
+      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-4 pb-6 border-t border-white/[0.04] print:hidden">
         <span>Derniere mise a jour : {formatTime(lastRefresh)}</span>
         <button
           className="hover:text-foreground transition-colors"

@@ -63,14 +63,14 @@ export function KPICard({
 }: KPICardProps) {
   if (loading) {
     return (
-      <div className="bg-card rounded-2xl p-5 border border-border animate-pulse">
+      <div className="bg-card rounded-2xl p-5 border border-border">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-9 h-9 rounded-xl bg-muted" />
-          <div className="h-3 w-20 bg-muted rounded" />
+          <div className="w-9 h-9 rounded-xl bg-muted skeleton-shimmer" />
+          <div className="h-3 w-20 bg-muted rounded skeleton-shimmer" />
         </div>
         <div className="flex items-end justify-between">
-          <div className="h-8 w-16 bg-muted rounded" />
-          <div className="h-7 w-16 bg-muted rounded" />
+          <div className="h-8 w-16 bg-muted rounded skeleton-shimmer" />
+          <div className="h-7 w-16 bg-muted rounded skeleton-shimmer" />
         </div>
       </div>
     );
@@ -78,7 +78,7 @@ export function KPICard({
 
   return (
     <div
-      className={`bg-card rounded-2xl p-5 border border-border hover:shadow-lg transition-all group ${onClick ? "cursor-pointer" : ""}`}
+      className={`bg-card rounded-2xl p-5 border border-border hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 hover:border-white/[0.12] transition-all duration-300 group ${onClick ? "cursor-pointer" : ""}`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}
@@ -86,7 +86,7 @@ export function KPICard({
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${color}15` }}>
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: `${color}15` }}>
             <Icon className="w-5 h-5" style={{ color }} />
           </div>
           <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
@@ -103,7 +103,7 @@ export function KPICard({
         )}
       </div>
       <div className="flex items-end justify-between">
-        <span className="text-3xl font-bold">{value}</span>
+        <span className="text-3xl font-bold tabular-nums tracking-tight">{value}</span>
         {sparklineData && sparklineData.length > 1 && (
           <Sparkline data={sparklineData} color={color} />
         )}

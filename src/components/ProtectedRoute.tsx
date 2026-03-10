@@ -127,7 +127,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     }
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-3" role="alert">
           <p className="text-lg font-semibold text-destructive">Compte desactive</p>
           <p className="text-sm text-muted-foreground">Contactez votre administrateur. Deconnexion automatique...</p>
           <button
@@ -144,7 +144,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   if (requiredPermission && !hasPermission(requiredPermission)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2" role="alert">
           <p className="text-lg font-semibold text-destructive">Acces refuse</p>
           <p className="text-sm text-muted-foreground">
             Vous n'avez pas les droits necessaires pour acceder a cette page.

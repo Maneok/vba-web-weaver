@@ -10,6 +10,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "@/hooks/use-toast";
+import { logger } from "@/lib/logger";
 
 interface Notification {
   id: string;
@@ -70,8 +71,8 @@ export default function NotificationBell() {
 
       if (error) throw error;
       setNotifications((data as Notification[]) ?? []);
-    } catch {
-      // silently fail — notifications are non-critical
+    } catch (err) {
+      logger.debug("Notifications", "fetch failed:", err);
     } finally {
       setLoading(false);
     }

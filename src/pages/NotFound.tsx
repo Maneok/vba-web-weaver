@@ -6,8 +6,6 @@ const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  void location.pathname;
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="text-center max-w-md space-y-6 animate-fade-in-up">

@@ -220,7 +220,7 @@ export default function HelpPage() {
   };
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] gap-0 overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] gap-0 overflow-hidden ml-0">
       {/* ─── Left nav ─────────────────────────────────── */}
       <nav className="hidden lg:flex w-[240px] shrink-0 flex-col border-r border-white/[0.06] bg-slate-950/60 backdrop-blur-sm">
         <div className="p-4 border-b border-white/[0.06]">

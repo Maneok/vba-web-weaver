@@ -235,7 +235,7 @@ export default function DiagnosticPage() {
   const okCount = report.items.filter((i) => i.statut === "OK").length;
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="p-6 lg:p-8 space-y-6 max-w-[1200px] mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

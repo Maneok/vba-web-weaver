@@ -143,9 +143,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setProfile(p);
         setLoading(false);
 
-        // Only log audit on actual sign-in (not page refresh)
+        // Only log audit + login history on actual sign-in (not page refresh)
         if (p && signedInRef.current) {
           logAudit({ action: "CONNEXION" }).catch(() => {});
+          supabase.from("login_history").insert({
+            user_id: user.id,
+            cabinet_id: p.cabinet_id,
+            email: user.email,
+            user_agent: navigator.userAgent,
+            login_method: user.app_metadata?.provider || "email",
+          }).then(({ error }) => {
+            if (error) logger.warn("[Auth] login_history insert failed:", error.message);
+          });
           signedInRef.current = false;
         }
       })

@@ -43,5 +43,11 @@
       ]
     }
   ],
-  "trailingSlash": false
+  "trailingSlash": false,
+  "crons": [
+    {
+      "path": "/api/cron/daily-maintenance",
+      "schedule": "0 2 * * *"
+    }
+  ]
 }
