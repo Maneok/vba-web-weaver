@@ -268,22 +268,28 @@ export default function SettingsPage() {
       return;
     }
     setSavingCabinet(true);
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: now },
-      { onConflict: "user_id,cle" }
-    );
-    setSavingCabinet(false);
-    if (error) {
-      toast.error(error.message || "Erreur lors de la sauvegarde");
-      logger.error("Settings", "Erreur sauvegarde cabinet:", error);
-    } else {
-      setSavedCabinetSnapshot({ ...cabinet });
-      setLastSavedCabinet(now);
-      setSavedCabinet(true);
-      const t = setTimeout(() => { setSavedCabinet(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
-      savedTimersRef.current.push(t);
-      toast.success("Informations cabinet enregistrees");
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("parametres").upsert(
+        { user_id: userId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: now },
+        { onConflict: "user_id,cle" }
+      );
+      if (error) {
+        toast.error(error.message || "Erreur lors de la sauvegarde");
+        logger.error("Settings", "Erreur sauvegarde cabinet:", error);
+      } else {
+        setSavedCabinetSnapshot({ ...cabinet });
+        setLastSavedCabinet(now);
+        setSavedCabinet(true);
+        const t = setTimeout(() => { setSavedCabinet(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
+        savedTimersRef.current.push(t);
+        toast.success("Informations cabinet enregistrees");
+      }
+    } catch (err) {
+      logger.error("Settings", "Erreur sauvegarde cabinet:", err);
+      toast.error("Erreur lors de la sauvegarde");
+    } finally {
+      setSavingCabinet(false);
     }
   }, [userId, cabinet]);
 
@@ -296,22 +302,28 @@ export default function SettingsPage() {
       return;
     }
     setSavingScoring(true);
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: now },
-      { onConflict: "user_id,cle" }
-    );
-    setSavingScoring(false);
-    if (error) {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("parametres").upsert(
+        { user_id: userId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: now },
+        { onConflict: "user_id,cle" }
+      );
+      if (error) {
+        toast.error("Erreur lors de la sauvegarde");
+        logger.error("Settings", "Erreur sauvegarde scoring", error);
+      } else {
+        setSavedScoringSnapshot({ ...scoring });
+        setLastSavedScoring(now);
+        setSavedScoring(true);
+        const t = setTimeout(() => { setSavedScoring(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
+        savedTimersRef.current.push(t);
+        toast.success("Configuration scoring enregistree");
+      }
+    } catch (err) {
+      logger.error("Settings", "Erreur sauvegarde scoring:", err);
       toast.error("Erreur lors de la sauvegarde");
-      logger.error("Settings", "Erreur sauvegarde scoring", error);
-    } else {
-      setSavedScoringSnapshot({ ...scoring });
-      setLastSavedScoring(now);
-      setSavedScoring(true);
-      const t = setTimeout(() => { setSavedScoring(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
-      savedTimersRef.current.push(t);
-      toast.success("Configuration scoring enregistree");
+    } finally {
+      setSavingScoring(false);
     }
   }, [userId, scoring]);
 
@@ -324,22 +336,28 @@ export default function SettingsPage() {
       return;
     }
     setSavingLcbft(true);
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: now },
-      { onConflict: "user_id,cle" }
-    );
-    setSavingLcbft(false);
-    if (error) {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("parametres").upsert(
+        { user_id: userId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: now },
+        { onConflict: "user_id,cle" }
+      );
+      if (error) {
+        toast.error("Erreur lors de la sauvegarde");
+        logger.error("Settings", "Erreur sauvegarde LCB-FT", error);
+      } else {
+        setSavedLcbftSnapshot({ ...lcbft });
+        setLastSavedLcbft(now);
+        setSavedLcbft(true);
+        const t = setTimeout(() => { setSavedLcbft(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
+        savedTimersRef.current.push(t);
+        toast.success("Configuration LCB-FT enregistree");
+      }
+    } catch (err) {
+      logger.error("Settings", "Erreur sauvegarde LCB-FT:", err);
       toast.error("Erreur lors de la sauvegarde");
-      logger.error("Settings", "Erreur sauvegarde LCB-FT", error);
-    } else {
-      setSavedLcbftSnapshot({ ...lcbft });
-      setLastSavedLcbft(now);
-      setSavedLcbft(true);
-      const t = setTimeout(() => { setSavedLcbft(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
-      savedTimersRef.current.push(t);
-      toast.success("Configuration LCB-FT enregistree");
+    } finally {
+      setSavingLcbft(false);
     }
   }, [userId, lcbft]);
 

@@ -441,7 +441,7 @@ export default function RegistrePage() {
       </Sheet>
 
       {/* New alert dialog */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) setFormErrors({}); }}>
         <DialogContent className="bg-[hsl(217,33%,14%)] border-white/[0.06]">
           <DialogHeader>
             <DialogTitle className="text-white">Nouvelle alerte LCB-FT</DialogTitle>
