@@ -733,14 +733,14 @@ export default function GedPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-white/5 hover:bg-transparent">
-              <TableHead className="text-slate-400">Document</TableHead>
-              <TableHead className="text-slate-400">Categorie</TableHead>
-              <TableHead className="text-slate-400">Client</TableHead>
-              <TableHead className="text-slate-400">Taille</TableHead>
-              <TableHead className="text-slate-400">Version</TableHead>
-              <TableHead className="text-slate-400">Expiration</TableHead>
-              <TableHead className="text-slate-400">Modifie le</TableHead>
-              <TableHead className="text-right text-slate-400">Actions</TableHead>
+              <TableHead scope="col" className="text-slate-400">Document</TableHead>
+              <TableHead scope="col" className="text-slate-400">Categorie</TableHead>
+              <TableHead scope="col" className="text-slate-400">Client</TableHead>
+              <TableHead scope="col" className="text-slate-400">Taille</TableHead>
+              <TableHead scope="col" className="text-slate-400">Version</TableHead>
+              <TableHead scope="col" className="text-slate-400">Expiration</TableHead>
+              <TableHead scope="col" className="text-slate-400">Modifie le</TableHead>
+              <TableHead scope="col" className="text-right text-slate-400">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

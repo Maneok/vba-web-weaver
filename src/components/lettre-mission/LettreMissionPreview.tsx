@@ -150,7 +150,7 @@ export default function LettreMissionPreview({
                         <tr key={i} className={i % 2 === 0 ? "bg-slate-50" : ""}>
                           <td className="p-2">{label as string}</td>
                           <td className="p-2 text-right">
-                            {((amount as number) ?? 0).toLocaleString("fr-FR")} €
+                            {(Number(amount) || 0).toLocaleString("fr-FR")} €
                           </td>
                         </tr>
                       ))}
@@ -173,6 +173,7 @@ export default function LettreMissionPreview({
                 STANDARD: "#FF9800",
                 RENFORCEE: "#F44336",
               };
+              const vig = client.nivVigilance || "STANDARD";
               return (
                 <div key={bloc.id} className="mb-6">
                   <SectionTitle num={sectionNum} title="Obligations LCB-FT" color={primaryColor} />
@@ -181,9 +182,9 @@ export default function LettreMissionPreview({
                       <span className="text-lg">🔒</span>
                       <span
                         className="px-3 py-1 rounded-full text-xs font-bold text-white"
-                        style={{ backgroundColor: vigColors[client.nivVigilance] ?? "#888" }}
+                        style={{ backgroundColor: vigColors[vig] ?? "#888" }}
                       >
-                        Vigilance {client.nivVigilance.charAt(0) + client.nivVigilance.slice(1).toLowerCase()}
+                        Vigilance {vig.charAt(0) + vig.slice(1).toLowerCase()}
                       </span>
                       <span className="text-sm text-slate-300">
                         Score de risque : {client.scoreGlobal}/100
@@ -317,11 +318,11 @@ function SectionTitle({ num, title, color }: { num: number; title: string; color
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({ label, value }: { label: string; value: string | undefined | null }) {
   return (
     <div className="flex gap-2">
       <span className="font-semibold text-gray-700 min-w-[140px]">{label} :</span>
-      <span>{value}</span>
+      <span>{value || "N/C"}</span>
     </div>
   );
 }

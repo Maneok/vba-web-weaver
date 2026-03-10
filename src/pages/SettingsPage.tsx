@@ -371,6 +371,18 @@ export default function SettingsPage() {
     setLcbftErrors({});
   }
 
+  /* --- warn before leaving with unsaved changes --- */
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirtyCabinet || dirtyScoring || dirtyLcbft) {
+        e.preventDefault();
+        e.returnValue = "Les modifications non sauvegardees seront perdues";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirtyCabinet, dirtyScoring, dirtyLcbft]);
+
   /* --- keyboard shortcut Ctrl+S --- */
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {

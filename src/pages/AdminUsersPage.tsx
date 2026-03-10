@@ -291,12 +291,12 @@ export default function AdminUsersPage() {
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead>Utilisateur</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Role</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead>Inscrit le</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead scope="col">Utilisateur</TableHead>
+              <TableHead scope="col">Email</TableHead>
+              <TableHead scope="col">Role</TableHead>
+              <TableHead scope="col">Statut</TableHead>
+              <TableHead scope="col">Inscrit le</TableHead>
+              <TableHead scope="col" className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

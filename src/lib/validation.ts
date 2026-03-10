@@ -74,6 +74,18 @@ export const alerteSchema = z.object({
     .min(1, "Le responsable est obligatoire"),
 });
 
+/** Standalone email validation schema with French error message */
+export const emailSchema = z
+  .string()
+  .email("Adresse email invalide. Veuillez saisir une adresse au format valide (ex: nom@domaine.fr)");
+
+/** Validate an email string — returns null if valid, or a French error message */
+export function validateEmail(email: string): string | null {
+  if (!email || email.trim() === "") return null; // empty is valid (not required)
+  const result = emailSchema.safeParse(email);
+  return result.success ? null : result.error.errors[0]?.message ?? "Adresse email invalide";
+}
+
 export type ClientFormData = z.infer<typeof clientSchema>;
 export type CollaborateurFormData = z.infer<typeof collaborateurSchema>;
 export type AlerteFormData = z.infer<typeof alerteSchema>;

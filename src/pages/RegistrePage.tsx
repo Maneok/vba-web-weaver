@@ -293,21 +293,21 @@ export default function RegistrePage() {
           <Table>
             <TableHeader>
               <TableRow className="border-white/[0.06] hover:bg-transparent">
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("date")} aria-label="Trier par date" aria-sort={sortKey === "date" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("date")} aria-label="Trier par date" aria-sort={sortKey === "date" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Date <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("clientConcerne")} aria-label="Trier par client" aria-sort={sortKey === "clientConcerne" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("clientConcerne")} aria-label="Trier par client" aria-sort={sortKey === "clientConcerne" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Client <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("categorie")} aria-label="Trier par categorie" aria-sort={sortKey === "categorie" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("categorie")} aria-label="Trier par categorie" aria-sort={sortKey === "categorie" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Categorie <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Qualification</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Action prise</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Responsable</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Statut</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Date butoir</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Qualification</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Action prise</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Responsable</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Statut</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Date butoir</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

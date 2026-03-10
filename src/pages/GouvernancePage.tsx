@@ -356,12 +356,12 @@ export default function GouvernancePage() {
                     <TableHeader>
                       <TableRow>
                         <SortableHeader field="nom">Nom</SortableHeader>
-                        <TableHead>Email</TableHead>
+                        <TableHead scope="col">Email</TableHead>
                         <SortableHeader field="fonction">Role GRIMY</SortableHeader>
-                        <TableHead>Role LCB</TableHead>
+                        <TableHead scope="col">Role LCB</TableHead>
                         <SortableHeader field="niveauCompetence">Statut</SortableHeader>
                         <SortableHeader field="derniereFormation">Derniere formation</SortableHeader>
-                        <TableHead>Actions</TableHead>
+                        <TableHead scope="col">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
