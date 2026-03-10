@@ -274,8 +274,8 @@ export default function SettingsPage() {
     );
     setSavingCabinet(false);
     if (error) {
-      toast.error("Erreur lors de la sauvegarde");
-      logger.error("Settings", "Erreur sauvegarde cabinet", error);
+      toast.error(error.message || "Erreur lors de la sauvegarde");
+      logger.error("Settings", "Erreur sauvegarde cabinet:", error);
     } else {
       setSavedCabinetSnapshot({ ...cabinet });
       setLastSavedCabinet(now);

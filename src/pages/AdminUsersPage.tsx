@@ -85,8 +85,7 @@ export default function AdminUsersPage() {
       setInviteRole("COLLABORATEUR");
 
       // Reload after trigger creates profile (with retry)
-      const tid = setTimeout(loadUsers, 2000);
-      return () => clearTimeout(tid);
+      setTimeout(loadUsers, 2000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur lors de l'invitation";
       toast.error(message);

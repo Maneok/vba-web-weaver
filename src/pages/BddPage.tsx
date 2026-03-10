@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { downloadCSV } from "@/lib/csvUtils";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -194,31 +195,15 @@ export default function BddPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  // FIX 16: CSV injection protection
-  function csvSafe(val: unknown): string {
-    const s = String(val ?? "");
-    if (/^[=+\-@\t\r]/.test(s)) return `'${s}`;
-    if (s.includes(";") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  }
-
   const handleExportCSV = () => {
     const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "KYC%", "Butoir"];
     const exportable = filtered.filter(c => !c.nonDiffusible);
     const excluded = filtered.length - exportable.length;
-    const rows = exportable.map(c => {
-      return [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, `${computeKycPercent(c)}%`, c.dateButoir].map(csvSafe);
-    });
-    const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
-    // 1. Add BOM for proper UTF-8 encoding in Excel
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "clients_lcb.csv";
-    a.click();
-    // 11. Cleanup objectURL after download starts to prevent memory leak
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const rows = exportable.map(c => [
+      String(c.ref), c.raisonSociale, c.siren, c.forme, c.mission, c.comptable,
+      String(c.scoreGlobal), c.nivVigilance, c.etatPilotage, `${computeKycPercent(c)}%`, c.dateButoir,
+    ]);
+    downloadCSV(headers, rows, "clients_lcb.csv");
     if (excluded > 0) {
       toast.warning(`Export CSV genere — ${excluded} client(s) non-diffusible(s) exclus (art. R.123-320 C.com)`);
     } else {

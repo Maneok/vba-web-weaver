@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
+import { downloadCSV } from "@/lib/csvUtils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -190,15 +191,8 @@ export default function LogsPage() {
           className="gap-1.5 border-white/[0.06]"
           onClick={() => {
             const headers = ["Horodatage", "Utilisateur", "Action", "Reference", "Details"];
-            const rows = filtered.map(l => [l.horodatage, l.utilisateur, l.typeAction, l.refClient, `"${l.details.replace(/"/g, '""')}"`]);
-            const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
-            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `journal_actions_${new Date().toISOString().slice(0, 10)}.csv`;
-            a.click();
-            setTimeout(() => URL.revokeObjectURL(url), 1000);
+            const rows = filtered.map(l => [l.horodatage, l.utilisateur, l.typeAction, l.refClient, l.details]);
+            downloadCSV(headers, rows, `journal_actions_${new Date().toISOString().slice(0, 10)}.csv`);
             toast.success(`Export CSV genere (${filtered.length} entrees)`);
           }}
         >

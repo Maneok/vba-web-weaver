@@ -3,6 +3,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { AlerteRegistre } from "@/lib/types";
+import { downloadCSV } from "@/lib/csvUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -26,12 +27,6 @@ function formatDateFR(dateStr: string | undefined): string {
   }
 }
 
-function sanitizeCSVValue(val: string | undefined): string {
-  const v = (val || "").replace(/"/g, '""');
-  if (/^[=+\-@\t\r]/.test(v)) return "'" + v;
-  return v;
-}
-
 function getCategoryBadgeClasses(categorie: string): string {
   const upper = (categorie ?? "").toUpperCase();
   if (upper.includes("TRACFIN")) return "bg-red-600/20 text-red-400 border border-red-500/20";
@@ -53,14 +48,7 @@ function exportCSV(data: AlerteRegistre[], filename: string) {
     a.date, a.clientConcerne, a.categorie, a.qualification, a.details,
     a.actionPrise, a.responsable, a.statut, a.dateButoir, a.typeDecision, a.validateur,
   ]);
-  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${sanitizeCSVValue(v)}"`).join(";"))].join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadCSV(headers, rows, filename);
 }
 
 export default function RegistrePage() {

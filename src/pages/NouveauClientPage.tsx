@@ -1402,11 +1402,15 @@ export default function NouveauClientPage() {
       }
       case 2: return true;
       case 3: return questionsValid;
-      case 4: return decision !== "";
+      case 4: {
+        if (!decision) return false;
+        if (decision === "REFUSER" && !motifRefus.trim()) return false;
+        return true;
+      }
       case 5: return true;
       default: return true;
     }
-  }, [step, form, questionsValid, decision]);
+  }, [step, form, questionsValid, decision, motifRefus]);
 
   // Validation errors for step 2
   const validationErrors = useMemo(() => {

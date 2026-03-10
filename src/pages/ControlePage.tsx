@@ -10,6 +10,7 @@ import {
 import { useAppState } from "@/lib/AppContext";
 import { controlesService } from "@/lib/supabaseService";
 import { formatDateFR, timeAgo } from "@/lib/dateUtils";
+import { downloadCSV } from "@/lib/csvUtils";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
@@ -727,21 +728,12 @@ export default function ControlePage() {
       "Controleur", "Action correctrice", "Echeance", "Suivi",
     ];
     const rows = filteredControles.map((c) => [
-      c.dateTirage, c.dossierAudite, c.siren, c.forme, c.scoreGlobal, c.nivVigilance,
+      c.dateTirage, c.dossierAudite, c.siren, c.forme, String(c.scoreGlobal), c.nivVigilance,
       c.ppe, c.paysRisque, c.atypique, c.distanciel, c.cash, c.pression,
-      c.point1, c.point2, c.point3, c.resultatGlobal, c.incident, c.commentaire,
+      c.point1, c.point2, c.point3, c.resultatGlobal, c.incident ? "OUI" : "NON", c.commentaire,
       c.controleur, c.actionCorrectrice, c.dateEcheance, c.suiviStatut,
     ]);
-    // BUG FIX #17: replace newlines in field values to avoid breaking CSV rows
-    const csv = [headers.join(";"), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`).join(";"))].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Controles_Qualite_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    // BUG FIX #18: delay revoke to let download start
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadCSV(headers, rows, `Controles_Qualite_${new Date().toISOString().slice(0, 10)}.csv`);
     toast.success(`${filteredControles.length} controles exportes en CSV`);
   };
 

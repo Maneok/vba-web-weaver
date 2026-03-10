@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";

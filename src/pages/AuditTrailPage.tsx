@@ -3,6 +3,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
+import { downloadCSV } from "@/lib/csvUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -60,20 +61,7 @@ function exportAuditCSV(entries: AuditRow[]) {
     e.record_id || "",
     e.new_data ? JSON.stringify(e.new_data).slice(0, 500) : "",
   ]);
-  const safe = (v: string) => {
-    const s = v || "";
-    const escaped = s.replace(/"/g, '""');
-    if (/^[=+\-@\t\r]/.test(s)) return `"'${escaped}"`;
-    return `"${escaped}"`;
-  };
-  const csv = [headers.join(";"), ...rows.map(r => r.map(safe).join(";"))].join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `audit-trail-${new Date().toISOString().split("T")[0]}.csv`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  downloadCSV(headers, rows, `audit-trail-${new Date().toISOString().split("T")[0]}.csv`);
 }
 
 function renderDiffView(oldData: Record<string, unknown> | null, newData: Record<string, unknown> | null) {
