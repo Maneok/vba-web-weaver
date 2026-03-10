@@ -580,7 +580,7 @@ export default function BddPage() {
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/client/${client.ref}`); }}>
                           <Edit3 className="w-3.5 h-3.5 mr-2" /> Modifier
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateFicheAcceptation(client); toast.success("PDF genere"); }}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}>
                           <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => {

@@ -8,7 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
 import { toast } from "sonner";
-import { DEFAULT_TEMPLATE, SCI_TEMPLATE, LMNP_TEMPLATE, replaceTemplateVariables } from "@/lib/lettreMissionTemplate";
+import { DEFAULT_TEMPLATE, replaceTemplateVariables } from "@/lib/lettreMissionTemplate";
 import type { TemplateSection } from "@/lib/lettreMissionTemplate";
 import type { Client } from "@/lib/types";
 
@@ -61,8 +61,8 @@ interface SavedLettre {
   template_name?: string;
 }
 
-// ─── Constants ───
-const TYPE_ACTIVITE_OPTIONS = [
+// ─── Constants (exported for testing) ───
+export const TYPE_ACTIVITE_OPTIONS = [
   { value: "all", label: "Tous les types" },
   { value: "tenue", label: "Tenue comptable" },
   { value: "revision", label: "Revision" },
@@ -71,12 +71,27 @@ const TYPE_ACTIVITE_OPTIONS = [
   { value: "accompagnement", label: "Accompagnement" },
 ];
 
-const STATUT_CONFIG: Record<string, { label: string; color: string }> = {
+export const STATUT_CONFIG: Record<string, { label: string; color: string }> = {
   BROUILLON: { label: "Brouillon", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
   GENERE: { label: "Genere", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
   SIGNE: { label: "Signe", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
   ENVOYE: { label: "Envoye", color: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
 };
+
+// FIX #4: Correct status progression order
+export const STATUT_ORDER = ["BROUILLON", "GENERE", "SIGNE", "ENVOYE"] as const;
+
+export function getNextStatut(current: string): string {
+  const idx = STATUT_ORDER.indexOf(current as any);
+  if (idx === -1 || idx >= STATUT_ORDER.length - 1) return current;
+  return STATUT_ORDER[idx + 1];
+}
+
+export function getPrevStatut(current: string): string {
+  const idx = STATUT_ORDER.indexOf(current as any);
+  if (idx <= 0) return current;
+  return STATUT_ORDER[idx - 1];
+}
 
 const SECTION_ICONS: Record<string, any> = {
   parties: Users,
@@ -89,7 +104,7 @@ const SECTION_ICONS: Record<string, any> = {
   signature: Edit3,
 };
 
-const TEMPLATE_VARIABLES = [
+export const TEMPLATE_VARIABLES = [
   { key: "raison_sociale", label: "Raison sociale" },
   { key: "siren", label: "SIREN" },
   { key: "dirigeant", label: "Dirigeant" },
@@ -108,7 +123,7 @@ const TEMPLATE_VARIABLES = [
   { key: "date_cloture", label: "Date de cloture" },
 ];
 
-const EDITOR_SECTIONS = [
+export const EDITOR_SECTIONS = [
   { id: "parties", label: "Parties", sectionIds: ["destinataire", "introduction", "entite"] },
   { id: "objet", label: "Objet", sectionIds: ["mission", "nature_limite"] },
   { id: "missions", label: "Missions", sectionIds: ["missions_complementaires_intro", "mission_sociale", "mission_juridique", "mission_fiscal"] },
@@ -119,20 +134,20 @@ const EDITOR_SECTIONS = [
   { id: "signature", label: "Signature", sectionIds: ["signature"] },
 ];
 
-// ─── [#1] Helper: generate LM number ───
-function generateLMNumero(): string {
+// ─── Helpers (exported for testing) ───
+export function generateLMNumero(): string {
   const now = new Date();
   const y = now.getFullYear();
   const rand = String(Math.floor(Math.random() * 9000) + 1000);
   return `LM-${y}-${rand}`;
 }
 
-// ─── [#2] Helper: format relative date ───
-function formatRelativeDate(dateStr: string): string {
+export function formatRelativeDate(dateStr: string): string {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return "—";
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
+  if (diffMs < 0) return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
   const diffMin = Math.floor(diffMs / 60000);
   if (diffMin < 1) return "A l'instant";
   if (diffMin < 60) return `Il y a ${diffMin} min`;
@@ -143,15 +158,14 @@ function formatRelativeDate(dateStr: string): string {
   return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 }
 
-// ─── [#3] Helper: count variables in sections ───
-function countVariables(sections: TemplateSection[]): number {
-  const allContent = sections.map((s) => s.content).join(" ");
+export function countVariables(sections: TemplateSection[]): number {
+  if (!sections || sections.length === 0) return 0;
+  const allContent = sections.map((s) => s.content || "").join(" ");
   const matches = allContent.match(/\{\{\w+\}\}/g);
   return matches ? new Set(matches).size : 0;
 }
 
-// ─── [#4] Helper: build variables from client ───
-function buildClientVariables(client: Client | undefined): Record<string, string> {
+export function buildClientVariables(client: Client | null | undefined): Record<string, string> {
   if (!client) return {};
   const months = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
   const now = new Date();
@@ -180,8 +194,16 @@ function buildClientVariables(client: Client | undefined): Record<string, string
   };
 }
 
+// FIX #4: validate statut transition
+export function isValidStatutTransition(from: string, to: string): boolean {
+  const fromIdx = STATUT_ORDER.indexOf(from as any);
+  const toIdx = STATUT_ORDER.indexOf(to as any);
+  if (fromIdx === -1 || toIdx === -1) return false;
+  return toIdx === fromIdx + 1;
+}
+
 // ═══════════════════════════════════════════════
-// [#5] Confirmation Dialog Component
+// Confirmation Dialog Component
 // ═══════════════════════════════════════════════
 function ConfirmDialog({
   open,
@@ -249,10 +271,18 @@ function TemplateEditor({
   const [disabledSections, setDisabledSections] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [showVarMenu, setShowVarMenu] = useState(false);
-  // [#6] Track unsaved changes
   const [hasChanges, setHasChanges] = useState(false);
   const [showExitConfirm, setShowExitConfirm] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // FIX #6: use refs for latest state in keyboard handler
+  const nomRef = useRef(nom);
+  const typeActiviteRef = useRef(typeActivite);
+  const descriptionRef = useRef(description);
+  const sectionsRef = useRef(sections);
+  nomRef.current = nom;
+  typeActiviteRef.current = typeActivite;
+  descriptionRef.current = description;
+  sectionsRef.current = sections;
 
   const activeSectionDef = EDITOR_SECTIONS.find((s) => s.id === activeSection);
   const matchingSections = sections.filter((s) => activeSectionDef?.sectionIds.includes(s.id));
@@ -290,37 +320,19 @@ function TemplateEditor({
     }, 50);
   };
 
-  // [#7] Keyboard shortcut: Ctrl+S to save
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [nom, typeActivite, description, sections]);
-
-  // [#8] Close var menu on outside click
-  useEffect(() => {
-    if (!showVarMenu) return;
-    const handler = () => setShowVarMenu(false);
-    const timer = setTimeout(() => document.addEventListener("click", handler), 10);
-    return () => { clearTimeout(timer); document.removeEventListener("click", handler); };
-  }, [showVarMenu]);
-
-  const handleSave = async () => {
-    if (!nom.trim()) { toast.error("Le nom du modele est requis"); return; }
+  // FIX #6: Stable save function using refs
+  const doSave = useCallback(async () => {
+    const currentNom = nomRef.current;
+    if (!currentNom.trim()) { toast.error("Le nom du modele est requis"); return; }
     setSaving(true);
     try {
       await onSave({
         id: template?.id,
-        nom: nom.trim(),
-        type_activite: typeActivite,
-        description: description.trim(),
-        sections,
-        forme_juridique: typeActivite,
+        nom: currentNom.trim(),
+        type_activite: typeActiviteRef.current,
+        description: descriptionRef.current.trim(),
+        sections: sectionsRef.current,
+        forme_juridique: typeActiviteRef.current,
       });
       setHasChanges(false);
       toast.success("Modele sauvegarde");
@@ -329,9 +341,39 @@ function TemplateEditor({
       toast.error(e?.message || "Erreur lors de la sauvegarde");
     }
     setSaving(false);
-  };
+  }, [template?.id, onSave, onClose]);
 
-  // [#9] Confirm before closing with unsaved changes
+  // FIX #6: Keyboard shortcut with stable reference
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        doSave();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [doSave]);
+
+  // FIX #7: Proper click-outside handling for var menu
+  useEffect(() => {
+    if (!showVarMenu) return;
+    const handler = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest("[data-var-menu]")) {
+        setShowVarMenu(false);
+      }
+    };
+    // Add on next tick to avoid catching the opening click
+    const timer = requestAnimationFrame(() => {
+      document.addEventListener("mousedown", handler);
+    });
+    return () => {
+      cancelAnimationFrame(timer);
+      document.removeEventListener("mousedown", handler);
+    };
+  }, [showVarMenu]);
+
   const handleClose = () => {
     if (hasChanges) {
       setShowExitConfirm(true);
@@ -353,7 +395,6 @@ function TemplateEditor({
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
-      {/* [#5] Exit confirmation */}
       <ConfirmDialog
         open={showExitConfirm}
         title="Modifications non sauvegardees"
@@ -377,7 +418,6 @@ function TemplateEditor({
             placeholder="Nom du modele..."
             className="bg-transparent border-none text-base sm:text-lg font-semibold text-white w-full sm:w-[300px] focus-visible:ring-0 px-0"
           />
-          {/* [#6] Unsaved indicator */}
           {hasChanges && <Badge className="bg-amber-500/10 text-amber-400 text-[9px] shrink-0">Non sauvegarde</Badge>}
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -391,7 +431,7 @@ function TemplateEditor({
               ))}
             </SelectContent>
           </Select>
-          <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 gap-1.5">
+          <Button onClick={doSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 gap-1.5">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
             <span className="hidden sm:inline">Sauvegarder</span>
           </Button>
@@ -408,7 +448,7 @@ function TemplateEditor({
         />
       </div>
 
-      {/* Split view — [#10] mobile: stacked layout */}
+      {/* Split view */}
       <div className={`flex flex-1 min-h-0 ${isMobile ? "flex-col" : ""}`}>
         {/* Left: Section menu */}
         <div className={`${isMobile ? "flex overflow-x-auto border-b border-white/[0.06] py-2 px-2 gap-1 shrink-0" : "w-[240px] border-r border-white/[0.06] py-4 overflow-y-auto shrink-0"}`}>
@@ -456,17 +496,17 @@ function TemplateEditor({
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold text-white">{activeSectionDef?.label}</h3>
-            <div className="relative">
+            <div className="relative" data-var-menu>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={(e) => { e.stopPropagation(); setShowVarMenu(!showVarMenu); }}
+                onClick={() => setShowVarMenu(!showVarMenu)}
                 className="gap-1.5 border-white/[0.08] text-xs text-slate-400"
               >
                 <Variable className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Inserer une variable</span>
               </Button>
               {showVarMenu && (
-                <div className="absolute right-0 top-full mt-1 w-[260px] bg-slate-900 border border-white/[0.1] rounded-xl shadow-xl z-50 p-2 max-h-[300px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="absolute right-0 top-full mt-1 w-[260px] bg-slate-900 border border-white/[0.1] rounded-xl shadow-xl z-50 p-2 max-h-[300px] overflow-y-auto" data-var-menu>
                   {TEMPLATE_VARIABLES.map((v) => (
                     <button
                       key={v.key}
@@ -551,20 +591,29 @@ function LetterWizard({
   const [saving, setSaving] = useState(false);
   const [letterId, setLetterId] = useState<string | null>(initialLetter?.id || null);
   const [clientSearch, setClientSearch] = useState("");
-  // [#11] Last auto-save timestamp
   const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>();
-  // [#12] Track if content was regenerated to avoid overwriting edits
-  const contentGenerated = useRef(false);
+  // FIX #8: track per-template generation
+  const lastGeneratedTemplateId = useRef<string | null>(null);
 
   const selectedClient = useMemo(() => clients.find((c) => c.ref === selectedClientId), [clients, selectedClientId]);
   const selectedTemplate = useMemo(() => templates.find((t) => t.id === selectedTemplateId), [templates, selectedTemplateId]);
-
   const variables = useMemo(() => buildClientVariables(selectedClient), [selectedClient]);
+
+  // FIX #1: use refs for saveToSupabase to avoid stale closures
+  const stateRef = useRef({
+    cabinetId, selectedClientId, selectedTemplateId, wizardStep,
+    generatedContent, selectedClient, selectedTemplate, letterId,
+  });
+  stateRef.current = {
+    cabinetId, selectedClientId, selectedTemplateId, wizardStep,
+    generatedContent, selectedClient, selectedTemplate, letterId,
+  };
 
   // Generate content from template + variables when entering step 3
   useEffect(() => {
-    if (wizardStep === 3 && selectedTemplate && !contentGenerated.current && Object.keys(generatedContent).length === 0) {
+    // FIX #8: Only regenerate if template actually changed
+    if (wizardStep === 3 && selectedTemplate && lastGeneratedTemplateId.current !== selectedTemplate.id) {
       const content: Record<string, string> = {};
       const toggles: Record<string, boolean> = {};
       for (const section of selectedTemplate.sections) {
@@ -574,20 +623,46 @@ function LetterWizard({
       }
       setGeneratedContent(content);
       setSectionToggles(toggles);
-      contentGenerated.current = true;
+      lastGeneratedTemplateId.current = selectedTemplate.id;
     }
   }, [wizardStep, selectedTemplate, variables]);
 
-  // [#13] Reset generated content when template changes
+  // FIX #8: Reset when template changes
   useEffect(() => {
-    if (selectedTemplateId) {
-      contentGenerated.current = false;
-      setGeneratedContent({});
-      setSectionToggles({});
-    }
+    lastGeneratedTemplateId.current = null;
   }, [selectedTemplateId]);
 
-  // Auto-save every 30s
+  // FIX #1: Stable save function using refs
+  const saveToSupabase = useCallback(async (statut: string) => {
+    const s = stateRef.current;
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) return;
+      const payload: Record<string, any> = {
+        cabinet_id: s.cabinetId,
+        template_id: s.selectedTemplateId || null,
+        // FIX #3: Use client_ref (string) not client_id (uuid) — store in client_ref column
+        client_ref: s.selectedClient?.ref || null,
+        wizard_step: s.wizardStep,
+        statut_lm: statut,
+        generated_content: s.generatedContent,
+        wizard_data: { client_name: s.selectedClient?.raisonSociale, template_name: s.selectedTemplate?.nom },
+        updated_at: new Date().toISOString(),
+      };
+      if (s.letterId) {
+        await supabase.from("lettres_mission").update(payload).eq("id", s.letterId);
+      } else {
+        payload.user_id = authData.user.id;
+        payload.numero = generateLMNumero();
+        const { data: ins } = await supabase.from("lettres_mission").insert(payload).select("id").maybeSingle();
+        if (ins) setLetterId(ins.id);
+      }
+    } catch (e) {
+      logger.warn("LM", "Save failed:", e);
+    }
+  }, []);
+
+  // Auto-save every 30s — FIX #1: uses stable saveToSupabase
   useEffect(() => {
     if (!selectedClientId) return;
     clearTimeout(autoSaveTimer.current);
@@ -596,43 +671,15 @@ function LetterWizard({
       setLastAutoSave(new Date());
     }, 30000);
     return () => clearTimeout(autoSaveTimer.current);
-  }, [selectedClientId, selectedTemplateId, generatedContent, wizardStep]);
+  }, [selectedClientId, selectedTemplateId, generatedContent, wizardStep, saveToSupabase]);
 
-  // [#14] Warn on browser close with unsaved changes
+  // Warn on browser close
   useEffect(() => {
     if (!selectedClientId) return;
     const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [selectedClientId]);
-
-  const saveToSupabase = async (statut: string) => {
-    try {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user) return;
-      const payload: Record<string, any> = {
-        cabinet_id: cabinetId,
-        template_id: selectedTemplateId || null,
-        client_id: selectedClientId || null,
-        client_ref: selectedClient?.ref || null,
-        wizard_step: wizardStep,
-        statut_lm: statut,
-        generated_content: generatedContent,
-        wizard_data: { client_name: selectedClient?.raisonSociale, template_name: selectedTemplate?.nom },
-        updated_at: new Date().toISOString(),
-      };
-      if (letterId) {
-        await supabase.from("lettres_mission").update(payload).eq("id", letterId);
-      } else {
-        payload.user_id = authData.user.id;
-        payload.numero = generateLMNumero();
-        const { data: ins } = await supabase.from("lettres_mission").insert(payload).select("id").maybeSingle();
-        if (ins) setLetterId(ins.id);
-      }
-    } catch (e) {
-      logger.warn("LM", "Auto-save failed:", e);
-    }
-  };
 
   const handleSaveDraft = async () => {
     setSaving(true);
@@ -641,49 +688,52 @@ function LetterWizard({
     setSaving(false);
   };
 
-  // [#15] Shared export logic to avoid duplication
-  const getExportSections = () => {
+  // FIX #9: Guard functions that build export params
+  const getExportSections = (): TemplateSection[] => {
     if (!selectedTemplate) return [];
     return selectedTemplate.sections
       .filter((s) => sectionToggles[s.id] !== false)
       .map((s) => ({ ...s, content: generatedContent[s.id] || s.content }));
   };
 
-  const getExportParams = () => ({
-    client: selectedClient!,
-    genre: "M" as const,
-    missions: {
-      sociale: sectionToggles["mission_sociale"] !== false,
-      juridique: sectionToggles["mission_juridique"] !== false,
-      fiscal: sectionToggles["mission_fiscal"] !== false,
-    },
-    honoraires: {
-      comptable: selectedClient?.honoraires || 0,
-      constitution: 0,
-      juridique: selectedClient?.juridique || 0,
-      frequence: (selectedClient?.frequence as any) || "MENSUEL",
-    },
-    cabinet: {
-      nom: "Cabinet d'expertise comptable",
-      adresse: "", cp: "", ville: "",
-      siret: "", numeroOEC: "", email: "", telephone: "",
-    },
-    variables,
-  });
+  const getExportParams = () => {
+    if (!selectedClient) return null;
+    return {
+      client: selectedClient,
+      genre: "M" as const,
+      missions: {
+        sociale: sectionToggles["mission_sociale"] !== false,
+        juridique: sectionToggles["mission_juridique"] !== false,
+        fiscal: sectionToggles["mission_fiscal"] !== false,
+      },
+      honoraires: {
+        comptable: selectedClient.honoraires || 0,
+        constitution: 0,
+        juridique: selectedClient.juridique || 0,
+        frequence: (selectedClient.frequence as any) || "MENSUEL",
+      },
+      cabinet: {
+        nom: "Cabinet d'expertise comptable",
+        adresse: "", cp: "", ville: "",
+        siret: "", numeroOEC: "", email: "", telephone: "",
+      },
+      variables,
+    };
+  };
 
   const handleExportPdf = async () => {
-    if (!selectedClient || !selectedTemplate) return;
+    const params = getExportParams();
+    if (!params || !selectedTemplate) return;
     setSaving(true);
     try {
       const { renderNewLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
-      renderNewLettreMissionPdf({ sections: getExportSections(), ...getExportParams() });
+      renderNewLettreMissionPdf({ sections: getExportSections(), ...params });
       await saveToSupabase("GENERE");
-      // [#16] Audit trail on export
       logAudit({
         action: "LETTRE_MISSION_EXPORT_PDF",
         table_name: "lettres_mission",
-        record_id: letterId || undefined,
-        new_data: { client_ref: selectedClient.ref, template: selectedTemplate.nom },
+        record_id: stateRef.current.letterId || undefined,
+        new_data: { client_ref: params.client.ref, template: selectedTemplate.nom },
       }).catch(() => {});
       toast.success("PDF genere avec succes");
       onSaved();
@@ -694,17 +744,18 @@ function LetterWizard({
   };
 
   const handleExportDocx = async () => {
-    if (!selectedClient || !selectedTemplate) return;
+    const params = getExportParams();
+    if (!params || !selectedTemplate) return;
     setSaving(true);
     try {
       const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
-      await renderNewLettreMissionDocx({ sections: getExportSections(), ...getExportParams() });
+      await renderNewLettreMissionDocx({ sections: getExportSections(), ...params });
       await saveToSupabase("GENERE");
       logAudit({
         action: "LETTRE_MISSION_EXPORT_DOCX",
         table_name: "lettres_mission",
-        record_id: letterId || undefined,
-        new_data: { client_ref: selectedClient.ref, template: selectedTemplate.nom },
+        record_id: stateRef.current.letterId || undefined,
+        new_data: { client_ref: params.client.ref, template: selectedTemplate.nom },
       }).catch(() => {});
       toast.success("DOCX genere avec succes");
       onSaved();
@@ -714,12 +765,14 @@ function LetterWizard({
     setSaving(false);
   };
 
-  const handleEmail = () => {
+  // FIX #2: await saveToSupabase in handleEmail
+  const handleEmail = async () => {
     if (!selectedClient) return;
     const subject = encodeURIComponent(`Lettre de mission — ${selectedClient.raisonSociale}`);
     const body = encodeURIComponent(`Bonjour,\n\nVeuillez trouver ci-jointe la lettre de mission pour ${selectedClient.raisonSociale}.\n\nCordialement`);
     window.open(`mailto:${selectedClient.mail || ""}?subject=${subject}&body=${body}`, "_self");
-    saveToSupabase("ENVOYE");
+    await saveToSupabase("ENVOYE");
+    toast.success("Statut mis a jour : Envoye");
   };
 
   const filteredClients = useMemo(() => {
@@ -736,17 +789,17 @@ function LetterWizard({
     return true;
   };
 
-  // [#17] Keyboard: Escape to go back, Enter to advance
+  // FIX #10: Stable keyboard handler using functional setState
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && wizardStep > 1) {
+      if (e.key === "Escape") {
         e.preventDefault();
-        setWizardStep((s) => Math.max(1, s - 1));
+        setWizardStep((s) => (s > 1 ? s - 1 : s));
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [wizardStep]);
+  }, []); // Empty deps — handler uses functional setState
 
   const stepTitles = ["", "Choisir un client", "Choisir un modele", "Previsualisation", "Export"];
 
@@ -764,7 +817,6 @@ function LetterWizard({
           </h2>
         </div>
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* [#11] Auto-save indicator */}
           {lastAutoSave && (
             <span className="text-[10px] text-slate-600 hidden sm:flex items-center gap-1">
               <Save className="w-3 h-3" />
@@ -778,7 +830,7 @@ function LetterWizard({
         </div>
       </div>
 
-      {/* Progress */}
+      {/* Progress — clickable completed steps */}
       <div className="px-4 sm:px-6 py-3 border-b border-white/[0.04] flex items-center gap-2">
         {[1, 2, 3, 4].map((s) => (
           <div key={s} className="flex items-center gap-2 flex-1">
@@ -786,7 +838,7 @@ function LetterWizard({
               onClick={() => { if (s < wizardStep) setWizardStep(s); }}
               disabled={s > wizardStep}
               className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
-                s === wizardStep ? "bg-blue-600 text-white" : s < wizardStep ? "bg-emerald-500/20 text-emerald-400 cursor-pointer hover:bg-emerald-500/30" : "bg-white/[0.04] text-slate-600"
+                s === wizardStep ? "bg-blue-600 text-white" : s < wizardStep ? "bg-emerald-500/20 text-emerald-400 cursor-pointer hover:bg-emerald-500/30" : "bg-white/[0.04] text-slate-600 cursor-default"
               }`}
             >
               {s < wizardStep ? <Check className="w-3.5 h-3.5" /> : s}
@@ -816,7 +868,6 @@ function LetterWizard({
                   autoFocus
                 />
               </div>
-              {/* [#18] Result count */}
               <p className="text-[10px] text-slate-600">{filteredClients.length} client{filteredClients.length > 1 ? "s" : ""}</p>
               <div className="grid gap-2 max-h-[calc(100vh-360px)] overflow-y-auto">
                 {filteredClients.slice(0, 50).map((client) => (
@@ -836,7 +887,6 @@ function LetterWizard({
                       <p className="text-sm font-medium text-white truncate">{client.raisonSociale}</p>
                       <p className="text-xs text-slate-500">{client.forme} · {client.siren} · {client.ref}</p>
                     </div>
-                    {/* [#19] Show risk level */}
                     {client.nivVigilance && (
                       <Badge variant="outline" className={`text-[9px] shrink-0 ${
                         client.nivVigilance === "RENFORCEE" ? "border-red-500/20 text-red-400" :
@@ -861,7 +911,6 @@ function LetterWizard({
           {/* Step 2: Template */}
           {wizardStep === 2 && (
             <div className="space-y-4">
-              {/* [#20] Selected client recap */}
               {selectedClient && (
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 mb-4">
                   <Building2 className="w-4 h-4 text-blue-400" />
@@ -887,7 +936,7 @@ function LetterWizard({
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-white">{tpl.nom}</p>
-                      <p className="text-xs text-slate-500">{tpl.description || tpl.type_activite} · {tpl.sections?.length || 0} sections · {countVariables(tpl.sections || [])} variables</p>
+                      <p className="text-xs text-slate-500">{tpl.description || tpl.type_activite} · {tpl.sections?.length || 0} sections</p>
                     </div>
                     <Badge variant="outline" className="text-[10px] border-white/[0.1] text-slate-500 shrink-0">
                       {tpl.usage_count} utilisation{tpl.usage_count !== 1 ? "s" : ""}
@@ -909,7 +958,9 @@ function LetterWizard({
                 <p className="text-sm text-slate-400">
                   <span className="text-white font-medium">{selectedClient?.raisonSociale}</span> — {selectedTemplate.nom}
                 </p>
-                <span className="text-[10px] text-slate-600">{selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false).length} / {selectedTemplate.sections.length} sections actives</span>
+                <span className="text-[10px] text-slate-600">
+                  {selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false).length} / {selectedTemplate.sections.length} sections
+                </span>
               </div>
               {selectedTemplate.sections.map((section) => {
                 const isActive = sectionToggles[section.id] !== false;
@@ -958,37 +1009,22 @@ function LetterWizard({
                 <p className="text-sm text-slate-400 mt-2">
                   {selectedClient?.raisonSociale} — {selectedTemplate?.nom}
                 </p>
-                {/* [#20] Section count summary */}
                 {selectedTemplate && (
                   <p className="text-[10px] text-slate-600 mt-1">
                     {selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false).length} sections actives
                   </p>
                 )}
               </div>
-
               <div className="grid gap-3">
-                <Button
-                  onClick={handleExportPdf}
-                  disabled={saving}
-                  className="h-14 bg-red-600/90 hover:bg-red-600 gap-3 text-base"
-                >
+                <Button onClick={handleExportPdf} disabled={saving} className="h-14 bg-red-600/90 hover:bg-red-600 gap-3 text-base">
                   {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
                   Telecharger en PDF
                 </Button>
-                <Button
-                  onClick={handleExportDocx}
-                  disabled={saving}
-                  variant="outline"
-                  className="h-14 border-blue-500/30 text-blue-300 hover:bg-blue-500/10 gap-3 text-base"
-                >
+                <Button onClick={handleExportDocx} disabled={saving} variant="outline" className="h-14 border-blue-500/30 text-blue-300 hover:bg-blue-500/10 gap-3 text-base">
                   {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
                   Telecharger en DOCX
                 </Button>
-                <Button
-                  onClick={handleEmail}
-                  variant="outline"
-                  className="h-14 border-violet-500/30 text-violet-300 hover:bg-violet-500/10 gap-3 text-base"
-                >
+                <Button onClick={handleEmail} variant="outline" className="h-14 border-violet-500/30 text-violet-300 hover:bg-violet-500/10 gap-3 text-base">
                   <Mail className="w-5 h-5" />
                   Envoyer par email
                 </Button>
@@ -1050,12 +1086,9 @@ export default function LettreMissionPage() {
   const [searchTemplates, setSearchTemplates] = useState("");
   const [searchLettres, setSearchLettres] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
-
   const [editingTemplate, setEditingTemplate] = useState<LMTemplate | null | "new">(null);
   const [showWizard, setShowWizard] = useState(false);
   const [editingLettre, setEditingLettre] = useState<SavedLettre | null>(null);
-
-  // [#5] Confirm dialogs
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: "template" | "lettre"; id: string; name: string } | null>(null);
 
   // Permission check
@@ -1070,7 +1103,6 @@ export default function LettreMissionPage() {
     );
   }
 
-  // ─── Data loading ───
   const loadTemplates = useCallback(async () => {
     setLoadingTemplates(true);
     try {
@@ -1123,7 +1155,6 @@ export default function LettreMissionPage() {
 
   useEffect(() => { loadTemplates(); loadLettres(); }, []);
 
-  // ─── Template CRUD ───
   const handleSaveTemplate = async (tpl: Partial<LMTemplate>) => {
     const { data: authData } = await supabase.auth.getUser();
     if (!authData?.user) throw new Error("Non authentifie");
@@ -1164,7 +1195,6 @@ export default function LettreMissionPage() {
     }
   };
 
-  // [#5] Delete template
   const handleDeleteTemplate = async (id: string) => {
     try {
       const { error } = await supabase.from("lm_templates").delete().eq("id", id);
@@ -1177,7 +1207,6 @@ export default function LettreMissionPage() {
     setDeleteConfirm(null);
   };
 
-  // [#5] Delete lettre
   const handleDeleteLettre = async (id: string) => {
     try {
       const { error } = await supabase.from("lettres_mission").delete().eq("id", id);
@@ -1190,20 +1219,23 @@ export default function LettreMissionPage() {
     setDeleteConfirm(null);
   };
 
-  // [#16] Archive lettre
-  const handleArchiveLettre = async (lettre: SavedLettre) => {
+  // FIX #4: Proper status progression
+  const handleAdvanceStatut = async (lettre: SavedLettre) => {
+    const nextStatut = getNextStatut(lettre.statut_lm);
+    if (nextStatut === lettre.statut_lm) {
+      toast.info("Cette lettre est deja au statut final");
+      return;
+    }
     try {
-      const newStatut = lettre.statut_lm === "SIGNE" ? "ENVOYE" : "SIGNE";
-      const { error } = await supabase.from("lettres_mission").update({ statut_lm: newStatut, updated_at: new Date().toISOString() }).eq("id", lettre.id);
+      const { error } = await supabase.from("lettres_mission").update({ statut_lm: nextStatut, updated_at: new Date().toISOString() }).eq("id", lettre.id);
       if (error) throw error;
-      toast.success(`Statut mis a jour : ${STATUT_CONFIG[newStatut]?.label || newStatut}`);
+      toast.success(`Statut mis a jour : ${STATUT_CONFIG[nextStatut]?.label || nextStatut}`);
       await loadLettres();
     } catch (e: any) {
       toast.error(e?.message || "Erreur");
     }
   };
 
-  // [#15] Duplicate lettre
   const handleDuplicateLettre = async (lettre: SavedLettre) => {
     try {
       const { data: authData } = await supabase.auth.getUser();
@@ -1212,7 +1244,6 @@ export default function LettreMissionPage() {
         user_id: authData.user.id,
         cabinet_id: lettre.cabinet_id,
         template_id: lettre.template_id,
-        client_id: lettre.client_id,
         client_ref: lettre.client_ref,
         wizard_step: 1,
         statut_lm: "BROUILLON",
@@ -1228,13 +1259,27 @@ export default function LettreMissionPage() {
     }
   };
 
-  const handleUseTemplate = (tpl: LMTemplate) => {
-    supabase.from("lm_templates").update({ usage_count: (tpl.usage_count || 0) + 1 }).eq("id", tpl.id).then();
-    setEditingLettre({ template_id: tpl.id, wizard_step: 1 } as any);
+  // FIX #5: await usage count update
+  const handleUseTemplate = async (tpl: LMTemplate) => {
+    await supabase.from("lm_templates").update({ usage_count: (tpl.usage_count || 0) + 1 }).eq("id", tpl.id);
+    // FIX #13: Properly typed initial letter
+    setEditingLettre({
+      id: "",
+      numero: null,
+      client_ref: null,
+      client_id: null,
+      template_id: tpl.id,
+      statut_lm: "BROUILLON",
+      wizard_step: 1,
+      generated_content: {},
+      wizard_data: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      cabinet_id: null,
+    });
     setShowWizard(true);
   };
 
-  // ─── Filtered data ───
   const filteredTemplates = useMemo(() => {
     let result = [...templates];
     if (filterType !== "all") result = result.filter((t) => t.type_activite === filterType);
@@ -1259,7 +1304,6 @@ export default function LettreMissionPage() {
     return result;
   }, [lettres, filterStatut, searchLettres]);
 
-  // [#16] Stats for header
   const stats = useMemo(() => ({
     total: lettres.length,
     brouillons: lettres.filter((l) => l.statut_lm === "BROUILLON").length,
@@ -1304,7 +1348,6 @@ export default function LettreMissionPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5 animate-fade-in-up">
-      {/* [#5] Delete confirmation */}
       <ConfirmDialog
         open={!!deleteConfirm}
         title={deleteConfirm?.type === "template" ? "Supprimer le modele" : "Supprimer la lettre"}
@@ -1324,7 +1367,6 @@ export default function LettreMissionPage() {
           <h1 className="text-xl sm:text-2xl font-bold text-white">Lettres de mission</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">Gerez vos modeles et generez vos lettres</p>
         </div>
-        {/* [#16] Stats pills */}
         {stats.total > 0 && (
           <div className="hidden sm:flex items-center gap-2">
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06]">
@@ -1360,27 +1402,19 @@ export default function LettreMissionPage() {
           </TabsTrigger>
         </TabsList>
 
-        {/* ═══ MODELES TAB ═══ */}
+        {/* MODELES TAB */}
         <TabsContent value="modeles" className="mt-4 space-y-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-              <Input
-                placeholder="Rechercher un modele..."
-                value={searchTemplates}
-                onChange={(e) => setSearchTemplates(e.target.value)}
-                className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
-              />
+              <Input placeholder="Rechercher un modele..." value={searchTemplates} onChange={(e) => setSearchTemplates(e.target.value)} className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs" />
             </div>
             <Select value={filterType} onValueChange={setFilterType}>
               <SelectTrigger className="w-full sm:w-[180px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-                <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
-                <SelectValue />
+                <Filter className="w-3 h-3 mr-1.5 text-slate-500" /><SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {TYPE_ACTIVITE_OPTIONS.map((o) => (
-                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
-                ))}
+                {TYPE_ACTIVITE_OPTIONS.map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
               </SelectContent>
             </Select>
             <Button onClick={() => setEditingTemplate("new")} className="gap-1.5 bg-blue-600 hover:bg-blue-700" size="sm">
@@ -1388,91 +1422,46 @@ export default function LettreMissionPage() {
             </Button>
           </div>
 
-          {/* [#18] Result count */}
           {!loadingTemplates && filteredTemplates.length > 0 && (
             <p className="text-[10px] text-slate-600">{filteredTemplates.length} modele{filteredTemplates.length > 1 ? "s" : ""}</p>
           )}
 
           {loadingTemplates ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-              <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
-            </div>
+            <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-blue-400" /><span className="ml-2 text-slate-400 text-sm">Chargement...</span></div>
           ) : filteredTemplates.length === 0 ? (
             <div className="text-center py-20">
               <LayoutTemplate className="w-12 h-12 text-slate-600 mx-auto mb-4" />
               <p className="text-slate-400 text-sm">Aucun modele{filterType !== "all" ? " pour ce type" : ""}</p>
-              <p className="text-slate-500 text-xs mt-1">Creez votre premier modele de lettre de mission</p>
-              <Button onClick={() => setEditingTemplate("new")} className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-700" size="sm">
-                <Plus className="w-4 h-4" /> Creer un modele
-              </Button>
+              <Button onClick={() => setEditingTemplate("new")} className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-700" size="sm"><Plus className="w-4 h-4" /> Creer un modele</Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {filteredTemplates.map((tpl) => (
-                <div
-                  key={tpl.id}
-                  className="group rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-all p-4 space-y-3"
-                >
+                <div key={tpl.id} className="group rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-all p-4 space-y-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-                        {typeIcon(tpl.type_activite)}
-                      </div>
+                      <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">{typeIcon(tpl.type_activite)}</div>
                       <div className="min-w-0">
                         <p className="text-sm font-medium text-white truncate">{tpl.nom}</p>
                         <p className="text-[10px] text-slate-500 capitalize">{tpl.type_activite}</p>
                       </div>
                     </div>
-                    {tpl.is_default && (
-                      <Badge variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400 shrink-0">Par defaut</Badge>
-                    )}
+                    {tpl.is_default && <Badge variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400 shrink-0">Par defaut</Badge>}
                   </div>
-
-                  {tpl.description && (
-                    <p className="text-xs text-slate-500 line-clamp-2">{tpl.description}</p>
-                  )}
-
-                  {/* [#3] Section and variable counts */}
+                  {tpl.description && <p className="text-xs text-slate-500 line-clamp-2">{tpl.description}</p>}
                   <div className="flex items-center gap-3 text-[10px] text-slate-600">
                     <span>{tpl.sections?.length || 0} sections</span>
                     <span>{countVariables(tpl.sections || [])} variables</span>
                     <span>{tpl.usage_count} utilisation{tpl.usage_count !== 1 ? "s" : ""}</span>
                   </div>
-
-                  {/* [#2] Relative date */}
                   <div className="flex items-center justify-between pt-1">
                     <span className="text-[10px] text-slate-600">{formatRelativeDate(tpl.updated_at)}</span>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button
-                        onClick={() => handleUseTemplate(tpl)}
-                        className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium transition-colors"
-                      >
-                        Utiliser
-                      </button>
-                      <button
-                        onClick={() => setEditingTemplate(tpl)}
-                        className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-white transition-colors"
-                        title="Modifier"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDuplicateTemplate(tpl)}
-                        className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
-                        title="Dupliquer"
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </button>
-                      {/* [#5] Delete template */}
+                      <button onClick={() => handleUseTemplate(tpl)} className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium transition-colors">Utiliser</button>
+                      <button onClick={() => setEditingTemplate(tpl)} className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-white transition-colors" title="Modifier"><Edit3 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => handleDuplicateTemplate(tpl)} className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors" title="Dupliquer"><Copy className="w-3.5 h-3.5" /></button>
                       {!tpl.is_default && (
-                        <button
-                          onClick={() => setDeleteConfirm({ type: "template", id: tpl.id, name: tpl.nom })}
-                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <button onClick={() => setDeleteConfirm({ type: "template", id: tpl.id, name: tpl.nom })} className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-colors" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
                       )}
                     </div>
                   </div>
@@ -1482,169 +1471,77 @@ export default function LettreMissionPage() {
           )}
         </TabsContent>
 
-        {/* ═══ MES LETTRES TAB ═══ */}
+        {/* MES LETTRES TAB */}
         <TabsContent value="lettres" className="mt-4 space-y-4">
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-              <Input
-                placeholder="Rechercher par client, numero..."
-                value={searchLettres}
-                onChange={(e) => setSearchLettres(e.target.value)}
-                className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
-              />
+              <Input placeholder="Rechercher par client, numero..." value={searchLettres} onChange={(e) => setSearchLettres(e.target.value)} className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs" />
             </div>
             <Select value={filterStatut} onValueChange={setFilterStatut}>
               <SelectTrigger className="w-full sm:w-[160px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-                <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
-                <SelectValue placeholder="Statut" />
+                <Filter className="w-3 h-3 mr-1.5 text-slate-500" /><SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous les statuts</SelectItem>
-                {Object.entries(STATUT_CONFIG).map(([val, cfg]) => (
-                  <SelectItem key={val} value={val}>{cfg.label}</SelectItem>
-                ))}
+                {Object.entries(STATUT_CONFIG).map(([val, cfg]) => (<SelectItem key={val} value={val}>{cfg.label}</SelectItem>))}
               </SelectContent>
             </Select>
-            <Button
-              onClick={() => { setEditingLettre(null); setShowWizard(true); }}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700"
-              size="sm"
-            >
+            <Button onClick={() => { setEditingLettre(null); setShowWizard(true); }} className="gap-1.5 bg-blue-600 hover:bg-blue-700" size="sm">
               <Plus className="w-4 h-4" /> Nouvelle lettre
             </Button>
           </div>
 
-          {/* [#18] Result count */}
           {!loadingLettres && filteredLettres.length > 0 && (
             <p className="text-[10px] text-slate-600">{filteredLettres.length} lettre{filteredLettres.length > 1 ? "s" : ""}</p>
           )}
 
           {loadingLettres ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-              <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
-            </div>
+            <div className="flex items-center justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-blue-400" /><span className="ml-2 text-slate-400 text-sm">Chargement...</span></div>
           ) : filteredLettres.length === 0 ? (
             <div className="text-center py-20">
               <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-              <p className="text-slate-400 text-sm">
-                {lettres.length === 0 ? "Aucune lettre de mission" : "Aucun resultat pour ces filtres"}
-              </p>
+              <p className="text-slate-400 text-sm">{lettres.length === 0 ? "Aucune lettre de mission" : "Aucun resultat pour ces filtres"}</p>
               {lettres.length === 0 && (
-                <>
-                  <p className="text-slate-500 text-xs mt-1">Creez votre premiere lettre</p>
-                  <Button
-                    onClick={() => { setEditingLettre(null); setShowWizard(true); }}
-                    className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-700"
-                    size="sm"
-                  >
-                    <Plus className="w-4 h-4" /> Nouvelle lettre
-                  </Button>
-                </>
+                <Button onClick={() => { setEditingLettre(null); setShowWizard(true); }} className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-700" size="sm"><Plus className="w-4 h-4" /> Nouvelle lettre</Button>
               )}
               {lettres.length > 0 && filterStatut !== "all" && (
-                <Button variant="outline" size="sm" onClick={() => setFilterStatut("all")} className="mt-3 gap-1.5 border-white/[0.08] text-slate-400">
-                  <RotateCcw className="w-3 h-3" /> Reinitialiser les filtres
-                </Button>
+                <Button variant="outline" size="sm" onClick={() => setFilterStatut("all")} className="mt-3 gap-1.5 border-white/[0.08] text-slate-400"><RotateCcw className="w-3 h-3" /> Reinitialiser</Button>
               )}
             </div>
           ) : (
             <>
-              {/* Table header */}
               <div className="hidden sm:grid grid-cols-[1fr_120px_100px_100px_100px_140px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
-                <span>Client</span>
-                <span>Numero</span>
-                <span>Modele</span>
-                <span>Date</span>
-                <span>Statut</span>
-                <span className="text-right">Actions</span>
+                <span>Client</span><span>Numero</span><span>Modele</span><span>Date</span><span>Statut</span><span className="text-right">Actions</span>
               </div>
-
               <div className="space-y-1.5">
                 {filteredLettres.map((lettre) => {
                   const statut = STATUT_CONFIG[lettre.statut_lm] || STATUT_CONFIG.BROUILLON;
                   return (
-                    <div
-                      key={lettre.id}
-                      className="group sm:grid sm:grid-cols-[1fr_120px_100px_100px_100px_140px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
-                    >
-                      {/* Client */}
-                      <button
-                        onClick={() => { setEditingLettre(lettre); setShowWizard(true); }}
-                        className="flex items-center gap-2 text-left min-w-0"
-                      >
-                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                          <FileText className="w-4 h-4 text-blue-400" />
-                        </div>
+                    <div key={lettre.id} className="group sm:grid sm:grid-cols-[1fr_120px_100px_100px_100px_140px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors">
+                      <button onClick={() => { setEditingLettre(lettre); setShowWizard(true); }} className="flex items-center gap-2 text-left min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0"><FileText className="w-4 h-4 text-blue-400" /></div>
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-white truncate">{lettre.client_name}</p>
-                          <p className="text-[10px] text-slate-500 sm:hidden">
-                            {lettre.template_name} · {formatRelativeDate(lettre.updated_at)}
-                          </p>
+                          <p className="text-[10px] text-slate-500 sm:hidden">{lettre.template_name} · {formatRelativeDate(lettre.updated_at)}</p>
                         </div>
                       </button>
-
-                      {/* [#1] Numero */}
                       <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{lettre.numero || "—"}</span>
-
-                      {/* Modele */}
                       <span className="hidden sm:block text-xs text-slate-500 truncate">{lettre.template_name}</span>
-
-                      {/* [#2] Relative date */}
-                      <span className="hidden sm:block text-xs text-slate-500">
-                        {formatRelativeDate(lettre.updated_at)}
-                      </span>
-
-                      {/* Statut */}
-                      <div className="hidden sm:block">
-                        <Badge variant="outline" className={`text-[9px] ${statut.color}`}>{statut.label}</Badge>
-                      </div>
-
-                      {/* Actions — [#5] more actions */}
+                      <span className="hidden sm:block text-xs text-slate-500">{formatRelativeDate(lettre.updated_at)}</span>
+                      <div className="hidden sm:block"><Badge variant="outline" className={`text-[9px] ${statut.color}`}>{statut.label}</Badge></div>
                       <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={() => { setEditingLettre(lettre); setShowWizard(true); }}
-                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
-                          title="Modifier"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleDuplicateLettre(lettre)}
-                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
-                          title="Dupliquer"
-                        >
-                          <Copy className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => handleArchiveLettre(lettre)}
-                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-violet-400 transition-colors"
-                          title="Changer le statut"
-                        >
-                          <Archive className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setDeleteConfirm({ type: "lettre", id: lettre.id, name: lettre.client_name || "cette lettre" })}
-                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-colors"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <button onClick={() => { setEditingLettre(lettre); setShowWizard(true); }} className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors" title="Modifier"><Edit3 className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleDuplicateLettre(lettre)} className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors" title="Dupliquer"><Copy className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleAdvanceStatut(lettre)} className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-violet-400 transition-colors" title="Avancer le statut"><Archive className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeleteConfirm({ type: "lettre", id: lettre.id, name: lettre.client_name || "cette lettre" })} className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-colors" title="Supprimer"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
-
-                      {/* Mobile row */}
                       <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
                         <Badge variant="outline" className={`text-[9px] ${statut.color}`}>{statut.label}</Badge>
                         <div className="flex-1" />
                         <button onClick={() => handleDuplicateLettre(lettre)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
-                        <button onClick={() => handleArchiveLettre(lettre)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
-                        <button
-                          onClick={() => setDeleteConfirm({ type: "lettre", id: lettre.id, name: lettre.client_name || "cette lettre" })}
-                          className="p-1.5 text-slate-500"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <button onClick={() => handleAdvanceStatut(lettre)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => setDeleteConfirm({ type: "lettre", id: lettre.id, name: lettre.client_name || "cette lettre" })} className="p-1.5 text-slate-500"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                     </div>
                   );

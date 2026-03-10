@@ -253,7 +253,7 @@ export default function DiagnosticPage() {
           </p>
         </div>
         <Button
-          onClick={() => generateDiagnosticPdf(report)}
+          onClick={() => { try { generateDiagnosticPdf(report); toast.success("PDF diagnostic genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}
           variant="outline"
           className="gap-2 border-white/10 text-slate-300 hover:bg-white/5"
           aria-label="Exporter le diagnostic en PDF"

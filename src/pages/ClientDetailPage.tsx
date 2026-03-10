@@ -342,10 +342,10 @@ function ClientDetailContent({ client }: { client: Client }) {
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-3" role="toolbar" aria-label="Actions client">
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateFicheAcceptation(client); toast.success("Fiche LCB-FT generee"); }} aria-label="Telecharger la fiche LCB-FT en PDF">
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { try { generateFicheAcceptation(client); toast.success("Fiche LCB-FT generee"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }} aria-label="Telecharger la fiche LCB-FT en PDF">
           <FileDown className="w-4 h-4" /> Fiche LCB-FT (PDF)
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateLettreMission(client); toast.success("Lettre de mission generee"); }} aria-label="Telecharger la lettre de mission en PDF">
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { try { generateLettreMission(client); toast.success("Lettre de mission generee"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }} aria-label="Telecharger la lettre de mission en PDF">
           <FileDown className="w-4 h-4" /> Lettre de mission (PDF)
         </Button>
         <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400" onClick={() => navigate(`/lettre-mission/${client.ref}`)} aria-label="Generer une lettre de mission">
