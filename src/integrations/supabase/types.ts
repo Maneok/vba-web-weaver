@@ -1,1 +1,3033 @@
-{"types":"export type Json =\n  | string\n  | number\n  | boolean\n  | null\n  | { [key: string]: Json | undefined }\n  | Json[]\n\nexport type Database = {\n  // Allows to automatically instantiate createClient with right options\n  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)\n  __InternalSupabase: {\n    PostgrestVersion: \"14.1\"\n  }\n  public: {\n    Tables: {\n      _data_snapshots: {\n        Row: {\n          cabinet_id: string | null\n          created_at: string | null\n          data: Json | null\n          id: string\n          row_count: number | null\n          snapshot_date: string\n          table_name: string\n        }\n        Insert: {\n          cabinet_id?: string | null\n          created_at?: string | null\n          data?: Json | null\n          id?: string\n          row_count?: number | null\n          snapshot_date?: string\n          table_name: string\n        }\n        Update: {\n          cabinet_id?: string | null\n          created_at?: string | null\n          data?: Json | null\n          id?: string\n          row_count?: number | null\n          snapshot_date?: string\n          table_name?: string\n        }\n        Relationships: []\n      }\n      _encryption_config: {\n        Row: {\n          key: string\n          value: string\n        }\n        Insert: {\n          key: string\n          value: string\n        }\n        Update: {\n          key?: string\n          value?: string\n        }\n        Relationships: []\n      }\n      access_tokens: {\n        Row: {\n          access_type: string\n          cabinet_id: string\n          created_at: string | null\n          created_by: string | null\n          expires_at: string\n          id: string\n          is_revoked: boolean | null\n          label: string\n          last_used_at: string | null\n          permissions: Json | null\n          token: string\n          usage_count: number | null\n        }\n        Insert: {\n          access_type?: string\n          cabinet_id: string\n          created_at?: string | null\n          created_by?: string | null\n          expires_at: string\n          id?: string\n          is_revoked?: boolean | null\n          label: string\n          last_used_at?: string | null\n          permissions?: Json | null\n          token?: string\n          usage_count?: number | null\n        }\n        Update: {\n          access_type?: string\n          cabinet_id?: string\n          created_at?: string | null\n          created_by?: string | null\n          expires_at?: string\n          id?: string\n          is_revoked?: boolean | null\n          label?: string\n          last_used_at?: string | null\n          permissions?: Json | null\n          token?: string\n          usage_count?: number | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"access_tokens_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"access_tokens_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"access_tokens_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      active_sessions: {\n        Row: {\n          cabinet_id: string\n          client_type: string | null\n          created_at: string | null\n          device_info: string | null\n          id: string\n          ip_address: unknown\n          last_activity: string | null\n          user_agent: string | null\n          user_id: string\n        }\n        Insert: {\n          cabinet_id: string\n          client_type?: string | null\n          created_at?: string | null\n          device_info?: string | null\n          id?: string\n          ip_address?: unknown\n          last_activity?: string | null\n          user_agent?: string | null\n          user_id: string\n        }\n        Update: {\n          cabinet_id?: string\n          client_type?: string | null\n          created_at?: string | null\n          device_info?: string | null\n          id?: string\n          ip_address?: unknown\n          last_activity?: string | null\n          user_agent?: string | null\n          user_id?: string\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"active_sessions_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"active_sessions_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"active_sessions_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      alertes_registre: {\n        Row: {\n          action_prise: string | null\n          cabinet_id: string\n          categorie: string | null\n          client_concerne: string | null\n          created_at: string\n          date: string\n          date_butoir: string | null\n          details: string | null\n          id: string\n          qualification: string | null\n          responsable: string | null\n          statut: string | null\n          type_decision: string | null\n          validateur: string | null\n        }\n        Insert: {\n          action_prise?: string | null\n          cabinet_id: string\n          categorie?: string | null\n          client_concerne?: string | null\n          created_at?: string\n          date: string\n          date_butoir?: string | null\n          details?: string | null\n          id?: string\n          qualification?: string | null\n          responsable?: string | null\n          statut?: string | null\n          type_decision?: string | null\n          validateur?: string | null\n        }\n        Update: {\n          action_prise?: string | null\n          cabinet_id?: string\n          categorie?: string | null\n          client_concerne?: string | null\n          created_at?: string\n          date?: string\n          date_butoir?: string | null\n          details?: string | null\n          id?: string\n          qualification?: string | null\n          responsable?: string | null\n          statut?: string | null\n          type_decision?: string | null\n          validateur?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"alertes_registre_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"alertes_registre_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"alertes_registre_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      api_cache: {\n        Row: {\n          api_name: string\n          cabinet_id: string\n          cached_at: string\n          expires_at: string\n          response_data: Json\n          siren: string\n        }\n        Insert: {\n          api_name: string\n          cabinet_id: string\n          cached_at?: string\n          expires_at?: string\n          response_data?: Json\n          siren: string\n        }\n        Update: {\n          api_name?: string\n          cabinet_id?: string\n          cached_at?: string\n          expires_at?: string\n          response_data?: Json\n          siren?: string\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"api_cache_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"api_cache_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"api_cache_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      api_keys: {\n        Row: {\n          cabinet_id: string\n          created_at: string | null\n          created_by: string | null\n          expires_at: string | null\n          id: string\n          is_active: boolean | null\n          key_hash: string\n          key_prefix: string\n          label: string\n          last_used_at: string | null\n          permissions: Json | null\n          rate_limit_per_hour: number | null\n          usage_count: number | null\n        }\n        Insert: {\n          cabinet_id: string\n          created_at?: string | null\n          created_by?: string | null\n          expires_at?: string | null\n          id?: string\n          is_active?: boolean | null\n          key_hash: string\n          key_prefix: string\n          label: string\n          last_used_at?: string | null\n          permissions?: Json | null\n          rate_limit_per_hour?: number | null\n          usage_count?: number | null\n        }\n        Update: {\n          cabinet_id?: string\n          created_at?: string | null\n          created_by?: string | null\n          expires_at?: string | null\n          id?: string\n          is_active?: boolean | null\n          key_hash?: string\n          key_prefix?: string\n          label?: string\n          last_used_at?: string | null\n          permissions?: Json | null\n          rate_limit_per_hour?: number | null\n          usage_count?: number | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"api_keys_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"api_keys_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"api_keys_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      audit_trail: {\n        Row: {\n          action: string\n          cabinet_id: string\n          created_at: string\n          id: number\n          ip_address: unknown\n          new_data: Json | null\n          old_data: Json | null\n          record_id: string | null\n          table_name: string | null\n          user_agent: string | null\n          user_email: string | null\n          user_id: string | null\n        }\n        Insert: {\n          action: string\n          cabinet_id: string\n          created_at?: string\n          id?: never\n          ip_address?: unknown\n          new_data?: Json | null\n          old_data?: Json | null\n          record_id?: string | null\n          table_name?: string | null\n          user_agent?: string | null\n          user_email?: string | null\n          user_id?: string | null\n        }\n        Update: {\n          action?: string\n          cabinet_id?: string\n          created_at?: string\n          id?: never\n          ip_address?: unknown\n          new_data?: Json | null\n          old_data?: Json | null\n          record_id?: string | null\n          table_name?: string | null\n          user_agent?: string | null\n          user_email?: string | null\n          user_id?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"audit_trail_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"audit_trail_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"audit_trail_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      backup_history: {\n        Row: {\n          backup_type: string\n          completed_at: string | null\n          created_at: string | null\n          error_message: string | null\n          id: string\n          size_bytes: number | null\n          started_at: string | null\n          status: string\n          storage_path: string | null\n          tables_backed_up: string[] | null\n          total_rows: number | null\n        }\n        Insert: {\n          backup_type: string\n          completed_at?: string | null\n          created_at?: string | null\n          error_message?: string | null\n          id?: string\n          size_bytes?: number | null\n          started_at?: string | null\n          status: string\n          storage_path?: string | null\n          tables_backed_up?: string[] | null\n          total_rows?: number | null\n        }\n        Update: {\n          backup_type?: string\n          completed_at?: string | null\n          created_at?: string | null\n          error_message?: string | null\n          id?: string\n          size_bytes?: number | null\n          started_at?: string | null\n          status?: string\n          storage_path?: string | null\n          tables_backed_up?: string[] | null\n          total_rows?: number | null\n        }\n        Relationships: []\n      }\n      brouillons: {\n        Row: {\n          cabinet_id: string | null\n          data: Json\n          id: string\n          siren: string | null\n          step: number | null\n          updated_at: string | null\n          user_id: string | null\n        }\n        Insert: {\n          cabinet_id?: string | null\n          data: Json\n          id?: string\n          siren?: string | null\n          step?: number | null\n          updated_at?: string | null\n          user_id?: string | null\n        }\n        Update: {\n          cabinet_id?: string | null\n          data?: Json\n          id?: string\n          siren?: string | null\n          step?: number | null\n          updated_at?: string | null\n          user_id?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"brouillons_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"brouillons_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"brouillons_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      cabinet_subscriptions: {\n        Row: {\n          billing_cycle: string | null\n          cabinet_id: string\n          coupon_code: string | null\n          created_at: string | null\n          discount_percent: number | null\n          discount_until: string | null\n          extra_seat_price_cents: number | null\n          extra_seats: number | null\n          grace_extra_clients: number | null\n          grace_extra_clients_until: string | null\n          id: string\n          max_clients: number\n          max_seats: number\n          max_storage_mb: number\n          monthly_price_cents: number | null\n          notification_email: string | null\n          plan: string\n          status: string\n          stripe_customer_id: string | null\n          stripe_subscription_id: string | null\n          subscription_end: string | null\n          subscription_start: string | null\n          trial_end: string | null\n          trial_start: string | null\n          updated_at: string | null\n          webhook_url: string | null\n        }\n        Insert: {\n          billing_cycle?: string | null\n          cabinet_id: string\n          coupon_code?: string | null\n          created_at?: string | null\n          discount_percent?: number | null\n          discount_until?: string | null\n          extra_seat_price_cents?: number | null\n          extra_seats?: number | null\n          grace_extra_clients?: number | null\n          grace_extra_clients_until?: string | null\n          id?: string\n          max_clients?: number\n          max_seats?: number\n          max_storage_mb?: number\n          monthly_price_cents?: number | null\n          notification_email?: string | null\n          plan?: string\n          status?: string\n          stripe_customer_id?: string | null\n          stripe_subscription_id?: string | null\n          subscription_end?: string | null\n          subscription_start?: string | null\n          trial_end?: string | null\n          trial_start?: string | null\n          updated_at?: string | null\n          webhook_url?: string | null\n        }\n        Update: {\n          billing_cycle?: string | null\n          cabinet_id?: string\n          coupon_code?: string | null\n          created_at?: string | null\n          discount_percent?: number | null\n          discount_until?: string | null\n          extra_seat_price_cents?: number | null\n          extra_seats?: number | null\n          grace_extra_clients?: number | null\n          grace_extra_clients_until?: string | null\n          id?: string\n          max_clients?: number\n          max_seats?: number\n          max_storage_mb?: number\n          monthly_price_cents?: number | null\n          notification_email?: string | null\n          plan?: string\n          status?: string\n          stripe_customer_id?: string | null\n          stripe_subscription_id?: string | null\n          subscription_end?: string | null\n          subscription_start?: string | null\n          trial_end?: string | null\n          trial_start?: string | null\n          updated_at?: string | null\n          webhook_url?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"cabinet_subscriptions_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: true\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"cabinet_subscriptions_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: true\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"cabinet_subscriptions_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: true\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      cabinets: {\n        Row: {\n          created_at: string\n          id: string\n          nom: string\n          siren: string | null\n        }\n        Insert: {\n          created_at?: string\n          id?: string\n          nom: string\n          siren?: string | null\n        }\n        Update: {\n          created_at?: string\n          id?: string\n          nom?: string\n          siren?: string | null\n        }\n        Relationships: []\n      }\n      client_history: {\n        Row: {\n          cabinet_id: string\n          client_ref: string\n          description: string\n          event_date: string | null\n          event_type: string\n          id: string\n          metadata: Json | null\n          user_email: string | null\n        }\n        Insert: {\n          cabinet_id: string\n          client_ref: string\n          description: string\n          event_date?: string | null\n          event_type: string\n          id?: string\n          metadata?: Json | null\n          user_email?: string | null\n        }\n        Update: {\n          cabinet_id?: string\n          client_ref?: string\n          description?: string\n          event_date?: string | null\n          event_type?: string\n          id?: string\n          metadata?: Json | null\n          user_email?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"client_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"client_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"client_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      clients: {\n        Row: {\n          adresse: string | null\n          ape: string | null\n          assigned_to: string | null\n          associe: string | null\n          atypique: string | null\n          be: string | null\n          bic_encrypted: string | null\n          cabinet_id: string\n          capital: number | null\n          cash: string | null\n          cni_encrypted: string | null\n          comptable: string\n          cp: string | null\n          created_at: string\n          date_butoir: string | null\n          date_creation: string | null\n          date_creation_ligne: string | null\n          date_derniere_revue: string | null\n          date_exp_cni: string | null\n          date_fin: string | null\n          date_reprise: string | null\n          dirigeant: string | null\n          distanciel: string | null\n          domaine: string | null\n          effectif: string | null\n          etat: string\n          etat_pilotage: string | null\n          forme: string\n          frequence: string | null\n          honoraires: number | null\n          iban_encrypted: string | null\n          id: string\n          juridique: number | null\n          mail: string | null\n          malus: number | null\n          mission: string\n          niv_vigilance: string | null\n          pays_risque: string | null\n          ppe: string | null\n          pression: string | null\n          raison_sociale: string\n          ref: string\n          reprise: number | null\n          score_activite: number | null\n          score_global: number | null\n          score_maturite: number | null\n          score_mission: number | null\n          score_pays: number | null\n          score_structure: number | null\n          search_vector: unknown\n          siren: string | null\n          statut: string | null\n          superviseur: string | null\n          tel: string | null\n          updated_at: string\n          ville: string | null\n        }\n        Insert: {\n          adresse?: string | null\n          ape?: string | null\n          assigned_to?: string | null\n          associe?: string | null\n          atypique?: string | null\n          be?: string | null\n          bic_encrypted?: string | null\n          cabinet_id: string\n          capital?: number | null\n          cash?: string | null\n          cni_encrypted?: string | null\n          comptable?: string\n          cp?: string | null\n          created_at?: string\n          date_butoir?: string | null\n          date_creation?: string | null\n          date_creation_ligne?: string | null\n          date_derniere_revue?: string | null\n          date_exp_cni?: string | null\n          date_fin?: string | null\n          date_reprise?: string | null\n          dirigeant?: string | null\n          distanciel?: string | null\n          domaine?: string | null\n          effectif?: string | null\n          etat?: string\n          etat_pilotage?: string | null\n          forme?: string\n          frequence?: string | null\n          honoraires?: number | null\n          iban_encrypted?: string | null\n          id?: string\n          juridique?: number | null\n          mail?: string | null\n          malus?: number | null\n          mission?: string\n          niv_vigilance?: string | null\n          pays_risque?: string | null\n          ppe?: string | null\n          pression?: string | null\n          raison_sociale: string\n          ref: string\n          reprise?: number | null\n          score_activite?: number | null\n          score_global?: number | null\n          score_maturite?: number | null\n          score_mission?: number | null\n          score_pays?: number | null\n          score_structure?: number | null\n          search_vector?: unknown\n          siren?: string | null\n          statut?: string | null\n          superviseur?: string | null\n          tel?: string | null\n          updated_at?: string\n          ville?: string | null\n        }\n        Update: {\n          adresse?: string | null\n          ape?: string | null\n          assigned_to?: string | null\n          associe?: string | null\n          atypique?: string | null\n          be?: string | null\n          bic_encrypted?: string | null\n          cabinet_id?: string\n          capital?: number | null\n          cash?: string | null\n          cni_encrypted?: string | null\n          comptable?: string\n          cp?: string | null\n          created_at?: string\n          date_butoir?: string | null\n          date_creation?: string | null\n          date_creation_ligne?: string | null\n          date_derniere_revue?: string | null\n          date_exp_cni?: string | null\n          date_fin?: string | null\n          date_reprise?: string | null\n          dirigeant?: string | null\n          distanciel?: string | null\n          domaine?: string | null\n          effectif?: string | null\n          etat?: string\n          etat_pilotage?: string | null\n          forme?: string\n          frequence?: string | null\n          honoraires?: number | null\n          iban_encrypted?: string | null\n          id?: string\n          juridique?: number | null\n          mail?: string | null\n          malus?: number | null\n          mission?: string\n          niv_vigilance?: string | null\n          pays_risque?: string | null\n          ppe?: string | null\n          pression?: string | null\n          raison_sociale?: string\n          ref?: string\n          reprise?: number | null\n          score_activite?: number | null\n          score_global?: number | null\n          score_maturite?: number | null\n          score_mission?: number | null\n          score_pays?: number | null\n          score_structure?: number | null\n          search_vector?: unknown\n          siren?: string | null\n          statut?: string | null\n          superviseur?: string | null\n          tel?: string | null\n          updated_at?: string\n          ville?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"clients_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"clients_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"clients_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      collaborateurs: {\n        Row: {\n          cabinet_id: string\n          created_at: string\n          date_signature_manuel: string | null\n          derniere_formation: string | null\n          email: string | null\n          fonction: string | null\n          id: string\n          niveau_competence: string | null\n          nom: string\n          referent_lcb: boolean | null\n          statut_formation: string | null\n          suppleant: string | null\n        }\n        Insert: {\n          cabinet_id: string\n          created_at?: string\n          date_signature_manuel?: string | null\n          derniere_formation?: string | null\n          email?: string | null\n          fonction?: string | null\n          id?: string\n          niveau_competence?: string | null\n          nom: string\n          referent_lcb?: boolean | null\n          statut_formation?: string | null\n          suppleant?: string | null\n        }\n        Update: {\n          cabinet_id?: string\n          created_at?: string\n          date_signature_manuel?: string | null\n          derniere_formation?: string | null\n          email?: string | null\n          fonction?: string | null\n          id?: string\n          niveau_competence?: string | null\n          nom?: string\n          referent_lcb?: boolean | null\n          statut_formation?: string | null\n          suppleant?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"collaborateurs_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"collaborateurs_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"collaborateurs_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      controles_croec: {\n        Row: {\n          actions_suite: Json | null\n          cabinet_id: string\n          controleur: string | null\n          created_at: string | null\n          date_controle: string\n          date_prochain_controle: string | null\n          id: string\n          observations: string | null\n          rapport_url: string | null\n          resultat: string | null\n          type: string | null\n        }\n        Insert: {\n          actions_suite?: Json | null\n          cabinet_id: string\n          controleur?: string | null\n          created_at?: string | null\n          date_controle: string\n          date_prochain_controle?: string | null\n          id?: string\n          observations?: string | null\n          rapport_url?: string | null\n          resultat?: string | null\n          type?: string | null\n        }\n        Update: {\n          actions_suite?: Json | null\n          cabinet_id?: string\n          controleur?: string | null\n          created_at?: string | null\n          date_controle?: string\n          date_prochain_controle?: string | null\n          id?: string\n          observations?: string | null\n          rapport_url?: string | null\n          resultat?: string | null\n          type?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"controles_croec_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"controles_croec_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"controles_croec_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      controles_qualite: {\n        Row: {\n          action_correctrice: string | null\n          atypique: string | null\n          cabinet_id: string\n          cash: string | null\n          commentaire: string | null\n          controleur: string | null\n          created_at: string\n          date_echeance: string | null\n          date_tirage: string | null\n          distanciel: string | null\n          dossier_audite: string | null\n          forme: string | null\n          id: string\n          incident: string | null\n          niv_vigilance: string | null\n          pays_risque: string | null\n          point1: string | null\n          point2: string | null\n          point3: string | null\n          ppe: string | null\n          pression: string | null\n          resultat_global: string | null\n          score_global: number | null\n          siren: string | null\n          suivi_statut: string | null\n        }\n        Insert: {\n          action_correctrice?: string | null\n          atypique?: string | null\n          cabinet_id: string\n          cash?: string | null\n          commentaire?: string | null\n          controleur?: string | null\n          created_at?: string\n          date_echeance?: string | null\n          date_tirage?: string | null\n          distanciel?: string | null\n          dossier_audite?: string | null\n          forme?: string | null\n          id?: string\n          incident?: string | null\n          niv_vigilance?: string | null\n          pays_risque?: string | null\n          point1?: string | null\n          point2?: string | null\n          point3?: string | null\n          ppe?: string | null\n          pression?: string | null\n          resultat_global?: string | null\n          score_global?: number | null\n          siren?: string | null\n          suivi_statut?: string | null\n        }\n        Update: {\n          action_correctrice?: string | null\n          atypique?: string | null\n          cabinet_id?: string\n          cash?: string | null\n          commentaire?: string | null\n          controleur?: string | null\n          created_at?: string\n          date_echeance?: string | null\n          date_tirage?: string | null\n          distanciel?: string | null\n          dossier_audite?: string | null\n          forme?: string | null\n          id?: string\n          incident?: string | null\n          niv_vigilance?: string | null\n          pays_risque?: string | null\n          point1?: string | null\n          point2?: string | null\n          point3?: string | null\n          ppe?: string | null\n          pression?: string | null\n          resultat_global?: string | null\n          score_global?: number | null\n          siren?: string | null\n          suivi_statut?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"controles_qualite_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"controles_qualite_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"controles_qualite_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      dashboard_configs: {\n        Row: {\n          cabinet_id: string | null\n          created_at: string\n          id: string\n          layout: Json\n          updated_at: string\n          user_id: string\n        }\n        Insert: {\n          cabinet_id?: string | null\n          created_at?: string\n          id?: string\n          layout?: Json\n          updated_at?: string\n          user_id: string\n        }\n        Update: {\n          cabinet_id?: string | null\n          created_at?: string\n          id?: string\n          layout?: Json\n          updated_at?: string\n          user_id?: string\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"dashboard_configs_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"dashboard_configs_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"dashboard_configs_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      declarations_soupcon: {\n        Row: {\n          cabinet_id: string\n          client_nom: string | null\n          client_ref: string | null\n          correspondant_tracfin: string | null\n          created_at: string | null\n          date_declaration: string | null\n          date_detection: string\n          decision: string | null\n          declarant: string | null\n          elements_rassembles: string | null\n          id: string\n          justification_classement: string | null\n          motif: string\n          pieces_jointes: Json | null\n          reference_tracfin: string | null\n          statut: string | null\n        }\n        Insert: {\n          cabinet_id: string\n          client_nom?: string | null\n          client_ref?: string | null\n          correspondant_tracfin?: string | null\n          created_at?: string | null\n          date_declaration?: string | null\n          date_detection: string\n          decision?: string | null\n          declarant?: string | null\n          elements_rassembles?: string | null\n          id?: string\n          justification_classement?: string | null\n          motif: string\n          pieces_jointes?: Json | null\n          reference_tracfin?: string | null\n          statut?: string | null\n        }\n        Update: {\n          cabinet_id?: string\n          client_nom?: string | null\n          client_ref?: string | null\n          correspondant_tracfin?: string | null\n          created_at?: string | null\n          date_declaration?: string | null\n          date_detection?: string\n          decision?: string | null\n          declarant?: string | null\n          elements_rassembles?: string | null\n          id?: string\n          justification_classement?: string | null\n          motif?: string\n          pieces_jointes?: Json | null\n          reference_tracfin?: string | null\n          statut?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"declarations_soupcon_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"declarations_soupcon_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"declarations_soupcon_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      documents_kyc: {\n        Row: {\n          cabinet_id: string\n          client_ref: string\n          created_at: string | null\n          date_document: string | null\n          file_size: number | null\n          id: string\n          label: string\n          mime_type: string | null\n          ocr_data: Json | null\n          public_url: string | null\n          siren: string | null\n          source: string | null\n          status: string | null\n          storage_path: string | null\n          type: string\n        }\n        Insert: {\n          cabinet_id: string\n          client_ref: string\n          created_at?: string | null\n          date_document?: string | null\n          file_size?: number | null\n          id?: string\n          label: string\n          mime_type?: string | null\n          ocr_data?: Json | null\n          public_url?: string | null\n          siren?: string | null\n          source?: string | null\n          status?: string | null\n          storage_path?: string | null\n          type: string\n        }\n        Update: {\n          cabinet_id?: string\n          client_ref?: string\n          created_at?: string | null\n          date_document?: string | null\n          file_size?: number | null\n          id?: string\n          label?: string\n          mime_type?: string | null\n          ocr_data?: Json | null\n          public_url?: string | null\n          siren?: string | null\n          source?: string | null\n          status?: string | null\n          storage_path?: string | null\n          type?: string\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"documents_kyc_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"documents_kyc_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"documents_kyc_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      formations: {\n        Row: {\n          attestation_url: string | null\n          cabinet_id: string\n          collaborateur_id: string | null\n          collaborateur_nom: string\n          created_at: string | null\n          date_formation: string\n          duree_heures: number | null\n          id: string\n          notes: string | null\n          organisme: string | null\n          quiz_date: string | null\n          quiz_score: number | null\n          theme: string | null\n          type: string | null\n        }\n        Insert: {\n          attestation_url?: string | null\n          cabinet_id: string\n          collaborateur_id?: string | null\n          collaborateur_nom: string\n          created_at?: string | null\n          date_formation: string\n          duree_heures?: number | null\n          id?: string\n          notes?: string | null\n          organisme?: string | null\n          quiz_date?: string | null\n          quiz_score?: number | null\n          theme?: string | null\n          type?: string | null\n        }\n        Update: {\n          attestation_url?: string | null\n          cabinet_id?: string\n          collaborateur_id?: string | null\n          collaborateur_nom?: string\n          created_at?: string | null\n          date_formation?: string\n          duree_heures?: number | null\n          id?: string\n          notes?: string | null\n          organisme?: string | null\n          quiz_date?: string | null\n          quiz_score?: number | null\n          theme?: string | null\n          type?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"formations_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"formations_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"formations_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"formations_collaborateur_id_fkey\"\n            columns: [\"collaborateur_id\"]\n            isOneToOne: false\n            referencedRelation: \"collaborateurs\"\n            referencedColumns: [\"id\"]\n          },\n        ]\n      }\n      invitations: {\n        Row: {\n          accepted_at: string | null\n          attempt_count: number | null\n          cabinet_id: string\n          created_at: string | null\n          custom_message: string | null\n          email: string\n          expires_at: string\n          id: string\n          invited_by: string | null\n          role: string\n          status: string\n          token: string\n          token_hash: string | null\n        }\n        Insert: {\n          accepted_at?: string | null\n          attempt_count?: number | null\n          cabinet_id: string\n          created_at?: string | null\n          custom_message?: string | null\n          email: string\n          expires_at?: string\n          id?: string\n          invited_by?: string | null\n          role?: string\n          status?: string\n          token?: string\n          token_hash?: string | null\n        }\n        Update: {\n          accepted_at?: string | null\n          attempt_count?: number | null\n          cabinet_id?: string\n          created_at?: string | null\n          custom_message?: string | null\n          email?: string\n          expires_at?: string\n          id?: string\n          invited_by?: string | null\n          role?: string\n          status?: string\n          token?: string\n          token_hash?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"invitations_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"invitations_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"invitations_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      lettres_mission: {\n        Row: {\n          cabinet_id: string | null\n          clauses: Json | null\n          client_id: string | null\n          client_ref: string | null\n          created_at: string | null\n          data: Json\n          date_signature: string | null\n          docx_url: string | null\n          forme_juridique: string | null\n          generated_content: Json | null\n          honoraires_details: Json | null\n          id: string\n          intervenants: Json | null\n          missions_selected: Json | null\n          modalites: Json | null\n          numero: string | null\n          pdf_url: string | null\n          signature_image: string | null\n          status: string | null\n          statut_lm: string | null\n          template_id: string | null\n          type_mission: string | null\n          updated_at: string | null\n          user_id: string | null\n          wizard_data: Json | null\n          wizard_step: number | null\n        }\n        Insert: {\n          cabinet_id?: string | null\n          clauses?: Json | null\n          client_id?: string | null\n          client_ref?: string | null\n          created_at?: string | null\n          data: Json\n          date_signature?: string | null\n          docx_url?: string | null\n          forme_juridique?: string | null\n          generated_content?: Json | null\n          honoraires_details?: Json | null\n          id?: string\n          intervenants?: Json | null\n          missions_selected?: Json | null\n          modalites?: Json | null\n          numero?: string | null\n          pdf_url?: string | null\n          signature_image?: string | null\n          status?: string | null\n          statut_lm?: string | null\n          template_id?: string | null\n          type_mission?: string | null\n          updated_at?: string | null\n          user_id?: string | null\n          wizard_data?: Json | null\n          wizard_step?: number | null\n        }\n        Update: {\n          cabinet_id?: string | null\n          clauses?: Json | null\n          client_id?: string | null\n          client_ref?: string | null\n          created_at?: string | null\n          data?: Json\n          date_signature?: string | null\n          docx_url?: string | null\n          forme_juridique?: string | null\n          generated_content?: Json | null\n          honoraires_details?: Json | null\n          id?: string\n          intervenants?: Json | null\n          missions_selected?: Json | null\n          modalites?: Json | null\n          numero?: string | null\n          pdf_url?: string | null\n          signature_image?: string | null\n          status?: string | null\n          statut_lm?: string | null\n          template_id?: string | null\n          type_mission?: string | null\n          updated_at?: string | null\n          user_id?: string | null\n          wizard_data?: Json | null\n          wizard_step?: number | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"lettres_mission_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"lettres_mission_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"lettres_mission_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"lettres_mission_client_id_fkey\"\n            columns: [\"client_id\"]\n            isOneToOne: false\n            referencedRelation: \"clients\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"lettres_mission_client_id_fkey\"\n            columns: [\"client_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_clients_decrypted\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"lettres_mission_template_id_fkey\"\n            columns: [\"template_id\"]\n            isOneToOne: false\n            referencedRelation: \"lm_templates\"\n            referencedColumns: [\"id\"]\n          },\n        ]\n      }\n      lm_templates: {\n        Row: {\n          cabinet_id: string | null\n          created_at: string | null\n          description: string | null\n          forme_juridique: string\n          id: string\n          is_default: boolean | null\n          nom: string\n          sections: Json\n          updated_at: string | null\n        }\n        Insert: {\n          cabinet_id?: string | null\n          created_at?: string | null\n          description?: string | null\n          forme_juridique: string\n          id?: string\n          is_default?: boolean | null\n          nom: string\n          sections?: Json\n          updated_at?: string | null\n        }\n        Update: {\n          cabinet_id?: string | null\n          created_at?: string | null\n          description?: string | null\n          forme_juridique?: string\n          id?: string\n          is_default?: boolean | null\n          nom?: string\n          sections?: Json\n          updated_at?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"lm_templates_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"lm_templates_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"lm_templates_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      login_history: {\n        Row: {\n          cabinet_id: string | null\n          created_at: string | null\n          email: string | null\n          failure_reason: string | null\n          id: string\n          ip_address: unknown\n          login_method: string | null\n          success: boolean | null\n          user_agent: string | null\n          user_id: string\n        }\n        Insert: {\n          cabinet_id?: string | null\n          created_at?: string | null\n          email?: string | null\n          failure_reason?: string | null\n          id?: string\n          ip_address?: unknown\n          login_method?: string | null\n          success?: boolean | null\n          user_agent?: string | null\n          user_id: string\n        }\n        Update: {\n          cabinet_id?: string | null\n          created_at?: string | null\n          email?: string | null\n          failure_reason?: string | null\n          id?: string\n          ip_address?: unknown\n          login_method?: string | null\n          success?: boolean | null\n          user_agent?: string | null\n          user_id?: string\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"login_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"login_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"login_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      manuel_lectures: {\n        Row: {\n          cabinet_id: string\n          collaborateur_id: string | null\n          collaborateur_nom: string\n          date_lecture: string | null\n          id: string\n          manuel_id: string\n        }\n        Insert: {\n          cabinet_id: string\n          collaborateur_id?: string | null\n          collaborateur_nom: string\n          date_lecture?: string | null\n          id?: string\n          manuel_id: string\n        }\n        Update: {\n          cabinet_id?: string\n          collaborateur_id?: string | null\n          collaborateur_nom?: string\n          date_lecture?: string | null\n          id?: string\n          manuel_id?: string\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"manuel_lectures_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"manuel_lectures_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"manuel_lectures_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"manuel_lectures_collaborateur_id_fkey\"\n            columns: [\"collaborateur_id\"]\n            isOneToOne: false\n            referencedRelation: \"collaborateurs\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"manuel_lectures_manuel_id_fkey\"\n            columns: [\"manuel_id\"]\n            isOneToOne: false\n            referencedRelation: \"manuel_procedures\"\n            referencedColumns: [\"id\"]\n          },\n        ]\n      }\n      manuel_procedures: {\n        Row: {\n          cabinet_id: string\n          contenu: Json | null\n          created_at: string | null\n          date_prochaine_revue: string | null\n          date_validation: string | null\n          id: string\n          statut: string | null\n          titre: string | null\n          updated_at: string | null\n          valide_par: string | null\n          version: number\n        }\n        Insert: {\n          cabinet_id: string\n          contenu?: Json | null\n          created_at?: string | null\n          date_prochaine_revue?: string | null\n          date_validation?: string | null\n          id?: string\n          statut?: string | null\n          titre?: string | null\n          updated_at?: string | null\n          valide_par?: string | null\n          version?: number\n        }\n        Update: {\n          cabinet_id?: string\n          contenu?: Json | null\n          created_at?: string | null\n          date_prochaine_revue?: string | null\n          date_validation?: string | null\n          id?: string\n          statut?: string | null\n          titre?: string | null\n          updated_at?: string | null\n          valide_par?: string | null\n          version?: number\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"manuel_procedures_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"manuel_procedures_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"manuel_procedures_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      non_conformites: {\n        Row: {\n          action_corrective: string | null\n          cabinet_id: string\n          client_ref: string | null\n          created_at: string | null\n          date_detection: string\n          date_echeance: string | null\n          date_resolution: string | null\n          description: string\n          gravite: string | null\n          id: string\n          pieces_jointes: Json | null\n          responsable: string | null\n          source: string | null\n          statut: string | null\n        }\n        Insert: {\n          action_corrective?: string | null\n          cabinet_id: string\n          client_ref?: string | null\n          created_at?: string | null\n          date_detection: string\n          date_echeance?: string | null\n          date_resolution?: string | null\n          description: string\n          gravite?: string | null\n          id?: string\n          pieces_jointes?: Json | null\n          responsable?: string | null\n          source?: string | null\n          statut?: string | null\n        }\n        Update: {\n          action_corrective?: string | null\n          cabinet_id?: string\n          client_ref?: string | null\n          created_at?: string | null\n          date_detection?: string\n          date_echeance?: string | null\n          date_resolution?: string | null\n          description?: string\n          gravite?: string | null\n          id?: string\n          pieces_jointes?: Json | null\n          responsable?: string | null\n          source?: string | null\n          statut?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"non_conformites_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"non_conformites_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"non_conformites_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      notifications: {\n        Row: {\n          cabinet_id: string\n          client_ref: string | null\n          created_at: string | null\n          id: string\n          lue: boolean | null\n          message: string\n          priority: string | null\n          titre: string\n          type: string\n          user_id: string | null\n        }\n        Insert: {\n          cabinet_id: string\n          client_ref?: string | null\n          created_at?: string | null\n          id?: string\n          lue?: boolean | null\n          message: string\n          priority?: string | null\n          titre: string\n          type: string\n          user_id?: string | null\n        }\n        Update: {\n          cabinet_id?: string\n          client_ref?: string | null\n          created_at?: string | null\n          id?: string\n          lue?: boolean | null\n          message?: string\n          priority?: string | null\n          titre?: string\n          type?: string\n          user_id?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"notifications_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"notifications_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"notifications_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      parametres: {\n        Row: {\n          cabinet_id: string | null\n          cle: string\n          id: string\n          updated_at: string | null\n          user_id: string | null\n          valeur: Json\n        }\n        Insert: {\n          cabinet_id?: string | null\n          cle: string\n          id?: string\n          updated_at?: string | null\n          user_id?: string | null\n          valeur: Json\n        }\n        Update: {\n          cabinet_id?: string | null\n          cle?: string\n          id?: string\n          updated_at?: string | null\n          user_id?: string | null\n          valeur?: Json\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"parametres_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"parametres_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"parametres_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      payment_history: {\n        Row: {\n          amount_cents: number\n          cabinet_id: string\n          created_at: string | null\n          currency: string | null\n          description: string | null\n          id: string\n          plan: string | null\n          receipt_url: string | null\n          status: string\n          stripe_invoice_id: string | null\n          stripe_payment_intent_id: string | null\n        }\n        Insert: {\n          amount_cents: number\n          cabinet_id: string\n          created_at?: string | null\n          currency?: string | null\n          description?: string | null\n          id?: string\n          plan?: string | null\n          receipt_url?: string | null\n          status: string\n          stripe_invoice_id?: string | null\n          stripe_payment_intent_id?: string | null\n        }\n        Update: {\n          amount_cents?: number\n          cabinet_id?: string\n          created_at?: string | null\n          currency?: string | null\n          description?: string | null\n          id?: string\n          plan?: string | null\n          receipt_url?: string | null\n          status?: string\n          stripe_invoice_id?: string | null\n          stripe_payment_intent_id?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"payment_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"payment_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"payment_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      profiles: {\n        Row: {\n          avatar_url: string | null\n          cabinet_id: string\n          created_at: string\n          email: string\n          full_name: string\n          id: string\n          is_active: boolean\n          last_login_at: string | null\n          role: Database[\"public\"][\"Enums\"][\"user_role\"]\n          signup_source: string | null\n          updated_at: string\n        }\n        Insert: {\n          avatar_url?: string | null\n          cabinet_id: string\n          created_at?: string\n          email: string\n          full_name?: string\n          id: string\n          is_active?: boolean\n          last_login_at?: string | null\n          role?: Database[\"public\"][\"Enums\"][\"user_role\"]\n          signup_source?: string | null\n          updated_at?: string\n        }\n        Update: {\n          avatar_url?: string | null\n          cabinet_id?: string\n          created_at?: string\n          email?: string\n          full_name?: string\n          id?: string\n          is_active?: boolean\n          last_login_at?: string | null\n          role?: Database[\"public\"][\"Enums\"][\"user_role\"]\n          signup_source?: string | null\n          updated_at?: string\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"profiles_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"profiles_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"profiles_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      stripe_events: {\n        Row: {\n          cabinet_id: string | null\n          data: Json | null\n          id: string\n          processed_at: string | null\n          type: string\n        }\n        Insert: {\n          cabinet_id?: string | null\n          data?: Json | null\n          id: string\n          processed_at?: string | null\n          type: string\n        }\n        Update: {\n          cabinet_id?: string | null\n          data?: Json | null\n          id?: string\n          processed_at?: string | null\n          type?: string\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"stripe_events_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"stripe_events_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"stripe_events_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n    }\n    Views: {\n      v_admin_overview: {\n        Row: {\n          audit_entries: number | null\n          cabinet_id: string | null\n          cabinet_nom: string | null\n          clients_used: number | null\n          created_at: string | null\n          max_clients: number | null\n          max_seats: number | null\n          plan: string | null\n          seats_used: number | null\n          sub_status: string | null\n          trial_end: string | null\n        }\n        Relationships: []\n      }\n      v_billing_history: {\n        Row: {\n          cabinet_id: string | null\n          date_paiement: string | null\n          description: string | null\n          montant_euros: number | null\n          plan: string | null\n          receipt_url: string | null\n          statut: string | null\n        }\n        Insert: {\n          cabinet_id?: string | null\n          date_paiement?: string | null\n          description?: string | null\n          montant_euros?: never\n          plan?: string | null\n          receipt_url?: string | null\n          statut?: string | null\n        }\n        Update: {\n          cabinet_id?: string | null\n          date_paiement?: string | null\n          description?: string | null\n          montant_euros?: never\n          plan?: string | null\n          receipt_url?: string | null\n          statut?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"payment_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"payment_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"payment_history_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      v_cabinet_stats: {\n        Row: {\n          alertes_en_cours: number | null\n          alertes_total: number | null\n          cabinet_id: string | null\n          cabinet_nom: string | null\n          clients_actifs: number | null\n          clients_total: number | null\n          controles_total: number | null\n          nb_collaborateurs: number | null\n          nb_renforcee: number | null\n          nb_simplifiee: number | null\n          nb_standard: number | null\n          score_moyen: number | null\n        }\n        Insert: {\n          alertes_en_cours?: never\n          alertes_total?: never\n          cabinet_id?: string | null\n          cabinet_nom?: string | null\n          clients_actifs?: never\n          clients_total?: never\n          controles_total?: never\n          nb_collaborateurs?: never\n          nb_renforcee?: never\n          nb_simplifiee?: never\n          nb_standard?: never\n          score_moyen?: never\n        }\n        Update: {\n          alertes_en_cours?: never\n          alertes_total?: never\n          cabinet_id?: string | null\n          cabinet_nom?: string | null\n          clients_actifs?: never\n          clients_total?: never\n          controles_total?: never\n          nb_collaborateurs?: never\n          nb_renforcee?: never\n          nb_simplifiee?: never\n          nb_standard?: never\n          score_moyen?: never\n        }\n        Relationships: []\n      }\n      v_clients_decrypted: {\n        Row: {\n          adresse: string | null\n          ape: string | null\n          assigned_to: string | null\n          associe: string | null\n          atypique: string | null\n          be: string | null\n          bic_clear: string | null\n          bic_encrypted: string | null\n          cabinet_id: string | null\n          capital: number | null\n          cash: string | null\n          cni_clear: string | null\n          cni_encrypted: string | null\n          comptable: string | null\n          cp: string | null\n          created_at: string | null\n          date_butoir: string | null\n          date_creation: string | null\n          date_creation_ligne: string | null\n          date_derniere_revue: string | null\n          date_exp_cni: string | null\n          date_fin: string | null\n          date_reprise: string | null\n          dirigeant: string | null\n          distanciel: string | null\n          domaine: string | null\n          effectif: string | null\n          etat: string | null\n          etat_pilotage: string | null\n          forme: string | null\n          frequence: string | null\n          honoraires: number | null\n          iban_clear: string | null\n          iban_encrypted: string | null\n          id: string | null\n          juridique: number | null\n          mail: string | null\n          malus: number | null\n          mission: string | null\n          niv_vigilance: string | null\n          pays_risque: string | null\n          ppe: string | null\n          pression: string | null\n          raison_sociale: string | null\n          ref: string | null\n          reprise: number | null\n          score_activite: number | null\n          score_global: number | null\n          score_maturite: number | null\n          score_mission: number | null\n          score_pays: number | null\n          score_structure: number | null\n          search_vector: unknown\n          siren: string | null\n          statut: string | null\n          superviseur: string | null\n          tel: string | null\n          updated_at: string | null\n          ville: string | null\n        }\n        Insert: {\n          adresse?: string | null\n          ape?: string | null\n          assigned_to?: string | null\n          associe?: string | null\n          atypique?: string | null\n          be?: string | null\n          bic_clear?: never\n          bic_encrypted?: string | null\n          cabinet_id?: string | null\n          capital?: number | null\n          cash?: string | null\n          cni_clear?: never\n          cni_encrypted?: string | null\n          comptable?: string | null\n          cp?: string | null\n          created_at?: string | null\n          date_butoir?: string | null\n          date_creation?: string | null\n          date_creation_ligne?: string | null\n          date_derniere_revue?: string | null\n          date_exp_cni?: string | null\n          date_fin?: string | null\n          date_reprise?: string | null\n          dirigeant?: string | null\n          distanciel?: string | null\n          domaine?: string | null\n          effectif?: string | null\n          etat?: string | null\n          etat_pilotage?: string | null\n          forme?: string | null\n          frequence?: string | null\n          honoraires?: number | null\n          iban_clear?: never\n          iban_encrypted?: string | null\n          id?: string | null\n          juridique?: number | null\n          mail?: string | null\n          malus?: number | null\n          mission?: string | null\n          niv_vigilance?: string | null\n          pays_risque?: string | null\n          ppe?: string | null\n          pression?: string | null\n          raison_sociale?: string | null\n          ref?: string | null\n          reprise?: number | null\n          score_activite?: number | null\n          score_global?: number | null\n          score_maturite?: number | null\n          score_mission?: number | null\n          score_pays?: number | null\n          score_structure?: number | null\n          search_vector?: unknown\n          siren?: string | null\n          statut?: string | null\n          superviseur?: string | null\n          tel?: string | null\n          updated_at?: string | null\n          ville?: string | null\n        }\n        Update: {\n          adresse?: string | null\n          ape?: string | null\n          assigned_to?: string | null\n          associe?: string | null\n          atypique?: string | null\n          be?: string | null\n          bic_clear?: never\n          bic_encrypted?: string | null\n          cabinet_id?: string | null\n          capital?: number | null\n          cash?: string | null\n          cni_clear?: never\n          cni_encrypted?: string | null\n          comptable?: string | null\n          cp?: string | null\n          created_at?: string | null\n          date_butoir?: string | null\n          date_creation?: string | null\n          date_creation_ligne?: string | null\n          date_derniere_revue?: string | null\n          date_exp_cni?: string | null\n          date_fin?: string | null\n          date_reprise?: string | null\n          dirigeant?: string | null\n          distanciel?: string | null\n          domaine?: string | null\n          effectif?: string | null\n          etat?: string | null\n          etat_pilotage?: string | null\n          forme?: string | null\n          frequence?: string | null\n          honoraires?: number | null\n          iban_clear?: never\n          iban_encrypted?: string | null\n          id?: string | null\n          juridique?: number | null\n          mail?: string | null\n          malus?: number | null\n          mission?: string | null\n          niv_vigilance?: string | null\n          pays_risque?: string | null\n          ppe?: string | null\n          pression?: string | null\n          raison_sociale?: string | null\n          ref?: string | null\n          reprise?: number | null\n          score_activite?: number | null\n          score_global?: number | null\n          score_maturite?: number | null\n          score_mission?: number | null\n          score_pays?: number | null\n          score_structure?: number | null\n          search_vector?: unknown\n          siren?: string | null\n          statut?: string | null\n          superviseur?: string | null\n          tel?: string | null\n          updated_at?: string | null\n          ville?: string | null\n        }\n        Relationships: [\n          {\n            foreignKeyName: \"clients_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"cabinets\"\n            referencedColumns: [\"id\"]\n          },\n          {\n            foreignKeyName: \"clients_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_admin_overview\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n          {\n            foreignKeyName: \"clients_cabinet_id_fkey\"\n            columns: [\"cabinet_id\"]\n            isOneToOne: false\n            referencedRelation: \"v_cabinet_stats\"\n            referencedColumns: [\"cabinet_id\"]\n          },\n        ]\n      }\n      v_clients_export: {\n        Row: {\n          Adresse: string | null\n          \"Associé signataire\": string | null\n          Atypique: string | null\n          Capital: number | null\n          Cash: string | null\n          \"Code APE\": string | null\n          \"Code postal\": string | null\n          \"Comptable assigné\": string | null\n          \"Date butoir revue\": string | null\n          \"Date création\": string | null\n          \"Date création ligne\": string | null\n          Dirigeant: string | null\n          Distanciel: string | null\n          Domaine: string | null\n          Effectif: string | null\n          Email: string | null\n          \"État pilotage\": string | null\n          \"Forme juridique\": string | null\n          Fréquence: string | null\n          \"Honoraires HT\": number | null\n          Malus: number | null\n          Mission: string | null\n          \"Pays risque\": string | null\n          PPE: string | null\n          Pression: string | null\n          \"Raison sociale\": string | null\n          Référence: string | null\n          \"Score activité\": number | null\n          \"Score global\": number | null\n          \"Score maturité\": number | null\n          \"Score mission\": number | null\n          \"Score pays\": number | null\n          \"Score structure\": number | null\n          SIREN: string | null\n          Statut: string | null\n          Téléphone: string | null\n          Vigilance: string | null\n          Ville: string | null\n        }\n        Insert: {\n          Adresse?: string | null\n          \"Associé signataire\"?: string | null\n          Atypique?: string | null\n          Capital?: number | null\n          Cash?: string | null\n          \"Code APE\"?: string | null\n          \"Code postal\"?: string | null\n          \"Comptable assigné\"?: string | null\n          \"Date butoir revue\"?: string | null\n          \"Date création\"?: string | null\n          \"Date création ligne\"?: string | null\n          Dirigeant?: string | null\n          Distanciel?: string | null\n          Domaine?: string | null\n          Effectif?: string | null\n          Email?: string | null\n          \"État pilotage\"?: string | null\n          \"Forme juridique\"?: string | null\n          Fréquence?: string | null\n          \"Honoraires HT\"?: number | null\n          Malus?: number | null\n          Mission?: string | null\n          \"Pays risque\"?: string | null\n          PPE?: string | null\n          Pression?: string | null\n          \"Raison sociale\"?: string | null\n          Référence?: string | null\n          \"Score activité\"?: number | null\n          \"Score global\"?: number | null\n          \"Score maturité\"?: number | null\n          \"Score mission\"?: number | null\n          \"Score pays\"?: number | null\n          \"Score structure\"?: number | null\n          SIREN?: string | null\n          Statut?: string | null\n          Téléphone?: string | null\n          Vigilance?: string | null\n          Ville?: string | null\n        }\n        Update: {\n          Adresse?: string | null\n          \"Associé signataire\"?: string | null\n          Atypique?: string | null\n          Capital?: number | null\n          Cash?: string | null\n          \"Code APE\"?: string | null\n          \"Code postal\"?: string | null\n          \"Comptable assigné\"?: string | null\n          \"Date butoir revue\"?: string | null\n          \"Date création\"?: string | null\n          \"Date création ligne\"?: string | null\n          Dirigeant?: string | null\n          Distanciel?: string | null\n          Domaine?: string | null\n          Effectif?: string | null\n          Email?: string | null\n          \"État pilotage\"?: string | null\n          \"Forme juridique\"?: string | null\n          Fréquence?: string | null\n          \"Honoraires HT\"?: number | null\n          Malus?: number | null\n          Mission?: string | null\n          \"Pays risque\"?: string | null\n          PPE?: string | null\n          Pression?: string | null\n          \"Raison sociale\"?: string | null\n          Référence?: string | null\n          \"Score activité\"?: number | null\n          \"Score global\"?: number | null\n          \"Score maturité\"?: number | null\n          \"Score mission\"?: number | null\n          \"Score pays\"?: number | null\n          \"Score structure\"?: number | null\n          SIREN?: string | null\n          Statut?: string | null\n          Téléphone?: string | null\n          Vigilance?: string | null\n          Ville?: string | null\n        }\n        Relationships: []\n      }\n      v_registre_complet: {\n        Row: {\n          \"Action prise\": string | null\n          Catégorie: string | null\n          Client: string | null\n          Date: string | null\n          \"Date butoir\": string | null\n          Décision: string | null\n          Détails: string | null\n          Horodatage: string | null\n          Qualification: string | null\n          Responsable: string | null\n          Statut: string | null\n          Validateur: string | null\n        }\n        Insert: {\n          \"Action prise\"?: string | null\n          Catégorie?: string | null\n          Client?: string | null\n          Date?: string | null\n          \"Date butoir\"?: string | null\n          Décision?: string | null\n          Détails?: string | null\n          Horodatage?: string | null\n          Qualification?: string | null\n          Responsable?: string | null\n          Statut?: string | null\n          Validateur?: string | null\n        }\n        Update: {\n          \"Action prise\"?: string | null\n          Catégorie?: string | null\n          Client?: string | null\n          Date?: string | null\n          \"Date butoir\"?: string | null\n          Décision?: string | null\n          Détails?: string | null\n          Horodatage?: string | null\n          Qualification?: string | null\n          Responsable?: string | null\n          Statut?: string | null\n          Validateur?: string | null\n        }\n        Relationships: []\n      }\n    }\n    Functions: {\n      accept_invitation: {\n        Args: { p_token: string; p_user_id: string }\n        Returns: boolean\n      }\n      add_extra_seat: { Args: { p_cabinet_id: string }; Returns: Json }\n      apply_coupon: {\n        Args: {\n          p_cabinet_id: string\n          p_code: string\n          p_months?: number\n          p_percent: number\n        }\n        Returns: Json\n      }\n      apply_data_retention: { Args: never; Returns: Json }\n      can_add_client: { Args: { p_cabinet_id: string }; Returns: boolean }\n      can_add_seat: { Args: { p_cabinet_id: string }; Returns: boolean }\n      can_reactivate: { Args: { p_cabinet_id: string }; Returns: Json }\n      change_plan: {\n        Args: {\n          p_cabinet_id: string\n          p_new_plan: string\n          p_stripe_sub_id?: string\n        }\n        Returns: Json\n      }\n      check_user_access: { Args: { p_user_id: string }; Returns: Json }\n      cleanup_expired_cache: { Args: never; Returns: undefined }\n      cleanup_expired_invitations: { Args: never; Returns: number }\n      cleanup_inactive_sessions: { Args: never; Returns: number }\n      create_controller_access: {\n        Args: { p_days?: number; p_label: string }\n        Returns: Json\n      }\n      create_daily_snapshot: { Args: never; Returns: Json }\n      daily_full_maintenance: { Args: never; Returns: Json }\n      daily_subscription_maintenance: { Args: never; Returns: Json }\n      decrypt_sensitive: { Args: { p_encrypted: string }; Returns: string }\n      encrypt_sensitive: { Args: { p_data: string }; Returns: string }\n      export_cabinet_data: { Args: { p_cabinet_id: string }; Returns: Json }\n      force_disconnect: { Args: { p_user_id: string }; Returns: boolean }\n      generate_notifications: {\n        Args: { p_cabinet_id: string }\n        Returns: number\n      }\n      get_cabinet_usage: { Args: { p_cabinet_id: string }; Returns: Json }\n      get_monthly_stats: {\n        Args: { p_cabinet_id: string; p_months?: number }\n        Returns: Json\n      }\n      get_user_cabinet_id: { Args: never; Returns: string }\n      get_user_role: {\n        Args: never\n        Returns: Database[\"public\"][\"Enums\"][\"user_role\"]\n      }\n      grant_grace_clients: {\n        Args: { p_cabinet_id: string; p_days?: number; p_extra: number }\n        Returns: Json\n      }\n      handle_payment_failed: { Args: { p_cabinet_id: string }; Returns: Json }\n      is_subscription_active: {\n        Args: { p_cabinet_id: string }\n        Returns: boolean\n      }\n      merge_cabinets: {\n        Args: { p_source_cabinet: string; p_target_cabinet: string }\n        Returns: Json\n      }\n      next_lm_ref: { Args: { p_user_id: string }; Returns: string }\n      offboard_collaborator: { Args: { p_user_id: string }; Returns: Json }\n      purge_cabinet: { Args: { p_cabinet_id: string }; Returns: Json }\n      reactivate_cabinet: {\n        Args: {\n          p_cabinet_id: string\n          p_plan?: string\n          p_stripe_sub_id?: string\n        }\n        Returns: Json\n      }\n      restore_snapshot: {\n        Args: { p_cabinet_id: string; p_date: string; p_table_name: string }\n        Returns: Json\n      }\n      revoke_invitation: { Args: { p_invitation_id: string }; Returns: boolean }\n      search_clients: {\n        Args: { p_cabinet_id: string; p_query: string }\n        Returns: {\n          adresse: string | null\n          ape: string | null\n          assigned_to: string | null\n          associe: string | null\n          atypique: string | null\n          be: string | null\n          bic_encrypted: string | null\n          cabinet_id: string\n          capital: number | null\n          cash: string | null\n          cni_encrypted: string | null\n          comptable: string\n          cp: string | null\n          created_at: string\n          date_butoir: string | null\n          date_creation: string | null\n          date_creation_ligne: string | null\n          date_derniere_revue: string | null\n          date_exp_cni: string | null\n          date_fin: string | null\n          date_reprise: string | null\n          dirigeant: string | null\n          distanciel: string | null\n          domaine: string | null\n          effectif: string | null\n          etat: string\n          etat_pilotage: string | null\n          forme: string\n          frequence: string | null\n          honoraires: number | null\n          iban_encrypted: string | null\n          id: string\n          juridique: number | null\n          mail: string | null\n          malus: number | null\n          mission: string\n          niv_vigilance: string | null\n          pays_risque: string | null\n          ppe: string | null\n          pression: string | null\n          raison_sociale: string\n          ref: string\n          reprise: number | null\n          score_activite: number | null\n          score_global: number | null\n          score_maturite: number | null\n          score_mission: number | null\n          score_pays: number | null\n          score_structure: number | null\n          search_vector: unknown\n          siren: string | null\n          statut: string | null\n          superviseur: string | null\n          tel: string | null\n          updated_at: string\n          ville: string | null\n        }[]\n        SetofOptions: {\n          from: \"*\"\n          to: \"clients\"\n          isOneToOne: false\n          isSetofReturn: true\n        }\n      }\n      suspend_cabinet: {\n        Args: { p_cabinet_id: string; p_reason?: string }\n        Returns: Json\n      }\n      suspend_expired_trials: { Args: never; Returns: number }\n      transfer_admin: { Args: { p_new_admin_id: string }; Returns: Json }\n      validate_controller_token: { Args: { p_token: string }; Returns: Json }\n    }\n    Enums: {\n      user_role: \"ADMIN\" | \"SUPERVISEUR\" | \"COLLABORATEUR\" | \"STAGIAIRE\"\n    }\n    CompositeTypes: {\n      [_ in never]: never\n    }\n  }\n}\n\ntype DatabaseWithoutInternals = Omit<Database, \"__InternalSupabase\">\n\ntype DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, \"public\">]\n\nexport type Tables<\n  DefaultSchemaTableNameOrOptions extends\n    | keyof (DefaultSchema[\"Tables\"] & DefaultSchema[\"Views\"])\n    | { schema: keyof DatabaseWithoutInternals },\n  TableName extends DefaultSchemaTableNameOrOptions extends {\n    schema: keyof DatabaseWithoutInternals\n  }\n    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions[\"schema\"]][\"Tables\"] &\n        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions[\"schema\"]][\"Views\"])\n    : never = never,\n> = DefaultSchemaTableNameOrOptions extends {\n  schema: keyof DatabaseWithoutInternals\n}\n  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions[\"schema\"]][\"Tables\"] &\n      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions[\"schema\"]][\"Views\"])[TableName] extends {\n      Row: infer R\n    }\n    ? R\n    : never\n  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema[\"Tables\"] &\n        DefaultSchema[\"Views\"])\n    ? (DefaultSchema[\"Tables\"] &\n        DefaultSchema[\"Views\"])[DefaultSchemaTableNameOrOptions] extends {\n        Row: infer R\n      }\n      ? R\n      : never\n    : never\n\nexport type TablesInsert<\n  DefaultSchemaTableNameOrOptions extends\n    | keyof DefaultSchema[\"Tables\"]\n    | { schema: keyof DatabaseWithoutInternals },\n  TableName extends DefaultSchemaTableNameOrOptions extends {\n    schema: keyof DatabaseWithoutInternals\n  }\n    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions[\"schema\"]][\"Tables\"]\n    : never = never,\n> = DefaultSchemaTableNameOrOptions extends {\n  schema: keyof DatabaseWithoutInternals\n}\n  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions[\"schema\"]][\"Tables\"][TableName] extends {\n      Insert: infer I\n    }\n    ? I\n    : never\n  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema[\"Tables\"]\n    ? DefaultSchema[\"Tables\"][DefaultSchemaTableNameOrOptions] extends {\n        Insert: infer I\n      }\n      ? I\n      : never\n    : never\n\nexport type TablesUpdate<\n  DefaultSchemaTableNameOrOptions extends\n    | keyof DefaultSchema[\"Tables\"]\n    | { schema: keyof DatabaseWithoutInternals },\n  TableName extends DefaultSchemaTableNameOrOptions extends {\n    schema: keyof DatabaseWithoutInternals\n  }\n    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions[\"schema\"]][\"Tables\"]\n    : never = never,\n> = DefaultSchemaTableNameOrOptions extends {\n  schema: keyof DatabaseWithoutInternals\n}\n  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions[\"schema\"]][\"Tables\"][TableName] extends {\n      Update: infer U\n    }\n    ? U\n    : never\n  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema[\"Tables\"]\n    ? DefaultSchema[\"Tables\"][DefaultSchemaTableNameOrOptions] extends {\n        Update: infer U\n      }\n      ? U\n      : never\n    : never\n\nexport type Enums<\n  DefaultSchemaEnumNameOrOptions extends\n    | keyof DefaultSchema[\"Enums\"]\n    | { schema: keyof DatabaseWithoutInternals },\n  EnumName extends DefaultSchemaEnumNameOrOptions extends {\n    schema: keyof DatabaseWithoutInternals\n  }\n    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions[\"schema\"]][\"Enums\"]\n    : never = never,\n> = DefaultSchemaEnumNameOrOptions extends {\n  schema: keyof DatabaseWithoutInternals\n}\n  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions[\"schema\"]][\"Enums\"][EnumName]\n  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema[\"Enums\"]\n    ? DefaultSchema[\"Enums\"][DefaultSchemaEnumNameOrOptions]\n    : never\n\nexport type CompositeTypes<\n  PublicCompositeTypeNameOrOptions extends\n    | keyof DefaultSchema[\"CompositeTypes\"]\n    | { schema: keyof DatabaseWithoutInternals },\n  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {\n    schema: keyof DatabaseWithoutInternals\n  }\n    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions[\"schema\"]][\"CompositeTypes\"]\n    : never = never,\n> = PublicCompositeTypeNameOrOptions extends {\n  schema: keyof DatabaseWithoutInternals\n}\n  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions[\"schema\"]][\"CompositeTypes\"][CompositeTypeName]\n  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema[\"CompositeTypes\"]\n    ? DefaultSchema[\"CompositeTypes\"][PublicCompositeTypeNameOrOptions]\n    : never\n\nexport const Constants = {\n  public: {\n    Enums: {\n      user_role: [\"ADMIN\", \"SUPERVISEUR\", \"COLLABORATEUR\", \"STAGIAIRE\"],\n    },\n  },\n} as const\n"}
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
+  public: {
+    Tables: {
+      _data_snapshots: {
+        Row: {
+          cabinet_id: string | null
+          created_at: string | null
+          data: Json | null
+          id: string
+          row_count: number | null
+          snapshot_date: string
+          table_name: string
+        }
+        Insert: {
+          cabinet_id?: string | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          row_count?: number | null
+          snapshot_date?: string
+          table_name: string
+        }
+        Update: {
+          cabinet_id?: string | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          row_count?: number | null
+          snapshot_date?: string
+          table_name?: string
+        }
+        Relationships: []
+      }
+      _encryption_config: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
+      access_tokens: {
+        Row: {
+          access_type: string
+          cabinet_id: string
+          created_at: string | null
+          created_by: string | null
+          expires_at: string
+          id: string
+          is_revoked: boolean | null
+          label: string
+          last_used_at: string | null
+          permissions: Json | null
+          token: string
+          usage_count: number | null
+        }
+        Insert: {
+          access_type?: string
+          cabinet_id: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          is_revoked?: boolean | null
+          label: string
+          last_used_at?: string | null
+          permissions?: Json | null
+          token?: string
+          usage_count?: number | null
+        }
+        Update: {
+          access_type?: string
+          cabinet_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          is_revoked?: boolean | null
+          label?: string
+          last_used_at?: string | null
+          permissions?: Json | null
+          token?: string
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_tokens_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_tokens_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "access_tokens_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      active_sessions: {
+        Row: {
+          cabinet_id: string
+          client_type: string | null
+          created_at: string | null
+          device_info: string | null
+          id: string
+          ip_address: unknown
+          last_activity: string | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          cabinet_id: string
+          client_type?: string | null
+          created_at?: string | null
+          device_info?: string | null
+          id?: string
+          ip_address?: unknown
+          last_activity?: string | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          cabinet_id?: string
+          client_type?: string | null
+          created_at?: string | null
+          device_info?: string | null
+          id?: string
+          ip_address?: unknown
+          last_activity?: string | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "active_sessions_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "active_sessions_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "active_sessions_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      alertes_registre: {
+        Row: {
+          action_prise: string | null
+          cabinet_id: string
+          categorie: string | null
+          client_concerne: string | null
+          created_at: string
+          date: string
+          date_butoir: string | null
+          details: string | null
+          id: string
+          qualification: string | null
+          responsable: string | null
+          statut: string | null
+          type_decision: string | null
+          validateur: string | null
+        }
+        Insert: {
+          action_prise?: string | null
+          cabinet_id: string
+          categorie?: string | null
+          client_concerne?: string | null
+          created_at?: string
+          date: string
+          date_butoir?: string | null
+          details?: string | null
+          id?: string
+          qualification?: string | null
+          responsable?: string | null
+          statut?: string | null
+          type_decision?: string | null
+          validateur?: string | null
+        }
+        Update: {
+          action_prise?: string | null
+          cabinet_id?: string
+          categorie?: string | null
+          client_concerne?: string | null
+          created_at?: string
+          date?: string
+          date_butoir?: string | null
+          details?: string | null
+          id?: string
+          qualification?: string | null
+          responsable?: string | null
+          statut?: string | null
+          type_decision?: string | null
+          validateur?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alertes_registre_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alertes_registre_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "alertes_registre_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      api_cache: {
+        Row: {
+          api_name: string
+          cabinet_id: string
+          cached_at: string
+          expires_at: string
+          response_data: Json
+          siren: string
+        }
+        Insert: {
+          api_name: string
+          cabinet_id: string
+          cached_at?: string
+          expires_at?: string
+          response_data?: Json
+          siren: string
+        }
+        Update: {
+          api_name?: string
+          cabinet_id?: string
+          cached_at?: string
+          expires_at?: string
+          response_data?: Json
+          siren?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_cache_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_cache_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "api_cache_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      api_keys: {
+        Row: {
+          cabinet_id: string
+          created_at: string | null
+          created_by: string | null
+          expires_at: string | null
+          id: string
+          is_active: boolean | null
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at: string | null
+          permissions: Json | null
+          rate_limit_per_hour: number | null
+          usage_count: number | null
+        }
+        Insert: {
+          cabinet_id: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash: string
+          key_prefix: string
+          label: string
+          last_used_at?: string | null
+          permissions?: Json | null
+          rate_limit_per_hour?: number | null
+          usage_count?: number | null
+        }
+        Update: {
+          cabinet_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          expires_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          key_hash?: string
+          key_prefix?: string
+          label?: string
+          last_used_at?: string | null
+          permissions?: Json | null
+          rate_limit_per_hour?: number | null
+          usage_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "api_keys_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      audit_trail: {
+        Row: {
+          action: string
+          cabinet_id: string
+          created_at: string
+          id: number
+          ip_address: unknown
+          new_data: Json | null
+          old_data: Json | null
+          record_id: string | null
+          table_name: string | null
+          user_agent: string | null
+          user_email: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          cabinet_id: string
+          created_at?: string
+          id?: never
+          ip_address?: unknown
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          cabinet_id?: string
+          created_at?: string
+          id?: never
+          ip_address?: unknown
+          new_data?: Json | null
+          old_data?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_agent?: string | null
+          user_email?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_trail_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_trail_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "audit_trail_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      backup_history: {
+        Row: {
+          backup_type: string
+          completed_at: string | null
+          created_at: string | null
+          error_message: string | null
+          id: string
+          size_bytes: number | null
+          started_at: string | null
+          status: string
+          storage_path: string | null
+          tables_backed_up: string[] | null
+          total_rows: number | null
+        }
+        Insert: {
+          backup_type: string
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          size_bytes?: number | null
+          started_at?: string | null
+          status: string
+          storage_path?: string | null
+          tables_backed_up?: string[] | null
+          total_rows?: number | null
+        }
+        Update: {
+          backup_type?: string
+          completed_at?: string | null
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          size_bytes?: number | null
+          started_at?: string | null
+          status?: string
+          storage_path?: string | null
+          tables_backed_up?: string[] | null
+          total_rows?: number | null
+        }
+        Relationships: []
+      }
+      brouillons: {
+        Row: {
+          cabinet_id: string | null
+          data: Json
+          id: string
+          siren: string | null
+          step: number | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          cabinet_id?: string | null
+          data: Json
+          id?: string
+          siren?: string | null
+          step?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          cabinet_id?: string | null
+          data?: Json
+          id?: string
+          siren?: string | null
+          step?: number | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brouillons_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "brouillons_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "brouillons_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      cabinet_subscriptions: {
+        Row: {
+          billing_cycle: string | null
+          cabinet_id: string
+          coupon_code: string | null
+          created_at: string | null
+          discount_percent: number | null
+          discount_until: string | null
+          extra_seat_price_cents: number | null
+          extra_seats: number | null
+          grace_extra_clients: number | null
+          grace_extra_clients_until: string | null
+          id: string
+          max_clients: number
+          max_seats: number
+          max_storage_mb: number
+          monthly_price_cents: number | null
+          notification_email: string | null
+          plan: string
+          status: string
+          stripe_customer_id: string | null
+          stripe_subscription_id: string | null
+          subscription_end: string | null
+          subscription_start: string | null
+          trial_end: string | null
+          trial_start: string | null
+          updated_at: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          billing_cycle?: string | null
+          cabinet_id: string
+          coupon_code?: string | null
+          created_at?: string | null
+          discount_percent?: number | null
+          discount_until?: string | null
+          extra_seat_price_cents?: number | null
+          extra_seats?: number | null
+          grace_extra_clients?: number | null
+          grace_extra_clients_until?: string | null
+          id?: string
+          max_clients?: number
+          max_seats?: number
+          max_storage_mb?: number
+          monthly_price_cents?: number | null
+          notification_email?: string | null
+          plan?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_end?: string | null
+          subscription_start?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          billing_cycle?: string | null
+          cabinet_id?: string
+          coupon_code?: string | null
+          created_at?: string | null
+          discount_percent?: number | null
+          discount_until?: string | null
+          extra_seat_price_cents?: number | null
+          extra_seats?: number | null
+          grace_extra_clients?: number | null
+          grace_extra_clients_until?: string | null
+          id?: string
+          max_clients?: number
+          max_seats?: number
+          max_storage_mb?: number
+          monthly_price_cents?: number | null
+          notification_email?: string | null
+          plan?: string
+          status?: string
+          stripe_customer_id?: string | null
+          stripe_subscription_id?: string | null
+          subscription_end?: string | null
+          subscription_start?: string | null
+          trial_end?: string | null
+          trial_start?: string | null
+          updated_at?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cabinet_subscriptions_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: true
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cabinet_subscriptions_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: true
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "cabinet_subscriptions_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: true
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      cabinets: {
+        Row: {
+          created_at: string
+          id: string
+          nom: string
+          siren: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nom: string
+          siren?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nom?: string
+          siren?: string | null
+        }
+        Relationships: []
+      }
+      client_history: {
+        Row: {
+          cabinet_id: string
+          client_ref: string
+          description: string
+          event_date: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          user_email: string | null
+        }
+        Insert: {
+          cabinet_id: string
+          client_ref: string
+          description: string
+          event_date?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          user_email?: string | null
+        }
+        Update: {
+          cabinet_id?: string
+          client_ref?: string
+          description?: string
+          event_date?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          user_email?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "client_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "client_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          adresse: string | null
+          ape: string | null
+          assigned_to: string | null
+          associe: string | null
+          atypique: string | null
+          be: string | null
+          bic_encrypted: string | null
+          cabinet_id: string
+          capital: number | null
+          cash: string | null
+          cni_encrypted: string | null
+          comptable: string
+          cp: string | null
+          created_at: string
+          date_butoir: string | null
+          date_creation: string | null
+          date_creation_ligne: string | null
+          date_derniere_revue: string | null
+          date_exp_cni: string | null
+          date_fin: string | null
+          date_reprise: string | null
+          dirigeant: string | null
+          distanciel: string | null
+          domaine: string | null
+          effectif: string | null
+          etat: string
+          etat_pilotage: string | null
+          forme: string
+          frequence: string | null
+          honoraires: number | null
+          iban_encrypted: string | null
+          id: string
+          juridique: number | null
+          mail: string | null
+          malus: number | null
+          mission: string
+          niv_vigilance: string | null
+          pays_risque: string | null
+          ppe: string | null
+          pression: string | null
+          raison_sociale: string
+          ref: string
+          reprise: number | null
+          score_activite: number | null
+          score_global: number | null
+          score_maturite: number | null
+          score_mission: number | null
+          score_pays: number | null
+          score_structure: number | null
+          search_vector: unknown
+          siren: string | null
+          statut: string | null
+          superviseur: string | null
+          tel: string | null
+          updated_at: string
+          ville: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          ape?: string | null
+          assigned_to?: string | null
+          associe?: string | null
+          atypique?: string | null
+          be?: string | null
+          bic_encrypted?: string | null
+          cabinet_id: string
+          capital?: number | null
+          cash?: string | null
+          cni_encrypted?: string | null
+          comptable?: string
+          cp?: string | null
+          created_at?: string
+          date_butoir?: string | null
+          date_creation?: string | null
+          date_creation_ligne?: string | null
+          date_derniere_revue?: string | null
+          date_exp_cni?: string | null
+          date_fin?: string | null
+          date_reprise?: string | null
+          dirigeant?: string | null
+          distanciel?: string | null
+          domaine?: string | null
+          effectif?: string | null
+          etat?: string
+          etat_pilotage?: string | null
+          forme?: string
+          frequence?: string | null
+          honoraires?: number | null
+          iban_encrypted?: string | null
+          id?: string
+          juridique?: number | null
+          mail?: string | null
+          malus?: number | null
+          mission?: string
+          niv_vigilance?: string | null
+          pays_risque?: string | null
+          ppe?: string | null
+          pression?: string | null
+          raison_sociale: string
+          ref: string
+          reprise?: number | null
+          score_activite?: number | null
+          score_global?: number | null
+          score_maturite?: number | null
+          score_mission?: number | null
+          score_pays?: number | null
+          score_structure?: number | null
+          search_vector?: unknown
+          siren?: string | null
+          statut?: string | null
+          superviseur?: string | null
+          tel?: string | null
+          updated_at?: string
+          ville?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          ape?: string | null
+          assigned_to?: string | null
+          associe?: string | null
+          atypique?: string | null
+          be?: string | null
+          bic_encrypted?: string | null
+          cabinet_id?: string
+          capital?: number | null
+          cash?: string | null
+          cni_encrypted?: string | null
+          comptable?: string
+          cp?: string | null
+          created_at?: string
+          date_butoir?: string | null
+          date_creation?: string | null
+          date_creation_ligne?: string | null
+          date_derniere_revue?: string | null
+          date_exp_cni?: string | null
+          date_fin?: string | null
+          date_reprise?: string | null
+          dirigeant?: string | null
+          distanciel?: string | null
+          domaine?: string | null
+          effectif?: string | null
+          etat?: string
+          etat_pilotage?: string | null
+          forme?: string
+          frequence?: string | null
+          honoraires?: number | null
+          iban_encrypted?: string | null
+          id?: string
+          juridique?: number | null
+          mail?: string | null
+          malus?: number | null
+          mission?: string
+          niv_vigilance?: string | null
+          pays_risque?: string | null
+          ppe?: string | null
+          pression?: string | null
+          raison_sociale?: string
+          ref?: string
+          reprise?: number | null
+          score_activite?: number | null
+          score_global?: number | null
+          score_maturite?: number | null
+          score_mission?: number | null
+          score_pays?: number | null
+          score_structure?: number | null
+          search_vector?: unknown
+          siren?: string | null
+          statut?: string | null
+          superviseur?: string | null
+          tel?: string | null
+          updated_at?: string
+          ville?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "clients_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      collaborateurs: {
+        Row: {
+          cabinet_id: string
+          created_at: string
+          date_signature_manuel: string | null
+          derniere_formation: string | null
+          email: string | null
+          fonction: string | null
+          id: string
+          niveau_competence: string | null
+          nom: string
+          referent_lcb: boolean | null
+          statut_formation: string | null
+          suppleant: string | null
+        }
+        Insert: {
+          cabinet_id: string
+          created_at?: string
+          date_signature_manuel?: string | null
+          derniere_formation?: string | null
+          email?: string | null
+          fonction?: string | null
+          id?: string
+          niveau_competence?: string | null
+          nom: string
+          referent_lcb?: boolean | null
+          statut_formation?: string | null
+          suppleant?: string | null
+        }
+        Update: {
+          cabinet_id?: string
+          created_at?: string
+          date_signature_manuel?: string | null
+          derniere_formation?: string | null
+          email?: string | null
+          fonction?: string | null
+          id?: string
+          niveau_competence?: string | null
+          nom?: string
+          referent_lcb?: boolean | null
+          statut_formation?: string | null
+          suppleant?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collaborateurs_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "collaborateurs_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "collaborateurs_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      controles_croec: {
+        Row: {
+          actions_suite: Json | null
+          cabinet_id: string
+          controleur: string | null
+          created_at: string | null
+          date_controle: string
+          date_prochain_controle: string | null
+          id: string
+          observations: string | null
+          rapport_url: string | null
+          resultat: string | null
+          type: string | null
+        }
+        Insert: {
+          actions_suite?: Json | null
+          cabinet_id: string
+          controleur?: string | null
+          created_at?: string | null
+          date_controle: string
+          date_prochain_controle?: string | null
+          id?: string
+          observations?: string | null
+          rapport_url?: string | null
+          resultat?: string | null
+          type?: string | null
+        }
+        Update: {
+          actions_suite?: Json | null
+          cabinet_id?: string
+          controleur?: string | null
+          created_at?: string | null
+          date_controle?: string
+          date_prochain_controle?: string | null
+          id?: string
+          observations?: string | null
+          rapport_url?: string | null
+          resultat?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "controles_croec_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "controles_croec_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "controles_croec_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      controles_qualite: {
+        Row: {
+          action_correctrice: string | null
+          atypique: string | null
+          cabinet_id: string
+          cash: string | null
+          commentaire: string | null
+          controleur: string | null
+          created_at: string
+          date_echeance: string | null
+          date_tirage: string | null
+          distanciel: string | null
+          dossier_audite: string | null
+          forme: string | null
+          id: string
+          incident: string | null
+          niv_vigilance: string | null
+          pays_risque: string | null
+          point1: string | null
+          point2: string | null
+          point3: string | null
+          ppe: string | null
+          pression: string | null
+          resultat_global: string | null
+          score_global: number | null
+          siren: string | null
+          suivi_statut: string | null
+        }
+        Insert: {
+          action_correctrice?: string | null
+          atypique?: string | null
+          cabinet_id: string
+          cash?: string | null
+          commentaire?: string | null
+          controleur?: string | null
+          created_at?: string
+          date_echeance?: string | null
+          date_tirage?: string | null
+          distanciel?: string | null
+          dossier_audite?: string | null
+          forme?: string | null
+          id?: string
+          incident?: string | null
+          niv_vigilance?: string | null
+          pays_risque?: string | null
+          point1?: string | null
+          point2?: string | null
+          point3?: string | null
+          ppe?: string | null
+          pression?: string | null
+          resultat_global?: string | null
+          score_global?: number | null
+          siren?: string | null
+          suivi_statut?: string | null
+        }
+        Update: {
+          action_correctrice?: string | null
+          atypique?: string | null
+          cabinet_id?: string
+          cash?: string | null
+          commentaire?: string | null
+          controleur?: string | null
+          created_at?: string
+          date_echeance?: string | null
+          date_tirage?: string | null
+          distanciel?: string | null
+          dossier_audite?: string | null
+          forme?: string | null
+          id?: string
+          incident?: string | null
+          niv_vigilance?: string | null
+          pays_risque?: string | null
+          point1?: string | null
+          point2?: string | null
+          point3?: string | null
+          ppe?: string | null
+          pression?: string | null
+          resultat_global?: string | null
+          score_global?: number | null
+          siren?: string | null
+          suivi_statut?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "controles_qualite_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "controles_qualite_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "controles_qualite_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      dashboard_configs: {
+        Row: {
+          cabinet_id: string | null
+          created_at: string
+          id: string
+          layout: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cabinet_id?: string | null
+          created_at?: string
+          id?: string
+          layout?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cabinet_id?: string | null
+          created_at?: string
+          id?: string
+          layout?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dashboard_configs_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dashboard_configs_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "dashboard_configs_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      declarations_soupcon: {
+        Row: {
+          cabinet_id: string
+          client_nom: string | null
+          client_ref: string | null
+          correspondant_tracfin: string | null
+          created_at: string | null
+          date_declaration: string | null
+          date_detection: string
+          decision: string | null
+          declarant: string | null
+          elements_rassembles: string | null
+          id: string
+          justification_classement: string | null
+          motif: string
+          pieces_jointes: Json | null
+          reference_tracfin: string | null
+          statut: string | null
+        }
+        Insert: {
+          cabinet_id: string
+          client_nom?: string | null
+          client_ref?: string | null
+          correspondant_tracfin?: string | null
+          created_at?: string | null
+          date_declaration?: string | null
+          date_detection: string
+          decision?: string | null
+          declarant?: string | null
+          elements_rassembles?: string | null
+          id?: string
+          justification_classement?: string | null
+          motif: string
+          pieces_jointes?: Json | null
+          reference_tracfin?: string | null
+          statut?: string | null
+        }
+        Update: {
+          cabinet_id?: string
+          client_nom?: string | null
+          client_ref?: string | null
+          correspondant_tracfin?: string | null
+          created_at?: string | null
+          date_declaration?: string | null
+          date_detection?: string
+          decision?: string | null
+          declarant?: string | null
+          elements_rassembles?: string | null
+          id?: string
+          justification_classement?: string | null
+          motif?: string
+          pieces_jointes?: Json | null
+          reference_tracfin?: string | null
+          statut?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "declarations_soupcon_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "declarations_soupcon_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "declarations_soupcon_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      documents_kyc: {
+        Row: {
+          cabinet_id: string
+          client_ref: string
+          created_at: string | null
+          date_document: string | null
+          file_size: number | null
+          id: string
+          label: string
+          mime_type: string | null
+          ocr_data: Json | null
+          public_url: string | null
+          siren: string | null
+          source: string | null
+          status: string | null
+          storage_path: string | null
+          type: string
+        }
+        Insert: {
+          cabinet_id: string
+          client_ref: string
+          created_at?: string | null
+          date_document?: string | null
+          file_size?: number | null
+          id?: string
+          label: string
+          mime_type?: string | null
+          ocr_data?: Json | null
+          public_url?: string | null
+          siren?: string | null
+          source?: string | null
+          status?: string | null
+          storage_path?: string | null
+          type: string
+        }
+        Update: {
+          cabinet_id?: string
+          client_ref?: string
+          created_at?: string | null
+          date_document?: string | null
+          file_size?: number | null
+          id?: string
+          label?: string
+          mime_type?: string | null
+          ocr_data?: Json | null
+          public_url?: string | null
+          siren?: string | null
+          source?: string | null
+          status?: string | null
+          storage_path?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documents_kyc_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_kyc_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "documents_kyc_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      formations: {
+        Row: {
+          attestation_url: string | null
+          cabinet_id: string
+          collaborateur_id: string | null
+          collaborateur_nom: string
+          created_at: string | null
+          date_formation: string
+          duree_heures: number | null
+          id: string
+          notes: string | null
+          organisme: string | null
+          quiz_date: string | null
+          quiz_score: number | null
+          theme: string | null
+          type: string | null
+        }
+        Insert: {
+          attestation_url?: string | null
+          cabinet_id: string
+          collaborateur_id?: string | null
+          collaborateur_nom: string
+          created_at?: string | null
+          date_formation: string
+          duree_heures?: number | null
+          id?: string
+          notes?: string | null
+          organisme?: string | null
+          quiz_date?: string | null
+          quiz_score?: number | null
+          theme?: string | null
+          type?: string | null
+        }
+        Update: {
+          attestation_url?: string | null
+          cabinet_id?: string
+          collaborateur_id?: string | null
+          collaborateur_nom?: string
+          created_at?: string | null
+          date_formation?: string
+          duree_heures?: number | null
+          id?: string
+          notes?: string | null
+          organisme?: string | null
+          quiz_date?: string | null
+          quiz_score?: number | null
+          theme?: string | null
+          type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "formations_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "formations_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "formations_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "formations_collaborateur_id_fkey"
+            columns: ["collaborateur_id"]
+            isOneToOne: false
+            referencedRelation: "collaborateurs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      invitations: {
+        Row: {
+          accepted_at: string | null
+          attempt_count: number | null
+          cabinet_id: string
+          created_at: string | null
+          custom_message: string | null
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string | null
+          role: string
+          status: string
+          token: string
+          token_hash: string | null
+        }
+        Insert: {
+          accepted_at?: string | null
+          attempt_count?: number | null
+          cabinet_id: string
+          created_at?: string | null
+          custom_message?: string | null
+          email: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          status?: string
+          token?: string
+          token_hash?: string | null
+        }
+        Update: {
+          accepted_at?: string | null
+          attempt_count?: number | null
+          cabinet_id?: string
+          created_at?: string | null
+          custom_message?: string | null
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string | null
+          role?: string
+          status?: string
+          token?: string
+          token_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "invitations_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "invitations_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "invitations_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      lettres_mission: {
+        Row: {
+          cabinet_id: string | null
+          clauses: Json | null
+          client_id: string | null
+          client_ref: string | null
+          created_at: string | null
+          data: Json
+          date_signature: string | null
+          docx_url: string | null
+          forme_juridique: string | null
+          generated_content: Json | null
+          honoraires_details: Json | null
+          id: string
+          intervenants: Json | null
+          missions_selected: Json | null
+          modalites: Json | null
+          numero: string | null
+          pdf_url: string | null
+          signature_image: string | null
+          status: string | null
+          statut_lm: string | null
+          template_id: string | null
+          type_mission: string | null
+          updated_at: string | null
+          user_id: string | null
+          wizard_data: Json | null
+          wizard_step: number | null
+        }
+        Insert: {
+          cabinet_id?: string | null
+          clauses?: Json | null
+          client_id?: string | null
+          client_ref?: string | null
+          created_at?: string | null
+          data: Json
+          date_signature?: string | null
+          docx_url?: string | null
+          forme_juridique?: string | null
+          generated_content?: Json | null
+          honoraires_details?: Json | null
+          id?: string
+          intervenants?: Json | null
+          missions_selected?: Json | null
+          modalites?: Json | null
+          numero?: string | null
+          pdf_url?: string | null
+          signature_image?: string | null
+          status?: string | null
+          statut_lm?: string | null
+          template_id?: string | null
+          type_mission?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          wizard_data?: Json | null
+          wizard_step?: number | null
+        }
+        Update: {
+          cabinet_id?: string | null
+          clauses?: Json | null
+          client_id?: string | null
+          client_ref?: string | null
+          created_at?: string | null
+          data?: Json
+          date_signature?: string | null
+          docx_url?: string | null
+          forme_juridique?: string | null
+          generated_content?: Json | null
+          honoraires_details?: Json | null
+          id?: string
+          intervenants?: Json | null
+          missions_selected?: Json | null
+          modalites?: Json | null
+          numero?: string | null
+          pdf_url?: string | null
+          signature_image?: string | null
+          status?: string | null
+          statut_lm?: string | null
+          template_id?: string | null
+          type_mission?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+          wizard_data?: Json | null
+          wizard_step?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lettres_mission_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lettres_mission_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "lettres_mission_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "lettres_mission_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lettres_mission_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "v_clients_decrypted"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lettres_mission_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "lm_templates"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      lm_templates: {
+        Row: {
+          cabinet_id: string | null
+          created_at: string | null
+          description: string | null
+          forme_juridique: string
+          id: string
+          is_default: boolean | null
+          nom: string
+          sections: Json
+          updated_at: string | null
+        }
+        Insert: {
+          cabinet_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          forme_juridique: string
+          id?: string
+          is_default?: boolean | null
+          nom: string
+          sections?: Json
+          updated_at?: string | null
+        }
+        Update: {
+          cabinet_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          forme_juridique?: string
+          id?: string
+          is_default?: boolean | null
+          nom?: string
+          sections?: Json
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lm_templates_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lm_templates_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "lm_templates_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      login_history: {
+        Row: {
+          cabinet_id: string | null
+          created_at: string | null
+          email: string | null
+          failure_reason: string | null
+          id: string
+          ip_address: unknown
+          login_method: string | null
+          success: boolean | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          cabinet_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          failure_reason?: string | null
+          id?: string
+          ip_address?: unknown
+          login_method?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          cabinet_id?: string | null
+          created_at?: string | null
+          email?: string | null
+          failure_reason?: string | null
+          id?: string
+          ip_address?: unknown
+          login_method?: string | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "login_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "login_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "login_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      manuel_lectures: {
+        Row: {
+          cabinet_id: string
+          collaborateur_id: string | null
+          collaborateur_nom: string
+          date_lecture: string | null
+          id: string
+          manuel_id: string
+        }
+        Insert: {
+          cabinet_id: string
+          collaborateur_id?: string | null
+          collaborateur_nom: string
+          date_lecture?: string | null
+          id?: string
+          manuel_id: string
+        }
+        Update: {
+          cabinet_id?: string
+          collaborateur_id?: string | null
+          collaborateur_nom?: string
+          date_lecture?: string | null
+          id?: string
+          manuel_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manuel_lectures_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manuel_lectures_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "manuel_lectures_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "manuel_lectures_collaborateur_id_fkey"
+            columns: ["collaborateur_id"]
+            isOneToOne: false
+            referencedRelation: "collaborateurs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manuel_lectures_manuel_id_fkey"
+            columns: ["manuel_id"]
+            isOneToOne: false
+            referencedRelation: "manuel_procedures"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      manuel_procedures: {
+        Row: {
+          cabinet_id: string
+          contenu: Json | null
+          created_at: string | null
+          date_prochaine_revue: string | null
+          date_validation: string | null
+          id: string
+          statut: string | null
+          titre: string | null
+          updated_at: string | null
+          valide_par: string | null
+          version: number
+        }
+        Insert: {
+          cabinet_id: string
+          contenu?: Json | null
+          created_at?: string | null
+          date_prochaine_revue?: string | null
+          date_validation?: string | null
+          id?: string
+          statut?: string | null
+          titre?: string | null
+          updated_at?: string | null
+          valide_par?: string | null
+          version?: number
+        }
+        Update: {
+          cabinet_id?: string
+          contenu?: Json | null
+          created_at?: string | null
+          date_prochaine_revue?: string | null
+          date_validation?: string | null
+          id?: string
+          statut?: string | null
+          titre?: string | null
+          updated_at?: string | null
+          valide_par?: string | null
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manuel_procedures_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "manuel_procedures_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "manuel_procedures_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      non_conformites: {
+        Row: {
+          action_corrective: string | null
+          cabinet_id: string
+          client_ref: string | null
+          created_at: string | null
+          date_detection: string
+          date_echeance: string | null
+          date_resolution: string | null
+          description: string
+          gravite: string | null
+          id: string
+          pieces_jointes: Json | null
+          responsable: string | null
+          source: string | null
+          statut: string | null
+        }
+        Insert: {
+          action_corrective?: string | null
+          cabinet_id: string
+          client_ref?: string | null
+          created_at?: string | null
+          date_detection: string
+          date_echeance?: string | null
+          date_resolution?: string | null
+          description: string
+          gravite?: string | null
+          id?: string
+          pieces_jointes?: Json | null
+          responsable?: string | null
+          source?: string | null
+          statut?: string | null
+        }
+        Update: {
+          action_corrective?: string | null
+          cabinet_id?: string
+          client_ref?: string | null
+          created_at?: string | null
+          date_detection?: string
+          date_echeance?: string | null
+          date_resolution?: string | null
+          description?: string
+          gravite?: string | null
+          id?: string
+          pieces_jointes?: Json | null
+          responsable?: string | null
+          source?: string | null
+          statut?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "non_conformites_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "non_conformites_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "non_conformites_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          cabinet_id: string
+          client_ref: string | null
+          created_at: string | null
+          id: string
+          lue: boolean | null
+          message: string
+          priority: string | null
+          titre: string
+          type: string
+          user_id: string | null
+        }
+        Insert: {
+          cabinet_id: string
+          client_ref?: string | null
+          created_at?: string | null
+          id?: string
+          lue?: boolean | null
+          message: string
+          priority?: string | null
+          titre: string
+          type: string
+          user_id?: string | null
+        }
+        Update: {
+          cabinet_id?: string
+          client_ref?: string | null
+          created_at?: string | null
+          id?: string
+          lue?: boolean | null
+          message?: string
+          priority?: string | null
+          titre?: string
+          type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "notifications_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      parametres: {
+        Row: {
+          cabinet_id: string | null
+          cle: string
+          id: string
+          updated_at: string | null
+          user_id: string | null
+          valeur: Json
+        }
+        Insert: {
+          cabinet_id?: string | null
+          cle: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          valeur: Json
+        }
+        Update: {
+          cabinet_id?: string | null
+          cle?: string
+          id?: string
+          updated_at?: string | null
+          user_id?: string | null
+          valeur?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "parametres_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "parametres_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "parametres_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      payment_history: {
+        Row: {
+          amount_cents: number
+          cabinet_id: string
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: string
+          plan: string | null
+          receipt_url: string | null
+          status: string
+          stripe_invoice_id: string | null
+          stripe_payment_intent_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          cabinet_id: string
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          plan?: string | null
+          receipt_url?: string | null
+          status: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          cabinet_id?: string
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          plan?: string | null
+          receipt_url?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          stripe_payment_intent_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "payment_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          cabinet_id: string
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          is_active: boolean
+          last_login_at: string | null
+          role: Database["public"]["Enums"]["user_role"]
+          signup_source: string | null
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          cabinet_id: string
+          created_at?: string
+          email: string
+          full_name?: string
+          id: string
+          is_active?: boolean
+          last_login_at?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          signup_source?: string | null
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          cabinet_id?: string
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          is_active?: boolean
+          last_login_at?: string | null
+          role?: Database["public"]["Enums"]["user_role"]
+          signup_source?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profiles_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "profiles_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      stripe_events: {
+        Row: {
+          cabinet_id: string | null
+          data: Json | null
+          id: string
+          processed_at: string | null
+          type: string
+        }
+        Insert: {
+          cabinet_id?: string | null
+          data?: Json | null
+          id: string
+          processed_at?: string | null
+          type: string
+        }
+        Update: {
+          cabinet_id?: string | null
+          data?: Json | null
+          id?: string
+          processed_at?: string | null
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_events_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stripe_events_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "stripe_events_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      v_admin_overview: {
+        Row: {
+          audit_entries: number | null
+          cabinet_id: string | null
+          cabinet_nom: string | null
+          clients_used: number | null
+          created_at: string | null
+          max_clients: number | null
+          max_seats: number | null
+          plan: string | null
+          seats_used: number | null
+          sub_status: string | null
+          trial_end: string | null
+        }
+        Relationships: []
+      }
+      v_billing_history: {
+        Row: {
+          cabinet_id: string | null
+          date_paiement: string | null
+          description: string | null
+          montant_euros: number | null
+          plan: string | null
+          receipt_url: string | null
+          statut: string | null
+        }
+        Insert: {
+          cabinet_id?: string | null
+          date_paiement?: string | null
+          description?: string | null
+          montant_euros?: never
+          plan?: string | null
+          receipt_url?: string | null
+          statut?: string | null
+        }
+        Update: {
+          cabinet_id?: string | null
+          date_paiement?: string | null
+          description?: string | null
+          montant_euros?: never
+          plan?: string | null
+          receipt_url?: string | null
+          statut?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "payment_history_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      v_cabinet_stats: {
+        Row: {
+          alertes_en_cours: number | null
+          alertes_total: number | null
+          cabinet_id: string | null
+          cabinet_nom: string | null
+          clients_actifs: number | null
+          clients_total: number | null
+          controles_total: number | null
+          nb_collaborateurs: number | null
+          nb_renforcee: number | null
+          nb_simplifiee: number | null
+          nb_standard: number | null
+          score_moyen: number | null
+        }
+        Insert: {
+          alertes_en_cours?: never
+          alertes_total?: never
+          cabinet_id?: string | null
+          cabinet_nom?: string | null
+          clients_actifs?: never
+          clients_total?: never
+          controles_total?: never
+          nb_collaborateurs?: never
+          nb_renforcee?: never
+          nb_simplifiee?: never
+          nb_standard?: never
+          score_moyen?: never
+        }
+        Update: {
+          alertes_en_cours?: never
+          alertes_total?: never
+          cabinet_id?: string | null
+          cabinet_nom?: string | null
+          clients_actifs?: never
+          clients_total?: never
+          controles_total?: never
+          nb_collaborateurs?: never
+          nb_renforcee?: never
+          nb_simplifiee?: never
+          nb_standard?: never
+          score_moyen?: never
+        }
+        Relationships: []
+      }
+      v_clients_decrypted: {
+        Row: {
+          adresse: string | null
+          ape: string | null
+          assigned_to: string | null
+          associe: string | null
+          atypique: string | null
+          be: string | null
+          bic_clear: string | null
+          bic_encrypted: string | null
+          cabinet_id: string | null
+          capital: number | null
+          cash: string | null
+          cni_clear: string | null
+          cni_encrypted: string | null
+          comptable: string | null
+          cp: string | null
+          created_at: string | null
+          date_butoir: string | null
+          date_creation: string | null
+          date_creation_ligne: string | null
+          date_derniere_revue: string | null
+          date_exp_cni: string | null
+          date_fin: string | null
+          date_reprise: string | null
+          dirigeant: string | null
+          distanciel: string | null
+          domaine: string | null
+          effectif: string | null
+          etat: string | null
+          etat_pilotage: string | null
+          forme: string | null
+          frequence: string | null
+          honoraires: number | null
+          iban_clear: string | null
+          iban_encrypted: string | null
+          id: string | null
+          juridique: number | null
+          mail: string | null
+          malus: number | null
+          mission: string | null
+          niv_vigilance: string | null
+          pays_risque: string | null
+          ppe: string | null
+          pression: string | null
+          raison_sociale: string | null
+          ref: string | null
+          reprise: number | null
+          score_activite: number | null
+          score_global: number | null
+          score_maturite: number | null
+          score_mission: number | null
+          score_pays: number | null
+          score_structure: number | null
+          search_vector: unknown
+          siren: string | null
+          statut: string | null
+          superviseur: string | null
+          tel: string | null
+          updated_at: string | null
+          ville: string | null
+        }
+        Insert: {
+          adresse?: string | null
+          ape?: string | null
+          assigned_to?: string | null
+          associe?: string | null
+          atypique?: string | null
+          be?: string | null
+          bic_clear?: never
+          bic_encrypted?: string | null
+          cabinet_id?: string | null
+          capital?: number | null
+          cash?: string | null
+          cni_clear?: never
+          cni_encrypted?: string | null
+          comptable?: string | null
+          cp?: string | null
+          created_at?: string | null
+          date_butoir?: string | null
+          date_creation?: string | null
+          date_creation_ligne?: string | null
+          date_derniere_revue?: string | null
+          date_exp_cni?: string | null
+          date_fin?: string | null
+          date_reprise?: string | null
+          dirigeant?: string | null
+          distanciel?: string | null
+          domaine?: string | null
+          effectif?: string | null
+          etat?: string | null
+          etat_pilotage?: string | null
+          forme?: string | null
+          frequence?: string | null
+          honoraires?: number | null
+          iban_clear?: never
+          iban_encrypted?: string | null
+          id?: string | null
+          juridique?: number | null
+          mail?: string | null
+          malus?: number | null
+          mission?: string | null
+          niv_vigilance?: string | null
+          pays_risque?: string | null
+          ppe?: string | null
+          pression?: string | null
+          raison_sociale?: string | null
+          ref?: string | null
+          reprise?: number | null
+          score_activite?: number | null
+          score_global?: number | null
+          score_maturite?: number | null
+          score_mission?: number | null
+          score_pays?: number | null
+          score_structure?: number | null
+          search_vector?: unknown
+          siren?: string | null
+          statut?: string | null
+          superviseur?: string | null
+          tel?: string | null
+          updated_at?: string | null
+          ville?: string | null
+        }
+        Update: {
+          adresse?: string | null
+          ape?: string | null
+          assigned_to?: string | null
+          associe?: string | null
+          atypique?: string | null
+          be?: string | null
+          bic_clear?: never
+          bic_encrypted?: string | null
+          cabinet_id?: string | null
+          capital?: number | null
+          cash?: string | null
+          cni_clear?: never
+          cni_encrypted?: string | null
+          comptable?: string | null
+          cp?: string | null
+          created_at?: string | null
+          date_butoir?: string | null
+          date_creation?: string | null
+          date_creation_ligne?: string | null
+          date_derniere_revue?: string | null
+          date_exp_cni?: string | null
+          date_fin?: string | null
+          date_reprise?: string | null
+          dirigeant?: string | null
+          distanciel?: string | null
+          domaine?: string | null
+          effectif?: string | null
+          etat?: string | null
+          etat_pilotage?: string | null
+          forme?: string | null
+          frequence?: string | null
+          honoraires?: number | null
+          iban_clear?: never
+          iban_encrypted?: string | null
+          id?: string | null
+          juridique?: number | null
+          mail?: string | null
+          malus?: number | null
+          mission?: string | null
+          niv_vigilance?: string | null
+          pays_risque?: string | null
+          ppe?: string | null
+          pression?: string | null
+          raison_sociale?: string | null
+          ref?: string | null
+          reprise?: number | null
+          score_activite?: number | null
+          score_global?: number | null
+          score_maturite?: number | null
+          score_mission?: number | null
+          score_pays?: number | null
+          score_structure?: number | null
+          search_vector?: unknown
+          siren?: string | null
+          statut?: string | null
+          superviseur?: string | null
+          tel?: string | null
+          updated_at?: string | null
+          ville?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "cabinets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clients_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_admin_overview"
+            referencedColumns: ["cabinet_id"]
+          },
+          {
+            foreignKeyName: "clients_cabinet_id_fkey"
+            columns: ["cabinet_id"]
+            isOneToOne: false
+            referencedRelation: "v_cabinet_stats"
+            referencedColumns: ["cabinet_id"]
+          },
+        ]
+      }
+      v_clients_export: {
+        Row: {
+          Adresse: string | null
+          "Associé signataire": string | null
+          Atypique: string | null
+          Capital: number | null
+          Cash: string | null
+          "Code APE": string | null
+          "Code postal": string | null
+          "Comptable assigné": string | null
+          "Date butoir revue": string | null
+          "Date création": string | null
+          "Date création ligne": string | null
+          Dirigeant: string | null
+          Distanciel: string | null
+          Domaine: string | null
+          Effectif: string | null
+          Email: string | null
+          "État pilotage": string | null
+          "Forme juridique": string | null
+          Fréquence: string | null
+          "Honoraires HT": number | null
+          Malus: number | null
+          Mission: string | null
+          "Pays risque": string | null
+          PPE: string | null
+          Pression: string | null
+          "Raison sociale": string | null
+          Référence: string | null
+          "Score activité": number | null
+          "Score global": number | null
+          "Score maturité": number | null
+          "Score mission": number | null
+          "Score pays": number | null
+          "Score structure": number | null
+          SIREN: string | null
+          Statut: string | null
+          Téléphone: string | null
+          Vigilance: string | null
+          Ville: string | null
+        }
+        Insert: {
+          Adresse?: string | null
+          "Associé signataire"?: string | null
+          Atypique?: string | null
+          Capital?: number | null
+          Cash?: string | null
+          "Code APE"?: string | null
+          "Code postal"?: string | null
+          "Comptable assigné"?: string | null
+          "Date butoir revue"?: string | null
+          "Date création"?: string | null
+          "Date création ligne"?: string | null
+          Dirigeant?: string | null
+          Distanciel?: string | null
+          Domaine?: string | null
+          Effectif?: string | null
+          Email?: string | null
+          "État pilotage"?: string | null
+          "Forme juridique"?: string | null
+          Fréquence?: string | null
+          "Honoraires HT"?: number | null
+          Malus?: number | null
+          Mission?: string | null
+          "Pays risque"?: string | null
+          PPE?: string | null
+          Pression?: string | null
+          "Raison sociale"?: string | null
+          Référence?: string | null
+          "Score activité"?: number | null
+          "Score global"?: number | null
+          "Score maturité"?: number | null
+          "Score mission"?: number | null
+          "Score pays"?: number | null
+          "Score structure"?: number | null
+          SIREN?: string | null
+          Statut?: string | null
+          Téléphone?: string | null
+          Vigilance?: string | null
+          Ville?: string | null
+        }
+        Update: {
+          Adresse?: string | null
+          "Associé signataire"?: string | null
+          Atypique?: string | null
+          Capital?: number | null
+          Cash?: string | null
+          "Code APE"?: string | null
+          "Code postal"?: string | null
+          "Comptable assigné"?: string | null
+          "Date butoir revue"?: string | null
+          "Date création"?: string | null
+          "Date création ligne"?: string | null
+          Dirigeant?: string | null
+          Distanciel?: string | null
+          Domaine?: string | null
+          Effectif?: string | null
+          Email?: string | null
+          "État pilotage"?: string | null
+          "Forme juridique"?: string | null
+          Fréquence?: string | null
+          "Honoraires HT"?: number | null
+          Malus?: number | null
+          Mission?: string | null
+          "Pays risque"?: string | null
+          PPE?: string | null
+          Pression?: string | null
+          "Raison sociale"?: string | null
+          Référence?: string | null
+          "Score activité"?: number | null
+          "Score global"?: number | null
+          "Score maturité"?: number | null
+          "Score mission"?: number | null
+          "Score pays"?: number | null
+          "Score structure"?: number | null
+          SIREN?: string | null
+          Statut?: string | null
+          Téléphone?: string | null
+          Vigilance?: string | null
+          Ville?: string | null
+        }
+        Relationships: []
+      }
+      v_registre_complet: {
+        Row: {
+          "Action prise": string | null
+          Catégorie: string | null
+          Client: string | null
+          Date: string | null
+          "Date butoir": string | null
+          Décision: string | null
+          Détails: string | null
+          Horodatage: string | null
+          Qualification: string | null
+          Responsable: string | null
+          Statut: string | null
+          Validateur: string | null
+        }
+        Insert: {
+          "Action prise"?: string | null
+          Catégorie?: string | null
+          Client?: string | null
+          Date?: string | null
+          "Date butoir"?: string | null
+          Décision?: string | null
+          Détails?: string | null
+          Horodatage?: string | null
+          Qualification?: string | null
+          Responsable?: string | null
+          Statut?: string | null
+          Validateur?: string | null
+        }
+        Update: {
+          "Action prise"?: string | null
+          Catégorie?: string | null
+          Client?: string | null
+          Date?: string | null
+          "Date butoir"?: string | null
+          Décision?: string | null
+          Détails?: string | null
+          Horodatage?: string | null
+          Qualification?: string | null
+          Responsable?: string | null
+          Statut?: string | null
+          Validateur?: string | null
+        }
+        Relationships: []
+      }
+    }
+    Functions: {
+      accept_invitation: {
+        Args: { p_token: string; p_user_id: string }
+        Returns: boolean
+      }
+      add_extra_seat: { Args: { p_cabinet_id: string }; Returns: Json }
+      apply_coupon: {
+        Args: {
+          p_cabinet_id: string
+          p_code: string
+          p_months?: number
+          p_percent: number
+        }
+        Returns: Json
+      }
+      apply_data_retention: { Args: never; Returns: Json }
+      can_add_client: { Args: { p_cabinet_id: string }; Returns: boolean }
+      can_add_seat: { Args: { p_cabinet_id: string }; Returns: boolean }
+      can_reactivate: { Args: { p_cabinet_id: string }; Returns: Json }
+      change_plan: {
+        Args: {
+          p_cabinet_id: string
+          p_new_plan: string
+          p_stripe_sub_id?: string
+        }
+        Returns: Json
+      }
+      check_user_access: { Args: { p_user_id: string }; Returns: Json }
+      cleanup_expired_cache: { Args: never; Returns: undefined }
+      cleanup_expired_invitations: { Args: never; Returns: number }
+      cleanup_inactive_sessions: { Args: never; Returns: number }
+      create_controller_access: {
+        Args: { p_days?: number; p_label: string }
+        Returns: Json
+      }
+      create_daily_snapshot: { Args: never; Returns: Json }
+      daily_full_maintenance: { Args: never; Returns: Json }
+      daily_subscription_maintenance: { Args: never; Returns: Json }
+      decrypt_sensitive: { Args: { p_encrypted: string }; Returns: string }
+      encrypt_sensitive: { Args: { p_data: string }; Returns: string }
+      export_cabinet_data: { Args: { p_cabinet_id: string }; Returns: Json }
+      force_disconnect: { Args: { p_user_id: string }; Returns: boolean }
+      generate_notifications: {
+        Args: { p_cabinet_id: string }
+        Returns: number
+      }
+      get_cabinet_usage: { Args: { p_cabinet_id: string }; Returns: Json }
+      get_monthly_stats: {
+        Args: { p_cabinet_id: string; p_months?: number }
+        Returns: Json
+      }
+      get_user_cabinet_id: { Args: never; Returns: string }
+      get_user_role: {
+        Args: never
+        Returns: Database["public"]["Enums"]["user_role"]
+      }
+      grant_grace_clients: {
+        Args: { p_cabinet_id: string; p_days?: number; p_extra: number }
+        Returns: Json
+      }
+      handle_payment_failed: { Args: { p_cabinet_id: string }; Returns: Json }
+      is_subscription_active: {
+        Args: { p_cabinet_id: string }
+        Returns: boolean
+      }
+      merge_cabinets: {
+        Args: { p_source_cabinet: string; p_target_cabinet: string }
+        Returns: Json
+      }
+      next_lm_ref: { Args: { p_user_id: string }; Returns: string }
+      offboard_collaborator: { Args: { p_user_id: string }; Returns: Json }
+      purge_cabinet: { Args: { p_cabinet_id: string }; Returns: Json }
+      reactivate_cabinet: {
+        Args: {
+          p_cabinet_id: string
+          p_plan?: string
+          p_stripe_sub_id?: string
+        }
+        Returns: Json
+      }
+      restore_snapshot: {
+        Args: { p_cabinet_id: string; p_date: string; p_table_name: string }
+        Returns: Json
+      }
+      revoke_invitation: { Args: { p_invitation_id: string }; Returns: boolean }
+      search_clients: {
+        Args: { p_cabinet_id: string; p_query: string }
+        Returns: {
+          adresse: string | null
+          ape: string | null
+          assigned_to: string | null
+          associe: string | null
+          atypique: string | null
+          be: string | null
+          bic_encrypted: string | null
+          cabinet_id: string
+          capital: number | null
+          cash: string | null
+          cni_encrypted: string | null
+          comptable: string
+          cp: string | null
+          created_at: string
+          date_butoir: string | null
+          date_creation: string | null
+          date_creation_ligne: string | null
+          date_derniere_revue: string | null
+          date_exp_cni: string | null
+          date_fin: string | null
+          date_reprise: string | null
+          dirigeant: string | null
+          distanciel: string | null
+          domaine: string | null
+          effectif: string | null
+          etat: string
+          etat_pilotage: string | null
+          forme: string
+          frequence: string | null
+          honoraires: number | null
+          iban_encrypted: string | null
+          id: string
+          juridique: number | null
+          mail: string | null
+          malus: number | null
+          mission: string
+          niv_vigilance: string | null
+          pays_risque: string | null
+          ppe: string | null
+          pression: string | null
+          raison_sociale: string
+          ref: string
+          reprise: number | null
+          score_activite: number | null
+          score_global: number | null
+          score_maturite: number | null
+          score_mission: number | null
+          score_pays: number | null
+          score_structure: number | null
+          search_vector: unknown
+          siren: string | null
+          statut: string | null
+          superviseur: string | null
+          tel: string | null
+          updated_at: string
+          ville: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "clients"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      suspend_cabinet: {
+        Args: { p_cabinet_id: string; p_reason?: string }
+        Returns: Json
+      }
+      suspend_expired_trials: { Args: never; Returns: number }
+      transfer_admin: { Args: { p_new_admin_id: string }; Returns: Json }
+      validate_controller_token: { Args: { p_token: string }; Returns: Json }
+    }
+    Enums: {
+      user_role: "ADMIN" | "SUPERVISEUR" | "COLLABORATEUR" | "STAGIAIRE"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      user_role: ["ADMIN", "SUPERVISEUR", "COLLABORATEUR", "STAGIAIRE"],
+    },
+  },
+} as const
+
