@@ -6,7 +6,9 @@
 export function formatDateFR(dateStr: string | null | undefined): string {
   if (!dateStr) return "\u2014";
   try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("fr-FR", {
       day: "2-digit",
       month: "short",
       year: "numeric",
@@ -17,8 +19,11 @@ export function formatDateFR(dateStr: string | null | undefined): string {
 }
 
 export function formatDateTimeFR(dateStr: string): string {
+  if (!dateStr) return "\u2014";
   try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString("fr-FR", {
       day: "2-digit",
       month: "long",
       year: "numeric",
@@ -31,7 +36,8 @@ export function formatDateTimeFR(dateStr: string): string {
 }
 
 export function timeAgo(dateStr: string): string {
-  const date = new Date(dateStr.includes("T") ? dateStr : dateStr.replace(" ", "T"));
+  if (!dateStr) return "";
+  const date = new Date(dateStr.includes("T") ? dateStr : dateStr.replace(/\s/, "T"));
   if (isNaN(date.getTime())) return dateStr;
   const diffMs = Date.now() - date.getTime();
   const minutes = Math.floor(diffMs / 60000);

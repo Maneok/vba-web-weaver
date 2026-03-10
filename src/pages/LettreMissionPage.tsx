@@ -73,14 +73,15 @@ function LetterHistory({
     // Filter by periode
     if (filterPeriode !== "all") {
       const now = new Date();
+      const safeDate = (s: string) => { const d = new Date(s); return isNaN(d.getTime()) ? null : d; };
       if (filterPeriode === "7j") {
         const d = new Date(); d.setDate(d.getDate() - 7);
-        result = result.filter((l) => new Date(l.updated_at) >= d);
+        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt >= d : false; });
       } else if (filterPeriode === "30j") {
         const d = new Date(); d.setDate(d.getDate() - 30);
-        result = result.filter((l) => new Date(l.updated_at) >= d);
+        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt >= d : false; });
       } else if (filterPeriode === "annee") {
-        result = result.filter((l) => new Date(l.updated_at).getFullYear() === now.getFullYear());
+        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt.getFullYear() === now.getFullYear() : false; });
       }
     }
 

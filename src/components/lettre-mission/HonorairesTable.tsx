@@ -29,7 +29,8 @@ export default function HonorairesTable({
   missions,
 }: HonorairesTableProps) {
   const montantPeriodique = useMemo(() => {
-    const raw = values.frequence === "mensuel" ? values.honoraires / 12 : values.honoraires / 4;
+    const safeHonoraires = Math.max(0, values.honoraires || 0);
+    const raw = values.frequence === "mensuel" ? safeHonoraires / 12 : safeHonoraires / 4;
     return Math.round(raw * 100) / 100;
   }, [values.honoraires, values.frequence]);
 

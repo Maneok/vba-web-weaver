@@ -269,17 +269,19 @@ export default function NouveauClientPage() {
   const restoreDraft = useCallback((draft: string) => {
     try {
       const data = JSON.parse(draft);
-      if (data.form?.siren) {
-        setForm(data.form);
-        setStep(data.step || 0);
-        if (data.beneficiaires) setBeneficiaires(data.beneficiaires);
-        if (data.questions) setQuestions(data.questions);
-        if (data.decision) setDecision(data.decision);
-        if (data.motifRefus) setMotifRefus(data.motifRefus);
-        if (data.motifReserve) setMotifReserve(data.motifReserve);
-        setDraftBanner({ restoredAt: new Date(data.savedAt || Date.now()) });
-      }
-    } catch {}
+      // Validate draft structure before restoring
+      if (!data || typeof data !== "object" || !data.form || typeof data.form !== "object" || !data.form.siren) return;
+      setForm(data.form);
+      setStep(typeof data.step === "number" && data.step >= 0 && data.step <= 4 ? data.step : 0);
+      if (Array.isArray(data.beneficiaires)) setBeneficiaires(data.beneficiaires);
+      if (data.questions && typeof data.questions === "object") setQuestions(data.questions);
+      if (typeof data.decision === "string") setDecision(data.decision);
+      if (typeof data.motifRefus === "string") setMotifRefus(data.motifRefus);
+      if (typeof data.motifReserve === "string") setMotifReserve(data.motifReserve);
+      setDraftBanner({ restoredAt: new Date(data.savedAt || Date.now()) });
+    } catch (err) {
+      logger.warn("NouveauClient", "Failed to restore draft:", err);
+    }
   }, []);
 
   // On mount: silently restore draft if exists

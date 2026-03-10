@@ -38,7 +38,7 @@ export function incrementCounter(): string {
   const current = getStoredCounter();
   const year = new Date().getFullYear();
   const count = current.year === year ? current.count + 1 : 1;
-  try { sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count })); } catch { /* storage full */ }
+  try { sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count })); } catch (err) { logger.warn("LM", "Failed to save counter:", err); }
   return `LM-${year}-${String(count).padStart(3, "0")}`;
 }
 

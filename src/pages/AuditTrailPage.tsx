@@ -59,7 +59,7 @@ function exportAuditCSV(entries: AuditRow[]) {
     e.action,
     e.table_name || "",
     e.record_id || "",
-    e.new_data ? JSON.stringify(e.new_data).slice(0, 500) : "",
+    e.new_data ? JSON.stringify(e.new_data).slice(0, 2000) : "",
   ]);
   downloadCSV(headers, rows, `audit-trail-${new Date().toISOString().split("T")[0]}.csv`);
 }

@@ -205,7 +205,7 @@ export default function OnboardingWizard() {
               </div>
             </div>
 
-            <Button onClick={handleSaveCabinet} disabled={savingCabinet} className="w-full">
+            <Button onClick={handleSaveCabinet} disabled={savingCabinet || !cabinetNom.trim()} className="w-full">
               {savingCabinet ? "Enregistrement..." : "Continuer"}
               <ArrowRight className="w-4 h-4 ml-2" />
             </Button>

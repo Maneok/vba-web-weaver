@@ -100,8 +100,15 @@ export default function AdminUsersPage() {
       setInviteName("");
       setInviteRole("COLLABORATEUR");
 
-      // Reload after trigger creates profile (with retry)
-      inviteTimerRef.current = setTimeout(loadUsers, 2000);
+      // Reload after trigger creates profile (with exponential backoff)
+      const tryReload = (attempt: number) => {
+        inviteTimerRef.current = setTimeout(async () => {
+          await loadUsers();
+          // If user not found yet and we haven't exceeded retries, try again
+          if (attempt < 3) tryReload(attempt + 1);
+        }, 2000 * Math.pow(2, attempt));
+      };
+      tryReload(0);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur lors de l'invitation";
       toast.error(message);

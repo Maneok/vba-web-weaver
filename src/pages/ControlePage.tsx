@@ -768,8 +768,12 @@ export default function ControlePage() {
   };
 
   const handleExportSinglePDF = (c: ControleQualite) => {
-    generateSingleControlePdf(c);
-    toast.success("Fiche de controle generee (PDF)");
+    try {
+      generateSingleControlePdf(c);
+      toast.success("Fiche de controle generee (PDF)");
+    } catch {
+      toast.error("Erreur lors de la generation de la fiche PDF");
+    }
   };
 
   // BUG FIX #9: handleCloseForm properly handles Dialog's boolean param

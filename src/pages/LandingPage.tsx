@@ -1140,6 +1140,14 @@ export default function LandingPage() {
 
   useDocumentTitle("GRIMY | Conformite LCB-FT");
 
+  /* SEO — meta description */
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="description"]') || document.createElement('meta');
+    meta.setAttribute('name', 'description');
+    meta.setAttribute('content', 'GRIMY - Plateforme de conformité LCB-FT pour professionnels assujettis. Gestion KYC, scoring de risque, lettres de mission.');
+    if (!meta.parentElement) document.head.appendChild(meta);
+  }, []);
+
   /* #11 — Scroll lock (mobile menu OR legal modal) */
   useEffect(() => {
     document.body.style.overflow = (mobileMenu || legalModal) ? "hidden" : "";

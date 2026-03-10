@@ -82,6 +82,7 @@ function getExpirationStatus(expirationDate: string | null): { label: string; va
 }
 
 function formatFileSize(bytes: number): string {
+  if (!bytes || isNaN(bytes) || bytes < 0) return "0 o";
   if (bytes < 1024) return `${bytes} o`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;

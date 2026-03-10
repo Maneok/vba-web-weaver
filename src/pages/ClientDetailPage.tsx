@@ -492,12 +492,13 @@ function ClientDetailContent({ client }: { client: Client }) {
               </div>
             )}
 
-            {client.be ? (
+            {client.be && client.be.trim() ? (
               <div className="space-y-2">
                 {(() => {
                   let entries: Array<{ nom: string; prenom?: string }> = [];
                   try { entries = JSON.parse(client.be); } catch { entries = client.be.split(",").map(s => ({ nom: s.trim() })); }
                   if (!Array.isArray(entries)) entries = [{ nom: String(entries) }];
+                  entries = entries.filter(e => e.nom && e.nom.trim() !== "");
                   return entries;
                 })().map((b) => (
                   <div key={b.nom} className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">

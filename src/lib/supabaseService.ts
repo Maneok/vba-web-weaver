@@ -57,6 +57,8 @@ async function getCabinetId(): Promise<string | null> {
     return _cachedCabinetId;
   } catch (e) {
     logger.error("DB", "getCabinetId exception:", e);
+    _cachedCabinetId = null;
+    _cachedUserId = null;
     return null;
   }
 }

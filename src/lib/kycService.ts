@@ -407,17 +407,17 @@ export function detectAmlSignals(
   if (dateCreation) {
     const created = new Date(dateCreation);
     if (!isNaN(created.getTime())) {
-    const now = new Date();
-    let diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
-    if (now.getDate() < created.getDate()) diffMonths--;
-    if (diffMonths < 12 && diffMonths >= 0) {
-      signals.push({
-        type: "societe_recente",
-        message: `Societe creee il y a ${diffMonths} mois (< 1 an) — maturite tres faible`,
-        severity: "orange",
-        malus: 10,
-      });
-    }
+      const now = new Date();
+      let diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+      if (now.getDate() < created.getDate()) diffMonths--;
+      if (diffMonths < 12 && diffMonths >= 0) {
+        signals.push({
+          type: "societe_recente",
+          message: `Societe creee il y a ${diffMonths} mois (< 1 an) — maturite tres faible`,
+          severity: "orange",
+          malus: 10,
+        });
+      }
     }
   }
 
