@@ -22,9 +22,14 @@ export type FormeJuridique =
   | "SCI"
   | "SCP"
   | "SELAS"
+  | "SELARL"
   | "EARL"
   | "SA"
+  | "SNC"
   | "ASSOCIATION"
+  | "TRUST"
+  | "FIDUCIE"
+  | "FONDATION"
   | string;
 
 export interface Client {

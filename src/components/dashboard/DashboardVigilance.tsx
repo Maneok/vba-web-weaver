@@ -13,7 +13,7 @@ interface DashboardVigilanceProps {
 
 export function DashboardVigilance({ complianceItems, isLoading }: DashboardVigilanceProps) {
   return (
-    <div className="mb-8" role="region" aria-label="Jauges de conformite">
+    <div className="mb-8 print:break-inside-avoid" role="region" aria-label="Jauges de conformité">
       <ComplianceGauge items={complianceItems} loading={isLoading} />
     </div>
   );

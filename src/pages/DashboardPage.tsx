@@ -10,12 +10,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Bell, RefreshCw, Settings,
+  Bell, RefreshCw, Settings, Loader2, Eye, EyeOff,
 } from "lucide-react";
 
 import OnboardingWizard, { isOnboardingComplete } from "@/components/OnboardingWizard";
@@ -41,7 +42,6 @@ function formatDateLong(): string {
   });
 }
 
-// Generate sparkline data from clients (deterministic linear interpolation)
 function generateSparkline(current: number): { v: number }[] {
   const base = Math.max(1, current - 5);
   return Array.from({ length: 7 }, (_, i) => ({ v: Math.max(0, base + Math.round((current - base) * (i / 6))) }));
@@ -71,22 +71,31 @@ function loadWidgetVisibility(): WidgetVisibility {
     const stored = localStorage.getItem(WIDGET_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      return { ...DEFAULT_WIDGETS, ...parsed };
+      // Validate each key is a boolean, fallback to default
+      const result: WidgetVisibility = { ...DEFAULT_WIDGETS };
+      for (const key of Object.keys(DEFAULT_WIDGETS) as (keyof WidgetVisibility)[]) {
+        if (typeof parsed[key] === "boolean") {
+          result[key] = parsed[key];
+        }
+      }
+      return result;
     }
-  } catch { /* ignore */ }
+  } catch { /* ignore corrupted data */ }
   return { ...DEFAULT_WIDGETS };
 }
 
 function saveWidgetVisibility(v: WidgetVisibility) {
-  localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(v));
+  try {
+    localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(v));
+  } catch { /* quota exceeded, ignore */ }
 }
 
-const WIDGET_LABELS: { key: keyof WidgetVisibility; label: string }[] = [
-  { key: "kpi", label: "Indicateurs KPI" },
-  { key: "graphique", label: "Graphiques de suivi" },
-  { key: "alertes", label: "Alertes et echeances" },
-  { key: "activite", label: "Fil d'activite" },
-  { key: "repartition", label: "Jauges de conformite" },
+const WIDGET_LABELS: { key: keyof WidgetVisibility; label: string; description: string }[] = [
+  { key: "kpi", label: "Indicateurs KPI", description: "Clients, score, conformité, alertes, revues, CA" },
+  { key: "graphique", label: "Graphiques de suivi", description: "Évolution mensuelle et répartition vigilance" },
+  { key: "alertes", label: "Alertes et échéances", description: "Alertes récentes et prochaines échéances" },
+  { key: "activite", label: "Fil d'activité", description: "Dernières actions effectuées" },
+  { key: "repartition", label: "Jauges de conformité", description: "Indicateurs de conformité détaillés" },
 ];
 
 // ── Main Dashboard ──────────────────────────────────────────
@@ -96,12 +105,14 @@ export default function DashboardPage() {
   const navigate = useNavigate();
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
   const [widgets, setWidgets] = useState<WidgetVisibility>(loadWidgetVisibility);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
   const refreshAllRef = useRef(refreshAll);
   refreshAllRef.current = refreshAll;
   const mountedRef = useRef(true);
+  const lastManualRefresh = useRef(0);
 
   const greeting = useMemo(() => new Date().getHours() < 18 ? "Bonjour" : "Bonsoir", []);
 
@@ -115,6 +126,22 @@ export default function DashboardPage() {
     });
   };
 
+  const setAllWidgets = (visible: boolean) => {
+    const next: WidgetVisibility = {
+      kpi: visible,
+      graphique: visible,
+      alertes: visible,
+      activite: visible,
+      repartition: visible,
+    };
+    setWidgets(next);
+    saveWidgetVisibility(next);
+  };
+
+  const hiddenCount = Object.values(widgets).filter(v => !v).length;
+  const allVisible = hiddenCount === 0;
+  const allHidden = hiddenCount === 5;
+
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -124,7 +151,8 @@ export default function DashboardPage() {
 
       switch (e.key) {
         case "n": e.preventDefault(); navigate("/nouveau-client"); break;
-        case "a": e.preventDefault(); navigate("/registre"); break;
+        // Use Shift+A to avoid conflict with native Ctrl+A (select all)
+        case "A": if (e.shiftKey) { e.preventDefault(); navigate("/registre"); } break;
       }
     }
     window.addEventListener("keydown", handleKey);
@@ -136,7 +164,9 @@ export default function DashboardPage() {
     mountedRef.current = true;
     const doRefresh = () => {
       if (document.hidden) return;
-      refreshAllRef.current().then(() => { if (mountedRef.current) setLastRefresh(new Date()); }).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
+      refreshAllRef.current()
+        .then(() => { if (mountedRef.current) setLastRefresh(new Date()); })
+        .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
     };
     refreshTimer.current = setInterval(doRefresh, 60000);
     const handleVisibility = () => { if (!document.hidden) doRefresh(); };
@@ -188,7 +218,10 @@ export default function DashboardPage() {
     const now = new Date();
     const revuesEchues = clients.filter(c => {
       if (!c.dateButoir) return false;
-      try { return new Date(c.dateButoir) < now; } catch { return false; }
+      try {
+        const d = new Date(c.dateButoir);
+        return !isNaN(d.getTime()) && d < now;
+      } catch { return false; }
     }).length;
 
     const caPrevisionnel = actifs.reduce((s, c) => s + (c.honoraires || 0), 0);
@@ -222,9 +255,9 @@ export default function DashboardPage() {
     caPrevisionnel: generateSparkline(stats.caPrevisionnel / 1000),
   }), [stats]);
 
-  // ── Monthly chart data (computed from clients) ────────────
+  // ── Monthly chart data ────────────────────────────────────
   const monthlyData = useMemo(() => {
-    const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
+    const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
     const now = new Date();
     const result = [];
 
@@ -235,7 +268,10 @@ export default function DashboardPage() {
       const beforeDate = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       const filtered = clients.filter(c => {
         if (!c.dateCreationLigne) return true;
-        try { return new Date(c.dateCreationLigne) <= beforeDate; } catch { return true; }
+        try {
+          const cd = new Date(c.dateCreationLigne);
+          return !isNaN(cd.getTime()) && cd <= beforeDate;
+        } catch { return true; }
       });
 
       result.push({
@@ -257,23 +293,25 @@ export default function DashboardPage() {
       if (!c.dateButoir) return;
       try {
         const d = new Date(c.dateButoir);
+        if (isNaN(d.getTime())) return;
         const diff = (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
         if (diff < 60) {
           items.push({
             id: `revue-${c.ref}`,
-            title: `Revue ${c.raisonSociale}`,
+            title: `Revue ${c.raisonSociale || c.ref}`,
             date: c.dateButoir,
             type: "revue",
             clientRef: c.ref,
           });
         }
-      } catch { /* skip */ }
+      } catch { /* skip invalid dates */ }
     });
 
     collaborateurs.forEach(col => {
       if (!col.derniereFormation) return;
       try {
         const lastF = new Date(col.derniereFormation);
+        if (isNaN(lastF.getTime())) return;
         const nextF = new Date(lastF);
         nextF.setFullYear(nextF.getFullYear() + 1);
         const diff = (nextF.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
@@ -285,11 +323,11 @@ export default function DashboardPage() {
             type: "formation",
           });
         }
-      } catch { /* skip */ }
+      } catch { /* skip invalid dates */ }
     });
 
     items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    return items.slice(0, 5);
+    return items.slice(0, 8);
   }, [clients, collaborateurs]);
 
   // ── Compliance gauge items ────────────────────────────────
@@ -299,7 +337,7 @@ export default function DashboardPage() {
 
     const withScreening = actifs.filter(c => c.siren && c.dirigeant).length;
     const withDocs = actifs.filter(c => c.lienCni).length;
-    const withLM = actifs.filter(c => c.honoraires > 0).length;
+    const withLM = actifs.filter(c => (c.honoraires || 0) > 0).length;
 
     const collabTotal = collaborateurs.length || 1;
     const now = new Date();
@@ -307,29 +345,42 @@ export default function DashboardPage() {
       if (!col.derniereFormation) return false;
       try {
         const d = new Date(col.derniereFormation);
+        if (isNaN(d.getTime())) return false;
         return (now.getTime() - d.getTime()) / (1000 * 60 * 60 * 24 * 365) < 1;
       } catch { return false; }
     }).length;
 
+    // Compute contrôle qualité from actual data if available
+    const controleValue = 0; // TODO: wire up from controles_qualite table
+
     return [
       { label: "Identification clients", value: Math.round((withScreening / total) * 100), description: "Screening complet (SIREN + dirigeant)" },
-      { label: "Documents KYC", value: Math.round((withDocs / total) * 100), description: "CNI / piece d'identite renseignee" },
-      { label: "Lettres de mission", value: Math.round((withLM / total) * 100), description: "LM signees vs clients actifs" },
+      { label: "Documents KYC", value: Math.round((withDocs / total) * 100), description: "CNI / pièce d'identité renseignée" },
+      { label: "Lettres de mission", value: Math.round((withLM / total) * 100), description: "LM signées vs clients actifs" },
       { label: "Formation collaborateurs", value: Math.round((trained / collabTotal) * 100), description: "Formations < 12 mois" },
-      { label: "Controle qualite", value: 0, description: "Controles realises vs attendus" },
+      { label: "Contrôle qualité", value: controleValue, description: "Contrôles réalisés vs attendus" },
     ];
   }, [clients, collaborateurs]);
 
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
 
   const handleRefresh = useCallback(() => {
-    refreshAll().then(() => { if (mountedRef.current) setLastRefresh(new Date()); }).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
+    // Debounce: prevent spam clicking (min 3s between refreshes)
+    const now = Date.now();
+    if (now - lastManualRefresh.current < 3000) return;
+    lastManualRefresh.current = now;
+
+    setIsRefreshing(true);
+    refreshAll()
+      .then(() => { if (mountedRef.current) setLastRefresh(new Date()); })
+      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err))
+      .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
   }, [refreshAll]);
 
   const showOnboarding = !isLoading && clients.length === 0 && !isOnboardingComplete();
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in-up print:bg-white print:text-black" role="main" aria-label="Tableau de bord">
+    <div className="p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in-up print:bg-white print:text-black print:p-4" role="main" aria-label="Tableau de bord">
       {/* ── ONBOARDING WIZARD ──────────────────────────────── */}
       {showOnboarding && <OnboardingWizard />}
 
@@ -342,12 +393,12 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground capitalize mt-1">{formatDateLong()}</p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 print:hidden">
           <QuickActionsBar notificationCount={notificationCount} />
 
           {/* Notification bell */}
           <button
-            className="relative w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors print:hidden"
+            className="relative w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors"
             onClick={() => navigate("/registre")}
             title="Notifications"
             aria-label={`Notifications${notificationCount > 0 ? ` (${notificationCount} non lues)` : ""}`}
@@ -366,41 +417,107 @@ export default function DashboardPage() {
               <Button
                 size="sm"
                 variant="ghost"
-                className="h-9 w-9 p-0 print:hidden"
+                className="h-9 gap-1.5 px-2.5"
                 title="Personnaliser le tableau de bord"
                 aria-label="Personnaliser le tableau de bord"
               >
                 <Settings className="w-4 h-4" />
+                <span className="hidden sm:inline text-xs">Personnaliser</span>
+                {hiddenCount > 0 && (
+                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                    {hiddenCount}
+                  </span>
+                )}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Personnaliser le tableau de bord</DialogTitle>
+                <DialogDescription>
+                  Choisissez les widgets à afficher. Vos préférences sont sauvegardées automatiquement.
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 py-4">
-                <p className="text-sm text-muted-foreground">
-                  Choisissez les widgets a afficher sur votre tableau de bord.
-                </p>
-                {WIDGET_LABELS.map(({ key, label }) => (
-                  <div key={key} className="flex items-center gap-3">
+              <div className="space-y-3 py-2">
+                {WIDGET_LABELS.map(({ key, label, description }) => (
+                  <div
+                    key={key}
+                    className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => toggleWidget(key)}
+                  >
                     <Checkbox
                       id={`widget-${key}`}
                       checked={widgets[key]}
                       onCheckedChange={() => toggleWidget(key)}
+                      className="mt-0.5"
+                      aria-describedby={`widget-desc-${key}`}
                     />
-                    <label
-                      htmlFor={`widget-${key}`}
-                      className="text-sm font-medium cursor-pointer select-none"
-                    >
-                      {label}
-                    </label>
+                    <div className="flex-1">
+                      <label
+                        htmlFor={`widget-${key}`}
+                        className="text-sm font-medium cursor-pointer select-none block"
+                      >
+                        {label}
+                      </label>
+                      <span id={`widget-desc-${key}`} className="text-xs text-muted-foreground">
+                        {description}
+                      </span>
+                    </div>
                   </div>
                 ))}
+              </div>
+              <div className="flex gap-2 pt-2 border-t border-border">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs gap-1.5"
+                  onClick={() => setAllWidgets(true)}
+                  disabled={allVisible}
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  Tout afficher
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 text-xs gap-1.5"
+                  onClick={() => setAllWidgets(false)}
+                  disabled={allHidden}
+                >
+                  <EyeOff className="w-3.5 h-3.5" />
+                  Tout masquer
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
       </div>
+
+      {/* ── Hidden widgets notice ─────────────────────────── */}
+      {hiddenCount > 0 && !isLoading && (
+        <div className="mb-4 text-center print:hidden">
+          <p className="text-xs text-muted-foreground">
+            {hiddenCount} widget{hiddenCount > 1 ? "s" : ""} masqué{hiddenCount > 1 ? "s" : ""} —{" "}
+            <button
+              className="text-primary hover:underline"
+              onClick={() => setAllWidgets(true)}
+            >
+              tout afficher
+            </button>
+          </p>
+        </div>
+      )}
+
+      {/* ── All hidden state ──────────────────────────────── */}
+      {allHidden && !isLoading && (
+        <div className="text-center py-16 print:hidden">
+          <EyeOff className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
+          <p className="text-muted-foreground mb-2">Tous les widgets sont masqués</p>
+          <Button size="sm" variant="outline" onClick={() => setAllWidgets(true)}>
+            <Eye className="w-4 h-4 mr-2" />
+            Tout afficher
+          </Button>
+        </div>
+      )}
 
       {/* ── SECTION 1: KPI Cards ───────────────────────────── */}
       {widgets.kpi && (
@@ -435,14 +552,19 @@ export default function DashboardPage() {
 
       {/* ── Footer: Last update ────────────────────────────── */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-4 pb-6 border-t border-white/[0.04] print:hidden">
-        <span>Derniere mise a jour : {formatTime(lastRefresh)}</span>
+        <span>Dernière mise à jour : {formatTime(lastRefresh)}</span>
         <button
-          className="hover:text-foreground transition-colors"
+          className="hover:text-foreground transition-colors disabled:opacity-50"
           onClick={handleRefresh}
-          title="Rafraichir"
-          aria-label="Rafraichir les donnees du tableau de bord"
+          disabled={isRefreshing}
+          title="Rafraîchir les données"
+          aria-label="Rafraîchir les données du tableau de bord"
         >
-          <RefreshCw className="w-3.5 h-3.5" />
+          {isRefreshing ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <RefreshCw className="w-3.5 h-3.5" />
+          )}
         </button>
       </div>
 

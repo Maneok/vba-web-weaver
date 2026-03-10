@@ -2,6 +2,17 @@ import type { Client, Collaborateur, AlerteRegistre, LogEntry, ControleQualite }
 
 // ===== DB row (snake_case) → Frontend (camelCase) =====
 
+const VALID_ETATS = ["PROSPECT", "EN COURS", "VALIDE", "REFUSE", "ARCHIVE"] as const;
+const VALID_VIGILANCE = ["SIMPLIFIEE", "STANDARD", "RENFORCEE"] as const;
+const VALID_STATUTS = ["ACTIF", "RETARD", "INACTIF"] as const;
+const VALID_OUI_NON = ["OUI", "NON"] as const;
+
+/** Safely coerce a DB value to an allowed enum value */
+function enumStr<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
+  const s = value == null ? "" : String(value);
+  return (allowed as readonly string[]).includes(s) ? (s as T) : fallback;
+}
+
 /** Safely coerce a DB value to string, handling null/undefined */
 function str(value: unknown, fallback = ""): string {
   if (value == null) return fallback;
@@ -25,7 +36,7 @@ function numOrNull(v: unknown): number | null {
 export function mapDbClient(row: Record<string, unknown>): Client {
   return {
     ref: str(row.ref),
-    etat: (str(row.etat, "VALIDE")) as Client["etat"],
+    etat: enumStr(row.etat, VALID_ETATS, "VALIDE"),
     comptable: str(row.comptable),
     mission: (str(row.mission, "TENUE COMPTABLE")) as Client["mission"],
     raisonSociale: str(row.raison_sociale),
@@ -51,12 +62,12 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     bic: str(row.bic_encrypted),
     associe: str(row.associe),
     superviseur: str(row.superviseur),
-    ppe: (str(row.ppe, "NON")) as "OUI" | "NON",
-    paysRisque: (str(row.pays_risque, "NON")) as "OUI" | "NON",
-    atypique: (str(row.atypique, "NON")) as "OUI" | "NON",
-    distanciel: (str(row.distanciel, "NON")) as "OUI" | "NON",
-    cash: (str(row.cash, "NON")) as "OUI" | "NON",
-    pression: (str(row.pression, "NON")) as "OUI" | "NON",
+    ppe: enumStr(row.ppe, VALID_OUI_NON, "NON"),
+    paysRisque: enumStr(row.pays_risque, VALID_OUI_NON, "NON"),
+    atypique: enumStr(row.atypique, VALID_OUI_NON, "NON"),
+    distanciel: enumStr(row.distanciel, VALID_OUI_NON, "NON"),
+    cash: enumStr(row.cash, VALID_OUI_NON, "NON"),
+    pression: enumStr(row.pression, VALID_OUI_NON, "NON"),
     scoreActivite: num(row.score_activite),
     scorePays: num(row.score_pays),
     scoreMission: num(row.score_mission),
@@ -64,13 +75,13 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     scoreStructure: num(row.score_structure),
     malus: num(row.malus),
     scoreGlobal: num(row.score_global),
-    nivVigilance: (str(row.niv_vigilance, "SIMPLIFIEE")) as Client["nivVigilance"],
+    nivVigilance: enumStr(row.niv_vigilance, VALID_VIGILANCE, "SIMPLIFIEE"),
     dateCreationLigne: str(row.date_creation_ligne),
     dateDerniereRevue: str(row.date_derniere_revue),
     dateButoir: str(row.date_butoir),
     etatPilotage: (str(row.etat_pilotage, "A JOUR")) as Client["etatPilotage"],
     dateExpCni: str(row.date_exp_cni),
-    statut: (str(row.statut, "ACTIF")) as Client["statut"],
+    statut: enumStr(row.statut, VALID_STATUTS, "ACTIF"),
     be: str(row.be),
     dateFin: row.date_fin != null ? String(row.date_fin) : undefined,
     lienKbis: str(row.lien_kbis),

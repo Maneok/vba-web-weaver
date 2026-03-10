@@ -7,8 +7,15 @@ export function validateIBAN(iban: string): { valid: boolean; bankName?: string;
   const clean = trimmed.replace(/\s/g, "").toUpperCase();
   if (clean.length < 15 || clean.length > 34) return { valid: false, error: "Longueur IBAN invalide (15-34 caractères)" };
   if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(clean)) return { valid: false, error: "Format IBAN invalide" };
-  // French-specific length check
-  if (clean.startsWith("FR") && clean.length !== 27) return { valid: false, error: "IBAN français = 27 caractères" };
+  // Country-specific length checks
+  const IBAN_LENGTHS: Record<string, number> = {
+    FR: 27, DE: 22, ES: 24, IT: 27, BE: 16, LU: 20, CH: 21, GB: 22, NL: 18, PT: 25, AT: 20, IE: 22,
+  };
+  const countryCode = clean.slice(0, 2);
+  const expectedLen = IBAN_LENGTHS[countryCode];
+  if (expectedLen && clean.length !== expectedLen) {
+    return { valid: false, error: `IBAN ${countryCode} = ${expectedLen} caractères (reçu ${clean.length})` };
+  }
 
   // Vérification modulo 97 (chunk-safe to avoid integer overflow on long IBANs)
   const rearranged = clean.slice(4) + clean.slice(0, 4);

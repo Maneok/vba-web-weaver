@@ -37,7 +37,7 @@ export const clientSchema = z.object({
     .optional(),
   tel: z
     .string()
-    .regex(/^[\d\s+()-]{10,20}$/, "Le numero de telephone est invalide")
+    .regex(/^(?:(?:\+33|0)\s*[1-9](?:[\s.-]*\d{2}){4}|[\d\s+()-]{10,20})$/, "Le numero de telephone est invalide")
     .or(z.literal(""))
     .optional(),
 });
@@ -84,6 +84,31 @@ export function validateEmail(email: string): string | null {
   if (!email || email.trim() === "") return null; // empty is valid (not required)
   const result = emailSchema.safeParse(email);
   return result.success ? null : result.error.errors[0]?.message ?? "Adresse email invalide";
+}
+
+/** Validate SIREN using Luhn algorithm */
+export function validateSiren(siren: string): boolean {
+  const clean = siren.replace(/\s/g, "");
+  if (!/^\d{9}$/.test(clean)) return false;
+  // Luhn check
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let digit = parseInt(clean[i], 10);
+    if (i % 2 === 1) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  return sum % 10 === 0;
+}
+
+/** Validate French postal code */
+export function validateCodePostal(cp: string): boolean {
+  if (!/^\d{5}$/.test(cp)) return false;
+  const dept = parseInt(cp.slice(0, 2), 10);
+  // Valid French departments: 01-95, 2A/2B (20), 97x (DOM), 98x (TOM)
+  return (dept >= 1 && dept <= 95) || dept === 97 || dept === 98;
 }
 
 export type ClientFormData = z.infer<typeof clientSchema>;

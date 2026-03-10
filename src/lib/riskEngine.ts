@@ -32,6 +32,7 @@ export function calculateDateButoir(nivVigilance: VigilanceLevel): string {
 
 // ====== ADDRESS NORMALIZATION (Idée 17) ======
 export function normalizeAddress(addr: string): string {
+  if (!addr || typeof addr !== "string") return "";
   return addr
     .toUpperCase()
     .replace(/[,;.]/g, " ")
@@ -90,6 +91,7 @@ export const PAYS_RISQUE: string[] = [
 
 // ====== STRUCTURE SCORING ======
 function scoreStructure(forme: string): number {
+  if (!forme || typeof forme !== "string") return 20; // default fallback
   const f = forme.toUpperCase().trim();
   if (["ENTREPRISE INDIVIDUELLE", "SNC", "ARTISAN"].some(k => f.includes(k))) return 0;
   if (f.includes("EARL")) return 0;
@@ -115,7 +117,7 @@ function scoreMaturite(
   // P5-10: Guard against invalid/missing date — treat as recent creation (higher risk)
   if (!dateCreation || isNaN(creation.getTime())) return 65;
   const isReprise = dateReprise && dateReprise !== dateCreation;
-  const ancienneteYears = (now.getTime() - creation.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+  const ancienneteYears = Math.max(0, (now.getTime() - creation.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
   // P5-9: More robust employee detection — old check only matched exact "0 SALARIÉ"
   const hasSalaries = effectif && !/^0\b|^0 |AUCUN|N[EÉ]ANT|0 SALAR/i.test(effectif.trim()) && effectif.trim() !== "0";
   const formeUpper = (forme || "").toUpperCase();
@@ -230,6 +232,7 @@ export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview
 }
 
 export function getPilotageStatus(dateButoir: string): string {
+  if (!dateButoir) return "RETARD";
   const now = new Date();
   const butoir = new Date(dateButoir);
   if (isNaN(butoir.getTime())) return "RETARD";

@@ -43,6 +43,13 @@ export const logger = {
   },
 
   error(tag: string, ...args: unknown[]): void {
-    if (shouldLog("error")) console.error(formatPrefix("error", tag), ...args);
+    if (shouldLog("error")) {
+      console.error(formatPrefix("error", tag), ...args);
+      // In production, capture stack trace for debugging
+      if (!IS_DEV) {
+        const err = args.find(a => a instanceof Error) as Error | undefined;
+        if (err?.stack) console.error(formatPrefix("error", tag), "Stack:", err.stack);
+      }
+    }
   },
 };

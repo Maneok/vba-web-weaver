@@ -54,11 +54,21 @@ export function resetCounter(value: number = 0): void {
 // Calculs automatiques honoraires
 // ──────────────────────────────────────────────
 export function calcHonorairesMensuels(annuel: number): number {
+  if (!Number.isFinite(annuel) || annuel < 0) return 0;
   return Math.round((annuel / 12) * 100) / 100;
 }
 
 export function calcHonorairesTrimestriels(annuel: number): number {
+  if (!Number.isFinite(annuel) || annuel < 0) return 0;
   return Math.round((annuel / 4) * 100) / 100;
+}
+
+/** Verify yearly total consistency: 12 * monthly should match annual (within 1 cent tolerance) */
+export function checkHonorairesConsistency(annuel: number): { mensuel: number; trimestriel: number; annualFromMensuel: number; ecart: number } {
+  const mensuel = calcHonorairesMensuels(annuel);
+  const trimestriel = calcHonorairesTrimestriels(annuel);
+  const annualFromMensuel = Math.round(mensuel * 12 * 100) / 100;
+  return { mensuel, trimestriel, annualFromMensuel, ecart: Math.abs(annuel - annualFromMensuel) };
 }
 
 // ──────────────────────────────────────────────
