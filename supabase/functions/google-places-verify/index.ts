@@ -5,14 +5,6 @@ Deno.serve(async (req) => {
   if (optRes) return optRes;
   const corsHeaders = getCorsHeaders(req);
 
-  // Auth check
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Non autorise" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   try {
     const { raison_sociale, ville, adresse } = await req.json();
     if (!raison_sociale || typeof raison_sociale !== "string" || raison_sociale.length > 200) {

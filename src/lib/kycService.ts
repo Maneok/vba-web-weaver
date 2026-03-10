@@ -552,7 +552,7 @@ async function callEdgeFunction<T>(name: string, body: Record<string, unknown>):
       body,
       signal: controller.signal as AbortSignal,
     });
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(error.message || error.context?.message || JSON.stringify(error));
     // P6-60: Don't throw on "unavailable" status — return it to callers for graceful handling
     return data as T;
   } catch (e) {

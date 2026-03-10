@@ -5,6 +5,7 @@ import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { analyzeCockpit } from "@/lib/cockpitEngine";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -43,6 +44,10 @@ import { DashboardActivity } from "@/components/dashboard/DashboardActivity";
 import { DashboardVigilance } from "@/components/dashboard/DashboardVigilance";
 import { SortableWidget } from "@/components/dashboard/SortableWidget";
 import { type Deadline } from "@/components/dashboard/UpcomingDeadlines";
+import DashboardCockpit from "@/components/dashboard/DashboardCockpit";
+import DashboardSearch from "@/components/dashboard/DashboardSearch";
+import DashboardShortcutsHelp from "@/components/dashboard/DashboardShortcutsHelp";
+import DashboardStaff from "@/components/dashboard/DashboardStaff";
 
 // ── Helpers ──────────────────────────────────────────────────
 function formatTime(d: Date): string {
@@ -64,26 +69,30 @@ function generateSparkline(current: number): { v: number }[] {
 }
 
 // ── Widget keys & persistence ────────────────────────────────
-type WidgetKey = "kpi" | "graphique" | "alertes" | "activite" | "repartition";
+type WidgetKey = "kpi" | "cockpit" | "graphique" | "alertes" | "activite" | "repartition" | "equipe";
 
-const DEFAULT_ORDER: WidgetKey[] = ["kpi", "graphique", "alertes", "activite", "repartition"];
+const DEFAULT_ORDER: WidgetKey[] = ["kpi", "cockpit", "graphique", "alertes", "activite", "repartition", "equipe"];
 const STORAGE_KEY_VIS = "dashboard-widgets";
 const STORAGE_KEY_ORDER = "dashboard-widget-order";
 
 interface WidgetVisibility {
   kpi: boolean;
+  cockpit: boolean;
   graphique: boolean;
   alertes: boolean;
   activite: boolean;
   repartition: boolean;
+  equipe: boolean;
 }
 
 const DEFAULT_WIDGETS: WidgetVisibility = {
   kpi: true,
+  cockpit: true,
   graphique: true,
   alertes: true,
   activite: true,
   repartition: true,
+  equipe: true,
 };
 
 function loadVisibility(): WidgetVisibility {
