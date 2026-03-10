@@ -55,7 +55,7 @@ export function DashboardKPICards({ stats, sparklines, isLoading }: DashboardKPI
         value={`${stats.tauxConformite}%`}
         color={conformiteColor}
         sparklineData={sparklines.tauxConformite}
-        onClick={() => navigate("/controle-qualite")}
+        onClick={() => navigate("/controle")}
         loading={isLoading}
         ariaLabel={`Taux de conformité : ${stats.tauxConformite}%. Cliquez pour le contrôle qualité.`}
       />

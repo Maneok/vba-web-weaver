@@ -37,7 +37,9 @@ function getStoredCounter(): { year: number; count: number } {
 export function incrementCounter(): string {
   const current = getStoredCounter();
   const year = new Date().getFullYear();
-  const count = current.year === year ? current.count + 1 : 1;
+  let count = current.year === year ? current.count + 1 : 1;
+  // Guard overflow — restart at 1 if exceeds 9999
+  if (count > 9999) count = 1;
   try { sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count })); } catch (err) { logger.warn("LM", "Failed to save counter:", err); }
   return `LM-${year}-${String(count).padStart(3, "0")}`;
 }
@@ -88,6 +90,7 @@ export function validateLettreMission(client: Client, cabinet: CabinetConfig): L
   if (!client.mission) champsManquants.push("Type de mission");
   if (!client.associe) champsManquants.push("Associé signataire");
   if (client.honoraires === undefined || client.honoraires === null) champsManquants.push("Honoraires");
+  else if (client.honoraires < 0) champsManquants.push("Honoraires (montant negatif)");
   if (!client.frequence) champsManquants.push("Fréquence de facturation");
 
   // Cabinet obligatoire

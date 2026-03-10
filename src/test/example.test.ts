@@ -103,7 +103,7 @@ describe("riskEngine - calculateNextReviewDate", () => {
   });
 
   it("should add 6 months for RENFORCEE", () => {
-    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2024-06-30");
+    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2024-07-01");
   });
 });
 

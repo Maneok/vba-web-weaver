@@ -223,10 +223,11 @@ export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview
   let d = new Date(lastReview);
   // P5-11: Guard against invalid date — fallback to today (iterative, no recursion)
   if (isNaN(d.getTime())) d = new Date();
+  // Use UTC methods to avoid timezone-dependent date shifts
   switch (nivVigilance) {
-    case "SIMPLIFIEE": d.setFullYear(d.getFullYear() + 3); break;
-    case "STANDARD": d.setFullYear(d.getFullYear() + 1); break;
-    case "RENFORCEE": d.setMonth(d.getMonth() + 6); break;
+    case "SIMPLIFIEE": d.setUTCFullYear(d.getUTCFullYear() + 3); break;
+    case "STANDARD": d.setUTCFullYear(d.getUTCFullYear() + 1); break;
+    case "RENFORCEE": d.setUTCMonth(d.getUTCMonth() + 6); break;
   }
   return d.toISOString().split("T")[0];
 }

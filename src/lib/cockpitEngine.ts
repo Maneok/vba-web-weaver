@@ -63,6 +63,19 @@ export function analyzeCockpit(
       };
       revisionsRetard.push(u);
       urgencies.push(u);
+    } else {
+      // Revision approaching within 60 days
+      const daysUntil = Math.floor((butoir.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (daysUntil <= 60) {
+        const u: CockpitUrgency = {
+          type: "revision",
+          severity: daysUntil <= 30 ? "warning" : "info",
+          title: `${c.raisonSociale || c.ref || "Client inconnu"} — Revision bientot`,
+          detail: `Revision dans ${daysUntil} jours (${c.dateButoir}). Vigilance: ${c.nivVigilance}`,
+          ref: c.ref,
+        };
+        urgencies.push(u);
+      }
     }
   }
 
@@ -272,6 +285,47 @@ export function analyzeCockpit(
       urgencies.push(u);
     }
   }
+
+  // 12. Domiciliation detection — multiple clients at exact same address
+  const adresseMap = new Map<string, string[]>();
+  for (const c of safeClients) {
+    if (c.statut === "INACTIF" || !c.adresse || !c.cp) continue;
+    const key = `${c.adresse.trim().toUpperCase()}|${c.cp.trim()}`;
+    if (!key || key === "|") continue;
+    const existing = adresseMap.get(key) || [];
+    existing.push(c.raisonSociale || c.ref || "Inconnu");
+    adresseMap.set(key, existing);
+  }
+  for (const [addr, names] of adresseMap) {
+    if (names.length >= 3) {
+      const u: CockpitUrgency = {
+        type: "domiciliation",
+        severity: "warning",
+        title: `Domiciliation suspecte — ${names.length} clients meme adresse`,
+        detail: `Adresse: ${addr.replace("|", " ")}. Clients: ${names.slice(0, 5).join(", ")}${names.length > 5 ? `...` : ""}`,
+      };
+      urgencies.push(u);
+    }
+  }
+
+  // 13. Honoraires anomaly — VALIDE client with missing honoraires
+  for (const c of safeClients) {
+    if (c.statut === "INACTIF" || c.etat !== "VALIDE") continue;
+    if (c.honoraires === null || c.honoraires === undefined || c.honoraires === 0) {
+      const u: CockpitUrgency = {
+        type: "capital",
+        severity: "info",
+        title: `${c.raisonSociale || c.ref || "Client inconnu"} — Honoraires non renseignes`,
+        detail: `Client valide sans honoraires. Mission: ${c.mission}`,
+        ref: c.ref,
+      };
+      urgencies.push(u);
+    }
+  }
+
+  // Sort urgencies: critique first, then warning, then info
+  const severityOrder = { critique: 0, warning: 1, info: 2 };
+  urgencies.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
 
   // Stats
   const actifs = safeClients.filter(c => c.statut !== "INACTIF");

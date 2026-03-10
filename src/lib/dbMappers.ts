@@ -28,7 +28,8 @@ function num(value: unknown, fallback = 0): number {
 
 /** Coerce to number but preserve null when value is absent — for fields where null ≠ 0 */
 function numOrNull(v: unknown): number | null {
-  if (v === null || v === undefined || v === "") return null;
+  if (v === null || v === undefined) return null;
+  if (typeof v === "string" && v.trim() === "") return null;
   const n = Number(v);
   return isNaN(n) ? null : n;
 }

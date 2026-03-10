@@ -430,6 +430,29 @@ export function runDiagnostic360(
     });
   }
 
+  // === 24. DOUBLONS SIREN ===
+  const sirenMap = new Map<string, string[]>();
+  for (const c of actifs) {
+    if (!c.siren || c.siren.trim() === "") continue;
+    const normalizedSiren = c.siren.replace(/\s/g, "");
+    if (normalizedSiren.length < 9) continue;
+    const existing = sirenMap.get(normalizedSiren) || [];
+    existing.push(c.raisonSociale || c.ref || "Inconnu");
+    sirenMap.set(normalizedSiren, existing);
+  }
+  const doublonsCount = [...sirenMap.values()].filter(v => v.length > 1).length;
+  items.push({
+    categorie: "KYC",
+    indicateur: "Doublons SIREN dans le portefeuille",
+    statut: doublonsCount === 0 ? "OK" : "ALERTE",
+    detail: doublonsCount === 0
+      ? "Aucun doublon SIREN detecte"
+      : `${doublonsCount} SIREN(s) present(s) en doublon dans le portefeuille`,
+    recommandation: doublonsCount > 0
+      ? "Verifier et fusionner ou archiver les dossiers en doublon."
+      : "Aucune action requise.",
+  });
+
   // === CALCUL NOTE GLOBALE ===
   const critiques = items.filter(i => i.statut === "CRITIQUE").length;
   const alerteCount = items.filter(i => i.statut === "ALERTE").length;
@@ -438,7 +461,7 @@ export function runDiagnostic360(
   // Score pondéré: OK=10pts, ALERTE=5pts, CRITIQUE=0pts
   const maxPoints = items.length * SCORE_OK_POINTS;
   const points = okCount * SCORE_OK_POINTS + alerteCount * SCORE_ALERTE_POINTS;
-  const scoreDispositif = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+  const scoreDispositif = maxPoints > 0 ? Math.min(Math.round((points / maxPoints) * 100), 100) : 0;
 
   const noteLettre = scoreDispositif >= NOTE_A_THRESHOLD ? "A" : scoreDispositif >= NOTE_B_THRESHOLD ? "B" : scoreDispositif >= NOTE_C_THRESHOLD ? "C" : "D";
 
