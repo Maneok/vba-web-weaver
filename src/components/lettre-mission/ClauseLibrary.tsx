@@ -151,7 +151,7 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
 
   const saveCustomClauses = (clauses: Clause[]) => {
     setCustomClauses(clauses);
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(clauses));
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(clauses)); } catch { /* storage full */ }
   };
 
   const allClauses = [...DEFAULT_CLAUSES, ...customClauses];

@@ -36,7 +36,7 @@ function incrementCounter(): string {
   const current = getStoredCounter();
   const year = new Date().getFullYear();
   const count = current.year === year ? current.count + 1 : 1;
-  localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count }));
+  try { localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count })); } catch { /* storage full */ }
   return `LM-${year}-${String(count).padStart(3, "0")}`;
 }
 
@@ -45,7 +45,7 @@ function incrementCounter(): string {
  */
 export function resetCounter(value: number = 0): void {
   const year = new Date().getFullYear();
-  localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value }));
+  try { localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value })); } catch { /* storage full */ }
 }
 
 // ──────────────────────────────────────────────

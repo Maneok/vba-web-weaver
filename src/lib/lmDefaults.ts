@@ -113,7 +113,7 @@ export function applyFormConditionals(
   }
 
   // Effectif > 0 → social ON
-  if (effectif && parseInt(effectif) > 0) {
+  if (effectif && parseInt(effectif, 10) > 0) {
     result = result.map((m) =>
       m.section_id === "social"
         ? { ...m, selected: true, sous_options: m.sous_options.map((s) => ({ ...s, selected: true })) }
