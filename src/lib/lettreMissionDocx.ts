@@ -17,6 +17,7 @@ import {
   NumberFormat,
 } from "docx";
 import { saveAs } from "file-saver";
+import { logger } from "@/lib/logger";
 import type { LettreMission } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 
@@ -180,6 +181,7 @@ function str(v: unknown): string {
 }
 
 export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> {
+  try {
   const { client, cabinet, options: opts } = lm;
   const children: (Paragraph | Table)[] = [];
 
@@ -466,6 +468,10 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
   const filename = `LDM_${lm?.numero ?? "draft"}_${(client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.docx`;
   const blob = await Packer.toBlob(docx);
   saveAs(blob, filename);
+  } catch (err: unknown) {
+    logger.error("DOCX", "Erreur lors de la génération du DOCX", err);
+    throw new Error(`Échec de la génération du document DOCX : ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -516,6 +522,7 @@ const REPARTITION_TASKS_DOCX: { tache: string; cabinet: boolean; client: boolean
 ];
 
 export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise<void> {
+  try {
   const { sections, client, missions, honoraires, cabinet, variables } = params;
   const children: (Paragraph | Table)[] = [];
 
@@ -699,4 +706,8 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
   const filename = `LM_${(client.raisonSociale || "client").replace(/\s+/g, "_")}_${dateStr}.docx`;
   const blob = await Packer.toBlob(docxDoc);
   saveAs(blob, filename);
+  } catch (err: unknown) {
+    logger.error("DOCX", "Erreur lors de la génération du DOCX template", err);
+    throw new Error(`Échec de la génération du document DOCX : ${err instanceof Error ? err.message : String(err)}`);
+  }
 }

@@ -189,18 +189,28 @@ export default function GedPage() {
 
       const results = await Promise.all(
         folderEntries.map(async (folder) => {
-          const { data: files } = await supabase.storage
-            .from("kyc-documents")
-            .list(folder.name, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+          try {
+            const { data: files, error: listErr } = await supabase.storage
+              .from("kyc-documents")
+              .list(folder.name, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
 
-          if (files && files.length > 0) {
-            return {
-              siren: folder.name,
-              files: files as StorageFile[],
-              expanded: false,
-            } as SirenFolder;
+            if (listErr) {
+              logger.error("GED", `Error listing folder ${folder.name}:`, listErr);
+              return null;
+            }
+
+            if (files && files.length > 0) {
+              return {
+                siren: folder.name,
+                files: files as StorageFile[],
+                expanded: false,
+              } as SirenFolder;
+            }
+            return null;
+          } catch (err) {
+            logger.error("GED", `Exception listing folder ${folder.name}:`, err);
+            return null;
           }
-          return null;
         })
       );
 
@@ -383,6 +393,7 @@ export default function GedPage() {
   };
 
   const deleteDocument = async (doc: Document) => {
+    if (!window.confirm(`Voulez-vous vraiment supprimer le document "${doc.name}" ?`)) return;
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;

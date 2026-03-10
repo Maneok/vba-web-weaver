@@ -43,11 +43,11 @@ export default function LettreMissionPreview({
           Prévisualisation — {lettreMission.numero}
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleExportPdf}>
+          <Button size="sm" variant="outline" onClick={handleExportPdf} aria-label="Exporter la lettre de mission en PDF">
             <FileDown className="h-4 w-4 mr-1" />
             Exporter PDF
           </Button>
-          <Button size="sm" variant="outline" onClick={handleExportDocx}>
+          <Button size="sm" variant="outline" onClick={handleExportDocx} aria-label="Exporter la lettre de mission en DOCX">
             <FileText className="h-4 w-4 mr-1" />
             Exporter DOCX
           </Button>

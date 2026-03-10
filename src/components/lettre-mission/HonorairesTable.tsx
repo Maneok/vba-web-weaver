@@ -70,6 +70,7 @@ export default function HonorairesTable({
                         [ligne.editKey!]: Number(e.target.value) || 0,
                       })
                     }
+                    aria-label={`Montant ${ligne.label}`}
                     className="w-24 text-right border rounded px-2 py-0.5 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
                 ) : (
@@ -207,6 +208,7 @@ export default function HonorairesTable({
                 frequence: e.target.value as "mensuel" | "trimestriel",
               })
             }
+            aria-label="Frequence de paiement"
             className="border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
           >
             <option value="mensuel">Mensuel</option>

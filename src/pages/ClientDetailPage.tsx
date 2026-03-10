@@ -72,7 +72,7 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  useEffect(() => { document.title = "Fiche Client | GRIMY"; }, []);
+  useDocumentTitle("Fiche Client");
 
   // Validate ref format (alphanumeric + hyphens, max 50 chars)
   const isValidRef = ref && /^[a-zA-Z0-9_-]{1,50}$/.test(ref);

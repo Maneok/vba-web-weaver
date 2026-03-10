@@ -134,6 +134,20 @@ export const clientsService = {
     if (error) logger.error("DB", "clients delete:", error);
   },
 
+  async deleteByRef(ref: string) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return;
+    const { error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("ref", ref)
+      .eq("cabinet_id", cabinetId);
+    if (error) {
+      logger.error("DB", "clients deleteByRef:", error);
+      throw error;
+    }
+  },
+
   async getByRef(ref: string) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
@@ -296,7 +310,7 @@ export const logsService = {
     if (!cabinetId) return [];
     const { data } = await supabase
       .from("audit_trail")
-      .select("*")
+      .select("created_at, user_email, record_id, action, new_data")
       .eq("cabinet_id", cabinetId)
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);

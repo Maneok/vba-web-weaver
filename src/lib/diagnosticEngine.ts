@@ -1,5 +1,39 @@
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "./types";
 
+// ── Thresholds & constants ──
+const THRESHOLD_CLASSIFICATION_OK = 90;
+const THRESHOLD_CLASSIFICATION_WARN = 70;
+const THRESHOLD_PROSPECT_STALE_DAYS = 90;
+const THRESHOLD_PROSPECT_STALE_WARN = 3;
+const THRESHOLD_CLIENTS_SANS_SCORE_WARN = 2;
+const THRESHOLD_RETARD_WARN_PCT = 20;
+const THRESHOLD_REVISION_SOON_DAYS = 60;
+const THRESHOLD_REVISION_SOON_WARN = 3;
+const THRESHOLD_CNI_EXPIRY_SOON_DAYS = 90;
+const THRESHOLD_KYC_INCOMPLETE_WARN = 3;
+const THRESHOLD_BE_MISSING_WARN = 3;
+const THRESHOLD_DOCS_MISSING_WARN = 5;
+const THRESHOLD_FORMATION_OK_PCT = 90;
+const THRESHOLD_FORMATION_WARN_PCT = 60;
+const THRESHOLD_LOGS_OK = 10;
+const THRESHOLD_LOGS_WARN = 3;
+const THRESHOLD_LOG_WINDOW_DAYS = 90;
+const THRESHOLD_ACTION_DIVERSITY_OK = 4;
+const THRESHOLD_ACTION_DIVERSITY_WARN = 2;
+const THRESHOLD_RENFORCEE_OK_PCT = 30;
+const THRESHOLD_RENFORCEE_WARN_PCT = 50;
+const THRESHOLD_SCORE_MOYEN_OK = 40;
+const THRESHOLD_SCORE_MOYEN_WARN = 60;
+const THRESHOLD_CAPITAL_LOW = 100;
+const THRESHOLD_HONORAIRES_HIGH = 10000;
+const THRESHOLD_DOMICILIATION_WARN = 3;
+const SCORE_OK_POINTS = 10;
+const SCORE_ALERTE_POINTS = 5;
+const NOTE_A_THRESHOLD = 80;
+const NOTE_B_THRESHOLD = 60;
+const NOTE_C_THRESHOLD = 40;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
 export interface DiagnosticItem {
   categorie: string;
   indicateur: string;
@@ -37,9 +71,9 @@ export function runDiagnostic360(
   items.push({
     categorie: "CLASSIFICATION",
     indicateur: "Taux de dossiers classifies (VALIDE)",
-    statut: tauxClassification >= 90 ? "OK" : tauxClassification >= 70 ? "ALERTE" : "CRITIQUE",
+    statut: tauxClassification >= THRESHOLD_CLASSIFICATION_OK ? "OK" : tauxClassification >= THRESHOLD_CLASSIFICATION_WARN ? "ALERTE" : "CRITIQUE",
     detail: `${valides.length}/${actifs.length} dossiers classes (${tauxClassification}%)`,
-    recommandation: tauxClassification < 90 ? "Finaliser la classification de tous les dossiers actifs." : "Aucune action requise.",
+    recommandation: tauxClassification < THRESHOLD_CLASSIFICATION_OK ? "Finaliser la classification de tous les dossiers actifs." : "Aucune action requise.",
     referenceReglementaire: "Art. L.561-5 CMF",
   });
 
@@ -49,15 +83,15 @@ export function runDiagnostic360(
     if (!c.dateCreationLigne) return false;
     const ts = new Date(c.dateCreationLigne).getTime();
     if (isNaN(ts)) return false;
-    const diff = (now.getTime() - ts) / (1000 * 60 * 60 * 24);
-    return diff > 90;
+    const diff = (now.getTime() - ts) / MS_PER_DAY;
+    return diff > THRESHOLD_PROSPECT_STALE_DAYS;
   });
   if (prospects.length > 0) {
     items.push({
       categorie: "CLASSIFICATION",
       indicateur: "Dossiers prospect stagnants (>90 jours)",
-      statut: prospectAnciens.length === 0 ? "OK" : prospectAnciens.length <= 3 ? "ALERTE" : "CRITIQUE",
-      detail: `${prospectAnciens.length} prospect(s) non traite(s) depuis plus de 90 jours`,
+      statut: prospectAnciens.length === 0 ? "OK" : prospectAnciens.length <= THRESHOLD_PROSPECT_STALE_WARN ? "ALERTE" : "CRITIQUE",
+      detail: `${prospectAnciens.length} prospect(s) non traite(s) depuis plus de ${THRESHOLD_PROSPECT_STALE_DAYS} jours`,
       recommandation: prospectAnciens.length > 0
         ? "Valider ou refuser les prospects en attente pour maintenir un portefeuille propre."
         : "Aucune action requise.",
@@ -86,7 +120,7 @@ export function runDiagnostic360(
   items.push({
     categorie: "SCORING",
     indicateur: "Clients valides sans scoring",
-    statut: sansScore.length === 0 ? "OK" : sansScore.length <= 2 ? "ALERTE" : "CRITIQUE",
+    statut: sansScore.length === 0 ? "OK" : sansScore.length <= THRESHOLD_CLIENTS_SANS_SCORE_WARN ? "ALERTE" : "CRITIQUE",
     detail: sansScore.length === 0
       ? "Tous les clients valides ont un scoring"
       : `${sansScore.length} client(s) valide(s) sans scoring calcule`,
@@ -105,7 +139,7 @@ export function runDiagnostic360(
   items.push({
     categorie: "REVISIONS",
     indicateur: "Taux de revisions en retard",
-    statut: tauxRetard === 0 ? "OK" : tauxRetard <= 20 ? "ALERTE" : "CRITIQUE",
+    statut: tauxRetard === 0 ? "OK" : tauxRetard <= THRESHOLD_RETARD_WARN_PCT ? "ALERTE" : "CRITIQUE",
     detail: `${retards.length}/${actifs.length} dossiers en retard de revision (${tauxRetard}%)`,
     recommandation: retards.length > 0
       ? `Planifier en urgence la revue de: ${retards.slice(0, 5).map(c => c.raisonSociale).join(", ")}${retards.length > 5 ? ` et ${retards.length - 5} autres` : ""}`
@@ -118,8 +152,8 @@ export function runDiagnostic360(
     if (!c.dateButoir) return false;
     const butoir = new Date(c.dateButoir);
     if (isNaN(butoir.getTime())) return false;
-    const diff = (butoir.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    return diff > 0 && diff <= 60;
+    const diff = (butoir.getTime() - now.getTime()) / MS_PER_DAY;
+    return diff > 0 && diff <= THRESHOLD_REVISION_SOON_DAYS;
   });
   if (bientotEchus.length > 0) {
     items.push({

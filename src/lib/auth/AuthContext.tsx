@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     if (userRef.current) {
-      await logAudit({ action: "DECONNEXION" }).catch(() => {});
+      await logAudit({ action: "DECONNEXION" }).catch((e) => console.warn("[Auth] Logout audit failed:", e));
     }
     await supabase.auth.signOut();
     clearCabinetCache();
@@ -156,6 +156,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             login_method: user.app_metadata?.provider || "email",
           }).then(({ error }) => {
             if (error) logger.warn("[Auth] login_history insert failed:", error.message);
+          }).catch((err) => {
+            logger.warn("Auth", "login_history insert exception:", err);
           });
           signedInRef.current = false;
         }

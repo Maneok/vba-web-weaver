@@ -1654,6 +1654,7 @@ export default function ControlePage() {
                   placeholder="Nom du controleur..."
                   value={form.controleur}
                   onChange={(e) => { setForm((prev) => ({ ...prev, controleur: e.target.value })); setFormDirty(true); }}
+                  aria-label="Nom du controleur"
                 />
                 {formErrors.controleur && <p className="text-xs text-red-400">{formErrors.controleur}</p>}
               </div>
@@ -1686,6 +1687,7 @@ export default function ControlePage() {
                       placeholder={cp.placeholder}
                       value={form[cp.key]}
                       onChange={(e) => { setForm((prev) => ({ ...prev, [cp.key]: e.target.value })); setFormDirty(true); }}
+                      aria-label={cp.label}
                     />
                     {formErrors[cp.key] && <p className="text-xs text-red-400">{formErrors[cp.key]}</p>}
                     {showTemplates === cp.key && (
@@ -1761,6 +1763,7 @@ export default function ControlePage() {
                       placeholder="Decrire les actions a mener pour corriger la non-conformite..."
                       value={form.actionCorrectrice}
                       onChange={(e) => { setForm((prev) => ({ ...prev, actionCorrectrice: e.target.value })); setFormDirty(true); }}
+                      aria-label="Action correctrice"
                     />
                     {formErrors.actionCorrectrice && <p className="text-xs text-red-400">{formErrors.actionCorrectrice}</p>}
                   </div>
@@ -1775,6 +1778,7 @@ export default function ControlePage() {
                         value={form.dateEcheance}
                         min={new Date().toISOString().split("T")[0]}
                         onChange={(e) => { setForm((prev) => ({ ...prev, dateEcheance: e.target.value })); setFormDirty(true); }}
+                        aria-label="Date d'echeance"
                       />
                       {formErrors.dateEcheance && <p className="text-xs text-red-400">{formErrors.dateEcheance}</p>}
                     </div>
@@ -1784,6 +1788,7 @@ export default function ControlePage() {
                         className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                         value={form.suiviStatut}
                         onChange={(e) => { setForm((prev) => ({ ...prev, suiviStatut: e.target.value })); setFormDirty(true); }}
+                        aria-label="Statut de suivi"
                       >
                         {SUIVI_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value} className="bg-slate-900">{opt.label}</option>

@@ -164,6 +164,7 @@ export default function NotificationsPage() {
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}
+            aria-pressed={filter === f.key}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               filter === f.key
                 ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
@@ -176,7 +177,7 @@ export default function NotificationsPage() {
       </div>
 
       {/* List */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden" role="listbox" aria-label="Liste des notifications">
         {loading && notifications.length === 0 ? (
           <div className="p-12 text-center">
             <div className="h-6 w-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
@@ -195,6 +196,15 @@ export default function NotificationsPage() {
             {notifications.map(n => (
               <div
                 key={n.id}
+                role="option"
+                aria-selected={selectedId === n.id}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSelectedId(selectedId === n.id ? null : n.id);
+                  }
+                }}
                 className={`group flex items-start gap-4 px-5 py-4 border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer transition-colors ${
                   !n.lue ? "bg-blue-500/[0.03]" : ""
                 } ${selectedId === n.id ? "bg-white/[0.04] ring-1 ring-blue-500/20" : ""}`}

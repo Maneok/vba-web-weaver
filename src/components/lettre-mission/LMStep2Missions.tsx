@@ -52,7 +52,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     suggestionsShown.current = true;
 
     // Effectif > 0 but social not checked
-    if (client?.effectif && parseInt(client.effectif) > 0) {
+    if (client?.effectif && parseInt(client.effectif, 10) > 0) {
       const social = missions.find((m) => m.section_id === "social");
       if (social && !social.selected) {
         toast.info(`Ce client a ${client.effectif} salarie(s). Souhaitez-vous ajouter la mission sociale ?`, {

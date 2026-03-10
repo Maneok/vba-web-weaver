@@ -83,7 +83,7 @@ export default function KycChecklist({
   );
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-2" role="list" aria-label="Documents KYC requis">
       <h4 className="text-sm font-semibold text-gray-700 mb-3">
         Documents KYC requis
       </h4>
@@ -91,10 +91,13 @@ export default function KycChecklist({
         {requiredDocs.map((doc) => {
           const status = doc.getStatus(client);
           const detail = doc.getDetail?.(client);
+          const statusLabel = status === "ok" ? "fourni" : status === "missing" ? "a fournir" : "expire";
 
           return (
             <div
               key={doc.id}
+              role="listitem"
+              aria-label={`${doc.label} — ${statusLabel}`}
               className="flex items-center gap-2 text-sm py-1 px-2 rounded hover:bg-gray-50"
             >
               {status === "ok" && (

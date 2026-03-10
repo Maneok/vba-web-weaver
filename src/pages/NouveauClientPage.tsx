@@ -46,7 +46,7 @@ import {
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen,
 } from "lucide-react";
 
-import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS } from "@/lib/constants";
+import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
 
 const STEP_LABELS = ["Recherche", "Informations", "Personnes", "Questionnaire", "Scoring", "Documents"];
 
@@ -1777,12 +1777,14 @@ export default function NouveauClientPage() {
                     const items = PLACEHOLDERS[searchMode];
                     return items[placeholderIdx % items.length];
                   })()}
+                  aria-label="Rechercher une entreprise par SIREN, nom ou dirigeant"
                   className="pl-9 pr-9 bg-white/[0.03] border-white/[0.06] focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all"
                 />
                 {/* #3: Clear button */}
                 {searchQuery && (
                   <button
                     onClick={() => { setSearchQuery(""); setSearchResults([]); setSearchError(""); }}
+                    aria-label="Effacer la recherche"
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                   >
                     <X className="w-4 h-4" />
@@ -2146,10 +2148,10 @@ export default function NouveauClientPage() {
                       <SourceField label="SIRET" value={form.siret} onChange={v => set("siret", formatSiretInput(v))} placeholder="XXX XXX XXX XXXXX" source={autoFields.has("siret") ? "data.gouv" : undefined} autoFilled={autoFields.has("siret")} />
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <Label className="text-[10px] text-slate-500 uppercase">Capital social {form.forme !== "ENTREPRISE INDIVIDUELLE" && <span className="text-red-400">*</span>}</Label>
+                          <Label htmlFor="capital-social" className="text-[10px] text-slate-500 uppercase">Capital social {form.forme !== "ENTREPRISE INDIVIDUELLE" && <span className="text-red-400">*</span>}</Label>
                           {capitalSource && form.capital > 0 && <Badge className={`text-[9px] border-0 ${capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-400"}`}>{capitalSource}</Badge>}
                         </div>
-                        <Input type="number" value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="Non renseigne" className={`bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${!form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
+                        <Input id="capital-social" type="number" min={0} value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="Non renseigne" className={`bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${!form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
                         {(() => {
                           const f = form.forme.toUpperCase();
                           const isEI = f.includes("INDIVIDUEL") || f.includes("EI");
@@ -2526,22 +2528,22 @@ export default function NouveauClientPage() {
                       <div className="px-4 pb-4 pt-1 border-t border-white/[0.04]">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <Label className="text-[10px] text-slate-500 uppercase">Nom</Label>
-                            <Input value={b.nom} onChange={e => updateBeneficiaire(i, "nom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="NOM" />
+                            <Label htmlFor={`be-nom-${i}`} className="text-[10px] text-slate-500 uppercase">Nom</Label>
+                            <Input id={`be-nom-${i}`} value={b.nom} onChange={e => updateBeneficiaire(i, "nom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="NOM" />
                           </div>
                           <div>
-                            <Label className="text-[10px] text-slate-500 uppercase">Prenom</Label>
-                            <Input value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="Prenom" />
+                            <Label htmlFor={`be-prenom-${i}`} className="text-[10px] text-slate-500 uppercase">Prenom</Label>
+                            <Input id={`be-prenom-${i}`} value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="Prenom" />
                           </div>
                           {/* #35: Date picker for birth date */}
                           <div>
-                            <Label className="text-[10px] text-slate-500 uppercase">Date naissance</Label>
-                            <Input type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
+                            <Label htmlFor={`be-datenaissance-${i}`} className="text-[10px] text-slate-500 uppercase">Date naissance</Label>
+                            <Input id={`be-datenaissance-${i}`} type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
                           </div>
                           {/* #34: Nationality with common suggestions */}
                           <div>
-                            <Label className="text-[10px] text-slate-500 uppercase">Nationalite</Label>
-                            <Input value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list={`nat-list-${i}`} />
+                            <Label htmlFor={`be-nationalite-${i}`} className="text-[10px] text-slate-500 uppercase">Nationalite</Label>
+                            <Input id={`be-nationalite-${i}`} value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list={`nat-list-${i}`} />
                             <datalist id={`nat-list-${i}`}>
                               {["FRANCAISE", "ALGERIENNE", "MAROCAINE", "TUNISIENNE", "PORTUGAISE", "ITALIENNE", "ESPAGNOLE", "ALLEMANDE", "BELGE", "BRITANNIQUE", "AMERICAINE", "CHINOISE", "RUSSE", "TURQUE", "LIBANAISE"].map(n => <option key={n} value={n} />)}
                             </datalist>
@@ -3758,7 +3760,7 @@ export default function NouveauClientPage() {
               try { sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData)); } catch { /* storage full */ }
               setDraftSaved(true);
               toast.success("Brouillon sauvegarde");
-              setTimeout(() => setDraftSaved(false), 2000);
+              setTimeout(() => setDraftSaved(false), AUTOSAVE_DELAY_MS);
             }}
           >
             {draftSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
@@ -4109,6 +4111,7 @@ function SourceField({ label, value, onChange, type = "text", error, placeholder
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         readOnly={isLocked}
+        {...(type === "number" ? { min: 0 } : {})}
         className={`${bgClass} mt-1 ${borderClass} focus:ring-2 focus:ring-blue-500/30 transition-all ${isLocked ? "cursor-not-allowed opacity-70" : ""}`}
       />
       {/* #23: Inline validation errors + #94: Error styling */}
@@ -4178,6 +4181,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        {...(type === "number" ? { min: 0 } : {})}
         className={`bg-white/[0.03] mt-1 focus:ring-2 focus:ring-blue-500/30 transition-all ${error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : !isEmpty ? "border-emerald-500/20" : "border-white/[0.06]"}`}
       />
       {/* #94: Error styling with icon */}

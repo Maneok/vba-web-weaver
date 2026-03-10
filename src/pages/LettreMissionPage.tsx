@@ -273,7 +273,7 @@ function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
       const wd = l.wizard_data;
       if (!wd?.date_debut || !wd?.duree) return false;
       const start = new Date(wd.date_debut);
-      const years = parseInt(wd.duree) || 1;
+      const years = parseInt(wd.duree, 10) || 1;
       const end = new Date(start);
       end.setFullYear(end.getFullYear() + years);
       return end >= now && end <= in60Days;
@@ -449,7 +449,8 @@ export default function LettreMissionPage() {
       if (!authData?.user) return;
       const payload = { wizard_data: data, wizard_step: step, updated_at: new Date().toISOString() };
       if (lmId) {
-        await supabase.from("lettres_mission").update(payload).eq("id", lmId);
+        const { error: updErr } = await supabase.from("lettres_mission").update(payload).eq("id", lmId);
+        if (updErr) throw updErr;
       } else {
         const { data: ins } = await supabase
           .from("lettres_mission")
@@ -638,7 +639,8 @@ export default function LettreMissionPage() {
   // G) Archive
   const handleArchive = async (letter: SavedLetter) => {
     try {
-      await supabase.from("lettres_mission").update({ statut: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
+      const { error } = await supabase.from("lettres_mission").update({ statut: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
+      if (error) throw error;
       toast.success("Lettre archivee");
       await loadSavedLetters();
     } catch {

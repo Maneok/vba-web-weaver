@@ -14,7 +14,7 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     cp: (row.cp as string) || "",
     ville: (row.ville as string) || "",
     siren: (row.siren as string) || "",
-    capital: (row.capital as number) || 0,
+    capital: Number(row.capital ?? 0),
     ape: (row.ape as string) || "",
     dirigeant: (row.dirigeant as string) || "",
     domaine: (row.domaine as string) || "",
@@ -23,9 +23,9 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     mail: (row.mail as string) || "",
     dateCreation: (row.date_creation as string) || "",
     dateReprise: (row.date_reprise as string) || "",
-    honoraires: (row.honoraires as number) || 0,
-    reprise: (row.reprise as number) || 0,
-    juridique: (row.juridique as number) || 0,
+    honoraires: Number(row.honoraires ?? 0),
+    reprise: Number(row.reprise ?? 0),
+    juridique: Number(row.juridique ?? 0),
     frequence: (row.frequence as string) || "MENSUEL",
     iban: (row.iban_encrypted as string) || "",
     bic: (row.bic_encrypted as string) || "",
@@ -37,13 +37,13 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     distanciel: ((row.distanciel as string) || "NON") as "OUI" | "NON",
     cash: ((row.cash as string) || "NON") as "OUI" | "NON",
     pression: ((row.pression as string) || "NON") as "OUI" | "NON",
-    scoreActivite: (row.score_activite as number) || 0,
-    scorePays: (row.score_pays as number) || 0,
-    scoreMission: (row.score_mission as number) || 0,
-    scoreMaturite: (row.score_maturite as number) || 0,
-    scoreStructure: (row.score_structure as number) || 0,
-    malus: (row.malus as number) || 0,
-    scoreGlobal: (row.score_global as number) || 0,
+    scoreActivite: Number(row.score_activite ?? 0),
+    scorePays: Number(row.score_pays ?? 0),
+    scoreMission: Number(row.score_mission ?? 0),
+    scoreMaturite: Number(row.score_maturite ?? 0),
+    scoreStructure: Number(row.score_structure ?? 0),
+    malus: Number(row.malus ?? 0),
+    scoreGlobal: Number(row.score_global ?? 0),
     nivVigilance: ((row.niv_vigilance as string) || "SIMPLIFIEE") as Client["nivVigilance"],
     dateCreationLigne: (row.date_creation_ligne as string) || "",
     dateDerniereRevue: (row.date_derniere_revue as string) || "",
@@ -74,7 +74,7 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.cp !== undefined) row.cp = client.cp;
   if (client.ville !== undefined) row.ville = client.ville;
   if (client.siren !== undefined) row.siren = client.siren?.replace(/\s/g, "");
-  if (client.capital !== undefined) row.capital = Number(client.capital) || 0;
+  if (client.capital !== undefined) row.capital = Number(client.capital ?? 0);
   if (client.ape !== undefined) row.ape = client.ape;
   if (client.dirigeant !== undefined) row.dirigeant = client.dirigeant;
   if (client.domaine !== undefined) row.domaine = client.domaine;
@@ -83,9 +83,9 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.mail !== undefined) row.mail = client.mail;
   if (client.dateCreation !== undefined) row.date_creation = client.dateCreation;
   if (client.dateReprise !== undefined) row.date_reprise = client.dateReprise;
-  if (client.honoraires !== undefined) row.honoraires = Number(client.honoraires) || 0;
-  if (client.reprise !== undefined) row.reprise = Number(client.reprise) || 0;
-  if (client.juridique !== undefined) row.juridique = Number(client.juridique) || 0;
+  if (client.honoraires !== undefined) row.honoraires = Number(client.honoraires ?? 0);
+  if (client.reprise !== undefined) row.reprise = Number(client.reprise ?? 0);
+  if (client.juridique !== undefined) row.juridique = Number(client.juridique ?? 0);
   if (client.frequence !== undefined) row.frequence = client.frequence;
   if (client.iban !== undefined) row.iban_encrypted = client.iban;
   if (client.bic !== undefined) row.bic_encrypted = client.bic;

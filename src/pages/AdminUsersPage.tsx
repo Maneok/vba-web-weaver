@@ -128,7 +128,11 @@ export default function AdminUsersPage() {
   const toggleUserActive = async (userId: string) => {
     if (!isAdmin) { toast.error("Acces refuse"); return; }
     const user = users.find((u) => u.id === userId);
-    if (!user || user.id === profile?.id) return;
+    if (!user) return;
+    if (user.id === profile?.id) {
+      toast.error("Vous ne pouvez pas desactiver votre propre compte");
+      return;
+    }
 
     const newStatus = !user.is_active;
     const action = newStatus ? "activer" : "desactiver";

@@ -545,7 +545,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex items-center justify-between pt-2">
-              <Button variant="ghost" size="sm" onClick={resetCabinet} className="gap-2 text-slate-400 hover:text-slate-200">
+              <Button variant="ghost" size="sm" onClick={resetCabinet} aria-label="Reinitialiser les informations du cabinet" className="gap-2 text-slate-400 hover:text-slate-200">
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reinitialiser
               </Button>
@@ -554,6 +554,7 @@ export default function SettingsPage() {
                 <Button
                   onClick={saveCabinet}
                   disabled={savingCabinet}
+                  aria-label="Enregistrer les informations du cabinet"
                   className={`gap-2 transition-colors duration-300 ${savedCabinet ? "bg-green-600 hover:bg-green-600" : ""}`}
                 >
                   {savingCabinet ? <Loader2 className="w-4 h-4 animate-spin" /> : savedCabinet ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
@@ -578,12 +579,12 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-bas">Seuil SIMPLIFIEE (max)</Label>
-                  <Input id="sc-bas" type="number" value={scoring.seuil_bas} onChange={(e) => updateScoring("seuil_bas", Number(e.target.value))} />
+                  <Input id="sc-bas" type="number" min={0} value={scoring.seuil_bas} onChange={(e) => updateScoring("seuil_bas", Number(e.target.value))} />
                   <p className="text-[11px] text-slate-500">Score &le; ce seuil = vigilance SIMPLIFIEE</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-haut">Seuil RENFORCEE (min)</Label>
-                  <Input id="sc-haut" type="number" value={scoring.seuil_haut} onChange={(e) => updateScoring("seuil_haut", Number(e.target.value))} />
+                  <Input id="sc-haut" type="number" min={0} value={scoring.seuil_haut} onChange={(e) => updateScoring("seuil_haut", Number(e.target.value))} />
                   <p className="text-[11px] text-slate-500">Score &ge; ce seuil = vigilance RENFORCEE</p>
                 </div>
                 <div className="space-y-2">
@@ -600,23 +601,23 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-cash">Especes (cash)</Label>
-                  <Input id="sc-cash" type="number" value={scoring.malus_cash} onChange={(e) => updateScoring("malus_cash", Number(e.target.value))} />
+                  <Input id="sc-cash" type="number" min={0} value={scoring.malus_cash} onChange={(e) => updateScoring("malus_cash", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-pression">Pression / urgence</Label>
-                  <Input id="sc-pression" type="number" value={scoring.malus_pression} onChange={(e) => updateScoring("malus_pression", Number(e.target.value))} />
+                  <Input id="sc-pression" type="number" min={0} value={scoring.malus_pression} onChange={(e) => updateScoring("malus_pression", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-dist">Distanciel</Label>
-                  <Input id="sc-dist" type="number" value={scoring.malus_distanciel} onChange={(e) => updateScoring("malus_distanciel", Number(e.target.value))} />
+                  <Input id="sc-dist" type="number" min={0} value={scoring.malus_distanciel} onChange={(e) => updateScoring("malus_distanciel", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-ppe">PPE</Label>
-                  <Input id="sc-ppe" type="number" value={scoring.malus_ppe} onChange={(e) => updateScoring("malus_ppe", Number(e.target.value))} />
+                  <Input id="sc-ppe" type="number" min={0} value={scoring.malus_ppe} onChange={(e) => updateScoring("malus_ppe", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-atyp">Atypique</Label>
-                  <Input id="sc-atyp" type="number" value={scoring.malus_atypique} onChange={(e) => updateScoring("malus_atypique", Number(e.target.value))} />
+                  <Input id="sc-atyp" type="number" min={0} value={scoring.malus_atypique} onChange={(e) => updateScoring("malus_atypique", Number(e.target.value))} />
                 </div>
               </div>
             </div>
@@ -627,21 +628,21 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-rev-std">Revue STANDARD</Label>
-                  <Input id="sc-rev-std" type="number" value={scoring.revue_standard_mois} onChange={(e) => updateScoring("revue_standard_mois", Number(e.target.value))} />
+                  <Input id="sc-rev-std" type="number" min={1} value={scoring.revue_standard_mois} onChange={(e) => updateScoring("revue_standard_mois", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-rev-renf">Revue RENFORCEE</Label>
-                  <Input id="sc-rev-renf" type="number" value={scoring.revue_renforcee_mois} onChange={(e) => updateScoring("revue_renforcee_mois", Number(e.target.value))} />
+                  <Input id="sc-rev-renf" type="number" min={1} value={scoring.revue_renforcee_mois} onChange={(e) => updateScoring("revue_renforcee_mois", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-rev-simp">Revue SIMPLIFIEE</Label>
-                  <Input id="sc-rev-simp" type="number" value={scoring.revue_simplifiee_mois} onChange={(e) => updateScoring("revue_simplifiee_mois", Number(e.target.value))} />
+                  <Input id="sc-rev-simp" type="number" min={1} value={scoring.revue_simplifiee_mois} onChange={(e) => updateScoring("revue_simplifiee_mois", Number(e.target.value))} />
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end pt-2">
-              <Button onClick={saveScoring} disabled={savingScoring} className="gap-2">
+              <Button onClick={saveScoring} disabled={savingScoring} aria-label="Enregistrer la configuration du scoring" className="gap-2">
                 {savingScoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Enregistrer
               </Button>
@@ -726,7 +727,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex justify-end pt-2">
-              <Button onClick={saveLcbft} disabled={savingLcbft} className="gap-2">
+              <Button onClick={saveLcbft} disabled={savingLcbft} aria-label="Enregistrer la configuration LCB-FT" className="gap-2">
                 {savingLcbft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Enregistrer
               </Button>

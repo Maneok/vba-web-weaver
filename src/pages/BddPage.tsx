@@ -19,6 +19,16 @@ import type { Client } from "@/lib/types";
 
 const PAGE_SIZE = 25;
 
+/** Calculate KYC completion percentage based on key fields */
+function computeKycPercent(client: Client): number {
+  let s = 0;
+  if (client.siren) s += 25;
+  if (client.mail) s += 25;
+  if (client.iban) s += 25;
+  if (client.adresse) s += 25;
+  return s;
+}
+
 interface DraftInfo {
   siren: string;
   raisonSociale: string;
@@ -197,12 +207,7 @@ export default function BddPage() {
     const exportable = filtered.filter(c => !c.nonDiffusible);
     const excluded = filtered.length - exportable.length;
     const rows = exportable.map(c => {
-      let kyc = 0;
-      if (c.siren) kyc += 25;
-      if (c.mail) kyc += 25;
-      if (c.iban) kyc += 25;
-      if (c.adresse) kyc += 25;
-      return [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, `${kyc}%`, c.dateButoir].map(csvSafe);
+      return [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, `${computeKycPercent(c)}%`, c.dateButoir].map(csvSafe);
     });
     const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
     // 1. Add BOM for proper UTF-8 encoding in Excel
@@ -557,11 +562,7 @@ export default function BddPage() {
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
                   <TableCell className="text-center">
                     {(() => {
-                      let s = 0;
-                      if (client.siren) s += 25;
-                      if (client.mail) s += 25;
-                      if (client.iban) s += 25;
-                      if (client.adresse) s += 25;
+                      const s = computeKycPercent(client);
                       const color = s >= 75 ? "text-emerald-400" : s >= 50 ? "text-amber-400" : "text-red-400";
                       return <span className={`text-xs font-mono font-semibold ${color}`}>{s}%</span>;
                     })()}

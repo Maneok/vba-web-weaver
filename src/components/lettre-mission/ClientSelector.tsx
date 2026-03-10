@@ -40,6 +40,7 @@ export default function ClientSelector({ selectedRef, onClientSelected }: Client
             variant="outline"
             role="combobox"
             aria-expanded={open}
+            aria-label="Selectionner un client"
             className="w-[480px] justify-between h-11 bg-card/80 backdrop-blur border-white/10 hover:border-blue-500/50 transition-colors"
           >
             {selectedClient ? (
@@ -59,7 +60,7 @@ export default function ClientSelector({ selectedRef, onClientSelected }: Client
         </PopoverTrigger>
         <PopoverContent className="w-[480px] p-0" align="start">
           <Command>
-            <CommandInput placeholder="Rechercher par nom, ref ou SIREN..." />
+            <CommandInput placeholder="Rechercher par nom, ref ou SIREN..." aria-label="Rechercher un client" />
             <CommandList>
               <CommandEmpty>Aucun client trouve.</CommandEmpty>
               <CommandGroup heading={`${clients.length} client(s)`}>
@@ -91,6 +92,7 @@ export default function ClientSelector({ selectedRef, onClientSelected }: Client
       <Button
         variant="outline"
         size="sm"
+        aria-label="Creer un nouveau client"
         className="gap-2 shrink-0 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
         onClick={() => navigate("/nouveau-client")}
       >

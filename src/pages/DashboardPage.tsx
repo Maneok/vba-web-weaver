@@ -91,14 +91,16 @@ export default function DashboardPage() {
   // ── Load notification count ───────────────────────────────
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     supabase
       .from("notifications")
       .select("id", { count: "exact", head: true })
       .eq("lue", false)
       .then(({ count }) => {
-        setNotificationCount(count || 0);
+        if (!cancelled) setNotificationCount(count || 0);
       })
-      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
+      .catch((err: unknown) => logger.debug("Dashboard", "notif count failed:", err));
+    return () => { cancelled = true; };
   }, [user, lastRefresh]);
 
   // ── Computed stats from context ───────────────────────────

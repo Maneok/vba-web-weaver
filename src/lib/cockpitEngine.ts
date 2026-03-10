@@ -37,12 +37,17 @@ export function analyzeCockpit(
   collaborateurs: Collaborateur[],
   alertes: AlerteRegistre[]
 ): CockpitSummary {
+  // Guard against null/undefined inputs
+  const safeClients = Array.isArray(clients) ? clients : [];
+  const safeCollaborateurs = Array.isArray(collaborateurs) ? collaborateurs : [];
+  const safeAlertes = Array.isArray(alertes) ? alertes : [];
+
   const now = new Date();
   const urgencies: CockpitUrgency[] = [];
 
   // 1. Revisions en retard
   const revisionsRetard: CockpitUrgency[] = [];
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (c.statut === "INACTIF") continue;
     if (!c.dateButoir) continue;
     const butoir = new Date(c.dateButoir);
@@ -52,7 +57,7 @@ export function analyzeCockpit(
       const u: CockpitUrgency = {
         type: "revision",
         severity: daysLate > COCKPIT_CRITIQUE_DAYS ? "critique" : "warning",
-        title: `${c.raisonSociale} — Revision en retard`,
+        title: `${c.raisonSociale || c.ref || "Client inconnu"} — Revision en retard`,
         detail: `Butoir depasse de ${daysLate} jours (${c.dateButoir}). Vigilance: ${c.nivVigilance}`,
         ref: c.ref,
       };
@@ -63,7 +68,7 @@ export function analyzeCockpit(
 
   // 2. CNI perimees
   const cniPerimees: CockpitUrgency[] = [];
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (c.statut === "INACTIF" || !c.dateExpCni) continue;
     const expCni = new Date(c.dateExpCni);
     if (isNaN(expCni.getTime())) continue;
@@ -71,7 +76,7 @@ export function analyzeCockpit(
       const u: CockpitUrgency = {
         type: "cni",
         severity: "critique",
-        title: `${c.raisonSociale} — CNI expiree`,
+        title: `${c.raisonSociale || c.ref || "Client inconnu"} — CNI expiree`,
         detail: `Piece d'identite du dirigeant expiree le ${c.dateExpCni}`,
         ref: c.ref,
       };
@@ -83,7 +88,7 @@ export function analyzeCockpit(
         const u: CockpitUrgency = {
           type: "cni",
           severity: daysUntil < CNI_URGENT_DAYS ? "warning" : "info",
-          title: `${c.raisonSociale} — CNI bientot expiree`,
+          title: `${c.raisonSociale || c.ref || "Client inconnu"} — CNI bientot expiree`,
           detail: `Expire dans ${daysUntil} jours (${c.dateExpCni})`,
           ref: c.ref,
         };
@@ -95,7 +100,7 @@ export function analyzeCockpit(
 
   // 3. Incoherences scoring: Simplifie + (PPE/Pays/Atypique/Cash)
   const incoherencesScoring: CockpitUrgency[] = [];
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (c.statut === "INACTIF") continue;
     if (c.nivVigilance === "SIMPLIFIEE") {
       const flags: string[] = [];
@@ -107,7 +112,7 @@ export function analyzeCockpit(
         const u: CockpitUrgency = {
           type: "scoring",
           severity: "critique",
-          title: `${c.raisonSociale} — Incoherence scoring`,
+          title: `${c.raisonSociale || c.ref || "Client inconnu"} — Incoherence scoring`,
           detail: `Vigilance SIMPLIFIEE alors que: ${flags.join(", ")}. Score: ${c.scoreGlobal}`,
           ref: c.ref,
         };
@@ -119,7 +124,7 @@ export function analyzeCockpit(
 
   // 4. Lignes fantomes (ref ou honoraires mais pas de raison sociale)
   const lignesFantomes: CockpitUrgency[] = [];
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (!c.raisonSociale && (c.ref || (c.honoraires ?? 0) > 0)) {
       const u: CockpitUrgency = {
         type: "fantome",
@@ -135,7 +140,7 @@ export function analyzeCockpit(
 
   // 5. Formations a faire
   const formationsAFaire: CockpitUrgency[] = [];
-  for (const col of collaborateurs) {
+  for (const col of safeCollaborateurs) {
     if ((col.statutFormation ?? "").includes("FORMER") || (col.statutFormation ?? "").includes("JAMAIS")) {
       const u: CockpitUrgency = {
         type: "formation",
@@ -150,7 +155,7 @@ export function analyzeCockpit(
 
   // 6. Alertes non traitees
   const alertesNonTraitees: CockpitUrgency[] = [];
-  for (const a of alertes) {
+  for (const a of safeAlertes) {
     if (a.statut === "EN COURS") {
       const echeance = a.dateButoir ? new Date(a.dateButoir) : null;
       const isOverdue = echeance && !isNaN(echeance.getTime()) && echeance < now;
@@ -168,7 +173,7 @@ export function analyzeCockpit(
 
   // 7. KYC incomplets
   const kycIncomplets: CockpitUrgency[] = [];
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (c.statut === "INACTIF") continue;
     const missing: string[] = [];
     if (!c.siren || c.siren.trim() === "") missing.push("SIREN");
@@ -180,7 +185,7 @@ export function analyzeCockpit(
       const u: CockpitUrgency = {
         type: "kyc",
         severity: missing.length >= 3 ? "critique" : missing.length >= 2 ? "warning" : "info",
-        title: `${c.raisonSociale} — KYC incomplet`,
+        title: `${c.raisonSociale || c.ref || "Client inconnu"} — KYC incomplet`,
         detail: `Champs manquants: ${missing.join(", ")}`,
         ref: c.ref,
       };
@@ -191,13 +196,13 @@ export function analyzeCockpit(
 
   // 8. Documents manquants
   const documentManquants: CockpitUrgency[] = [];
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (c.statut === "INACTIF" || c.etat !== "VALIDE") continue;
     if (!c.lienKbis && !c.lienStatuts && !c.lienCni) {
       const u: CockpitUrgency = {
         type: "document",
         severity: "warning",
-        title: `${c.raisonSociale} — Documents manquants`,
+        title: `${c.raisonSociale || c.ref || "Client inconnu"} — Documents manquants`,
         detail: "Aucun document justificatif (KBIS, statuts, CNI) dans le dossier",
         ref: c.ref,
       };
@@ -208,13 +213,13 @@ export function analyzeCockpit(
 
   // 9. Anomalies capital
   const anomaliesCapital: CockpitUrgency[] = [];
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (c.statut === "INACTIF") continue;
     if ((c.capital ?? 0) > 0 && (c.capital ?? 0) < 100 && (c.honoraires ?? 0) > 10000) {
       const u: CockpitUrgency = {
         type: "capital",
         severity: "warning",
-        title: `${c.raisonSociale} — Capital anormalement faible`,
+        title: `${c.raisonSociale || c.ref || "Client inconnu"} — Capital anormalement faible`,
         detail: `Capital: ${c.capital}€ / Honoraires: ${c.honoraires}€ — ratio suspect`,
         ref: c.ref,
       };
@@ -226,10 +231,10 @@ export function analyzeCockpit(
   // 10. Doublons potentiels (même SIREN)
   const doublonsPotentiels: CockpitUrgency[] = [];
   const sirenMap = new Map<string, string[]>();
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (!c.siren || c.siren.trim() === "") continue;
     const existing = sirenMap.get(c.siren) || [];
-    existing.push(c.raisonSociale);
+    existing.push(c.raisonSociale ?? c.ref ?? "Inconnu");
     sirenMap.set(c.siren, existing);
   }
   for (const [siren, names] of sirenMap) {
@@ -247,13 +252,13 @@ export function analyzeCockpit(
 
   // 11. Beneficiaires effectifs manquants
   const beManquants: CockpitUrgency[] = [];
-  for (const c of clients) {
+  for (const c of safeClients) {
     if (c.statut === "INACTIF" || c.etat !== "VALIDE") continue;
     if (!c.be || c.be.trim() === "") {
       const u: CockpitUrgency = {
         type: "be",
         severity: c.nivVigilance === "RENFORCEE" ? "critique" : "warning",
-        title: `${c.raisonSociale} — BE non renseigne`,
+        title: `${c.raisonSociale || c.ref || "Client inconnu"} — BE non renseigne`,
         detail: `Beneficiaires effectifs non identifies. Vigilance: ${c.nivVigilance}`,
         ref: c.ref,
       };
@@ -263,9 +268,9 @@ export function analyzeCockpit(
   }
 
   // Stats
-  const actifs = clients.filter(c => c.statut !== "INACTIF");
-  const formesOk = collaborateurs.filter(c => (c.statutFormation ?? "").includes("A JOUR")).length;
-  const tauxFormation = collaborateurs.length > 0 ? Math.round((formesOk / collaborateurs.length) * 100) : 0;
+  const actifs = safeClients.filter(c => c.statut !== "INACTIF");
+  const formesOk = safeCollaborateurs.filter(c => (c.statutFormation ?? "").includes("A JOUR")).length;
+  const tauxFormation = safeCollaborateurs.length > 0 ? Math.round((formesOk / safeCollaborateurs.length) * 100) : 0;
 
   const kycComplets = actifs.filter(c =>
     c.siren?.trim() && c.mail?.trim() && c.adresse?.trim() && c.dirigeant?.trim()
@@ -279,9 +284,9 @@ export function analyzeCockpit(
   const alertesEnRetard = alertesNonTraitees.filter(u => u.severity === "critique").length;
 
   return {
-    totalClients: clients.length,
+    totalClients: safeClients.length,
     clientsActifs: actifs.length,
-    totalHonoraires: clients.reduce((sum, c) => sum + (c.honoraires ?? 0), 0),
+    totalHonoraires: safeClients.reduce((sum, c) => sum + (c.honoraires ?? 0), 0),
     urgencies,
     revisionsRetard,
     cniPerimees,

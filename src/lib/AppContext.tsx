@@ -177,17 +177,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     if (isOnline && removedClient) {
       const clientName = removedClient.raisonSociale;
-      clientsService.getByRef(ref).then((dbClient) => {
-        if (dbClient?.id) {
-          clientsService.delete(dbClient.id as string).catch(() => {
-            logger.error("AppContext", "Failed to delete client");
-            if (removedClient) setClients(prev => [removedClient!, ...prev]);
-            toast.error("Erreur lors de la suppression du client");
-          });
-          logsService.add("SUPPRESSION", `Dossier supprime: ${clientName}`, ref, "clients");
-        }
+      clientsService.deleteByRef(ref).then(() => {
+        logsService.add("SUPPRESSION", `Dossier supprime: ${clientName}`, ref, "clients");
       }).catch((err) => {
-        logger.error("AppContext", "Delete client lookup exception:", err);
+        logger.error("AppContext", "Failed to delete client:", err);
         if (removedClient) setClients(prev => [removedClient!, ...prev]);
         toast.error("Erreur lors de la suppression du client");
       });
