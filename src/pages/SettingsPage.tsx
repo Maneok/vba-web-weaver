@@ -167,7 +167,8 @@ export default function SettingsPage() {
 
   // Cleanup timers on unmount
   useEffect(() => {
-    return () => { savedTimersRef.current.forEach(clearTimeout); };
+    const timers = savedTimersRef.current;
+    return () => { timers.forEach(clearTimeout); };
   }, []);
 
   const [cabinet, setCabinet] = useState<CabinetInfo>(DEFAULT_CABINET);

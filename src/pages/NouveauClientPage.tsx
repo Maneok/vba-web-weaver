@@ -4013,7 +4013,7 @@ function highlightMatch(text: string, query: string): JSX.Element | string {
     // Try word-by-word matching
     const words = query.trim().split(/\s+/).filter(w => w.length >= 2);
     if (words.length === 0) return text;
-    let result = text;
+    const result = text;
     const parts: (JSX.Element | string)[] = [];
     let lastIdx = 0;
     for (const word of words) {
