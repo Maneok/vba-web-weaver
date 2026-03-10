@@ -145,7 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Only log audit + login history on actual sign-in (not page refresh)
         if (p && signedInRef.current) {
-          logAudit({ action: "CONNEXION" }).catch(() => {});
+          logAudit({ action: "CONNEXION" }).catch((err) => logger.debug("Auth", "audit log failed:", err));
           supabase.from("login_history").insert({
             user_id: user.id,
             cabinet_id: p.cabinet_id,
@@ -158,7 +158,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           signedInRef.current = false;
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        logger.warn("Auth", "profile fetch failed:", err);
         if (cancelled) return;
         setProfile(null);
         setLoading(false);

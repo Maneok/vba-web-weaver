@@ -34,8 +34,8 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       record_id: entry.record_id || null,
       old_data: entry.old_data || null,
       new_data: entry.new_data || null,
-      ip_address: null,
-      user_agent: typeof navigator !== "undefined" ? navigator.userAgent : "",
+      ip_address: null, // IP captured server-side via edge function headers
+      user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 512) : "",
     });
 
     if (insertError) {

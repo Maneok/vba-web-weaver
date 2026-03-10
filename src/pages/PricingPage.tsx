@@ -63,6 +63,8 @@ export default function PricingPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
 
+  useEffect(() => { document.title = "Tarifs | GRIMY"; }, []);
+
   const handleCheckout = async (planId: string) => {
     if (!email || !email.includes("@")) {
       toast.error("Veuillez entrer une adresse email valide");

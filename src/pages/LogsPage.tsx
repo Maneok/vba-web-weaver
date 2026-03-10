@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -77,6 +77,8 @@ export default function LogsPage() {
   const [filterUser, setFilterUser] = useState<string>("all");
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
+
+  useEffect(() => { document.title = "Historique | GRIMY"; }, []);
 
   // Unique values for filters
   const uniqueActions = useMemo(() => Array.from(new Set(logs.map(l => l.typeAction))).sort(), [logs]);

@@ -82,6 +82,8 @@ export default function RegistrePage() {
 
   const debouncedSearch = useDebounce(search, 250);
 
+  useEffect(() => { document.title = "Registre LCB-FT | GRIMY"; }, []);
+
   const hasActiveFilters = filterStatut !== "all" || filterCategorie !== "all" || dateStart !== "" || dateEnd !== "" || search !== "";
 
   const clearAllFilters = useCallback(() => {
