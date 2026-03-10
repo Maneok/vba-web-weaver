@@ -365,7 +365,7 @@ export default function LettreMissionPage() {
 
   // ── sessionStorage draft ──
   useEffect(() => {
-    sessionStorage.setItem("lm_wizard_draft", JSON.stringify({ ...data, wizard_step: step }));
+    try { sessionStorage.setItem("lm_wizard_draft", JSON.stringify({ ...data, wizard_step: step })); } catch { /* storage full */ }
   }, [data, step]);
 
   // ── Init: restore draft + load Supabase ──

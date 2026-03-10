@@ -18,7 +18,7 @@ export function isOnboardingComplete(): boolean {
 }
 
 export function markOnboardingComplete(): void {
-  localStorage.setItem(STORAGE_KEY, "true");
+  try { localStorage.setItem(STORAGE_KEY, "true"); } catch { /* storage full */ }
 }
 
 interface StepIndicatorProps {

@@ -210,12 +210,8 @@ export default function GedPage() {
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!cancelled) {
-      fetchDocuments();
-      fetchStorageFiles();
-    }
-    return () => { cancelled = true; };
+    fetchDocuments();
+    fetchStorageFiles();
   }, [fetchDocuments, fetchStorageFiles]);
 
   const toggleFolder = (siren: string) => {
@@ -425,7 +421,7 @@ export default function GedPage() {
     a.href = url;
     a.download = fileName;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
 
   const openVersionDialog = async (doc: Document) => {

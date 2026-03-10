@@ -261,14 +261,16 @@ export default function NouveauClientPage() {
   useEffect(() => {
     if (step > 0 || form.siren) {
       const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
-      sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
-      // Also save per-SIREN draft for multi-draft support
-      if (form.siren) {
-        const cleanSiren = form.siren.replace(/\s/g, "");
-        if (cleanSiren.length === 9) {
-          sessionStorage.setItem(`draft_nc_${cleanSiren}`, JSON.stringify(draftData));
+      try {
+        sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
+        // Also save per-SIREN draft for multi-draft support
+        if (form.siren) {
+          const cleanSiren = form.siren.replace(/\s/g, "");
+          if (cleanSiren.length === 9) {
+            sessionStorage.setItem(`draft_nc_${cleanSiren}`, JSON.stringify(draftData));
+          }
         }
-      }
+      } catch { /* storage full */ }
     }
   }, [step, form, beneficiaires, questions, decision, motifRefus, motifReserve]);
 
@@ -789,7 +791,7 @@ export default function NouveauClientPage() {
     // #2: Save to search history
     setSearchHistory(prev => {
       const updated = [searchQuery.trim(), ...prev.filter(h => h !== searchQuery.trim())].slice(0, 5);
-      localStorage.setItem("search_history_lcb", JSON.stringify(updated));
+      try { localStorage.setItem("search_history_lcb", JSON.stringify(updated)); } catch { /* storage full */ }
       return updated;
     });
     setShowSearchHistory(false);
@@ -3764,7 +3766,7 @@ export default function NouveauClientPage() {
             className={`gap-1.5 shadow-lg border-white/[0.1] bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-400 hover:text-blue-400"}`}
             onClick={() => {
               const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
-              sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
+              try { sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData)); } catch { /* storage full */ }
               setDraftSaved(true);
               toast.success("Brouillon sauvegarde");
               setTimeout(() => setDraftSaved(false), 2000);

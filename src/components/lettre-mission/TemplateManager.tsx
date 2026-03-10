@@ -101,7 +101,7 @@ function loadTemplates(): Template[] {
 }
 
 function saveTemplates(templates: Template[]) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(templates)); } catch { /* storage full */ }
 }
 
 interface TemplateManagerProps {

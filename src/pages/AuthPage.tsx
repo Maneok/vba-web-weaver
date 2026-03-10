@@ -152,7 +152,7 @@ export default function AuthPage() {
               </TabsList>
 
               <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4">
+                <form onSubmit={handleLogin} className="space-y-4" noValidate>
                   <div className="space-y-2">
                     <Label htmlFor="login-email" className="text-slate-300">Email</Label>
                     <Input
@@ -179,7 +179,7 @@ export default function AuthPage() {
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
+                  <Button type="submit" className="w-full" disabled={loading || googleLoading}>
                     {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                     Se connecter
                   </Button>
@@ -187,7 +187,7 @@ export default function AuthPage() {
               </TabsContent>
 
               <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-4">
+                <form onSubmit={handleRegister} className="space-y-4" noValidate>
                   <div className="space-y-2">
                     <Label htmlFor="reg-name" className="text-slate-300">Nom complet</Label>
                     <Input

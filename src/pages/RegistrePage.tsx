@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { AlerteRegistre } from "@/lib/types";
@@ -59,11 +59,11 @@ function exportCSV(data: AlerteRegistre[], filename: string) {
   link.href = url;
   link.download = filename;
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 export default function RegistrePage() {
-  const today = new Date().toISOString().split("T")[0];
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
   const { alertes, addAlerte, clients } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState<string>("all");
@@ -96,13 +96,15 @@ export default function RegistrePage() {
   }, []);
 
   const handleSort = useCallback((key: "date" | "clientConcerne" | "categorie") => {
-    if (sortKey === key) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
+    setSortKey(prev => {
+      if (prev === key) {
+        setSortDir(d => d === "asc" ? "desc" : "asc");
+        return prev;
+      }
       setSortDir("asc");
-    }
-  }, [sortKey]);
+      return key;
+    });
+  }, []);
 
   // --- KPI counts ---
   const totalAlertes = alertes.length;

@@ -130,6 +130,9 @@ export default function AdminUsersPage() {
     if (!user || user.id === profile?.id) return;
 
     const newStatus = !user.is_active;
+    const action = newStatus ? "activer" : "desactiver";
+    if (!window.confirm(`Voulez-vous vraiment ${action} ${user.full_name || user.email} ?`)) return;
+
     const { error } = await supabase
       .from("profiles")
       .update({ is_active: newStatus })

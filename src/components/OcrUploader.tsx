@@ -295,6 +295,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
           accept={config.accept}
           onChange={handleFileChange}
           className="hidden"
+          aria-label={`Importer un fichier ${config.label}`}
         />
 
         {status === "loading" ? (

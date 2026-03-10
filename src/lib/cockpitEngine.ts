@@ -119,7 +119,7 @@ export function analyzeCockpit(
   // 4. Lignes fantomes (ref ou honoraires mais pas de raison sociale)
   const lignesFantomes: CockpitUrgency[] = [];
   for (const c of clients) {
-    if (!c.raisonSociale && (c.ref || c.honoraires > 0)) {
+    if (!c.raisonSociale && (c.ref || (c.honoraires ?? 0) > 0)) {
       const u: CockpitUrgency = {
         type: "fantome",
         severity: "warning",
@@ -209,7 +209,7 @@ export function analyzeCockpit(
   const anomaliesCapital: CockpitUrgency[] = [];
   for (const c of clients) {
     if (c.statut === "INACTIF") continue;
-    if (c.capital > 0 && c.capital < 100 && c.honoraires > 10000) {
+    if ((c.capital ?? 0) > 0 && (c.capital ?? 0) < 100 && (c.honoraires ?? 0) > 10000) {
       const u: CockpitUrgency = {
         type: "capital",
         severity: "warning",
@@ -280,7 +280,7 @@ export function analyzeCockpit(
   return {
     totalClients: clients.length,
     clientsActifs: actifs.length,
-    totalHonoraires: clients.reduce((sum, c) => sum + c.honoraires, 0),
+    totalHonoraires: clients.reduce((sum, c) => sum + (c.honoraires ?? 0), 0),
     urgencies,
     revisionsRetard,
     cniPerimees,

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -190,9 +190,9 @@ export default function SettingsPage() {
   activeTabRef.current = activeTab;
 
   // Dirty state helpers
-  const dirtyCabinet = JSON.stringify(cabinet) !== JSON.stringify(savedCabinetSnapshot);
-  const dirtyScoring = JSON.stringify(scoring) !== JSON.stringify(savedScoringSnapshot);
-  const dirtyLcbft = JSON.stringify(lcbft) !== JSON.stringify(savedLcbftSnapshot);
+  const dirtyCabinet = useMemo(() => JSON.stringify(cabinet) !== JSON.stringify(savedCabinetSnapshot), [cabinet, savedCabinetSnapshot]);
+  const dirtyScoring = useMemo(() => JSON.stringify(scoring) !== JSON.stringify(savedScoringSnapshot), [scoring, savedScoringSnapshot]);
+  const dirtyLcbft = useMemo(() => JSON.stringify(lcbft) !== JSON.stringify(savedLcbftSnapshot), [lcbft, savedLcbftSnapshot]);
 
   /* --- load --- */
   useEffect(() => {
@@ -383,8 +383,8 @@ export default function SettingsPage() {
       (activeTab === "scoring" && dirtyScoring) ||
       (activeTab === "lcbft" && dirtyLcbft);
     if (currentDirty) {
-      const confirmed = window.confirm("Vous avez des modifications non enregistrees. Voulez-vous vraiment changer d'onglet ?");
-      if (!confirmed) return;
+      toast.warning("Modifications non enregistrees. Sauvegardez avant de changer d'onglet.");
+      return;
     }
     setActiveTab(newTab);
   }

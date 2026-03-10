@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -109,17 +109,18 @@ export default function LogsPage() {
   }, [logs]);
 
   // Day grouping helper
-  const getDayLabel = (horodatage: string): string => {
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const yesterday = useMemo(() => new Date(Date.now() - 86400000).toISOString().split("T")[0], []);
+
+  const getDayLabel = useCallback((horodatage: string): string => {
     const dateStr = getDateFromHorodatage(horodatage);
     if (!dateStr) return "Inconnu";
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
     if (dateStr === today) return "Aujourd'hui";
     if (dateStr === yesterday) return "Hier";
     try {
       return new Date(dateStr).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     } catch { return dateStr; }
-  };
+  }, [today, yesterday]);
 
   const filtered = useMemo(() => {
     let result = logs;
@@ -170,7 +171,7 @@ export default function LogsPage() {
     }
     if (currentGroup.length > 0) groups.push({ label: currentLabel, logs: currentGroup });
     return groups;
-  }, [visible]);
+  }, [visible, getDayLabel]);
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
@@ -196,7 +197,7 @@ export default function LogsPage() {
             a.href = url;
             a.download = `journal_actions_${new Date().toISOString().slice(0, 10)}.csv`;
             a.click();
-            URL.revokeObjectURL(url);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
             toast.success(`Export CSV genere (${filtered.length} entrees)`);
           }}
         >

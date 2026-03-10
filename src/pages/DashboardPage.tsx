@@ -34,16 +34,10 @@ function formatDateLong(): string {
   });
 }
 
-// Generate sparkline data from clients (last 6 months trend mock)
+// Generate sparkline data from clients (deterministic linear interpolation)
 function generateSparkline(current: number): { v: number }[] {
-  const points: { v: number }[] = [];
-  let val = Math.max(1, current - Math.floor(Math.random() * 5 + 3));
-  for (let i = 0; i < 6; i++) {
-    points.push({ v: val });
-    val = Math.max(0, val + Math.floor(Math.random() * 5 - 2));
-  }
-  points.push({ v: current });
-  return points;
+  const base = Math.max(1, current - 5);
+  return Array.from({ length: 7 }, (_, i) => ({ v: Math.max(0, base + Math.round((current - base) * (i / 6))) }));
 }
 
 // ── Main Dashboard ──────────────────────────────────────────
@@ -55,6 +49,10 @@ export default function DashboardPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [notificationCount, setNotificationCount] = useState(0);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
+  const refreshAllRef = useRef(refreshAll);
+  refreshAllRef.current = refreshAll;
+
+  const greeting = useMemo(() => new Date().getHours() < 18 ? "Bonjour" : "Bonsoir", []);
 
   useEffect(() => { document.title = "Dashboard | GRIMY"; }, []);
 
@@ -77,10 +75,10 @@ export default function DashboardPage() {
   // ── Auto-refresh every 60s ────────────────────────────────
   useEffect(() => {
     refreshTimer.current = setInterval(() => {
-      refreshAll().then(() => setLastRefresh(new Date())).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
+      refreshAllRef.current().then(() => setLastRefresh(new Date())).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
     }, 60000);
     return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
-  }, [refreshAll]);
+  }, []);
 
   // ── Load notification count ───────────────────────────────
   useEffect(() => {
@@ -275,7 +273,7 @@ export default function DashboardPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8 pb-6 border-b border-white/[0.06] print:mb-4 print:border-0">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            {new Date().getHours() < 18 ? "Bonjour" : "Bonsoir"}, {userName}
+            {greeting}, {userName}
           </h1>
           <p className="text-sm text-muted-foreground capitalize mt-1">{formatDateLong()}</p>
         </div>

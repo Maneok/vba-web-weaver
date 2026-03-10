@@ -11,7 +11,7 @@ export default function CookieBanner() {
   }, []);
 
   const respond = (accepted: boolean) => {
-    localStorage.setItem(COOKIE_KEY, accepted ? "accepted" : "refused");
+    try { localStorage.setItem(COOKIE_KEY, accepted ? "accepted" : "refused"); } catch { /* storage full */ }
     setVisible(false);
   };
 

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from "react";
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "@/lib/types";
 import { O90_CLIENTS, O90_COLLABORATEURS, O90_ALERTES, O90_LOGS } from "@/lib/dataLoader";
 import { clientsService, collaborateursService, registreService, logsService } from "@/lib/supabaseService";
@@ -209,19 +209,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const dbRow = mapAlerteToDb(alerte);
       registreService.create(dbRow).catch((err) => {
         logger.error("AppContext", "Create alerte exception:", err);
+        setAlertes(prev => prev.filter(a => a !== alerte));
         toast.error("Erreur lors de la sauvegarde de l'alerte");
       });
       logsService.add("ALERTE", `Nouvelle alerte: ${alerte.categorie} - ${alerte.clientConcerne}`, "", "alertes_registre");
     }
   }, [isOnline]);
 
+  const contextValue = useMemo<AppState>(() => ({
+    clients, collaborateurs, alertes, logs,
+    isLoading, isOnline,
+    addClient, updateClient, deleteClient, addLog, addAlerte,
+    refreshClients, refreshAll,
+  }), [clients, collaborateurs, alertes, logs, isLoading, isOnline, addClient, updateClient, deleteClient, addLog, addAlerte, refreshClients, refreshAll]);
+
   return (
-    <AppContext.Provider value={{
-      clients, collaborateurs, alertes, logs,
-      isLoading, isOnline,
-      addClient, updateClient, deleteClient, addLog, addAlerte,
-      refreshClients, refreshAll,
-    }}>
+    <AppContext.Provider value={contextValue}>
       {children}
     </AppContext.Provider>
   );

@@ -80,6 +80,8 @@ export default function NotificationBell() {
 
   useEffect(() => {
     fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(interval);
   }, [fetchNotifications]);
 
   // Refresh when popover opens
@@ -118,10 +120,12 @@ export default function NotificationBell() {
 
   const handleNotifClick = useCallback((n: Notification) => {
     if (n.lien) {
-      navigate(n.lien);
-      setOpen(false);
+      markAsRead(n.id).then(() => {
+        navigate(n.lien!);
+        setOpen(false);
+      });
     }
-  }, [navigate]);
+  }, [navigate, markAsRead]);
 
   const unreadCount = notifications.length;
 

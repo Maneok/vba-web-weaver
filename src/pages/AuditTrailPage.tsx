@@ -71,7 +71,7 @@ function exportAuditCSV(entries: AuditRow[]) {
   link.href = url;
   link.download = `audit-trail-${new Date().toISOString().split("T")[0]}.csv`;
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function renderDiffView(oldData: Record<string, unknown> | null, newData: Record<string, unknown> | null) {

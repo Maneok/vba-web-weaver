@@ -15,7 +15,11 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
   useEffect(() => {
     // P6-81: Skip simulation for single node (no edges to display)
-    if (!svgRef.current || !nodes || nodes.length === 0) return;
+    if (!svgRef.current || !nodes || nodes.length === 0) {
+      // Clean up SVG when nodes become empty
+      if (svgRef.current) d3.select(svgRef.current).selectAll("*").remove();
+      return;
+    }
     if (nodes.length === 1 && (!edges || edges.length === 0)) return;
     const safeEdges = edges ?? [];
 
@@ -194,6 +198,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   return (
     <svg
       ref={svgRef}
+      role="img"
+      aria-label="Graphe du reseau de relations entre entites"
       width={width}
       height={height}
       className="w-full"

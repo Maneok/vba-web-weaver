@@ -69,7 +69,7 @@ export default function LettreMissionHistory() {
     };
     const updated = [...records, dup];
     setRecords(updated);
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full */ }
     toast.success("Lettre dupliquee en brouillon");
   };
 
