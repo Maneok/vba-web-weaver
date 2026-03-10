@@ -29,7 +29,7 @@ const LandingPage = lazy(() => import("@/pages/LandingPage"));
 const MentionsLegalesPage = lazy(() => import("@/pages/MentionsLegalesPage"));
 const CGVPage = lazy(() => import("@/pages/CGVPage"));
 const PolitiqueConfidentialitePage = lazy(() => import("@/pages/PolitiqueConfidentialitePage"));
-const SuspendedPage = lazy(() => import("@/pages/SuspendedPage"));
+
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -93,6 +93,7 @@ const App = () => (
                   <Route path="lettre-mission/:ref" element={<SafePage><LettreMissionPage /></SafePage>} />
                   <Route path="diagnostic" element={<SafePage><DiagnosticPage /></SafePage>} />
                   <Route path="parametres" element={<SafePage><SettingsPage /></SafePage>} />
+                  <Route path="notifications" element={<SafePage><NotificationsPage /></SafePage>} />
                   <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />

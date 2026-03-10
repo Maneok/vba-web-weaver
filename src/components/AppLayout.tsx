@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
-import SubscriptionBanner from "./SubscriptionBanner";
-import NotificationCenter from "./NotificationCenter";
+
 import { ArrowLeft, ChevronRight, Keyboard, LogOut, Menu, ScrollText, Settings, User } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppState } from "@/lib/AppContext";
@@ -29,6 +28,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: { label: string; 
   "/parametres": { title: "Parametres", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Parametres" }] },
   "/lettre-mission": { title: "Lettre de Mission", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Lettre de Mission" }] },
   "/aide": { title: "Aide", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Aide" }] },
+  "/notifications": { title: "Notifications", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Notifications" }] },
 };
 
 /** Compute user initials safely for single-word or empty names */
@@ -198,7 +198,7 @@ export default function AppLayout() {
             </span>
             <div className="w-px h-5 bg-white/[0.06]" />
 
-            <NotificationCenter />
+            <NotificationBell />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
