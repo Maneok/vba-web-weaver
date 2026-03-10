@@ -6,20 +6,26 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Users, BarChart3, ShieldCheck, AlertTriangle, Clock, Euro,
-  Bell, RefreshCw, Printer,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Bell, RefreshCw, Settings,
 } from "lucide-react";
 
 import OnboardingWizard, { isOnboardingComplete } from "@/components/OnboardingWizard";
-import { KPICard } from "@/components/dashboard/KPICard";
-import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
-import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
-import { ComplianceGauge } from "@/components/dashboard/ComplianceGauge";
-import { VigilanceDonut } from "@/components/dashboard/VigilanceDonut";
-import { MonthlyChart } from "@/components/dashboard/MonthlyChart";
-import { UpcomingDeadlines, type Deadline } from "@/components/dashboard/UpcomingDeadlines";
 import { QuickActionsBar, QuickActionsFAB } from "@/components/dashboard/QuickActions";
+import { DashboardKPICards } from "@/components/dashboard/DashboardKPICards";
+import { DashboardChart } from "@/components/dashboard/DashboardChart";
+import { DashboardAlerts } from "@/components/dashboard/DashboardAlerts";
+import { DashboardActivity } from "@/components/dashboard/DashboardActivity";
+import { DashboardVigilance } from "@/components/dashboard/DashboardVigilance";
+import { type Deadline } from "@/components/dashboard/UpcomingDeadlines";
 
 // ── Helpers ──────────────────────────────────────────────────
 function formatTime(d: Date): string {
@@ -41,6 +47,48 @@ function generateSparkline(current: number): { v: number }[] {
   return Array.from({ length: 7 }, (_, i) => ({ v: Math.max(0, base + Math.round((current - base) * (i / 6))) }));
 }
 
+// ── Widget visibility ────────────────────────────────────────
+const WIDGET_STORAGE_KEY = "dashboard-widgets";
+
+interface WidgetVisibility {
+  kpi: boolean;
+  graphique: boolean;
+  alertes: boolean;
+  activite: boolean;
+  repartition: boolean;
+}
+
+const DEFAULT_WIDGETS: WidgetVisibility = {
+  kpi: true,
+  graphique: true,
+  alertes: true,
+  activite: true,
+  repartition: true,
+};
+
+function loadWidgetVisibility(): WidgetVisibility {
+  try {
+    const stored = localStorage.getItem(WIDGET_STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      return { ...DEFAULT_WIDGETS, ...parsed };
+    }
+  } catch { /* ignore */ }
+  return { ...DEFAULT_WIDGETS };
+}
+
+function saveWidgetVisibility(v: WidgetVisibility) {
+  localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(v));
+}
+
+const WIDGET_LABELS: { key: keyof WidgetVisibility; label: string }[] = [
+  { key: "kpi", label: "Indicateurs KPI" },
+  { key: "graphique", label: "Graphiques de suivi" },
+  { key: "alertes", label: "Alertes et echeances" },
+  { key: "activite", label: "Fil d'activite" },
+  { key: "repartition", label: "Jauges de conformite" },
+];
+
 // ── Main Dashboard ──────────────────────────────────────────
 export default function DashboardPage() {
   const { clients, alertes, logs, collaborateurs, isLoading, refreshAll } = useAppState();
@@ -49,6 +97,7 @@ export default function DashboardPage() {
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [notificationCount, setNotificationCount] = useState(0);
+  const [widgets, setWidgets] = useState<WidgetVisibility>(loadWidgetVisibility);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
   const refreshAllRef = useRef(refreshAll);
   refreshAllRef.current = refreshAll;
@@ -58,14 +107,19 @@ export default function DashboardPage() {
 
   useDocumentTitle("Dashboard");
 
+  const toggleWidget = (key: keyof WidgetVisibility) => {
+    setWidgets(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      saveWidgetVisibility(next);
+      return next;
+    });
+  };
+
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      // Skip if user is typing in an input/textarea
       const tag = (e.target as HTMLElement)?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-
-      // Require Ctrl (or Cmd on Mac) modifier to avoid firing while typing
       if (!(e.ctrlKey || e.metaKey)) return;
 
       switch (e.key) {
@@ -137,10 +191,8 @@ export default function DashboardPage() {
       try { return new Date(c.dateButoir) < now; } catch { return false; }
     }).length;
 
-    // CA previsionnel from honoraires
     const caPrevisionnel = actifs.reduce((s, c) => s + (c.honoraires || 0), 0);
 
-    // Conformite = % of clients with all KYC fields filled
     const withKyc = actifs.filter(c =>
       c.lienCni && c.siren && c.dirigeant && c.adresse
     ).length;
@@ -180,10 +232,9 @@ export default function DashboardPage() {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthStr = months[d.getMonth()];
 
-      // Count clients that existed by that month based on dateCreationLigne
       const beforeDate = new Date(d.getFullYear(), d.getMonth() + 1, 0);
       const filtered = clients.filter(c => {
-        if (!c.dateCreationLigne) return true; // old clients
+        if (!c.dateCreationLigne) return true;
         try { return new Date(c.dateCreationLigne) <= beforeDate; } catch { return true; }
       });
 
@@ -202,7 +253,6 @@ export default function DashboardPage() {
     const now = new Date();
     const items: Deadline[] = [];
 
-    // Revues approaching
     clients.forEach(c => {
       if (!c.dateButoir) return;
       try {
@@ -220,7 +270,6 @@ export default function DashboardPage() {
       } catch { /* skip */ }
     });
 
-    // Formations approaching for collaborateurs
     collaborateurs.forEach(col => {
       if (!col.derniereFormation) return;
       try {
@@ -239,7 +288,6 @@ export default function DashboardPage() {
       } catch { /* skip */ }
     });
 
-    // Sort by date
     items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     return items.slice(0, 5);
   }, [clients, collaborateurs]);
@@ -271,10 +319,6 @@ export default function DashboardPage() {
       { label: "Controle qualite", value: 0, description: "Controles realises vs attendus" },
     ];
   }, [clients, collaborateurs]);
-
-  // ── Score color helper ────────────────────────────────────
-  const scoreColor = stats.avgScore <= 30 ? "#22c55e" : stats.avgScore <= 55 ? "#f59e0b" : "#ef4444";
-  const conformiteColor = stats.tauxConformite >= 80 ? "#22c55e" : stats.tauxConformite >= 50 ? "#f59e0b" : "#ef4444";
 
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
 
@@ -316,106 +360,78 @@ export default function DashboardPage() {
             )}
           </button>
 
-          {/* Print button */}
-          <Button
-            size="sm"
-            variant="ghost"
-            className="h-9 w-9 p-0 print:hidden"
-            onClick={() => window.print()}
-            title="Exporter / Imprimer"
-            aria-label="Imprimer le tableau de bord"
-          >
-            <Printer className="w-4 h-4" />
-          </Button>
+          {/* Personnaliser button */}
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-9 w-9 p-0 print:hidden"
+                title="Personnaliser le tableau de bord"
+                aria-label="Personnaliser le tableau de bord"
+              >
+                <Settings className="w-4 h-4" />
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Personnaliser le tableau de bord</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <p className="text-sm text-muted-foreground">
+                  Choisissez les widgets a afficher sur votre tableau de bord.
+                </p>
+                {WIDGET_LABELS.map(({ key, label }) => (
+                  <div key={key} className="flex items-center gap-3">
+                    <Checkbox
+                      id={`widget-${key}`}
+                      checked={widgets[key]}
+                      onCheckedChange={() => toggleWidget(key)}
+                    />
+                    <label
+                      htmlFor={`widget-${key}`}
+                      className="text-sm font-medium cursor-pointer select-none"
+                    >
+                      {label}
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
       {/* ── SECTION 1: KPI Cards ───────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 lg:gap-5 mb-8 animate-stagger-in" role="region" aria-label="Indicateurs cles de performance">
-        <KPICard
-          icon={Users}
-          title="Clients actifs"
-          value={stats.totalClients}
-          color="#3b82f6"
-          trendPercent={12}
-          trendUp
-          sparklineData={sparklines.totalClients}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={BarChart3}
-          title="Score moyen"
-          value={stats.avgScore}
-          color={scoreColor}
-          sparklineData={sparklines.avgScore}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={ShieldCheck}
-          title="Taux conformite"
-          value={`${stats.tauxConformite}%`}
-          color={conformiteColor}
-          sparklineData={sparklines.tauxConformite}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={AlertTriangle}
-          title="Alertes en cours"
-          value={stats.alertesEnCours}
-          color="#f59e0b"
-          onClick={() => navigate("/registre")}
-          sparklineData={sparklines.alertesEnCours}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={Clock}
-          title="Revues echues"
-          value={stats.revuesEchues}
-          color={stats.revuesEchues > 0 ? "#ef4444" : "#22c55e"}
-          onClick={() => navigate("/bdd?filter=echues")}
-          sparklineData={sparklines.revuesEchues}
-          loading={isLoading}
-        />
-        <KPICard
-          icon={Euro}
-          title="CA previsionnel"
-          value={`${(stats.caPrevisionnel / 1000).toFixed(0)}k\u20AC`}
-          color="#3b82f6"
-          sparklineData={sparklines.caPrevisionnel}
-          loading={isLoading}
-        />
-      </div>
+      {widgets.kpi && (
+        <DashboardKPICards stats={stats} sparklines={sparklines} isLoading={isLoading} />
+      )}
 
       {/* ── SECTION 2: Charts row ──────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 mb-8" role="region" aria-label="Graphiques de suivi">
-        <div className="lg:col-span-3">
-          <MonthlyChart data={monthlyData} loading={isLoading} />
-        </div>
-        <div className="lg:col-span-2">
-          <VigilanceDonut
-            simplifiee={stats.simplifiee}
-            standard={stats.standard}
-            renforcee={stats.renforcee}
-            loading={isLoading}
-          />
-        </div>
-      </div>
+      {widgets.graphique && (
+        <DashboardChart
+          monthlyData={monthlyData}
+          simplifiee={stats.simplifiee}
+          standard={stats.standard}
+          renforcee={stats.renforcee}
+          isLoading={isLoading}
+        />
+      )}
 
       {/* ── SECTION 3: Alerts + Deadlines ──────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-8" role="region" aria-label="Alertes et echeances">
-        <AlertsPanel alertes={alertes} loading={isLoading} />
-        <UpcomingDeadlines deadlines={deadlines} loading={isLoading} />
-      </div>
+      {widgets.alertes && (
+        <DashboardAlerts alertes={alertes} deadlines={deadlines} isLoading={isLoading} />
+      )}
 
       {/* ── SECTION 4: Activity Feed ───────────────────────── */}
-      <div className="mb-8" role="region" aria-label="Fil d'activite">
-        <ActivityFeed logs={logs} loading={isLoading} />
-      </div>
+      {widgets.activite && (
+        <DashboardActivity logs={logs} isLoading={isLoading} />
+      )}
 
       {/* ── SECTION 5: Compliance Gauges ───────────────────── */}
-      <div className="mb-8" role="region" aria-label="Jauges de conformite">
-        <ComplianceGauge items={complianceItems} loading={isLoading} />
-      </div>
+      {widgets.repartition && (
+        <DashboardVigilance complianceItems={complianceItems} isLoading={isLoading} />
+      )}
 
       {/* ── Footer: Last update ────────────────────────────── */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-4 pb-6 border-t border-white/[0.04] print:hidden">

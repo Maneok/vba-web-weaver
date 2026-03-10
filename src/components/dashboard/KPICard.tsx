@@ -78,7 +78,7 @@ export function KPICard({
 
   return (
     <div
-      className={`bg-card rounded-2xl p-5 border border-border hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 hover:border-white/[0.12] transition-all duration-300 group ${onClick ? "cursor-pointer" : ""}`}
+      className={`bg-card rounded-2xl p-5 border border-border hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 hover:scale-105 hover:border-white/[0.12] transition-all duration-300 group cursor-pointer`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}

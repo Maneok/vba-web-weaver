@@ -3812,36 +3812,53 @@ export default function NouveauClientPage() {
           </div>
 
           {step < 5 ? (
-            <Button
-              onClick={() => {
-                if (!canGoNext) {
-                  const missing: string[] = [];
-                  if (step === 1) {
-                    if (!form.raisonSociale) missing.push("Raison sociale");
-                    if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) missing.push("SIREN (9 chiffres)");
-                    if (!form.forme) missing.push("Forme juridique");
-                    if (!form.ape) missing.push("Code APE");
-                    if (!form.dirigeant) missing.push("Dirigeant");
-                    if (!form.adresse) missing.push("Adresse");
-                    if (!form.cp) missing.push("Code postal");
-                    if (!form.ville) missing.push("Ville");
+            <div className="flex items-center gap-2">
+              {/* Skip step button — shown when validation blocks on steps with requirements */}
+              {!canGoNext && [1, 3, 4].includes(step) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    toast.info("Etape passee — vous pourrez y revenir plus tard");
+                    setStep(step + 1);
+                  }}
+                  className="gap-1 text-xs text-slate-500 hover:text-slate-300"
+                >
+                  Passer
+                  <ArrowRight className="w-3 h-3" />
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  if (!canGoNext) {
+                    const missing: string[] = [];
+                    if (step === 1) {
+                      if (!form.raisonSociale) missing.push("Raison sociale");
+                      if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) missing.push("SIREN (9 chiffres)");
+                      if (!form.forme) missing.push("Forme juridique");
+                      if (!form.ape) missing.push("Code APE");
+                      if (!form.dirigeant) missing.push("Dirigeant");
+                      if (!form.adresse) missing.push("Adresse");
+                      if (!form.cp) missing.push("Code postal");
+                      if (!form.ville) missing.push("Ville");
+                    }
+                    if (step === 3 && !questionsValid) missing.push("Commentaires obligatoires pour reponses OUI");
+                    if (step === 4 && !decision) missing.push("Decision requise");
+                    if (missing.length > 0) {
+                      toast.warning(`Champs manquants : ${missing.join(", ")}`);
+                      // #22: Smooth scroll to first error
+                      scrollToFirstError();
+                    }
+                    return;
                   }
-                  if (step === 3 && !questionsValid) missing.push("Commentaires obligatoires pour reponses OUI");
-                  if (step === 4 && !decision) missing.push("Decision requise");
-                  if (missing.length > 0) {
-                    toast.warning(`Champs manquants : ${missing.join(", ")}`);
-                    // #22: Smooth scroll to first error
-                    scrollToFirstError();
-                  }
-                  return;
-                }
-                setStep(step + 1);
-              }}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-blue-500/10"
-            >
-              Suivant
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+                  setStep(step + 1);
+                }}
+                className="gap-1.5 bg-blue-600 hover:bg-blue-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-blue-500/10"
+              >
+                Suivant
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           ) : (
             <Button
               onClick={handleSubmit}
