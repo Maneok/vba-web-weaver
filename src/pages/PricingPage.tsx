@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -63,7 +64,7 @@ export default function PricingPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState<string | null>(null);
 
-  useEffect(() => { document.title = "Tarifs | GRIMY"; }, []);
+  useDocumentTitle("Tarifs");
 
   const handleCheckout = async (planId: string) => {
     if (!email || !email.includes("@")) {

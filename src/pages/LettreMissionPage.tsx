@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import {
   LM_STEP_TITLES,
@@ -381,7 +382,7 @@ export default function LettreMissionPage() {
         }
       }
     } catch (e) {
-      console.warn("[LM] Failed to restore session draft:", e);
+      logger.warn("LM", "Failed to restore session draft:", e);
     }
     loadSupabaseDraft();
     loadSavedLetters();
@@ -400,7 +401,7 @@ export default function LettreMissionPage() {
         setShowDraftBanner(true);
       }
     } catch (e) {
-      console.warn("[LM] Failed to load Supabase draft:", e);
+      logger.warn("LM", "Failed to load Supabase draft:", e);
     }
   };
 
@@ -436,7 +437,7 @@ export default function LettreMissionPage() {
             toast.warning("Ce client a deja une lettre de mission active");
           }
         })
-        .catch((e) => console.warn("[LM] Existing LM check failed:", e));
+        .catch((e) => logger.warn("LM", "Existing LM check failed:", e));
     }
   }, [data.client_id]);
 
@@ -472,7 +473,7 @@ export default function LettreMissionPage() {
       setLastSaved(new Date());
       toast.success("Sauvegarde", { duration: 1500 });
     } catch (e) {
-      console.warn("[LM] Auto-save failed:", e);
+      logger.warn("LM", "Auto-save failed:", e);
     }
   }, [data, step, lmId, profile?.cabinet_id, savedLetters.length]);
 
@@ -510,7 +511,7 @@ export default function LettreMissionPage() {
         );
       }
     } catch (e) {
-      console.warn("[LM] Failed to load letters:", e);
+      logger.warn("LM", "Failed to load letters:", e);
     }
     setHistoryLoading(false);
   };
@@ -587,7 +588,7 @@ export default function LettreMissionPage() {
       table_name: "lettres_mission",
       record_id: lmId || undefined,
       new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, statut: sanitized.statut, duration_seconds: duration },
-    }).catch((e) => console.warn("[LM] Audit log failed:", e));
+    }).catch((e) => logger.warn("LM", "Audit log failed:", e));
     sessionStorage.removeItem("lm_wizard_draft");
     setLastSaved(new Date());
     await loadSavedLetters();

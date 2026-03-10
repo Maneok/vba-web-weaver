@@ -301,6 +301,13 @@ export default function AdminUsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
+            {users.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  Aucun utilisateur. Invitez votre premier collaborateur.
+                </TableCell>
+              </TableRow>
+            )}
             {users.map((u) => (
               <TableRow key={u.id} className={!u.is_active ? "opacity-50" : ""}>
                 <TableCell className="font-medium">{u.full_name}</TableCell>

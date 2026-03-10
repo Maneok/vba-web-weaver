@@ -100,16 +100,25 @@ export const VALIDATORS: Record<number, (data: Record<string, unknown>) => Valid
 
 /** Sanitize HTML/XSS dans les champs texte */
 export function sanitizeText(text: string): string {
-  return text.replace(/[<>&"']/g, (c) => {
+  // Strip null bytes
+  let cleaned = text.replace(/\0/g, "");
+  // Remove javascript: / data: / vbscript: URI schemes (case-insensitive, whitespace-tolerant)
+  cleaned = cleaned.replace(/\b(?:javascript|data|vbscript)\s*:/gi, "");
+  // Remove event handler attributes (onclick, onerror, onload, etc.)
+  cleaned = cleaned.replace(/\bon\w+\s*=/gi, "");
+  // HTML-encode dangerous characters
+  cleaned = cleaned.replace(/[<>&"'`]/g, (c) => {
     const map: Record<string, string> = {
       "<": "&lt;",
       ">": "&gt;",
       "&": "&amp;",
       '"': "&quot;",
       "'": "&#39;",
+      "`": "&#96;",
     };
     return map[c] || c;
   });
+  return cleaned;
 }
 
 /** Sanitize toutes les données du wizard avant export */

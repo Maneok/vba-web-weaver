@@ -298,7 +298,7 @@ function ClientDetailContent({ client }: { client: Client }) {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 hover:text-white">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 hover:text-white" aria-label="Retour a la liste des clients">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
@@ -313,17 +313,17 @@ function ClientDetailContent({ client }: { client: Client }) {
       </div>
 
       {/* Action buttons */}
-      <div className="flex flex-wrap gap-3">
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateFicheAcceptation(client); toast.success("Fiche LCB-FT generee"); }}>
+      <div className="flex flex-wrap gap-3" role="toolbar" aria-label="Actions client">
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateFicheAcceptation(client); toast.success("Fiche LCB-FT generee"); }} aria-label="Telecharger la fiche LCB-FT en PDF">
           <FileDown className="w-4 h-4" /> Fiche LCB-FT (PDF)
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateLettreMission(client); toast.success("Lettre de mission generee"); }}>
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateLettreMission(client); toast.success("Lettre de mission generee"); }} aria-label="Telecharger la lettre de mission en PDF">
           <FileDown className="w-4 h-4" /> Lettre de mission (PDF)
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400" onClick={() => navigate(`/lettre-mission/${client.ref}`)}>
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400" onClick={() => navigate(`/lettre-mission/${client.ref}`)} aria-label="Generer une lettre de mission">
           <FileText className="w-4 h-4" /> Générer lettre de mission
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }}>
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }} aria-label="Lancer le screening de conformite">
           <Shield className="w-4 h-4" /> Lancer screening
         </Button>
         {profile?.role === "ADMIN" && (
@@ -344,7 +344,7 @@ function ClientDetailContent({ client }: { client: Client }) {
       )}
 
       {/* Tabs */}
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={setTab} aria-label="Sections de la fiche client">
         <TabsList className="bg-white/[0.03] border border-white/[0.06] flex-wrap h-auto gap-0.5 p-1">
           <TabsTrigger value="informations" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Informations</TabsTrigger>
           <TabsTrigger value="personnes" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Personnes</TabsTrigger>

@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
 import { Input } from "@/components/ui/input";
@@ -70,7 +71,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
         if (rows && rows.length > 0) setPreviousLM(rows[0]);
         else setPreviousLM(null);
       })
-      .catch((e) => console.warn("[LM] Previous LM check failed:", e));
+      .catch((e) => logger.warn("LM", "Previous LM check failed:", e));
 
     // I) Screening check — look at dateDerniereRevue
     if (selectedClient) {

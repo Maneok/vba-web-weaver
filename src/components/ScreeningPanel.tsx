@@ -128,6 +128,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
     detail?: string;
     alertes?: string[];
     timeMs?: number;
+    errorMsg?: string | null;
   }> = [
     {
       key: "enterprise",
@@ -139,6 +140,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
         ? `INPI${screening.enterprise.data ? " + Annuaire" : ""}`
         : undefined,
       timeMs: screening.enterprise.timeMs,
+      errorMsg: enterpriseError ? String(screening.enterprise.error || screening.inpi.error || "Service indisponible") : null,
     },
     {
       key: "sanctions",
@@ -149,6 +151,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       detail: screening.sanctions.data ? `${screening.sanctions.data.checked} personne(s) verifiee(s)` : undefined,
       alertes: screening.sanctions.data?.matches?.map(m => m.details),
       timeMs: screening.sanctions.timeMs,
+      errorMsg: screening.sanctions.error,
     },
     {
       key: "inpi_docs",
@@ -170,12 +173,13 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: (screening.bodacc.data?.status as Status) ?? (screening.bodacc.error ? "ERREUR" : null),
       loading: screening.bodacc.loading,
       detail: screening.bodacc.data
-        ? screening.bodacc.data.annonces.length > 0
+        ? (screening.bodacc.data.annonces?.length ?? 0) > 0
           ? `${screening.bodacc.data.annonces.length} annonce(s)`
           : "Aucune procedure collective"
         : undefined,
       alertes: screening.bodacc.data?.alertes,
       timeMs: screening.bodacc.timeMs,
+      errorMsg: screening.bodacc.error,
     },
     {
       key: "localisation",
@@ -190,6 +194,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
           : undefined,
       alertes: screening.google.data?.alertes,
       timeMs: screening.google.timeMs,
+      errorMsg: screening.google.error,
     },
     // P6-45: Add news and network rows
     {
@@ -199,12 +204,13 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: (screening.news.data?.status as Status) ?? (screening.news.error ? "ERREUR" : null),
       loading: screening.news.loading,
       detail: screening.news.data
-        ? screening.news.data.articles?.length > 0
+        ? (screening.news.data.articles?.length ?? 0) > 0
           ? `${screening.news.data.articles.length} article(s)`
           : "Aucun article"
         : undefined,
       alertes: screening.news.data?.alertes,
       timeMs: screening.news.timeMs,
+      errorMsg: screening.news.error,
     },
     {
       key: "network",
@@ -217,6 +223,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
         : undefined,
       alertes: screening.network.data?.alertes?.map((a: unknown) => (a as { message: string }).message),
       timeMs: screening.network.timeMs,
+      errorMsg: screening.network.error,
     },
   ];
 
@@ -253,6 +260,13 @@ export default function ScreeningPanel({ screening, compact }: Props) {
                 <StatusBadge status={row.status} loading={row.loading} tooltip={TOOLTIPS[row.key]} rowKey={row.key} />
               </div>
             </div>
+
+            {/* Error message */}
+            {row.errorMsg && !row.loading && (
+              <div className="mt-1.5 ml-7 text-[10px] text-slate-500 italic">
+                {row.errorMsg}
+              </div>
+            )}
 
             {/* Alertes */}
             {row.alertes && row.alertes.length > 0 && (

@@ -46,6 +46,9 @@ export async function searchPappers(
   query: string,
   downloadDocs = false
 ): Promise<PappersResponse> {
+  if (!query || !query.trim()) {
+    return { results: [], error: "Veuillez saisir un terme de recherche." };
+  }
   try {
     const { data, error } = await supabase.functions.invoke("pappers-lookup", {
       body: { mode, query, download_docs: downloadDocs },
@@ -81,20 +84,20 @@ async function fallbackDataGouv(mode: SearchMode, query: string): Promise<Papper
       const ul = data?.unite_legale as Record<string, unknown> | undefined;
       if (!ul) return { results: [], error: "Donnees non disponibles", source: "datagouv" };
 
-      const siege = ul.etablissement_siege;
+      const siege = (ul.etablissement_siege ?? {}) as Record<string, unknown>;
       return {
         results: [{
           siren: `${siren.slice(0, 3)} ${siren.slice(3, 6)} ${siren.slice(6, 9)}`,
-          raison_sociale: (ul.denomination || ul.nom_raison_sociale || "").toUpperCase(),
+          raison_sociale: String(ul.denomination || ul.nom_raison_sociale || "").toUpperCase(),
           forme_juridique: "SARL",
-          forme_juridique_raw: ul.categorie_juridique ?? "",
-          adresse: (siege?.geo_adresse || "").toUpperCase(),
-          code_postal: siege?.code_postal ?? "",
-          ville: (siege?.libelle_commune ?? "").toUpperCase(),
-          ape: ul.activite_principale ?? "",
+          forme_juridique_raw: String(ul.categorie_juridique ?? ""),
+          adresse: String(siege?.geo_adresse || "").toUpperCase(),
+          code_postal: String(siege?.code_postal ?? ""),
+          ville: String(siege?.libelle_commune ?? "").toUpperCase(),
+          ape: String(ul.activite_principale ?? ""),
           libelle_ape: "",
           capital: 0,
-          date_creation: ul.date_creation ?? "",
+          date_creation: String(ul.date_creation ?? ""),
           effectif: "0 SALARIE",
           dirigeant: "",
           beneficiaires_effectifs: "",
@@ -151,6 +154,9 @@ export async function checkGelAvoirs(siren: string, dirigeant: string): Promise<
   matched: boolean;
   matches: string[];
 }> {
+  // Guard against null/undefined inputs
+  if (!siren && !dirigeant) return { matched: false, matches: [] };
+
   try {
     const res = await fetch(
       "https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1/publication/derniere-publication-et-sanctions",
@@ -159,10 +165,11 @@ export async function checkGelAvoirs(siren: string, dirigeant: string): Promise<
     if (!res.ok) return { matched: false, matches: [] };
 
     const data = await res.json();
+    if (!data || typeof data !== "object") return { matched: false, matches: [] };
     const registreNational = data.Publications ?? data.registreNationalDesGels ?? [];
 
-    const cleanSiren = siren.replace(/\s/g, "").toLowerCase();
-    const cleanDirigeant = dirigeant.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const cleanSiren = (siren ?? "").replace(/\s/g, "").toLowerCase();
+    const cleanDirigeant = (dirigeant ?? "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     const matches: string[] = [];
 
     const searchText = JSON.stringify(registreNational).toLowerCase();

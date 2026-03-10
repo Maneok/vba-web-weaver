@@ -63,6 +63,7 @@ export default function HonorairesTable({
                 {ligne.editable && ligne.editKey ? (
                   <input
                     type="number"
+                    min="0"
                     value={values[ligne.editKey]}
                     onChange={(e) =>
                       onChange({

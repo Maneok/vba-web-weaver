@@ -1,8 +1,10 @@
 import { useState, useMemo, useCallback } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { collaborateursService } from "@/lib/supabaseService";
+import { formatDateFR } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -43,14 +45,8 @@ function getFormationBadge(dateStr: string) {
   return { label: "Expiree", color: "bg-red-500/15 text-red-400" };
 }
 
-function formatDate(dateStr: string) {
-  if (!dateStr) return "---";
-  try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
-}
+// formatDate alias → using shared formatDateFR from dateUtils
+const formatDate = formatDateFR;
 
 type SortField = "nom" | "fonction" | "niveauCompetence" | "derniereFormation" | "statutFormation";
 type SortDirection = "asc" | "desc";
@@ -81,11 +77,14 @@ export default function GouvernancePage() {
   const [sortField, setSortField] = useState<SortField>("nom");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
+  // Debounced search for collaborateurs filtering
+  const debouncedSearch = useDebounce(search, 300);
+
   // Filtered & sorted collaborateurs
   const filtered = useMemo(() => {
     let result = collaborateurs;
-    if (search) {
-      const q = search.toLowerCase();
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(c =>
         c.nom.toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q) ||
@@ -97,7 +96,7 @@ export default function GouvernancePage() {
       const bv = (b[sortField] || "").toString().toLowerCase();
       return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
-  }, [collaborateurs, search, sortField, sortDir]);
+  }, [collaborateurs, debouncedSearch, sortField, sortDir]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -267,7 +266,7 @@ export default function GouvernancePage() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" aria-label="Sections de la gouvernance LCB-FT">
           <TabsList className="w-full grid grid-cols-5 h-auto">
             <TabsTrigger value="organisation" className="gap-1.5 text-xs sm:text-sm py-2">
               <Users className="w-4 h-4 hidden sm:block" />
@@ -339,6 +338,7 @@ export default function GouvernancePage() {
                     placeholder="Rechercher un collaborateur..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
+                    aria-label="Rechercher un collaborateur par nom, email ou fonction"
                     className="pl-9 max-w-sm"
                   />
                 </div>
@@ -509,6 +509,7 @@ export default function GouvernancePage() {
                   checked={newCollab.referentLcb}
                   onChange={e => setNewCollab(p => ({ ...p, referentLcb: e.target.checked }))}
                   className="rounded"
+                  aria-label="Designer comme referent LCB-FT"
                   id="new-referent"
                 />
                 <Label htmlFor="new-referent" className="text-sm">Referent LCB-FT</Label>
@@ -556,6 +557,7 @@ export default function GouvernancePage() {
                   checked={editForm.referentLcb}
                   onChange={e => setEditForm(p => ({ ...p, referentLcb: e.target.checked }))}
                   className="rounded"
+                  aria-label="Designer comme referent LCB-FT"
                   id="edit-referent"
                 />
                 <Label htmlFor="edit-referent" className="text-sm">Referent LCB-FT</Label>

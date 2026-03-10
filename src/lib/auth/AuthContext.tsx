@@ -62,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     if (userRef.current) {
-      await logAudit({ action: "DECONNEXION" }).catch((e) => console.warn("[Auth] Logout audit failed:", e));
+      await logAudit({ action: "DECONNEXION" }).catch((e) => logger.warn("Auth", "Logout audit failed:", e));
     }
     await supabase.auth.signOut();
     clearCabinetCache();

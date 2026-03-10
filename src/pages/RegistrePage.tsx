@@ -272,6 +272,7 @@ export default function RegistrePage() {
         <Input
           type="date"
           value={dateStart}
+          max={dateEnd || undefined}
           onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }}
           className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
           placeholder="Date debut"
@@ -280,6 +281,7 @@ export default function RegistrePage() {
         <Input
           type="date"
           value={dateEnd}
+          min={dateStart || undefined}
           onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }}
           className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
           placeholder="Date fin"

@@ -48,6 +48,7 @@ function getTypeBadge(type: string) {
 export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(false);
   const [filter, setFilter] = useState<FilterType>("all");
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -59,6 +60,7 @@ export default function NotificationsPage() {
   const fetchNotifications = useCallback(async (reset = false) => {
     if (!session) return;
     setLoading(true);
+    setFetchError(false);
     try {
       const currentPage = reset ? 0 : page;
       let query = supabase
@@ -85,6 +87,7 @@ export default function NotificationsPage() {
         setNotifications(prev => [...prev, ...results]);
       }
     } catch {
+      setFetchError(true);
       toast.error("Impossible de charger les notifications");
     } finally {
       setLoading(false);
@@ -178,7 +181,15 @@ export default function NotificationsPage() {
 
       {/* List */}
       <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden" role="listbox" aria-label="Liste des notifications">
-        {loading && notifications.length === 0 ? (
+        {fetchError && notifications.length === 0 ? (
+          <div className="p-12 text-center">
+            <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-3" />
+            <p className="text-sm text-slate-400">Impossible de charger les notifications</p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => fetchNotifications(true)}>
+              Reessayer
+            </Button>
+          </div>
+        ) : loading && notifications.length === 0 ? (
           <div className="p-12 text-center">
             <div className="h-6 w-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm text-slate-500">Chargement des notifications...</p>

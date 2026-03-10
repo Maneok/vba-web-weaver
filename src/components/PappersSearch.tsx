@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,13 @@ export default function PappersSearch({ onSelect }: Props) {
   const [downloadingDocs, setDownloadingDocs] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleSearchRef = useRef<() => void>(() => {});
+
+  // Cleanup pending timer on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
 
   const placeholder: Record<SearchMode, string> = {
     siren: "Ex: 412 345 678",
@@ -80,14 +87,25 @@ export default function PappersSearch({ onSelect }: Props) {
   };
 
   const handleDownloadDocs = async (result: PappersResult) => {
+    if (!result?.siren) {
+      setError("SIREN manquant, impossible de telecharger les documents.");
+      return;
+    }
     setDownloadingDocs(true);
+    setError("");
     try {
       const res = await searchPappers("siren", result.siren.replace(/\s/g, ""), true);
-      if (res.results.length > 0 && res.results[0].document_urls) {
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      if (res.results?.length > 0 && res.results[0].document_urls) {
         onSelect({ ...result, document_urls: res.results[0].document_urls });
+      } else {
+        setError("Aucun document disponible pour cette entreprise.");
       }
     } catch {
-      setError("Erreur lors du telechargement des documents.");
+      setError("Erreur lors du telechargement des documents. Veuillez reessayer.");
     } finally {
       setDownloadingDocs(false);
     }

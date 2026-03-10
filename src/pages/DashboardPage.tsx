@@ -275,7 +275,7 @@ export default function DashboardPage() {
   const showOnboarding = clients.length === 0 && !isOnboardingComplete();
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in-up print:bg-white print:text-black">
+    <div className="p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in-up print:bg-white print:text-black" role="main" aria-label="Tableau de bord">
       {/* ── ONBOARDING WIZARD ──────────────────────────────── */}
       {showOnboarding && <OnboardingWizard />}
 
@@ -296,10 +296,11 @@ export default function DashboardPage() {
             className="relative w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors print:hidden"
             onClick={() => navigate("/registre")}
             title="Notifications"
+            aria-label={`Notifications${notificationCount > 0 ? ` (${notificationCount} non lues)` : ""}`}
           >
             <Bell className="w-4 h-4" />
             {notificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center" aria-hidden="true">
                 {notificationCount > 9 ? "9+" : notificationCount}
               </span>
             )}
@@ -312,6 +313,7 @@ export default function DashboardPage() {
             className="h-9 w-9 p-0 print:hidden"
             onClick={() => window.print()}
             title="Exporter / Imprimer"
+            aria-label="Imprimer le tableau de bord"
           >
             <Printer className="w-4 h-4" />
           </Button>
@@ -319,7 +321,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── SECTION 1: KPI Cards ───────────────────────────── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 lg:gap-5 mb-8 animate-stagger-in">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6 gap-4 lg:gap-5 mb-8 animate-stagger-in" role="region" aria-label="Indicateurs cles de performance">
         <KPICard
           icon={Users}
           title="Clients actifs"
@@ -375,7 +377,7 @@ export default function DashboardPage() {
       </div>
 
       {/* ── SECTION 2: Charts row ──────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 lg:gap-5 mb-8" role="region" aria-label="Graphiques de suivi">
         <div className="lg:col-span-3">
           <MonthlyChart data={monthlyData} loading={isLoading} />
         </div>
@@ -390,18 +392,18 @@ export default function DashboardPage() {
       </div>
 
       {/* ── SECTION 3: Alerts + Deadlines ──────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-8" role="region" aria-label="Alertes et echeances">
         <AlertsPanel alertes={alertes} loading={isLoading} />
         <UpcomingDeadlines deadlines={deadlines} loading={isLoading} />
       </div>
 
       {/* ── SECTION 4: Activity Feed ───────────────────────── */}
-      <div className="mb-8">
+      <div className="mb-8" role="region" aria-label="Fil d'activite">
         <ActivityFeed logs={logs} loading={isLoading} />
       </div>
 
       {/* ── SECTION 5: Compliance Gauges ───────────────────── */}
-      <div className="mb-8">
+      <div className="mb-8" role="region" aria-label="Jauges de conformite">
         <ComplianceGauge items={complianceItems} loading={isLoading} />
       </div>
 
@@ -412,6 +414,7 @@ export default function DashboardPage() {
           className="hover:text-foreground transition-colors"
           onClick={handleRefresh}
           title="Rafraichir"
+          aria-label="Rafraichir les donnees du tableau de bord"
         >
           <RefreshCw className="w-3.5 h-3.5" />
         </button>

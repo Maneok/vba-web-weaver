@@ -1104,29 +1104,31 @@ export default function NouveauClientPage() {
     setBeneficiaires(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // #22: Screen each BE via OpenSanctions
+  // #22: Screen each BE via OpenSanctions (functional setState to avoid stale closure)
   const screenBeneficiaires = useCallback((bList: Beneficiaire[]) => {
     bList.forEach(b => {
       if (!b.nom || b.nom.length < 2) return;
       const key = `${b.nom}-${b.prenom}`;
-      if (beScreening[key]) return; // already screened
-      setBeScreening(prev => ({ ...prev, [key]: "loading" }));
-      checkSanctions([{ nom: b.nom, prenom: b.prenom, dateNaissance: b.dateNaissance, nationalite: b.nationalite }])
-        .then(result => {
-          setBeScreening(prev => ({ ...prev, [key]: result.hasCriticalMatch || result.hasPPE ? "match" : "clean" }));
-          if (result.hasCriticalMatch) toast.error(`ALERTE : ${b.prenom} ${b.nom} — match sanctions`);
-          if (result.hasPPE) toast.warning(`PPE detectee : ${b.prenom} ${b.nom}`);
-        })
-        .catch(() => setBeScreening(prev => ({ ...prev, [key]: "error" })));
+      setBeScreening(prev => {
+        if (prev[key]) return prev; // already screened
+        checkSanctions([{ nom: b.nom, prenom: b.prenom, dateNaissance: b.dateNaissance, nationalite: b.nationalite }])
+          .then(result => {
+            setBeScreening(p => ({ ...p, [key]: result.hasCriticalMatch || result.hasPPE ? "match" : "clean" }));
+            if (result.hasCriticalMatch) toast.error(`ALERTE : ${b.prenom} ${b.nom} — match sanctions`);
+            if (result.hasPPE) toast.warning(`PPE detectee : ${b.prenom} ${b.nom}`);
+          })
+          .catch(() => setBeScreening(p => ({ ...p, [key]: "error" })));
+        return { ...prev, [key]: "loading" };
+      });
     });
-  }, [beScreening]);
+  }, []);
 
   // Auto-screen BE when they are first set
   useEffect(() => {
     if (beneficiaires.length > 0 && step === 2) {
       screenBeneficiaires(beneficiaires);
     }
-  }, [beneficiaires.length, step]);
+  }, [beneficiaires.length, step, screenBeneficiaires]);
 
   // Step 4: question update
   const updateQuestion = (idx: number, field: "value" | "commentaire", val: string) => {
@@ -1368,7 +1370,7 @@ export default function NouveauClientPage() {
     }
 
     // #25: Refresh clients from Supabase after creation
-    refreshClients().catch((e) => console.warn("[Client] Refresh after creation failed:", e));
+    refreshClients().catch((e) => logger.warn("Client", "Refresh after creation failed:", e));
 
     // Idee 27: Auto-generate fiche PDF in background
     try {
@@ -1661,7 +1663,7 @@ export default function NouveauClientPage() {
       )}
 
       {/* FIX 46: Improved stepper with animated transitions + #72: Connected line + #73: Checkmarks */}
-      <div className="glass-card p-4 shadow-lg">
+      <div className="glass-card p-4 shadow-lg" role="navigation" aria-label="Progression du formulaire">
         {/* #75: Estimated completion time */}
         <div className="flex items-center justify-end gap-1.5 mb-2">
           <Clock className="w-3 h-3 text-slate-600" />
@@ -1710,7 +1712,7 @@ export default function NouveauClientPage() {
       <div className={`glass-card p-6 transition-all duration-300 ${fieldsVisible ? "opacity-100 translate-y-0" : stepDirection === "right" ? "opacity-0 translate-x-4" : "opacity-0 -translate-x-4"}`} style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.15)" }}>
         {/* STEP 0: SEARCH */}
         {step === 0 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 1 : Recherche de l'entreprise">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-white mb-1">Recherche de l'entreprise</h2>
@@ -2051,7 +2053,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 1: INFORMATION — FIX 4: Split into 2 sections */}
         {step === 1 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 2 : Informations du client">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Informations du client</h2>
               {/* #24: Required fields progress bar */}
@@ -2383,7 +2385,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 2: BENEFICIAIRES */}
         {step === 2 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 3 : Beneficiaires effectifs">
             {/* FIX 59: Improved BE header with count */}
             <div className="flex items-center justify-between">
               <div>
@@ -2580,7 +2582,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 3: QUESTIONNAIRE LCB-FT */}
         {step === 3 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 4 : Questionnaire LCB-FT">
             {/* FIX 58: Questionnaire header with OUI count + #41: Progress */}
             <div className="flex items-center justify-between">
               <div>
@@ -2606,11 +2608,11 @@ export default function NouveauClientPage() {
             </div>
 
             {/* #43: Real-time risk level indicator */}
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 120`}>
               <BarChart3 className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400">Niveau de risque en temps reel :</span>
               <VigilanceBadge level={risk.nivVigilance} />
-              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={120}>
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     adjustedScore >= 60 ? "bg-red-500" : adjustedScore >= 25 ? "bg-amber-500" : "bg-emerald-500"
@@ -2785,7 +2787,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 4: SCORING & DECISION */}
         {step === 4 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 5 : Scoring et decision">
             <h2 className="text-lg font-semibold text-white">Scoring et Decision</h2>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -3012,7 +3014,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 5: DOCUMENTS */}
         {step === 5 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 6 : Documents et finalisation">
             {/* Header with KYC progress */}
             <div className="flex items-center justify-between">
               <div>
@@ -3961,7 +3963,7 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
           if (!isNaN(parsedLng)) setGeoLng(parsedLng);
         }
       })
-      .catch((e) => console.warn("[Geo] Geocoding failed:", e))
+      .catch((e) => logger.warn("Geo", "Geocoding failed:", e))
       .finally(() => setGeoLoading(false));
   }, [lat, lng, fullAddr]);
 

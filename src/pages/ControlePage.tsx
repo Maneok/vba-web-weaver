@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { controlesService } from "@/lib/supabaseService";
+import { formatDateFR, timeAgo } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
@@ -84,30 +85,7 @@ const resultatConfig: Record<ResultatGlobal, { color: string; icon: typeof Check
 const PAGE_SIZES = [10, 25, 50] as const;
 
 // ─── Helpers ────────────────────────────────────────────────────────
-function formatDateFR(iso: string): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
-  } catch {
-    return iso;
-  }
-}
-
-// BUG FIX #10: handle future dates and NaN
-function relativeDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  const diff = Date.now() - d.getTime();
-  if (diff < 0) return "A venir";
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return "Aujourd'hui";
-  if (days === 1) return "Hier";
-  if (days < 7) return `Il y a ${days} jours`;
-  if (days < 30) return `Il y a ${Math.floor(days / 7)} sem.`;
-  if (days < 365) return `Il y a ${Math.floor(days / 30)} mois`;
-  return `Il y a ${Math.floor(days / 365)} an(s)`;
-}
+// formatDateFR and timeAgo imported from @/lib/dateUtils
 
 // BUG FIX #42: id handling — don't return undefined as value
 function mapDbToControle(row: Record<string, unknown>): ControleQualite {
@@ -1159,7 +1137,7 @@ export default function ControlePage() {
                                   <TooltipTrigger asChild>
                                     <span className="text-slate-400 font-mono text-xs">{formatDateFR(c.dateTirage)}</span>
                                   </TooltipTrigger>
-                                  <TooltipContent>{relativeDate(c.dateTirage)}</TooltipContent>
+                                  <TooltipContent>{timeAgo(c.dateTirage)}</TooltipContent>
                                 </Tooltip>
                               </td>
                               <td className="px-6 py-3.5">
@@ -1219,6 +1197,7 @@ export default function ControlePage() {
                         className="rounded border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-xs text-slate-300"
                         value={pageSize}
                         onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                        aria-label="Nombre de resultats par page"
                       >
                         {PAGE_SIZES.map((s) => (
                           <option key={s} value={s} className="bg-slate-900">{s}</option>
@@ -1540,6 +1519,7 @@ export default function ControlePage() {
                       value={drawCount}
                       onChange={(e) => setDrawCount(Number(e.target.value))}
                       className="flex-1"
+                      aria-label="Nombre de clients a tirer"
                     />
                     <span className="text-sm font-bold text-slate-200 tabular-nums w-6 text-center">{drawCount}</span>
                   </div>
@@ -1567,6 +1547,7 @@ export default function ControlePage() {
                     className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                     value={clientSearch}
                     onChange={(e) => setClientSearch(e.target.value)}
+                    aria-label="Rechercher un client pour le tirage"
                   />
                   <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-white/[0.06] p-2">
                     {availableClients.slice(0, 20).map((c) => (
@@ -1808,6 +1789,7 @@ export default function ControlePage() {
                   placeholder="Decrire l'incident le cas echeant..."
                   value={form.incident}
                   onChange={(e) => { setForm((prev) => ({ ...prev, incident: e.target.value })); setFormDirty(true); }}
+                  aria-label="Incident declare"
                 />
               </div>
 
@@ -1824,6 +1806,7 @@ export default function ControlePage() {
                   placeholder="Observations complementaires..."
                   value={form.commentaire}
                   onChange={(e) => { setForm((prev) => ({ ...prev, commentaire: e.target.value })); setFormDirty(true); }}
+                  aria-label="Commentaire"
                 />
               </div>
 
@@ -1904,7 +1887,7 @@ export default function ControlePage() {
                         <p className="text-sm font-semibold text-slate-200">{detailControle.dossierAudite}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {detailControle.siren} · {detailControle.forme} · {formatDateFR(detailControle.dateTirage)}
-                          <span className="text-slate-600 ml-1">({relativeDate(detailControle.dateTirage)})</span>
+                          <span className="text-slate-600 ml-1">({timeAgo(detailControle.dateTirage)})</span>
                         </p>
                         {detailControle.controleur && (
                           <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">

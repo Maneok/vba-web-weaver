@@ -10,9 +10,18 @@ interface AuditEntry {
 }
 
 export async function logAudit(entry: AuditEntry): Promise<void> {
+  const context = {
+    action: entry.action,
+    table: entry.table_name ?? "N/A",
+    record: entry.record_id ?? "N/A",
+  };
+
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) {
+      logger.warn("Audit", "Audit ignoré : aucun utilisateur authentifié", context);
+      return;
+    }
 
     const profileRes = await supabase
       .from("profiles")
@@ -21,7 +30,11 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
       .single();
 
     if (profileRes.error || !profileRes.data) {
-      if (profileRes.error) logger.warn("Audit", "profile lookup failed:", profileRes.error.message);
+      logger.warn("Audit", "Profil introuvable pour l'utilisateur", {
+        ...context,
+        userId: user.id,
+        error: profileRes.error?.message ?? "profil vide",
+      });
       return;
     }
 
@@ -39,9 +52,18 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
     });
 
     if (insertError) {
-      logger.error("Audit", "insert failed:", insertError.message);
+      logger.error("Audit", "Échec d'insertion dans audit_trail", {
+        ...context,
+        userId: user.id,
+        cabinetId: profileRes.data.cabinet_id,
+        error: insertError.message,
+        code: insertError.code,
+      });
     }
   } catch (err: unknown) {
-    logger.error("Audit", "trail error:", err);
+    logger.error("Audit", "Erreur inattendue lors de l'écriture audit_trail", {
+      ...context,
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }

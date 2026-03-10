@@ -1,4 +1,5 @@
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "./types";
+import { logger } from "./logger";
 import clientsRaw from "../../clients_o90.json";
 import gouvRaw from "../../gouv_o90.json";
 import registreRaw from "../../registre_o90.json";
@@ -102,12 +103,32 @@ function mapAlerte(raw: Record<string, unknown>): AlerteRegistre {
   };
 }
 
+// ====== SAFE LOADING HELPERS ======
+function safeLoadArray<T>(
+  raw: unknown,
+  mapper: (item: Record<string, unknown>) => T,
+  label: string
+): T[] {
+  try {
+    if (!Array.isArray(raw)) {
+      logger.warn("DataLoader", `Données ${label} invalides : tableau attendu, reçu ${typeof raw}`);
+      return [];
+    }
+    const result = (raw as Record<string, unknown>[]).map(mapper);
+    logger.debug("DataLoader", `${result.length} ${label} chargé(s) depuis O90`);
+    return result;
+  } catch (err: unknown) {
+    logger.error("DataLoader", `Échec du chargement des ${label}`, err);
+    return [];
+  }
+}
+
 // ====== EXPORTED DATA ======
-export const O90_CLIENTS: Client[] = Array.isArray(clientsRaw) ? (clientsRaw as Record<string, unknown>[]).map(mapClient) : [];
+export const O90_CLIENTS: Client[] = safeLoadArray(clientsRaw, mapClient, "clients");
 
-export const O90_COLLABORATEURS: Collaborateur[] = Array.isArray(gouvRaw) ? (gouvRaw as Record<string, unknown>[]).map(mapCollaborateur) : [];
+export const O90_COLLABORATEURS: Collaborateur[] = safeLoadArray(gouvRaw, mapCollaborateur, "collaborateurs");
 
-export const O90_ALERTES: AlerteRegistre[] = Array.isArray(registreRaw) ? (registreRaw as Record<string, unknown>[]).map(mapAlerte) : [];
+export const O90_ALERTES: AlerteRegistre[] = safeLoadArray(registreRaw, mapAlerte, "alertes");
 
 export const O90_LOGS: LogEntry[] = [
   {
