@@ -25,8 +25,9 @@ export function normalizeCompanyName(name: string): string {
 export function normalizeName(name: string): string {
   if (!name || typeof name !== "string") return "";
   let n = removeDiacritics(name).toUpperCase().trim();
-  const titles = /\b(M\.|MME|MR|MRS|DR|PROF|MAITRE|ME)\b\.?/g;
-  n = n.replace(titles, "");
+  // Remove titles (M., MME, MR, etc.) — match with optional trailing period
+  n = n.replace(/\b(MME|MR|MRS|DR|PROF|MAITRE|ME)\b\.?/g, "");
+  n = n.replace(/\bM\.\s?/g, "");
   return n.replace(/\s+/g, " ").trim();
 }
 
