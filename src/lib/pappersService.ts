@@ -87,15 +87,17 @@ export async function searchPappers(
   }
 }
 
-async function fallbackDataGouv(mode: SearchMode, query: string): Promise<PappersResponse> {
+async function fallbackDataGouv(mode: SearchMode, query: string, signal?: AbortSignal): Promise<PappersResponse> {
   try {
+    if (signal?.aborted) return { results: [], error: "Requete annulee" };
+
     const clean = query.replace(/\s/g, "");
 
     if (mode === "siren" && /^\d{9,14}$/.test(clean)) {
       const siren = clean.slice(0, 9);
       const res = await fetch(
         `https://entreprise.data.gouv.fr/api/sirene/v3/unites_legales/${siren}`,
-        { signal: AbortSignal.timeout(10000) }
+        { signal: signal ?? AbortSignal.timeout(10000) }
       );
       if (!res.ok) {
         return { results: [], error: "Aucun resultat trouve sur data.gouv.fr", source: "datagouv" };
@@ -135,7 +137,7 @@ async function fallbackDataGouv(mode: SearchMode, query: string): Promise<Papper
     if (mode === "nom" || mode === "dirigeant") {
       const res = await fetch(
         `https://entreprise.data.gouv.fr/api/sirene/v1/full_text/${encodeURIComponent(query)}?per_page=5`,
-        { signal: AbortSignal.timeout(10000) }
+        { signal: signal ?? AbortSignal.timeout(10000) }
       );
       if (!res.ok) return { results: [], error: "Recherche echouee", source: "datagouv" };
       const data = await res.json();
