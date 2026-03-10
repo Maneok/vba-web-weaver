@@ -853,11 +853,11 @@ function CompMobileCard({ row }: { row: CompRow }) {
   return (
     <div className="rounded-xl border border-[--l-border] bg-[--l-surface] p-4 space-y-3">
       <p className="text-sm font-medium text-[--l-text]">{row.label}</p>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        {(["grimy", "kanta", "excel"] as const).map((k) => (
+      <div className="grid grid-cols-2 gap-2 text-center">
+        {(["grimy", "excel"] as const).map((k) => (
           <div key={k} className="space-y-1">
             <span className={`text-[10px] uppercase tracking-wider ${k === "grimy" ? "text-emerald-400 font-semibold" : "text-[--l-text-5]"}`}>
-              {k === "grimy" ? "GRIMY" : k === "kanta" ? "Kanta" : "Excel"}
+              {k === "grimy" ? "GRIMY" : "Excel"}
             </span>
             <div><CompCell value={row[k]} accent={k === "grimy"} /></div>
           </div>
@@ -936,19 +936,19 @@ const timelineSteps = [
 ];
 
 type CompValue = "yes" | "no" | "partial" | string;
-type CompRow = { label: string; grimy: CompValue; kanta: CompValue; excel: CompValue };
+type CompRow = { label: string; grimy: CompValue; excel: CompValue };
 const comparison: CompRow[] = [
-  { label: "Screening automatique (9 APIs)", grimy: "yes", kanta: "partial", excel: "no" },
-  { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Scoring multi-critères NPLAB", grimy: "yes", kanta: "yes", excel: "Manuel" },
-  { label: "Lettre de mission auto", grimy: "yes", kanta: "yes", excel: "no" },
-  { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Gel des avoirs DG Trésor", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Gouvernance complète (formations, manuel, contrôle interne)", grimy: "yes", kanta: "partial", excel: "no" },
-  { label: "Mode contrôleur CROEC", grimy: "yes", kanta: "yes", excel: "no" },
-  { label: "Journal d'audit certifié", grimy: "yes", kanta: "partial", excel: "no" },
-  { label: "Prix transparent", grimy: "29€/mois", kanta: "Sur devis", excel: "Gratuit" },
-  { label: "Mise en conformité", grimy: "10 min", kanta: "30 jours", excel: "∞" },
+  { label: "Screening automatique (9 APIs)", grimy: "yes", excel: "no" },
+  { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", excel: "no" },
+  { label: "Scoring multi-critères NPLAB", grimy: "yes", excel: "Manuel" },
+  { label: "Lettre de mission auto", grimy: "yes", excel: "no" },
+  { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", excel: "no" },
+  { label: "Gel des avoirs DG Trésor", grimy: "yes", excel: "no" },
+  { label: "Gouvernance complète (formations, manuel, contrôle interne)", grimy: "yes", excel: "no" },
+  { label: "Mode contrôleur CROEC", grimy: "yes", excel: "no" },
+  { label: "Journal d'audit certifié", grimy: "yes", excel: "no" },
+  { label: "Prix transparent", grimy: "29€/mois", excel: "Gratuit" },
+  { label: "Mise en conformité", grimy: "10 min", excel: "∞" },
 ];
 
 /* #18 — Features with badges */
@@ -1804,12 +1804,12 @@ export default function LandingPage() {
         {/* ══════ COMPARAISON — #14 highlighted column ══════ */}
         <section id="comparaison" className="py-28">
           <div className="mx-auto max-w-5xl px-6">
-            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs les alternatives</h2>
+            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs Excel</h2>
             <p data-reveal className="mx-auto mb-14 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
-              Comparez et choisissez la solution la plus complète pour votre conformité LAB.
+              Comparez votre méthode actuelle à une solution dédiée à la conformité LAB.
             </p>
 
-            {/* Desktop table — 4 columns with Kanta */}
+            {/* Desktop table — GRIMY vs Excel */}
             <div data-reveal className="hidden md:block overflow-x-auto rounded-2xl border backdrop-blur-sm opacity-0 translate-y-10 transition-all duration-700 delay-200" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
               <table className="w-full text-sm">
                 <thead>
@@ -1818,7 +1818,6 @@ export default function LandingPage() {
                     <th className="px-6 py-5 text-center grimy-col rounded-tl-lg">
                       <span className="text-sm font-bold text-emerald-400">GRIMY</span>
                     </th>
-                    <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Kanta</th>
                     <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Excel / Manuel</th>
                   </tr>
                 </thead>
@@ -1827,7 +1826,6 @@ export default function LandingPage() {
                     <tr key={row.label} className="table-row-hover" style={{ borderBottom: "1px solid var(--l-border-subtle)" }}>
                       <td className="px-6 py-4" style={{ color: "var(--l-text-2)" }}>{row.label}</td>
                       <td className="px-6 py-4 text-center grimy-col"><CompCell value={row.grimy} accent /></td>
-                      <td className="px-6 py-4 text-center"><CompCell value={row.kanta} /></td>
                       <td className="px-6 py-4 text-center"><CompCell value={row.excel} /></td>
                     </tr>
                   ))}
