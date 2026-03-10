@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -50,9 +50,25 @@ export default function AdminUsersPage() {
     loadUsers();
   }, [loadUsers]);
 
+  // Store invite reload timer for cleanup
+  const inviteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (inviteTimerRef.current) clearTimeout(inviteTimerRef.current);
+    };
+  }, []);
+
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+
+    // Validate email format before sending
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!inviteEmail.trim() || !emailRegex.test(inviteEmail.trim())) {
+      toast.error("Veuillez saisir une adresse email valide (ex: jean@cabinet.fr)");
+      return;
+    }
+
     setInviting(true);
 
     try {
@@ -85,7 +101,7 @@ export default function AdminUsersPage() {
       setInviteRole("COLLABORATEUR");
 
       // Reload after trigger creates profile (with retry)
-      setTimeout(loadUsers, 2000);
+      inviteTimerRef.current = setTimeout(loadUsers, 2000);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur lors de l'invitation";
       toast.error(message);
@@ -119,6 +135,9 @@ export default function AdminUsersPage() {
 
       toast.success("Role mis a jour");
       loadUsers();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erreur lors de la mise a jour du role";
+      toast.error(message);
     } finally {
       setUpdating(false);
     }

@@ -124,9 +124,9 @@ export default function RegistrePage() {
       return matchSearch && matchStatut && matchCategorie && matchDateStart && matchDateEnd;
     });
     if (sortKey) {
-      result.sort((a, b) => {
-        const va = (a[sortKey] || "").toLowerCase();
-        const vb = (b[sortKey] || "").toLowerCase();
+      result = [...result].sort((a, b) => {
+        const va = String(a[sortKey] ?? "").toLowerCase();
+        const vb = String(b[sortKey] ?? "").toLowerCase();
         const cmp = va < vb ? -1 : va > vb ? 1 : 0;
         return sortDir === "asc" ? cmp : -cmp;
       });

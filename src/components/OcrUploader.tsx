@@ -110,9 +110,19 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+function parseFrenchDate(dateStr: string): Date {
+  // Handle dd/mm/yyyy format from OCR
+  const ddmmyyyy = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (ddmmyyyy) {
+    return new Date(Number(ddmmyyyy[3]), Number(ddmmyyyy[2]) - 1, Number(ddmmyyyy[1]));
+  }
+  // Fallback to ISO / native parsing
+  return new Date(dateStr);
+}
+
 function daysExpired(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  const expDate = new Date(dateStr);
+  const expDate = parseFrenchDate(dateStr);
   if (isNaN(expDate.getTime())) return null;
   const now = new Date();
   const diffMs = now.getTime() - expDate.getTime();
@@ -121,7 +131,7 @@ function daysExpired(dateStr: string | null): number | null {
 
 function formatDateDisplay(dateStr: string | null): string {
   if (!dateStr) return "—";
-  const d = new Date(dateStr);
+  const d = parseFrenchDate(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }

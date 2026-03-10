@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import { timeAgo, formatDateTimeFR } from "@/lib/dateUtils";
+import { logger } from "@/lib/logger";
 
 interface Notification {
   id: string;
@@ -60,13 +61,13 @@ export default function NotificationsPage() {
   const filterRef = useRef(filter);
   filterRef.current = filter;
 
-  const fetchNotifications = useCallback(async (reset = false) => {
+  const fetchNotifications = useCallback(async (reset = false, pageOverride?: number) => {
     if (!session) return;
     setLoading(true);
     setFetchError(false);
     try {
       const currentFilter = filterRef.current;
-      const currentPage = reset ? 0 : page;
+      const currentPage = reset ? 0 : (pageOverride ?? 0);
       let query = supabase
         .from("notifications")
         .select("*")
@@ -90,13 +91,14 @@ export default function NotificationsPage() {
       } else {
         setNotifications(prev => [...prev, ...results]);
       }
-    } catch {
+    } catch (err) {
+      logger.error("Notifications", "Fetch error:", err);
       setFetchError(true);
       toast.error("Impossible de charger les notifications");
     } finally {
       setLoading(false);
     }
-  }, [session, page]);
+  }, [session]);
 
   useEffect(() => {
     setPage(0);
@@ -106,8 +108,7 @@ export default function NotificationsPage() {
   }, [filter]);
 
   useEffect(() => {
-    fetchNotifications(page === 0);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    fetchNotifications(page === 0, page);
   }, [fetchNotifications, page]);
 
   const markAsRead = useCallback(async (id: string) => {

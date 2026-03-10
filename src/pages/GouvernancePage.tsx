@@ -93,8 +93,8 @@ export default function GouvernancePage() {
       );
     }
     return [...result].sort((a, b) => {
-      const av = (a[sortField] || "").toString().toLowerCase();
-      const bv = (b[sortField] || "").toString().toLowerCase();
+      const av = String(a[sortField] ?? "").toLowerCase();
+      const bv = String(b[sortField] ?? "").toLowerCase();
       return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
   }, [collaborateurs, debouncedSearch, sortField, sortDir]);

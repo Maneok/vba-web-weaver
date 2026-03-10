@@ -55,7 +55,14 @@ function formatRelativeDate(date: Date): string {
 }
 
 export default function AppLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem("sidebar-collapsed");
+      return stored !== null ? stored === "true" : true;
+    } catch {
+      return true;
+    }
+  });
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPending, startTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -66,6 +73,15 @@ export default function AppLayout() {
   const prevPathRef = useRef(location.pathname);
 
   const userInitials = getUserInitials(profile?.full_name);
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    try {
+      localStorage.setItem("sidebar-collapsed", String(sidebarCollapsed));
+    } catch {
+      // Ignore storage errors (e.g. private browsing)
+    }
+  }, [sidebarCollapsed]);
 
   // Keyboard shortcut: Ctrl+B to toggle sidebar
   useEffect(() => {

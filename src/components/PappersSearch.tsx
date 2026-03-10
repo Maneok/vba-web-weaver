@@ -26,12 +26,14 @@ export default function PappersSearch({ onSelect }: Props) {
   const [selectedSiren, setSelectedSiren] = useState<string | null>(null);
   const [downloadingDocs, setDownloadingDocs] = useState(false);
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
   const handleSearchRef = useRef<() => void>(() => {});
 
-  // Cleanup pending timer on unmount
+  // Cleanup pending timer and abort on unmount
   useEffect(() => {
     return () => {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+      if (abortRef.current) abortRef.current.abort();
     };
   }, []);
 
@@ -51,13 +53,18 @@ export default function PappersSearch({ onSelect }: Props) {
   const handleSearch = () => handleSearchRef.current();
   const handleSearchInner = async () => {
     if (!query.trim()) return;
+    // Abort previous in-flight search
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError("");
     setResults([]);
     setSelectedSiren(null);
 
     try {
-      const res = await searchPappers(mode, query.trim());
+      const res = await searchPappers(mode, query.trim(), false, controller.signal);
 
       if (res.error) {
         setError(res.error);
@@ -75,9 +82,10 @@ export default function PappersSearch({ onSelect }: Props) {
         handleSelect(res.results[0]);
       }
     } catch {
+      if (controller.signal.aborted) return;
       setError("Erreur de connexion. Veuillez reessayer.");
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   };
 

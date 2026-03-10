@@ -338,6 +338,17 @@ export default function GedPage() {
       }
     }
 
+    // Check for duplicate file names among existing documents
+    const existingNames = new Set(documents.map((d) => d.name.toLowerCase()));
+    const duplicates = pendingFiles.filter((f) => existingNames.has(f.name.toLowerCase()));
+    if (duplicates.length > 0) {
+      const names = duplicates.map((f) => `"${f.name}"`).join(", ");
+      const proceed = window.confirm(
+        `Les documents suivants existent deja : ${names}.\n\nVoulez-vous les importer quand meme ? Utilisez le versionning pour mettre a jour un document existant.`
+      );
+      if (!proceed) return;
+    }
+
     setUploading(true);
     try {
       for (const file of pendingFiles) {

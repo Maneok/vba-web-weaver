@@ -3,6 +3,7 @@ import { Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { PermissionAction } from "@/lib/auth/types";
 import { Loader2, RefreshCw, LogOut, WifiOff } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -40,7 +41,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
       retryCountRef.current = 1;
       setRetrying(true);
       refreshProfile()
-        .catch(() => {})
+        .catch((err) => logger.warn("ProtectedRoute", "Profile refresh failed:", err))
         .finally(() => setRetrying(false));
     }
   }, [timedOut, session, profile, refreshProfile]);

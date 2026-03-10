@@ -117,7 +117,8 @@ export default function ScreeningPanel({ screening, compact }: Props) {
   const inpiDocsStored = (screening.inpi.data?.storedCount ?? 0) + (screening.documents.data?.autoRecovered ?? 0);
   const inpiDocsTotal = (screening.inpi.data?.totalDocuments ?? 0) + (screening.documents.data?.total ?? 0);
   const inpiDocsLoading = screening.inpi.loading || screening.documents.loading;
-  const inpiDocsStatus = inpiDocsStored > 0 ? "OK" : inpiDocsTotal > 0 ? "ATTENTION" : (screening.inpi.data || screening.documents.data) ? "ATTENTION" : null;
+  const inpiDocsError = !inpiDocsLoading && (screening.inpi.error || screening.documents.error);
+  const inpiDocsStatus = inpiDocsStored > 0 ? "OK" : inpiDocsTotal > 0 ? "ATTENTION" : inpiDocsError ? "ERREUR" : (screening.inpi.data || screening.documents.data) ? "ATTENTION" : null;
 
   const rows: Array<{
     key: string;

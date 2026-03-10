@@ -34,7 +34,7 @@ function getStoredCounter(): { year: number; count: number } {
   return { year: new Date().getFullYear(), count: 0 };
 }
 
-function incrementCounter(): string {
+export function incrementCounter(): string {
   const current = getStoredCounter();
   const year = new Date().getFullYear();
   const count = current.year === year ? current.count + 1 : 1;

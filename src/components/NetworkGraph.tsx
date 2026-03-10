@@ -190,7 +190,14 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     });
 
-    return () => { simulation.stop(); svg.selectAll("*").remove(); svg.on(".zoom", null); };
+    return () => {
+      simulation.stop();
+      simulation.on("tick", null);
+      node.on("click", null);
+      node.on(".drag", null);
+      svg.on(".zoom", null);
+      svg.selectAll("*").remove();
+    };
   // P6-44: Remove onNodeClick from deps to avoid re-render loops (ref-stable via useRef in parent)
   }, [nodes, edges, width, height]);
 

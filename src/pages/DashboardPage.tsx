@@ -52,6 +52,7 @@ export default function DashboardPage() {
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
   const refreshAllRef = useRef(refreshAll);
   refreshAllRef.current = refreshAll;
+  const mountedRef = useRef(true);
 
   const greeting = useMemo(() => new Date().getHours() < 18 ? "Bonjour" : "Bonsoir", []);
 
@@ -78,14 +79,16 @@ export default function DashboardPage() {
 
   // ── Auto-refresh every 60s ────────────────────────────────
   useEffect(() => {
+    mountedRef.current = true;
     const doRefresh = () => {
       if (document.hidden) return;
-      refreshAllRef.current().then(() => setLastRefresh(new Date())).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
+      refreshAllRef.current().then(() => { if (mountedRef.current) setLastRefresh(new Date()); }).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
     };
     refreshTimer.current = setInterval(doRefresh, 60000);
     const handleVisibility = () => { if (!document.hidden) doRefresh(); };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
+      mountedRef.current = false;
       if (refreshTimer.current) clearInterval(refreshTimer.current);
       document.removeEventListener("visibilitychange", handleVisibility);
     };

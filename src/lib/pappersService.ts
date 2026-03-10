@@ -57,11 +57,31 @@ export async function searchPappers(
     }
 
     let data, error;
-    const result = await supabase.functions.invoke("pappers-lookup", {
-      body: { mode, query, download_docs: downloadDocs },
-    });
-    data = result.data;
-    error = result.error;
+
+    // Add a 10-second timeout to prevent hanging requests
+    const timeoutController = new AbortController();
+    const timeoutId = setTimeout(() => timeoutController.abort(), 10000);
+    // If caller provided a signal, abort our controller when it fires
+    if (signal) {
+      signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
+    }
+
+    try {
+      const result = await supabase.functions.invoke("pappers-lookup", {
+        body: { mode, query, download_docs: downloadDocs },
+      });
+      data = result.data;
+      error = result.error;
+    } catch (invokeErr) {
+      clearTimeout(timeoutId);
+      if (timeoutController.signal.aborted) {
+        logger.warn("Pappers", "Edge function timed out after 10s, trying fallback");
+        return await fallbackDataGouv(mode, query, signal);
+      }
+      throw invokeErr;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     // Check if aborted after the call
     if (signal?.aborted) {

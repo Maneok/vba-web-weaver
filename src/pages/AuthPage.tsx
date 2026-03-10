@@ -100,6 +100,13 @@ export default function AuthPage() {
     e.preventDefault();
     setError(null);
     setMessage(null);
+
+    // Password strength validation
+    if (regPassword.length < 8) {
+      setError("Le mot de passe doit contenir au moins 8 caracteres.");
+      return;
+    }
+
     setLoading(true);
     try {
       await authSignUp(regEmail, regPassword, regName, regCabinet || undefined);
@@ -241,11 +248,11 @@ export default function AuthPage() {
                     <Input
                       id="reg-password"
                       type="password"
-                      placeholder="Min. 6 caracteres"
+                      placeholder="Min. 8 caracteres"
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                       required
-                      minLength={6}
+                      minLength={8}
                       autoComplete="new-password"
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />

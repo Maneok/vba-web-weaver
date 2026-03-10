@@ -155,13 +155,15 @@ function ClientDetailContent({ client }: { client: Client }) {
   // Screening state
   const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
   const [screeningLaunched, setScreeningLaunched] = useState(false);
+  const screeningLaunchedRef = useRef(false);
 
   // Launch screening when Compliance or Reseau tab is opened
   const screeningMountedRef = useRef(true);
   useEffect(() => { return () => { screeningMountedRef.current = false; }; }, []);
 
   const launchComplianceScreening = useCallback(() => {
-    if (screeningLaunched) return;
+    if (screeningLaunchedRef.current) return;
+    screeningLaunchedRef.current = true;
     setScreeningLaunched(true);
 
     const siren = client.siren;
@@ -233,7 +235,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         setScreening(prev => ({ ...prev, inpi: { loading: false, data: d, error: d.error || null } }));
       }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })); });
     }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur" } })); });
-  }, [screeningLaunched, client]);
+  }, [client]);
 
   // Auto-launch screening on compliance/reseau/financier/historique_legal tab
   useEffect(() => {
@@ -364,7 +366,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 flex flex-wrap gap-2 items-center">
           <AlertTriangle className="w-4 h-4 text-red-400" />
           {maluses.map((m, i) => (
-            <Badge key={i} className="bg-red-500/10 text-red-400 border-0 text-[11px]">{m}</Badge>
+            <Badge key={m} className="bg-red-500/10 text-red-400 border-0 text-[11px]">{m}</Badge>
           ))}
         </div>
       )}
@@ -476,7 +478,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <span className="text-sm font-bold text-red-400">ALERTES SANCTIONS / PPE</span>
                 </div>
                 {screening.sanctions.data.matches.map((m, i) => (
-                  <div key={i} className="ml-7 text-xs text-red-300">
+                  <div key={`${m.person}-${m.score}-${i}`} className="ml-7 text-xs text-red-300">
                     <span className="font-semibold">{m.person}</span> — {m.details}
                     {m.isPPE && <Badge className="ml-2 bg-red-500/20 text-red-400 border-0 text-[9px]">PPE</Badge>}
                   </div>
@@ -497,8 +499,8 @@ function ClientDetailContent({ client }: { client: Client }) {
                   try { entries = JSON.parse(client.be); } catch { entries = client.be.split(",").map(s => ({ nom: s.trim() })); }
                   if (!Array.isArray(entries)) entries = [{ nom: String(entries) }];
                   return entries;
-                })().map((b, i) => (
-                  <div key={i} className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
+                })().map((b) => (
+                  <div key={b.nom} className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                         <User className="w-4 h-4 text-blue-400" />
@@ -545,7 +547,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                 {screening.network.data.alertes.length > 0 && (
                   <div className="space-y-2">
                     {screening.network.data.alertes.map((a, i) => (
-                      <div key={i} className={`p-3 rounded-lg flex items-start gap-2 ${
+                      <div key={`${a.severity}-${a.message.slice(0, 40)}-${i}`} className={`p-3 rounded-lg flex items-start gap-2 ${
                         a.severity === "red" ? "bg-red-500/10 border border-red-500/20" : "bg-amber-500/10 border border-amber-500/20"
                       }`}>
                         <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />

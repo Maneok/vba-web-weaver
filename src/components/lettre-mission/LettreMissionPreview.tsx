@@ -200,7 +200,7 @@ export default function LettreMissionPreview({
 
             if (bloc.type === "kyc") {
               const checks: [string, boolean][] = [
-                ["Pièce d'identité du dirigeant en cours de validité", client.dateExpCni ? new Date(client.dateExpCni) > new Date() : false],
+                ["Pièce d'identité du dirigeant en cours de validité", client.dateExpCni ? (() => { const d = new Date(client.dateExpCni!); return !isNaN(d.getTime()) && d > new Date(); })() : false],
                 ["Extrait Kbis / Inscription RCS", !!client.lienKbis],
                 ["Statuts à jour", !!client.lienStatuts],
                 ["Bénéficiaires effectifs identifiés", !!client.be],
@@ -269,7 +269,7 @@ export default function LettreMissionPreview({
                     <Field label="SIRET créancier" value={cabinetConfig.siret} />
                     <Field label="Débiteur" value={client.raisonSociale} />
                     <Field label="IBAN" value={client.iban.replace(/(.{4})/g, "$1 ").trim()} />
-                    <Field label="BIC" value={client.bic} />
+                    <Field label="BIC" value={client.bic || ""} />
                     <Field label="Référence unique de mandat" value={`SEPA-${client.ref}`} />
                     <Field label="Type de paiement" value="Récurrent" />
                   </div>

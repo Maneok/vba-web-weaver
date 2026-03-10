@@ -1168,7 +1168,7 @@ export default function ControlePage() {
                                       <ShieldAlert className="w-3.5 h-3.5 text-amber-400 ml-1.5 inline" />
                                     </TooltipTrigger>
                                     <TooltipContent side="right" className="max-w-xs">
-                                      {anomalies.map((a, i) => <p key={i} className="text-xs">{a}</p>)}
+                                      {anomalies.map((a) => <p key={a} className="text-xs">{a}</p>)}
                                     </TooltipContent>
                                   </Tooltip>
                                 )}
@@ -1978,8 +1978,8 @@ export default function ControlePage() {
                           <ShieldAlert className="w-3.5 h-3.5" /> Anomalies detectees
                         </p>
                         <ul className="space-y-1">
-                          {anomalies.map((a, i) => (
-                            <li key={i} className="text-xs text-amber-300/80">- {a}</li>
+                          {anomalies.map((a) => (
+                            <li key={a} className="text-xs text-amber-300/80">- {a}</li>
                           ))}
                         </ul>
                       </div>

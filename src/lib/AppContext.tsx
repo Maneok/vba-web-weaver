@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, useMemo, type MutableRefObject } from "react";
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "@/lib/types";
 import { O90_CLIENTS, O90_COLLABORATEURS, O90_ALERTES, O90_LOGS } from "@/lib/dataLoader";
 import { clientsService, collaborateursService, registreService, logsService } from "@/lib/supabaseService";
@@ -36,6 +36,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // Ref to avoid stale closure in updateClient/deleteClient callbacks
   const clientsRef = useRef(clients);
   clientsRef.current = clients;
+  // Track in-flight updates per client ref to prevent race conditions
+  const pendingUpdatesRef = useRef<Set<string>>(new Set());
 
   // Load data from Supabase or fallback to JSON
   const loadData = useCallback(async () => {
@@ -143,12 +145,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, [isOnline]);
 
   const updateClient = useCallback((ref: string, updates: Partial<Client>) => {
+    // Prevent race condition: reject concurrent updates for the same client
+    if (pendingUpdatesRef.current.has(ref)) {
+      toast.info("Sauvegarde en cours, veuillez patienter...");
+      return;
+    }
+
     setClients(prev => {
       const snapshot = prev.find(c => c.ref === ref);
       const next = prev.map(c => c.ref === ref ? { ...c, ...updates } : c);
 
       // Persist to Supabase (with rollback on failure)
       if (isOnline && snapshot) {
+        pendingUpdatesRef.current.add(ref);
         const dbUpdates = mapClientToDb(updates);
         clientsService.updateByRef(ref, dbUpdates).then((result) => {
           if (!result) {
@@ -162,6 +171,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           logger.error("AppContext", "Update client exception:", err);
           setClients(p => p.map(c => c.ref === ref ? snapshot : c));
           toast.error("Erreur lors de la mise a jour du client");
+        }).finally(() => {
+          pendingUpdatesRef.current.delete(ref);
         });
       }
 

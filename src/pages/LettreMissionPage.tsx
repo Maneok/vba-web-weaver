@@ -18,6 +18,7 @@ import {
   type SavedLetter,
 } from "@/lib/lmWizardTypes";
 import { VALIDATORS, sanitizeWizardData } from "@/lib/lmValidation";
+import { incrementCounter } from "@/lib/lettreMissionEngine";
 
 import LMStep1Client from "@/components/lettre-mission/LMStep1Client";
 import LMStep2Missions from "@/components/lettre-mission/LMStep2Missions";
@@ -483,7 +484,7 @@ export default function LettreMissionPage() {
             statut: "brouillon",
             wizard_data: data,
             wizard_step: step,
-            numero: `LM-${new Date().getFullYear()}-${String(savedLetters.length + 1).padStart(3, "0")}`,
+            numero: incrementCounter(),
           })
           .select("id")
           .maybeSingle();
@@ -494,7 +495,7 @@ export default function LettreMissionPage() {
     } catch (e) {
       logger.warn("LM", "Auto-save failed:", e);
     }
-  }, [data, step, lmId, profile?.cabinet_id, savedLetters.length]);
+  }, [data, step, lmId, profile?.cabinet_id]);
 
   // Trigger auto-save on data change (debounced 2s)
   useEffect(() => {
@@ -594,7 +595,7 @@ export default function LettreMissionPage() {
       type_mission: sanitized.type_mission,
       statut: sanitized.statut,
       wizard_data: sanitized,
-      numero: sanitized.numero_lettre || `LM-${new Date().getFullYear()}-${String(savedLetters.length + 1).padStart(3, "0")}`,
+      numero: sanitized.numero_lettre || incrementCounter(),
     };
     if (lmId) {
       const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmId);

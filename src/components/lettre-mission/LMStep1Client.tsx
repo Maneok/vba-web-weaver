@@ -35,7 +35,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
   const { clients } = useAppState();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [previousLM, setPreviousLM] = useState<any>(null);
+  const [previousLM, setPreviousLM] = useState<{ id: string; wizard_data: Record<string, unknown>; numero: string; statut: string } | null>(null);
   const [screeningStatus, setScreeningStatus] = useState<"ok" | "expired" | "missing" | null>(null);
 
   const filtered = useMemo(() => {
@@ -132,20 +132,20 @@ export default function LMStep1Client({ data, onChange }: Props) {
   // B) Import previous LM data
   const importPreviousLM = () => {
     if (!previousLM?.wizard_data) return;
-    const wd = previousLM.wizard_data;
+    const wd = previousLM.wizard_data as Record<string, unknown>;
     onChange({
-      type_mission: wd.type_mission || data.type_mission,
-      missions_selected: wd.missions_selected || [],
-      duree: wd.duree || data.duree,
-      tacite_reconduction: wd.tacite_reconduction ?? true,
-      preavis_mois: wd.preavis_mois || 3,
-      honoraires_ht: wd.honoraires_ht || 0,
-      frequence_facturation: wd.frequence_facturation || "MENSUEL",
-      mode_paiement: wd.mode_paiement || "virement",
-      taux_horaire_complementaire: wd.taux_horaire_complementaire || 0,
-      associe_signataire: wd.associe_signataire || "",
-      chef_mission: wd.chef_mission || "",
-      clause_rgpd: wd.clause_rgpd ?? true,
+      type_mission: (wd.type_mission as string) || data.type_mission,
+      missions_selected: (wd.missions_selected as unknown[]) || [],
+      duree: (wd.duree as string) || data.duree,
+      tacite_reconduction: (wd.tacite_reconduction as boolean) ?? true,
+      preavis_mois: (wd.preavis_mois as number) || 3,
+      honoraires_ht: (wd.honoraires_ht as number) || 0,
+      frequence_facturation: (wd.frequence_facturation as string) || "MENSUEL",
+      mode_paiement: (wd.mode_paiement as string) || "virement",
+      taux_horaire_complementaire: (wd.taux_horaire_complementaire as number) || 0,
+      associe_signataire: (wd.associe_signataire as string) || "",
+      chef_mission: (wd.chef_mission as string) || "",
+      clause_rgpd: (wd.clause_rgpd as boolean) ?? true,
     });
     toast.success("Parametres de la LM precedente importes");
   };
