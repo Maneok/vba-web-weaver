@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { FileText, FileDown, Mail, Upload, Save, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 interface Props {
   data: LMWizardData;
@@ -81,7 +82,7 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
         (builder as any).build();
         toast.success("PDF genere avec succes");
       } catch (err) {
-        console.error("PDF export error:", err);
+        logger.error("PDF export error:", err);
         toast.error("Erreur lors de la generation du PDF");
       }
     });
@@ -95,7 +96,7 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
         await renderLettreMissionDocx(lm);
         toast.success("DOCX genere avec succes");
       } catch (err) {
-        console.error("DOCX export error:", err);
+        logger.error("DOCX export error:", err);
         toast.error("Erreur lors de la generation du DOCX");
       }
     });
