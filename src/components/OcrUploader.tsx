@@ -276,6 +276,14 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
     <div className="space-y-3">
       {/* Drop zone */}
       <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && status !== "loading") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
