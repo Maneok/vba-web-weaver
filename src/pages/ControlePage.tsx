@@ -312,6 +312,8 @@ export default function ControlePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDrawOptions, setShowDrawOptions] = useState(false);
 
+  useEffect(() => { document.title = "Controle Qualite | GRIMY"; }, []);
+
   // Filter & sort state
   const [search, setSearch] = useState("");
   const [filterResultat, setFilterResultat] = useState<string>("ALL");
@@ -1119,19 +1121,19 @@ export default function ControlePage() {
                     <table className="w-full text-sm" role="table">
                       <thead>
                         <tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")} aria-label="Trier par date">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")} aria-label="Trier par date" role="button">
                             <span className="flex items-center gap-1">Date <SortIconIndicator field="dateTirage" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dossierAudite")} aria-label="Trier par dossier">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dossierAudite")} aria-label="Trier par dossier" role="button">
                             <span className="flex items-center gap-1">Dossier audite <SortIconIndicator field="dossierAudite" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("scoreGlobal")} aria-label="Trier par score">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("scoreGlobal")} aria-label="Trier par score" role="button">
                             <span className="flex items-center gap-1">Score <SortIconIndicator field="scoreGlobal" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("nivVigilance")} aria-label="Trier par vigilance">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("nivVigilance")} aria-label="Trier par vigilance" role="button">
                             <span className="flex items-center gap-1">Vigilance <SortIconIndicator field="nivVigilance" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("resultatGlobal")} aria-label="Trier par resultat">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("resultatGlobal")} aria-label="Trier par resultat" role="button">
                             <span className="flex items-center gap-1">Resultat <SortIconIndicator field="resultatGlobal" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
                           <th className="px-6 py-3 font-medium">Controleur</th>

@@ -38,7 +38,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
       setRetryCount(1);
       setRetrying(true);
       refreshProfile()
-        .catch(() => {})
+        .catch(() => { /* retry handled by state */ })
         .finally(() => { if (!cancelled) setRetrying(false); });
       return () => { cancelled = true; };
     }

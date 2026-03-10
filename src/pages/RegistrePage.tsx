@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { AlerteRegistre } from "@/lib/types";

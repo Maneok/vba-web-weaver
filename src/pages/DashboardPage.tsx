@@ -56,6 +56,8 @@ export default function DashboardPage() {
   const [notificationCount, setNotificationCount] = useState(0);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
 
+  useEffect(() => { document.title = "Dashboard | GRIMY"; }, []);
+
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -75,7 +77,7 @@ export default function DashboardPage() {
   // ── Auto-refresh every 60s ────────────────────────────────
   useEffect(() => {
     refreshTimer.current = setInterval(() => {
-      refreshAll().then(() => setLastRefresh(new Date())).catch(() => {});
+      refreshAll().then(() => setLastRefresh(new Date())).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
     }, 60000);
     return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
   }, [refreshAll]);
@@ -90,7 +92,7 @@ export default function DashboardPage() {
       .then(({ count }) => {
         setNotificationCount(count || 0);
       })
-      .catch(() => {});
+      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
   }, [user, lastRefresh]);
 
   // ── Computed stats from context ───────────────────────────
@@ -250,7 +252,7 @@ export default function DashboardPage() {
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
 
   const handleRefresh = useCallback(() => {
-    refreshAll().then(() => setLastRefresh(new Date())).catch(() => {});
+    refreshAll().then(() => setLastRefresh(new Date())).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
   }, [refreshAll]);
 
   const showOnboarding = clients.length === 0 && !isOnboardingComplete();

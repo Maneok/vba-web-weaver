@@ -109,6 +109,8 @@ export default function GedPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => { document.title = "GED | GRIMY"; }, []);
+
   // Upload dialog
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -194,8 +196,9 @@ export default function GedPage() {
       }
 
       setStorageFolders(sirenFolders);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("GED", "Error fetching storage", err);
+      toast.error("Erreur lors du chargement des documents KYC");
     }
     setStorageLoading(false);
   }, []);

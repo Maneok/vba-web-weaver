@@ -66,6 +66,8 @@ export default function GouvernancePage() {
   const { collaborateurs, isLoading, isOnline, refreshAll } = useAppState();
   const [activeTab, setActiveTab] = useState("organisation");
 
+  useEffect(() => { document.title = "Gouvernance | GRIMY"; }, []);
+
   // Annuaire state
   const [search, setSearch] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -143,9 +145,9 @@ export default function GouvernancePage() {
       setNewCollab({ ...EMPTY_FORM });
       setShowAddDialog(false);
       toast.success("Collaborateur ajoute avec succes");
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("Erreur ajout collaborateur", err);
-      toast.error("Erreur lors de l'ajout");
+      toast.error("Erreur lors de l'ajout du collaborateur");
     }
   }, [newCollab, isOnline, refreshAll]);
 
@@ -170,9 +172,9 @@ export default function GouvernancePage() {
       setShowEditDialog(false);
       setEditingCollab(null);
       toast.success("Collaborateur modifie");
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("Erreur modification collaborateur", err);
-      toast.error("Erreur lors de la modification");
+      toast.error("Erreur lors de la modification du collaborateur");
     }
   }, [editingCollab, editForm, isOnline, refreshAll]);
 
@@ -186,9 +188,9 @@ export default function GouvernancePage() {
       setShowDeleteDialog(false);
       setDeletingCollab(null);
       toast.success("Collaborateur supprime");
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("Erreur suppression collaborateur", err);
-      toast.error("Erreur lors de la suppression");
+      toast.error("Erreur lors de la suppression du collaborateur");
     }
   }, [deletingCollab, isOnline, refreshAll]);
 

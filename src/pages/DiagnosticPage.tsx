@@ -103,6 +103,8 @@ function DiagnosticItemCard({ item }: { item: DiagnosticItem }) {
 export default function DiagnosticPage() {
   const { clients, collaborateurs, alertes, logs } = useAppState();
 
+  useEffect(() => { document.title = "Diagnostic | GRIMY"; }, []);
+
   // --- Supabase data: controles + parametres ---
   const [controles, setControles] = useState<Record<string, unknown>[]>([]);
   const [derniereFormation, setDerniereFormation] = useState<string | null>(null);
@@ -132,7 +134,7 @@ export default function DiagnosticPage() {
             setDerniereFormation(valeur.date_derniere_formation as string);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error("[Diagnostic] loadParametres error:", err);
         if (!cancelled) toast.error("Erreur lors du chargement des parametres");
       }

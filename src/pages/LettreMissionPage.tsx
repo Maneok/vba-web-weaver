@@ -311,6 +311,8 @@ export default function LettreMissionPage() {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("wizard");
 
+  useEffect(() => { document.title = "Lettre de Mission | GRIMY"; }, []);
+
   // ── Permission check ──
   if (!hasPermission("write_clients")) {
     return (

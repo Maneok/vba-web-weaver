@@ -35,7 +35,7 @@ export function VigilanceDonut({ simplifiee, standard, renforcee, loading = fals
   const total = simplifiee + standard + renforcee;
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
+    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300">
       <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
         <PieChartIcon className="w-4 h-4 text-primary" />
         Repartition vigilance
@@ -85,6 +85,7 @@ export function VigilanceDonut({ simplifiee, standard, renforcee, loading = fals
                 <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                 <span className="text-xs text-muted-foreground">
                   {item.value} {item.label.toLowerCase()}
+                  {total > 0 && <span className="ml-1 opacity-60">({Math.round((item.value / total) * 100)}%)</span>}
                 </span>
               </div>
             ))}

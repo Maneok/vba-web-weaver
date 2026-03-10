@@ -47,6 +47,8 @@ export default function BddPage() {
   const [selectAllPages, setSelectAllPages] = useState(false);
   const debouncedSearch = useDebounce(search, 250);
 
+  useEffect(() => { document.title = "Base Clients | GRIMY"; }, []);
+
   // 7. Sync filter state to URL
   useEffect(() => {
     const params: Record<string, string> = {};
@@ -495,21 +497,21 @@ export default function BddPage() {
                   />
                 </TableHead>
                 <TableHead className="w-[90px] text-slate-500 text-[11px] uppercase tracking-wider">Ref</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")}>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} role="button" aria-label="Trier par Raison Sociale">
                   <div className="flex items-center gap-1.5">Raison Sociale <SortIcon column="raisonSociale" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Forme</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")}>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} role="button" aria-label="Trier par Comptable">
                   <div className="flex items-center gap-1.5">Comptable <SortIcon column="comptable" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Mission</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")}>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} role="button" aria-label="Trier par Score">
                   <div className="flex items-center gap-1.5 justify-center">Score <SortIcon column="scoreGlobal" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")}>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} role="button" aria-label="Trier par Butoir">
                   <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
                 </TableHead>
                 <TableHead className="w-[80px]"></TableHead>

@@ -116,6 +116,8 @@ export default function AuditTrailPage() {
   const [selectedEntry, setSelectedEntry] = useState<AuditRow | null>(null);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
 
+  useEffect(() => { document.title = "Journal d'Audit | GRIMY"; }, []);
+
   useEffect(() => {
     let mounted = true;
     const load = async () => {
@@ -130,7 +132,7 @@ export default function AuditTrailPage() {
           logger.error("[AuditTrail] load error:", error);
           toast.error("Erreur lors du chargement du journal d'audit");
         } else if (data) {
-          setEntries(data as AuditRow[]);
+          setEntries((data ?? []) as AuditRow[]);
         }
       } catch (err) {
         if (mounted) {

@@ -215,7 +215,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       detail: screening.network.data
         ? `${screening.network.data.totalCompanies ?? 0} societe(s), ${screening.network.data.totalPersons ?? 0} personne(s)`
         : undefined,
-      alertes: screening.network.data?.alertes?.map((a: any) => a.message),
+      alertes: screening.network.data?.alertes?.map((a: unknown) => (a as { message: string }).message),
       timeMs: screening.network.timeMs,
     },
   ];

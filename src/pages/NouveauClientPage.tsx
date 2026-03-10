@@ -96,6 +96,8 @@ export default function NouveauClientPage() {
   const { clients, addClient, refreshClients } = useAppState();
   const [step, setStep] = useState(0);
 
+  useEffect(() => { document.title = "Nouveau Client | GRIMY"; }, []);
+
   // Step 1 - Search
   const [searchMode, setSearchMode] = useState<"siren" | "nom" | "dirigeant">("siren");
   const [searchQuery, setSearchQuery] = useState("");

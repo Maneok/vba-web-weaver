@@ -233,7 +233,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
         logger.error("OCR", "OCR extraction error", err);
       }
     },
-    [mode, clientSiren, onExtracted]
+    [mode, clientSiren]
   );
 
   const handleDrop = useCallback(

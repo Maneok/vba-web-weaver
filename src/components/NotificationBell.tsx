@@ -165,7 +165,7 @@ export default function NotificationBell() {
         </div>
         <div className="max-h-80 overflow-y-auto" role="list">
           {loading && notifications.length === 0 ? (
-            <div className="p-8 text-center">
+            <div className="p-8 text-center" aria-live="polite">
               <div className="h-5 w-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-2" />
               <p className="text-xs text-slate-500">Chargement...</p>
             </div>

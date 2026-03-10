@@ -30,7 +30,10 @@ export default function AdminUsersPage() {
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<UserRole>("COLLABORATEUR");
   const [inviting, setInviting] = useState(false);
+  const [updating, setUpdating] = useState(false);
   const isAdmin = profile?.role === "ADMIN";
+
+  useEffect(() => { document.title = "Gestion Utilisateurs | GRIMY"; }, []);
 
   const loadUsers = useCallback(async () => {
     if (!profile?.cabinet_id) return;
@@ -93,27 +96,32 @@ export default function AdminUsersPage() {
 
   const updateUserRole = async (userId: string, newRole: UserRole) => {
     if (!isAdmin) { toast.error("Acces refuse"); return; }
-    const user = users.find((u) => u.id === userId);
-    const { error } = await supabase
-      .from("profiles")
-      .update({ role: newRole })
-      .eq("id", userId);
+    setUpdating(true);
+    try {
+      const user = users.find((u) => u.id === userId);
+      const { error } = await supabase
+        .from("profiles")
+        .update({ role: newRole })
+        .eq("id", userId);
 
-    if (error) {
-      toast.error("Erreur lors de la mise a jour");
-      return;
+      if (error) {
+        toast.error("Erreur lors de la mise a jour du role");
+        return;
+      }
+
+      await logAudit({
+        action: "CHANGEMENT_ROLE",
+        table_name: "profiles",
+        record_id: userId,
+        old_data: { role: user?.role },
+        new_data: { role: newRole },
+      });
+
+      toast.success("Role mis a jour");
+      loadUsers();
+    } finally {
+      setUpdating(false);
     }
-
-    await logAudit({
-      action: "CHANGEMENT_ROLE",
-      table_name: "profiles",
-      record_id: userId,
-      old_data: { role: user?.role },
-      new_data: { role: newRole },
-    });
-
-    toast.success("Role mis a jour");
-    loadUsers();
   };
 
   const toggleUserActive = async (userId: string) => {
@@ -296,6 +304,7 @@ export default function AdminUsersPage() {
                     <Select
                       value={u.role}
                       onValueChange={(v) => updateUserRole(u.id, v as UserRole)}
+                      disabled={updating}
                     >
                       <SelectTrigger className="w-[180px] h-8">
                         <Badge className={ROLE_COLORS[u.role]}>{u.role}</Badge>

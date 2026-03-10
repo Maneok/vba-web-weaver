@@ -38,6 +38,8 @@ export default function AuthPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
+  useEffect(() => { document.title = "Connexion | GRIMY"; }, []);
+
   // Login state
   const [loginEmail, setLoginEmail] = useState(prefillEmail);
   const [loginPassword, setLoginPassword] = useState("");

@@ -167,6 +167,8 @@ export default function SettingsPage() {
   const [scoring, setScoring] = useState<ScoringConfig>(DEFAULT_SCORING);
   const [lcbft, setLcbft] = useState<LcbftConfig>(DEFAULT_LCBFT);
 
+  useEffect(() => { document.title = "Parametres | GRIMY"; }, []);
+
   // Snapshot of last saved values for dirty tracking
   const [savedCabinetSnapshot, setSavedCabinetSnapshot] = useState<CabinetInfo>(DEFAULT_CABINET);
   const [savedScoringSnapshot, setSavedScoringSnapshot] = useState<ScoringConfig>(DEFAULT_SCORING);

@@ -8,7 +8,7 @@ export interface ValidationError {
 }
 
 /** Step 1 — Client + type mission */
-export function validateStep1(data: any): ValidationError[] {
+export function validateStep1(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
   if (!data.client_id) errors.push({ field: "client_id", message: "Selectionnez un client" });
   if (!data.type_mission) errors.push({ field: "type_mission", message: "Selectionnez le type de mission" });
@@ -16,13 +16,14 @@ export function validateStep1(data: any): ValidationError[] {
 }
 
 /** Step 2 — Missions */
-export function validateStep2(data: any): ValidationError[] {
+export function validateStep2(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
-  const selected = (data.missions_selected || []).filter((m: any) => m.selected);
+  const missions = Array.isArray(data.missions_selected) ? data.missions_selected : [];
+  const selected = missions.filter((m: Record<string, unknown>) => m.selected);
   if (selected.length === 0) errors.push({ field: "missions", message: "Selectionnez au moins une mission" });
 
   // Tenue + surveillance incompatibles
-  const ids = selected.map((m: any) => m.section_id);
+  const ids = selected.map((m: Record<string, unknown>) => m.section_id);
   if (ids.includes("tenue") && ids.includes("surveillance")) {
     errors.push({ field: "missions", message: "Tenue et surveillance sont incompatibles" });
   }
@@ -30,29 +31,30 @@ export function validateStep2(data: any): ValidationError[] {
 }
 
 /** Step 3 — Détails & modalités */
-export function validateStep3(data: any): ValidationError[] {
+export function validateStep3(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
   if (!data.dirigeant) errors.push({ field: "dirigeant", message: "Nom du dirigeant requis" });
   if (!data.adresse) errors.push({ field: "adresse", message: "Adresse requise" });
-  if (!data.cp || !/^\d{5}$/.test(data.cp)) errors.push({ field: "cp", message: "Code postal invalide (5 chiffres)" });
+  if (!data.cp || !/^\d{5}$/.test(String(data.cp))) errors.push({ field: "cp", message: "Code postal invalide (5 chiffres)" });
   if (!data.ville) errors.push({ field: "ville", message: "Ville requise" });
   if (!data.associe_signataire) errors.push({ field: "associe_signataire", message: "Associe signataire requis" });
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email))
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(data.email)))
     errors.push({ field: "email", message: "Email invalide" });
   return errors;
 }
 
 /** Step 4 — Honoraires */
-export function validateStep4(data: any): ValidationError[] {
+export function validateStep4(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
-  if (!data.honoraires_ht || data.honoraires_ht <= 0)
+  const honoraires = Number(data.honoraires_ht) || 0;
+  if (!data.honoraires_ht || honoraires <= 0)
     errors.push({ field: "honoraires_ht", message: "Honoraires HT requis et > 0" });
-  if (data.honoraires_ht > 500000)
+  if (honoraires > 500000)
     errors.push({ field: "honoraires_ht", message: "Montant anormalement eleve (> 500 000 EUR)" });
   if (!data.frequence_facturation)
     errors.push({ field: "frequence_facturation", message: "Frequence de facturation requise" });
   if (data.mode_paiement === "prelevement" && data.iban) {
-    const iban = data.iban.replace(/\s/g, "");
+    const iban = String(data.iban).replace(/\s/g, "");
     if (iban.length > 0 && (!/^FR\d{2}/.test(iban) || iban.length !== 27)) {
       errors.push({ field: "iban", message: "IBAN francais invalide (27 car. commencant par FR)" });
     }
@@ -71,7 +73,7 @@ export function validateStep6(): ValidationError[] {
 }
 
 /** Map step index (0-based) → validator */
-export const VALIDATORS: Record<number, (data: any) => ValidationError[]> = {
+export const VALIDATORS: Record<number, (data: Record<string, unknown>) => ValidationError[]> = {
   0: validateStep1,
   1: validateStep2,
   2: validateStep3,
@@ -95,7 +97,7 @@ export function sanitizeText(text: string): string {
 }
 
 /** Sanitize toutes les données du wizard avant export */
-export function sanitizeWizardData<T extends Record<string, any>>(data: T): T {
+export function sanitizeWizardData<T extends Record<string, unknown>>(data: T): T {
   const result = { ...data };
   const textFields = [
     "dirigeant", "raison_sociale", "adresse", "ville", "rcs",
@@ -104,7 +106,7 @@ export function sanitizeWizardData<T extends Record<string, any>>(data: T): T {
   ];
   for (const field of textFields) {
     if (typeof result[field] === "string") {
-      (result as any)[field] = sanitizeText(result[field]);
+      (result as Record<string, unknown>)[field] = sanitizeText(result[field] as string);
     }
   }
   return result;

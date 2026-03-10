@@ -237,7 +237,7 @@ export const logsService = {
     });
   },
 
-  async getAll() {
+  async getAll(limit = 200, offset = 0) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
     const { data } = await supabase
@@ -245,7 +245,7 @@ export const logsService = {
       .select("*")
       .eq("cabinet_id", cabinetId)
       .order("created_at", { ascending: false })
-      .limit(200);
+      .range(offset, offset + limit - 1);
     return data || [];
   },
 };
@@ -283,7 +283,7 @@ export const controlesService = {
     if (!cabinetId) return null;
     const { data, error } = await supabase
       .from("controles_qualite")
-      .update(controle)
+      .update(stripProtected(controle))
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()

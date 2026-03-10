@@ -186,6 +186,8 @@ export default function HelpPage() {
   const [search, setSearch] = useState("");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
+  useEffect(() => { document.title = "Aide | GRIMY"; }, []);
+
   // Filter search results
   const searchResults = useMemo(() => {
     if (!search.trim()) return null;

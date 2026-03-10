@@ -57,14 +57,17 @@ export function ActivityFeed({ logs, loading = false }: ActivityFeedProps) {
   const recent = logs.slice(0, 10);
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
+    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300">
       <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
         <Activity className="w-4 h-4 text-primary" />
         Activite recente
       </h3>
 
       {recent.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">Aucune activite recente</p>
+        <div className="text-center py-8">
+          <Activity className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Aucune activite recente</p>
+        </div>
       ) : (
         <>
           {/* Desktop: horizontal scrollable */}
@@ -72,7 +75,7 @@ export function ActivityFeed({ logs, loading = false }: ActivityFeedProps) {
             {recent.map((log, i) => (
               <div
                 key={i}
-                className="shrink-0 w-60 bg-muted/30 rounded-xl p-3 border border-border/50 hover:border-border transition-colors"
+                className="shrink-0 w-60 bg-muted/30 rounded-xl p-3 border border-border/50 hover:border-border hover:bg-muted/50 hover:-translate-y-0.5 transition-all duration-200"
               >
                 <div className="flex items-center gap-2 mb-2">
                   <div

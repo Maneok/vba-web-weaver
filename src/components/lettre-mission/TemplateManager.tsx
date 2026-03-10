@@ -130,7 +130,7 @@ export default function TemplateManager({ onLoadTemplate }: TemplateManagerProps
       name: `${tpl.name} (copie)`,
       isDefault: false,
       updatedAt: new Date().toISOString(),
-      blocks: tpl.blocks.map((b) => ({ ...b, id: `b-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` })),
+      blocks: tpl.blocks.map((b) => ({ ...b, id: crypto.randomUUID() })),
     };
     updateAndSave([...templates, dup]);
     toast.success("Template duplique");

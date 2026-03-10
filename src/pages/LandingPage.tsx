@@ -1137,6 +1137,8 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
 
+  useEffect(() => { document.title = "GRIMY | Conformite LCB-FT"; }, []);
+
   /* #11 — Scroll lock (mobile menu OR legal modal) */
   useEffect(() => {
     document.body.style.overflow = (mobileMenu || legalModal) ? "hidden" : "";

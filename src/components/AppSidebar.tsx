@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -74,8 +74,8 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     navigate("/auth", { replace: true });
   };
 
-  const alertesEnCours = alertes.filter((a) => a.statut === "EN COURS").length;
-  const retardCount = clients.filter((c) => c.etatPilotage === "RETARD").length;
+  const alertesEnCours = useMemo(() => alertes.filter((a) => a.statut === "EN COURS").length, [alertes]);
+  const retardCount = useMemo(() => clients.filter((c) => c.etatPilotage === "RETARD").length, [clients]);
 
   const badges: Record<string, { count: number; color: string }> = {
     "/": { count: retardCount, color: "bg-amber-400" },

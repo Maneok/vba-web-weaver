@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
 } from "recharts";
@@ -36,18 +36,21 @@ export function MonthlyChart({ data, loading = false }: MonthlyChartProps) {
   }
 
   // Aggregate quarterly if needed
-  const chartData = mode === "trimestriel"
-    ? data.reduce<MonthlyDataPoint[]>((acc, d, i) => {
-        const qi = Math.floor(i / 3);
-        if (!acc[qi]) {
-          acc[qi] = { month: `T${qi + 1}`, simplifiee: 0, standard: 0, renforcee: 0 };
-        }
-        acc[qi].simplifiee += d.simplifiee;
-        acc[qi].standard += d.standard;
-        acc[qi].renforcee += d.renforcee;
-        return acc;
-      }, [])
-    : data;
+  const chartData = useMemo(() =>
+    mode === "trimestriel"
+      ? data.reduce<MonthlyDataPoint[]>((acc, d, i) => {
+          const qi = Math.floor(i / 3);
+          if (!acc[qi]) {
+            acc[qi] = { month: `T${qi + 1}`, simplifiee: 0, standard: 0, renforcee: 0 };
+          }
+          acc[qi].simplifiee += d.simplifiee;
+          acc[qi].standard += d.standard;
+          acc[qi].renforcee += d.renforcee;
+          return acc;
+        }, [])
+      : data,
+    [data, mode]
+  );
 
   return (
     <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300">

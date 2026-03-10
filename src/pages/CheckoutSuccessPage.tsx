@@ -7,6 +7,9 @@ import { CheckCircle } from "lucide-react";
 export default function CheckoutSuccessPage() {
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => { document.title = "Paiement Confirme | GRIMY"; }, []);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setCountdown((prev) => {

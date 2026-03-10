@@ -138,7 +138,7 @@ export default function PappersSearch({ onSelect }: Props) {
           <div className="max-h-48 overflow-y-auto space-y-1">
             {results.map((r, i) => (
               <button
-                key={i}
+                key={r.siren || i}
                 onClick={() => handleSelect(r)}
                 className={`w-full text-left p-2 rounded-md border text-sm transition-colors hover:bg-accent ${
                   selectedSiren === r.siren

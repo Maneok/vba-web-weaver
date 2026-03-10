@@ -53,14 +53,17 @@ export function UpcomingDeadlines({ deadlines, loading = false }: UpcomingDeadli
   }
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
+    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300">
       <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
         <CalendarClock className="w-4 h-4 text-primary" />
         Prochaines echeances
       </h3>
 
       {deadlines.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">Aucune echeance a venir</p>
+        <div className="text-center py-8">
+          <CalendarClock className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Aucune echeance a venir</p>
+        </div>
       ) : (
         <div className="relative">
           {/* Vertical timeline line */}
@@ -75,7 +78,7 @@ export function UpcomingDeadlines({ deadlines, loading = false }: UpcomingDeadli
               const Icon = config.icon;
 
               return (
-                <div key={d.id} className="flex items-start gap-3 py-2.5 pl-0 relative">
+                <div key={d.id} className="flex items-start gap-3 py-3 pl-0 relative">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 z-10 ${config.bg}`}>
                     <Icon className={`w-4 h-4 ${config.color}`} />
                   </div>
@@ -93,7 +96,7 @@ export function UpcomingDeadlines({ deadlines, loading = false }: UpcomingDeadli
                         </Badge>
                       )}
                     </div>
-                    <p className="text-xs text-muted-foreground mt-0.5">
+                    <p className={`text-xs mt-0.5 ${isOverdue ? "text-red-400" : isUrgent ? "text-orange-400" : "text-muted-foreground"}`}>
                       {formatDate(d.date)}
                       {!isOverdue && ` \u2014 dans ${days} jour${days > 1 ? "s" : ""}`}
                       {isOverdue && ` \u2014 ${Math.abs(days)} jour${Math.abs(days) > 1 ? "s" : ""} de retard`}

@@ -78,6 +78,8 @@ export default function NotificationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { session } = useAuth();
 
+  useEffect(() => { document.title = "Notifications | GRIMY"; }, []);
+
   const fetchNotifications = useCallback(async (reset = false) => {
     if (!session) return;
     setLoading(true);
