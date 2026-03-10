@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, Save, Loader2, RotateCcw, Info, Check } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+
+const SubscriptionSettings = lazy(() => import("@/components/settings/SubscriptionSettings"));
 
 /* ---------- types ---------- */
 
@@ -440,6 +442,10 @@ export default function SettingsPage() {
             <span className="hidden sm:inline">LCB-FT</span>
             {dirtyLcbft && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
+          <TabsTrigger value="abonnement" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <CreditCard className="w-4 h-4" />
+            <span className="hidden sm:inline">Abonnement</span>
+          </TabsTrigger>
         </TabsList>
 
         {/* ===== CABINET TAB ===== */}
@@ -713,6 +719,21 @@ export default function SettingsPage() {
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        {/* ===== ABONNEMENT TAB ===== */}
+        <TabsContent value="abonnement">
+          <Suspense
+            fallback={
+              <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
+                <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
+                <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
+                <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
+              </div>
+            }
+          >
+            <SubscriptionSettings />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>
