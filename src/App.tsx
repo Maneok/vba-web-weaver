@@ -31,6 +31,8 @@ const CGVPage = lazy(() => import("@/pages/CGVPage"));
 const PolitiqueConfidentialitePage = lazy(() => import("@/pages/PolitiqueConfidentialitePage"));
 const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
 const SuspendedPage = lazy(() => import("@/pages/SuspendedPage"));
+const PricingPage = lazy(() => import("@/pages/PricingPage"));
+const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -79,6 +81,8 @@ const App = () => (
                 <Route path="/mentions-legales" element={<SafePage><MentionsLegalesPage /></SafePage>} />
                 <Route path="/cgv" element={<SafePage><CGVPage /></SafePage>} />
                 <Route path="/confidentialite" element={<SafePage><PolitiqueConfidentialitePage /></SafePage>} />
+                <Route path="/pricing" element={<SafePage><PricingPage /></SafePage>} />
+                <Route path="/checkout-success" element={<ProtectedRoute><SafePage><CheckoutSuccessPage /></SafePage></ProtectedRoute>} />
                 <Route path="/suspended" element={<ProtectedRoute><SafePage><SuspendedPage /></SafePage></ProtectedRoute>} />
                 <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route index element={<SafePage><DashboardPage /></SafePage>} />
