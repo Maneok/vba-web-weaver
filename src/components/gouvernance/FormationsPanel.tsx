@@ -217,6 +217,7 @@ export default function FormationsPanel() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9"
+                aria-label="Rechercher une formation"
               />
             </div>
             <Select value={filterYear} onValueChange={setFilterYear}>
@@ -262,7 +263,11 @@ export default function FormationsPanel() {
                 {filteredFormations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-slate-500">
-                      Aucune formation enregistree
+                      <GraduationCap className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">Aucune formation enregistree</p>
+                      {(search || filterYear !== "all" || filterCollab !== "all") && (
+                        <p className="text-xs mt-1">Essayez de modifier vos filtres de recherche</p>
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (

@@ -190,6 +190,13 @@ export default function ManuelProcedures() {
           </Button>
         </CardHeader>
         <CardContent>
+          {lectures.length === 0 ? (
+            <div className="text-center py-6 text-slate-500">
+              <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Aucun collaborateur enregistre</p>
+              <p className="text-xs mt-1">Ajoutez des collaborateurs pour suivre la diffusion du manuel</p>
+            </div>
+          ) : (
           <div className="space-y-2">
             {lectures.map(l => (
               <div key={l.collaborateur} className="flex items-center justify-between py-2 px-3 rounded-md bg-white/[0.02] border border-white/[0.04]">
@@ -210,6 +217,7 @@ export default function ManuelProcedures() {
               </div>
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
 

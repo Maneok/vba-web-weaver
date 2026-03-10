@@ -451,7 +451,10 @@ export default function SubscriptionSettings() {
         </h2>
 
         {payments.length === 0 ? (
-          <p className="text-sm text-slate-500">Aucun paiement enregistre.</p>
+          <div className="text-center py-6 text-slate-500">
+            <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-40" />
+            <p className="text-sm">Aucun paiement enregistre.</p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <Table>

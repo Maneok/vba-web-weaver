@@ -237,6 +237,7 @@ export default function NouveauClientPage() {
     const handler = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges && step > 0) {
         e.preventDefault();
+        e.returnValue = "Les modifications non sauvegardees seront perdues";
       }
     };
     window.addEventListener("beforeunload", handler);

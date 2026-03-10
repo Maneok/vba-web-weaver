@@ -99,7 +99,7 @@ export default function DashboardPage() {
       .then(({ count }) => {
         if (!cancelled) setNotificationCount(count || 0);
       })
-      .catch((err: unknown) => logger.debug("Dashboard", "notif count failed:", err));
+      .catch((err: unknown) => logger.warn("Dashboard", "Echec du chargement du compteur de notifications", { error: err instanceof Error ? err.message : String(err) }));
     return () => { cancelled = true; };
   }, [user, lastRefresh]);
 

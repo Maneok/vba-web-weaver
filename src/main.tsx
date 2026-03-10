@@ -6,6 +6,12 @@ import "./index.css";
 
 initMonitoring();
 
+// Gestion globale des promesses non gerees
+window.addEventListener("unhandledrejection", (event) => {
+  const reason = event.reason instanceof Error ? event.reason.message : String(event.reason);
+  console.error("[Global] Promesse non geree:", reason);
+});
+
 createRoot(document.getElementById("root")!).render(
   <AppErrorBoundary>
     <App />

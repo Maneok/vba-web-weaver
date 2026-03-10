@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  Upload, FileText, Trash2, Download, Clock, AlertTriangle,
+  Upload, FileText, Trash2, Download, Clock, AlertTriangle, Loader2,
   Search, FolderOpen, History, Eye, Plus, X, File,
   ChevronRight, ChevronDown, Building2, FileImage, FileCode,
 } from "lucide-react";
@@ -802,6 +802,7 @@ export default function GedPage() {
                           className="h-8 w-8 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                           onClick={() => downloadDocument(doc.file_path, doc.name)}
                           title="Telecharger"
+                          aria-label={`Telecharger ${doc.name}`}
                         >
                           <Download className="w-4 h-4" />
                         </Button>
@@ -811,6 +812,7 @@ export default function GedPage() {
                           className="h-8 w-8 text-slate-400 hover:text-slate-200 hover:bg-white/5"
                           onClick={() => openVersionDialog(doc)}
                           title="Versions"
+                          aria-label={`Historique des versions de ${doc.name}`}
                         >
                           <History className="w-4 h-4" />
                         </Button>
@@ -820,6 +822,7 @@ export default function GedPage() {
                           className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
                           onClick={() => deleteDocument(doc)}
                           title="Supprimer"
+                          aria-label={`Supprimer ${doc.name}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -892,11 +895,13 @@ export default function GedPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)} className="border-white/10 text-slate-300 hover:bg-white/5">
+            <Button type="button" variant="outline" onClick={() => setUploadDialogOpen(false)} className="border-white/10 text-slate-300 hover:bg-white/5">
               Annuler
             </Button>
-            <Button onClick={uploadFiles} disabled={uploading}>
-              {uploading ? "Import en cours..." : "Importer"}
+            <Button type="button" onClick={uploadFiles} disabled={uploading}>
+              {uploading ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Import en cours...</>
+              ) : "Importer"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -932,6 +937,7 @@ export default function GedPage() {
                     size="icon"
                     className="h-7 w-7 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                     onClick={() => downloadDocument(v.file_path, `v${v.version_number}_${selectedDoc?.name}`)}
+                    aria-label={`Telecharger version ${v.version_number}`}
                   >
                     <Download className="w-3.5 h-3.5" />
                   </Button>
@@ -954,12 +960,16 @@ export default function GedPage() {
                 className="bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
               />
               <Button
+                type="button"
                 onClick={uploadNewVersion}
                 disabled={!newVersionFile || uploading}
                 className="w-full"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                {uploading ? "Import..." : `Creer la version ${(selectedDoc?.current_version || 0) + 1}`}
+                {uploading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Import en cours...</>
+                ) : (
+                  <><Plus className="w-4 h-4 mr-2" /> Creer la version {(selectedDoc?.current_version || 0) + 1}</>
+                )}
               </Button>
             </div>
           </div>

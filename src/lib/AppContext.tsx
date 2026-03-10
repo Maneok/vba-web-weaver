@@ -67,7 +67,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setAlertes(dbAlertes.map((r: Record<string, unknown>) => mapDbAlerte(r)));
       setLogs(dbLogs.map((r: Record<string, unknown>) => mapDbLog(r)));
     } catch (err: unknown) {
-      logger.error("[AppContext] Failed to load from Supabase, using local data:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error("[AppContext] Echec du chargement depuis Supabase, basculement sur les donnees locales:", message);
+      toast.error("Impossible de charger les donnees depuis le serveur. Mode hors-ligne active.");
       setClients(O90_CLIENTS);
       setCollaborateurs(O90_COLLABORATEURS);
       setAlertes(O90_ALERTES);
@@ -93,8 +95,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const refreshClients = useCallback(async () => {
     if (!isOnline) return;
-    const dbClients = await clientsService.getAll();
-    setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
+    try {
+      const dbClients = await clientsService.getAll();
+      setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.error("[AppContext] Echec du rafraichissement des clients:", message);
+      toast.error("Erreur lors du rafraichissement de la liste des clients.");
+    }
   }, [isOnline]);
 
   const refreshAll = useCallback(async () => {

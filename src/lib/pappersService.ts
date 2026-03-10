@@ -50,19 +50,31 @@ export async function searchPappers(
     return { results: [], error: "Veuillez saisir un terme de recherche." };
   }
   try {
-    const { data, error } = await supabase.functions.invoke("pappers-lookup", {
-      body: { mode, query, download_docs: downloadDocs },
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+    let data, error;
+    try {
+      const result = await supabase.functions.invoke("pappers-lookup", {
+        body: { mode, query, download_docs: downloadDocs },
+      });
+      data = result.data;
+      error = result.error;
+    } finally {
+      clearTimeout(timeout);
+    }
 
     if (error) {
       // Edge function failed — try direct data.gouv.fr fallback from client
-      logger.warn("Pappers", "Edge function failed, trying direct fallback:", error.message);
+      const msg = error.message ?? "Erreur inconnue";
+      logger.warn("Pappers", "Edge function failed, trying direct fallback:", msg);
       return await fallbackDataGouv(mode, query);
     }
 
     return data as PappersResponse;
-  } catch {
+  } catch (err) {
     // Network error — try direct fallback
+    const msg = err instanceof Error ? err.message : "Erreur reseau";
+    logger.warn("Pappers", "Appel reseau echoue:", msg);
     return await fallbackDataGouv(mode, query);
   }
 }
@@ -144,8 +156,10 @@ async function fallbackDataGouv(mode: SearchMode, query: string): Promise<Papper
     }
 
     return { results: [], error: "Mode de recherche non supporte en mode fallback", source: "datagouv" };
-  } catch {
-    return { results: [], error: "Toutes les sources de donnees sont indisponibles" };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Erreur inconnue";
+    logger.warn("Pappers", "Fallback data.gouv.fr echoue:", msg);
+    return { results: [], error: "Toutes les sources de donnees sont indisponibles. Veuillez reessayer." };
   }
 }
 

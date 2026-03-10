@@ -135,7 +135,7 @@ export default function AuthPage() {
           </CardHeader>
           <CardContent>
             {error && (
-              <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+              <div id="auth-error" role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
@@ -153,7 +153,7 @@ export default function AuthPage() {
               </TabsList>
 
               <TabsContent value="login">
-                <form onSubmit={handleLogin} className="space-y-4" noValidate>
+                <form onSubmit={handleLogin} className="space-y-4" noValidate aria-label="Formulaire de connexion" aria-describedby={error ? "auth-error" : undefined}>
                   <div className="space-y-2">
                     <Label htmlFor="login-email" className="text-slate-300">Email</Label>
                     <Input
@@ -164,6 +164,8 @@ export default function AuthPage() {
                       onChange={(e) => setLoginEmail(e.target.value)}
                       required
                       autoComplete="email"
+                      aria-label="Adresse email de connexion"
+                      aria-describedby={error ? "auth-error" : undefined}
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
@@ -177,6 +179,8 @@ export default function AuthPage() {
                       onChange={(e) => setLoginPassword(e.target.value)}
                       required
                       autoComplete="current-password"
+                      aria-label="Mot de passe"
+                      aria-describedby={error ? "auth-error" : undefined}
                       className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
                     />
                   </div>
@@ -188,7 +192,7 @@ export default function AuthPage() {
               </TabsContent>
 
               <TabsContent value="register">
-                <form onSubmit={handleRegister} className="space-y-4" noValidate>
+                <form onSubmit={handleRegister} className="space-y-4" noValidate aria-label="Formulaire d'inscription" aria-describedby={error ? "auth-error" : undefined}>
                   <div className="space-y-2">
                     <Label htmlFor="reg-name" className="text-slate-300">Nom complet</Label>
                     <Input

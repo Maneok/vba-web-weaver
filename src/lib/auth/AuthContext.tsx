@@ -90,6 +90,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (cancelled) return;
         logger.debug("[Auth] State change:", event);
 
+        // Gestion gracieuse des erreurs de rafraichissement de session
+        if (event === "TOKEN_REFRESHED" && !s) {
+          logger.warn("[Auth] Echec du rafraichissement du token — session potentiellement expiree");
+          return;
+        }
+
         const newUser = s?.user ?? null;
         const hadUser = userRef.current !== null;
         const hasUser = newUser !== null;
@@ -174,7 +180,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
+    if (error) {
+      logger.error("[Auth] Echec connexion email:", { code: error.status, message: error.message, email });
+      throw error;
+    }
   }, []);
 
   const signInWithGoogle = useCallback(async () => {
@@ -182,7 +191,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       provider: "google",
       options: { redirectTo: window.location.origin },
     });
-    if (error) throw error;
+    if (error) {
+      logger.error("[Auth] Echec connexion Google:", { code: error.status, message: error.message });
+      throw error;
+    }
   }, []);
 
   const signUp = useCallback(async (email: string, password: string, fullName: string, cabinetName?: string) => {
@@ -191,7 +203,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: { data: { full_name: fullName, ...(cabinetName ? { cabinet_name: cabinetName } : {}) } },
     });
-    if (error) throw error;
+    if (error) {
+      logger.error("[Auth] Echec inscription:", { code: error.status, message: error.message, email });
+      throw error;
+    }
   }, []);
 
   const hasPermission = useCallback(

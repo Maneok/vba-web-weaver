@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Search, Plus, BookOpen, Trash2 } from "lucide-react";
+import { sanitizeText } from "@/lib/lmValidation";
 
 export interface Clause {
   id: string;
@@ -144,7 +145,14 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        setCustomClauses(JSON.parse(stored));
+        const parsed: Clause[] = JSON.parse(stored);
+        // Re-sanitize stored clauses in case sessionStorage was tampered with
+        const sanitized = parsed.map((c) => ({
+          ...c,
+          title: sanitizeText(String(c.title || "")),
+          content: sanitizeText(String(c.content || "")),
+        }));
+        setCustomClauses(sanitized);
       } catch { /* ignore */ }
     }
   }, []);
@@ -169,8 +177,8 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
     if (!newTitle.trim() || !newContent.trim()) return;
     const clause: Clause = {
       id: `custom-${Date.now()}`,
-      title: newTitle.trim(),
-      content: newContent.trim(),
+      title: sanitizeText(newTitle.trim()),
+      content: sanitizeText(newContent.trim()),
       category: "Custom",
       obligatoire: false,
     };

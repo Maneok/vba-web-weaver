@@ -278,7 +278,7 @@ export default function ControleInterne() {
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-500" />
-              <Input placeholder="Rechercher..." value={ncSearch} onChange={e => setNcSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Rechercher..." value={ncSearch} onChange={e => setNcSearch(e.target.value)} className="pl-9" aria-label="Rechercher une non-conformite" />
             </div>
             <Select value={ncFilter} onValueChange={setNcFilter}>
               <SelectTrigger className="w-[160px]">
@@ -311,7 +311,11 @@ export default function ControleInterne() {
                 {filteredNcs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-slate-500">
-                      Aucune non-conformite enregistree
+                      <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">Aucune non-conformite enregistree</p>
+                      {(ncSearch || ncFilter !== "all") && (
+                        <p className="text-xs mt-1">Essayez de modifier vos filtres de recherche</p>
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -363,7 +367,9 @@ export default function ControleInterne() {
         <CardContent>
           {controlesCROEC.length === 0 ? (
             <div className="text-center py-6 text-slate-500">
+              <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Aucun controle CROEC enregistre</p>
+              <p className="text-xs mt-1">Ajoutez un controle passe pour constituer l'historique</p>
             </div>
           ) : (
             <div className="relative">

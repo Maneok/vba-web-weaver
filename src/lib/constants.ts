@@ -139,6 +139,13 @@ export const FONCTION_OPTIONS = [
   { value: "SECRETAIRE", label: "Secretaire" },
 ] as const;
 
+// Vigilance level color mappings (shared across components)
+export const VIGILANCE_COLORS = {
+  SIMPLIFIEE: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
+  STANDARD: "bg-amber-500/15 text-amber-400 border-amber-500/20",
+  RENFORCEE: "bg-red-500/15 text-red-400 border-red-500/20",
+} as const;
+
 // Audit trail action types
 export const AUDIT_ACTION_TYPES = [
   "CONNEXION",

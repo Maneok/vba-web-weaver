@@ -32,18 +32,20 @@ export default function CheckoutSuccessPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <Card className="max-w-md w-full">
         <CardContent className="pt-8 pb-8 text-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
-            <CheckCircle className="w-8 h-8 text-green-600" />
+          <div aria-live="polite" aria-atomic="true">
+            <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+              <CheckCircle className="w-8 h-8 text-green-600" aria-hidden="true" />
+            </div>
+            <h1 className="text-2xl font-bold">Paiement confirme !</h1>
+            <p className="text-muted-foreground">
+              Votre abonnement est actif. Un email avec vos identifiants de connexion
+              vous a ete envoye.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Redirection automatique dans {countdown}s...
+            </p>
           </div>
-          <h1 className="text-2xl font-bold">Paiement confirme !</h1>
-          <p className="text-muted-foreground">
-            Votre abonnement est actif. Un email avec vos identifiants de connexion
-            vous a ete envoye.
-          </p>
-          <p className="text-sm text-muted-foreground">
-            Redirection automatique dans {countdown}s...
-          </p>
-          <Button onClick={() => navigate("/")} className="mt-4">
+          <Button onClick={() => navigate("/")} className="mt-4" aria-label="Acceder au tableau de bord">
             Acceder au Dashboard
           </Button>
         </CardContent>

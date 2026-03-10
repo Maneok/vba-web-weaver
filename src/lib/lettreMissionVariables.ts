@@ -141,13 +141,13 @@ function getOptionsVariables(options?: LettreMissionOptions): Record<string, str
     genre: options.genre === "F" ? "Mme" : "M.",
     formule_politesse: options.genre === "F" ? "Chère Madame" : "Cher Monsieur",
     setup: `${options.fraisConstitution?.toLocaleString("fr-FR") ?? "0"} € HT`,
-    exercice_debut: options.exerciceDebut,
-    exercice_fin: options.exerciceFin,
-    regime_fiscal: options.regimeFiscal,
-    tva_regime: options.tvaRegime,
-    volume_comptable: options.volumeComptable,
-    periodicite: options.periodicite,
-    outil_comptable: options.outilComptable,
+    exercice_debut: options.exerciceDebut ?? "",
+    exercice_fin: options.exerciceFin ?? "",
+    regime_fiscal: options.regimeFiscal ?? "",
+    tva_regime: options.tvaRegime ?? "",
+    volume_comptable: options.volumeComptable ?? "",
+    periodicite: options.periodicite ?? "",
+    outil_comptable: options.outilComptable ?? "",
     honoraires_social: `${options.honorairesSocial?.toLocaleString("fr-FR") ?? "0"} € HT`,
     honoraires_controle_fiscal: `${options.honorairesControleFiscal?.toLocaleString("fr-FR") ?? "0"} € HT`,
   };
@@ -211,6 +211,9 @@ export function replaceVariables(
     /\{\{bloc_vigilance_lab\}\}/gi,
     getVigilanceVariable(client.nivVigilance)
   );
+
+  // Final pass: replace any remaining unresolved {{variables}} with empty string
+  result = result.replace(/\{\{\w+\}\}/g, "");
 
   return result;
 }

@@ -72,8 +72,6 @@ export default function ClientDetailPage() {
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
-  useDocumentTitle("Fiche Client");
-
   // Validate ref format (alphanumeric + hyphens, max 50 chars)
   const isValidRef = ref && /^[a-zA-Z0-9_-]{1,50}$/.test(ref);
 
@@ -105,20 +103,33 @@ export default function ClientDetailPage() {
 
   const client = contextClient || fallbackClient;
 
+  useDocumentTitle(client ? `${client.raisonSociale} — Fiche Client` : "Fiche Client");
+
   if (loading) {
     return (
-      <div className="p-8 text-center">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
-        <p className="text-slate-400 mt-2">Chargement du client...</p>
+      <div className="p-8 flex flex-col items-center justify-center min-h-[40vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+        <p className="text-slate-400 mt-3 text-sm">Chargement du client...</p>
       </div>
     );
   }
 
   if (!client || notFound) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-slate-400">Client introuvable</p>
-        <Button onClick={() => navigate("/bdd")} variant="outline" className="mt-4">Retour</Button>
+      <div className="p-8 flex flex-col items-center justify-center min-h-[40vh]">
+        <div className="w-16 h-16 rounded-full bg-slate-500/10 flex items-center justify-center mb-4">
+          <User className="w-8 h-8 text-slate-600" />
+        </div>
+        <p className="text-base font-medium text-slate-300">Client introuvable</p>
+        <p className="text-sm text-slate-500 mt-1">
+          {!isValidRef
+            ? "La reference fournie n'est pas valide."
+            : "Ce client n'existe pas ou a ete supprime."}
+        </p>
+        <Button onClick={() => navigate("/bdd")} variant="outline" className="mt-5 gap-2 border-white/10">
+          <ArrowLeft className="w-4 h-4" />
+          Retour a la base clients
+        </Button>
       </div>
     );
   }
