@@ -6,18 +6,22 @@ const WIDGET_STORAGE_KEY = "dashboard-widgets";
 
 interface WidgetVisibility {
   kpi: boolean;
+  cockpit: boolean;
   graphique: boolean;
   alertes: boolean;
   activite: boolean;
   repartition: boolean;
+  equipe: boolean;
 }
 
 const DEFAULT_WIDGETS: WidgetVisibility = {
   kpi: true,
+  cockpit: true,
   graphique: true,
   alertes: true,
   activite: true,
   repartition: true,
+  equipe: true,
 };
 
 // In-memory storage mock
@@ -63,7 +67,7 @@ describe("Widget visibility — loadWidgetVisibility", () => {
 
   // Test 23
   it("charge les préférences sauvegardées", () => {
-    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: false, graphique: true, alertes: true, activite: true, repartition: true }));
+    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: false, cockpit: true, graphique: true, alertes: true, activite: true, repartition: true, equipe: true }));
     const result = loadWidgetVisibility();
     expect(result.kpi).toBe(false);
     expect(result.graphique).toBe(true);
@@ -92,6 +96,8 @@ describe("Widget visibility — loadWidgetVisibility", () => {
     expect(result.alertes).toBe(true);
     expect(result.activite).toBe(true);
     expect(result.repartition).toBe(true);
+    expect(result.cockpit).toBe(true);
+    expect(result.equipe).toBe(true);
   });
 
   // Test 27
@@ -129,7 +135,7 @@ describe("Widget visibility — saveWidgetVisibility", () => {
 
   // Test 31
   it("roundtrip save → load", () => {
-    const prefs: WidgetVisibility = { kpi: false, graphique: false, alertes: true, activite: false, repartition: true };
+    const prefs: WidgetVisibility = { kpi: false, cockpit: true, graphique: false, alertes: true, activite: false, repartition: true, equipe: false };
     saveWidgetVisibility(prefs);
     expect(loadWidgetVisibility()).toEqual(prefs);
   });
@@ -161,19 +167,19 @@ describe("Widget visibility — toggle logic", () => {
 
   // Test 35
   it("setAllWidgets true active tout", () => {
-    const next: WidgetVisibility = { kpi: true, graphique: true, alertes: true, activite: true, repartition: true };
+    const next: WidgetVisibility = { kpi: true, cockpit: true, graphique: true, alertes: true, activite: true, repartition: true, equipe: true };
     expect(Object.values(next).every(v => v === true)).toBe(true);
   });
 
   // Test 36
   it("setAllWidgets false masque tout", () => {
-    const next: WidgetVisibility = { kpi: false, graphique: false, alertes: false, activite: false, repartition: false };
+    const next: WidgetVisibility = { kpi: false, cockpit: false, graphique: false, alertes: false, activite: false, repartition: false, equipe: false };
     expect(Object.values(next).every(v => v === false)).toBe(true);
   });
 
   // Test 37
   it("hiddenCount est correct", () => {
-    const w: WidgetVisibility = { kpi: false, graphique: true, alertes: false, activite: true, repartition: false };
+    const w: WidgetVisibility = { kpi: false, cockpit: true, graphique: true, alertes: false, activite: true, repartition: false, equipe: true };
     const hiddenCount = Object.values(w).filter(v => !v).length;
     expect(hiddenCount).toBe(3);
   });
@@ -186,19 +192,21 @@ describe("Widget visibility — toggle logic", () => {
 
   // Test 39
   it("allHidden quand tout masqué", () => {
-    const w: WidgetVisibility = { kpi: false, graphique: false, alertes: false, activite: false, repartition: false };
+    const w: WidgetVisibility = { kpi: false, cockpit: false, graphique: false, alertes: false, activite: false, repartition: false, equipe: false };
     const hiddenCount = Object.values(w).filter(v => !v).length;
-    expect(hiddenCount).toBe(5);
+    expect(hiddenCount).toBe(7);
   });
 
   // Test 40
-  it("les 5 clés de widgets sont bien définies", () => {
+  it("les 7 clés de widgets sont bien définies", () => {
     const keys = Object.keys(DEFAULT_WIDGETS);
-    expect(keys).toHaveLength(5);
+    expect(keys).toHaveLength(7);
     expect(keys).toContain("kpi");
+    expect(keys).toContain("cockpit");
     expect(keys).toContain("graphique");
     expect(keys).toContain("alertes");
     expect(keys).toContain("activite");
     expect(keys).toContain("repartition");
+    expect(keys).toContain("equipe");
   });
 });

@@ -48,6 +48,8 @@ import DashboardCockpit from "@/components/dashboard/DashboardCockpit";
 import DashboardSearch from "@/components/dashboard/DashboardSearch";
 import DashboardShortcutsHelp from "@/components/dashboard/DashboardShortcutsHelp";
 import DashboardStaff from "@/components/dashboard/DashboardStaff";
+import DashboardExport from "@/components/dashboard/DashboardExport";
+import DataFreshnessIndicator from "@/components/dashboard/DataFreshnessIndicator";
 
 // ── Helpers ──────────────────────────────────────────────────
 function formatTime(d: Date): string {
@@ -119,10 +121,12 @@ function loadOrder(): WidgetKey[] {
     const stored = localStorage.getItem(STORAGE_KEY_ORDER);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length === DEFAULT_ORDER.length) {
-        // Validate all keys present
-        const valid = DEFAULT_ORDER.every(k => parsed.includes(k));
-        if (valid) return parsed as WidgetKey[];
+      if (Array.isArray(parsed)) {
+        // Keep valid keys from stored order, then append any missing new keys
+        const validStored = parsed.filter((k: string) => DEFAULT_ORDER.includes(k as WidgetKey)) as WidgetKey[];
+        const missing = DEFAULT_ORDER.filter(k => !validStored.includes(k));
+        const result = [...validStored, ...missing];
+        if (result.length === DEFAULT_ORDER.length) return result;
       }
     }
   } catch { /* ignore */ }
@@ -135,10 +139,12 @@ function saveOrder(order: WidgetKey[]) {
 
 const WIDGET_META: Record<WidgetKey, { label: string; description: string }> = {
   kpi: { label: "Indicateurs KPI", description: "Clients, score, conformité, alertes, revues, CA" },
+  cockpit: { label: "Cockpit LCB-FT", description: "Anomalies et urgences de conformité détectées" },
   graphique: { label: "Graphiques de suivi", description: "Évolution mensuelle et répartition vigilance" },
   alertes: { label: "Alertes et échéances", description: "Alertes récentes et prochaines échéances" },
   activite: { label: "Fil d'activité", description: "Dernières actions effectuées" },
   repartition: { label: "Jauges de conformité", description: "Indicateurs de conformité détaillés" },
+  equipe: { label: "Équipe & formations", description: "Collaborateurs et état des formations LCB-FT" },
 };
 
 // ── Main Dashboard ──────────────────────────────────────────
@@ -153,6 +159,8 @@ export default function DashboardPage() {
   const [widgets, setWidgets] = useState<WidgetVisibility>(loadVisibility);
   const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(loadOrder);
   const [dragMode, setDragMode] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
   const refreshAllRef = useRef(refreshAll);
   refreshAllRef.current = refreshAll;
@@ -198,29 +206,43 @@ export default function DashboardPage() {
   };
 
   const setAllWidgets = (visible: boolean) => {
-    const next: WidgetVisibility = { kpi: visible, graphique: visible, alertes: visible, activite: visible, repartition: visible };
+    const next: WidgetVisibility = { kpi: visible, cockpit: visible, graphique: visible, alertes: visible, activite: visible, repartition: visible, equipe: visible };
     setWidgets(next);
     saveVisibility(next);
   };
 
   const hiddenCount = Object.values(widgets).filter(v => !v).length;
   const allVisible = hiddenCount === 0;
-  const allHidden = hiddenCount === 5;
+  const allHidden = hiddenCount === DEFAULT_ORDER.length;
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-      if (!(e.ctrlKey || e.metaKey)) return;
+      const inInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+
+      // Ctrl/Cmd shortcuts work even in inputs
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case "n": e.preventDefault(); navigate("/nouveau-client"); break;
+          case "A": if (e.shiftKey) { e.preventDefault(); navigate("/registre"); } break;
+        }
+        return;
+      }
+
+      // Single-key shortcuts only outside inputs
+      if (inInput) return;
+
       switch (e.key) {
-        case "n": e.preventDefault(); navigate("/nouveau-client"); break;
-        case "A": if (e.shiftKey) { e.preventDefault(); navigate("/registre"); } break;
+        case "?": e.preventDefault(); setShortcutsOpen(true); break;
+        case "/": e.preventDefault(); searchInputRef.current?.focus(); break;
+        case "r": case "R": e.preventDefault(); handleRefresh(); break;
+        case "d": case "D": e.preventDefault(); setDragMode(v => !v); break;
       }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [navigate]);
+  }, [navigate, handleRefresh]);
 
   // ── Auto-refresh every 60s ────────────────────────────────
   useEffect(() => {
@@ -364,6 +386,12 @@ export default function DashboardPage() {
     ];
   }, [clients, collaborateurs]);
 
+  // ── Cockpit analysis ─────────────────────────────────────
+  const cockpitData = useMemo(
+    () => analyzeCockpit(clients, collaborateurs, alertes),
+    [clients, collaborateurs, alertes]
+  );
+
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
 
   const handleRefresh = useCallback(() => {
@@ -382,6 +410,7 @@ export default function DashboardPage() {
   // ── Widget renderer ───────────────────────────────────────
   const widgetContent: Record<WidgetKey, ReactNode> = {
     kpi: <DashboardKPICards stats={stats} sparklines={sparklines} isLoading={isLoading} />,
+    cockpit: <DashboardCockpit cockpit={cockpitData} isLoading={isLoading} />,
     graphique: (
       <DashboardChart
         monthlyData={monthlyData}
@@ -394,6 +423,7 @@ export default function DashboardPage() {
     alertes: <DashboardAlerts alertes={alertes} deadlines={deadlines} isLoading={isLoading} />,
     activite: <DashboardActivity logs={logs} isLoading={isLoading} />,
     repartition: <DashboardVigilance complianceItems={complianceItems} isLoading={isLoading} />,
+    equipe: <DashboardStaff collaborateurs={collaborateurs} isLoading={isLoading} />,
   };
 
   // Filter to visible widgets only
@@ -413,6 +443,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 print:hidden">
+          <DashboardSearch clients={clients} alertes={alertes} className="hidden md:block w-64 lg:w-80" inputRef={searchInputRef} />
           <QuickActionsBar notificationCount={notificationCount} />
 
           {/* Notification bell */}
@@ -429,6 +460,9 @@ export default function DashboardPage() {
               </span>
             )}
           </button>
+
+          {/* Export */}
+          <DashboardExport clients={clients} alertes={alertes} collaborateurs={collaborateurs} stats={stats} />
 
           {/* Drag mode toggle */}
           <Button
@@ -582,7 +616,7 @@ export default function DashboardPage() {
 
       {/* ── Footer ────────────────────────────────────────── */}
       <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-4 pb-6 border-t border-white/[0.04] print:hidden">
-        <span>Dernière mise à jour : {formatTime(lastRefresh)}</span>
+        <DataFreshnessIndicator lastRefresh={lastRefresh} staleThresholdMinutes={5} />
         <button
           className="hover:text-foreground transition-colors disabled:opacity-50"
           onClick={handleRefresh}
@@ -595,6 +629,7 @@ export default function DashboardPage() {
       </div>
 
       <QuickActionsFAB />
+      <DashboardShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
       <style>{`
         @media print {

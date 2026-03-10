@@ -7,6 +7,7 @@ interface DashboardSearchProps {
   clients: Client[];
   alertes: AlerteRegistre[];
   className?: string;
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 type SearchResult = {
@@ -34,6 +35,7 @@ export default function DashboardSearch({
   clients,
   alertes,
   className,
+  inputRef: externalInputRef,
 }: DashboardSearchProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -168,7 +170,10 @@ export default function DashboardSearch({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <input
-          ref={inputRef}
+          ref={(el) => {
+            (inputRef as React.MutableRefObject<HTMLInputElement | null>).current = el;
+            if (externalInputRef) (externalInputRef as React.MutableRefObject<HTMLInputElement | null>).current = el;
+          }}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
