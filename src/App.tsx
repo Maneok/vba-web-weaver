@@ -33,6 +33,7 @@ const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
 const SuspendedPage = lazy(() => import("@/pages/SuspendedPage"));
 const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
+const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -100,6 +101,7 @@ const App = () => (
                   <Route path="parametres" element={<SafePage><SettingsPage /></SafePage>} />
                   <Route path="notifications" element={<SafePage><NotificationsPage /></SafePage>} />
                   <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
+                  <Route path="admin/users" element={<SafePage><AdminUsersPage /></SafePage>} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />
                 </Route>
