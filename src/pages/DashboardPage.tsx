@@ -10,6 +10,7 @@ import {
   Bell, RefreshCw, Printer,
 } from "lucide-react";
 
+import OnboardingWizard, { isOnboardingComplete } from "@/components/OnboardingWizard";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
@@ -252,8 +253,13 @@ export default function DashboardPage() {
     refreshAll().then(() => setLastRefresh(new Date())).catch(() => {});
   }, [refreshAll]);
 
+  const showOnboarding = clients.length === 0 && !isOnboardingComplete();
+
   return (
     <div className="p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in-up print:bg-white print:text-black">
+      {/* ── ONBOARDING WIZARD ──────────────────────────────── */}
+      {showOnboarding && <OnboardingWizard />}
+
       {/* ── TOP BAR ────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8 pb-6 border-b border-white/[0.06] print:mb-4 print:border-0">
         <div>

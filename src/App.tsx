@@ -35,6 +35,7 @@ const SuspendedPage = lazy(() => import("@/pages/SuspendedPage"));
 const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
 const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
+const InvitePage = lazy(() => import("@/pages/InvitePage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -83,6 +84,7 @@ const App = () => (
                 <Route path="/mentions-legales" element={<SafePage><MentionsLegalesPage /></SafePage>} />
                 <Route path="/cgv" element={<SafePage><CGVPage /></SafePage>} />
                 <Route path="/confidentialite" element={<SafePage><PolitiqueConfidentialitePage /></SafePage>} />
+                <Route path="/invite/:token" element={<SafePage><InvitePage /></SafePage>} />
                 <Route path="/pricing" element={<SafePage><PricingPage /></SafePage>} />
                 <Route path="/checkout-success" element={<ProtectedRoute><SafePage><CheckoutSuccessPage /></SafePage></ProtectedRoute>} />
                 <Route path="/suspended" element={<ProtectedRoute><SafePage><SuspendedPage /></SafePage></ProtectedRoute>} />
