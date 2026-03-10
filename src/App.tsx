@@ -30,6 +30,8 @@ const MentionsLegalesPage = lazy(() => import("@/pages/MentionsLegalesPage"));
 const CGVPage = lazy(() => import("@/pages/CGVPage"));
 const PolitiqueConfidentialitePage = lazy(() => import("@/pages/PolitiqueConfidentialitePage"));
 
+const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
+const SuspendedPage = lazy(() => import("@/pages/SuspendedPage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
