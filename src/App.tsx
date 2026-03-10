@@ -9,6 +9,7 @@ import { AuthProvider } from "@/lib/auth/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PageErrorBoundary from "@/components/PageErrorBoundary";
+import CookieBanner from "@/components/CookieBanner";
 import AuthPage from "@/pages/AuthPage";
 
 // Lazy-loaded pages — code split per route
@@ -113,6 +114,7 @@ const App = () => (
       </AuthProvider>
       <Toaster />
       <Sonner richColors position="bottom-right" closeButton />
+      <CookieBanner />
     </TooltipProvider>
   </QueryClientProvider>
 );
