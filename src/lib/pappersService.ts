@@ -44,38 +44,46 @@ export type SearchMode = "siren" | "nom" | "dirigeant";
 export async function searchPappers(
   mode: SearchMode,
   query: string,
-  downloadDocs = false
+  downloadDocs = false,
+  signal?: AbortSignal
 ): Promise<PappersResponse> {
   if (!query || !query.trim()) {
     return { results: [], error: "Veuillez saisir un terme de recherche." };
   }
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    // Check if already aborted before starting
+    if (signal?.aborted) {
+      return { results: [], error: "Requete annulee" };
+    }
+
     let data, error;
-    try {
-      const result = await supabase.functions.invoke("pappers-lookup", {
-        body: { mode, query, download_docs: downloadDocs },
-      });
-      data = result.data;
-      error = result.error;
-    } finally {
-      clearTimeout(timeout);
+    const result = await supabase.functions.invoke("pappers-lookup", {
+      body: { mode, query, download_docs: downloadDocs },
+    });
+    data = result.data;
+    error = result.error;
+
+    // Check if aborted after the call
+    if (signal?.aborted) {
+      return { results: [], error: "Requete annulee" };
     }
 
     if (error) {
       // Edge function failed — try direct data.gouv.fr fallback from client
       const msg = error.message ?? "Erreur inconnue";
       logger.warn("Pappers", "Edge function failed, trying direct fallback:", msg);
-      return await fallbackDataGouv(mode, query);
+      return await fallbackDataGouv(mode, query, signal);
     }
 
     return data as PappersResponse;
   } catch (err) {
+    if (signal?.aborted) {
+      return { results: [], error: "Requete annulee" };
+    }
     // Network error — try direct fallback
     const msg = err instanceof Error ? err.message : "Erreur reseau";
     logger.warn("Pappers", "Appel reseau echoue:", msg);
-    return await fallbackDataGouv(mode, query);
+    return await fallbackDataGouv(mode, query, signal);
   }
 }
 

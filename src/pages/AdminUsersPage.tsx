@@ -310,7 +310,22 @@ export default function AdminUsersPage() {
             {users.map((u) => (
               <TableRow key={u.id} className={!u.is_active ? "opacity-50" : ""}>
                 <TableCell className="font-medium">{u.full_name}</TableCell>
-                <TableCell className="text-sm">{u.email}</TableCell>
+                <TableCell className="text-sm">
+                  <button
+                    className="hover:text-primary transition-colors inline-flex items-center gap-1.5 group"
+                    onClick={() => {
+                      navigator.clipboard.writeText(u.email).then(
+                        () => toast.success(`Email copie : ${u.email}`),
+                        () => toast.error("Impossible de copier l'email")
+                      );
+                    }}
+                    title="Copier l'email"
+                    aria-label={`Copier l'email de ${u.full_name || u.email}`}
+                  >
+                    {u.email}
+                    <Copy className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity" />
+                  </button>
+                </TableCell>
                 <TableCell>
                   {u.id === profile?.id ? (
                     <Badge className={ROLE_COLORS[u.role]}>{u.role}</Badge>
