@@ -48,6 +48,8 @@ async function getCabinetId(): Promise<string | null> {
       .single();
     if (error) {
       logger.error("DB", "getCabinetId error:", error);
+      _cachedCabinetId = null;
+      _cachedUserId = null;
       return null;
     }
     _cachedCabinetId = data?.cabinet_id || null;
@@ -75,7 +77,10 @@ export const clientsService = {
         throw error;
       }
       return data || [];
-    }).catch(() => []);
+    }).catch((err) => {
+      logger.error("DB", "clients.getAll failed after retries:", err);
+      return [];
+    });
   },
 
   async create(client: Record<string, unknown>) {
@@ -192,7 +197,10 @@ export const collaborateursService = {
         throw error;
       }
       return data || [];
-    }).catch(() => []);
+    }).catch((err) => {
+      logger.error("DB", "collab.getAll failed after retries:", err);
+      return [];
+    });
   },
 
   async create(collab: Record<string, unknown>) {
@@ -251,7 +259,10 @@ export const registreService = {
         throw error;
       }
       return data || [];
-    }).catch(() => []);
+    }).catch((err) => {
+      logger.error("DB", "registre.getAll failed after retries:", err);
+      return [];
+    });
   },
 
   async create(alerte: Record<string, unknown>) {
@@ -290,19 +301,26 @@ export const registreService = {
 // ===== AUDIT TRAIL (LOGS) =====
 export const logsService = {
   async add(action: string, details: string, recordId?: string, tableName?: string) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const cabinetId = await getCabinetId();
-    if (!cabinetId) return;
-    await supabase.from("audit_trail").insert({
-      cabinet_id: cabinetId,
-      user_id: user.id,
-      user_email: user.email || "",
-      action,
-      table_name: tableName || "",
-      record_id: recordId || "",
-      new_data: { details },
-    });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const cabinetId = await getCabinetId();
+      if (!cabinetId) return;
+      const { error } = await supabase.from("audit_trail").insert({
+        cabinet_id: cabinetId,
+        user_id: user.id,
+        user_email: user.email || "",
+        action,
+        table_name: tableName || "",
+        record_id: recordId || "",
+        new_data: { details },
+      });
+      if (error) {
+        logger.error("AuditTrail", "Failed to write audit log:", error.message);
+      }
+    } catch (err) {
+      logger.error("AuditTrail", "Exception writing audit log:", err);
+    }
   },
 
   async getAll(limit = 200, offset = 0) {
@@ -351,7 +369,7 @@ export const controlesService = {
     if (!cabinetId) return null;
     const { data, error } = await supabase
       .from("controles_qualite")
-      .update(stripProtected(controle))
+      .update({ ...stripProtected(controle), updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
@@ -397,7 +415,7 @@ export const brouillonsService = {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const clean = siren.replace(/\s/g, "");
-    const existing = await this.getBySiren(clean);
+    const existing = await brouillonsService.getBySiren(clean);
     if (existing) {
       await supabase
         .from("brouillons")
