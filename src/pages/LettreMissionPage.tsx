@@ -355,6 +355,21 @@ export default function LettreMissionPage() {
     }
   }, []);
 
+  // ── Warn on unsaved changes (beforeunload) ──
+  useEffect(() => {
+    if (!data.client_id) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [data.client_id]);
+
+  // ── Clean up auto-save timer on unmount ──
+  useEffect(() => {
+    return () => { clearTimeout(saveTimer.current); };
+  }, []);
+
   // ── Step animation + scroll ──
   useEffect(() => {
     setStepDirection(step > prevStepRef.current ? "right" : "left");

@@ -228,22 +228,27 @@ export function analyzeCockpit(
     }
   }
 
-  // 10. Doublons potentiels (même SIREN)
+  // 10. Doublons potentiels (même SIREN) — with normalized dedup
   const doublonsPotentiels: CockpitUrgency[] = [];
-  const sirenMap = new Map<string, string[]>();
+  const sirenMap = new Map<string, { names: string[]; refs: string[] }>();
   for (const c of safeClients) {
     if (!c.siren || c.siren.trim() === "") continue;
-    const existing = sirenMap.get(c.siren) || [];
-    existing.push(c.raisonSociale ?? c.ref ?? "Inconnu");
-    sirenMap.set(c.siren, existing);
+    // Normalize SIREN by removing spaces for consistent dedup
+    const normalizedSiren = c.siren.replace(/\s/g, "");
+    if (normalizedSiren.length < 9) continue;
+    const existing = sirenMap.get(normalizedSiren) || { names: [], refs: [] };
+    existing.names.push(c.raisonSociale ?? c.ref ?? "Inconnu");
+    existing.refs.push(c.ref ?? "???");
+    sirenMap.set(normalizedSiren, existing);
   }
-  for (const [siren, names] of sirenMap) {
+  for (const [siren, { names, refs }] of sirenMap) {
     if (names.length > 1) {
+      const formattedSiren = `${siren.slice(0, 3)} ${siren.slice(3, 6)} ${siren.slice(6, 9)}`;
       const u: CockpitUrgency = {
         type: "doublon",
         severity: "warning",
-        title: `Doublon detecte — SIREN ${siren}`,
-        detail: `${names.length} dossiers avec le meme SIREN: ${names.join(", ")}`,
+        title: `Doublon detecte — SIREN ${formattedSiren}`,
+        detail: `${names.length} dossiers avec le meme SIREN: ${names.map((n, i) => `${n} (${refs[i]})`).join(", ")}. Verifiez s'il s'agit d'un doublon ou d'entites distinctes.`,
       };
       doublonsPotentiels.push(u);
       urgencies.push(u);

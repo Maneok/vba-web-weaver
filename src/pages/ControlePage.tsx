@@ -5,7 +5,7 @@ import {
   XCircle, Info, Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Download, Trash2, Edit3, BarChart3, ShieldCheck, ShieldAlert, Target,
   ArrowUpDown, ChevronsLeft, ChevronsRight, Shuffle, UserCheck, FileText,
-  Printer, Copy, X, Percent, Hash, ArrowRight, Minus,
+  Printer, Copy, X, Percent, Hash, ArrowRight, Minus, Loader2,
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { controlesService } from "@/lib/supabaseService";
@@ -291,6 +291,7 @@ export default function ControlePage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDrawOptions, setShowDrawOptions] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   useDocumentTitle("Controle Qualite");
 
@@ -739,17 +740,24 @@ export default function ControlePage() {
 
   // ── Export PDF ──
   // BUG FIX #20/#26: check both controles and clients
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     const valides = clients.filter((c) => c.etat === "VALIDE");
     if (controles.length === 0 && valides.length === 0) {
       toast.error("Aucune donnee pour le rapport");
       return;
     }
-    generateRapportControle(
-      valides.slice(0, 5),
-      filteredControles
-    );
-    toast.success("Rapport de controle genere (PDF)");
+    setExportingPdf(true);
+    try {
+      await generateRapportControle(
+        valides.slice(0, 5),
+        filteredControles
+      );
+      toast.success("Rapport de controle genere (PDF)");
+    } catch {
+      toast.error("Erreur lors de la generation du rapport PDF");
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleExportSinglePDF = (c: ControleQualite) => {
@@ -898,8 +906,8 @@ export default function ControlePage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportPDF} disabled={controles.length === 0 && clients.filter((c) => c.etat === "VALIDE").length === 0}>
-                  <FileDown className="w-3.5 h-3.5" /> PDF
+                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportPDF} disabled={exportingPdf || (controles.length === 0 && clients.filter((c) => c.etat === "VALIDE").length === 0)}>
+                  {exportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />} {exportingPdf ? "Generation..." : "PDF"}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Generer un rapport PDF complet</TooltipContent>

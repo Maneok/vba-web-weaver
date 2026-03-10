@@ -35,19 +35,24 @@ async function getKey(): Promise<CryptoKey> {
 export async function encryptField(plaintext: string): Promise<string> {
   if (!plaintext) return "";
   if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) throw new Error("Encryption keys not configured");
-  const key = await getKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encoded = new TextEncoder().encode(plaintext);
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
-  const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
-  combined.set(iv);
-  combined.set(new Uint8Array(ciphertext), iv.length);
-  // Use chunked conversion to avoid "Maximum call stack size exceeded" on large data
-  let binary = "";
-  for (let i = 0; i < combined.length; i++) {
-    binary += String.fromCharCode(combined[i]);
+  try {
+    const key = await getKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(plaintext);
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+    const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
+    combined.set(iv);
+    combined.set(new Uint8Array(ciphertext), iv.length);
+    // Use chunked conversion to avoid "Maximum call stack size exceeded" on large data
+    let binary = "";
+    for (let i = 0; i < combined.length; i++) {
+      binary += String.fromCharCode(combined[i]);
+    }
+    return btoa(binary);
+  } catch (err) {
+    logger.error("[Encryption] Encryption failed:", err instanceof Error ? err.message : String(err));
+    throw new Error("Encryption failed — sensitive data was not stored");
   }
-  return btoa(binary);
 }
 
 export async function decryptField(encrypted: string): Promise<string> {

@@ -20,7 +20,11 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       if (svgRef.current) d3.select(svgRef.current).selectAll("*").remove();
       return;
     }
-    if (nodes.length === 1 && (!edges || edges.length === 0)) return;
+    if (nodes.length === 1 && (!edges || edges.length === 0)) {
+      // Clean up SVG from previous render with more nodes
+      d3.select(svgRef.current).selectAll("*").remove();
+      return;
+    }
     const safeEdges = edges ?? [];
 
     const svg = d3.select(svgRef.current);

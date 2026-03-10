@@ -274,6 +274,7 @@ export default function AppLayout() {
           id="main-content"
           className={`overflow-auto transition-opacity duration-200 ${isTransitioning ? "opacity-0" : "opacity-100"}`}
           aria-label={`Contenu ${page.title}`}
+          aria-live="polite"
         >
           <Outlet />
         </main>
