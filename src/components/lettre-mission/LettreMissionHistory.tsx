@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Copy, RefreshCw, Search, FileText, Calendar } from "lucide-react";
+import { Eye, Copy, RefreshCw, Search, FileText, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export interface LettreMissionRecord {
@@ -41,12 +41,14 @@ const STATUT_STYLES: Record<string, { variant: "default" | "secondary" | "outlin
 
 export default function LettreMissionHistory() {
   const [records, setRecords] = useState<LettreMissionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statutFilter, setStatutFilter] = useState("Tous");
   const [dateFrom, setDateFrom] = useState("");
 
   useEffect(() => {
     setRecords(loadHistory());
+    setLoading(false);
   }, []);
 
   const filtered = records.filter((r) => {

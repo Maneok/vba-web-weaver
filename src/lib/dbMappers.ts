@@ -2,60 +2,73 @@ import type { Client, Collaborateur, AlerteRegistre, LogEntry, ControleQualite }
 
 // ===== DB row (snake_case) → Frontend (camelCase) =====
 
+/** Safely coerce a DB value to string, handling null/undefined */
+function str(value: unknown, fallback = ""): string {
+  if (value == null) return fallback;
+  return String(value) || fallback;
+}
+
+/** Safely coerce a DB value to number, handling null/undefined/NaN */
+function num(value: unknown, fallback = 0): number {
+  if (value == null) return fallback;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export function mapDbClient(row: Record<string, unknown>): Client {
   return {
-    ref: (row.ref as string) || "",
-    etat: ((row.etat as string) || "VALIDE") as Client["etat"],
-    comptable: (row.comptable as string) || "",
-    mission: ((row.mission as string) || "TENUE COMPTABLE") as Client["mission"],
-    raisonSociale: (row.raison_sociale as string) || "",
-    forme: (row.forme as string) || "SARL",
-    adresse: (row.adresse as string) || "",
-    cp: (row.cp as string) || "",
-    ville: (row.ville as string) || "",
-    siren: (row.siren as string) || "",
-    capital: Number(row.capital ?? 0),
-    ape: (row.ape as string) || "",
-    dirigeant: (row.dirigeant as string) || "",
-    domaine: (row.domaine as string) || "",
-    effectif: (row.effectif as string) || "",
-    tel: (row.tel as string) || "",
-    mail: (row.mail as string) || "",
-    dateCreation: (row.date_creation as string) || "",
-    dateReprise: (row.date_reprise as string) || "",
-    honoraires: Number(row.honoraires ?? 0),
-    reprise: Number(row.reprise ?? 0),
-    juridique: Number(row.juridique ?? 0),
-    frequence: (row.frequence as string) || "MENSUEL",
-    iban: (row.iban_encrypted as string) || "",
-    bic: (row.bic_encrypted as string) || "",
-    associe: (row.associe as string) || "",
-    superviseur: (row.superviseur as string) || "",
-    ppe: ((row.ppe as string) || "NON") as "OUI" | "NON",
-    paysRisque: ((row.pays_risque as string) || "NON") as "OUI" | "NON",
-    atypique: ((row.atypique as string) || "NON") as "OUI" | "NON",
-    distanciel: ((row.distanciel as string) || "NON") as "OUI" | "NON",
-    cash: ((row.cash as string) || "NON") as "OUI" | "NON",
-    pression: ((row.pression as string) || "NON") as "OUI" | "NON",
-    scoreActivite: Number(row.score_activite ?? 0),
-    scorePays: Number(row.score_pays ?? 0),
-    scoreMission: Number(row.score_mission ?? 0),
-    scoreMaturite: Number(row.score_maturite ?? 0),
-    scoreStructure: Number(row.score_structure ?? 0),
-    malus: Number(row.malus ?? 0),
-    scoreGlobal: Number(row.score_global ?? 0),
-    nivVigilance: ((row.niv_vigilance as string) || "SIMPLIFIEE") as Client["nivVigilance"],
-    dateCreationLigne: (row.date_creation_ligne as string) || "",
-    dateDerniereRevue: (row.date_derniere_revue as string) || "",
-    dateButoir: (row.date_butoir as string) || "",
-    etatPilotage: ((row.etat_pilotage as string) || "A JOUR") as Client["etatPilotage"],
-    dateExpCni: (row.date_exp_cni as string) || "",
-    statut: ((row.statut as string) || "ACTIF") as Client["statut"],
-    be: (row.be as string) || "",
-    dateFin: row.date_fin != null ? (row.date_fin as string) : undefined,
-    lienKbis: (row.lien_kbis as string) || "",
-    lienStatuts: (row.lien_statuts as string) || "",
-    lienCni: (row.lien_cni as string) || "",
+    ref: str(row.ref),
+    etat: (str(row.etat, "VALIDE")) as Client["etat"],
+    comptable: str(row.comptable),
+    mission: (str(row.mission, "TENUE COMPTABLE")) as Client["mission"],
+    raisonSociale: str(row.raison_sociale),
+    forme: str(row.forme, "SARL"),
+    adresse: str(row.adresse),
+    cp: str(row.cp),
+    ville: str(row.ville),
+    siren: str(row.siren),
+    capital: num(row.capital),
+    ape: str(row.ape),
+    dirigeant: str(row.dirigeant),
+    domaine: str(row.domaine),
+    effectif: str(row.effectif),
+    tel: str(row.tel),
+    mail: str(row.mail),
+    dateCreation: str(row.date_creation),
+    dateReprise: str(row.date_reprise),
+    honoraires: num(row.honoraires),
+    reprise: num(row.reprise),
+    juridique: num(row.juridique),
+    frequence: str(row.frequence, "MENSUEL"),
+    iban: str(row.iban_encrypted),
+    bic: str(row.bic_encrypted),
+    associe: str(row.associe),
+    superviseur: str(row.superviseur),
+    ppe: (str(row.ppe, "NON")) as "OUI" | "NON",
+    paysRisque: (str(row.pays_risque, "NON")) as "OUI" | "NON",
+    atypique: (str(row.atypique, "NON")) as "OUI" | "NON",
+    distanciel: (str(row.distanciel, "NON")) as "OUI" | "NON",
+    cash: (str(row.cash, "NON")) as "OUI" | "NON",
+    pression: (str(row.pression, "NON")) as "OUI" | "NON",
+    scoreActivite: num(row.score_activite),
+    scorePays: num(row.score_pays),
+    scoreMission: num(row.score_mission),
+    scoreMaturite: num(row.score_maturite),
+    scoreStructure: num(row.score_structure),
+    malus: num(row.malus),
+    scoreGlobal: num(row.score_global),
+    nivVigilance: (str(row.niv_vigilance, "SIMPLIFIEE")) as Client["nivVigilance"],
+    dateCreationLigne: str(row.date_creation_ligne),
+    dateDerniereRevue: str(row.date_derniere_revue),
+    dateButoir: str(row.date_butoir),
+    etatPilotage: (str(row.etat_pilotage, "A JOUR")) as Client["etatPilotage"],
+    dateExpCni: str(row.date_exp_cni),
+    statut: (str(row.statut, "ACTIF")) as Client["statut"],
+    be: str(row.be),
+    dateFin: row.date_fin != null ? String(row.date_fin) : undefined,
+    lienKbis: str(row.lien_kbis),
+    lienStatuts: str(row.lien_statuts),
+    lienCni: str(row.lien_cni),
   };
 }
 
@@ -74,7 +87,7 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.cp !== undefined) row.cp = client.cp;
   if (client.ville !== undefined) row.ville = client.ville;
   if (client.siren !== undefined) row.siren = client.siren?.replace(/\s/g, "");
-  if (client.capital !== undefined) row.capital = Number(client.capital ?? 0);
+  if (client.capital !== undefined) row.capital = num(client.capital);
   if (client.ape !== undefined) row.ape = client.ape;
   if (client.dirigeant !== undefined) row.dirigeant = client.dirigeant;
   if (client.domaine !== undefined) row.domaine = client.domaine;
@@ -83,9 +96,9 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.mail !== undefined) row.mail = client.mail;
   if (client.dateCreation !== undefined) row.date_creation = client.dateCreation;
   if (client.dateReprise !== undefined) row.date_reprise = client.dateReprise;
-  if (client.honoraires !== undefined) row.honoraires = Number(client.honoraires ?? 0);
-  if (client.reprise !== undefined) row.reprise = Number(client.reprise ?? 0);
-  if (client.juridique !== undefined) row.juridique = Number(client.juridique ?? 0);
+  if (client.honoraires !== undefined) row.honoraires = num(client.honoraires);
+  if (client.reprise !== undefined) row.reprise = num(client.reprise);
+  if (client.juridique !== undefined) row.juridique = num(client.juridique);
   if (client.frequence !== undefined) row.frequence = client.frequence;
   if (client.iban !== undefined) row.iban_encrypted = client.iban;
   if (client.bic !== undefined) row.bic_encrypted = client.bic;
@@ -122,33 +135,33 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
 
 export function mapDbCollaborateur(row: Record<string, unknown>): Collaborateur {
   return {
-    id: (row.id as string) || undefined,
-    nom: (row.nom as string) || "",
-    fonction: (row.fonction as string) || "",
-    referentLcb: !!(row.referent_lcb as boolean),
-    suppleant: (row.suppleant as string) || "",
-    niveauCompetence: (row.niveau_competence as string) || "",
-    dateSignatureManuel: (row.date_signature_manuel as string) || "",
-    derniereFormation: (row.derniere_formation as string) || "",
-    statutFormation: (row.statut_formation as string) || "",
-    email: (row.email as string) || "",
+    id: row.id != null ? String(row.id) : undefined,
+    nom: str(row.nom),
+    fonction: str(row.fonction),
+    referentLcb: !!row.referent_lcb,
+    suppleant: str(row.suppleant),
+    niveauCompetence: str(row.niveau_competence),
+    dateSignatureManuel: str(row.date_signature_manuel),
+    derniereFormation: str(row.derniere_formation),
+    statutFormation: str(row.statut_formation),
+    email: str(row.email),
   };
 }
 
 export function mapDbAlerte(row: Record<string, unknown>): AlerteRegistre {
   return {
-    id: (row.id as string) || undefined,
-    date: (row.date as string) || "",
-    clientConcerne: (row.client_concerne as string) || "",
-    categorie: (row.categorie as string) || "",
-    details: (row.details as string) || "",
-    actionPrise: (row.action_prise as string) || "",
-    responsable: (row.responsable as string) || "",
-    qualification: (row.qualification as string) || "",
-    statut: (row.statut as string) || "",
-    dateButoir: (row.date_butoir as string) || "",
-    typeDecision: (row.type_decision as string) || "",
-    validateur: (row.validateur as string) || "",
+    id: row.id != null ? String(row.id) : undefined,
+    date: str(row.date),
+    clientConcerne: str(row.client_concerne),
+    categorie: str(row.categorie),
+    details: str(row.details),
+    actionPrise: str(row.action_prise),
+    responsable: str(row.responsable),
+    qualification: str(row.qualification),
+    statut: str(row.statut),
+    dateButoir: str(row.date_butoir),
+    typeDecision: str(row.type_decision),
+    validateur: str(row.validateur),
   };
 }
 
@@ -169,11 +182,12 @@ export function mapAlerteToDb(alerte: AlerteRegistre): Record<string, unknown> {
 }
 
 export function mapDbLog(row: Record<string, unknown>): LogEntry {
+  const newData = (row.new_data != null && typeof row.new_data === "object") ? row.new_data as Record<string, unknown> : {};
   return {
-    horodatage: ((row.created_at as string) || "").replace("T", " ").slice(0, 16),
-    utilisateur: (row.user_email as string) || "",
-    refClient: (row.record_id as string) || "",
-    typeAction: (row.action as string) || "",
-    details: ((row.new_data as Record<string, unknown>)?.details as string) || "",
+    horodatage: str(row.created_at).replace("T", " ").slice(0, 16),
+    utilisateur: str(row.user_email),
+    refClient: str(row.record_id),
+    typeAction: str(row.action),
+    details: str(newData.details),
   };
 }

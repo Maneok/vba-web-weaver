@@ -11,12 +11,20 @@ export function initMonitoring() {
   _initialized = true;
   // Capture unhandled promise rejections
   window.addEventListener("unhandledrejection", (event) => {
-    logger.error("Unhandled", "Promise rejection:", event.reason);
+    try {
+      logger.error("Unhandled", "Promise rejection:", event.reason);
+    } catch {
+      // Prevent monitoring from causing additional failures
+    }
   });
 
   // Capture global errors
   window.addEventListener("error", (event) => {
-    logger.error("Global", "Error:", event.message, event.filename, event.lineno);
+    try {
+      logger.error("Global", "Error:", event.message, event.filename, event.lineno);
+    } catch {
+      // Prevent monitoring from causing additional failures
+    }
   });
 
   // Report basic performance metrics when available

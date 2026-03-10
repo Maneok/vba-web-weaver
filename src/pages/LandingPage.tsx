@@ -1418,7 +1418,7 @@ export default function LandingPage() {
         )}
 
         {/* ══════ 1. NAVBAR ══════ */}
-        <nav className={`fixed z-50 w-full transition-all duration-300 ${
+        <nav aria-label="Navigation principale" className={`fixed z-50 w-full transition-all duration-300 ${
           navScrolled
             ? "border-b shadow-lg"
             : "bg-transparent"

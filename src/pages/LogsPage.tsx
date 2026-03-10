@@ -189,6 +189,7 @@ export default function LogsPage() {
           variant="outline"
           size="sm"
           className="gap-1.5 border-white/[0.06]"
+          aria-label="Exporter le journal en CSV"
           onClick={() => {
             const headers = ["Horodatage", "Utilisateur", "Action", "Reference", "Details"];
             const rows = filtered.map(l => [l.horodatage, l.utilisateur, l.typeAction, l.refClient, l.details]);
@@ -281,11 +282,12 @@ export default function LogsPage() {
             placeholder="Rechercher par action, details, reference, utilisateur..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
+            aria-label="Rechercher dans le journal"
             className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
           />
         </div>
         <Select value={filterAction} onValueChange={v => { setFilterAction(v); setVisibleCount(PAGE_SIZE); }}>
-          <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.06] text-slate-300">
+          <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par type d'action">
             <SelectValue placeholder="Type d'action" />
           </SelectTrigger>
           <SelectContent>
@@ -294,7 +296,7 @@ export default function LogsPage() {
           </SelectContent>
         </Select>
         <Select value={filterUser} onValueChange={v => { setFilterUser(v); setVisibleCount(PAGE_SIZE); }}>
-          <SelectTrigger className="w-[160px] bg-white/[0.03] border-white/[0.06] text-slate-300">
+          <SelectTrigger className="w-[160px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par utilisateur">
             <SelectValue placeholder="Utilisateur" />
           </SelectTrigger>
           <SelectContent>
@@ -302,10 +304,10 @@ export default function LogsPage() {
             {uniqueUsers.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setVisibleCount(PAGE_SIZE); }} className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
-        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setVisibleCount(PAGE_SIZE); }} className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de debut" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de fin" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters}>
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters} aria-label="Effacer tous les filtres">
             <X className="w-3 h-3 mr-1" /> Effacer
           </Button>
         )}
@@ -323,7 +325,19 @@ export default function LogsPage() {
                   Effacer les filtres
                 </Button>
               </div>
-            ) : "Aucune entree dans le journal"}
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-16 h-16 rounded-full bg-slate-500/10 flex items-center justify-center">
+                  <ScrollText className="w-8 h-8 text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-400">Aucune entree dans le journal</p>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Les actions effectuees dans l'application apparaitront ici automatiquement.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="relative">
@@ -388,6 +402,7 @@ export default function LogsPage() {
             <button
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
               className="px-6 py-2.5 text-sm font-medium rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors"
+              aria-label={`Charger ${filtered.length - visibleCount} entrees supplementaires`}
             >
               Charger plus ({filtered.length - visibleCount} restants)
             </button>

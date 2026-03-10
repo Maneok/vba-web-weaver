@@ -1,5 +1,10 @@
 export function validateIBAN(iban: string): { valid: boolean; bankName?: string; error?: string } {
-  const clean = iban.replace(/\s/g, "").toUpperCase();
+  if (!iban || typeof iban !== "string") return { valid: false, error: "IBAN requis" };
+  const trimmed = iban.trim();
+  if (!trimmed) return { valid: false, error: "IBAN requis" };
+  // Reject non-alphanumeric characters (except spaces, which are stripped)
+  if (/[^A-Za-z0-9\s]/.test(trimmed)) return { valid: false, error: "L'IBAN ne doit contenir que des lettres et chiffres" };
+  const clean = trimmed.replace(/\s/g, "").toUpperCase();
   if (clean.length < 15 || clean.length > 34) return { valid: false, error: "Longueur IBAN invalide (15-34 caractères)" };
   if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(clean)) return { valid: false, error: "Format IBAN invalide" };
   // French-specific length check

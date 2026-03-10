@@ -274,8 +274,8 @@ export default function AuditTrailPage() {
             {uniqueUsers.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} aria-label="Date de debut du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
-        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} aria-label="Date de fin du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateStart} max={dateEnd || undefined} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} aria-label="Date de debut du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateEnd} min={dateStart || undefined} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} aria-label="Date de fin du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
         {hasFilters && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters}>
             <X className="w-3 h-3 mr-1" /> Effacer
@@ -360,7 +360,17 @@ export default function AuditTrailPage() {
                           </Button>
                         </div>
                       ) : (
-                        "Aucune entree dans le journal d'audit"
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-16 h-16 rounded-full bg-slate-500/10 flex items-center justify-center">
+                            <Shield className="w-8 h-8 text-slate-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-400">Aucune entree dans le journal d'audit</p>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Les actions reglementaires seront enregistrees ici automatiquement.
+                            </p>
+                          </div>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

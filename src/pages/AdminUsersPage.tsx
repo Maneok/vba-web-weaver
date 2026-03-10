@@ -347,6 +347,7 @@ export default function AdminUsersPage() {
                       variant="ghost"
                       size="sm"
                       onClick={() => toggleUserActive(u.id)}
+                      aria-label={u.is_active ? `Desactiver ${u.full_name || u.email}` : `Activer ${u.full_name || u.email}`}
                     >
                       {u.is_active ? (
                         <UserX className="w-4 h-4 text-destructive" />

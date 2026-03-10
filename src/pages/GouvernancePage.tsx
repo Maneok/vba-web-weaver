@@ -74,6 +74,7 @@ export default function GouvernancePage() {
   const [deletingCollab, setDeletingCollab] = useState<typeof collaborateurs[0] | null>(null);
   const [newCollab, setNewCollab] = useState({ ...EMPTY_FORM });
   const [editForm, setEditForm] = useState({ ...EMPTY_FORM });
+  const [saving, setSaving] = useState(false);
   const [sortField, setSortField] = useState<SortField>("nom");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
 
@@ -126,6 +127,7 @@ export default function GouvernancePage() {
       toast.error("Email invalide");
       return;
     }
+    setSaving(true);
     try {
       if (isOnline) {
         await collaborateursService.create({
@@ -148,11 +150,14 @@ export default function GouvernancePage() {
     } catch (err: unknown) {
       logger.error("Erreur ajout collaborateur", err);
       toast.error("Erreur lors de l'ajout du collaborateur");
+    } finally {
+      setSaving(false);
     }
   }, [newCollab, isOnline, refreshAll]);
 
   const handleEdit = useCallback(async () => {
     if (!editingCollab?.id || !editForm.nom.trim()) return;
+    setSaving(true);
     try {
       if (isOnline) {
         await collaborateursService.update(editingCollab.id, {
@@ -175,6 +180,8 @@ export default function GouvernancePage() {
     } catch (err: unknown) {
       logger.error("Erreur modification collaborateur", err);
       toast.error("Erreur lors de la modification du collaborateur");
+    } finally {
+      setSaving(false);
     }
   }, [editingCollab, editForm, isOnline, refreshAll]);
 
