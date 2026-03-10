@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
-import NotificationBell from "./NotificationBell";
+
 import { ArrowLeft, ChevronRight, Keyboard, LogOut, Menu, ScrollText, Settings, User } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppState } from "@/lib/AppContext";
@@ -252,6 +252,8 @@ export default function AppLayout() {
             </DropdownMenu>
           </div>
         </header>
+
+        <SubscriptionBanner />
 
         {!isOnline && session && (
           <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 text-center text-sm text-amber-300">
