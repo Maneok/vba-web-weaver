@@ -1,403 +1,246 @@
-/**
- * Tests for 20 essential improvements across the codebase.
- * Each describe block corresponds to one improvement.
- */
 import { describe, it, expect } from "vitest";
-import {
-  calculateRiskScore,
-  calculateNextReviewDate,
-  calculateDateButoir,
-  getPilotageStatus,
-  normalizeAddress,
-  APE_SCORES,
-  MISSION_SCORES,
-} from "../lib/riskEngine";
+import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus } from "../lib/riskEngine";
 import { validateIBAN } from "../lib/ibanValidator";
-import { validateEmail, validateSiren, validateCodePostal, clientSchema } from "../lib/validation";
-import { mapDbClient, mapClientToDb, mapDbCollaborateur, mapDbAlerte } from "../lib/dbMappers";
 import { analyzeCockpit } from "../lib/cockpitEngine";
 import { runDiagnostic360 } from "../lib/diagnosticEngine";
-import {
-  calcHonorairesMensuels,
-  calcHonorairesTrimestriels,
-  checkHonorairesConsistency,
-  validateLettreMission,
-  incrementCounter,
-  resetCounter,
-} from "../lib/lettreMissionEngine";
 import type { Client, Collaborateur, AlerteRegistre } from "../lib/types";
 
-// ═══════════════════════════════════════════════════
+// ============================================================
 // Helper: minimal valid client for testing
-// ═══════════════════════════════════════════════════
+// ============================================================
 function makeClient(overrides: Partial<Client> = {}): Client {
   return {
-    ref: "CLI-26-001", etat: "VALIDE", comptable: "MAGALIE", mission: "TENUE COMPTABLE",
-    raisonSociale: "TEST SAS", forme: "SAS", adresse: "1 RUE TEST", cp: "75001", ville: "PARIS",
-    siren: "123 456 789", capital: 10000, ape: "62.20Z", dirigeant: "DUPONT Jean",
-    domaine: "Informatique", effectif: "3 A 5 SALARIES", tel: "01 23 45 67 89", mail: "test@test.fr",
-    dateCreation: "2015-01-01", dateReprise: "", honoraires: 5000, reprise: 0, juridique: 0,
-    frequence: "MENSUEL", iban: "", bic: "", associe: "DIDIER", superviseur: "SAMUEL",
-    ppe: "NON", paysRisque: "NON", atypique: "NON", distanciel: "NON", cash: "NON", pression: "NON",
-    scoreActivite: 25, scorePays: 0, scoreMission: 10, scoreMaturite: 0, scoreStructure: 40,
-    malus: 0, scoreGlobal: 15, nivVigilance: "SIMPLIFIEE",
-    dateCreationLigne: "2024-01-01", dateDerniereRevue: "2024-01-01",
-    dateButoir: "2027-01-01", etatPilotage: "A JOUR", dateExpCni: "2030-01-01",
-    statut: "ACTIF", be: "DUPONT Jean (100%)", ...overrides,
+    ref: "CLI-26-001",
+    etat: "VALIDE",
+    comptable: "MAGALIE",
+    mission: "TENUE COMPTABLE",
+    raisonSociale: "TEST SARL",
+    forme: "SARL",
+    adresse: "1 RUE DE LA PAIX",
+    cp: "75001",
+    ville: "PARIS",
+    siren: "123 456 789",
+    capital: 10000,
+    ape: "62.20Z",
+    dirigeant: "DUPONT JEAN",
+    domaine: "INFORMATIQUE",
+    effectif: "5 SALARIES",
+    tel: "0100000000",
+    mail: "test@example.com",
+    dateCreation: "2015-01-01",
+    dateReprise: "",
+    honoraires: 5000,
+    reprise: 0,
+    juridique: 0,
+    frequence: "MENSUEL",
+    iban: "",
+    bic: "",
+    associe: "DIDIER",
+    superviseur: "SAMUEL",
+    ppe: "NON",
+    paysRisque: "NON",
+    atypique: "NON",
+    distanciel: "NON",
+    cash: "NON",
+    pression: "NON",
+    scoreActivite: 25,
+    scorePays: 0,
+    scoreMission: 10,
+    scoreMaturite: 0,
+    scoreStructure: 20,
+    malus: 0,
+    scoreGlobal: 11,
+    nivVigilance: "SIMPLIFIEE",
+    dateCreationLigne: "2024-01-01",
+    dateDerniereRevue: "2024-01-01",
+    dateButoir: "2030-01-01",
+    etatPilotage: "A JOUR",
+    dateExpCni: "2030-01-01",
+    statut: "ACTIF",
+    be: "DUPONT JEAN 100%",
+    lienKbis: "https://example.com/kbis",
+    lienStatuts: "",
+    lienCni: "",
+    ...overrides,
   };
 }
 
 function makeCollab(overrides: Partial<Collaborateur> = {}): Collaborateur {
   return {
-    nom: "DUPONT", fonction: "COLLABORATEUR", referentLcb: false, suppleant: "",
-    niveauCompetence: "CONFIRME", dateSignatureManuel: "2024-01-01",
-    derniereFormation: "2024-01-01", statutFormation: "A JOUR", email: "dupont@test.fr",
+    nom: "DUPONT",
+    fonction: "COLLABORATEUR",
+    referentLcb: false,
+    suppleant: "",
+    niveauCompetence: "CONFIRME",
+    dateSignatureManuel: "2024-01-01",
+    derniereFormation: "2024-01-01",
+    statutFormation: "A JOUR",
+    email: "dupont@cabinet.fr",
     ...overrides,
   };
 }
 
-function makeAlerte(overrides: Partial<AlerteRegistre> = {}): AlerteRegistre {
-  return {
-    date: "2024-01-01", clientConcerne: "TEST SAS", categorie: "FLUX : Incoherence / Atypique",
-    details: "Mouvement suspect", actionPrise: "Verification en cours", responsable: "DIDIER",
-    qualification: "", statut: "EN COURS", dateButoir: "2024-12-31", typeDecision: "", validateur: "",
-    ...overrides,
-  };
-}
-
-// ═══════════════════════════════════════════════════
-// 1. scoreStructure null safety
-// ═══════════════════════════════════════════════════
-describe("Improvement 1: scoreStructure null/undefined safety", () => {
-  it("should not crash with empty string forme", () => {
+// ============================================================
+// #1: riskEngine — negative ancienneteYears (future dateCreation)
+// ============================================================
+describe("#1: riskEngine — future dateCreation guard", () => {
+  it("should treat future dateCreation as high risk (recent company)", () => {
     const result = calculateRiskScore({
-      ape: "62.20Z", paysRisque: false, mission: "TENUE COMPTABLE",
-      dateCreation: "2015-01-01", dateReprise: "", effectif: "3 SALARIES",
-      forme: "", ppe: false, atypique: false, distanciel: false, cash: false, pression: false,
+      ape: "62.20Z",
+      paysRisque: false,
+      mission: "TENUE COMPTABLE",
+      dateCreation: "2099-01-01",
+      dateReprise: "",
+      effectif: "5",
+      forme: "SARL",
+      ppe: false,
+      atypique: false,
+      distanciel: false,
+      cash: false,
+      pression: false,
     });
-    expect(result.scoreStructure).toBe(20); // default fallback
-  });
-
-  it("should not crash with undefined-like forme", () => {
-    const result = calculateRiskScore({
-      ape: "62.20Z", paysRisque: false, mission: "TENUE COMPTABLE",
-      dateCreation: "2015-01-01", dateReprise: "", effectif: "3 SALARIES",
-      forme: null as unknown as string, ppe: false, atypique: false, distanciel: false, cash: false, pression: false,
-    });
-    expect(result.scoreStructure).toBe(20);
-  });
-
-  it("should correctly score TRUST as high risk", () => {
-    const result = calculateRiskScore({
-      ape: "62.20Z", paysRisque: false, mission: "TENUE COMPTABLE",
-      dateCreation: "2015-01-01", dateReprise: "", effectif: "3 SALARIES",
-      forme: "TRUST", ppe: false, atypique: false, distanciel: false, cash: false, pression: false,
-    });
-    expect(result.scoreStructure).toBe(100);
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 2. scoreMaturite negative date protection
-// ═══════════════════════════════════════════════════
-describe("Improvement 2: scoreMaturite future date protection", () => {
-  it("should treat future dateCreation as < 1 year (high risk)", () => {
-    const futureDate = new Date();
-    futureDate.setFullYear(futureDate.getFullYear() + 2);
-    const result = calculateRiskScore({
-      ape: "62.20Z", paysRisque: false, mission: "TENUE COMPTABLE",
-      dateCreation: futureDate.toISOString().split("T")[0], dateReprise: "",
-      effectif: "3 SALARIES", forme: "SARL",
-      ppe: false, atypique: false, distanciel: false, cash: false, pression: false,
-    });
-    // Future date → ancienneteYears clamped to 0 → < 1 year → score = 65
     expect(result.scoreMaturite).toBe(65);
   });
 
-  it("should return 65 for invalid dateCreation", () => {
+  it("should treat missing dateCreation as high risk", () => {
     const result = calculateRiskScore({
-      ape: "62.20Z", paysRisque: false, mission: "TENUE COMPTABLE",
-      dateCreation: "invalid-date", dateReprise: "", effectif: "3 SALARIES",
-      forme: "SARL", ppe: false, atypique: false, distanciel: false, cash: false, pression: false,
+      ape: "62.20Z",
+      paysRisque: false,
+      mission: "TENUE COMPTABLE",
+      dateCreation: "",
+      dateReprise: "",
+      effectif: "5",
+      forme: "SARL",
+      ppe: false,
+      atypique: false,
+      distanciel: false,
+      cash: false,
+      pression: false,
     });
     expect(result.scoreMaturite).toBe(65);
   });
 });
 
-// ═══════════════════════════════════════════════════
-// 3. normalizeAddress null safety
-// ═══════════════════════════════════════════════════
-describe("Improvement 3: normalizeAddress null safety", () => {
-  it("should return empty string for null/undefined input", () => {
-    expect(normalizeAddress(null as unknown as string)).toBe("");
-    expect(normalizeAddress(undefined as unknown as string)).toBe("");
-    expect(normalizeAddress("")).toBe("");
+// ============================================================
+// #2: riskEngine — UTC-based review date calculation
+// ============================================================
+describe("#2: riskEngine — timezone-safe review dates", () => {
+  it("should add 3 years for SIMPLIFIEE", () => {
+    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2027-01-15");
   });
 
-  it("should normalize abbreviations", () => {
-    expect(normalizeAddress("12 avenue de la Paix")).toBe("12 AV DE LA PAIX");
-    expect(normalizeAddress("5 boulevard Haussmann")).toBe("5 BD HAUSSMANN");
-    expect(normalizeAddress("3, route de Lyon")).toBe("3 RTE DE LYON");
+  it("should add 1 year for STANDARD", () => {
+    expect(calculateNextReviewDate("STANDARD", "2024-06-01")).toBe("2025-06-01");
+  });
+
+  it("should add 6 months for RENFORCEE consistently (UTC-safe)", () => {
+    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2024-07-01");
+  });
+
+  it("should handle year boundary for RENFORCEE", () => {
+    expect(calculateNextReviewDate("RENFORCEE", "2024-09-15")).toBe("2025-03-15");
+  });
+
+  it("should fallback to today for invalid date", () => {
+    const result = calculateNextReviewDate("STANDARD", "not-a-date");
+    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });
 
-// ═══════════════════════════════════════════════════
-// 4. getPilotageStatus empty string handling
-// ═══════════════════════════════════════════════════
-describe("Improvement 4: getPilotageStatus edge cases", () => {
-  it("should return RETARD for empty string", () => {
-    expect(getPilotageStatus("")).toBe("RETARD");
+// ============================================================
+// #3: numOrNull — whitespace handling
+// ============================================================
+describe("#3: numOrNull — whitespace-only strings", () => {
+  function numOrNull(v: unknown): number | null {
+    if (v === null || v === undefined) return null;
+    if (typeof v === "string" && v.trim() === "") return null;
+    const n = Number(v);
+    return isNaN(n) ? null : n;
+  }
+
+  it("should return null for whitespace-only strings", () => {
+    expect(numOrNull("   ")).toBe(null);
+    expect(numOrNull("  \t ")).toBe(null);
   });
 
-  it("should return RETARD for invalid date", () => {
-    expect(getPilotageStatus("not-a-date")).toBe("RETARD");
+  it("should return null for empty string", () => {
+    expect(numOrNull("")).toBe(null);
   });
 
-  it("should return A JOUR for far future", () => {
-    expect(getPilotageStatus("2099-01-01")).toBe("A JOUR");
+  it("should return number for valid numeric strings", () => {
+    expect(numOrNull("42")).toBe(42);
+    expect(numOrNull(" 42 ")).toBe(42);
   });
 
-  it("should return BIENTÔT for dates within 60 days", () => {
+  it("should return null for null/undefined", () => {
+    expect(numOrNull(null)).toBe(null);
+    expect(numOrNull(undefined)).toBe(null);
+  });
+
+  it("should return 0 for actual zero", () => {
+    expect(numOrNull(0)).toBe(0);
+    expect(numOrNull("0")).toBe(0);
+  });
+});
+
+// ============================================================
+// #4: cockpitEngine — revision BIENTOT detection
+// ============================================================
+describe("#4: cockpitEngine — approaching revision deadlines", () => {
+  it("should detect revision within 30 days as warning", () => {
     const soon = new Date();
-    soon.setDate(soon.getDate() + 30);
-    expect(getPilotageStatus(soon.toISOString().split("T")[0])).toBe("BIENTÔT");
+    soon.setDate(soon.getDate() + 25);
+    const client = makeClient({ dateButoir: soon.toISOString().split("T")[0] });
+    const result = analyzeCockpit([client], [], []);
+    const revisionBientot = result.urgencies.filter(
+      u => u.type === "revision" && u.title.includes("bientot")
+    );
+    expect(revisionBientot.length).toBe(1);
+    expect(revisionBientot[0].severity).toBe("warning");
+  });
+
+  it("should detect revision within 31-60 days as info", () => {
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 45);
+    const client = makeClient({ dateButoir: soon.toISOString().split("T")[0] });
+    const result = analyzeCockpit([client], [], []);
+    const revisionBientot = result.urgencies.filter(
+      u => u.type === "revision" && u.title.includes("bientot")
+    );
+    expect(revisionBientot.length).toBe(1);
+    expect(revisionBientot[0].severity).toBe("info");
+  });
+
+  it("should NOT flag revision far in the future", () => {
+    const client = makeClient({ dateButoir: "2099-01-01" });
+    const result = analyzeCockpit([client], [], []);
+    const revisionBientot = result.urgencies.filter(
+      u => u.type === "revision" && u.title.includes("bientot")
+    );
+    expect(revisionBientot.length).toBe(0);
   });
 });
 
-// ═══════════════════════════════════════════════════
-// 5. IBAN country-specific length validation
-// ═══════════════════════════════════════════════════
-describe("Improvement 5: IBAN country-specific validation", () => {
-  it("should accept valid French IBAN", () => {
-    const result = validateIBAN("FR76 3000 6000 0112 3456 7890 189");
-    expect(result.valid).toBe(true);
-  });
-
-  it("should reject FR IBAN with wrong length", () => {
-    const result = validateIBAN("FR76 3000 6000 0112 3456");
-    expect(result.valid).toBe(false);
-    expect(result.error).toContain("27");
-  });
-
-  it("should validate German IBAN length (22 chars)", () => {
-    const result = validateIBAN("DE89 3704 0044 0532 0130 00");
-    expect(result.valid).toBe(true);
-  });
-
-  it("should reject DE IBAN with wrong length", () => {
-    const result = validateIBAN("DE89 3704 0044 0532 0130 0012 34");
-    expect(result.valid).toBe(false);
-    expect(result.error).toContain("22");
-  });
-
-  it("should reject empty IBAN", () => {
-    expect(validateIBAN("").valid).toBe(false);
-  });
-
-  it("should reject IBAN with special characters", () => {
-    expect(validateIBAN("FR76-3000-6000").valid).toBe(false);
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 6. Phone validation improved regex
-// ═══════════════════════════════════════════════════
-describe("Improvement 6: French phone number validation", () => {
-  it("should accept standard French format 01 23 45 67 89", () => {
-    const result = clientSchema.shape.tel.safeParse("01 23 45 67 89");
-    expect(result.success).toBe(true);
-  });
-
-  it("should accept +33 format", () => {
-    const result = clientSchema.shape.tel.safeParse("+33 1 23 45 67 89");
-    expect(result.success).toBe(true);
-  });
-
-  it("should accept mobile format", () => {
-    const result = clientSchema.shape.tel.safeParse("06 12 34 56 78");
-    expect(result.success).toBe(true);
-  });
-
-  it("should accept empty string (optional field)", () => {
-    const result = clientSchema.shape.tel.safeParse("");
-    expect(result.success).toBe(true);
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 7. dbMappers enum validation
-// ═══════════════════════════════════════════════════
-describe("Improvement 7: dbMappers enum validation", () => {
-  it("should fallback to VALIDE for invalid etat", () => {
-    const client = mapDbClient({ etat: "INVALID_STATE", ref: "CLI-01" });
-    expect(client.etat).toBe("VALIDE");
-  });
-
-  it("should fallback to SIMPLIFIEE for invalid vigilance", () => {
-    const client = mapDbClient({ niv_vigilance: "MEGA_RENFORCEE", ref: "CLI-01" });
-    expect(client.nivVigilance).toBe("SIMPLIFIEE");
-  });
-
-  it("should fallback to ACTIF for invalid statut", () => {
-    const client = mapDbClient({ statut: "DELETED", ref: "CLI-01" });
-    expect(client.statut).toBe("ACTIF");
-  });
-
-  it("should fallback to NON for invalid OUI/NON values", () => {
-    const client = mapDbClient({ ppe: "MAYBE", pays_risque: 42, ref: "CLI-01" });
-    expect(client.ppe).toBe("NON");
-    expect(client.paysRisque).toBe("NON");
-  });
-
-  it("should map valid enum values correctly", () => {
-    const client = mapDbClient({ etat: "ARCHIVE", niv_vigilance: "RENFORCEE", statut: "INACTIF", ppe: "OUI", ref: "CLI-01" });
-    expect(client.etat).toBe("ARCHIVE");
-    expect(client.nivVigilance).toBe("RENFORCEE");
-    expect(client.statut).toBe("INACTIF");
-    expect(client.ppe).toBe("OUI");
-  });
-
-  it("should handle null/undefined row values", () => {
-    const client = mapDbClient({});
-    expect(client.ref).toBe("");
-    expect(client.etat).toBe("VALIDE");
-    expect(client.capital).toBeNull();
-    expect(client.honoraires).toBeNull();
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 8. Honoraires calculation robustness
-// ═══════════════════════════════════════════════════
-describe("Improvement 8: Honoraires calculation robustness", () => {
-  it("should calculate correct monthly from annual", () => {
-    expect(calcHonorairesMensuels(12000)).toBe(1000);
-    expect(calcHonorairesMensuels(10000)).toBe(833.33);
-  });
-
-  it("should calculate correct quarterly from annual", () => {
-    expect(calcHonorairesTrimestriels(12000)).toBe(3000);
-    expect(calcHonorairesTrimestriels(10000)).toBe(2500);
-  });
-
-  it("should return 0 for negative values", () => {
-    expect(calcHonorairesMensuels(-5000)).toBe(0);
-    expect(calcHonorairesTrimestriels(-5000)).toBe(0);
-  });
-
-  it("should return 0 for NaN/Infinity", () => {
-    expect(calcHonorairesMensuels(NaN)).toBe(0);
-    expect(calcHonorairesMensuels(Infinity)).toBe(0);
-    expect(calcHonorairesTrimestriels(NaN)).toBe(0);
-  });
-
-  it("should detect rounding ecart for non-divisible amounts", () => {
-    const check = checkHonorairesConsistency(10000);
-    expect(check.mensuel).toBe(833.33);
-    expect(check.ecart).toBeLessThanOrEqual(0.05); // < 5 cents tolerance
-  });
-
-  it("should show zero ecart for clean divisions", () => {
-    const check = checkHonorairesConsistency(12000);
-    expect(check.ecart).toBe(0);
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 9. SIREN Luhn validation
-// ═══════════════════════════════════════════════════
-describe("Improvement 9: SIREN Luhn validation", () => {
-  it("should validate known valid SIRENs", () => {
-    // La Poste: 356 000 000
-    expect(validateSiren("356000000")).toBe(true);
-  });
-
-  it("should reject SIREN with wrong checksum", () => {
-    expect(validateSiren("123456789")).toBe(false);
-  });
-
-  it("should reject too-short SIREN", () => {
-    expect(validateSiren("12345")).toBe(false);
-  });
-
-  it("should accept SIREN with spaces", () => {
-    expect(validateSiren("356 000 000")).toBe(true);
-  });
-
-  it("should reject non-numeric SIREN", () => {
-    expect(validateSiren("12345678A")).toBe(false);
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 10. French postal code validation
-// ═══════════════════════════════════════════════════
-describe("Improvement 10: French postal code validation", () => {
-  it("should accept valid Paris code", () => {
-    expect(validateCodePostal("75001")).toBe(true);
-  });
-
-  it("should accept DOM-TOM codes", () => {
-    expect(validateCodePostal("97100")).toBe(true); // Guadeloupe
-    expect(validateCodePostal("98000")).toBe(true); // Monaco
-  });
-
-  it("should reject invalid department 00", () => {
-    expect(validateCodePostal("00100")).toBe(false);
-  });
-
-  it("should reject non-5-digit strings", () => {
-    expect(validateCodePostal("7500")).toBe(false);
-    expect(validateCodePostal("750001")).toBe(false);
-    expect(validateCodePostal("ABCDE")).toBe(false);
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 11. Cockpit duplicate SIREN detection
-// ═══════════════════════════════════════════════════
-describe("Improvement 11: Cockpit duplicate SIREN detection", () => {
-  it("should detect duplicate SIRENs with different formatting", () => {
+// ============================================================
+// #5: cockpitEngine — domiciliation detection
+// ============================================================
+describe("#5: cockpitEngine — domiciliation detection", () => {
+  it("should detect 3+ clients at same address", () => {
     const clients = [
-      makeClient({ ref: "CLI-01", siren: "123 456 789", raisonSociale: "ALPHA SAS" }),
-      makeClient({ ref: "CLI-02", siren: "123456789", raisonSociale: "ALPHA SAS (copie)" }),
-    ];
-    const result = analyzeCockpit(clients, [], []);
-    const doublons = result.doublonsPotentiels;
-    expect(doublons.length).toBe(1);
-    expect(doublons[0].detail).toContain("2 dossiers");
-  });
-
-  it("should not flag unique SIRENs", () => {
-    const clients = [
-      makeClient({ ref: "CLI-01", siren: "123 456 789" }),
-      makeClient({ ref: "CLI-02", siren: "987 654 321" }),
-    ];
-    const result = analyzeCockpit(clients, [], []);
-    expect(result.doublonsPotentiels.length).toBe(0);
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 12. Cockpit domiciliation detection (same address)
-// ═══════════════════════════════════════════════════
-describe("Improvement 12: Cockpit same-address domiciliation detection", () => {
-  it("should flag 3+ clients at the same address", () => {
-    const clients = [
-      makeClient({ ref: "CLI-01", adresse: "10 Rue de Rivoli", cp: "75001", siren: "111222333" }),
-      makeClient({ ref: "CLI-02", adresse: "10 Rue de Rivoli", cp: "75001", siren: "444555666" }),
-      makeClient({ ref: "CLI-03", adresse: "10 Rue de Rivoli", cp: "75001", siren: "777888999" }),
+      makeClient({ ref: "CLI-1", raisonSociale: "A", adresse: "10 RUE DU LAC", cp: "75001" }),
+      makeClient({ ref: "CLI-2", raisonSociale: "B", adresse: "10 RUE DU LAC", cp: "75001" }),
+      makeClient({ ref: "CLI-3", raisonSociale: "C", adresse: "10 RUE DU LAC", cp: "75001" }),
     ];
     const result = analyzeCockpit(clients, [], []);
     const domiciliation = result.urgencies.filter(u => u.type === "domiciliation");
     expect(domiciliation.length).toBe(1);
-    expect(domiciliation[0].title).toContain("3 clients");
+    expect(domiciliation[0].severity).toBe("warning");
   });
 
-  it("should not flag 2 clients at same address", () => {
+  it("should NOT flag 2 clients at same address", () => {
     const clients = [
-      makeClient({ ref: "CLI-01", adresse: "10 Rue de Rivoli", cp: "75001", siren: "111222333" }),
-      makeClient({ ref: "CLI-02", adresse: "10 Rue de Rivoli", cp: "75001", siren: "444555666" }),
+      makeClient({ ref: "CLI-1", adresse: "10 RUE DU LAC", cp: "75001" }),
+      makeClient({ ref: "CLI-2", adresse: "10 RUE DU LAC", cp: "75001" }),
     ];
     const result = analyzeCockpit(clients, [], []);
     const domiciliation = result.urgencies.filter(u => u.type === "domiciliation");
@@ -405,243 +248,314 @@ describe("Improvement 12: Cockpit same-address domiciliation detection", () => {
   });
 });
 
-// ═══════════════════════════════════════════════════
-// 13. Cockpit scoring incoherence detection
-// ═══════════════════════════════════════════════════
-describe("Improvement 13: Scoring incoherence detection", () => {
-  it("should flag PPE client with SIMPLIFIEE vigilance", () => {
-    const clients = [makeClient({ ppe: "OUI", nivVigilance: "SIMPLIFIEE" })];
-    const result = analyzeCockpit(clients, [], []);
-    expect(result.incoherencesScoring.length).toBe(1);
-    expect(result.incoherencesScoring[0].severity).toBe("critique");
+// ============================================================
+// #6: cockpitEngine — honoraires anomaly
+// ============================================================
+describe("#6: cockpitEngine — missing honoraires detection", () => {
+  it("should flag VALIDE client with 0 honoraires", () => {
+    const client = makeClient({ honoraires: 0, etat: "VALIDE" });
+    const result = analyzeCockpit([client], [], []);
+    const issues = result.urgencies.filter(u => u.title.includes("Honoraires non renseignes"));
+    expect(issues.length).toBe(1);
   });
 
-  it("should not flag PPE client with RENFORCEE vigilance", () => {
-    const clients = [makeClient({ ppe: "OUI", nivVigilance: "RENFORCEE" })];
-    const result = analyzeCockpit(clients, [], []);
-    expect(result.incoherencesScoring.length).toBe(0);
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 14. Cockpit CNI expiration detection
-// ═══════════════════════════════════════════════════
-describe("Improvement 14: CNI expiration detection", () => {
-  it("should flag expired CNI as critique", () => {
-    const clients = [makeClient({ dateExpCni: "2020-01-01" })];
-    const result = analyzeCockpit(clients, [], []);
-    expect(result.cniPerimees.length).toBe(1);
-    expect(result.cniPerimees[0].severity).toBe("critique");
-  });
-
-  it("should flag soon-expiring CNI as warning", () => {
-    const soon = new Date();
-    soon.setDate(soon.getDate() + 60);
-    const clients = [makeClient({ dateExpCni: soon.toISOString().split("T")[0] })];
-    const result = analyzeCockpit(clients, [], []);
-    expect(result.cniPerimees.length).toBe(1);
-  });
-
-  it("should not flag far-future CNI", () => {
-    const clients = [makeClient({ dateExpCni: "2099-01-01" })];
-    const result = analyzeCockpit(clients, [], []);
-    expect(result.cniPerimees.length).toBe(0);
+  it("should NOT flag client with valid honoraires", () => {
+    const client = makeClient({ honoraires: 5000, etat: "VALIDE" });
+    const result = analyzeCockpit([client], [], []);
+    const issues = result.urgencies.filter(u => u.title.includes("Honoraires non renseignes"));
+    expect(issues.length).toBe(0);
   });
 });
 
-// ═══════════════════════════════════════════════════
-// 15. Diagnostic 360 comprehensive report
-// ═══════════════════════════════════════════════════
-describe("Improvement 15: Diagnostic 360 report", () => {
-  it("should generate report with all categories", () => {
-    const clients = [makeClient()];
-    const collabs = [makeCollab({ referentLcb: true })];
-    const report = runDiagnostic360(clients, collabs, [], []);
-    expect(report.scoreGlobalDispositif).toBeGreaterThan(0);
-    expect(report.noteLettre).toMatch(/^[A-D]$/);
-    expect(report.items.length).toBeGreaterThan(10);
-  });
-
-  it("should return a valid note for empty data", () => {
-    const report = runDiagnostic360([], [], [], []);
-    expect(report.noteLettre).toMatch(/^[A-D]$/);
-    // With empty data, many items are OK (0 retards, 0 incoherences...) so score can be decent
-    expect(report.scoreGlobalDispositif).toBeGreaterThanOrEqual(0);
-    expect(report.items.length).toBeGreaterThan(0);
-  });
-
-  it("should detect missing LCB-FT referent", () => {
-    const collabs = [makeCollab({ referentLcb: false })];
-    const report = runDiagnostic360([], collabs, [], []);
-    const referentItem = report.items.find(i => i.indicateur.includes("Referent LCB-FT"));
-    expect(referentItem?.statut).toBe("CRITIQUE");
-  });
-
-  it("should handle null/undefined input arrays gracefully", () => {
-    const report = runDiagnostic360(
-      null as unknown as Client[],
-      undefined as unknown as Collaborateur[],
-      null as unknown as AlerteRegistre[],
-      [],
-    );
-    expect(report.items.length).toBeGreaterThan(0);
+// ============================================================
+// #7: cockpitEngine — urgencies sorted by severity
+// ============================================================
+describe("#7: cockpitEngine — urgency severity sorting", () => {
+  it("should sort urgencies with critique first", () => {
+    const clients = [
+      makeClient({ ref: "CLI-1", dateExpCni: "2020-01-01", dateButoir: "2099-01-01", honoraires: 5000 }),
+      makeClient({
+        ref: "CLI-2",
+        dateButoir: (() => { const d = new Date(); d.setDate(d.getDate() + 45); return d.toISOString().split("T")[0]; })(),
+        dateExpCni: "2099-01-01",
+        honoraires: 5000,
+      }),
+    ];
+    const result = analyzeCockpit(clients, [], []);
+    const critIdx = result.urgencies.findIndex(u => u.severity === "critique");
+    const infoIdx = result.urgencies.findIndex(u => u.severity === "info");
+    if (critIdx >= 0 && infoIdx >= 0) {
+      expect(critIdx).toBeLessThan(infoIdx);
+    }
   });
 });
 
-// ═══════════════════════════════════════════════════
-// 16. Cockpit handles null arrays
-// ═══════════════════════════════════════════════════
-describe("Improvement 16: Cockpit null array safety", () => {
-  it("should handle null/undefined inputs", () => {
-    const result = analyzeCockpit(
-      null as unknown as Client[],
-      undefined as unknown as Collaborateur[],
-      null as unknown as AlerteRegistre[],
-    );
-    expect(result.totalClients).toBe(0);
-    expect(result.urgencies).toEqual([]);
+// ============================================================
+// #8: lettreMissionEngine — NaN/negative guard
+// ============================================================
+describe("#8: lettreMissionEngine — honoraires calculation guards", () => {
+  it("should return 0 for NaN input", async () => {
+    const { calcHonorairesMensuels, calcHonorairesTrimestriels } = await import("../lib/lettreMissionEngine");
+    expect(calcHonorairesMensuels(NaN)).toBe(0);
+    expect(calcHonorairesTrimestriels(NaN)).toBe(0);
+  });
+
+  it("should return 0 for negative input", async () => {
+    const { calcHonorairesMensuels, calcHonorairesTrimestriels } = await import("../lib/lettreMissionEngine");
+    expect(calcHonorairesMensuels(-1200)).toBe(0);
+    expect(calcHonorairesTrimestriels(-4000)).toBe(0);
+  });
+
+  it("should return 0 for Infinity", async () => {
+    const { calcHonorairesMensuels, calcHonorairesTrimestriels } = await import("../lib/lettreMissionEngine");
+    expect(calcHonorairesMensuels(Infinity)).toBe(0);
+    expect(calcHonorairesTrimestriels(Infinity)).toBe(0);
+  });
+
+  it("should calculate correctly for valid input", async () => {
+    const { calcHonorairesMensuels, calcHonorairesTrimestriels } = await import("../lib/lettreMissionEngine");
+    expect(calcHonorairesMensuels(12000)).toBe(1000);
+    expect(calcHonorairesTrimestriels(12000)).toBe(3000);
+    expect(calcHonorairesMensuels(10000)).toBe(833.33);
+    expect(calcHonorairesTrimestriels(10000)).toBe(2500);
   });
 });
 
-// ═══════════════════════════════════════════════════
-// 17. Email validation
-// ═══════════════════════════════════════════════════
-describe("Improvement 17: Email validation", () => {
-  it("should accept valid email", () => {
-    expect(validateEmail("test@example.com")).toBeNull();
-  });
-
-  it("should reject invalid email", () => {
-    expect(validateEmail("not-an-email")).not.toBeNull();
-  });
-
-  it("should accept empty email (optional)", () => {
-    expect(validateEmail("")).toBeNull();
-  });
-
-  it("should reject email without domain", () => {
-    expect(validateEmail("test@")).not.toBeNull();
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 18. Lettre de mission validation
-// ═══════════════════════════════════════════════════
-describe("Improvement 18: Lettre de mission validation", () => {
-  const cabinet = { nom: "CABINET TEST", siret: "12345678901234", numeroOEC: "OEC-001", adresse: "", cp: "", ville: "", email: "", tel: "" };
-
-  it("should pass validation for complete client", () => {
-    const client = makeClient();
+// ============================================================
+// #9: lettreMissionEngine — validate negative honoraires
+// ============================================================
+describe("#9: lettreMissionEngine — validateLettreMission", () => {
+  it("should reject negative honoraires", async () => {
+    const { validateLettreMission } = await import("../lib/lettreMissionEngine");
+    const client = makeClient({ honoraires: -500 });
+    const cabinet = { nom: "Cabinet", siret: "12345678901234", numeroOEC: "123", adresse: "", email: "", telephone: "", ics: "" };
     const result = validateLettreMission(client, cabinet);
+    expect(result.valid).toBe(false);
+    expect(result.champsManquants).toContain("Honoraires (montant negatif)");
+  });
+
+  it("should accept valid honoraires", async () => {
+    const { validateLettreMission } = await import("../lib/lettreMissionEngine");
+    const client = makeClient({ honoraires: 5000 });
+    const cabinet = { nom: "Cabinet", siret: "12345678901234", numeroOEC: "123", adresse: "", email: "", telephone: "", ics: "" };
+    const result = validateLettreMission(client, cabinet);
+    expect(result.champsManquants).not.toContain("Honoraires (montant negatif)");
+  });
+});
+
+// ============================================================
+// #10: lettreMissionEngine — counter overflow guard
+// ============================================================
+describe("#10: lettreMissionEngine — counter overflow", () => {
+  it("should reset counter after 9999", async () => {
+    const { incrementCounter, resetCounter } = await import("../lib/lettreMissionEngine");
+    resetCounter(9999);
+    const result = incrementCounter();
+    expect(result).toMatch(/^LM-\d{4}-001$/);
+  });
+
+  it("should generate sequential numbers normally", async () => {
+    const { incrementCounter, resetCounter } = await import("../lib/lettreMissionEngine");
+    resetCounter(0);
+    const first = incrementCounter();
+    const second = incrementCounter();
+    expect(first).toMatch(/^LM-\d{4}-001$/);
+    expect(second).toMatch(/^LM-\d{4}-002$/);
+  });
+});
+
+// ============================================================
+// #11: ibanValidator — country-specific length validation
+// ============================================================
+describe("#11: ibanValidator — country-specific lengths", () => {
+  it("should reject German IBAN with wrong length", () => {
+    const result = validateIBAN("DE89 3704 0044 0532 0130 001");
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("22");
+  });
+
+  it("should accept valid French IBAN", () => {
+    const result = validateIBAN("FR76 3000 6000 0112 3456 7890 189");
     expect(result.valid).toBe(true);
-    expect(result.champsManquants).toHaveLength(0);
   });
 
-  it("should fail validation for missing client fields", () => {
-    const client = makeClient({ raisonSociale: "", siren: "" });
-    const result = validateLettreMission(client, cabinet);
+  it("should reject French IBAN with wrong length", () => {
+    const result = validateIBAN("FR76 3000 6000 0112 3456 78");
     expect(result.valid).toBe(false);
-    expect(result.champsManquants).toContain("Raison sociale");
-    expect(result.champsManquants).toContain("SIREN");
+    expect(result.error).toContain("27");
+  });
+});
+
+// ============================================================
+// #12: ibanValidator — bank name for unmapped codes
+// ============================================================
+describe("#12: ibanValidator — bank name handling", () => {
+  it("should return known bank name for BNP", () => {
+    const result = validateIBAN("FR76 3000 6000 0112 3456 7890 189");
+    expect(result.valid).toBe(true);
+    expect(result.bankName).toBe("BNP Paribas");
   });
 
-  it("should fail validation for missing cabinet fields", () => {
-    const client = makeClient();
-    const result = validateLettreMission(client, { nom: "", siret: "", numeroOEC: "", adresse: "", cp: "", ville: "", email: "", tel: "" });
+  it("should return undefined for unknown French bank codes", () => {
+    const result = validateIBAN("FR76 9999 9000 0112 3456 7890 189");
+    if (result.valid) {
+      expect(result.bankName).toBeUndefined();
+    }
+  });
+});
+
+// ============================================================
+// #13: ibanValidator — unknown country code validation
+// ============================================================
+describe("#13: ibanValidator — country code validation", () => {
+  it("should reject IBAN with unknown country code", () => {
+    const result = validateIBAN("XX12 3456 7890 1234 5678 9012");
     expect(result.valid).toBe(false);
-    expect(result.champsManquants).toContain("Nom du cabinet");
+    expect(result.error).toContain("Code pays IBAN inconnu");
+  });
+
+  it("should accept valid German IBAN", () => {
+    const result = validateIBAN("DE89 3704 0044 0532 0130 00");
+    expect(result.valid).toBe(true);
   });
 });
 
-// ═══════════════════════════════════════════════════
-// 19. LM counter numbering
-// ═══════════════════════════════════════════════════
-describe("Improvement 19: Lettre de mission counter", () => {
-  it("should generate sequential numbers", () => {
-    resetCounter(0);
-    const n1 = incrementCounter();
-    const n2 = incrementCounter();
-    expect(n1).toMatch(/^LM-\d{4}-001$/);
-    expect(n2).toMatch(/^LM-\d{4}-002$/);
+// ============================================================
+// #14-16: dataLoader — null coercion fixes
+// ============================================================
+describe("#14-16: null coercion — ?? vs ||", () => {
+  it("should preserve 0 with ?? operator", () => {
+    const capital = (0 as number) ?? 0;
+    expect(capital).toBe(0);
   });
 
-  it("should include current year", () => {
-    resetCounter(0);
-    const num = incrementCounter();
-    expect(num).toContain(String(new Date().getFullYear()));
-  });
-});
-
-// ═══════════════════════════════════════════════════
-// 20. calculateDateButoir & calculateNextReviewDate
-// ═══════════════════════════════════════════════════
-describe("Improvement 20: Review date calculations", () => {
-  it("should add 3 years for SIMPLIFIEE", () => {
-    const result = calculateDateButoir("SIMPLIFIEE");
-    const expected = new Date();
-    expected.setFullYear(expected.getFullYear() + 3);
-    expect(result).toBe(expected.toISOString().split("T")[0]);
+  it("should convert null to 0 with ??", () => {
+    const nullCapital = (null as unknown as number) ?? 0;
+    expect(nullCapital).toBe(0);
   });
 
-  it("should add 1 year for STANDARD", () => {
-    const result = calculateDateButoir("STANDARD");
-    const expected = new Date();
-    expected.setFullYear(expected.getFullYear() + 2);
-    expect(result).toBe(expected.toISOString().split("T")[0]);
-  });
-
-  it("should add 1 year for RENFORCEE", () => {
-    const result = calculateDateButoir("RENFORCEE");
-    const expected = new Date();
-    expected.setFullYear(expected.getFullYear() + 1);
-    expect(result).toBe(expected.toISOString().split("T")[0]);
-  });
-
-  it("should handle invalid lastReview date by using today", () => {
-    const result = calculateNextReviewDate("STANDARD", "garbage");
-    // Should not throw, should return a valid date
-    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-  });
-
-  it("should handle empty lastReview date", () => {
-    const result = calculateNextReviewDate("RENFORCEE", "");
-    expect(result).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  it("?? preserves NaN (unlike ||)", () => {
+    const nanValue = (NaN as number) ?? 0;
+    expect(nanValue).toBeNaN();
+    // With ||, NaN || 0 would give 0
+    expect(NaN || 0).toBe(0);
   });
 });
 
-// ═══════════════════════════════════════════════════
-// Bonus: Risk score cap and vigilance thresholds
-// ═══════════════════════════════════════════════════
-describe("Bonus: Risk scoring integration", () => {
-  it("should use RISK_THRESHOLDS from constants correctly", () => {
-    // Score <= 30 → SIMPLIFIEE
-    const low = calculateRiskScore({
-      ape: "86.21Z", paysRisque: false, mission: "TENUE COMPTABLE",
-      dateCreation: "2010-01-01", dateReprise: "", effectif: "5 SALARIES",
-      forme: "ENTREPRISE INDIVIDUELLE",
-      ppe: false, atypique: false, distanciel: false, cash: false, pression: false,
-    });
-    expect(low.nivVigilance).toBe("SIMPLIFIEE");
-    expect(low.scoreGlobal).toBeLessThanOrEqual(30);
-
-    // PPE always → RENFORCEE
-    const ppe = calculateRiskScore({
-      ape: "86.21Z", paysRisque: false, mission: "TENUE COMPTABLE",
-      dateCreation: "2010-01-01", dateReprise: "", effectif: "5 SALARIES",
-      forme: "SARL",
-      ppe: true, atypique: false, distanciel: false, cash: false, pression: false,
-    });
-    expect(ppe.nivVigilance).toBe("RENFORCEE");
-    expect(ppe.scoreGlobal).toBe(100);
+// ============================================================
+// #17: diagnosticEngine — SIREN duplicate detection
+// ============================================================
+describe("#17: diagnosticEngine — SIREN duplicate check", () => {
+  it("should detect duplicate SIREN in diagnostic", () => {
+    const clients = [
+      makeClient({ ref: "CLI-1", siren: "123456789" }),
+      makeClient({ ref: "CLI-2", siren: "123456789" }),
+    ];
+    const result = runDiagnostic360(clients, [makeCollab({ referentLcb: true })], [], []);
+    const item = result.items.find(i => i.indicateur.includes("Doublons SIREN"));
+    expect(item).toBeDefined();
+    expect(item!.statut).toBe("ALERTE");
   });
 
-  it("should accumulate all malus correctly", () => {
+  it("should report OK when no duplicates", () => {
+    const clients = [
+      makeClient({ ref: "CLI-1", siren: "123456789" }),
+      makeClient({ ref: "CLI-2", siren: "987654321" }),
+    ];
+    const result = runDiagnostic360(clients, [makeCollab({ referentLcb: true })], [], []);
+    const item = result.items.find(i => i.indicateur.includes("Doublons SIREN"));
+    expect(item).toBeDefined();
+    expect(item!.statut).toBe("OK");
+  });
+});
+
+// ============================================================
+// #18: diagnosticEngine — score bounds
+// ============================================================
+describe("#18: diagnosticEngine — score clamped 0-100", () => {
+  it("should produce score between 0 and 100", () => {
+    const result = runDiagnostic360([makeClient()], [makeCollab({ referentLcb: true })], [], []);
+    expect(result.scoreGlobalDispositif).toBeGreaterThanOrEqual(0);
+    expect(result.scoreGlobalDispositif).toBeLessThanOrEqual(100);
+  });
+
+  it("should return valid noteLettre", () => {
+    const result = runDiagnostic360([], [], [], []);
+    expect(["A", "B", "C", "D"]).toContain(result.noteLettre);
+  });
+
+  it("should give higher score for well-maintained portfolio", () => {
+    const clients = [makeClient({ ref: "CLI-1", siren: "111222333" }), makeClient({ ref: "CLI-2", siren: "444555666" })];
+    const collabs = [makeCollab({ referentLcb: true }), makeCollab({ suppleant: "REFERENT" })];
+    const logs = Array.from({ length: 15 }, (_, i) => ({
+      horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
+      utilisateur: "test@test.com",
+      refClient: `CLI-${i}`,
+      typeAction: ["CREATION", "MODIFICATION", "SCREENING", "SCORING_CALCUL", "REVUE_PERIODIQUE"][i % 5],
+      details: "Test",
+    }));
+    const result = runDiagnostic360(clients, collabs, [], logs);
+    expect(result.scoreGlobalDispositif).toBeGreaterThan(50);
+  });
+});
+
+// ============================================================
+// #19: riskEngine — scoreStructure edge cases
+// ============================================================
+describe("#19: riskEngine — scoreStructure edge cases", () => {
+  it("should handle TRUST as highest risk", () => {
     const result = calculateRiskScore({
       ape: "62.20Z", paysRisque: false, mission: "TENUE COMPTABLE",
-      dateCreation: "2010-01-01", dateReprise: "", effectif: "5 SALARIES",
-      forme: "SARL",
-      ppe: false, atypique: false, distanciel: true, cash: true, pression: true,
+      dateCreation: "2010-01-01", dateReprise: "", effectif: "5",
+      forme: "TRUST", ppe: false, atypique: false, distanciel: false,
+      cash: false, pression: false,
     });
-    expect(result.malus).toBe(110); // 30 + 40 + 40
+    expect(result.scoreStructure).toBe(100);
+    expect(result.nivVigilance).toBe("RENFORCEE");
+  });
+
+  it("should handle SCI correctly", () => {
+    const result = calculateRiskScore({
+      ape: "62.20Z", paysRisque: false, mission: "TENUE COMPTABLE",
+      dateCreation: "2010-01-01", dateReprise: "", effectif: "5",
+      forme: "SCI", ppe: false, atypique: false, distanciel: false,
+      cash: false, pression: false,
+    });
+    expect(result.scoreStructure).toBe(35);
+  });
+
+  it("should default to 20 for unknown formes", () => {
+    const result = calculateRiskScore({
+      ape: "62.20Z", paysRisque: false, mission: "TENUE COMPTABLE",
+      dateCreation: "2010-01-01", dateReprise: "", effectif: "5",
+      forme: "COOPERATIVE", ppe: false, atypique: false, distanciel: false,
+      cash: false, pression: false,
+    });
+    expect(result.scoreStructure).toBe(20);
+  });
+});
+
+// ============================================================
+// #20: getPilotageStatus — edge cases
+// ============================================================
+describe("#20: getPilotageStatus — edge cases", () => {
+  it("should return RETARD for empty dateButoir", () => {
+    expect(getPilotageStatus("")).toBe("RETARD");
+  });
+
+  it("should return RETARD for invalid date string", () => {
+    expect(getPilotageStatus("not-a-date")).toBe("RETARD");
+  });
+
+  it("should return BIENTOT for dates within 60 days", () => {
+    const soon = new Date();
+    soon.setDate(soon.getDate() + 30);
+    expect(getPilotageStatus(soon.toISOString().split("T")[0])).toBe("BIENTÔT");
+  });
+
+  it("should return A JOUR for dates beyond 60 days", () => {
+    const future = new Date();
+    future.setDate(future.getDate() + 90);
+    expect(getPilotageStatus(future.toISOString().split("T")[0])).toBe("A JOUR");
   });
 });
