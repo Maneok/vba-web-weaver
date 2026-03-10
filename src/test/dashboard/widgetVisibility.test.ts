@@ -1,7 +1,6 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // ── Tests 22-40: Widget visibility logic ─────────────────────
-// Re-implement the pure functions from DashboardPage to test them in isolation
 
 const WIDGET_STORAGE_KEY = "dashboard-widgets";
 
@@ -21,9 +20,17 @@ const DEFAULT_WIDGETS: WidgetVisibility = {
   repartition: true,
 };
 
+// In-memory storage mock
+let store: Record<string, string> = {};
+const mockStorage = {
+  getItem: (key: string) => store[key] ?? null,
+  setItem: (key: string, value: string) => { store[key] = value; },
+  removeItem: (key: string) => { delete store[key]; },
+};
+
 function loadWidgetVisibility(): WidgetVisibility {
   try {
-    const stored = localStorage.getItem(WIDGET_STORAGE_KEY);
+    const stored = mockStorage.getItem(WIDGET_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       const result: WidgetVisibility = { ...DEFAULT_WIDGETS };
@@ -40,23 +47,23 @@ function loadWidgetVisibility(): WidgetVisibility {
 
 function saveWidgetVisibility(v: WidgetVisibility) {
   try {
-    localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(v));
+    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify(v));
   } catch { /* ignore */ }
 }
 
 describe("Widget visibility — loadWidgetVisibility", () => {
   beforeEach(() => {
-    localStorage.removeItem(WIDGET_STORAGE_KEY);
+    store = {};
   });
 
   // Test 22
-  it("retourne les valeurs par défaut quand localStorage est vide", () => {
+  it("retourne les valeurs par défaut quand storage est vide", () => {
     expect(loadWidgetVisibility()).toEqual(DEFAULT_WIDGETS);
   });
 
   // Test 23
   it("charge les préférences sauvegardées", () => {
-    localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: false, graphique: true, alertes: true, activite: true, repartition: true }));
+    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: false, graphique: true, alertes: true, activite: true, repartition: true }));
     const result = loadWidgetVisibility();
     expect(result.kpi).toBe(false);
     expect(result.graphique).toBe(true);
@@ -64,24 +71,24 @@ describe("Widget visibility — loadWidgetVisibility", () => {
 
   // Test 24
   it("gère un JSON corrompu sans crash", () => {
-    localStorage.setItem(WIDGET_STORAGE_KEY, "not-json{{{");
+    mockStorage.setItem(WIDGET_STORAGE_KEY, "not-json{{{");
     expect(loadWidgetVisibility()).toEqual(DEFAULT_WIDGETS);
   });
 
   // Test 25
   it("ignore les clés invalides et garde les défauts", () => {
-    localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: "string", unknown: true }));
+    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: "string", unknown: true }));
     const result = loadWidgetVisibility();
-    expect(result.kpi).toBe(true); // string ignored, kept default
+    expect(result.kpi).toBe(true);
     expect((result as any).unknown).toBeUndefined();
   });
 
   // Test 26
   it("gère un objet partiellement valide", () => {
-    localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: false }));
+    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: false }));
     const result = loadWidgetVisibility();
     expect(result.kpi).toBe(false);
-    expect(result.graphique).toBe(true); // default
+    expect(result.graphique).toBe(true);
     expect(result.alertes).toBe(true);
     expect(result.activite).toBe(true);
     expect(result.repartition).toBe(true);
@@ -89,33 +96,33 @@ describe("Widget visibility — loadWidgetVisibility", () => {
 
   // Test 27
   it("gère un tableau au lieu d'un objet", () => {
-    localStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify([1, 2, 3]));
+    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify([1, 2, 3]));
     expect(loadWidgetVisibility()).toEqual(DEFAULT_WIDGETS);
   });
 
   // Test 28
-  it("gère null en localStorage", () => {
-    localStorage.setItem(WIDGET_STORAGE_KEY, "null");
+  it("gère null en storage", () => {
+    mockStorage.setItem(WIDGET_STORAGE_KEY, "null");
     expect(loadWidgetVisibility()).toEqual(DEFAULT_WIDGETS);
   });
 
   // Test 29
-  it("gère un nombre en localStorage", () => {
-    localStorage.setItem(WIDGET_STORAGE_KEY, "42");
+  it("gère un nombre en storage", () => {
+    mockStorage.setItem(WIDGET_STORAGE_KEY, "42");
     expect(loadWidgetVisibility()).toEqual(DEFAULT_WIDGETS);
   });
 });
 
 describe("Widget visibility — saveWidgetVisibility", () => {
   beforeEach(() => {
-    localStorage.removeItem(WIDGET_STORAGE_KEY);
+    store = {};
   });
 
   // Test 30
   it("sauvegarde les préférences en JSON", () => {
     const prefs = { ...DEFAULT_WIDGETS, kpi: false };
     saveWidgetVisibility(prefs);
-    const stored = localStorage.getItem(WIDGET_STORAGE_KEY);
+    const stored = mockStorage.getItem(WIDGET_STORAGE_KEY);
     expect(stored).not.toBeNull();
     expect(JSON.parse(stored!).kpi).toBe(false);
   });
