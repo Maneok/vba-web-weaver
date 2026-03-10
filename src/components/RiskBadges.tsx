@@ -6,7 +6,7 @@ export function VigilanceBadge({ level }: { level: VigilanceLevel }) {
     STANDARD: { cls: "risk-badge-medium", label: "Standard" },
     RENFORCEE: { cls: "risk-badge-high", label: "Renforcee" },
   }[level] ?? { cls: "risk-badge-medium", label: level };
-  return <span className={config.cls}>{config.label}</span>;
+  return <span className={config.cls} aria-label={`Niveau de vigilance : ${config.label}`}>{config.label}</span>;
 }
 
 export function PilotageBadge({ status }: { status: EtatPilotage | string }) {
@@ -17,7 +17,7 @@ export function PilotageBadge({ status }: { status: EtatPilotage | string }) {
   }[status] ?? "status-dot-pending";
 
   return (
-    <span className="flex items-center text-xs font-medium">
+    <span className="flex items-center text-xs font-medium" aria-label={`Etat de pilotage : ${status}`}>
       <span className={`status-dot ${dotCls}`} />
       {status}
     </span>
@@ -38,8 +38,8 @@ export function ScoreGauge({ score }: { score: number }) {
     : "bg-red-500/10";
 
   return (
-    <div className="flex items-center gap-2.5">
-      <div className={`w-16 h-1.5 rounded-full ${bgColor} overflow-hidden`}>
+    <div className="flex items-center gap-2.5" aria-label={`Score de risque : ${score} sur 120`}>
+      <div className={`w-16 h-1.5 rounded-full ${bgColor} overflow-hidden`} role="progressbar" aria-valuenow={score} aria-valuemin={0} aria-valuemax={120}>
         <div
           className={`h-full rounded-full ${color} transition-all duration-500 ease-out`}
           style={{ width: `${pct}%` }}

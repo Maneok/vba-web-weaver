@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
+import { timeAgo } from "@/lib/dateUtils";
 
 interface Notification {
   id: string;
@@ -20,22 +21,6 @@ interface Notification {
   lue: boolean;
   created_at: string;
   lien?: string;
-}
-
-function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffH = Math.floor(diffMin / 60);
-  const diffD = Math.floor(diffH / 24);
-
-  if (diffMin < 1) return "A l'instant";
-  if (diffMin < 60) return `Il y a ${diffMin} min`;
-  if (diffH < 24) return `Il y a ${diffH}h`;
-  if (diffD === 1) return "Hier";
-  if (diffD < 7) return `Il y a ${diffD}j`;
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
 }
 
 function getNotifIcon(type: string) {
@@ -191,7 +176,7 @@ export default function NotificationBell() {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-200">{n.titre}</p>
                   <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
-                  <p className="text-[10px] text-slate-600 mt-1">{formatRelativeTime(n.created_at)}</p>
+                  <p className="text-[10px] text-slate-600 mt-1">{timeAgo(n.created_at)}</p>
                 </div>
                 <button
                   onClick={(e) => markAsRead(n.id, e)}

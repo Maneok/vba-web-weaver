@@ -1,4 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -121,8 +123,9 @@ export default function AuditTrailPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEntry, setSelectedEntry] = useState<AuditRow | null>(null);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const debouncedSearch = useDebounce(search, 300);
 
-  useEffect(() => { document.title = "Journal d'Audit | GRIMY"; }, []);
+  useDocumentTitle("Journal d'Audit");
 
   useEffect(() => {
     let mounted = true;
@@ -170,11 +173,11 @@ export default function AuditTrailPage() {
   // Filtered & sorted
   const filtered = useMemo(() => {
     let result = entries.filter(e => {
-      const matchSearch = !search ||
-        e.action.toLowerCase().includes(search.toLowerCase()) ||
-        e.user_email?.toLowerCase().includes(search.toLowerCase()) ||
-        e.table_name?.toLowerCase().includes(search.toLowerCase()) ||
-        e.record_id?.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !debouncedSearch ||
+        e.action.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        e.user_email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        e.table_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        e.record_id?.toLowerCase().includes(debouncedSearch.toLowerCase());
       const matchAction = filterAction === "all" || e.action === filterAction;
       const matchUser = filterUser === "all" || e.user_email === filterUser;
       const dateStr = e.created_at.split("T")[0];
@@ -186,7 +189,7 @@ export default function AuditTrailPage() {
     if (sortDir === "asc") result = [...result].reverse();
 
     return result;
-  }, [entries, search, filterAction, filterUser, dateStart, dateEnd, sortDir]);
+  }, [entries, debouncedSearch, filterAction, filterUser, dateStart, dateEnd, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -261,11 +264,12 @@ export default function AuditTrailPage() {
             placeholder="Rechercher par action, email, table..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            aria-label="Rechercher dans le journal d'audit"
             className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
           />
         </div>
         <Select value={filterAction} onValueChange={v => { setFilterAction(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-[170px] bg-white/[0.03] border-white/[0.06] text-slate-300">
+          <SelectTrigger className="w-[170px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par type d'action">
             <SelectValue placeholder="Type d'action" />
           </SelectTrigger>
           <SelectContent>
@@ -274,7 +278,7 @@ export default function AuditTrailPage() {
           </SelectContent>
         </Select>
         <Select value={filterUser} onValueChange={v => { setFilterUser(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-[200px] bg-white/[0.03] border-white/[0.06] text-slate-300">
+          <SelectTrigger className="w-[200px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par utilisateur">
             <SelectValue placeholder="Utilisateur" />
           </SelectTrigger>
           <SelectContent>
@@ -282,8 +286,8 @@ export default function AuditTrailPage() {
             {uniqueUsers.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
-        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} aria-label="Date de debut du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} aria-label="Date de fin du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
         {hasFilters && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters}>
             <X className="w-3 h-3 mr-1" /> Effacer

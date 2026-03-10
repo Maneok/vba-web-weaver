@@ -68,7 +68,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   if ((loading && !timedOut) || retrying) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-3" role="status" aria-live="polite">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <Loader2 className="w-8 h-8 animate-spin text-primary" aria-label="Chargement en cours" />
         <p className="text-sm text-muted-foreground animate-pulse">
           Chargement de votre espace...
         </p>

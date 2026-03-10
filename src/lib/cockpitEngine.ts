@@ -1,4 +1,5 @@
 import type { Client, Collaborateur, AlerteRegistre } from "./types";
+import { COCKPIT_CRITIQUE_DAYS, CNI_WARNING_DAYS, CNI_URGENT_DAYS } from "./constants";
 
 export interface CockpitUrgency {
   type: "revision" | "cni" | "scoring" | "fantome" | "formation" | "alerte" | "kyc" | "document" | "capital" | "doublon" | "be" | "domiciliation";
@@ -50,7 +51,7 @@ export function analyzeCockpit(
       const daysLate = Math.floor((now.getTime() - butoir.getTime()) / (1000 * 60 * 60 * 24));
       const u: CockpitUrgency = {
         type: "revision",
-        severity: daysLate > 180 ? "critique" : "warning",
+        severity: daysLate > COCKPIT_CRITIQUE_DAYS ? "critique" : "warning",
         title: `${c.raisonSociale} — Revision en retard`,
         detail: `Butoir depasse de ${daysLate} jours (${c.dateButoir}). Vigilance: ${c.nivVigilance}`,
         ref: c.ref,
@@ -78,10 +79,10 @@ export function analyzeCockpit(
       urgencies.push(u);
     } else {
       const daysUntil = Math.floor((expCni.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysUntil < 90) {
+      if (daysUntil < CNI_WARNING_DAYS) {
         const u: CockpitUrgency = {
           type: "cni",
-          severity: daysUntil < 30 ? "warning" : "info",
+          severity: daysUntil < CNI_URGENT_DAYS ? "warning" : "info",
           title: `${c.raisonSociale} — CNI bientot expiree`,
           detail: `Expire dans ${daysUntil} jours (${c.dateExpCni})`,
           ref: c.ref,
@@ -135,10 +136,10 @@ export function analyzeCockpit(
   // 5. Formations a faire
   const formationsAFaire: CockpitUrgency[] = [];
   for (const col of collaborateurs) {
-    if (col.statutFormation.includes("FORMER") || col.statutFormation.includes("JAMAIS")) {
+    if ((col.statutFormation ?? "").includes("FORMER") || (col.statutFormation ?? "").includes("JAMAIS")) {
       const u: CockpitUrgency = {
         type: "formation",
-        severity: col.statutFormation.includes("JAMAIS") ? "critique" : "warning",
+        severity: (col.statutFormation ?? "").includes("JAMAIS") ? "critique" : "warning",
         title: `${col.nom} — Formation LCB-FT requise`,
         detail: `Statut: ${col.statutFormation}. Fonction: ${col.fonction}`,
       };
@@ -263,7 +264,7 @@ export function analyzeCockpit(
 
   // Stats
   const actifs = clients.filter(c => c.statut !== "INACTIF");
-  const formesOk = collaborateurs.filter(c => c.statutFormation.includes("A JOUR")).length;
+  const formesOk = collaborateurs.filter(c => (c.statutFormation ?? "").includes("A JOUR")).length;
   const tauxFormation = collaborateurs.length > 0 ? Math.round((formesOk / collaborateurs.length) * 100) : 0;
 
   const kycComplets = actifs.filter(c =>

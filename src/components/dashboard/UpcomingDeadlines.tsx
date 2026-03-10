@@ -1,5 +1,6 @@
 import { CalendarClock, Clock, FileText, GraduationCap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { daysUntil, formatDateFR } from "@/lib/dateUtils";
 
 export interface Deadline {
   id: string;
@@ -19,21 +20,6 @@ const TYPE_CONFIG = {
   lettre_mission: { icon: FileText, color: "text-violet-500", bg: "bg-violet-500/10" },
   formation: { icon: GraduationCap, color: "text-emerald-500", bg: "bg-emerald-500/10" },
 };
-
-function daysUntil(dateStr: string): number {
-  const target = new Date(dateStr);
-  if (isNaN(target.getTime())) return -9999;
-  const now = new Date();
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
-
-function formatDate(d: string): string {
-  try {
-    return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
-  } catch {
-    return d;
-  }
-}
 
 export function UpcomingDeadlines({ deadlines, loading = false }: UpcomingDeadlinesProps) {
   if (loading) {
@@ -70,7 +56,7 @@ export function UpcomingDeadlines({ deadlines, loading = false }: UpcomingDeadli
           {/* Vertical timeline line */}
           <div className="absolute left-4 top-4 bottom-4 w-px bg-border" />
 
-          <div className="space-y-0.5">
+          <div className="space-y-0.5" role="list" aria-label="Liste des prochaines echeances">
             {deadlines.slice(0, 5).map((d) => {
               const days = daysUntil(d.date);
               const isUrgent = days <= 7;
@@ -79,7 +65,7 @@ export function UpcomingDeadlines({ deadlines, loading = false }: UpcomingDeadli
               const Icon = config.icon;
 
               return (
-                <div key={d.id} className="flex items-start gap-3 py-3 pl-0 relative">
+                <div key={d.id} role="listitem" className="flex items-start gap-3 py-3 pl-0 relative">
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 z-10 ${config.bg}`}>
                     <Icon className={`w-4 h-4 ${config.color}`} />
                   </div>
@@ -98,7 +84,7 @@ export function UpcomingDeadlines({ deadlines, loading = false }: UpcomingDeadli
                       )}
                     </div>
                     <p className={`text-xs mt-0.5 ${isOverdue ? "text-red-400" : isUrgent ? "text-orange-400" : "text-muted-foreground"}`}>
-                      {formatDate(d.date)}
+                      {formatDateFR(d.date)}
                       {!isOverdue && ` \u2014 dans ${days} jour${days > 1 ? "s" : ""}`}
                       {isOverdue && ` \u2014 ${Math.abs(days)} jour${Math.abs(days) > 1 ? "s" : ""} de retard`}
                     </p>

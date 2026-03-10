@@ -247,7 +247,8 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
       doc.setFont("helvetica", "normal");
       for (const nc of ncControles) {
         y = pageGuard(doc, y, 8);
-        const fmtEch = nc.dateEcheance ? new Date(nc.dateEcheance).toLocaleDateString("fr-FR") : "—";
+        let fmtEch = "—";
+        if (nc.dateEcheance) { const d = new Date(nc.dateEcheance); fmtEch = isNaN(d.getTime()) ? nc.dateEcheance : d.toLocaleDateString("fr-FR"); }
         const suiviLabel: Record<string, string> = { A_TRAITER: "A traiter", EN_COURS: "En cours", RESOLU: "Resolu", CLOTURE: "Cloture" };
         const acRow = [
           safe(nc.dossierAudite, 25),

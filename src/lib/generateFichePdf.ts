@@ -189,7 +189,7 @@ export function generateFicheAcceptation(client: Client) {
     doc.text(s.label, tableX + 2, tableY);
     // Color-coded bar
     const barW = ((s.value ?? 0) / 100) * 30;
-    const barColor: [number, number, number] = s.value <= 25 ? [76, 175, 80] : s.value < 60 ? [255, 152, 0] : [244, 67, 54];
+    const barColor: [number, number, number] = s.value >= 61 ? [244, 67, 54] : s.value >= 26 ? [255, 152, 0] : [76, 175, 80];
     doc.setFillColor(barColor[0], barColor[1], barColor[2]);
     doc.rect(tableX + 40, tableY - 2.5, barW, 3, "F");
     doc.text(String(s.value), tableX + 72, tableY);

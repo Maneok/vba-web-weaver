@@ -212,7 +212,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+        <nav aria-label="Menu principal" className="flex-1 overflow-y-auto p-3 space-y-1">
           {renderSection([...MAIN_NAV], "Navigation")}
           {renderSection([...TOOLS_NAV], "Outils")}
           {renderSection([...SETTINGS_NAV], "Systeme")}

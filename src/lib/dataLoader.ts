@@ -103,11 +103,11 @@ function mapAlerte(raw: Record<string, unknown>): AlerteRegistre {
 }
 
 // ====== EXPORTED DATA ======
-export const O90_CLIENTS: Client[] = (clientsRaw as Record<string, unknown>[]).map(mapClient);
+export const O90_CLIENTS: Client[] = Array.isArray(clientsRaw) ? (clientsRaw as Record<string, unknown>[]).map(mapClient) : [];
 
-export const O90_COLLABORATEURS: Collaborateur[] = (gouvRaw as Record<string, unknown>[]).map(mapCollaborateur);
+export const O90_COLLABORATEURS: Collaborateur[] = Array.isArray(gouvRaw) ? (gouvRaw as Record<string, unknown>[]).map(mapCollaborateur) : [];
 
-export const O90_ALERTES: AlerteRegistre[] = (registreRaw as Record<string, unknown>[]).map(mapAlerte);
+export const O90_ALERTES: AlerteRegistre[] = Array.isArray(registreRaw) ? (registreRaw as Record<string, unknown>[]).map(mapAlerte) : [];
 
 export const O90_LOGS: LogEntry[] = [
   {

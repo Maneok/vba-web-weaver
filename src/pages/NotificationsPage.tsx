@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Bell, AlertTriangle, CreditCard, Clock, Check, CheckCheck, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
+import { timeAgo, formatDateTimeFR } from "@/lib/dateUtils";
 
 interface Notification {
   id: string;
@@ -19,32 +21,6 @@ interface Notification {
 type FilterType = "all" | "unread" | "urgent";
 
 const PAGE_SIZE = 20;
-
-function formatRelativeTime(dateStr: string): string {
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  const diffH = Math.floor(diffMin / 60);
-  const diffD = Math.floor(diffH / 24);
-
-  if (diffMin < 1) return "A l'instant";
-  if (diffMin < 60) return `Il y a ${diffMin} min`;
-  if (diffH < 24) return `Il y a ${diffH}h`;
-  if (diffD === 1) return "Hier";
-  if (diffD < 7) return `Il y a ${diffD}j`;
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
-}
-
-function formatFullDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
 
 function getNotifIcon(type: string) {
   switch (type) {
@@ -78,7 +54,7 @@ export default function NotificationsPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const { session } = useAuth();
 
-  useEffect(() => { document.title = "Notifications | GRIMY"; }, []);
+  useDocumentTitle("Notifications");
 
   const fetchNotifications = useCallback(async (reset = false) => {
     if (!session) return;
@@ -109,7 +85,7 @@ export default function NotificationsPage() {
         setNotifications(prev => [...prev, ...results]);
       }
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les notifications", variant: "destructive" });
+      toast.error("Impossible de charger les notifications");
     } finally {
       setLoading(false);
     }
@@ -134,7 +110,7 @@ export default function NotificationsPage() {
       if (error) throw error;
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));
     } catch {
-      toast({ title: "Erreur", description: "Impossible de marquer comme lu", variant: "destructive" });
+      toast.error("Impossible de marquer comme lu");
     }
   }, []);
 
@@ -148,9 +124,9 @@ export default function NotificationsPage() {
         .in("id", unread.map(n => n.id));
       if (error) throw error;
       setNotifications(prev => prev.map(n => ({ ...n, lue: true })));
-      toast({ title: "Succes", description: "Toutes les notifications ont ete marquees comme lues" });
+      toast.success("Toutes les notifications ont ete marquees comme lues");
     } catch {
-      toast({ title: "Erreur", description: "Impossible de tout marquer comme lu", variant: "destructive" });
+      toast.error("Impossible de tout marquer comme lu");
     }
   }, [notifications]);
 
@@ -236,13 +212,13 @@ export default function NotificationsPage() {
                     {getTypeBadge(n.type)}
                   </div>
                   <p className="text-xs text-slate-500 line-clamp-2">{n.message}</p>
-                  <p className="text-[10px] text-slate-600 mt-1.5">{formatRelativeTime(n.created_at)}</p>
+                  <p className="text-[10px] text-slate-600 mt-1.5">{timeAgo(n.created_at)}</p>
 
                   {/* Expanded detail */}
                   {selectedId === n.id && (
                     <div className="mt-3 pt-3 border-t border-white/[0.06] space-y-2">
                       <p className="text-xs text-slate-400">{n.message}</p>
-                      <p className="text-[10px] text-slate-600">{formatFullDate(n.created_at)}</p>
+                      <p className="text-[10px] text-slate-600">{formatDateTimeFR(n.created_at)}</p>
                       <div className="flex items-center gap-2 pt-1">
                         {!n.lue && (
                           <Button

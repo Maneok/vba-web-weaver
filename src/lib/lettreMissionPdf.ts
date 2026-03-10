@@ -226,7 +226,7 @@ class LMPdfBuilder {
     if (cab?.logo) {
       try {
         this.doc.addImage(cab.logo, "PNG", MARGIN_L, MARGIN_TOP, 25, 25);
-      } catch { /* logo invalide */ }
+      } catch (err) { console.warn("[PDF] Invalid logo image:", err); }
     }
 
     // Coordonnées cabinet à droite

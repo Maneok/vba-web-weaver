@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -311,7 +312,7 @@ export default function LettreMissionPage() {
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("wizard");
 
-  useEffect(() => { document.title = "Lettre de Mission | GRIMY"; }, []);
+  useDocumentTitle("Lettre de Mission");
 
   // ── Permission check ──
   if (!hasPermission("write_clients")) {
@@ -379,7 +380,9 @@ export default function LettreMissionPage() {
           if (parsed.wizard_step > 0) setStep(parsed.wizard_step);
         }
       }
-    } catch {}
+    } catch (e) {
+      console.warn("[LM] Failed to restore session draft:", e);
+    }
     loadSupabaseDraft();
     loadSavedLetters();
   }, []);
@@ -396,7 +399,9 @@ export default function LettreMissionPage() {
         setDraftInfo(drafts[0] as any);
         setShowDraftBanner(true);
       }
-    } catch {}
+    } catch (e) {
+      console.warn("[LM] Failed to load Supabase draft:", e);
+    }
   };
 
   const resumeDraft = () => {
@@ -431,7 +436,7 @@ export default function LettreMissionPage() {
             toast.warning("Ce client a deja une lettre de mission active");
           }
         })
-        .catch(() => {});
+        .catch((e) => console.warn("[LM] Existing LM check failed:", e));
     }
   }, [data.client_id]);
 
@@ -465,7 +470,9 @@ export default function LettreMissionPage() {
       }
       setLastSaved(new Date());
       toast.success("Sauvegarde", { duration: 1500 });
-    } catch {}
+    } catch (e) {
+      console.warn("[LM] Auto-save failed:", e);
+    }
   }, [data, step, lmId, profile?.cabinet_id, savedLetters.length]);
 
   // Trigger auto-save on data change (debounced 2s)
@@ -501,7 +508,9 @@ export default function LettreMissionPage() {
           }))
         );
       }
-    } catch {}
+    } catch (e) {
+      console.warn("[LM] Failed to load letters:", e);
+    }
     setHistoryLoading(false);
   };
 
@@ -537,8 +546,9 @@ export default function LettreMissionPage() {
   }, [step]);
 
   // Swipe
-  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.targetTouches[0].clientX; };
+  const handleTouchStart = (e: React.TouchEvent) => { if (e.targetTouches.length > 0) touchStartX.current = e.targetTouches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.changedTouches.length === 0) return;
     const diff = touchStartX.current - e.changedTouches[0].clientX;
     if (Math.abs(diff) > 75) { diff > 0 ? handleNext() : handlePrevious(); }
   };
@@ -576,7 +586,7 @@ export default function LettreMissionPage() {
       table_name: "lettres_mission",
       record_id: lmId || undefined,
       new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, statut: sanitized.statut, duration_seconds: duration },
-    }).catch(() => {});
+    }).catch((e) => console.warn("[LM] Audit log failed:", e));
     sessionStorage.removeItem("lm_wizard_draft");
     setLastSaved(new Date());
     await loadSavedLetters();

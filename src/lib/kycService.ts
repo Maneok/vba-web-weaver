@@ -319,7 +319,7 @@ export function resolveSourceValue<T>(
   sources: Array<{ source: DataSource; value: T | null | undefined }>,
 ): { value: T | null; source: DataSource | null; confidence: DataConfidence; divergences: Array<{ source: DataSource; value: T }> } {
   const priority = SOURCE_PRIORITY[fieldName] ?? [];
-  const available = sources.filter(s => s.value != null && s.value !== "" && s.value !== 0);
+  const available = sources.filter(s => s.value != null && s.value !== "");
   if (available.length === 0) return { value: null, source: null, confidence: "single_source", divergences: [] };
 
   // Check for divergences

@@ -10,6 +10,7 @@
    NE PAS REMPLACER — améliorer en place uniquement.
    ═══════════════════════════════════════════════════════════════ */
 import { useEffect, useRef, useState, useCallback, type ReactNode } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1137,7 +1138,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
 
-  useEffect(() => { document.title = "GRIMY | Conformite LCB-FT"; }, []);
+  useDocumentTitle("GRIMY | Conformite LCB-FT");
 
   /* #11 — Scroll lock (mobile menu OR legal modal) */
   useEffect(() => {

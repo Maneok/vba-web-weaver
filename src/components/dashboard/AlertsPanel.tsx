@@ -71,6 +71,7 @@ export function AlertsPanel({ alertes, loading = false }: AlertsPanelProps) {
           {alertes.slice(0, 5).map((a, i) => (
             <button
               key={`${a.date}-${a.clientConcerne}-${i}`}
+              role={a.statut?.toUpperCase().includes("TRACFIN") ? "alert" : undefined}
               className="w-full flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/50 border border-transparent hover:border-white/[0.06] transition-all duration-200 text-left"
               onClick={() => navigate("/registre")}
             >

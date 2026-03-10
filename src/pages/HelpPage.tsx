@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -186,7 +187,7 @@ export default function HelpPage() {
   const [search, setSearch] = useState("");
   const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
-  useEffect(() => { document.title = "Aide | GRIMY"; }, []);
+  useDocumentTitle("Aide");
 
   // Filter search results
   const searchResults = useMemo(() => {

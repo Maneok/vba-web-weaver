@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { collaborateursService } from "@/lib/supabaseService";
@@ -66,7 +67,7 @@ export default function GouvernancePage() {
   const { collaborateurs, isLoading, isOnline, refreshAll } = useAppState();
   const [activeTab, setActiveTab] = useState("organisation");
 
-  useEffect(() => { document.title = "Gouvernance | GRIMY"; }, []);
+  useDocumentTitle("Gouvernance");
 
   // Annuaire state
   const [search, setSearch] = useState("");

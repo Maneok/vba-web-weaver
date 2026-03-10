@@ -1,4 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -109,7 +111,7 @@ export default function GedPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { document.title = "GED | GRIMY"; }, []);
+  useDocumentTitle("GED");
 
   // Upload dialog
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -129,6 +131,9 @@ export default function GedPage() {
   const [storageFolders, setStorageFolders] = useState<SirenFolder[]>([]);
   const [storageLoading, setStorageLoading] = useState(true);
   const [storageSearch, setStorageSearch] = useState("");
+
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedStorageSearch = useDebounce(storageSearch, 300);
 
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
@@ -239,8 +244,8 @@ export default function GedPage() {
 
   const filteredStorageFolders = storageFolders
     .map((folder) => {
-      if (!storageSearch) return folder;
-      const searchLower = storageSearch.toLowerCase();
+      if (!debouncedStorageSearch) return folder;
+      const searchLower = debouncedStorageSearch.toLowerCase();
       const sirenMatch = folder.siren.toLowerCase().includes(searchLower);
       const matchingFiles = folder.files.filter((f) =>
         f.name.toLowerCase().includes(searchLower)
@@ -482,9 +487,9 @@ export default function GedPage() {
   // Filtered documents
   const filtered = documents.filter((doc) => {
     const matchSearch =
-      !searchTerm ||
-      doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.client_ref && doc.client_ref.toLowerCase().includes(searchTerm.toLowerCase()));
+      !debouncedSearchTerm ||
+      doc.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      (doc.client_ref && doc.client_ref.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
     const matchCategory = filterCategory === "all" || doc.category === filterCategory;
     const matchExpiration = (() => {
       if (filterExpiration === "all") return true;
@@ -561,6 +566,7 @@ export default function GedPage() {
               placeholder="Rechercher SIREN ou fichier..."
               value={storageSearch}
               onChange={(e) => setStorageSearch(e.target.value)}
+              aria-label="Rechercher par SIREN ou nom de fichier"
               className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
             />
           </div>
@@ -679,11 +685,12 @@ export default function GedPage() {
             placeholder="Rechercher par nom ou ref client..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Rechercher un document"
             className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
           />
         </div>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200" aria-label="Filtrer par categorie">
             <SelectValue placeholder="Categorie" />
           </SelectTrigger>
           <SelectContent>
@@ -694,7 +701,7 @@ export default function GedPage() {
           </SelectContent>
         </Select>
         <Select value={filterExpiration} onValueChange={setFilterExpiration}>
-          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200" aria-label="Filtrer par expiration">
             <SelectValue placeholder="Expiration" />
           </SelectTrigger>
           <SelectContent>

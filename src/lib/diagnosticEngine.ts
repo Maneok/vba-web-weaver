@@ -243,7 +243,7 @@ export function runDiagnostic360(
 
   // === 14. FORMATION ===
   const aFormer = collaborateurs.filter(c =>
-    c.statutFormation.includes("FORMER") || c.statutFormation.includes("JAMAIS")
+    (c.statutFormation ?? "").includes("FORMER") || (c.statutFormation ?? "").includes("JAMAIS")
   );
   const tauxFormation = collaborateurs.length > 0
     ? Math.round(((collaborateurs.length - aFormer.length) / collaborateurs.length) * 100)

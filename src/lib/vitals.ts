@@ -5,7 +5,10 @@
  */
 import { logger } from "./logger";
 
+let _initialized = false;
 export function initMonitoring() {
+  if (_initialized) return;
+  _initialized = true;
   // Capture unhandled promise rejections
   window.addEventListener("unhandledrejection", (event) => {
     logger.error("Unhandled", "Promise rejection:", event.reason);

@@ -52,7 +52,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
     // #14: Role-based edge coloring
     const roleColor = (label: string): string => {
-      const l = label.toLowerCase();
+      const l = (label ?? "").toLowerCase();
       if (l.includes("président") || l.includes("president")) return "rgba(59, 130, 246, 0.5)";
       if (l.includes("gérant") || l.includes("gerant")) return "rgba(16, 185, 129, 0.5)";
       if (l.includes("associé") || l.includes("associe")) return "rgba(249, 115, 22, 0.5)";
@@ -74,7 +74,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .data(simEdges)
       .join("text")
       .text(d => {
-        const parts = d.label.split(" (");
+        const parts = (d.label ?? "").split(" (");
         return parts[0];
       })
       .attr("font-size", "8px")
@@ -183,7 +183,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     });
 
-    return () => { simulation.stop(); svg.on(".zoom", null); };
+    return () => { simulation.stop(); svg.selectAll("*").remove(); svg.on(".zoom", null); };
   // P6-44: Remove onNodeClick from deps to avoid re-render loops (ref-stable via useRef in parent)
   }, [nodes, edges, width, height]);
 

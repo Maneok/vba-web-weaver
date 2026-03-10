@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { AlertTriangle, LogOut } from "lucide-react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useNavigate } from "react-router-dom";
 
@@ -7,7 +7,7 @@ export default function SuspendedPage() {
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => { document.title = "Compte Suspendu | GRIMY"; }, []);
+  useDocumentTitle("Compte Suspendu");
 
   const handleSignOut = async () => {
     await signOut();

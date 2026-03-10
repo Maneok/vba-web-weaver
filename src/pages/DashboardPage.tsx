@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -54,7 +55,7 @@ export default function DashboardPage() {
 
   const greeting = useMemo(() => new Date().getHours() < 18 ? "Bonjour" : "Bonsoir", []);
 
-  useEffect(() => { document.title = "Dashboard | GRIMY"; }, []);
+  useDocumentTitle("Dashboard");
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
@@ -74,10 +75,17 @@ export default function DashboardPage() {
 
   // ── Auto-refresh every 60s ────────────────────────────────
   useEffect(() => {
-    refreshTimer.current = setInterval(() => {
+    const doRefresh = () => {
+      if (document.hidden) return;
       refreshAllRef.current().then(() => setLastRefresh(new Date())).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
-    }, 60000);
-    return () => { if (refreshTimer.current) clearInterval(refreshTimer.current); };
+    };
+    refreshTimer.current = setInterval(doRefresh, 60000);
+    const handleVisibility = () => { if (!document.hidden) doRefresh(); };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      if (refreshTimer.current) clearInterval(refreshTimer.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, []);
 
   // ── Load notification count ───────────────────────────────

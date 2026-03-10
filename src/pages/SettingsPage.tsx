@@ -1,4 +1,5 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
 import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
@@ -162,12 +163,18 @@ export default function SettingsPage() {
   const [savedCabinet, setSavedCabinet] = useState(false);
   const [savedScoring, setSavedScoring] = useState(false);
   const [savedLcbft, setSavedLcbft] = useState(false);
+  const savedTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => { savedTimersRef.current.forEach(clearTimeout); };
+  }, []);
 
   const [cabinet, setCabinet] = useState<CabinetInfo>(DEFAULT_CABINET);
   const [scoring, setScoring] = useState<ScoringConfig>(DEFAULT_SCORING);
   const [lcbft, setLcbft] = useState<LcbftConfig>(DEFAULT_LCBFT);
 
-  useEffect(() => { document.title = "Parametres | GRIMY"; }, []);
+  useDocumentTitle("Parametres");
 
   // Snapshot of last saved values for dirty tracking
   const [savedCabinetSnapshot, setSavedCabinetSnapshot] = useState<CabinetInfo>(DEFAULT_CABINET);
@@ -273,7 +280,8 @@ export default function SettingsPage() {
       setSavedCabinetSnapshot({ ...cabinet });
       setLastSavedCabinet(now);
       setSavedCabinet(true);
-      setTimeout(() => setSavedCabinet(false), 1500);
+      const t = setTimeout(() => setSavedCabinet(false), 1500);
+      savedTimersRef.current.push(t);
       toast.success("Informations cabinet enregistrees");
     }
   }, [userId, cabinet]);
@@ -300,7 +308,8 @@ export default function SettingsPage() {
       setSavedScoringSnapshot({ ...scoring });
       setLastSavedScoring(now);
       setSavedScoring(true);
-      setTimeout(() => setSavedScoring(false), 1500);
+      const t = setTimeout(() => setSavedScoring(false), 1500);
+      savedTimersRef.current.push(t);
       toast.success("Configuration scoring enregistree");
     }
   }, [userId, scoring]);
@@ -327,7 +336,8 @@ export default function SettingsPage() {
       setSavedLcbftSnapshot({ ...lcbft });
       setLastSavedLcbft(now);
       setSavedLcbft(true);
-      setTimeout(() => setSavedLcbft(false), 1500);
+      const t = setTimeout(() => setSavedLcbft(false), 1500);
+      savedTimersRef.current.push(t);
       toast.success("Configuration LCB-FT enregistree");
     }
   }, [userId, lcbft]);

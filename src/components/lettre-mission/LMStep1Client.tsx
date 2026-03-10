@@ -70,7 +70,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
         if (rows && rows.length > 0) setPreviousLM(rows[0]);
         else setPreviousLM(null);
       })
-      .catch(() => {});
+      .catch((e) => console.warn("[LM] Previous LM check failed:", e));
 
     // I) Screening check — look at dateDerniereRevue
     if (selectedClient) {

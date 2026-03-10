@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   ClipboardCheck, FileDown, RefreshCw, Plus, Eye, AlertTriangle, CheckCircle2,
   XCircle, Info, Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
@@ -312,7 +313,7 @@ export default function ControlePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDrawOptions, setShowDrawOptions] = useState(false);
 
-  useEffect(() => { document.title = "Controle Qualite | GRIMY"; }, []);
+  useDocumentTitle("Controle Qualite");
 
   // Filter & sort state
   const [search, setSearch] = useState("");
@@ -584,6 +585,7 @@ export default function ControlePage() {
     }
 
     // BUG FIX #6: only prefill the first one (batch loop was useless)
+    if (selected.length === 0) { toast.error("Aucun client selectionne"); return; }
     prefillForm(selected[0]);
     setShowDrawOptions(false);
     setShowForm(true);

@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { runDiagnostic360, type DiagnosticReport, type DiagnosticItem } from "@/lib/diagnosticEngine";
@@ -103,7 +104,7 @@ function DiagnosticItemCard({ item }: { item: DiagnosticItem }) {
 export default function DiagnosticPage() {
   const { clients, collaborateurs, alertes, logs } = useAppState();
 
-  useEffect(() => { document.title = "Diagnostic | GRIMY"; }, []);
+  useDocumentTitle("Diagnostic");
 
   // --- Supabase data: controles + parametres ---
   const [controles, setControles] = useState<Record<string, unknown>[]>([]);
@@ -130,6 +131,7 @@ export default function DiagnosticPage() {
         if (cancelled) return;
         if (data?.valeur) {
           const valeur = data.valeur as Record<string, unknown>;
+          if (cancelled) return;
           if (valeur.date_derniere_formation) {
             setDerniereFormation(valeur.date_derniere_formation as string);
           }

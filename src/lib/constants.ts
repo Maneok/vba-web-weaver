@@ -106,6 +106,29 @@ export const RISK_THRESHOLDS = {
 // Pagination
 export const DEFAULT_PAGE_SIZE = 25;
 
+// Toast durations (ms)
+export const TOAST_DURATION_SHORT = 1500;
+export const TOAST_DURATION_DEFAULT = 4000;
+export const TOAST_DURATION_LONG = 6000;
+
+// Timeout values (ms)
+export const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+export const FETCH_TIMEOUT_MS = 15000;
+export const AUTOSAVE_DELAY_MS = 2000;
+export const AUTH_TIMEOUT_MS = 6000;
+export const RETRY_DELAY_MS = 1000;
+
+// Retry counts
+export const MAX_RETRIES = 1;
+
+// Audit trail fetch limit
+export const AUDIT_TRAIL_FETCH_LIMIT = 2000;
+
+// Cockpit thresholds (days)
+export const COCKPIT_CRITIQUE_DAYS = 180;
+export const CNI_WARNING_DAYS = 90;
+export const CNI_URGENT_DAYS = 30;
+
 // Fonction options for collaborateur forms
 export const FONCTION_OPTIONS = [
   { value: "ASSOCIE SIGNATAIRE", label: "Associe signataire" },

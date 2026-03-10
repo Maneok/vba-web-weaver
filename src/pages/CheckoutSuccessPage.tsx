@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
@@ -8,7 +9,7 @@ export default function CheckoutSuccessPage() {
   const navigate = useNavigate();
   const [countdown, setCountdown] = useState(5);
 
-  useEffect(() => { document.title = "Paiement Confirme | GRIMY"; }, []);
+  useDocumentTitle("Paiement Confirme");
 
   useEffect(() => {
     const timer = setInterval(() => {

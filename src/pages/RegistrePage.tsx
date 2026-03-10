@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { AlerteRegistre } from "@/lib/types";
@@ -32,7 +33,7 @@ function sanitizeCSVValue(val: string | undefined): string {
 }
 
 function getCategoryBadgeClasses(categorie: string): string {
-  const upper = categorie.toUpperCase();
+  const upper = (categorie ?? "").toUpperCase();
   if (upper.includes("TRACFIN")) return "bg-red-600/20 text-red-400 border border-red-500/20";
   if (upper.includes("PPE")) return "bg-red-500/15 text-red-400 border border-red-500/15";
   if (upper.includes("PAYS")) return "bg-red-500/15 text-red-400 border border-red-500/15";
@@ -85,7 +86,7 @@ export default function RegistrePage() {
   // Reset page when search changes
   useEffect(() => { setCurrentPage(1); }, [debouncedSearch]);
 
-  useEffect(() => { document.title = "Registre LCB-FT | GRIMY"; }, []);
+  useDocumentTitle("Registre LCB-FT");
 
   const hasActiveFilters = filterStatut !== "all" || filterCategorie !== "all" || dateStart !== "" || dateEnd !== "" || search !== "";
 

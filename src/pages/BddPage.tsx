@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -47,7 +48,7 @@ export default function BddPage() {
   const [selectAllPages, setSelectAllPages] = useState(false);
   const debouncedSearch = useDebounce(search, 250);
 
-  useEffect(() => { document.title = "Base Clients | GRIMY"; }, []);
+  useDocumentTitle("Base Clients");
 
   // 7. Sync filter state to URL
   useEffect(() => {

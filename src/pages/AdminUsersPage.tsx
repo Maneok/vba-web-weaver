@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { logAudit } from "@/lib/auth/auditTrail";
@@ -33,7 +34,7 @@ export default function AdminUsersPage() {
   const [updating, setUpdating] = useState(false);
   const isAdmin = profile?.role === "ADMIN";
 
-  useEffect(() => { document.title = "Gestion Utilisateurs | GRIMY"; }, []);
+  useDocumentTitle("Gestion Utilisateurs");
 
   const loadUsers = useCallback(async () => {
     if (!profile?.cabinet_id) return;

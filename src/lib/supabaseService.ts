@@ -1,5 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { MAX_RETRIES, RETRY_DELAY_MS } from "@/lib/constants";
+
+async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (attempt < MAX_RETRIES) {
+        logger.warn("DB", `${label} failed (attempt ${attempt + 1}), retrying in ${RETRY_DELAY_MS}ms...`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+      } else {
+        throw e;
+      }
+    }
+  }
+  throw new Error(`${label} failed after ${MAX_RETRIES + 1} attempts`);
+}
 
 // Strip fields that should never be overwritten by client code
 const PROTECTED_FIELDS = ["id", "cabinet_id", "created_at", "user_id"] as const;
@@ -47,16 +64,18 @@ export const clientsService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    const { data, error } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false });
-    if (error) {
-      logger.error("DB", "clients getAll:", error);
-      return [];
-    }
-    return data || [];
+    return withRetry("clients.getAll", async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("cabinet_id", cabinetId)
+        .order("created_at", { ascending: false });
+      if (error) {
+        logger.error("DB", "clients getAll:", error);
+        throw error;
+      }
+      return data || [];
+    }).catch(() => []);
   },
 
   async create(client: Record<string, unknown>) {
@@ -148,13 +167,18 @@ export const collaborateursService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    const { data, error } = await supabase
-      .from("collaborateurs")
-      .select("*")
-      .eq("cabinet_id", cabinetId)
-      .order("nom");
-    if (error) logger.error("DB", "collab getAll:", error);
-    return data || [];
+    return withRetry("collab.getAll", async () => {
+      const { data, error } = await supabase
+        .from("collaborateurs")
+        .select("*")
+        .eq("cabinet_id", cabinetId)
+        .order("nom");
+      if (error) {
+        logger.error("DB", "collab getAll:", error);
+        throw error;
+      }
+      return data || [];
+    }).catch(() => []);
   },
 
   async create(collab: Record<string, unknown>) {
@@ -202,13 +226,18 @@ export const registreService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    const { data, error } = await supabase
-      .from("alertes_registre")
-      .select("*")
-      .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false });
-    if (error) logger.error("DB", "registre getAll:", error);
-    return data || [];
+    return withRetry("registre.getAll", async () => {
+      const { data, error } = await supabase
+        .from("alertes_registre")
+        .select("*")
+        .eq("cabinet_id", cabinetId)
+        .order("created_at", { ascending: false });
+      if (error) {
+        logger.error("DB", "registre getAll:", error);
+        throw error;
+      }
+      return data || [];
+    }).catch(() => []);
   },
 
   async create(alerte: Record<string, unknown>) {

@@ -147,7 +147,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: (screening.sanctions.data?.status as Status) ?? (screening.sanctions.error ? "ERREUR" : null),
       loading: screening.sanctions.loading,
       detail: screening.sanctions.data ? `${screening.sanctions.data.checked} personne(s) verifiee(s)` : undefined,
-      alertes: screening.sanctions.data?.matches.map(m => m.details),
+      alertes: screening.sanctions.data?.matches?.map(m => m.details),
       timeMs: screening.sanctions.timeMs,
     },
     {

@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -138,6 +139,9 @@ function ClientDetailContent({ client }: { client: Client }) {
   const [screeningLaunched, setScreeningLaunched] = useState(false);
 
   // Launch screening when Compliance or Reseau tab is opened
+  const screeningMountedRef = useRef(true);
+  useEffect(() => { return () => { screeningMountedRef.current = false; }; }, []);
+
   const launchComplianceScreening = useCallback(() => {
     if (screeningLaunched) return;
     setScreeningLaunched(true);

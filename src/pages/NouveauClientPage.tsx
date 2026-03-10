@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -96,7 +97,7 @@ export default function NouveauClientPage() {
   const { clients, addClient, refreshClients, isOnline } = useAppState();
   const [step, setStep] = useState(0);
 
-  useEffect(() => { document.title = "Nouveau Client | GRIMY"; }, []);
+  useDocumentTitle("Nouveau Client");
 
   // Step 1 - Search
   const [searchMode, setSearchMode] = useState<"siren" | "nom" | "dirigeant">("siren");
@@ -472,9 +473,9 @@ export default function NouveauClientPage() {
       ...(screening.inpi.data?.documents ?? []),
     ];
     const found = required.filter(r =>
-      documents.some(d => d.type.toUpperCase().includes(r.toUpperCase())) ||
+      documents.some(d => (d.type ?? "").toUpperCase().includes(r.toUpperCase())) ||
       autoDocs.some(d => {
-        const typeUp = d.type.toUpperCase();
+        const typeUp = (d.type ?? "").toUpperCase();
         const typeMatch = typeUp.includes(r.toUpperCase());
         // Only Extrait RNE/RBE count as KBIS equivalent, NOT generic "Actes"
         const kbisMatch = r === "KBIS" && (typeUp.includes("EXTRAIT") || typeUp === "KBIS");
@@ -621,7 +622,7 @@ export default function NouveauClientPage() {
         // FIX 6: Apply forme juridique label from INPI code
         if (inpi.formeJuridique) {
           const formeLabel = getFormeJuridiqueLabel(inpi.formeJuridique);
-          const formeMatch = FORMES.find(f => f === formeLabel || formeLabel.toUpperCase().includes(f));
+          const formeMatch = FORMES.find(f => f === formeLabel || (formeLabel ?? "").toUpperCase().includes(f));
           if (formeMatch) inpiAutoSet("forme", formeMatch);
         }
         if (Object.keys(updates).length > 0) {
@@ -661,7 +662,7 @@ export default function NouveauClientPage() {
             // Deduplicate: by nom (uppercase), keep the version with the most info
             const deduped = new Map<string, typeof enrichedBE[0]>();
             for (const be of enrichedBE) {
-              const key = be.nom.toUpperCase();
+              const key = (be.nom ?? "").toUpperCase();
               const existing = deduped.get(key);
               if (!existing || (!existing.prenom && be.prenom) || (!existing.dateNaissance && be.dateNaissance)) {
                 deduped.set(key, be);
@@ -669,7 +670,7 @@ export default function NouveauClientPage() {
             }
 
             // Merge with previous, avoiding duplicates
-            const existingNoms = new Set(prev.map(b => b.nom.toUpperCase()));
+            const existingNoms = new Set(prev.map(b => (b.nom ?? "").toUpperCase()));
             const newBE = Array.from(deduped.values()).filter(b => !existingNoms.has(b.nom.toUpperCase()));
 
             // Also update existing entries that lack prenom
@@ -1367,7 +1368,7 @@ export default function NouveauClientPage() {
     }
 
     // #25: Refresh clients from Supabase after creation
-    refreshClients().catch(() => {});
+    refreshClients().catch((e) => console.warn("[Client] Refresh after creation failed:", e));
 
     // Idee 27: Auto-generate fiche PDF in background
     try {
@@ -3958,7 +3959,7 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
           if (!isNaN(parsedLng)) setGeoLng(parsedLng);
         }
       })
-      .catch(() => {})
+      .catch((e) => console.warn("[Geo] Geocoding failed:", e))
       .finally(() => setGeoLoading(false));
   }, [lat, lng, fullAddr]);
 
