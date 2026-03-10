@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import { ALERT_CATEGORIES as CATEGORIES, DEFAULT_ASSOCIES, DEFAULT_SUPERVISEURS } from "@/lib/constants";
 
 const PAGE_SIZE = 20;
-const TODAY = new Date().toISOString().split("T")[0];
 
 function formatDateFR(dateStr: string | undefined): string {
   if (!dateStr) return "—";
@@ -64,6 +63,7 @@ function exportCSV(data: AlerteRegistre[], filename: string) {
 }
 
 export default function RegistrePage() {
+  const today = new Date().toISOString().split("T")[0];
   const { alertes, addAlerte, clients } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState<string>("all");
@@ -158,7 +158,7 @@ export default function RegistrePage() {
     setFormErrors({});
     addAlerte({
       date: new Date().toISOString().split("T")[0],
-      clientConcerne: newAlerte.client,
+      clientConcerne: clients.find(c => c.ref === newAlerte.client)?.raisonSociale || newAlerte.client,
       categorie: newAlerte.categorie,
       details: newAlerte.details,
       actionPrise: "EN INVESTIGATION",
@@ -318,7 +318,7 @@ export default function RegistrePage() {
               {paginatedData.map((a, i) => {
                 const globalIndex = (safePage - 1) * PAGE_SIZE + i;
                 const alerteId = (a as AlerteRegistre & { id?: string }).id || `ALR-${String(globalIndex + 1).padStart(4, "0")}`;
-                const isOverdue = a.dateButoir && a.dateButoir < TODAY && a.statut !== "CLÔTURÉ";
+                const isOverdue = a.dateButoir && a.dateButoir < today && a.statut !== "CLÔTURÉ";
                 return (
                   <TableRow
                     key={alerteId}
@@ -455,7 +455,7 @@ export default function RegistrePage() {
               <Select value={newAlerte.client} onValueChange={v => setNewAlerte(p => ({ ...p, client: v }))}>
                 <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
                 <SelectContent>
-                  {clients.map(c => <SelectItem key={c.ref} value={c.raisonSociale}>{c.raisonSociale} ({c.ref})</SelectItem>)}
+                  {clients.map(c => <SelectItem key={c.ref} value={c.ref}>{c.raisonSociale} ({c.ref})</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

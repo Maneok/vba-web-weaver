@@ -5,8 +5,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || "https://szjcmepjuxlvnkqbxqqr.supabase.co";
-  const supabaseKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  // Server-side: try non-prefixed first, fallback to VITE_ for shared env
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://szjcmepjuxlvnkqbxqqr.supabase.co";
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   if (!supabaseKey) {
     return res.status(500).json({ error: "Missing SUPABASE key" });

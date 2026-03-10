@@ -163,7 +163,8 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
     if (c.nivVigilance === "SIMPLIFIEE" && (c.ppe === "OUI" || c.paysRisque === "OUI")) {
       anomalies.push("INCOHERENCE: Vigilance simplifiee avec facteur de risque");
     }
-    if (c.dateExpCni && new Date(c.dateExpCni) < new Date()) {
+    const expCniDate = c.dateExpCni ? new Date(c.dateExpCni) : null;
+    if (expCniDate && !isNaN(expCniDate.getTime()) && expCniDate < new Date()) {
       anomalies.push("CNI EXPIREE");
     }
     if (c.etatPilotage === "RETARD") {

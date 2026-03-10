@@ -219,7 +219,7 @@ export default function NotificationsPage() {
             {notifications.map(n => (
               <div
                 key={n.id}
-                className={`flex items-start gap-4 px-5 py-4 border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer transition-colors ${
+                className={`group flex items-start gap-4 px-5 py-4 border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer transition-colors ${
                   !n.lue ? "bg-blue-500/[0.03]" : ""
                 } ${selectedId === n.id ? "bg-white/[0.04] ring-1 ring-blue-500/20" : ""}`}
                 onClick={() => setSelectedId(selectedId === n.id ? null : n.id)}

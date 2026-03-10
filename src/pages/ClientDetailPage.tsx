@@ -78,6 +78,12 @@ export default function ClientDetailPage() {
 
   const contextClient = isValidRef ? clients.find(c => c.ref === ref) : undefined;
 
+  // Reset fallback when ref changes (avoid stale data when navigating between clients)
+  useEffect(() => {
+    setFallbackClient(null);
+    setNotFound(false);
+  }, [ref]);
+
   // Fallback: load from Supabase if context doesn't have the client (e.g. direct URL)
   useEffect(() => {
     if (contextClient || fallbackClient || !isValidRef) return;
@@ -247,10 +253,10 @@ function ClientDetailContent({ client }: { client: Client }) {
   const scoreHistory = useMemo(() => {
     const base = client.scoreGlobal;
     return [
-      { date: "J-12", score: Math.max(0, base + Math.round(Math.random() * 10 - 5)) },
-      { date: "J-9", score: Math.max(0, base + Math.round(Math.random() * 8 - 4)) },
-      { date: "J-6", score: Math.max(0, base + Math.round(Math.random() * 6 - 3)) },
-      { date: "J-3", score: Math.max(0, base + Math.round(Math.random() * 4 - 2)) },
+      { date: "J-12", score: Math.max(0, base - 3) },
+      { date: "J-9", score: Math.max(0, base - 2) },
+      { date: "J-6", score: Math.max(0, base - 1) },
+      { date: "J-3", score: Math.max(0, base) },
       { date: "Actuel", score: base },
     ];
   }, [client.scoreGlobal]);
@@ -456,13 +462,18 @@ function ClientDetailContent({ client }: { client: Client }) {
 
             {client.be ? (
               <div className="space-y-2">
-                {client.be.split(",").map((b, i) => (
+                {(() => {
+                  let entries: Array<{ nom: string; prenom?: string }> = [];
+                  try { entries = JSON.parse(client.be); } catch { entries = client.be.split(",").map(s => ({ nom: s.trim() })); }
+                  if (!Array.isArray(entries)) entries = [{ nom: String(entries) }];
+                  return entries;
+                })().map((b, i) => (
                   <div key={i} className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                         <User className="w-4 h-4 text-blue-400" />
                       </div>
-                      <span className="text-sm text-slate-200">{b.trim()}</span>
+                      <span className="text-sm text-slate-200">{b.prenom ? `${b.prenom} ${b.nom}` : b.nom}</span>
                     </div>
                     {client.ppe === "OUI" && (
                       <Badge className="bg-red-500/10 text-red-400 border-0 text-[10px]">PPE</Badge>

@@ -9,11 +9,21 @@ function stripProtected(updates: Record<string, unknown>): Record<string, unknow
   return safe;
 }
 
-// Helper: get current user's cabinet_id from profile
+// Helper: get current user's cabinet_id from profile (cached)
+let _cachedCabinetId: string | null = null;
+let _cachedUserId: string | null = null;
+
+export function clearCabinetCache() {
+  _cachedCabinetId = null;
+  _cachedUserId = null;
+}
+
 async function getCabinetId(): Promise<string | null> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    if (!user) { _cachedCabinetId = null; _cachedUserId = null; return null; }
+    // Return cache if same user
+    if (_cachedCabinetId && _cachedUserId === user.id) return _cachedCabinetId;
     const { data, error } = await supabase
       .from("profiles")
       .select("cabinet_id")
@@ -23,7 +33,9 @@ async function getCabinetId(): Promise<string | null> {
       logger.error("DB", "getCabinetId error:", error);
       return null;
     }
-    return data?.cabinet_id || null;
+    _cachedCabinetId = data?.cabinet_id || null;
+    _cachedUserId = user.id;
+    return _cachedCabinetId;
   } catch (e) {
     logger.error("DB", "getCabinetId exception:", e);
     return null;
@@ -106,12 +118,13 @@ export const clientsService = {
   async getByRef(ref: string) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("clients")
       .select("*")
       .eq("cabinet_id", cabinetId)
       .eq("ref", ref)
       .single();
+    if (error) logger.error("DB", "clients getByRef:", error);
     return data;
   },
 
@@ -119,12 +132,13 @@ export const clientsService = {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
     const clean = siren.replace(/\s/g, "");
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("clients")
       .select("*")
       .eq("cabinet_id", cabinetId)
       .eq("siren", clean)
       .maybeSingle();
+    if (error) logger.error("DB", "clients getBySiren:", error);
     return data;
   },
 };
@@ -134,11 +148,12 @@ export const collaborateursService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("collaborateurs")
       .select("*")
       .eq("cabinet_id", cabinetId)
       .order("nom");
+    if (error) logger.error("DB", "collab getAll:", error);
     return data || [];
   },
 
@@ -160,20 +175,22 @@ export const collaborateursService = {
   async update(id: string, updates: Record<string, unknown>) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("collaborateurs")
       .update(stripProtected(updates))
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
       .single();
+    if (error) logger.error("DB", "collab update:", error);
     return data;
   },
 
   async delete(id: string) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return;
-    await supabase.from("collaborateurs").delete().eq("id", id).eq("cabinet_id", cabinetId);
+    const { error } = await supabase.from("collaborateurs").delete().eq("id", id).eq("cabinet_id", cabinetId);
+    if (error) logger.error("DB", "collab delete:", error);
   },
 };
 
@@ -182,11 +199,12 @@ export const registreService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("alertes_registre")
       .select("*")
       .eq("cabinet_id", cabinetId)
       .order("created_at", { ascending: false });
+    if (error) logger.error("DB", "registre getAll:", error);
     return data || [];
   },
 
@@ -208,13 +226,14 @@ export const registreService = {
   async update(id: string, updates: Record<string, unknown>) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("alertes_registre")
       .update(stripProtected(updates))
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
       .single();
+    if (error) logger.error("DB", "registre update:", error);
     return data;
   },
 };

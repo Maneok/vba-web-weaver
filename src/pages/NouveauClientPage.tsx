@@ -8,7 +8,7 @@ import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPi
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
-  INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
+  INITIAL_SCREENING, createInitialScreening, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
   computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant, formatDateFR,
   getFormeJuridiqueLabel,
@@ -109,7 +109,7 @@ export default function NouveauClientPage() {
   const [duplicateRef, setDuplicateRef] = useState("");
   const [dataSource, setDataSource] = useState<string>("");
   const [gelAvoirsAlert, setGelAvoirsAlert] = useState<string[]>([]);
-  const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
+  const [screening, setScreening] = useState<ScreeningState>(() => createInitialScreening());
   const [autoFields, setAutoFields] = useState<Set<string>>(new Set());
   const [capitalSource, setCapitalSource] = useState("");
   const [selectedEnterprise, setSelectedEnterprise] = useState<EnterpriseResult | null>(null);
@@ -260,7 +260,7 @@ export default function NouveauClientPage() {
   // FIX 9: Save draft to localStorage on step change (silent)
   useEffect(() => {
     if (step > 0 || form.siren) {
-      const draftData = { form, step, beneficiaires, questions, decision, motifRefus, savedAt: Date.now() };
+      const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
       sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
       // Also save per-SIREN draft for multi-draft support
       if (form.siren) {
@@ -270,7 +270,7 @@ export default function NouveauClientPage() {
         }
       }
     }
-  }, [step, form, beneficiaires, questions, decision, motifRefus]);
+  }, [step, form, beneficiaires, questions, decision, motifRefus, motifReserve]);
 
   // FIX 2: Silent draft restore — no popup
   const restoreDraft = useCallback((draft: string) => {
@@ -283,6 +283,7 @@ export default function NouveauClientPage() {
         if (data.questions) setQuestions(data.questions);
         if (data.decision) setDecision(data.decision);
         if (data.motifRefus) setMotifRefus(data.motifRefus);
+        if (data.motifReserve) setMotifReserve(data.motifReserve);
         setDraftBanner({ restoredAt: new Date(data.savedAt || Date.now()) });
       }
     } catch {}
@@ -329,7 +330,7 @@ export default function NouveauClientPage() {
   }, [sanctionsCritical]);
 
   // P6-25: Auto-suggest frequency based on mission type — only on mission change (not frequence)
-  const prevMissionRef = useMemo(() => ({ current: form.mission }), []);
+  const prevMissionRef = useRef(form.mission);
   useEffect(() => {
     const suggested = MISSION_FREQUENCE[form.mission];
     if (suggested && form.mission !== prevMissionRef.current) {
@@ -904,7 +905,7 @@ export default function NouveauClientPage() {
         selectPappersResult(res.results[0]);
       }
     }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("NouveauClient", "handleSearch error:", err);
       setSearchError("Erreur lors de la recherche. Veuillez reessayer.");
       setSearchLoading(false);
@@ -1369,7 +1370,7 @@ export default function NouveauClientPage() {
           } else {
             logger.debug(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
           }
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error(`[Submit] Upload error for ${doc.name}:`, err);
         }
       }
@@ -1389,7 +1390,7 @@ export default function NouveauClientPage() {
     // Idee 28: Show success modal instead of navigating directly
     setCreatedClientRef(ref);
     setShowSuccessModal(true);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("[Submit] Error:", err);
       toast.error("Erreur lors de la creation du client");
     } finally {
@@ -3762,7 +3763,7 @@ export default function NouveauClientPage() {
             size="sm"
             className={`gap-1.5 shadow-lg border-white/[0.1] bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-400 hover:text-blue-400"}`}
             onClick={() => {
-              const draftData = { form, step, beneficiaires, questions, decision, motifRefus, savedAt: Date.now() };
+              const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
               sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
               setDraftSaved(true);
               toast.success("Brouillon sauvegarde");

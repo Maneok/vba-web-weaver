@@ -115,9 +115,14 @@ export default function OnboardingWizard() {
     navigate("/nouveau-client");
   }
 
+  const [dismissed, setDismissed] = useState(false);
+
   function handleSkipAll() {
     markOnboardingComplete();
+    setDismissed(true);
   }
+
+  if (dismissed) return null;
 
   const STEPS = [
     {

@@ -179,11 +179,11 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     });
 
-    return () => { simulation.stop(); };
+    return () => { simulation.stop(); svg.on(".zoom", null); };
   // P6-44: Remove onNodeClick from deps to avoid re-render loops (ref-stable via useRef in parent)
   }, [nodes, edges, width, height]);
 
-  if (nodes.length === 0) {
+  if (nodes.length === 0 || (nodes.length === 1 && (!edges || edges.length === 0))) {
     return (
       <div className="flex items-center justify-center h-[400px] text-slate-500 text-sm">
         Aucune donnee de reseau disponible

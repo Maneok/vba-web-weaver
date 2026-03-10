@@ -60,9 +60,9 @@ export function generateFicheAcceptation(client: Client) {
   y += 3;
 
   // === BENEFICIAIRES EFFECTIFS ===
-  if (client.be) {
+  if (client.be && client.be.trim()) {
     addTitle("1b. BENEFICIAIRES EFFECTIFS (RBE)");
-    const beEntries = client.be.split("/").map(b => b.trim());
+    const beEntries = client.be.split("/").map(b => b.trim()).filter(Boolean);
     for (const be of beEntries) {
       doc.setFontSize(8);
       doc.setFont("helvetica", "normal");

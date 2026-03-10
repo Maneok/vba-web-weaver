@@ -227,7 +227,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
 
         setAlerts(newAlerts);
         // P6-51: Don't auto-call onExtracted here — let user validate first via handleValidate button
-      } catch (err) {
+      } catch (err: unknown) {
         setStatus("error");
         setErrorMsg("Extraction automatique impossible — saisie manuelle");
         logger.error("OCR", "OCR extraction error", err);

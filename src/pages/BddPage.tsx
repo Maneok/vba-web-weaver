@@ -151,11 +151,11 @@ export default function BddPage() {
     const q = debouncedSearch.toLowerCase();
     const result = clients.filter(c => {
       const matchSearch = !q ||
-        c.raisonSociale.toLowerCase().includes(q) ||
-        c.ref.toLowerCase().includes(q) ||
-        c.siren.includes(debouncedSearch) ||
-        c.dirigeant.toLowerCase().includes(q) ||
-        c.comptable.toLowerCase().includes(q);
+        (c.raisonSociale || "").toLowerCase().includes(q) ||
+        (c.ref || "").toLowerCase().includes(q) ||
+        (c.siren || "").includes(debouncedSearch) ||
+        (c.dirigeant || "").toLowerCase().includes(q) ||
+        (c.comptable || "").toLowerCase().includes(q);
       const matchVig = filterVigilance === "all" || c.nivVigilance === filterVigilance;
       const matchPil = filterPilotage === "all" || c.etatPilotage === filterPilotage;
       const matchEtat = filterEtat === "all" ||
@@ -390,7 +390,16 @@ export default function BddPage() {
                     className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0"
                     onClick={() => {
                       sessionStorage.removeItem(draft.key);
-                      if (draft.key !== "draft_nouveau_client") sessionStorage.removeItem("draft_nouveau_client");
+                      // Also remove main draft if it matches this SIREN
+                      const mainDraft = sessionStorage.getItem("draft_nouveau_client");
+                      if (mainDraft) {
+                        try {
+                          const md = JSON.parse(mainDraft);
+                          if (md.form?.siren?.replace(/\s/g, "") === draft.siren.replace(/\s/g, "")) {
+                            sessionStorage.removeItem("draft_nouveau_client");
+                          }
+                        } catch {}
+                      }
                       setDrafts(prev => prev.filter(d => d.key !== draft.key));
                       toast.success("Brouillon supprime");
                     }}

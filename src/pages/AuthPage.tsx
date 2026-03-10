@@ -53,9 +53,10 @@ export default function AuthPage() {
   // Auto-redirect when session is detected (after login or if already logged in)
   useEffect(() => {
     if (!authLoading && session) {
-      navigate("/", { replace: true });
+      const redirect = searchParams.get("redirect") || "/";
+      navigate(redirect, { replace: true });
     }
-  }, [session, authLoading, navigate]);
+  }, [session, authLoading, navigate, searchParams]);
 
   // Avoid importing supabase directly — use the AuthContext methods
   const { signInWithEmail, signInWithGoogle, signUp: authSignUp } = useAuth();

@@ -5,7 +5,7 @@ export function VigilanceBadge({ level }: { level: VigilanceLevel }) {
     SIMPLIFIEE: { cls: "risk-badge-low", label: "Simplifiee" },
     STANDARD: { cls: "risk-badge-medium", label: "Standard" },
     RENFORCEE: { cls: "risk-badge-high", label: "Renforcee" },
-  }[level];
+  }[level] ?? { cls: "risk-badge-medium", label: level };
   return <span className={config.cls}>{config.label}</span>;
 }
 

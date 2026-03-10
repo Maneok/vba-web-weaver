@@ -25,7 +25,14 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
 
   try {
-    const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") ?? "", {
+    const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
+    if (!stripeKey) {
+      return new Response(
+        JSON.stringify({ error: "Configuration Stripe manquante" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const stripe = new Stripe(stripeKey, {
       apiVersion: "2023-10-16",
     });
 
@@ -61,6 +68,13 @@ serve(async (req) => {
     }
 
     const selectedPlan = PLANS[plan];
+
+    if (!selectedPlan.priceId) {
+      return new Response(
+        JSON.stringify({ error: `Prix Stripe non configure pour le plan ${plan}` }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",

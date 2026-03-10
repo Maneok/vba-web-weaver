@@ -81,7 +81,7 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
         const builder = new LMPdfBuilder(lm);
         (builder as any).build();
         toast.success("PDF genere avec succes");
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error("PDF export error:", err);
         toast.error("Erreur lors de la generation du PDF");
       }
@@ -95,7 +95,7 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
         const lm = buildLettreMission(sanitized, client, cabinet);
         await renderLettreMissionDocx(lm);
         toast.success("DOCX genere avec succes");
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error("DOCX export error:", err);
         toast.error("Erreur lors de la generation du DOCX");
       }

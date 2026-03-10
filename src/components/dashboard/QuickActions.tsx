@@ -17,18 +17,22 @@ export function QuickActionsBar({ notificationCount = 0 }: QuickActionsProps) {
         variant="outline"
         className="text-xs h-8 gap-1.5 hover:bg-blue-500/10 hover:text-blue-300 hover:border-blue-500/30 transition-all duration-200"
         onClick={() => navigate("/nouveau-client")}
+        title="Nouveau client (raccourci : N)"
       >
         <UserPlus className="w-3.5 h-3.5" />
         Client
+        <kbd className="ml-1 text-[9px] text-slate-500 border border-white/10 rounded px-1">N</kbd>
       </Button>
       <Button
         size="sm"
         variant="outline"
         className="text-xs h-8 gap-1.5 hover:bg-orange-500/10 hover:text-orange-300 hover:border-orange-500/30 transition-all duration-200"
         onClick={() => navigate("/registre")}
+        title="Nouvelle alerte (raccourci : A)"
       >
         <AlertTriangle className="w-3.5 h-3.5" />
         Alerte
+        <kbd className="ml-1 text-[9px] text-slate-500 border border-white/10 rounded px-1">A</kbd>
       </Button>
       <Button
         size="sm"
@@ -74,6 +78,8 @@ export function QuickActionsFAB() {
       <button
         className="w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg hover:shadow-xl transition-all flex items-center justify-center"
         onClick={() => setOpen(!open)}
+        aria-label={open ? "Fermer les actions rapides" : "Ouvrir les actions rapides"}
+        aria-expanded={open}
       >
         {open ? <X className="w-6 h-6" /> : <Plus className="w-6 h-6" />}
       </button>

@@ -3,7 +3,7 @@ import { toast } from "sonner";
 
 const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes (conformité LCB-FT)
 const WARNING_MS = TIMEOUT_MS - 2 * 60 * 1000; // Avertissement 2 min avant
-const EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "mousemove"] as const;
+const EVENTS = ["mousedown", "keydown", "scroll", "touchstart"] as const;
 const MAX_SESSION_MS = 8 * 60 * 60 * 1000; // 8 hours absolute max
 
 export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {
@@ -11,6 +11,15 @@ export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {
   const warningRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warnedRef = useRef(false);
   const sessionStartRef = useRef(Date.now());
+  const prevEnabledRef = useRef(false);
+
+  // Reset session start when re-enabled (e.g., re-login without page reload)
+  useEffect(() => {
+    if (enabled && !prevEnabledRef.current) {
+      sessionStartRef.current = Date.now();
+    }
+    prevEnabledRef.current = enabled;
+  }, [enabled]);
 
   const resetTimer = useCallback(() => {
     // Absolute session max (8 hours)
@@ -33,6 +42,7 @@ export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {
 
   useEffect(() => {
     if (!enabled) return;
+    sessionStartRef.current = Date.now();
 
     resetTimer();
 

@@ -267,7 +267,7 @@ export function analyzeCockpit(
   const tauxFormation = collaborateurs.length > 0 ? Math.round((formesOk / collaborateurs.length) * 100) : 0;
 
   const kycComplets = actifs.filter(c =>
-    c.siren.trim() && c.mail.trim() && c.adresse.trim() && c.dirigeant.trim()
+    c.siren?.trim() && c.mail?.trim() && c.adresse?.trim() && c.dirigeant?.trim()
   ).length;
   const tauxKycComplet = actifs.length > 0 ? Math.round((kycComplets / actifs.length) * 100) : 0;
 

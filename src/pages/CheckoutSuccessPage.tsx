@@ -15,14 +15,17 @@ export default function CheckoutSuccessPage() {
       setCountdown((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          navigate("/");
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [navigate]);
+  }, []);
+
+  useEffect(() => {
+    if (countdown === 0) navigate("/");
+  }, [countdown, navigate]);
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">

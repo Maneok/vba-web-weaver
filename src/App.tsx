@@ -35,6 +35,7 @@ const SuspendedPage = lazy(() => import("@/pages/SuspendedPage"));
 const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
 const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
+const AuditTrailPage = lazy(() => import("@/pages/AuditTrailPage"));
 const InvitePage = lazy(() => import("@/pages/InvitePage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -105,6 +106,7 @@ const App = () => (
                   <Route path="notifications" element={<SafePage><NotificationsPage /></SafePage>} />
                   <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
                   <Route path="admin/users" element={<SafePage><AdminUsersPage /></SafePage>} />
+                  <Route path="audit" element={<SafePage><AuditTrailPage /></SafePage>} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />
                 </Route>

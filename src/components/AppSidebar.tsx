@@ -66,8 +66,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     if (isMobile && !collapsed) {
       onToggle();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.pathname]);
+  }, [location.pathname, collapsed, onToggle]);
 
   const handleSignOut = async () => {
     await signOut();

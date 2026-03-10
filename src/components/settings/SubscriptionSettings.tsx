@@ -157,7 +157,7 @@ export default function SubscriptionSettings() {
         if (data) {
           setUsage(data as unknown as CabinetUsage);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         if (!cancelled) {
           logger.error("Subscription", "Erreur inattendue:", err);
           toast.error("Erreur lors du chargement des donnees d'abonnement");
@@ -207,7 +207,7 @@ export default function SubscriptionSettings() {
         });
         if (data) setUsage(data as unknown as CabinetUsage);
       }
-    } catch (err) {
+    } catch (err: unknown) {
       toast.error("Erreur lors de l'ajout du siege");
       logger.error("Subscription", "Erreur inattendue:", err);
     }

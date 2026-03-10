@@ -155,7 +155,7 @@ export default function DiagnosticPage() {
     const totalControles = controles.length;
     const conformes = controles.filter((c) => {
       const res = (c.resultat_global as string) || "";
-      return res.startsWith("CONFORME");
+      return res === "CONFORME" || res === "CONFORME AVEC RESERVES";
     }).length;
     const tauxConformite = totalControles > 0 ? (conformes / totalControles) * 100 : 0;
 
@@ -298,9 +298,9 @@ export default function DiagnosticPage() {
 
       {/* Progress Bar */}
       <div className="w-full h-3 rounded-full bg-white/5 overflow-hidden flex">
-        <div className="bg-emerald-500 transition-all" style={{ width: `${(okCount / report.items.length) * 100}%` }} />
-        <div className="bg-amber-400 transition-all" style={{ width: `${(alerteCount / report.items.length) * 100}%` }} />
-        <div className="bg-red-500 transition-all" style={{ width: `${(critiques / report.items.length) * 100}%` }} />
+        <div className="bg-emerald-500 transition-all" style={{ width: `${report.items.length > 0 ? (okCount / report.items.length) * 100 : 0}%` }} />
+        <div className="bg-amber-400 transition-all" style={{ width: `${report.items.length > 0 ? (alerteCount / report.items.length) * 100 : 0}%` }} />
+        <div className="bg-red-500 transition-all" style={{ width: `${report.items.length > 0 ? (critiques / report.items.length) * 100 : 0}%` }} />
       </div>
 
       {/* Circular Gauges */}

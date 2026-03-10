@@ -55,8 +55,24 @@ export function validateStep4(data: Record<string, unknown>): ValidationError[] 
     errors.push({ field: "frequence_facturation", message: "Frequence de facturation requise" });
   if (data.mode_paiement === "prelevement" && data.iban) {
     const iban = String(data.iban).replace(/\s/g, "");
-    if (iban.length > 0 && (!/^FR\d{2}/.test(iban) || iban.length !== 27)) {
-      errors.push({ field: "iban", message: "IBAN francais invalide (27 car. commencant par FR)" });
+    if (iban.length > 0) {
+      if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(iban.toUpperCase())) {
+        errors.push({ field: "iban", message: "Format IBAN invalide" });
+      } else if (iban.toUpperCase().startsWith("FR") && iban.length !== 27) {
+        errors.push({ field: "iban", message: "IBAN francais invalide (27 car. commencant par FR)" });
+      } else {
+        // Modulo 97 checksum
+        const clean = iban.toUpperCase();
+        const rearranged = clean.slice(4) + clean.slice(0, 4);
+        const numeric = rearranged.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
+        let remainder = "";
+        for (const digit of numeric) {
+          remainder = String(Number(remainder + digit) % 97);
+        }
+        if (remainder !== "1") {
+          errors.push({ field: "iban", message: "Cle IBAN invalide (checksum incorrecte)" });
+        }
+      }
     }
   }
   return errors;

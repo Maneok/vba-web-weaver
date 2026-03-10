@@ -71,13 +71,14 @@ async function fallbackDataGouv(mode: SearchMode, query: string): Promise<Papper
     if (mode === "siren" && /^\d{9,14}$/.test(clean)) {
       const siren = clean.slice(0, 9);
       const res = await fetch(
-        `https://entreprise.data.gouv.fr/api/sirene/v3/unites_legales/${siren}`
+        `https://entreprise.data.gouv.fr/api/sirene/v3/unites_legales/${siren}`,
+        { signal: AbortSignal.timeout(10000) }
       );
       if (!res.ok) {
         return { results: [], error: "Aucun resultat trouve sur data.gouv.fr", source: "datagouv" };
       }
-      const data = await res.json();
-      const ul = data.unite_legale;
+      const data = await res.json() as Record<string, unknown>;
+      const ul = data?.unite_legale as Record<string, unknown> | undefined;
       if (!ul) return { results: [], error: "Donnees non disponibles", source: "datagouv" };
 
       const siege = ul.etablissement_siege;
@@ -110,7 +111,8 @@ async function fallbackDataGouv(mode: SearchMode, query: string): Promise<Papper
     // Name search fallback
     if (mode === "nom" || mode === "dirigeant") {
       const res = await fetch(
-        `https://entreprise.data.gouv.fr/api/sirene/v1/full_text/${encodeURIComponent(query)}?per_page=5`
+        `https://entreprise.data.gouv.fr/api/sirene/v1/full_text/${encodeURIComponent(query)}?per_page=5`,
+        { signal: AbortSignal.timeout(10000) }
       );
       if (!res.ok) return { results: [], error: "Recherche echouee", source: "datagouv" };
       const data = await res.json();

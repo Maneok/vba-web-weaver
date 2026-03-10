@@ -22,6 +22,7 @@ const TYPE_CONFIG = {
 
 function daysUntil(dateStr: string): number {
   const target = new Date(dateStr);
+  if (isNaN(target.getTime())) return -9999;
   const now = new Date();
   return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }

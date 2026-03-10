@@ -40,20 +40,17 @@ export default function SubscriptionBanner() {
     return () => { cancelled = true; };
   }, [user]);
 
-  // Reset dismissed state on navigation (re-mount)
   useEffect(() => {
-    setDismissed(false);
-  }, []);
+    if (accessData && accessData.sub_status === "suspended" && !accessData.allowed) {
+      navigate("/suspended", { replace: true });
+    }
+  }, [accessData, navigate]);
 
   if (!accessData || dismissed) return null;
 
   const { sub_status, days_remaining, readonly, allowed } = accessData;
 
-  // Suspended + not allowed → redirect
-  if (sub_status === "suspended" && !allowed) {
-    navigate("/suspended", { replace: true });
-    return null;
-  }
+  if (sub_status === "suspended" && !allowed) return null;
 
   // Active → no banner
   if (sub_status === "active") return null;

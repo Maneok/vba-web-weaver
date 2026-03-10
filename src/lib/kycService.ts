@@ -455,16 +455,19 @@ export interface ScreeningState {
   inpi: ScreeningSlot<InpiResult>;
 }
 
-export const INITIAL_SCREENING: ScreeningState = {
-  enterprise: { loading: false, data: null, error: null },
-  sanctions: { loading: false, data: null, error: null },
-  bodacc: { loading: false, data: null, error: null },
-  google: { loading: false, data: null, error: null },
-  news: { loading: false, data: null, error: null },
-  network: { loading: false, data: null, error: null },
-  documents: { loading: false, data: null, error: null },
-  inpi: { loading: false, data: null, error: null },
-};
+export function createInitialScreening(): ScreeningState {
+  return {
+    enterprise: { loading: false, data: null, error: null },
+    sanctions: { loading: false, data: null, error: null },
+    bodacc: { loading: false, data: null, error: null },
+    google: { loading: false, data: null, error: null },
+    news: { loading: false, data: null, error: null },
+    network: { loading: false, data: null, error: null },
+    documents: { loading: false, data: null, error: null },
+    inpi: { loading: false, data: null, error: null },
+  };
+}
+export const INITIAL_SCREENING: ScreeningState = createInitialScreening();
 
 // ====== CORRECTION 4: API Cache ======
 
@@ -574,8 +577,9 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
   const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
   if (!res.ok) throw new Error(`API returned ${res.status}`);
 
-  const data = await res.json();
-  const results: EnterpriseResult[] = (data.results ?? []).slice(0, 10).map((r: Record<string, unknown>) => {
+  const data = await res.json() as Record<string, unknown>;
+  if (!data || typeof data !== "object") throw new Error("Invalid API response");
+  const results: EnterpriseResult[] = (Array.isArray(data.results) ? data.results : []).slice(0, 10).map((r: Record<string, unknown>) => {
     const siege = (r.siege ?? {}) as Record<string, unknown>;
     const dirigeants = ((r.dirigeants ?? []) as Array<Record<string, string>>).map(d => ({
       nom: d.nom ?? "",

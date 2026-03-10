@@ -41,7 +41,7 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
     if (insertError) {
       logger.error("Audit", "insert failed:", insertError.message);
     }
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error("Audit", "trail error:", err);
   }
 }

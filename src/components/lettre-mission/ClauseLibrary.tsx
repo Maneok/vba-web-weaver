@@ -247,7 +247,7 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2">
-                  {clause.content.slice(0, 120)}...
+                  {clause.content ? `${clause.content.slice(0, 120)}${clause.content.length > 120 ? "..." : ""}` : ""}
                 </p>
                 <Badge variant="outline" className="text-[10px] mt-1">
                   {clause.category}

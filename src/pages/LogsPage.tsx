@@ -208,7 +208,7 @@ export default function LogsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 animate-fade-in-up">
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-            <ScrollText className="w-4.5 h-4.5 text-blue-400" />
+            <ScrollText className="w-[18px] h-[18px] text-blue-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-white">{stats.total}</p>
@@ -217,7 +217,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-            <Calendar className="w-4.5 h-4.5 text-emerald-400" />
+            <Calendar className="w-[18px] h-[18px] text-emerald-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-emerald-400">{stats.last7d}</p>
@@ -226,7 +226,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-            <Calendar className="w-4.5 h-4.5 text-purple-400" />
+            <Calendar className="w-[18px] h-[18px] text-purple-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-purple-400">{stats.last30d}</p>
@@ -235,7 +235,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-            <Calendar className="w-4.5 h-4.5 text-amber-400" />
+            <Calendar className="w-[18px] h-[18px] text-amber-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-amber-400">{stats.last90d}</p>
@@ -244,7 +244,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-slate-500/10 flex items-center justify-center">
-            <Activity className="w-4.5 h-4.5 text-slate-400" />
+            <Activity className="w-[18px] h-[18px] text-slate-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-white">{filtered.length}</p>

@@ -45,23 +45,28 @@ export default function PappersSearch({ onSelect }: Props) {
     setResults([]);
     setSelectedSiren(null);
 
-    const res = await searchPappers(mode, query.trim());
-    setLoading(false);
+    try {
+      const res = await searchPappers(mode, query.trim());
 
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
 
-    if (res.results.length === 0) {
-      setError("Aucun resultat trouve pour cette recherche.");
-      return;
-    }
+      if (res.results.length === 0) {
+        setError("Aucun resultat trouve pour cette recherche.");
+        return;
+      }
 
-    setResults(res.results);
+      setResults(res.results);
 
-    if (res.results.length === 1) {
-      handleSelect(res.results[0]);
+      if (res.results.length === 1) {
+        handleSelect(res.results[0]);
+      }
+    } catch {
+      setError("Erreur de connexion. Veuillez reessayer.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -72,10 +77,15 @@ export default function PappersSearch({ onSelect }: Props) {
 
   const handleDownloadDocs = async (result: PappersResult) => {
     setDownloadingDocs(true);
-    const res = await searchPappers("siren", result.siren.replace(/\s/g, ""), true);
-    setDownloadingDocs(false);
-    if (res.results.length > 0 && res.results[0].document_urls) {
-      onSelect({ ...result, document_urls: res.results[0].document_urls });
+    try {
+      const res = await searchPappers("siren", result.siren.replace(/\s/g, ""), true);
+      if (res.results.length > 0 && res.results[0].document_urls) {
+        onSelect({ ...result, document_urls: res.results[0].document_urls });
+      }
+    } catch {
+      setError("Erreur lors du telechargement des documents.");
+    } finally {
+      setDownloadingDocs(false);
     }
   };
 

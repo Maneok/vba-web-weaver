@@ -39,7 +39,7 @@ export function ComplianceGauge({ items, loading = false }: ComplianceGaugeProps
   }
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300">
+    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300" role="figure" aria-label="Indicateurs de conformite">
       <h3 className="font-semibold text-sm flex items-center gap-2 mb-6">
         <ShieldCheck className="w-4 h-4 text-primary" />
         Indicateurs de conformite
@@ -54,7 +54,7 @@ export function ComplianceGauge({ items, loading = false }: ComplianceGaugeProps
                 {item.value}%
               </span>
             </div>
-            <div className="relative h-2.5 bg-muted rounded-full overflow-hidden">
+            <div className="relative h-2.5 bg-muted rounded-full overflow-hidden" role="progressbar" aria-valuenow={item.value} aria-valuemin={0} aria-valuemax={100} aria-label={`${item.label}: ${item.value}%`}>
               <div
                 className={`h-full rounded-full bg-gradient-to-r ${barColor(item.value)} transition-all duration-1000 ease-out`}
                 style={{ width: `${Math.min(item.value, 100)}%` }}

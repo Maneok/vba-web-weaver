@@ -143,6 +143,15 @@ export default function DashboardPage() {
     };
   }, [clients, alertes]);
 
+  const sparklines = useMemo(() => ({
+    totalClients: generateSparkline(stats.totalClients),
+    avgScore: generateSparkline(stats.avgScore),
+    tauxConformite: generateSparkline(stats.tauxConformite),
+    alertesEnCours: generateSparkline(stats.alertesEnCours),
+    revuesEchues: generateSparkline(stats.revuesEchues),
+    caPrevisionnel: generateSparkline(stats.caPrevisionnel / 1000),
+  }), [stats]);
+
   // ── Monthly chart data (computed from clients) ────────────
   const monthlyData = useMemo(() => {
     const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
@@ -241,7 +250,7 @@ export default function DashboardPage() {
       { label: "Documents KYC", value: Math.round((withDocs / total) * 100), description: "CNI / piece d'identite renseignee" },
       { label: "Lettres de mission", value: Math.round((withLM / total) * 100), description: "LM signees vs clients actifs" },
       { label: "Formation collaborateurs", value: Math.round((trained / collabTotal) * 100), description: "Formations < 12 mois" },
-      { label: "Controle qualite", value: Math.min(100, Math.round(Math.random() * 30 + 60)), description: "Controles realises vs attendus" },
+      { label: "Controle qualite", value: 0, description: "Controles realises vs attendus" },
     ];
   }, [clients, collaborateurs]);
 
@@ -310,7 +319,7 @@ export default function DashboardPage() {
           color="#3b82f6"
           trendPercent={12}
           trendUp
-          sparklineData={generateSparkline(stats.totalClients)}
+          sparklineData={sparklines.totalClients}
           loading={isLoading}
         />
         <KPICard
@@ -318,7 +327,7 @@ export default function DashboardPage() {
           title="Score moyen"
           value={stats.avgScore}
           color={scoreColor}
-          sparklineData={generateSparkline(stats.avgScore)}
+          sparklineData={sparklines.avgScore}
           loading={isLoading}
         />
         <KPICard
@@ -326,7 +335,7 @@ export default function DashboardPage() {
           title="Taux conformite"
           value={`${stats.tauxConformite}%`}
           color={conformiteColor}
-          sparklineData={generateSparkline(stats.tauxConformite)}
+          sparklineData={sparklines.tauxConformite}
           loading={isLoading}
         />
         <KPICard
@@ -335,7 +344,7 @@ export default function DashboardPage() {
           value={stats.alertesEnCours}
           color="#f59e0b"
           onClick={() => navigate("/registre")}
-          sparklineData={generateSparkline(stats.alertesEnCours)}
+          sparklineData={sparklines.alertesEnCours}
           loading={isLoading}
         />
         <KPICard
@@ -344,7 +353,7 @@ export default function DashboardPage() {
           value={stats.revuesEchues}
           color={stats.revuesEchues > 0 ? "#ef4444" : "#22c55e"}
           onClick={() => navigate("/bdd?filter=echues")}
-          sparklineData={generateSparkline(stats.revuesEchues)}
+          sparklineData={sparklines.revuesEchues}
           loading={isLoading}
         />
         <KPICard
@@ -352,7 +361,7 @@ export default function DashboardPage() {
           title="CA previsionnel"
           value={`${(stats.caPrevisionnel / 1000).toFixed(0)}k\u20AC`}
           color="#3b82f6"
-          sparklineData={generateSparkline(stats.caPrevisionnel / 1000)}
+          sparklineData={sparklines.caPrevisionnel}
           loading={isLoading}
         />
       </div>

@@ -545,6 +545,7 @@ export default function LettreMissionPage() {
 
   // ── H) Compute duration on final save ──
   const handleSave = async () => {
+   try {
     // Compute duration
     let duration = 0;
     if (data.started_at) {

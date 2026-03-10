@@ -498,8 +498,8 @@ export default function ControlePage() {
 
   // ── BUG FIX #7: Detail by ID instead of index ──
   const detailControle = useMemo(
-    () => detailId ? filteredControles.find((c) => c.id === detailId) ?? null : null,
-    [detailId, filteredControles]
+    () => detailId ? controles.find((c) => c.id === detailId) ?? null : null,
+    [detailId, controles]
   );
 
   const detailIndexInFiltered = useMemo(

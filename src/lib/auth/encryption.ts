@@ -13,6 +13,7 @@ let _cachedKey: CryptoKey | null = null;
 
 async function getKey(): Promise<CryptoKey> {
   if (_cachedKey) return _cachedKey;
+  if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) throw new Error("Encryption keys not configured");
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",

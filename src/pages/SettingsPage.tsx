@@ -198,52 +198,53 @@ export default function SettingsPage() {
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (cancelled) return;
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      setUserId(user.id);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (!user) return;
+        setUserId(user.id);
 
-      const { data, error } = await supabase
-        .from("parametres")
-        .select("*")
-        .eq("user_id", user.id);
+        const { data, error } = await supabase
+          .from("parametres")
+          .select("*")
+          .eq("user_id", user.id);
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (error) {
-        logger.error("Settings", "Error loading parametres:", error);
-        toast.error("Erreur lors du chargement des parametres");
-        setLoading(false);
-        return;
-      }
+        if (error) {
+          logger.error("Settings", "Error loading parametres:", error);
+          toast.error("Erreur lors du chargement des parametres");
+          return;
+        }
 
-      if (data) {
-        for (const row of data) {
-          if (row.cle === "cabinet_info" && row.valeur) {
-            const merged = { ...DEFAULT_CABINET, ...(row.valeur as Partial<CabinetInfo>) };
-            setCabinet(merged);
-            setSavedCabinetSnapshot(merged);
-            if (row.updated_at) setLastSavedCabinet(row.updated_at);
-          }
-          if (row.cle === "scoring_config" && row.valeur) {
-            const merged = { ...DEFAULT_SCORING, ...(row.valeur as Partial<ScoringConfig>) };
-            setScoring(merged);
-            setSavedScoringSnapshot(merged);
-            if (row.updated_at) setLastSavedScoring(row.updated_at);
-          }
-          if (row.cle === "lcbft_config" && row.valeur) {
-            const merged = { ...DEFAULT_LCBFT, ...(row.valeur as Partial<LcbftConfig>) };
-            setLcbft(merged);
-            setSavedLcbftSnapshot(merged);
-            if (row.updated_at) setLastSavedLcbft(row.updated_at);
+        if (data) {
+          for (const row of data) {
+            if (row.cle === "cabinet_info" && row.valeur) {
+              const merged = { ...DEFAULT_CABINET, ...(row.valeur as Partial<CabinetInfo>) };
+              setCabinet(merged);
+              setSavedCabinetSnapshot(merged);
+              if (row.updated_at) setLastSavedCabinet(row.updated_at);
+            }
+            if (row.cle === "scoring_config" && row.valeur) {
+              const merged = { ...DEFAULT_SCORING, ...(row.valeur as Partial<ScoringConfig>) };
+              setScoring(merged);
+              setSavedScoringSnapshot(merged);
+              if (row.updated_at) setLastSavedScoring(row.updated_at);
+            }
+            if (row.cle === "lcbft_config" && row.valeur) {
+              const merged = { ...DEFAULT_LCBFT, ...(row.valeur as Partial<LcbftConfig>) };
+              setLcbft(merged);
+              setSavedLcbftSnapshot(merged);
+              if (row.updated_at) setLastSavedLcbft(row.updated_at);
+            }
           }
         }
+      } catch (err) {
+        logger.error("Settings", "Error loading parametres:", err);
+        toast.error("Erreur lors du chargement des parametres");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      setLoading(false);
     }
     load();
     return () => { cancelled = true; };
@@ -348,15 +349,15 @@ export default function SettingsPage() {
 
   /* --- reset to defaults --- */
   function resetCabinet() {
-    setCabinet(DEFAULT_CABINET);
+    setCabinet({ ...savedCabinetSnapshot });
     setCabinetErrors({});
   }
   function resetScoring() {
-    setScoring(DEFAULT_SCORING);
+    setScoring({ ...savedScoringSnapshot });
     setScoringErrors({});
   }
   function resetLcbft() {
-    setLcbft(DEFAULT_LCBFT);
+    setLcbft({ ...savedLcbftSnapshot });
     setLcbftErrors({});
   }
 
@@ -577,7 +578,7 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-400 text-xs">STANDARD (auto)</Label>
-                  <p className="text-sm text-slate-300 pt-2">{scoring.seuil_bas + 1} &ndash; {scoring.seuil_haut - 1}</p>
+                  <p className="text-sm text-slate-300 pt-2">{scoring.seuil_bas + 1 <= scoring.seuil_haut - 1 ? `${scoring.seuil_bas + 1} \u2013 ${scoring.seuil_haut - 1}` : "Plage invalide"}</p>
                   <p className="text-[11px] text-slate-500">Plage calculee automatiquement</p>
                 </div>
               </div>

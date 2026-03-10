@@ -58,7 +58,13 @@ function exportAuditCSV(entries: AuditRow[]) {
     e.record_id || "",
     e.new_data ? JSON.stringify(e.new_data).slice(0, 500) : "",
   ]);
-  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""')}"`).join(";"))].join("\n");
+  const safe = (v: string) => {
+    const s = v || "";
+    const escaped = s.replace(/"/g, '""');
+    if (/^[=+\-@\t\r]/.test(s)) return `"'${escaped}"`;
+    return `"${escaped}"`;
+  };
+  const csv = [headers.join(";"), ...rows.map(r => r.map(safe).join(";"))].join("\n");
   const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
@@ -134,7 +140,7 @@ export default function AuditTrailPage() {
         } else if (data) {
           setEntries((data ?? []) as AuditRow[]);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         if (mounted) {
           logger.error("[AuditTrail] exception:", err);
           toast.error("Erreur lors du chargement du journal d'audit");

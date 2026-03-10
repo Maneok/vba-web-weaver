@@ -121,6 +121,11 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     );
   }
 
+  if (profile.is_active && signOutTimerRef.current) {
+    clearTimeout(signOutTimerRef.current);
+    signOutTimerRef.current = null;
+  }
+
   if (!profile.is_active) {
     if (!signOutTimerRef.current) {
       signOutTimerRef.current = setTimeout(() => signOut(), 3000);

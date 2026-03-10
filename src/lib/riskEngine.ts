@@ -1,4 +1,5 @@
 import type { VigilanceLevel } from "./types";
+import { RISK_THRESHOLDS } from "./constants";
 
 // ====== CASH-INTENSIVE APE CODES (Idée 4) ======
 export const APE_CASH: string[] = [
@@ -124,7 +125,7 @@ function scoreMaturite(
   // isReprise=false means client was created by firm → lower risk for mature companies
   if (ancienneteYears < 1) return 65;
   if (ancienneteYears < 3) return isReprise ? 50 : 30;
-  if (hasSalaries || isSCI) return isReprise ? 0 : 0;
+  if (hasSalaries || isSCI) return 0;
   if (!isReprise) return 10; // Created by firm, old, no employees
   return 80; // Dormant shell — old company, reprise, no employees
 }
@@ -195,8 +196,8 @@ export function calculateRiskScore(params: {
   scoreGlobal = Math.min(scoreGlobal, 120);
 
   let nivVigilance: VigilanceLevel;
-  if (scoreGlobal <= 25) nivVigilance = "SIMPLIFIEE";
-  else if (scoreGlobal < 60) nivVigilance = "STANDARD";
+  if (scoreGlobal <= RISK_THRESHOLDS.SIMPLIFIEE_MAX) nivVigilance = "SIMPLIFIEE";
+  else if (scoreGlobal <= RISK_THRESHOLDS.STANDARD_MAX) nivVigilance = "STANDARD";
   else nivVigilance = "RENFORCEE";
 
   return {
@@ -217,8 +218,8 @@ export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview
   // P5-11: Guard against invalid date — fallback to today
   if (isNaN(d.getTime())) return calculateNextReviewDate(nivVigilance, new Date().toISOString().split("T")[0]);
   switch (nivVigilance) {
-    case "SIMPLIFIEE": d.setMonth(d.getMonth() + 36); break;
-    case "STANDARD": d.setMonth(d.getMonth() + 12); break;
+    case "SIMPLIFIEE": d.setFullYear(d.getFullYear() + 3); break;
+    case "STANDARD": d.setFullYear(d.getFullYear() + 1); break;
     case "RENFORCEE": d.setMonth(d.getMonth() + 6); break;
   }
   return d.toISOString().split("T")[0];

@@ -9,7 +9,7 @@ import {
 } from "@/components/ui/popover";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { toast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 
 interface Notification {
@@ -97,7 +97,7 @@ export default function NotificationBell() {
       if (error) throw error;
       setNotifications(prev => prev.filter(n => n.id !== id));
     } catch {
-      toast({ title: "Erreur", description: "Impossible de marquer comme lu", variant: "destructive" });
+      toast.error("Impossible de marquer comme lu");
     }
   }, []);
 
@@ -112,7 +112,7 @@ export default function NotificationBell() {
       if (error) throw error;
       setNotifications([]);
     } catch {
-      toast({ title: "Erreur", description: "Impossible de tout marquer comme lu", variant: "destructive" });
+      toast.error("Impossible de tout marquer comme lu");
     }
   }, [notifications]);
 

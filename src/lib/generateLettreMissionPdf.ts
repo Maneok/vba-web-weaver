@@ -155,7 +155,7 @@ export function generateLettreMission(client: Client) {
     y += 7;
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    const beLines = client.be.split("/").map(b => b.trim());
+    const beLines = client.be.split("/").map(b => b.trim()).filter(Boolean);
     for (const be of beLines) {
       doc.text(`- ${be}`, marginL + 5, y);
       y += 5;

@@ -35,7 +35,7 @@ export function VigilanceDonut({ simplifiee, standard, renforcee, loading = fals
   const total = simplifiee + standard + renforcee;
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300">
+    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300" role="figure" aria-label={`Repartition vigilance : ${simplifiee} simplifiee, ${standard} standard, ${renforcee} renforcee`}>
       <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
         <PieChartIcon className="w-4 h-4 text-primary" />
         Repartition vigilance

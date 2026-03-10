@@ -74,7 +74,7 @@ export function ActivityFeed({ logs, loading = false }: ActivityFeedProps) {
           <div className="hidden md:flex gap-3 overflow-x-auto pb-2 scrollbar-thin">
             {recent.map((log, i) => (
               <div
-                key={i}
+                key={`${log.horodatage}-${log.typeAction}-${i}`}
                 className="shrink-0 w-60 bg-muted/30 rounded-xl p-3 border border-border/50 hover:border-border hover:bg-muted/50 hover:-translate-y-0.5 transition-all duration-200"
               >
                 <div className="flex items-center gap-2 mb-2">
@@ -96,7 +96,7 @@ export function ActivityFeed({ logs, loading = false }: ActivityFeedProps) {
           <div className="md:hidden space-y-2">
             {recent.map((log, i) => (
               <div
-                key={i}
+                key={`${log.horodatage}-${log.typeAction}-${i}`}
                 className="flex items-start gap-3 py-2"
               >
                 <div

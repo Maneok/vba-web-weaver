@@ -21,7 +21,7 @@ const LM_COUNTER_KEY = "lcb_lm_counter";
 
 function getStoredCounter(): { year: number; count: number } {
   try {
-    const stored = sessionStorage.getItem(LM_COUNTER_KEY);
+    const stored = localStorage.getItem(LM_COUNTER_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed.year === new Date().getFullYear()) {
@@ -36,7 +36,7 @@ function incrementCounter(): string {
   const current = getStoredCounter();
   const year = new Date().getFullYear();
   const count = current.year === year ? current.count + 1 : 1;
-  sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count }));
+  localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count }));
   return `LM-${year}-${String(count).padStart(3, "0")}`;
 }
 
@@ -45,7 +45,7 @@ function incrementCounter(): string {
  */
 export function resetCounter(value: number = 0): void {
   const year = new Date().getFullYear();
-  sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value }));
+  localStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value }));
 }
 
 // ──────────────────────────────────────────────
@@ -75,7 +75,7 @@ export function validateLettreMission(client: Client, cabinet: CabinetConfig): L
   if (!client.dirigeant) champsManquants.push("Dirigeant");
   if (!client.mission) champsManquants.push("Type de mission");
   if (!client.associe) champsManquants.push("Associé signataire");
-  if (!client.honoraires && client.honoraires !== 0) champsManquants.push("Honoraires");
+  if (client.honoraires === undefined || client.honoraires === null) champsManquants.push("Honoraires");
   if (!client.frequence) champsManquants.push("Fréquence de facturation");
 
   // Cabinet obligatoire
@@ -324,7 +324,7 @@ export function renderToPdf(lettreMission: LettreMission): void {
     const doc = renderLettreMissionPdf(lettreMission);
     const filename = `LDM_${lettreMission?.numero ?? "draft"}_${(lettreMission?.client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.pdf`;
     doc.save(filename);
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error("PDF", "renderToPdf error", err);
     toast.error("Erreur lors de la génération du PDF. Veuillez réessayer.");
   }
