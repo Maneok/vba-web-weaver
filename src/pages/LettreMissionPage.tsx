@@ -8,296 +8,351 @@ import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
 import { toast } from "sonner";
-import {
-  LM_STEP_TITLES,
-  LM_TOTAL_STEPS,
-  INITIAL_LM_WIZARD_DATA,
-  LM_STATUTS,
-  formatDuration,
-  type LMWizardData,
-  type SavedLetter,
-} from "@/lib/lmWizardTypes";
-import { VALIDATORS, sanitizeWizardData } from "@/lib/lmValidation";
-import { incrementCounter } from "@/lib/lettreMissionEngine";
-
-import LMStep1Client from "@/components/lettre-mission/LMStep1Client";
-import LMStep2Missions from "@/components/lettre-mission/LMStep2Missions";
-import LMStep3Details from "@/components/lettre-mission/LMStep3Details";
-import LMStep4Honoraires from "@/components/lettre-mission/LMStep4Honoraires";
-import LMStep5Preview from "@/components/lettre-mission/LMStep5Preview";
-import LMStep6Export from "@/components/lettre-mission/LMStep6Export";
-import LMProgressBar from "@/components/lettre-mission/LMProgressBar";
-import LMSummaryPanel from "@/components/lettre-mission/LMSummaryPanel";
+import { DEFAULT_TEMPLATE, SCI_TEMPLATE, LMNP_TEMPLATE, replaceTemplateVariables } from "@/lib/lettreMissionTemplate";
+import type { TemplateSection } from "@/lib/lettreMissionTemplate";
+import type { Client } from "@/lib/types";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
-  ChevronLeft, ChevronRight, FileText, History, Plus,
-  Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
-  FileDown, Search, Clock, AlertTriangle, Filter,
+  FileText, LayoutTemplate, Plus, Search, Filter, Copy, Edit3,
+  ChevronLeft, ChevronRight, Loader2, ShieldAlert, Save, Eye,
+  FileDown, Mail, Check, X, Users, Briefcase, Scale, Building2,
+  HandCoins, Clock, Lock, Unlock, Variable, Download, Send,
 } from "lucide-react";
 
-// ─────────────────────────────────────────
-// G) Advanced history with filters, duplicate, archive
-// ─────────────────────────────────────────
-function LetterHistory({
-  letters,
-  loading,
-  onEdit,
-  onDuplicate,
-  onArchive,
-  onDownloadPdf,
-}: {
-  letters: SavedLetter[];
-  loading: boolean;
-  onEdit: (letter: SavedLetter) => void;
-  onDuplicate: (letter: SavedLetter) => void;
-  onArchive: (letter: SavedLetter) => void;
-  onDownloadPdf: (letter: SavedLetter) => void;
-}) {
-  const [searchQ, setSearchQ] = useState("");
-  const [filterStatut, setFilterStatut] = useState("all");
-  const [filterPeriode, setFilterPeriode] = useState("all");
-
-  const filtered = useMemo(() => {
-    let result = [...letters];
-
-    // Filter by statut
-    if (filterStatut !== "all") {
-      result = result.filter((l) => l.statut === filterStatut);
-    }
-
-    // Filter by periode
-    if (filterPeriode !== "all") {
-      const now = new Date();
-      const safeDate = (s: string) => { const d = new Date(s); return isNaN(d.getTime()) ? null : d; };
-      if (filterPeriode === "7j") {
-        const d = new Date(); d.setDate(d.getDate() - 7);
-        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt >= d : false; });
-      } else if (filterPeriode === "30j") {
-        const d = new Date(); d.setDate(d.getDate() - 30);
-        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt >= d : false; });
-      } else if (filterPeriode === "annee") {
-        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt.getFullYear() === now.getFullYear() : false; });
-      }
-    }
-
-    // Search
-    if (searchQ.length >= 2) {
-      const q = searchQ.toLowerCase();
-      result = result.filter(
-        (l) =>
-          l.raison_sociale.toLowerCase().includes(q) ||
-          l.numero.toLowerCase().includes(q) ||
-          l.client_ref.toLowerCase().includes(q)
-      );
-    }
-
-    return result;
-  }, [letters, filterStatut, filterPeriode, searchQ]);
-
-  const statusColor = (s: string) => {
-    const found = LM_STATUTS.find((st) => st.value === s);
-    return found?.color || "bg-slate-500/10 text-slate-400 border-slate-500/20";
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20 p-6 lg:p-8">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
-      </div>
-    );
-  }
-
-  if (letters.length === 0) {
-    return (
-      <div className="text-center py-20 p-6 lg:p-8">
-        <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-        <p className="text-slate-400 text-sm">Aucune lettre de mission</p>
-        <p className="text-slate-500 text-xs mt-1">Creez votre premiere lettre</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4">
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-2">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-          <Input
-            placeholder="Rechercher par nom, numero..."
-            value={searchQ}
-            onChange={(e) => setSearchQ(e.target.value)}
-            className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
-          />
-        </div>
-        <Select value={filterStatut} onValueChange={setFilterStatut}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-            <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            {LM_STATUTS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterPeriode} onValueChange={setFilterPeriode}>
-          <SelectTrigger className="w-full sm:w-[140px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-            <Clock className="w-3 h-3 mr-1.5 text-slate-500" />
-            <SelectValue placeholder="Periode" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toutes periodes</SelectItem>
-            <SelectItem value="7j">7 derniers jours</SelectItem>
-            <SelectItem value="30j">30 derniers jours</SelectItem>
-            <SelectItem value="annee">Cette annee</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Results count */}
-      <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
-
-      {/* Table header (desktop) */}
-      <div className="hidden sm:grid grid-cols-[1fr_120px_100px_100px_80px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
-        <span>Client</span>
-        <span>Numero</span>
-        <span>Type</span>
-        <span>Statut</span>
-        <span>Duree</span>
-        <span className="text-right">Actions</span>
-      </div>
-
-      {/* Rows */}
-      <div className="space-y-1.5">
-        {filtered.map((letter) => (
-          <div
-            key={letter.id}
-            className="group sm:grid sm:grid-cols-[1fr_120px_100px_100px_80px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
-          >
-            {/* Client */}
-            <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
-                <FileText className="w-4 h-4 text-blue-400" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-white truncate">{letter.raison_sociale}</p>
-                <p className="text-[10px] text-slate-500 sm:hidden">
-                  {letter.numero} · {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
-                </p>
-              </div>
-            </button>
-
-            {/* Numero */}
-            <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{letter.numero}</span>
-
-            {/* Type */}
-            <span className="hidden sm:block text-xs text-slate-500">{letter.type_mission}</span>
-
-            {/* Statut */}
-            <div className="hidden sm:block">
-              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>
-                {letter.statut}
-              </Badge>
-            </div>
-
-            {/* H) Duration */}
-            <span className="hidden sm:block text-[10px] text-slate-600">
-              {letter.duration_seconds ? formatDuration(letter.duration_seconds) : "—"}
-            </span>
-
-            {/* Actions */}
-            <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              <button
-                onClick={() => onEdit(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
-                title="Modifier"
-              >
-                <Edit3 className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onDuplicate(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
-                title="Dupliquer"
-              >
-                <Copy className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onDownloadPdf(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-purple-400 transition-colors"
-                title="PDF"
-              >
-                <FileDown className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onArchive(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-amber-400 transition-colors"
-                title="Archiver"
-              >
-                <Archive className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {/* Mobile actions */}
-            <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
-              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>{letter.statut}</Badge>
-              <div className="flex-1" />
-              <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {filtered.length === 0 && letters.length > 0 && (
-        <div className="text-center py-10 text-slate-500 text-sm">Aucun resultat pour ces filtres</div>
-      )}
-    </div>
-  );
+// ─── Types ───
+interface LMTemplate {
+  id: string;
+  cabinet_id: string | null;
+  nom: string;
+  forme_juridique: string;
+  description: string | null;
+  sections: TemplateSection[];
+  is_default: boolean;
+  type_activite: string;
+  tags: string[];
+  usage_count: number;
+  variables_used: string[];
+  created_at: string;
+  updated_at: string;
 }
 
-// ─────────────────────────────────────────
-// F) Renewal alerts
-// ─────────────────────────────────────────
-function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
-  const expiringSoon = useMemo(() => {
-    const now = new Date();
-    const in60Days = new Date(); in60Days.setDate(in60Days.getDate() + 60);
-    return letters.filter((l) => {
-      if (l.statut !== "signee") return false;
-      const wd = l.wizard_data;
-      if (!wd?.date_debut || !wd?.duree) return false;
-      const start = new Date(wd.date_debut);
-      const years = parseInt(wd.duree, 10) || 1;
-      const end = new Date(start);
-      end.setFullYear(end.getFullYear() + years);
-      return end >= now && end <= in60Days;
-    });
-  }, [letters]);
+interface SavedLettre {
+  id: string;
+  numero: string | null;
+  client_ref: string | null;
+  client_id: string | null;
+  template_id: string | null;
+  statut_lm: string;
+  wizard_step: number;
+  generated_content: Record<string, string>;
+  wizard_data: Record<string, any>;
+  created_at: string;
+  updated_at: string;
+  cabinet_id: string | null;
+  // joined
+  client_name?: string;
+  template_name?: string;
+}
 
-  if (expiringSoon.length === 0) return null;
+// ─── Constants ───
+const TYPE_ACTIVITE_OPTIONS = [
+  { value: "all", label: "Tous les types" },
+  { value: "tenue", label: "Tenue comptable" },
+  { value: "revision", label: "Revision" },
+  { value: "social", label: "Social / Paie" },
+  { value: "juridique", label: "Juridique" },
+  { value: "accompagnement", label: "Accompagnement" },
+];
+
+const STATUT_CONFIG: Record<string, { label: string; color: string }> = {
+  BROUILLON: { label: "Brouillon", color: "bg-amber-500/10 text-amber-400 border-amber-500/20" },
+  GENERE: { label: "Genere", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  SIGNE: { label: "Signe", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  ENVOYE: { label: "Envoye", color: "bg-violet-500/10 text-violet-400 border-violet-500/20" },
+};
+
+const SECTION_ICONS: Record<string, any> = {
+  parties: Users,
+  objet: Briefcase,
+  missions: FileText,
+  honoraires: HandCoins,
+  duree: Clock,
+  lcbft: ShieldAlert,
+  confidentialite: Lock,
+  signature: Edit3,
+};
+
+const TEMPLATE_VARIABLES = [
+  { key: "raison_sociale", label: "Raison sociale" },
+  { key: "siren", label: "SIREN" },
+  { key: "dirigeant", label: "Dirigeant" },
+  { key: "adresse", label: "Adresse" },
+  { key: "ville", label: "Ville" },
+  { key: "cp", label: "Code postal" },
+  { key: "capital", label: "Capital" },
+  { key: "forme_juridique", label: "Forme juridique" },
+  { key: "honoraires", label: "Honoraires" },
+  { key: "frequence", label: "Frequence" },
+  { key: "associe", label: "Associe signataire" },
+  { key: "date_du_jour", label: "Date du jour" },
+  { key: "nom_cabinet", label: "Nom du cabinet" },
+  { key: "effectif", label: "Effectif" },
+  { key: "ape", label: "Code APE" },
+  { key: "date_cloture", label: "Date de cloture" },
+];
+
+// ─── Section mapping for template editor ───
+const EDITOR_SECTIONS = [
+  { id: "parties", label: "Parties", sectionIds: ["destinataire", "introduction", "entite"] },
+  { id: "objet", label: "Objet", sectionIds: ["mission", "nature_limite"] },
+  { id: "missions", label: "Missions", sectionIds: ["missions_complementaires_intro", "mission_sociale", "mission_juridique", "mission_fiscal"] },
+  { id: "honoraires", label: "Honoraires", sectionIds: ["honoraires", "modalites"] },
+  { id: "duree", label: "Duree", sectionIds: ["duree", "organisation"] },
+  { id: "lcbft", label: "LCB-FT", sectionIds: ["lcbft", "lcbft_sci_specifique", "lcbft_lmnp_specifique"] },
+  { id: "confidentialite", label: "Confidentialite", sectionIds: ["annexe_cgv"] },
+  { id: "signature", label: "Signature", sectionIds: ["signature"] },
+];
+
+// ═══════════════════════════════════════════════
+// Template Editor (split-screen)
+// ═══════════════════════════════════════════════
+function TemplateEditor({
+  template,
+  onSave,
+  onClose,
+}: {
+  template: LMTemplate | null;
+  onSave: (t: Partial<LMTemplate>) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [nom, setNom] = useState(template?.nom || "");
+  const [typeActivite, setTypeActivite] = useState(template?.type_activite || "tenue");
+  const [description, setDescription] = useState(template?.description || "");
+  const [sections, setSections] = useState<TemplateSection[]>(template?.sections || [...DEFAULT_TEMPLATE]);
+  const [activeSection, setActiveSection] = useState(EDITOR_SECTIONS[0].id);
+  const [disabledSections, setDisabledSections] = useState<Set<string>>(new Set());
+  const [saving, setSaving] = useState(false);
+  const [showVarMenu, setShowVarMenu] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const activeSectionDef = EDITOR_SECTIONS.find((s) => s.id === activeSection);
+  const matchingSections = sections.filter((s) => activeSectionDef?.sectionIds.includes(s.id));
+
+  const toggleSection = (sectionId: string) => {
+    setDisabledSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) next.delete(sectionId);
+      else next.add(sectionId);
+      return next;
+    });
+  };
+
+  const updateSectionContent = (sectionId: string, content: string) => {
+    setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, content } : s)));
+  };
+
+  const insertVariable = (varKey: string) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const start = ta.selectionStart;
+    const end = ta.selectionEnd;
+    const text = ta.value;
+    const insertion = `{{${varKey}}}`;
+    const newText = text.slice(0, start) + insertion + text.slice(end);
+    // find the section being edited
+    if (matchingSections.length > 0) {
+      updateSectionContent(matchingSections[0].id, newText);
+    }
+    setShowVarMenu(false);
+    setTimeout(() => {
+      ta.focus();
+      ta.setSelectionRange(start + insertion.length, start + insertion.length);
+    }, 50);
+  };
+
+  const handleSave = async () => {
+    if (!nom.trim()) { toast.error("Le nom du modele est requis"); return; }
+    setSaving(true);
+    try {
+      await onSave({
+        id: template?.id,
+        nom: nom.trim(),
+        type_activite: typeActivite,
+        description: description.trim(),
+        sections,
+        forme_juridique: typeActivite,
+      });
+      toast.success("Modele sauvegarde");
+      onClose();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la sauvegarde");
+    }
+    setSaving(false);
+  };
+
+  // Highlight variables in text
+  const renderHighlightedText = (text: string) => {
+    const parts = text.split(/(\{\{\w+\}\})/g);
+    return parts.map((part, i) =>
+      /^\{\{\w+\}\}$/.test(part) ? (
+        <span key={i} className="bg-blue-500/20 text-blue-300 px-1 rounded text-xs font-mono">{part}</span>
+      ) : (
+        <span key={i}>{part}</span>
+      )
+    );
+  };
 
   return (
-    <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 animate-fade-in-up">
-      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-      <div>
-        <p className="text-sm font-medium text-amber-300">
-          {expiringSoon.length} lettre{expiringSoon.length > 1 ? "s" : ""} expire{expiringSoon.length > 1 ? "nt" : ""} dans 60 jours
-        </p>
-        <div className="mt-1.5 space-y-1">
-          {expiringSoon.slice(0, 3).map((l) => (
-            <p key={l.id} className="text-xs text-amber-400/70">{l.raison_sociale} — {l.numero}</p>
-          ))}
-          {expiringSoon.length > 3 && (
-            <p className="text-[10px] text-amber-400/50">+{expiringSoon.length - 3} autres</p>
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
+      {/* Header */}
+      <div className="border-b border-white/[0.06] px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white">
+            <ChevronLeft className="w-4 h-4 mr-1" /> Retour
+          </Button>
+          <div className="h-6 w-px bg-white/[0.08]" />
+          <Input
+            value={nom}
+            onChange={(e) => setNom(e.target.value)}
+            placeholder="Nom du modele..."
+            className="bg-transparent border-none text-lg font-semibold text-white w-[300px] focus-visible:ring-0 px-0"
+          />
+        </div>
+        <div className="flex items-center gap-3">
+          <Select value={typeActivite} onValueChange={setTypeActivite}>
+            <SelectTrigger className="w-[180px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {TYPE_ACTIVITE_OPTIONS.filter((o) => o.value !== "all").map((o) => (
+                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 gap-1.5">
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Sauvegarder
+          </Button>
+        </div>
+      </div>
+
+      {/* Description */}
+      <div className="px-6 py-2 border-b border-white/[0.04]">
+        <Input
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Description du modele..."
+          className="bg-transparent border-none text-sm text-slate-400 focus-visible:ring-0 px-0"
+        />
+      </div>
+
+      {/* Split view */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left: Section menu */}
+        <div className="w-[240px] border-r border-white/[0.06] py-4 overflow-y-auto shrink-0">
+          <p className="px-4 text-[10px] text-slate-600 uppercase tracking-wider mb-3">Sections</p>
+          {EDITOR_SECTIONS.map((sec) => {
+            const Icon = SECTION_ICONS[sec.id] || FileText;
+            const isActive = activeSection === sec.id;
+            const isDisabled = disabledSections.has(sec.id);
+            return (
+              <div key={sec.id} className="px-3 mb-1">
+                <button
+                  onClick={() => setActiveSection(sec.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-all ${
+                    isActive
+                      ? "bg-blue-500/10 text-blue-300 border border-blue-500/20"
+                      : "text-slate-400 hover:bg-white/[0.04] hover:text-white border border-transparent"
+                  } ${isDisabled ? "opacity-40" : ""}`}
+                >
+                  <Icon className="w-4 h-4 shrink-0" />
+                  <span className="flex-1 text-left truncate">{sec.label}</span>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); toggleSection(sec.id); }}
+                    className="p-0.5 hover:bg-white/[0.06] rounded"
+                    title={isDisabled ? "Activer" : "Desactiver"}
+                  >
+                    {isDisabled ? <X className="w-3 h-3 text-red-400" /> : <Check className="w-3 h-3 text-emerald-400" />}
+                  </button>
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Right: Content editor */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-lg font-semibold text-white">{activeSectionDef?.label}</h3>
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowVarMenu(!showVarMenu)}
+                className="gap-1.5 border-white/[0.08] text-xs text-slate-400"
+              >
+                <Variable className="w-3.5 h-3.5" /> Inserer une variable
+              </Button>
+              {showVarMenu && (
+                <div className="absolute right-0 top-full mt-1 w-[260px] bg-slate-900 border border-white/[0.1] rounded-xl shadow-xl z-50 p-2 max-h-[300px] overflow-y-auto">
+                  {TEMPLATE_VARIABLES.map((v) => (
+                    <button
+                      key={v.key}
+                      onClick={() => insertVariable(v.key)}
+                      className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-white/[0.04] text-sm text-left"
+                    >
+                      <span className="text-slate-300">{v.label}</span>
+                      <code className="text-[10px] text-blue-400 font-mono">{`{{${v.key}}}`}</code>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {disabledSections.has(activeSection) && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-sm text-red-300">
+              Cette section est desactivee. Elle ne sera pas incluse dans les lettres generees.
+            </div>
+          )}
+
+          {matchingSections.length === 0 ? (
+            <p className="text-slate-500 text-sm">Aucune sous-section pour cette categorie dans le modele selectionne.</p>
+          ) : (
+            matchingSections.map((sec) => (
+              <div key={sec.id} className="space-y-2">
+                <label className="text-xs text-slate-500 font-medium">{sec.title}</label>
+                {sec.content === "TABLEAU_ENTITE" || sec.content === "TABLEAU_HONORAIRES" || sec.content === "TABLEAU_REPARTITION" || sec.content === "BLOC_LCBFT" ? (
+                  <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-4">
+                    <p className="text-xs text-slate-500 italic">Contenu genere automatiquement : {sec.content}</p>
+                  </div>
+                ) : (
+                  <Textarea
+                    ref={matchingSections.indexOf(sec) === 0 ? textareaRef : undefined}
+                    value={sec.content}
+                    onChange={(e) => updateSectionContent(sec.id, e.target.value)}
+                    rows={Math.max(6, sec.content.split("\n").length + 2)}
+                    className="bg-white/[0.02] border-white/[0.06] text-slate-200 text-sm font-mono leading-relaxed resize-y"
+                    disabled={!sec.editable}
+                  />
+                )}
+                {/* Preview with highlighted variables */}
+                {sec.editable && sec.content.includes("{{") && (
+                  <div className="bg-white/[0.01] border border-white/[0.04] rounded-lg p-3 text-sm leading-relaxed">
+                    <p className="text-[10px] text-slate-600 mb-2">Apercu des variables :</p>
+                    <div className="whitespace-pre-wrap text-slate-400">{renderHighlightedText(sec.content)}</div>
+                  </div>
+                )}
+              </div>
+            ))
           )}
         </div>
       </div>
@@ -305,638 +360,917 @@ function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
   );
 }
 
-// ─────────────────────────────────────────
-// Page principale
-// ─────────────────────────────────────────
+// ═══════════════════════════════════════════════
+// Wizard: 4-step letter generation
+// ═══════════════════════════════════════════════
+function LetterWizard({
+  clients,
+  templates,
+  cabinetId,
+  onClose,
+  onSaved,
+  initialLetter,
+}: {
+  clients: Client[];
+  templates: LMTemplate[];
+  cabinetId: string | null;
+  onClose: () => void;
+  onSaved: () => void;
+  initialLetter?: SavedLettre | null;
+}) {
+  const [wizardStep, setWizardStep] = useState(initialLetter?.wizard_step || 1);
+  const [selectedClientId, setSelectedClientId] = useState(initialLetter?.client_id || "");
+  const [selectedTemplateId, setSelectedTemplateId] = useState(initialLetter?.template_id || "");
+  const [generatedContent, setGeneratedContent] = useState<Record<string, string>>(initialLetter?.generated_content || {});
+  const [sectionToggles, setSectionToggles] = useState<Record<string, boolean>>({});
+  const [saving, setSaving] = useState(false);
+  const [letterId, setLetterId] = useState<string | null>(initialLetter?.id || null);
+  const [clientSearch, setClientSearch] = useState("");
+  const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const selectedClient = useMemo(() => clients.find((c) => c.ref === selectedClientId), [clients, selectedClientId]);
+  const selectedTemplate = useMemo(() => templates.find((t) => t.id === selectedTemplateId), [templates, selectedTemplateId]);
+
+  // Build variables from client
+  const variables = useMemo(() => {
+    if (!selectedClient) return {};
+    const months = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
+    const now = new Date();
+    return {
+      raison_sociale: selectedClient.raisonSociale || "",
+      siren: selectedClient.siren || "",
+      dirigeant: selectedClient.dirigeant || "",
+      adresse: selectedClient.adresse || "",
+      ville: selectedClient.ville || "",
+      cp: selectedClient.cp || "",
+      code_postal: selectedClient.cp || "",
+      capital: String(selectedClient.capital || ""),
+      forme_juridique: selectedClient.forme || "",
+      honoraires: String(selectedClient.honoraires || 0),
+      frequence: selectedClient.frequence || "MENSUEL",
+      associe: selectedClient.associe || "",
+      date_du_jour: `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`,
+      nom_cabinet: "Cabinet d'expertise comptable",
+      effectif: selectedClient.effectif || "",
+      ape: selectedClient.ape || "",
+      date_cloture: selectedClient.dateCloture || "31/12",
+      formule_politesse: "Monsieur",
+      iban: selectedClient.iban || "",
+      bic: selectedClient.bic || "",
+      ref: selectedClient.ref || "",
+    };
+  }, [selectedClient]);
+
+  // Generate content from template + variables when entering step 3
+  useEffect(() => {
+    if (wizardStep === 3 && selectedTemplate && Object.keys(generatedContent).length === 0) {
+      const content: Record<string, string> = {};
+      const toggles: Record<string, boolean> = {};
+      for (const section of selectedTemplate.sections) {
+        const resolved = replaceTemplateVariables(section.content, variables);
+        content[section.id] = resolved;
+        toggles[section.id] = true;
+      }
+      setGeneratedContent(content);
+      setSectionToggles(toggles);
+    }
+  }, [wizardStep, selectedTemplate, variables]);
+
+  // Auto-save every 30s
+  useEffect(() => {
+    if (!selectedClientId) return;
+    clearTimeout(autoSaveTimer.current);
+    autoSaveTimer.current = setTimeout(() => saveToSupabase("BROUILLON"), 30000);
+    return () => clearTimeout(autoSaveTimer.current);
+  }, [selectedClientId, selectedTemplateId, generatedContent, wizardStep]);
+
+  const saveToSupabase = async (statut: string) => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) return;
+      const payload: Record<string, any> = {
+        cabinet_id: cabinetId,
+        template_id: selectedTemplateId || null,
+        client_id: selectedClientId || null,
+        client_ref: selectedClient?.ref || null,
+        wizard_step: wizardStep,
+        statut_lm: statut,
+        generated_content: generatedContent,
+        wizard_data: { client_name: selectedClient?.raisonSociale, template_name: selectedTemplate?.nom },
+        updated_at: new Date().toISOString(),
+      };
+      if (letterId) {
+        await supabase.from("lettres_mission").update(payload).eq("id", letterId);
+      } else {
+        payload.user_id = authData.user.id;
+        const { data: ins } = await supabase.from("lettres_mission").insert(payload).select("id").maybeSingle();
+        if (ins) setLetterId(ins.id);
+      }
+    } catch (e) {
+      logger.warn("LM", "Auto-save failed:", e);
+    }
+  };
+
+  const handleSaveDraft = async () => {
+    setSaving(true);
+    await saveToSupabase("BROUILLON");
+    toast.success("Brouillon sauvegarde");
+    setSaving(false);
+  };
+
+  const handleExportPdf = async () => {
+    if (!selectedClient || !selectedTemplate) return;
+    setSaving(true);
+    try {
+      const { renderNewLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
+      const activeSections = selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false);
+      // override content with user edits
+      const editedSections = activeSections.map((s) => ({
+        ...s,
+        content: generatedContent[s.id] || s.content,
+      }));
+      renderNewLettreMissionPdf({
+        sections: editedSections,
+        client: selectedClient,
+        genre: "M",
+        missions: {
+          sociale: sectionToggles["mission_sociale"] !== false,
+          juridique: sectionToggles["mission_juridique"] !== false,
+          fiscal: sectionToggles["mission_fiscal"] !== false,
+        },
+        honoraires: {
+          comptable: selectedClient.honoraires || 0,
+          constitution: 0,
+          juridique: selectedClient.juridique || 0,
+          frequence: (selectedClient.frequence as any) || "MENSUEL",
+        },
+        cabinet: {
+          nom: "Cabinet d'expertise comptable",
+          adresse: "", cp: "", ville: "",
+          siret: "", numeroOEC: "", email: "", telephone: "",
+        },
+        variables,
+      });
+      await saveToSupabase("GENERE");
+      toast.success("PDF genere");
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur PDF");
+    }
+    setSaving(false);
+  };
+
+  const handleExportDocx = async () => {
+    if (!selectedClient || !selectedTemplate) return;
+    setSaving(true);
+    try {
+      const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
+      const activeSections = selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false);
+      const editedSections = activeSections.map((s) => ({
+        ...s,
+        content: generatedContent[s.id] || s.content,
+      }));
+      await renderNewLettreMissionDocx({
+        sections: editedSections,
+        client: selectedClient,
+        genre: "M",
+        missions: {
+          sociale: sectionToggles["mission_sociale"] !== false,
+          juridique: sectionToggles["mission_juridique"] !== false,
+          fiscal: sectionToggles["mission_fiscal"] !== false,
+        },
+        honoraires: {
+          comptable: selectedClient.honoraires || 0,
+          constitution: 0,
+          juridique: selectedClient.juridique || 0,
+          frequence: (selectedClient.frequence as any) || "MENSUEL",
+        },
+        cabinet: {
+          nom: "Cabinet d'expertise comptable",
+          adresse: "", cp: "", ville: "",
+          siret: "", numeroOEC: "", email: "", telephone: "",
+        },
+        variables,
+      });
+      await saveToSupabase("GENERE");
+      toast.success("DOCX genere");
+      onSaved();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur DOCX");
+    }
+    setSaving(false);
+  };
+
+  const handleEmail = () => {
+    if (!selectedClient) return;
+    const subject = encodeURIComponent(`Lettre de mission — ${selectedClient.raisonSociale}`);
+    const body = encodeURIComponent(`Bonjour,\n\nVeuillez trouver ci-jointe la lettre de mission pour ${selectedClient.raisonSociale}.\n\nCordialement`);
+    window.open(`mailto:${selectedClient.mail || ""}?subject=${subject}&body=${body}`, "_self");
+    saveToSupabase("ENVOYE");
+  };
+
+  const filteredClients = useMemo(() => {
+    if (!clientSearch || clientSearch.length < 2) return clients;
+    const q = clientSearch.toLowerCase();
+    return clients.filter(
+      (c) => c.raisonSociale?.toLowerCase().includes(q) || c.ref?.toLowerCase().includes(q) || c.siren?.toLowerCase().includes(q)
+    );
+  }, [clients, clientSearch]);
+
+  const canNext = () => {
+    if (wizardStep === 1) return !!selectedClientId;
+    if (wizardStep === 2) return !!selectedTemplateId;
+    return true;
+  };
+
+  const stepTitles = ["", "Choisir un client", "Choisir un modele", "Previsualisation", "Export"];
+
+  return (
+    <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
+      {/* Header */}
+      <div className="border-b border-white/[0.06] px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white">
+            <ChevronLeft className="w-4 h-4 mr-1" /> Retour
+          </Button>
+          <div className="h-6 w-px bg-white/[0.08]" />
+          <h2 className="text-lg font-semibold text-white">Nouvelle lettre de mission</h2>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button variant="outline" size="sm" onClick={handleSaveDraft} disabled={saving} className="gap-1.5 border-white/[0.08] text-slate-400">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            Sauvegarder
+          </Button>
+        </div>
+      </div>
+
+      {/* Progress */}
+      <div className="px-6 py-3 border-b border-white/[0.04] flex items-center gap-2">
+        {[1, 2, 3, 4].map((s) => (
+          <div key={s} className="flex items-center gap-2 flex-1">
+            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
+              s === wizardStep ? "bg-blue-600 text-white" : s < wizardStep ? "bg-emerald-500/20 text-emerald-400" : "bg-white/[0.04] text-slate-600"
+            }`}>
+              {s < wizardStep ? <Check className="w-3.5 h-3.5" /> : s}
+            </div>
+            <span className={`text-xs hidden sm:block ${s === wizardStep ? "text-white font-medium" : "text-slate-600"}`}>
+              {stepTitles[s]}
+            </span>
+            {s < 4 && <div className={`flex-1 h-px ${s < wizardStep ? "bg-emerald-500/30" : "bg-white/[0.06]"}`} />}
+          </div>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-[900px] mx-auto">
+
+          {/* Step 1: Client */}
+          {wizardStep === 1 && (
+            <div className="space-y-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Input
+                  placeholder="Rechercher un client par nom, reference ou SIREN..."
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                  className="pl-10 h-11 bg-white/[0.04] border-white/[0.08] text-white"
+                  autoFocus
+                />
+              </div>
+              <div className="grid gap-2 max-h-[calc(100vh-320px)] overflow-y-auto">
+                {filteredClients.slice(0, 50).map((client) => (
+                  <button
+                    key={client.ref}
+                    onClick={() => setSelectedClientId(client.ref)}
+                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+                      selectedClientId === client.ref
+                        ? "bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20"
+                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                      <Building2 className="w-5 h-5 text-blue-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate">{client.raisonSociale}</p>
+                      <p className="text-xs text-slate-500">{client.forme} · {client.siren} · {client.ref}</p>
+                    </div>
+                    {selectedClientId === client.ref && (
+                      <Check className="w-5 h-5 text-blue-400 shrink-0" />
+                    )}
+                  </button>
+                ))}
+                {filteredClients.length === 0 && (
+                  <p className="text-center text-slate-500 text-sm py-10">Aucun client trouve</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 2: Template */}
+          {wizardStep === 2 && (
+            <div className="grid gap-3">
+              {templates.map((tpl) => (
+                <button
+                  key={tpl.id}
+                  onClick={() => setSelectedTemplateId(tpl.id)}
+                  className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+                    selectedTemplateId === tpl.id
+                      ? "bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20"
+                      : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]"
+                  }`}
+                >
+                  <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                    <LayoutTemplate className="w-5 h-5 text-violet-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-white">{tpl.nom}</p>
+                    <p className="text-xs text-slate-500">{tpl.description || tpl.type_activite}</p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] border-white/[0.1] text-slate-500 shrink-0">
+                    {tpl.usage_count} utilisation{tpl.usage_count !== 1 ? "s" : ""}
+                  </Badge>
+                  {selectedTemplateId === tpl.id && <Check className="w-5 h-5 text-blue-400 shrink-0" />}
+                </button>
+              ))}
+              {templates.length === 0 && (
+                <p className="text-center text-slate-500 text-sm py-10">Aucun modele disponible. Creez-en un dans l'onglet Modeles.</p>
+              )}
+            </div>
+          )}
+
+          {/* Step 3: Preview */}
+          {wizardStep === 3 && selectedTemplate && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm text-slate-400">
+                  <span className="text-white font-medium">{selectedClient?.raisonSociale}</span> — {selectedTemplate.nom}
+                </p>
+              </div>
+              {selectedTemplate.sections.map((section) => {
+                const isActive = sectionToggles[section.id] !== false;
+                const content = generatedContent[section.id] || section.content;
+                const isAuto = ["TABLEAU_ENTITE", "TABLEAU_HONORAIRES", "TABLEAU_REPARTITION", "BLOC_LCBFT"].includes(section.content);
+                return (
+                  <div key={section.id} className={`rounded-xl border transition-all ${isActive ? "bg-white/[0.02] border-white/[0.06]" : "bg-white/[0.01] border-white/[0.03] opacity-40"}`}>
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04]">
+                      <span className="text-sm font-medium text-white">{section.title}</span>
+                      <div className="flex items-center gap-2">
+                        <Switch
+                          checked={isActive}
+                          onCheckedChange={(v) => setSectionToggles((prev) => ({ ...prev, [section.id]: v }))}
+                        />
+                      </div>
+                    </div>
+                    {isActive && (
+                      <div className="p-4">
+                        {isAuto ? (
+                          <p className="text-xs text-slate-500 italic">Contenu genere automatiquement ({section.content})</p>
+                        ) : (
+                          <Textarea
+                            value={content}
+                            onChange={(e) => setGeneratedContent((prev) => ({ ...prev, [section.id]: e.target.value }))}
+                            rows={Math.max(3, content.split("\n").length)}
+                            className="bg-transparent border-none text-sm text-slate-300 leading-relaxed resize-y focus-visible:ring-0 p-0"
+                          />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Step 4: Export */}
+          {wizardStep === 4 && (
+            <div className="space-y-6 max-w-[500px] mx-auto py-10">
+              <div className="text-center mb-8">
+                <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 flex items-center justify-center mx-auto mb-4">
+                  <Check className="w-8 h-8 text-emerald-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white">Votre lettre est prete</h3>
+                <p className="text-sm text-slate-400 mt-2">
+                  {selectedClient?.raisonSociale} — {selectedTemplate?.nom}
+                </p>
+              </div>
+
+              <div className="grid gap-3">
+                <Button
+                  onClick={handleExportPdf}
+                  disabled={saving}
+                  className="h-14 bg-red-600/90 hover:bg-red-600 gap-3 text-base"
+                >
+                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileDown className="w-5 h-5" />}
+                  Telecharger en PDF
+                </Button>
+                <Button
+                  onClick={handleExportDocx}
+                  disabled={saving}
+                  variant="outline"
+                  className="h-14 border-blue-500/30 text-blue-300 hover:bg-blue-500/10 gap-3 text-base"
+                >
+                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Download className="w-5 h-5" />}
+                  Telecharger en DOCX
+                </Button>
+                <Button
+                  onClick={handleEmail}
+                  variant="outline"
+                  className="h-14 border-violet-500/30 text-violet-300 hover:bg-violet-500/10 gap-3 text-base"
+                >
+                  <Mail className="w-5 h-5" />
+                  Envoyer par email
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Footer navigation */}
+      <div className="border-t border-white/[0.06] px-6 py-4 flex items-center justify-between shrink-0">
+        <Button
+          variant="outline"
+          onClick={() => setWizardStep((s) => Math.max(1, s - 1))}
+          disabled={wizardStep === 1}
+          className="gap-1.5 border-white/[0.08]"
+        >
+          <ChevronLeft className="w-4 h-4" /> Precedent
+        </Button>
+        <span className="text-xs text-slate-600">Etape {wizardStep} / 4</span>
+        {wizardStep < 4 ? (
+          <Button
+            onClick={() => setWizardStep((s) => Math.min(4, s + 1))}
+            disabled={!canNext()}
+            className="gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40"
+          >
+            Suivant <ChevronRight className="w-4 h-4" />
+          </Button>
+        ) : (
+          <div className="w-24" />
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════
+// Main Page
+// ═══════════════════════════════════════════════
 export default function LettreMissionPage() {
   const navigate = useNavigate();
   const { clients } = useAppState();
   const { hasPermission, profile } = useAuth();
   const isMobile = useIsMobile();
-  const [activeTab, setActiveTab] = useState("wizard");
 
-  useDocumentTitle("Lettre de Mission");
+  useDocumentTitle("Lettres de mission");
 
-  // ── Wizard state (all hooks must be declared before any early return) ──
-  const [step, setStep] = useState(0);
-  const [data, setData] = useState<LMWizardData>({ ...INITIAL_LM_WIZARD_DATA });
-  const [stepDirection, setStepDirection] = useState<"left" | "right">("right");
-  const [fieldsVisible, setFieldsVisible] = useState(true);
-  const prevStepRef = useRef(0);
-  const [lmId, setLmId] = useState<string | null>(null);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [expressMode, setExpressMode] = useState(false);
+  const [activeTab, setActiveTab] = useState("modeles");
+  const [templates, setTemplates] = useState<LMTemplate[]>([]);
+  const [lettres, setLettres] = useState<SavedLettre[]>([]);
+  const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [loadingLettres, setLoadingLettres] = useState(true);
+  const [filterType, setFilterType] = useState("all");
+  const [searchTemplates, setSearchTemplates] = useState("");
+  const [searchLettres, setSearchLettres] = useState("");
+  const [filterStatut, setFilterStatut] = useState("all");
 
-  // Draft
-  const [showDraftBanner, setShowDraftBanner] = useState(false);
-  const [draftInfo, setDraftInfo] = useState<{ id: string; wizard_data: Record<string, unknown>; wizard_step: number } | null>(null);
+  // Editor / Wizard states
+  const [editingTemplate, setEditingTemplate] = useState<LMTemplate | null | "new">(null);
+  const [showWizard, setShowWizard] = useState(false);
+  const [editingLettre, setEditingLettre] = useState<SavedLettre | null>(null);
 
-  // History
-  const [savedLetters, setSavedLetters] = useState<SavedLetter[]>([]);
-  const [historyLoading, setHistoryLoading] = useState(false);
-
-  // Swipe
-  const touchStartX = useRef<number | null>(null);
-
-  // ── Permission check (after all hooks) ──
+  // Permission check
   if (!hasPermission("write_clients")) {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
         <ShieldAlert className="w-12 h-12 text-red-400" />
         <p className="text-white font-medium">Acces refuse</p>
-        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
+        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour gerer les lettres de mission.</p>
         <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
       </div>
     );
   }
 
-  // ── H) Time tracking ──
-  useEffect(() => {
-    if (!data.started_at) {
-      setData((prev) => ({ ...prev, started_at: new Date().toISOString() }));
+  // ─── Data loading ───
+  const loadTemplates = useCallback(async () => {
+    setLoadingTemplates(true);
+    try {
+      const { data, error } = await supabase
+        .from("lm_templates")
+        .select("*")
+        .order("updated_at", { ascending: false });
+      if (error) throw error;
+      if (data) setTemplates(data as LMTemplate[]);
+    } catch (e) {
+      logger.warn("LM", "Failed to load templates:", e);
+      // Fallback: create default templates from local data
+      setTemplates([]);
     }
+    setLoadingTemplates(false);
   }, []);
 
-  // ── Warn on unsaved changes (beforeunload) ──
-  useEffect(() => {
-    if (!data.client_id) return;
-    const handler = (e: BeforeUnloadEvent) => {
-      e.preventDefault();
-    };
-    window.addEventListener("beforeunload", handler);
-    return () => window.removeEventListener("beforeunload", handler);
-  }, [data.client_id]);
-
-  // ── Clean up auto-save timer on unmount ──
-  useEffect(() => {
-    return () => { clearTimeout(saveTimer.current); };
-  }, []);
-
-  // ── Step animation + scroll ──
-  useEffect(() => {
-    setStepDirection(step > prevStepRef.current ? "right" : "left");
-    prevStepRef.current = step;
-    setFieldsVisible(false);
-    const t = setTimeout(() => setFieldsVisible(true), 50);
-    window.scrollTo({ top: 0, behavior: "smooth" });
-    return () => clearTimeout(t);
-  }, [step]);
-
-  // ── sessionStorage draft ──
-  useEffect(() => {
-    try { sessionStorage.setItem("lm_wizard_draft", JSON.stringify({ ...data, wizard_step: step })); } catch { /* storage full */ }
-  }, [data, step]);
-
-  // ── Init: restore draft + load Supabase ──
-  useEffect(() => {
-    let cancelled = false;
+  const loadLettres = useCallback(async () => {
+    setLoadingLettres(true);
     try {
-      const raw = sessionStorage.getItem("lm_wizard_draft");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed.client_id) {
-          setData(parsed);
-          if (parsed.wizard_step > 0) setStep(parsed.wizard_step);
-        }
-      }
-    } catch (e) {
-      logger.warn("LM", "Failed to restore session draft:", e);
-    }
-    loadSupabaseDraft(cancelled);
-    loadSavedLetters();
-    return () => { cancelled = true; };
-  }, []);
-
-  const loadSupabaseDraft = async (cancelled: boolean) => {
-    try {
-      const { data: drafts } = await supabase
-        .from("lettres_mission")
-        .select("id, wizard_data, wizard_step, created_at")
-        .eq("statut", "brouillon")
-        .order("updated_at", { ascending: false })
-        .limit(1);
-      if (cancelled) return;
-      if (drafts && drafts.length > 0 && drafts[0].wizard_data?.client_id) {
-        setDraftInfo(drafts[0] as { id: string; wizard_data: Record<string, unknown>; wizard_step: number });
-        setShowDraftBanner(true);
-      }
-    } catch (e) {
-      logger.warn("LM", "Failed to load Supabase draft:", e);
-    }
-  };
-
-  const resumeDraft = () => {
-    if (draftInfo) {
-      setData({ ...INITIAL_LM_WIZARD_DATA, ...draftInfo.wizard_data });
-      setLmId(draftInfo.id);
-      setStep(draftInfo.wizard_step || 0);
-      setShowDraftBanner(false);
-      setActiveTab("wizard");
-      warningShown.current = false;
-    }
-  };
-
-  // ── TVA auto (associations) ──
-  useEffect(() => {
-    if (data.forme_juridique === "ASSOCIATION" || data.forme_juridique === "ASSO") {
-      setData((prev) => ({ ...prev, taux_tva: 0 }));
-    }
-  }, [data.forme_juridique]);
-
-  // ── Existing LM warning ──
-  const warningShown = useRef(false);
-  useEffect(() => {
-    if (data.client_id && !warningShown.current) {
-      warningShown.current = true;
-      supabase
-        .from("lettres_mission")
-        .select("id")
-        .eq("client_ref", data.client_id)
-        .neq("statut", "archivee")
-        .then(({ data: existing }) => {
-          if (existing && existing.length > 0) {
-            toast.warning("Ce client a deja une lettre de mission active");
-          }
-        })
-        .catch((e) => logger.warn("LM", "Existing LM check failed:", e));
-    }
-  }, [data.client_id]);
-
-  // ── Auto-save debounce 2s ──
-  const saveTimer = useRef<ReturnType<typeof setTimeout>>();
-  const saveToSupabase = useCallback(async () => {
-    if (!data.client_id) return;
-    try {
-      const { data: authData } = await supabase.auth.getUser();
-      if (!authData?.user) return;
-      const payload = { wizard_data: data, wizard_step: step, updated_at: new Date().toISOString() };
-      if (lmId) {
-        const { error: updErr } = await supabase.from("lettres_mission").update(payload).eq("id", lmId);
-        if (updErr) throw updErr;
-      } else {
-        const { data: ins } = await supabase
-          .from("lettres_mission")
-          .insert({
-            user_id: authData.user.id,
-            cabinet_id: profile?.cabinet_id,
-            client_ref: data.client_ref,
-            raison_sociale: data.raison_sociale,
-            type_mission: data.type_mission,
-            statut: "brouillon",
-            wizard_data: data,
-            wizard_step: step,
-            numero: incrementCounter(),
-          })
-          .select("id")
-          .maybeSingle();
-        if (ins) setLmId(ins.id);
-      }
-      setLastSaved(new Date());
-      toast.success("Sauvegarde", { duration: 1500 });
-    } catch (e) {
-      logger.warn("LM", "Auto-save failed:", e);
-    }
-  }, [data, step, lmId, profile?.cabinet_id]);
-
-  // Trigger auto-save on data change (debounced 2s)
-  useEffect(() => {
-    if (!data.client_id) return;
-    clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(saveToSupabase, 2000);
-    return () => clearTimeout(saveTimer.current);
-  }, [data, step, saveToSupabase]);
-
-  const loadSavedLetters = async () => {
-    setHistoryLoading(true);
-    try {
-      const { data: rows } = await supabase
+      const { data, error } = await supabase
         .from("lettres_mission")
         .select("*")
         .order("updated_at", { ascending: false });
-      if (rows) {
-        setSavedLetters(
-          rows.map((r: any, i: number) => ({
+      if (error) throw error;
+      if (data) {
+        setLettres(
+          data.map((r: any) => ({
             id: r.id,
-            numero: r.numero || `LM-${new Date(r.created_at).getFullYear()}-${String(i + 1).padStart(3, "0")}`,
-            client_ref: r.client_ref || "",
-            raison_sociale: r.raison_sociale || r.wizard_data?.raison_sociale || "—",
-            type_mission: r.type_mission || r.wizard_data?.type_mission || "—",
-            statut: r.statut || "brouillon",
+            numero: r.numero,
+            client_ref: r.client_ref,
+            client_id: r.client_id,
+            template_id: r.template_id,
+            statut_lm: r.statut_lm || "BROUILLON",
+            wizard_step: r.wizard_step || 1,
+            generated_content: r.generated_content || {},
+            wizard_data: r.wizard_data || {},
             created_at: r.created_at,
             updated_at: r.updated_at,
-            wizard_data: r.wizard_data || {},
-            duration_seconds: r.wizard_data?.duration_seconds || 0,
-            honoraires_ht: r.wizard_data?.honoraires_ht || 0,
-            missions_count: r.wizard_data?.missions_selected?.filter((m: any) => m.selected)?.length || 0,
+            cabinet_id: r.cabinet_id,
+            client_name: r.wizard_data?.client_name || r.client_ref || "—",
+            template_name: r.wizard_data?.template_name || "—",
           }))
         );
       }
     } catch (e) {
-      logger.warn("LM", "Failed to load letters:", e);
+      logger.warn("LM", "Failed to load lettres:", e);
     }
-    setHistoryLoading(false);
-  };
-
-  // ── Handlers ──
-  const handleChange = useCallback((updates: Partial<LMWizardData>) => {
-    setData((prev) => ({ ...prev, ...updates }));
+    setLoadingLettres(false);
   }, []);
 
-  const goToStep = useCallback((s: number) => {
-    if (s >= 0 && s < LM_TOTAL_STEPS) setStep(s);
-  }, []);
+  useEffect(() => { loadTemplates(); loadLettres(); }, []);
 
-  const isStepValid = useCallback((stepIdx: number): boolean => {
-    const validator = VALIDATORS[stepIdx];
-    if (!validator) return true;
-    return validator(data).length === 0;
-  }, [data]);
-
-  const handleNext = useCallback(() => {
-    const validator = VALIDATORS[step];
-    if (validator) {
-      const errors = validator(data);
-      if (errors.length > 0) {
-        errors.forEach((e) => toast.error(e.message));
-        return;
-      }
-    }
-    setStep((prev) => Math.min(prev + 1, LM_TOTAL_STEPS - 1));
-  }, [step, data]);
-
-  const handlePrevious = useCallback(() => {
-    if (step > 0) setStep(step - 1);
-  }, [step]);
-
-  // Swipe
-  const handleTouchStart = (e: React.TouchEvent) => { if (e.targetTouches.length > 0) touchStartX.current = e.targetTouches[0].clientX; };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (e.changedTouches.length === 0) return;
-    if (touchStartX.current === null) return;
-    const diff = touchStartX.current - e.changedTouches[0].clientX;
-    touchStartX.current = null;
-    if (Math.abs(diff) > 75) { diff > 0 ? handleNext() : handlePrevious(); }
-  };
-
-  // ── H) Compute duration on final save ──
-  const handleSave = async () => {
-   try {
-    // Compute duration
-    let duration = 0;
-    if (data.started_at) {
-      duration = Math.round((Date.now() - new Date(data.started_at).getTime()) / 1000);
-    }
-    const finalData = { ...data, duration_seconds: duration };
-
-    const sanitized = sanitizeWizardData(finalData);
+  // ─── Template CRUD ───
+  const handleSaveTemplate = async (tpl: Partial<LMTemplate>) => {
     const { data: authData } = await supabase.auth.getUser();
+    if (!authData?.user) throw new Error("Non authentifie");
     const payload = {
-      client_ref: sanitized.client_ref,
-      raison_sociale: sanitized.raison_sociale,
-      type_mission: sanitized.type_mission,
-      statut: sanitized.statut,
-      wizard_data: sanitized,
-      numero: sanitized.numero_lettre || incrementCounter(),
+      nom: tpl.nom!,
+      forme_juridique: tpl.forme_juridique || "standard",
+      description: tpl.description || null,
+      sections: tpl.sections || [],
+      type_activite: tpl.type_activite || "tenue",
+      cabinet_id: profile?.cabinet_id || null,
     };
-    if (lmId) {
-      const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmId);
+    if (tpl.id) {
+      const { error } = await supabase.from("lm_templates").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", tpl.id);
       if (error) throw error;
     } else {
-      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, user_id: authData?.user?.id, cabinet_id: profile?.cabinet_id }).select("id").maybeSingle();
+      const { error } = await supabase.from("lm_templates").insert(payload);
       if (error) throw error;
-      if (ins) setLmId(ins.id);
     }
-    setData(finalData);
-    logAudit({
-      action: "LETTRE_MISSION_SAVE",
-      table_name: "lettres_mission",
-      record_id: lmId || undefined,
-      new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, statut: sanitized.statut, duration_seconds: duration },
-    }).catch((e) => logger.warn("LM", "Audit log failed:", e));
-    sessionStorage.removeItem("lm_wizard_draft");
-    setLastSaved(new Date());
-    await loadSavedLetters();
-   } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Erreur lors de la sauvegarde";
-    toast.error(msg);
-   }
+    // Increment usage count not needed here
+    await loadTemplates();
   };
 
-  const handleReset = () => {
-    setData({ ...INITIAL_LM_WIZARD_DATA, started_at: new Date().toISOString() });
-    setLmId(null);
-    setStep(0);
-    warningShown.current = false;
-    setExpressMode(false);
-    sessionStorage.removeItem("lm_wizard_draft");
-  };
-
-  const handleEditLetter = (letter: SavedLetter) => {
-    if (letter.wizard_data) {
-      setData({ ...INITIAL_LM_WIZARD_DATA, ...letter.wizard_data });
-      setLmId(letter.id);
-      setStep(0);
-      setActiveTab("wizard");
-    }
-  };
-
-  // G) Duplicate
-  const handleDuplicate = async (letter: SavedLetter) => {
-    if (!letter.wizard_data) return;
-    const newData = {
-      ...INITIAL_LM_WIZARD_DATA,
-      ...letter.wizard_data,
-      statut: "brouillon",
-      numero_lettre: "",
-      signature_expert: "",
-      signature_client: "",
-      date_signature: "",
-      started_at: new Date().toISOString(),
-      duration_seconds: 0,
-    };
-    setData(newData);
-    setLmId(null);
-    setStep(0);
-    setActiveTab("wizard");
-    toast.success("Lettre dupliquee — modifiez et sauvegardez");
-  };
-
-  // G) Archive
-  const handleArchive = async (letter: SavedLetter) => {
+  const handleDuplicateTemplate = async (tpl: LMTemplate) => {
     try {
-      const { error } = await supabase.from("lettres_mission").update({ statut: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
-      if (error) throw error;
-      toast.success("Lettre archivee");
-      await loadSavedLetters();
-    } catch {
-      toast.error("Erreur lors de l'archivage");
-    }
-  };
-
-  // G) Download PDF from history
-  const handleDownloadPdf = async (letter: SavedLetter) => {
-    if (!letter.wizard_data) return;
-    try {
-      const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
-      const wd = letter.wizard_data;
-      const client = {
-        ref: wd.client_ref, raisonSociale: wd.raison_sociale, forme: wd.forme_juridique,
-        siren: wd.siren, dirigeant: wd.dirigeant, adresse: wd.adresse, cp: wd.cp, ville: wd.ville,
-        capital: Number(wd.capital) || 0, ape: wd.ape, mail: wd.email, tel: wd.telephone,
-        iban: wd.iban, bic: wd.bic, etat: "EN_COURS", comptable: "", mission: wd.type_mission,
-        domaine: "", effectif: "", dateCreation: "", dateReprise: "",
-        honoraires: wd.honoraires_ht, reprise: 0, juridique: 0, frequence: wd.frequence_facturation,
-        associe: wd.associe_signataire, superviseur: wd.chef_mission,
-        ppe: "NON", paysRisque: "NON", atypique: "NON", distanciel: "NON", cash: "NON", pression: "NON",
-        scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
-        malus: 0, scoreGlobal: 0, nivVigilance: "STANDARD",
-        dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
-        etatPilotage: "A JOUR", dateExpCni: "", statut: "ACTIF", be: "",
-      };
-      await renderLettreMissionPdf({
-        numero: letter.numero, date: new Date().toLocaleDateString("fr-FR"),
-        client: client as Client,
-        cabinet: { nom: "Cabinet Expertise Comptable", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" },
-        options: {
-          genre: "M" as const,
-          missionSociale: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "social" && m.selected),
-          missionJuridique: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "juridique" && m.selected),
-          missionControleFiscal: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "fiscal" && m.selected),
-          regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
-          tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
-          periodicite: wd.frequence_facturation,
-        },
+      const { error } = await supabase.from("lm_templates").insert({
+        nom: `${tpl.nom} (copie)`,
+        forme_juridique: tpl.forme_juridique,
+        description: tpl.description,
+        sections: tpl.sections,
+        type_activite: tpl.type_activite,
+        cabinet_id: profile?.cabinet_id || null,
+        usage_count: 0,
       });
-      toast.success("PDF genere");
+      if (error) throw error;
+      toast.success("Modele duplique");
+      await loadTemplates();
     } catch (e: any) {
-      toast.error(e?.message || "Erreur PDF");
+      toast.error(e?.message || "Erreur lors de la duplication");
     }
   };
 
-  // ── Express mode ──
-  const handleExpress = () => {
-    setExpressMode(!expressMode);
-    if (!expressMode && data.client_id) {
-      setStep(3);
-    }
+  const handleUseTemplate = (tpl: LMTemplate) => {
+    // Increment usage count
+    supabase.from("lm_templates").update({ usage_count: (tpl.usage_count || 0) + 1 }).eq("id", tpl.id).then();
+    setEditingLettre(null);
+    setShowWizard(true);
+    // Pre-select template in wizard — we pass it via initialLetter
+    setEditingLettre({ template_id: tpl.id, wizard_step: 1 } as any);
   };
 
-  // Keyboard: Escape → prev
-  useEffect(() => {
-    const h = (e: KeyboardEvent) => {
-      if (activeTab !== "wizard") return;
-      if (e.key === "Escape" && step > 0) { e.preventDefault(); setStep(step - 1); }
-    };
-    window.addEventListener("keydown", h);
-    return () => window.removeEventListener("keydown", h);
-  }, [step, activeTab]);
+  // ─── Filtered data ───
+  const filteredTemplates = useMemo(() => {
+    let result = [...templates];
+    if (filterType !== "all") result = result.filter((t) => t.type_activite === filterType);
+    if (searchTemplates.length >= 2) {
+      const q = searchTemplates.toLowerCase();
+      result = result.filter((t) => t.nom.toLowerCase().includes(q) || (t.description || "").toLowerCase().includes(q));
+    }
+    return result;
+  }, [templates, filterType, searchTemplates]);
 
-  // H) Elapsed time display
-  const elapsed = data.started_at
-    ? Math.round((Date.now() - new Date(data.started_at).getTime()) / 1000)
-    : 0;
+  const filteredLettres = useMemo(() => {
+    let result = [...lettres];
+    if (filterStatut !== "all") result = result.filter((l) => l.statut_lm === filterStatut);
+    if (searchLettres.length >= 2) {
+      const q = searchLettres.toLowerCase();
+      result = result.filter((l) =>
+        (l.client_name || "").toLowerCase().includes(q) ||
+        (l.numero || "").toLowerCase().includes(q) ||
+        (l.client_ref || "").toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [lettres, filterStatut, searchLettres]);
 
-  // Step render
-  const renderStep = () => {
-    switch (step) {
-      case 0: return <LMStep1Client data={data} onChange={handleChange} />;
-      case 1: return <LMStep2Missions data={data} onChange={handleChange} />;
-      case 2: return <LMStep3Details data={data} onChange={handleChange} />;
-      case 3: return <LMStep4Honoraires data={data} onChange={handleChange} />;
-      case 4: return <LMStep5Preview data={data} onChange={handleChange} onGoToStep={goToStep} isMobile={isMobile} />;
-      case 5: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} />;
-      default: return null;
+  // ─── Template Editor overlay ───
+  if (editingTemplate) {
+    return (
+      <TemplateEditor
+        template={editingTemplate === "new" ? null : editingTemplate}
+        onSave={handleSaveTemplate}
+        onClose={() => setEditingTemplate(null)}
+      />
+    );
+  }
+
+  // ─── Wizard overlay ───
+  if (showWizard) {
+    return (
+      <LetterWizard
+        clients={clients}
+        templates={templates}
+        cabinetId={profile?.cabinet_id || null}
+        onClose={() => { setShowWizard(false); setEditingLettre(null); }}
+        onSaved={() => { loadLettres(); loadTemplates(); }}
+        initialLetter={editingLettre}
+      />
+    );
+  }
+
+  const typeIcon = (type: string) => {
+    switch (type) {
+      case "tenue": return <FileText className="w-4 h-4 text-blue-400" />;
+      case "revision": return <Eye className="w-4 h-4 text-emerald-400" />;
+      case "social": return <Users className="w-4 h-4 text-violet-400" />;
+      case "juridique": return <Scale className="w-4 h-4 text-amber-400" />;
+      case "accompagnement": return <Briefcase className="w-4 h-4 text-rose-400" />;
+      default: return <FileText className="w-4 h-4 text-slate-400" />;
     }
   };
-
-  const nextDisabled = !isStepValid(step);
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4 sm:space-y-6 animate-fade-in-up">
+    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white">Lettres de mission</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Creez et gerez vos lettres de mission</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExpress}
-            className={`gap-1.5 border-white/[0.06] text-xs ${expressMode ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "text-slate-400"}`}
-          >
-            <Zap className="w-3.5 h-3.5" /> Express
-          </Button>
-          <Button onClick={handleReset} className="gap-1.5 bg-blue-600 hover:bg-blue-700" size={isMobile ? "sm" : "default"}>
-            <Plus className="w-4 h-4" /> {!isMobile && "Nouvelle"}
-          </Button>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">Gerez vos modeles et generez vos lettres</p>
         </div>
       </div>
-
-      {/* F) Renewal alerts */}
-      <RenewalAlerts letters={savedLetters} />
-
-      {/* Draft resume banner */}
-      {showDraftBanner && draftInfo && (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 animate-fade-in-up">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-blue-300">Reprendre le brouillon</p>
-            <p className="text-xs text-slate-400 truncate">
-              {draftInfo.wizard_data?.raison_sociale || "Sans nom"} — Etape {(draftInfo.wizard_step || 0) + 1}/{LM_TOTAL_STEPS}
-            </p>
-          </div>
-          <div className="flex gap-2 shrink-0">
-            <Button size="sm" onClick={resumeDraft} className="bg-blue-600 hover:bg-blue-700">Reprendre</Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowDraftBanner(false)} className="text-slate-400">Nouveau</Button>
-          </div>
-        </div>
-      )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-white/[0.04] border border-white/[0.06] w-full sm:w-auto">
-          <TabsTrigger value="wizard" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
-            <FileText className="w-3.5 h-3.5" /> {isMobile ? "Nouvelle" : "Nouvelle lettre"}
+          <TabsTrigger value="modeles" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+            <LayoutTemplate className="w-3.5 h-3.5" /> Modeles
+            {templates.length > 0 && <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{templates.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="history" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
-            <History className="w-3.5 h-3.5" /> Historique
-            {savedLetters.length > 0 && (
-              <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
-            )}
+          <TabsTrigger value="lettres" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+            <FileText className="w-3.5 h-3.5" /> Mes lettres
+            {lettres.length > 0 && <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{lettres.length}</Badge>}
           </TabsTrigger>
         </TabsList>
 
-        {/* ─── WIZARD TAB ─── */}
-        <TabsContent value="wizard" className="mt-4 space-y-4">
-          {/* Progress bar */}
-          <LMProgressBar currentStep={step} />
-
-          {/* Step title + H) elapsed time */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-bold text-white">{LM_STEP_TITLES[step]}</h2>
-            <div className="flex items-center gap-3">
-              {elapsed > 0 && (
-                <span className="text-[10px] text-slate-600 flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> {formatDuration(elapsed)}
-                </span>
-              )}
-              {lastSaved && (
-                <span className="text-[10px] text-slate-600 flex items-center gap-1">
-                  <Save className="w-3 h-3" />
-                  {lastSaved.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              )}
+        {/* ═══ MODELES TAB ═══ */}
+        <TabsContent value="modeles" className="mt-4 space-y-4">
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Input
+                placeholder="Rechercher un modele..."
+                value={searchTemplates}
+                onChange={(e) => setSearchTemplates(e.target.value)}
+                className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
+              />
             </div>
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="w-full sm:w-[180px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
+                <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TYPE_ACTIVITE_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={() => setEditingTemplate("new")} className="gap-1.5 bg-blue-600 hover:bg-blue-700" size="sm">
+              <Plus className="w-4 h-4" /> Creer un modele
+            </Button>
           </div>
 
-          {/* ── 2-column layout ── */}
-          <div className={`${!isMobile ? "flex gap-6" : ""}`}>
-            {/* Left: form */}
-            <div className={`${!isMobile ? "flex-[3] min-w-0" : "w-full"}`}>
-              <div
-                className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6 transition-all duration-200 ${
-                  isMobile ? "pb-32" : ""
-                } ${
-                  fieldsVisible
-                    ? "opacity-100 translate-y-0"
-                    : stepDirection === "right"
-                    ? "opacity-0 translate-x-6"
-                    : "opacity-0 -translate-x-6"
-                }`}
-                onTouchStart={handleTouchStart}
-                onTouchEnd={handleTouchEnd}
-              >
-                {renderStep()}
-              </div>
+          {/* Template cards */}
+          {loadingTemplates ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+              <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
             </div>
-
-            {/* Right: summary panel (desktop only) */}
-            {!isMobile && (
-              <div className="flex-[2] min-w-[260px] max-w-[360px]">
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
-                  <LMSummaryPanel data={data} />
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── Navigation ── */}
-          {isMobile ? (
-            <>
-              {/* Mobile: compact summary band */}
-              <div className="fixed bottom-[52px] left-0 right-0 z-40">
-                <LMSummaryPanel data={data} compact />
-              </div>
-              {/* Mobile: sticky bottom nav */}
-              <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-white/[0.06] p-3 pb-safe flex items-center justify-between z-50">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePrevious}
-                  disabled={step === 0}
-                  className="gap-1 border-white/[0.06]"
-                >
-                  <ChevronLeft className="w-4 h-4" /> Prec.
-                </Button>
-                <span className="text-xs text-slate-500 tabular-nums">{step + 1}/{LM_TOTAL_STEPS}</span>
-                {step < LM_TOTAL_STEPS - 1 ? (
-                  <Button
-                    size="sm"
-                    onClick={handleNext}
-                    disabled={nextDisabled}
-                    className="gap-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40"
-                  >
-                    Suivant <ChevronRight className="w-4 h-4" />
-                  </Button>
-                ) : (
-                  <div className="w-20" />
-                )}
-              </div>
-            </>
-          ) : (
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                variant="outline"
-                onClick={handlePrevious}
-                disabled={step === 0}
-                className="gap-1.5 border-white/[0.06] hover:bg-white/[0.04]"
-              >
-                <ChevronLeft className="w-4 h-4" /> Precedent
+          ) : filteredTemplates.length === 0 ? (
+            <div className="text-center py-20">
+              <LayoutTemplate className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400 text-sm">Aucun modele{filterType !== "all" ? " pour ce type" : ""}</p>
+              <p className="text-slate-500 text-xs mt-1">Creez votre premier modele de lettre de mission</p>
+              <Button onClick={() => setEditingTemplate("new")} className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-700" size="sm">
+                <Plus className="w-4 h-4" /> Creer un modele
               </Button>
-              <span className="text-xs text-slate-500 tabular-nums">
-                Etape {step + 1} / {LM_TOTAL_STEPS}
-                <span className="ml-2 text-[9px] text-slate-600">
-                  <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> prec.
-                </span>
-              </span>
-              {step < LM_TOTAL_STEPS - 1 ? (
-                <Button
-                  onClick={handleNext}
-                  disabled={nextDisabled}
-                  className="gap-1.5 bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/10 disabled:opacity-40"
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {filteredTemplates.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className="group rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-all p-4 space-y-3"
                 >
-                  Suivant <ChevronRight className="w-4 h-4" />
-                </Button>
-              ) : (
-                <div />
-              )}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                        {typeIcon(tpl.type_activite)}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{tpl.nom}</p>
+                        <p className="text-[10px] text-slate-500 capitalize">{tpl.type_activite}</p>
+                      </div>
+                    </div>
+                    {tpl.is_default && (
+                      <Badge variant="outline" className="text-[9px] border-emerald-500/20 text-emerald-400 shrink-0">Par defaut</Badge>
+                    )}
+                  </div>
+
+                  {tpl.description && (
+                    <p className="text-xs text-slate-500 line-clamp-2">{tpl.description}</p>
+                  )}
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-slate-600">{tpl.usage_count} utilisation{tpl.usage_count !== 1 ? "s" : ""}</span>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => handleUseTemplate(tpl)}
+                        className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-[11px] font-medium transition-colors"
+                      >
+                        Utiliser
+                      </button>
+                      <button
+                        onClick={() => setEditingTemplate(tpl)}
+                        className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-white transition-colors"
+                        title="Modifier"
+                      >
+                        <Edit3 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDuplicateTemplate(tpl)}
+                        className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
+                        title="Dupliquer"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </TabsContent>
 
-        {/* ─── HISTORY TAB ─── */}
-        <TabsContent value="history" className="mt-4">
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
-            <LetterHistory
-              letters={savedLetters}
-              loading={historyLoading}
-              onEdit={handleEditLetter}
-              onDuplicate={handleDuplicate}
-              onArchive={handleArchive}
-              onDownloadPdf={handleDownloadPdf}
-            />
+        {/* ═══ MES LETTRES TAB ═══ */}
+        <TabsContent value="lettres" className="mt-4 space-y-4">
+          {/* Toolbar */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+              <Input
+                placeholder="Rechercher par client, numero..."
+                value={searchLettres}
+                onChange={(e) => setSearchLettres(e.target.value)}
+                className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
+              />
+            </div>
+            <Select value={filterStatut} onValueChange={setFilterStatut}>
+              <SelectTrigger className="w-full sm:w-[160px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
+                <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                {Object.entries(STATUT_CONFIG).map(([val, cfg]) => (
+                  <SelectItem key={val} value={val}>{cfg.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={() => { setEditingLettre(null); setShowWizard(true); }}
+              className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+              size="sm"
+            >
+              <Plus className="w-4 h-4" /> Nouvelle lettre
+            </Button>
           </div>
+
+          {/* Letters list */}
+          {loadingLettres ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+              <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
+            </div>
+          ) : filteredLettres.length === 0 ? (
+            <div className="text-center py-20">
+              <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
+              <p className="text-slate-400 text-sm">
+                {lettres.length === 0 ? "Aucune lettre de mission" : "Aucun resultat pour ces filtres"}
+              </p>
+              {lettres.length === 0 && (
+                <>
+                  <p className="text-slate-500 text-xs mt-1">Creez votre premiere lettre</p>
+                  <Button
+                    onClick={() => { setEditingLettre(null); setShowWizard(true); }}
+                    className="mt-4 gap-1.5 bg-blue-600 hover:bg-blue-700"
+                    size="sm"
+                  >
+                    <Plus className="w-4 h-4" /> Nouvelle lettre
+                  </Button>
+                </>
+              )}
+            </div>
+          ) : (
+            <>
+              {/* Table header */}
+              <div className="hidden sm:grid grid-cols-[1fr_120px_140px_100px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
+                <span>Client</span>
+                <span>Modele</span>
+                <span>Date</span>
+                <span>Statut</span>
+                <span className="text-right">Actions</span>
+              </div>
+
+              <div className="space-y-1.5">
+                {filteredLettres.map((lettre) => {
+                  const statut = STATUT_CONFIG[lettre.statut_lm] || STATUT_CONFIG.BROUILLON;
+                  return (
+                    <div
+                      key={lettre.id}
+                      className="group sm:grid sm:grid-cols-[1fr_120px_140px_100px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+                    >
+                      {/* Client */}
+                      <button
+                        onClick={() => { setEditingLettre(lettre); setShowWizard(true); }}
+                        className="flex items-center gap-2 text-left min-w-0"
+                      >
+                        <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                          <FileText className="w-4 h-4 text-blue-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-white truncate">{lettre.client_name}</p>
+                          <p className="text-[10px] text-slate-500 sm:hidden">
+                            {lettre.template_name} · {new Date(lettre.updated_at).toLocaleDateString("fr-FR")}
+                          </p>
+                        </div>
+                      </button>
+
+                      {/* Modele */}
+                      <span className="hidden sm:block text-xs text-slate-500 truncate">{lettre.template_name}</span>
+
+                      {/* Date */}
+                      <span className="hidden sm:block text-xs text-slate-500">
+                        {new Date(lettre.updated_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                      </span>
+
+                      {/* Statut */}
+                      <div className="hidden sm:block">
+                        <Badge variant="outline" className={`text-[9px] ${statut.color}`}>{statut.label}</Badge>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => { setEditingLettre(lettre); setShowWizard(true); }}
+                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
+                          title="Modifier"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Mobile row */}
+                      <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
+                        <Badge variant="outline" className={`text-[9px] ${statut.color}`}>{statut.label}</Badge>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </TabsContent>
       </Tabs>
     </div>

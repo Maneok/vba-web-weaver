@@ -188,6 +188,10 @@ export default function NouveauClientPage() {
   // #81: Search debounce timer
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Screening timeout (30s) — show prominent skip button
+  const [screeningTimedOut, setScreeningTimedOut] = useState(false);
+  const screeningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // #11: Collapsible sections state for step 1
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
@@ -537,8 +541,20 @@ export default function NouveauClientPage() {
     return keys.some(k => screening[k].loading);
   }, [screening]);
 
+  // Screening timeout: when screeningRunning turns false, clear timeout
+  useEffect(() => {
+    if (!screeningRunning && screeningTimeoutRef.current) {
+      clearTimeout(screeningTimeoutRef.current);
+      screeningTimeoutRef.current = null;
+    }
+  }, [screeningRunning]);
+
   // Launch parallel screening checks
   const launchScreening = (enterprise: EnterpriseResult) => {
+    // Start 30s timeout for screening
+    setScreeningTimedOut(false);
+    if (screeningTimeoutRef.current) clearTimeout(screeningTimeoutRef.current);
+    screeningTimeoutRef.current = setTimeout(() => setScreeningTimedOut(true), 30000);
     const siren = enterprise.siren;
     const dirigeants = enterprise.dirigeants ?? [];
     const raisonSociale = enterprise.raison_sociale;
@@ -1930,8 +1946,19 @@ export default function NouveauClientPage() {
                   {screeningRunning && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />}
                 </div>
                 <Progress value={(screeningProgress.completedCount / screeningProgress.totalCount) * 100} className="h-2" />
-                {/* #9: Skip screening button */}
-                {screeningRunning && (
+                {/* #9: Skip screening button — prominent after 30s timeout */}
+                {screeningRunning && screeningTimedOut && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStep(1)}
+                    className="w-full mt-2 gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    Screening trop long — Passer cette etape
+                  </Button>
+                )}
+                {screeningRunning && !screeningTimedOut && (
                   <button
                     onClick={() => setStep(1)}
                     className="text-xs text-slate-500 hover:text-blue-400 transition-colors mt-1"
