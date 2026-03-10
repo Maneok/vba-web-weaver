@@ -19,12 +19,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import {
   FileText, LayoutTemplate, Plus, Search, Filter, Copy, Edit3,
   ChevronLeft, ChevronRight, Loader2, ShieldAlert, Save, Eye,
   FileDown, Mail, Check, X, Users, Briefcase, Scale, Building2,
-  HandCoins, Clock, Lock, Unlock, Variable, Download, Send,
+  HandCoins, Clock, Lock, Variable, Download, Trash2, Archive,
+  AlertTriangle, RotateCcw, Hash,
 } from "lucide-react";
 
 // ─── Types ───
@@ -57,7 +57,6 @@ interface SavedLettre {
   created_at: string;
   updated_at: string;
   cabinet_id: string | null;
-  // joined
   client_name?: string;
   template_name?: string;
 }
@@ -109,7 +108,6 @@ const TEMPLATE_VARIABLES = [
   { key: "date_cloture", label: "Date de cloture" },
 ];
 
-// ─── Section mapping for template editor ───
 const EDITOR_SECTIONS = [
   { id: "parties", label: "Parties", sectionIds: ["destinataire", "introduction", "entite"] },
   { id: "objet", label: "Objet", sectionIds: ["mission", "nature_limite"] },
@@ -120,6 +118,115 @@ const EDITOR_SECTIONS = [
   { id: "confidentialite", label: "Confidentialite", sectionIds: ["annexe_cgv"] },
   { id: "signature", label: "Signature", sectionIds: ["signature"] },
 ];
+
+// ─── [#1] Helper: generate LM number ───
+function generateLMNumero(): string {
+  const now = new Date();
+  const y = now.getFullYear();
+  const rand = String(Math.floor(Math.random() * 9000) + 1000);
+  return `LM-${y}-${rand}`;
+}
+
+// ─── [#2] Helper: format relative date ───
+function formatRelativeDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "—";
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "A l'instant";
+  if (diffMin < 60) return `Il y a ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `Il y a ${diffH}h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 7) return `Il y a ${diffD}j`;
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+}
+
+// ─── [#3] Helper: count variables in sections ───
+function countVariables(sections: TemplateSection[]): number {
+  const allContent = sections.map((s) => s.content).join(" ");
+  const matches = allContent.match(/\{\{\w+\}\}/g);
+  return matches ? new Set(matches).size : 0;
+}
+
+// ─── [#4] Helper: build variables from client ───
+function buildClientVariables(client: Client | undefined): Record<string, string> {
+  if (!client) return {};
+  const months = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
+  const now = new Date();
+  return {
+    raison_sociale: client.raisonSociale || "",
+    siren: client.siren || "",
+    dirigeant: client.dirigeant || "",
+    adresse: client.adresse || "",
+    ville: client.ville || "",
+    cp: client.cp || "",
+    code_postal: client.cp || "",
+    capital: String(client.capital || ""),
+    forme_juridique: client.forme || "",
+    honoraires: String(client.honoraires || 0),
+    frequence: client.frequence || "MENSUEL",
+    associe: client.associe || "",
+    date_du_jour: `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`,
+    nom_cabinet: "Cabinet d'expertise comptable",
+    effectif: client.effectif || "",
+    ape: client.ape || "",
+    date_cloture: client.dateCloture || "31/12",
+    formule_politesse: "Monsieur",
+    iban: client.iban || "",
+    bic: client.bic || "",
+    ref: client.ref || "",
+  };
+}
+
+// ═══════════════════════════════════════════════
+// [#5] Confirmation Dialog Component
+// ═══════════════════════════════════════════════
+function ConfirmDialog({
+  open,
+  title,
+  message,
+  confirmLabel,
+  destructive,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  title: string;
+  message: string;
+  confirmLabel: string;
+  destructive?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onCancel}>
+      <div className="bg-slate-900 border border-white/[0.1] rounded-2xl p-6 max-w-md w-full mx-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start gap-3 mb-4">
+          <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${destructive ? "bg-red-500/10" : "bg-amber-500/10"}`}>
+            <AlertTriangle className={`w-5 h-5 ${destructive ? "text-red-400" : "text-amber-400"}`} />
+          </div>
+          <div>
+            <h3 className="text-base font-semibold text-white">{title}</h3>
+            <p className="text-sm text-slate-400 mt-1">{message}</p>
+          </div>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button variant="ghost" size="sm" onClick={onCancel} className="text-slate-400">Annuler</Button>
+          <Button
+            size="sm"
+            onClick={onConfirm}
+            className={destructive ? "bg-red-600 hover:bg-red-700" : "bg-amber-600 hover:bg-amber-700"}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // ═══════════════════════════════════════════════
 // Template Editor (split-screen)
@@ -133,6 +240,7 @@ function TemplateEditor({
   onSave: (t: Partial<LMTemplate>) => Promise<void>;
   onClose: () => void;
 }) {
+  const isMobile = useIsMobile();
   const [nom, setNom] = useState(template?.nom || "");
   const [typeActivite, setTypeActivite] = useState(template?.type_activite || "tenue");
   const [description, setDescription] = useState(template?.description || "");
@@ -141,12 +249,16 @@ function TemplateEditor({
   const [disabledSections, setDisabledSections] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [showVarMenu, setShowVarMenu] = useState(false);
+  // [#6] Track unsaved changes
+  const [hasChanges, setHasChanges] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const activeSectionDef = EDITOR_SECTIONS.find((s) => s.id === activeSection);
   const matchingSections = sections.filter((s) => activeSectionDef?.sectionIds.includes(s.id));
 
   const toggleSection = (sectionId: string) => {
+    setHasChanges(true);
     setDisabledSections((prev) => {
       const next = new Set(prev);
       if (next.has(sectionId)) next.delete(sectionId);
@@ -156,6 +268,7 @@ function TemplateEditor({
   };
 
   const updateSectionContent = (sectionId: string, content: string) => {
+    setHasChanges(true);
     setSections((prev) => prev.map((s) => (s.id === sectionId ? { ...s, content } : s)));
   };
 
@@ -167,7 +280,6 @@ function TemplateEditor({
     const text = ta.value;
     const insertion = `{{${varKey}}}`;
     const newText = text.slice(0, start) + insertion + text.slice(end);
-    // find the section being edited
     if (matchingSections.length > 0) {
       updateSectionContent(matchingSections[0].id, newText);
     }
@@ -177,6 +289,26 @@ function TemplateEditor({
       ta.setSelectionRange(start + insertion.length, start + insertion.length);
     }, 50);
   };
+
+  // [#7] Keyboard shortcut: Ctrl+S to save
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+        e.preventDefault();
+        handleSave();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [nom, typeActivite, description, sections]);
+
+  // [#8] Close var menu on outside click
+  useEffect(() => {
+    if (!showVarMenu) return;
+    const handler = () => setShowVarMenu(false);
+    const timer = setTimeout(() => document.addEventListener("click", handler), 10);
+    return () => { clearTimeout(timer); document.removeEventListener("click", handler); };
+  }, [showVarMenu]);
 
   const handleSave = async () => {
     if (!nom.trim()) { toast.error("Le nom du modele est requis"); return; }
@@ -190,6 +322,7 @@ function TemplateEditor({
         sections,
         forme_juridique: typeActivite,
       });
+      setHasChanges(false);
       toast.success("Modele sauvegarde");
       onClose();
     } catch (e: any) {
@@ -198,7 +331,15 @@ function TemplateEditor({
     setSaving(false);
   };
 
-  // Highlight variables in text
+  // [#9] Confirm before closing with unsaved changes
+  const handleClose = () => {
+    if (hasChanges) {
+      setShowExitConfirm(true);
+    } else {
+      onClose();
+    }
+  };
+
   const renderHighlightedText = (text: string) => {
     const parts = text.split(/(\{\{\w+\}\})/g);
     return parts.map((part, i) =>
@@ -212,23 +353,36 @@ function TemplateEditor({
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
+      {/* [#5] Exit confirmation */}
+      <ConfirmDialog
+        open={showExitConfirm}
+        title="Modifications non sauvegardees"
+        message="Vous avez des modifications en cours. Voulez-vous vraiment quitter sans sauvegarder ?"
+        confirmLabel="Quitter sans sauvegarder"
+        destructive
+        onConfirm={onClose}
+        onCancel={() => setShowExitConfirm(false)}
+      />
+
       {/* Header */}
-      <div className="border-b border-white/[0.06] px-6 py-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white">
+      <div className="border-b border-white/[0.06] px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+          <Button variant="ghost" size="sm" onClick={handleClose} className="text-slate-400 hover:text-white shrink-0">
             <ChevronLeft className="w-4 h-4 mr-1" /> Retour
           </Button>
-          <div className="h-6 w-px bg-white/[0.08]" />
+          <div className="h-6 w-px bg-white/[0.08] hidden sm:block" />
           <Input
             value={nom}
-            onChange={(e) => setNom(e.target.value)}
+            onChange={(e) => { setNom(e.target.value); setHasChanges(true); }}
             placeholder="Nom du modele..."
-            className="bg-transparent border-none text-lg font-semibold text-white w-[300px] focus-visible:ring-0 px-0"
+            className="bg-transparent border-none text-base sm:text-lg font-semibold text-white w-full sm:w-[300px] focus-visible:ring-0 px-0"
           />
+          {/* [#6] Unsaved indicator */}
+          {hasChanges && <Badge className="bg-amber-500/10 text-amber-400 text-[9px] shrink-0">Non sauvegarde</Badge>}
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={typeActivite} onValueChange={setTypeActivite}>
-            <SelectTrigger className="w-[180px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <Select value={typeActivite} onValueChange={(v) => { setTypeActivite(v); setHasChanges(true); }}>
+            <SelectTrigger className="w-[140px] sm:w-[180px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -239,31 +393,41 @@ function TemplateEditor({
           </Select>
           <Button onClick={handleSave} disabled={saving} className="bg-blue-600 hover:bg-blue-700 gap-1.5">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Sauvegarder
+            <span className="hidden sm:inline">Sauvegarder</span>
           </Button>
         </div>
       </div>
 
       {/* Description */}
-      <div className="px-6 py-2 border-b border-white/[0.04]">
+      <div className="px-4 sm:px-6 py-2 border-b border-white/[0.04]">
         <Input
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => { setDescription(e.target.value); setHasChanges(true); }}
           placeholder="Description du modele..."
           className="bg-transparent border-none text-sm text-slate-400 focus-visible:ring-0 px-0"
         />
       </div>
 
-      {/* Split view */}
-      <div className="flex flex-1 min-h-0">
+      {/* Split view — [#10] mobile: stacked layout */}
+      <div className={`flex flex-1 min-h-0 ${isMobile ? "flex-col" : ""}`}>
         {/* Left: Section menu */}
-        <div className="w-[240px] border-r border-white/[0.06] py-4 overflow-y-auto shrink-0">
-          <p className="px-4 text-[10px] text-slate-600 uppercase tracking-wider mb-3">Sections</p>
+        <div className={`${isMobile ? "flex overflow-x-auto border-b border-white/[0.06] py-2 px-2 gap-1 shrink-0" : "w-[240px] border-r border-white/[0.06] py-4 overflow-y-auto shrink-0"}`}>
+          {!isMobile && <p className="px-4 text-[10px] text-slate-600 uppercase tracking-wider mb-3">Sections</p>}
           {EDITOR_SECTIONS.map((sec) => {
             const Icon = SECTION_ICONS[sec.id] || FileText;
             const isActive = activeSection === sec.id;
             const isDisabled = disabledSections.has(sec.id);
-            return (
+            return isMobile ? (
+              <button
+                key={sec.id}
+                onClick={() => setActiveSection(sec.id)}
+                className={`shrink-0 px-3 py-2 rounded-lg text-xs whitespace-nowrap transition-all ${
+                  isActive ? "bg-blue-500/10 text-blue-300 border border-blue-500/20" : "text-slate-500 border border-transparent"
+                } ${isDisabled ? "opacity-40" : ""}`}
+              >
+                {sec.label}
+              </button>
+            ) : (
               <div key={sec.id} className="px-3 mb-1">
                 <button
                   onClick={() => setActiveSection(sec.id)}
@@ -289,20 +453,20 @@ function TemplateEditor({
         </div>
 
         {/* Right: Content editor */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
           <div className="flex items-center justify-between mb-2">
             <h3 className="text-lg font-semibold text-white">{activeSectionDef?.label}</h3>
             <div className="relative">
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowVarMenu(!showVarMenu)}
+                onClick={(e) => { e.stopPropagation(); setShowVarMenu(!showVarMenu); }}
                 className="gap-1.5 border-white/[0.08] text-xs text-slate-400"
               >
-                <Variable className="w-3.5 h-3.5" /> Inserer une variable
+                <Variable className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Inserer une variable</span>
               </Button>
               {showVarMenu && (
-                <div className="absolute right-0 top-full mt-1 w-[260px] bg-slate-900 border border-white/[0.1] rounded-xl shadow-xl z-50 p-2 max-h-[300px] overflow-y-auto">
+                <div className="absolute right-0 top-full mt-1 w-[260px] bg-slate-900 border border-white/[0.1] rounded-xl shadow-xl z-50 p-2 max-h-[300px] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                   {TEMPLATE_VARIABLES.map((v) => (
                     <button
                       key={v.key}
@@ -319,8 +483,9 @@ function TemplateEditor({
           </div>
 
           {disabledSections.has(activeSection) && (
-            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-sm text-red-300">
-              Cette section est desactivee. Elle ne sera pas incluse dans les lettres generees.
+            <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 text-sm text-red-300 flex items-center gap-2">
+              <X className="w-4 h-4 shrink-0" />
+              Cette section est desactivee et ne sera pas incluse dans les lettres generees.
             </div>
           )}
 
@@ -331,7 +496,8 @@ function TemplateEditor({
               <div key={sec.id} className="space-y-2">
                 <label className="text-xs text-slate-500 font-medium">{sec.title}</label>
                 {sec.content === "TABLEAU_ENTITE" || sec.content === "TABLEAU_HONORAIRES" || sec.content === "TABLEAU_REPARTITION" || sec.content === "BLOC_LCBFT" ? (
-                  <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-4">
+                  <div className="bg-white/[0.02] border border-white/[0.06] rounded-lg p-4 flex items-center gap-2">
+                    <Lock className="w-3.5 h-3.5 text-slate-600" />
                     <p className="text-xs text-slate-500 italic">Contenu genere automatiquement : {sec.content}</p>
                   </div>
                 ) : (
@@ -344,7 +510,6 @@ function TemplateEditor({
                     disabled={!sec.editable}
                   />
                 )}
-                {/* Preview with highlighted variables */}
                 {sec.editable && sec.content.includes("{{") && (
                   <div className="bg-white/[0.01] border border-white/[0.04] rounded-lg p-3 text-sm leading-relaxed">
                     <p className="text-[10px] text-slate-600 mb-2">Apercu des variables :</p>
@@ -386,44 +551,20 @@ function LetterWizard({
   const [saving, setSaving] = useState(false);
   const [letterId, setLetterId] = useState<string | null>(initialLetter?.id || null);
   const [clientSearch, setClientSearch] = useState("");
+  // [#11] Last auto-save timestamp
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
   const autoSaveTimer = useRef<ReturnType<typeof setTimeout>>();
+  // [#12] Track if content was regenerated to avoid overwriting edits
+  const contentGenerated = useRef(false);
 
   const selectedClient = useMemo(() => clients.find((c) => c.ref === selectedClientId), [clients, selectedClientId]);
   const selectedTemplate = useMemo(() => templates.find((t) => t.id === selectedTemplateId), [templates, selectedTemplateId]);
 
-  // Build variables from client
-  const variables = useMemo(() => {
-    if (!selectedClient) return {};
-    const months = ["janvier", "fevrier", "mars", "avril", "mai", "juin", "juillet", "aout", "septembre", "octobre", "novembre", "decembre"];
-    const now = new Date();
-    return {
-      raison_sociale: selectedClient.raisonSociale || "",
-      siren: selectedClient.siren || "",
-      dirigeant: selectedClient.dirigeant || "",
-      adresse: selectedClient.adresse || "",
-      ville: selectedClient.ville || "",
-      cp: selectedClient.cp || "",
-      code_postal: selectedClient.cp || "",
-      capital: String(selectedClient.capital || ""),
-      forme_juridique: selectedClient.forme || "",
-      honoraires: String(selectedClient.honoraires || 0),
-      frequence: selectedClient.frequence || "MENSUEL",
-      associe: selectedClient.associe || "",
-      date_du_jour: `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`,
-      nom_cabinet: "Cabinet d'expertise comptable",
-      effectif: selectedClient.effectif || "",
-      ape: selectedClient.ape || "",
-      date_cloture: selectedClient.dateCloture || "31/12",
-      formule_politesse: "Monsieur",
-      iban: selectedClient.iban || "",
-      bic: selectedClient.bic || "",
-      ref: selectedClient.ref || "",
-    };
-  }, [selectedClient]);
+  const variables = useMemo(() => buildClientVariables(selectedClient), [selectedClient]);
 
   // Generate content from template + variables when entering step 3
   useEffect(() => {
-    if (wizardStep === 3 && selectedTemplate && Object.keys(generatedContent).length === 0) {
+    if (wizardStep === 3 && selectedTemplate && !contentGenerated.current && Object.keys(generatedContent).length === 0) {
       const content: Record<string, string> = {};
       const toggles: Record<string, boolean> = {};
       for (const section of selectedTemplate.sections) {
@@ -433,16 +574,37 @@ function LetterWizard({
       }
       setGeneratedContent(content);
       setSectionToggles(toggles);
+      contentGenerated.current = true;
     }
   }, [wizardStep, selectedTemplate, variables]);
+
+  // [#13] Reset generated content when template changes
+  useEffect(() => {
+    if (selectedTemplateId) {
+      contentGenerated.current = false;
+      setGeneratedContent({});
+      setSectionToggles({});
+    }
+  }, [selectedTemplateId]);
 
   // Auto-save every 30s
   useEffect(() => {
     if (!selectedClientId) return;
     clearTimeout(autoSaveTimer.current);
-    autoSaveTimer.current = setTimeout(() => saveToSupabase("BROUILLON"), 30000);
+    autoSaveTimer.current = setTimeout(async () => {
+      await saveToSupabase("BROUILLON");
+      setLastAutoSave(new Date());
+    }, 30000);
     return () => clearTimeout(autoSaveTimer.current);
   }, [selectedClientId, selectedTemplateId, generatedContent, wizardStep]);
+
+  // [#14] Warn on browser close with unsaved changes
+  useEffect(() => {
+    if (!selectedClientId) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [selectedClientId]);
 
   const saveToSupabase = async (statut: string) => {
     try {
@@ -463,6 +625,7 @@ function LetterWizard({
         await supabase.from("lettres_mission").update(payload).eq("id", letterId);
       } else {
         payload.user_id = authData.user.id;
+        payload.numero = generateLMNumero();
         const { data: ins } = await supabase.from("lettres_mission").insert(payload).select("id").maybeSingle();
         if (ins) setLetterId(ins.id);
       }
@@ -478,44 +641,54 @@ function LetterWizard({
     setSaving(false);
   };
 
+  // [#15] Shared export logic to avoid duplication
+  const getExportSections = () => {
+    if (!selectedTemplate) return [];
+    return selectedTemplate.sections
+      .filter((s) => sectionToggles[s.id] !== false)
+      .map((s) => ({ ...s, content: generatedContent[s.id] || s.content }));
+  };
+
+  const getExportParams = () => ({
+    client: selectedClient!,
+    genre: "M" as const,
+    missions: {
+      sociale: sectionToggles["mission_sociale"] !== false,
+      juridique: sectionToggles["mission_juridique"] !== false,
+      fiscal: sectionToggles["mission_fiscal"] !== false,
+    },
+    honoraires: {
+      comptable: selectedClient?.honoraires || 0,
+      constitution: 0,
+      juridique: selectedClient?.juridique || 0,
+      frequence: (selectedClient?.frequence as any) || "MENSUEL",
+    },
+    cabinet: {
+      nom: "Cabinet d'expertise comptable",
+      adresse: "", cp: "", ville: "",
+      siret: "", numeroOEC: "", email: "", telephone: "",
+    },
+    variables,
+  });
+
   const handleExportPdf = async () => {
     if (!selectedClient || !selectedTemplate) return;
     setSaving(true);
     try {
       const { renderNewLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
-      const activeSections = selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false);
-      // override content with user edits
-      const editedSections = activeSections.map((s) => ({
-        ...s,
-        content: generatedContent[s.id] || s.content,
-      }));
-      renderNewLettreMissionPdf({
-        sections: editedSections,
-        client: selectedClient,
-        genre: "M",
-        missions: {
-          sociale: sectionToggles["mission_sociale"] !== false,
-          juridique: sectionToggles["mission_juridique"] !== false,
-          fiscal: sectionToggles["mission_fiscal"] !== false,
-        },
-        honoraires: {
-          comptable: selectedClient.honoraires || 0,
-          constitution: 0,
-          juridique: selectedClient.juridique || 0,
-          frequence: (selectedClient.frequence as any) || "MENSUEL",
-        },
-        cabinet: {
-          nom: "Cabinet d'expertise comptable",
-          adresse: "", cp: "", ville: "",
-          siret: "", numeroOEC: "", email: "", telephone: "",
-        },
-        variables,
-      });
+      renderNewLettreMissionPdf({ sections: getExportSections(), ...getExportParams() });
       await saveToSupabase("GENERE");
-      toast.success("PDF genere");
+      // [#16] Audit trail on export
+      logAudit({
+        action: "LETTRE_MISSION_EXPORT_PDF",
+        table_name: "lettres_mission",
+        record_id: letterId || undefined,
+        new_data: { client_ref: selectedClient.ref, template: selectedTemplate.nom },
+      }).catch(() => {});
+      toast.success("PDF genere avec succes");
       onSaved();
     } catch (e: any) {
-      toast.error(e?.message || "Erreur PDF");
+      toast.error(e?.message || "Erreur lors de la generation du PDF");
     }
     setSaving(false);
   };
@@ -525,38 +698,18 @@ function LetterWizard({
     setSaving(true);
     try {
       const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
-      const activeSections = selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false);
-      const editedSections = activeSections.map((s) => ({
-        ...s,
-        content: generatedContent[s.id] || s.content,
-      }));
-      await renderNewLettreMissionDocx({
-        sections: editedSections,
-        client: selectedClient,
-        genre: "M",
-        missions: {
-          sociale: sectionToggles["mission_sociale"] !== false,
-          juridique: sectionToggles["mission_juridique"] !== false,
-          fiscal: sectionToggles["mission_fiscal"] !== false,
-        },
-        honoraires: {
-          comptable: selectedClient.honoraires || 0,
-          constitution: 0,
-          juridique: selectedClient.juridique || 0,
-          frequence: (selectedClient.frequence as any) || "MENSUEL",
-        },
-        cabinet: {
-          nom: "Cabinet d'expertise comptable",
-          adresse: "", cp: "", ville: "",
-          siret: "", numeroOEC: "", email: "", telephone: "",
-        },
-        variables,
-      });
+      await renderNewLettreMissionDocx({ sections: getExportSections(), ...getExportParams() });
       await saveToSupabase("GENERE");
-      toast.success("DOCX genere");
+      logAudit({
+        action: "LETTRE_MISSION_EXPORT_DOCX",
+        table_name: "lettres_mission",
+        record_id: letterId || undefined,
+        new_data: { client_ref: selectedClient.ref, template: selectedTemplate.nom },
+      }).catch(() => {});
+      toast.success("DOCX genere avec succes");
       onSaved();
     } catch (e: any) {
-      toast.error(e?.message || "Erreur DOCX");
+      toast.error(e?.message || "Erreur lors de la generation du DOCX");
     }
     setSaving(false);
   };
@@ -583,36 +736,61 @@ function LetterWizard({
     return true;
   };
 
+  // [#17] Keyboard: Escape to go back, Enter to advance
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && wizardStep > 1) {
+        e.preventDefault();
+        setWizardStep((s) => Math.max(1, s - 1));
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [wizardStep]);
+
   const stepTitles = ["", "Choisir un client", "Choisir un modele", "Previsualisation", "Export"];
 
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex flex-col">
       {/* Header */}
-      <div className="border-b border-white/[0.06] px-6 py-4 flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-4">
+      <div className="border-b border-white/[0.06] px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
+        <div className="flex items-center gap-3 sm:gap-4">
           <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-400 hover:text-white">
             <ChevronLeft className="w-4 h-4 mr-1" /> Retour
           </Button>
-          <div className="h-6 w-px bg-white/[0.08]" />
-          <h2 className="text-lg font-semibold text-white">Nouvelle lettre de mission</h2>
+          <div className="h-6 w-px bg-white/[0.08] hidden sm:block" />
+          <h2 className="text-base sm:text-lg font-semibold text-white">
+            {initialLetter?.id ? "Modifier la lettre" : "Nouvelle lettre de mission"}
+          </h2>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* [#11] Auto-save indicator */}
+          {lastAutoSave && (
+            <span className="text-[10px] text-slate-600 hidden sm:flex items-center gap-1">
+              <Save className="w-3 h-3" />
+              {lastAutoSave.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+          )}
           <Button variant="outline" size="sm" onClick={handleSaveDraft} disabled={saving} className="gap-1.5 border-white/[0.08] text-slate-400">
             {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
-            Sauvegarder
+            <span className="hidden sm:inline">Sauvegarder</span>
           </Button>
         </div>
       </div>
 
       {/* Progress */}
-      <div className="px-6 py-3 border-b border-white/[0.04] flex items-center gap-2">
+      <div className="px-4 sm:px-6 py-3 border-b border-white/[0.04] flex items-center gap-2">
         {[1, 2, 3, 4].map((s) => (
           <div key={s} className="flex items-center gap-2 flex-1">
-            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
-              s === wizardStep ? "bg-blue-600 text-white" : s < wizardStep ? "bg-emerald-500/20 text-emerald-400" : "bg-white/[0.04] text-slate-600"
-            }`}>
+            <button
+              onClick={() => { if (s < wizardStep) setWizardStep(s); }}
+              disabled={s > wizardStep}
+              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium transition-all ${
+                s === wizardStep ? "bg-blue-600 text-white" : s < wizardStep ? "bg-emerald-500/20 text-emerald-400 cursor-pointer hover:bg-emerald-500/30" : "bg-white/[0.04] text-slate-600"
+              }`}
+            >
               {s < wizardStep ? <Check className="w-3.5 h-3.5" /> : s}
-            </div>
+            </button>
             <span className={`text-xs hidden sm:block ${s === wizardStep ? "text-white font-medium" : "text-slate-600"}`}>
               {stepTitles[s]}
             </span>
@@ -622,7 +800,7 @@ function LetterWizard({
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-6">
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="max-w-[900px] mx-auto">
 
           {/* Step 1: Client */}
@@ -638,7 +816,9 @@ function LetterWizard({
                   autoFocus
                 />
               </div>
-              <div className="grid gap-2 max-h-[calc(100vh-320px)] overflow-y-auto">
+              {/* [#18] Result count */}
+              <p className="text-[10px] text-slate-600">{filteredClients.length} client{filteredClients.length > 1 ? "s" : ""}</p>
+              <div className="grid gap-2 max-h-[calc(100vh-360px)] overflow-y-auto">
                 {filteredClients.slice(0, 50).map((client) => (
                   <button
                     key={client.ref}
@@ -656,6 +836,16 @@ function LetterWizard({
                       <p className="text-sm font-medium text-white truncate">{client.raisonSociale}</p>
                       <p className="text-xs text-slate-500">{client.forme} · {client.siren} · {client.ref}</p>
                     </div>
+                    {/* [#19] Show risk level */}
+                    {client.nivVigilance && (
+                      <Badge variant="outline" className={`text-[9px] shrink-0 ${
+                        client.nivVigilance === "RENFORCEE" ? "border-red-500/20 text-red-400" :
+                        client.nivVigilance === "STANDARD" ? "border-amber-500/20 text-amber-400" :
+                        "border-emerald-500/20 text-emerald-400"
+                      }`}>
+                        {client.nivVigilance}
+                      </Badge>
+                    )}
                     {selectedClientId === client.ref && (
                       <Check className="w-5 h-5 text-blue-400 shrink-0" />
                     )}
@@ -670,33 +860,45 @@ function LetterWizard({
 
           {/* Step 2: Template */}
           {wizardStep === 2 && (
-            <div className="grid gap-3">
-              {templates.map((tpl) => (
-                <button
-                  key={tpl.id}
-                  onClick={() => setSelectedTemplateId(tpl.id)}
-                  className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
-                    selectedTemplateId === tpl.id
-                      ? "bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20"
-                      : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]"
-                  }`}
-                >
-                  <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
-                    <LayoutTemplate className="w-5 h-5 text-violet-400" />
+            <div className="space-y-4">
+              {/* [#20] Selected client recap */}
+              {selectedClient && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-blue-500/5 border border-blue-500/10 mb-4">
+                  <Building2 className="w-4 h-4 text-blue-400" />
+                  <div className="text-sm">
+                    <span className="text-white font-medium">{selectedClient.raisonSociale}</span>
+                    <span className="text-slate-500 ml-2">{selectedClient.forme} · {selectedClient.siren}</span>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white">{tpl.nom}</p>
-                    <p className="text-xs text-slate-500">{tpl.description || tpl.type_activite}</p>
-                  </div>
-                  <Badge variant="outline" className="text-[10px] border-white/[0.1] text-slate-500 shrink-0">
-                    {tpl.usage_count} utilisation{tpl.usage_count !== 1 ? "s" : ""}
-                  </Badge>
-                  {selectedTemplateId === tpl.id && <Check className="w-5 h-5 text-blue-400 shrink-0" />}
-                </button>
-              ))}
-              {templates.length === 0 && (
-                <p className="text-center text-slate-500 text-sm py-10">Aucun modele disponible. Creez-en un dans l'onglet Modeles.</p>
+                </div>
               )}
+              <div className="grid gap-3">
+                {templates.map((tpl) => (
+                  <button
+                    key={tpl.id}
+                    onClick={() => setSelectedTemplateId(tpl.id)}
+                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all text-left ${
+                      selectedTemplateId === tpl.id
+                        ? "bg-blue-500/10 border-blue-500/30 ring-1 ring-blue-500/20"
+                        : "bg-white/[0.02] border-white/[0.06] hover:bg-white/[0.04]"
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                      <LayoutTemplate className="w-5 h-5 text-violet-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">{tpl.nom}</p>
+                      <p className="text-xs text-slate-500">{tpl.description || tpl.type_activite} · {tpl.sections?.length || 0} sections · {countVariables(tpl.sections || [])} variables</p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] border-white/[0.1] text-slate-500 shrink-0">
+                      {tpl.usage_count} utilisation{tpl.usage_count !== 1 ? "s" : ""}
+                    </Badge>
+                    {selectedTemplateId === tpl.id && <Check className="w-5 h-5 text-blue-400 shrink-0" />}
+                  </button>
+                ))}
+                {templates.length === 0 && (
+                  <p className="text-center text-slate-500 text-sm py-10">Aucun modele disponible. Creez-en un dans l'onglet Modeles.</p>
+                )}
+              </div>
             </div>
           )}
 
@@ -707,6 +909,7 @@ function LetterWizard({
                 <p className="text-sm text-slate-400">
                   <span className="text-white font-medium">{selectedClient?.raisonSociale}</span> — {selectedTemplate.nom}
                 </p>
+                <span className="text-[10px] text-slate-600">{selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false).length} / {selectedTemplate.sections.length} sections actives</span>
               </div>
               {selectedTemplate.sections.map((section) => {
                 const isActive = sectionToggles[section.id] !== false;
@@ -716,17 +919,18 @@ function LetterWizard({
                   <div key={section.id} className={`rounded-xl border transition-all ${isActive ? "bg-white/[0.02] border-white/[0.06]" : "bg-white/[0.01] border-white/[0.03] opacity-40"}`}>
                     <div className="flex items-center justify-between px-4 py-3 border-b border-white/[0.04]">
                       <span className="text-sm font-medium text-white">{section.title}</span>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          checked={isActive}
-                          onCheckedChange={(v) => setSectionToggles((prev) => ({ ...prev, [section.id]: v }))}
-                        />
-                      </div>
+                      <Switch
+                        checked={isActive}
+                        onCheckedChange={(v) => setSectionToggles((prev) => ({ ...prev, [section.id]: v }))}
+                      />
                     </div>
                     {isActive && (
                       <div className="p-4">
                         {isAuto ? (
-                          <p className="text-xs text-slate-500 italic">Contenu genere automatiquement ({section.content})</p>
+                          <div className="flex items-center gap-2">
+                            <Lock className="w-3.5 h-3.5 text-slate-600" />
+                            <p className="text-xs text-slate-500 italic">Contenu genere automatiquement ({section.content})</p>
+                          </div>
                         ) : (
                           <Textarea
                             value={content}
@@ -754,6 +958,12 @@ function LetterWizard({
                 <p className="text-sm text-slate-400 mt-2">
                   {selectedClient?.raisonSociale} — {selectedTemplate?.nom}
                 </p>
+                {/* [#20] Section count summary */}
+                {selectedTemplate && (
+                  <p className="text-[10px] text-slate-600 mt-1">
+                    {selectedTemplate.sections.filter((s) => sectionToggles[s.id] !== false).length} sections actives
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-3">
@@ -789,7 +999,7 @@ function LetterWizard({
       </div>
 
       {/* Footer navigation */}
-      <div className="border-t border-white/[0.06] px-6 py-4 flex items-center justify-between shrink-0">
+      <div className="border-t border-white/[0.06] px-4 sm:px-6 py-4 flex items-center justify-between shrink-0">
         <Button
           variant="outline"
           onClick={() => setWizardStep((s) => Math.max(1, s - 1))}
@@ -798,7 +1008,12 @@ function LetterWizard({
         >
           <ChevronLeft className="w-4 h-4" /> Precedent
         </Button>
-        <span className="text-xs text-slate-600">Etape {wizardStep} / 4</span>
+        <span className="text-xs text-slate-600">
+          Etape {wizardStep} / 4
+          <span className="ml-2 text-[9px] hidden sm:inline">
+            <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> prec.
+          </span>
+        </span>
         {wizardStep < 4 ? (
           <Button
             onClick={() => setWizardStep((s) => Math.min(4, s + 1))}
@@ -836,10 +1051,12 @@ export default function LettreMissionPage() {
   const [searchLettres, setSearchLettres] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
 
-  // Editor / Wizard states
   const [editingTemplate, setEditingTemplate] = useState<LMTemplate | null | "new">(null);
   const [showWizard, setShowWizard] = useState(false);
   const [editingLettre, setEditingLettre] = useState<SavedLettre | null>(null);
+
+  // [#5] Confirm dialogs
+  const [deleteConfirm, setDeleteConfirm] = useState<{ type: "template" | "lettre"; id: string; name: string } | null>(null);
 
   // Permission check
   if (!hasPermission("write_clients")) {
@@ -860,12 +1077,11 @@ export default function LettreMissionPage() {
       const { data, error } = await supabase
         .from("lm_templates")
         .select("*")
-        .order("updated_at", { ascending: false });
+        .order("usage_count", { ascending: false });
       if (error) throw error;
       if (data) setTemplates(data as LMTemplate[]);
     } catch (e) {
       logger.warn("LM", "Failed to load templates:", e);
-      // Fallback: create default templates from local data
       setTemplates([]);
     }
     setLoadingTemplates(false);
@@ -926,7 +1142,6 @@ export default function LettreMissionPage() {
       const { error } = await supabase.from("lm_templates").insert(payload);
       if (error) throw error;
     }
-    // Increment usage count not needed here
     await loadTemplates();
   };
 
@@ -949,13 +1164,74 @@ export default function LettreMissionPage() {
     }
   };
 
+  // [#5] Delete template
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      const { error } = await supabase.from("lm_templates").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Modele supprime");
+      await loadTemplates();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la suppression");
+    }
+    setDeleteConfirm(null);
+  };
+
+  // [#5] Delete lettre
+  const handleDeleteLettre = async (id: string) => {
+    try {
+      const { error } = await supabase.from("lettres_mission").delete().eq("id", id);
+      if (error) throw error;
+      toast.success("Lettre supprimee");
+      await loadLettres();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la suppression");
+    }
+    setDeleteConfirm(null);
+  };
+
+  // [#16] Archive lettre
+  const handleArchiveLettre = async (lettre: SavedLettre) => {
+    try {
+      const newStatut = lettre.statut_lm === "SIGNE" ? "ENVOYE" : "SIGNE";
+      const { error } = await supabase.from("lettres_mission").update({ statut_lm: newStatut, updated_at: new Date().toISOString() }).eq("id", lettre.id);
+      if (error) throw error;
+      toast.success(`Statut mis a jour : ${STATUT_CONFIG[newStatut]?.label || newStatut}`);
+      await loadLettres();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur");
+    }
+  };
+
+  // [#15] Duplicate lettre
+  const handleDuplicateLettre = async (lettre: SavedLettre) => {
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      if (!authData?.user) return;
+      const { error } = await supabase.from("lettres_mission").insert({
+        user_id: authData.user.id,
+        cabinet_id: lettre.cabinet_id,
+        template_id: lettre.template_id,
+        client_id: lettre.client_id,
+        client_ref: lettre.client_ref,
+        wizard_step: 1,
+        statut_lm: "BROUILLON",
+        generated_content: lettre.generated_content,
+        wizard_data: lettre.wizard_data,
+        numero: generateLMNumero(),
+      });
+      if (error) throw error;
+      toast.success("Lettre dupliquee");
+      await loadLettres();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la duplication");
+    }
+  };
+
   const handleUseTemplate = (tpl: LMTemplate) => {
-    // Increment usage count
     supabase.from("lm_templates").update({ usage_count: (tpl.usage_count || 0) + 1 }).eq("id", tpl.id).then();
-    setEditingLettre(null);
-    setShowWizard(true);
-    // Pre-select template in wizard — we pass it via initialLetter
     setEditingLettre({ template_id: tpl.id, wizard_step: 1 } as any);
+    setShowWizard(true);
   };
 
   // ─── Filtered data ───
@@ -983,7 +1259,15 @@ export default function LettreMissionPage() {
     return result;
   }, [lettres, filterStatut, searchLettres]);
 
-  // ─── Template Editor overlay ───
+  // [#16] Stats for header
+  const stats = useMemo(() => ({
+    total: lettres.length,
+    brouillons: lettres.filter((l) => l.statut_lm === "BROUILLON").length,
+    generes: lettres.filter((l) => l.statut_lm === "GENERE").length,
+    signes: lettres.filter((l) => l.statut_lm === "SIGNE").length,
+  }), [lettres]);
+
+  // ─── Overlays ───
   if (editingTemplate) {
     return (
       <TemplateEditor
@@ -994,7 +1278,6 @@ export default function LettreMissionPage() {
     );
   }
 
-  // ─── Wizard overlay ───
   if (showWizard) {
     return (
       <LetterWizard
@@ -1020,13 +1303,48 @@ export default function LettreMissionPage() {
   };
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5 animate-fade-in-up">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-5 animate-fade-in-up">
+      {/* [#5] Delete confirmation */}
+      <ConfirmDialog
+        open={!!deleteConfirm}
+        title={deleteConfirm?.type === "template" ? "Supprimer le modele" : "Supprimer la lettre"}
+        message={`Etes-vous sur de vouloir supprimer "${deleteConfirm?.name}" ? Cette action est irreversible.`}
+        confirmLabel="Supprimer"
+        destructive
+        onConfirm={() => {
+          if (deleteConfirm?.type === "template") handleDeleteTemplate(deleteConfirm.id);
+          else if (deleteConfirm) handleDeleteLettre(deleteConfirm.id);
+        }}
+        onCancel={() => setDeleteConfirm(null)}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-white">Lettres de mission</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">Gerez vos modeles et generez vos lettres</p>
         </div>
+        {/* [#16] Stats pills */}
+        {stats.total > 0 && (
+          <div className="hidden sm:flex items-center gap-2">
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+              <Hash className="w-3 h-3 text-slate-500" />
+              <span className="text-[11px] text-slate-400">{stats.total}</span>
+            </div>
+            {stats.brouillons > 0 && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                <div className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                <span className="text-[11px] text-amber-400">{stats.brouillons}</span>
+              </div>
+            )}
+            {stats.signes > 0 && (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-[11px] text-emerald-400">{stats.signes}</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
@@ -1044,7 +1362,6 @@ export default function LettreMissionPage() {
 
         {/* ═══ MODELES TAB ═══ */}
         <TabsContent value="modeles" className="mt-4 space-y-4">
-          {/* Toolbar */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
@@ -1071,7 +1388,11 @@ export default function LettreMissionPage() {
             </Button>
           </div>
 
-          {/* Template cards */}
+          {/* [#18] Result count */}
+          {!loadingTemplates && filteredTemplates.length > 0 && (
+            <p className="text-[10px] text-slate-600">{filteredTemplates.length} modele{filteredTemplates.length > 1 ? "s" : ""}</p>
+          )}
+
           {loadingTemplates ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
@@ -1094,7 +1415,7 @@ export default function LettreMissionPage() {
                   className="group rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-all p-4 space-y-3"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 min-w-0">
                       <div className="w-9 h-9 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
                         {typeIcon(tpl.type_activite)}
                       </div>
@@ -1112,8 +1433,16 @@ export default function LettreMissionPage() {
                     <p className="text-xs text-slate-500 line-clamp-2">{tpl.description}</p>
                   )}
 
+                  {/* [#3] Section and variable counts */}
+                  <div className="flex items-center gap-3 text-[10px] text-slate-600">
+                    <span>{tpl.sections?.length || 0} sections</span>
+                    <span>{countVariables(tpl.sections || [])} variables</span>
+                    <span>{tpl.usage_count} utilisation{tpl.usage_count !== 1 ? "s" : ""}</span>
+                  </div>
+
+                  {/* [#2] Relative date */}
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-[10px] text-slate-600">{tpl.usage_count} utilisation{tpl.usage_count !== 1 ? "s" : ""}</span>
+                    <span className="text-[10px] text-slate-600">{formatRelativeDate(tpl.updated_at)}</span>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
                         onClick={() => handleUseTemplate(tpl)}
@@ -1135,6 +1464,16 @@ export default function LettreMissionPage() {
                       >
                         <Copy className="w-3.5 h-3.5" />
                       </button>
+                      {/* [#5] Delete template */}
+                      {!tpl.is_default && (
+                        <button
+                          onClick={() => setDeleteConfirm({ type: "template", id: tpl.id, name: tpl.nom })}
+                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1145,7 +1484,6 @@ export default function LettreMissionPage() {
 
         {/* ═══ MES LETTRES TAB ═══ */}
         <TabsContent value="lettres" className="mt-4 space-y-4">
-          {/* Toolbar */}
           <div className="flex flex-col sm:flex-row gap-2">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
@@ -1177,7 +1515,11 @@ export default function LettreMissionPage() {
             </Button>
           </div>
 
-          {/* Letters list */}
+          {/* [#18] Result count */}
+          {!loadingLettres && filteredLettres.length > 0 && (
+            <p className="text-[10px] text-slate-600">{filteredLettres.length} lettre{filteredLettres.length > 1 ? "s" : ""}</p>
+          )}
+
           {loadingLettres ? (
             <div className="flex items-center justify-center py-20">
               <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
@@ -1201,12 +1543,18 @@ export default function LettreMissionPage() {
                   </Button>
                 </>
               )}
+              {lettres.length > 0 && filterStatut !== "all" && (
+                <Button variant="outline" size="sm" onClick={() => setFilterStatut("all")} className="mt-3 gap-1.5 border-white/[0.08] text-slate-400">
+                  <RotateCcw className="w-3 h-3" /> Reinitialiser les filtres
+                </Button>
+              )}
             </div>
           ) : (
             <>
               {/* Table header */}
-              <div className="hidden sm:grid grid-cols-[1fr_120px_140px_100px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
+              <div className="hidden sm:grid grid-cols-[1fr_120px_100px_100px_100px_140px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
                 <span>Client</span>
+                <span>Numero</span>
                 <span>Modele</span>
                 <span>Date</span>
                 <span>Statut</span>
@@ -1219,7 +1567,7 @@ export default function LettreMissionPage() {
                   return (
                     <div
                       key={lettre.id}
-                      className="group sm:grid sm:grid-cols-[1fr_120px_140px_100px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+                      className="group sm:grid sm:grid-cols-[1fr_120px_100px_100px_100px_140px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
                     >
                       {/* Client */}
                       <button
@@ -1232,17 +1580,20 @@ export default function LettreMissionPage() {
                         <div className="min-w-0">
                           <p className="text-sm font-medium text-white truncate">{lettre.client_name}</p>
                           <p className="text-[10px] text-slate-500 sm:hidden">
-                            {lettre.template_name} · {new Date(lettre.updated_at).toLocaleDateString("fr-FR")}
+                            {lettre.template_name} · {formatRelativeDate(lettre.updated_at)}
                           </p>
                         </div>
                       </button>
 
+                      {/* [#1] Numero */}
+                      <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{lettre.numero || "—"}</span>
+
                       {/* Modele */}
                       <span className="hidden sm:block text-xs text-slate-500 truncate">{lettre.template_name}</span>
 
-                      {/* Date */}
+                      {/* [#2] Relative date */}
                       <span className="hidden sm:block text-xs text-slate-500">
-                        {new Date(lettre.updated_at).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })}
+                        {formatRelativeDate(lettre.updated_at)}
                       </span>
 
                       {/* Statut */}
@@ -1250,7 +1601,7 @@ export default function LettreMissionPage() {
                         <Badge variant="outline" className={`text-[9px] ${statut.color}`}>{statut.label}</Badge>
                       </div>
 
-                      {/* Actions */}
+                      {/* Actions — [#5] more actions */}
                       <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={() => { setEditingLettre(lettre); setShowWizard(true); }}
@@ -1259,11 +1610,41 @@ export default function LettreMissionPage() {
                         >
                           <Edit3 className="w-3.5 h-3.5" />
                         </button>
+                        <button
+                          onClick={() => handleDuplicateLettre(lettre)}
+                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
+                          title="Dupliquer"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleArchiveLettre(lettre)}
+                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-violet-400 transition-colors"
+                          title="Changer le statut"
+                        >
+                          <Archive className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setDeleteConfirm({ type: "lettre", id: lettre.id, name: lettre.client_name || "cette lettre" })}
+                          className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-red-400 transition-colors"
+                          title="Supprimer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
 
                       {/* Mobile row */}
                       <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
                         <Badge variant="outline" className={`text-[9px] ${statut.color}`}>{statut.label}</Badge>
+                        <div className="flex-1" />
+                        <button onClick={() => handleDuplicateLettre(lettre)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
+                        <button onClick={() => handleArchiveLettre(lettre)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
+                        <button
+                          onClick={() => setDeleteConfirm({ type: "lettre", id: lettre.id, name: lettre.client_name || "cette lettre" })}
+                          className="p-1.5 text-slate-500"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   );
