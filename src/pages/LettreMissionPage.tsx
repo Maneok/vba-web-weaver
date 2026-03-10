@@ -329,7 +329,7 @@ export default function LettreMissionPage() {
 
   // Draft
   const [showDraftBanner, setShowDraftBanner] = useState(false);
-  const [draftInfo, setDraftInfo] = useState<{ id: string; wizard_data: any; wizard_step: number } | null>(null);
+  const [draftInfo, setDraftInfo] = useState<{ id: string; wizard_data: Record<string, unknown>; wizard_step: number } | null>(null);
 
   // History
   const [savedLetters, setSavedLetters] = useState<SavedLetter[]>([]);
@@ -417,7 +417,7 @@ export default function LettreMissionPage() {
         .limit(1);
       if (cancelled) return;
       if (drafts && drafts.length > 0 && drafts[0].wizard_data?.client_id) {
-        setDraftInfo(drafts[0] as any);
+        setDraftInfo(drafts[0] as { id: string; wizard_data: Record<string, unknown>; wizard_step: number });
         setShowDraftBanner(true);
       }
     } catch (e) {
@@ -695,13 +695,13 @@ export default function LettreMissionPage() {
       };
       await renderLettreMissionPdf({
         numero: letter.numero, date: new Date().toLocaleDateString("fr-FR"),
-        client: client as any,
+        client: client as Client,
         cabinet: { nom: "Cabinet Expertise Comptable", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" },
         options: {
           genre: "M" as const,
-          missionSociale: wd.missions_selected?.some((m: any) => m.section_id === "social" && m.selected),
-          missionJuridique: wd.missions_selected?.some((m: any) => m.section_id === "juridique" && m.selected),
-          missionControleFiscal: wd.missions_selected?.some((m: any) => m.section_id === "fiscal" && m.selected),
+          missionSociale: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "social" && m.selected),
+          missionJuridique: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "juridique" && m.selected),
+          missionControleFiscal: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "fiscal" && m.selected),
           regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
           tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
           periodicite: wd.frequence_facturation,

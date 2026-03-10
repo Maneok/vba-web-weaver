@@ -293,7 +293,9 @@ export default function NouveauClientPage() {
         if (data.form?.siren) {
           restoreDraft(draft);
         }
-      } catch {}
+      } catch (err) {
+        logger.warn("NouveauClient", "Failed to parse draft:", err);
+      }
     }
   }, [restoreDraft]);
 
@@ -485,8 +487,8 @@ export default function NouveauClientPage() {
         const typeMatch = typeUp.includes(r.toUpperCase());
         // Only Extrait RNE/RBE count as KBIS equivalent, NOT generic "Actes"
         const kbisMatch = r === "KBIS" && (typeUp.includes("EXTRAIT") || typeUp === "KBIS");
-        const isAvailable = d.status === "auto" || d.status === "lien_direct" || (d as any).storedInSupabase === true;
-        const notAuthOnly = !(d as any).needsAuth || (d as any).storedInSupabase;
+        const isAvailable = d.status === "auto" || d.status === "lien_direct" || d.storedInSupabase === true;
+        const notAuthOnly = !d.needsAuth || (d as any).storedInSupabase;
         return (typeMatch || kbisMatch) && isAvailable && notAuthOnly;
       })
     );
@@ -954,7 +956,7 @@ export default function NouveauClientPage() {
     // Populate form with enriched data
     // FIX 6: Apply forme juridique label from code if needed
     const rawForme = entData?.forme_juridique ?? result.forme_juridique ?? "";
-    const rawFormeCode = (entData as any)?.forme_juridique_code ?? "";
+    const rawFormeCode = entData?.forme_juridique_code ?? "";
     const resolvedForme = rawFormeCode ? getFormeJuridiqueLabel(rawFormeCode) : rawForme;
     const formeMatch = FORMES.find(f =>
       f === resolvedForme ||
@@ -1809,7 +1811,7 @@ export default function NouveauClientPage() {
                     </div>
                     {searchHistory.map((h, i) => (
                       <button
-                        key={i}
+                        key={h}
                         onMouseDown={() => { setSearchQuery(h); setShowSearchHistory(false); }}
                         className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04] transition-colors flex items-center gap-2"
                       >
@@ -1864,7 +1866,7 @@ export default function NouveauClientPage() {
                   <span className="text-sm font-bold text-red-400">ALERTE : Registre des gels d'avoirs du Tresor</span>
                 </div>
                 {gelAvoirsAlert.map((msg, i) => (
-                  <p key={i} className="text-xs text-red-300 ml-7">{msg}</p>
+                  <p key={`gel-${i}-${msg.slice(0, 20)}`} className="text-xs text-red-300 ml-7">{msg}</p>
                 ))}
                 <p className="text-xs text-red-400 mt-2 ml-7 font-semibold">Vigilance RENFORCEE obligatoire — Validation du referent LCB requise</p>
               </div>
@@ -1893,9 +1895,9 @@ export default function NouveauClientPage() {
                   <span className="text-[10px] text-slate-600">— selectionnez une entreprise</span>
                 </div>
                 <div className="max-h-60 overflow-y-auto space-y-1.5">
-                  {searchResults.map((r, i) => (
+                  {searchResults.map((r) => (
                     <button
-                      key={i}
+                      key={r.siren}
                       onClick={() => selectPappersResult(r)}
                       className={`w-full text-left p-3 rounded-lg border transition-all duration-200 hover:scale-[1.005] ${
                         selectedResult?.siren === r.siren
@@ -1949,7 +1951,7 @@ export default function NouveauClientPage() {
             {amlSignals.length > 0 && (
               <div className="space-y-2">
                 {amlSignals.map((signal, i) => (
-                  <div key={i} className={`p-3 rounded-lg flex items-start gap-2 ${
+                  <div key={`aml-${i}-${signal.message.slice(0, 20)}`} className={`p-3 rounded-lg flex items-start gap-2 ${
                     signal.severity === "red" ? "bg-red-500/10 border border-red-500/20" :
                     signal.severity === "orange" ? "bg-amber-500/10 border border-amber-500/20" :
                     "bg-blue-500/10 border border-blue-500/20"
@@ -2011,7 +2013,7 @@ export default function NouveauClientPage() {
                 {(screening.network.data.alertes?.length ?? 0) > 0 && (
                   <div className="px-4 py-3 border-t border-white/[0.06] space-y-1">
                     {screening.network.data.alertes.slice(0, 5).map((a, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs">
+                      <div key={`net-${i}-${a.message.slice(0, 20)}`} className="flex items-start gap-2 text-xs">
                         <AlertTriangle className={`w-3 h-3 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />
                         <span className={a.severity === "red" ? "text-red-300" : "text-amber-300"}>{a.message}</span>
                       </div>
@@ -2495,7 +2497,7 @@ export default function NouveauClientPage() {
                 const status = beScreening[key];
                 const isCollapsed = collapsedBE[i];
                 return (
-                  <div key={i} className={`rounded-lg border transition-all duration-200 overflow-hidden ${
+                  <div key={key || `be-${i}`} className={`rounded-lg border transition-all duration-200 overflow-hidden ${
                     status === "match" ? "border-red-500/30 bg-red-500/[0.03]" :
                     "border-white/[0.06] bg-white/[0.02]"
                   }`}>
@@ -3229,14 +3231,14 @@ export default function NouveauClientPage() {
               const seen = new Set<string>();
               // Prefer inpi docs first (more likely to have stored PDFs)
               const allDocs = [...inpiDocs, ...fetchDocs].filter(d => {
-                const dateKey = (d as any).dateDepot || (d as any).dateCloture || "";
-                const key = `${d.type}-${(d as any).source || ""}-${dateKey}`.toLowerCase();
+                const dateKey = d.dateDepot || d.dateCloture || "";
+                const key = `${d.type}-${d.source || ""}-${dateKey}`.toLowerCase();
                 if (seen.has(key)) return false;
                 seen.add(key);
                 return true;
               });
               const storedDocs = allDocs.filter(d => d.storedInSupabase);
-              const linkDocs = allDocs.filter(d => !d.storedInSupabase && d.url && d.status !== "manquant" && !(d as any).needsAuth);
+              const linkDocs = allDocs.filter(d => !d.storedInSupabase && d.url && d.status !== "manquant" && !d.needsAuth);
               const isLoading = screening.inpi.loading || screening.documents.loading;
 
               if (storedDocs.length === 0 && linkDocs.length === 0 && !isLoading) {
@@ -3347,7 +3349,7 @@ export default function NouveauClientPage() {
                         <tr className="bg-white/[0.03]">
                           <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
                           {screening.inpi.data.financials.map((f, i) => (
-                            <th key={i} className="text-right py-2.5 px-3 text-slate-400 font-medium">
+                            <th key={f.dateCloture || `fin-${i}`} className="text-right py-2.5 px-3 text-slate-400 font-medium">
                               {f.dateCloture ? formatDateFR(f.dateCloture) : `Exercice ${i + 1}`}
                             </th>
                           ))}
@@ -3371,7 +3373,7 @@ export default function NouveauClientPage() {
                                 const val = f[row.key];
                                 const isNeg = typeof val === "number" && val < 0;
                                 return (
-                                  <td key={i} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
+                                  <td key={f.dateCloture || `fin-${i}`} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
                                     {val != null ? (row.key === "effectif" ? val : `${typeof val === "number" ? val.toLocaleString("fr-FR") : val} \u20AC`) : "—"}
                                   </td>
                                 );
@@ -3464,8 +3466,8 @@ export default function NouveauClientPage() {
               const seenKeys = new Set<string>();
               const allDocs = rawDocs.filter(d => {
                 // FIX P4-12: Better dedup key — type+source+date instead of type+label
-                const dateKey = (d as any).dateDepot || (d as any).dateCloture || "";
-                const key = `${d.type.toUpperCase()}-${(d as any).source || ""}-${dateKey}`;
+                const dateKey = d.dateDepot || d.dateCloture || "";
+                const key = `${d.type.toUpperCase()}-${d.source || ""}-${dateKey}`;
                 if (seenKeys.has(key)) return false;
                 seenKeys.add(key);
                 return true;
@@ -3473,7 +3475,7 @@ export default function NouveauClientPage() {
               // FIX P4-10: needsAuth docs are NOT accessible — don't count them as stored
               const hasStoredPdf = (types: string[]) => allDocs.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t)) &&
-                (d as any).storedInSupabase === true
+                d.storedInSupabase === true
               );
               const hasUpload = (types: string[]) => documents.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t))

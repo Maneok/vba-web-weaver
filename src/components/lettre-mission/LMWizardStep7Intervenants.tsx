@@ -85,8 +85,7 @@ export default function LMWizardStep7Intervenants({ data, onChange }: Props) {
                   </SelectItem>
                 ))
               : [
-                  <SelectItem key="SAMUEL" value="SAMUEL">SAMUEL</SelectItem>,
-                  <SelectItem key="BRAYAN" value="BRAYAN">BRAYAN</SelectItem>,
+                  <SelectItem key="none" disabled value="">Aucun collaborateur configure</SelectItem>,
                 ]}
           </SelectContent>
         </Select>

@@ -23,11 +23,16 @@ const WHITE = { r: 255, g: 255, b: 255 };
 // Helpers
 // ──────────────────────────────────────────────
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  if (!hex || typeof hex !== "string") return { ...NAVY };
   const h = hex.replace("#", "");
+  if (h.length < 6) return { ...NAVY };
+  const r = parseInt(h.substring(0, 2), 16);
+  const g = parseInt(h.substring(2, 4), 16);
+  const b = parseInt(h.substring(4, 6), 16);
   return {
-    r: parseInt(h.substring(0, 2), 16) || NAVY.r,
-    g: parseInt(h.substring(2, 4), 16) || NAVY.g,
-    b: parseInt(h.substring(4, 6), 16) || NAVY.b,
+    r: isNaN(r) ? NAVY.r : r,
+    g: isNaN(g) ? NAVY.g : g,
+    b: isNaN(b) ? NAVY.b : b,
   };
 }
 

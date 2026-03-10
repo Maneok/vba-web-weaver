@@ -159,7 +159,14 @@ export default function GouvernancePage() {
   }, [newCollab, isOnline, refreshAll]);
 
   const handleEdit = useCallback(async () => {
-    if (!editingCollab?.id || !editForm.nom.trim()) return;
+    if (!editingCollab?.id || !editForm.nom.trim()) {
+      toast.error("Le nom est requis");
+      return;
+    }
+    if (editForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) {
+      toast.error("Email invalide");
+      return;
+    }
     setSaving(true);
     try {
       if (!isOnline) {

@@ -287,20 +287,20 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
   children.push(subHeading("Nature et limites"));
   children.push(bodyText("Notre mission consiste en la tenue/surveillance de votre comptabilité et présentation des comptes annuels. Elle ne constitue ni un audit, ni un commissariat aux comptes."));
 
-  if (opts.missionSociale) {
+  if (opts?.missionSociale) {
     children.push(subHeading("Mission sociale"));
     children.push(bulletItem("Établissement des bulletins de paie et DSN"));
     children.push(bulletItem("Gestion des entrées/sorties du personnel"));
     children.push(bulletItem("Calcul et déclaration des charges sociales"));
     children.push(bulletItem("Assistance en droit social courant"));
   }
-  if (opts.missionJuridique) {
+  if (opts?.missionJuridique) {
     children.push(subHeading("Mission juridique"));
     children.push(bulletItem("Rédaction des PV d'assemblées générales"));
     children.push(bulletItem("Formalités de modification statutaire"));
     children.push(bulletItem("Tenue des registres obligatoires"));
   }
-  if (opts.missionControleFiscal) {
+  if (opts?.missionControleFiscal) {
     children.push(subHeading("Assistance au contrôle fiscal"));
     children.push(bulletItem("Option 1 — Assistance à la préparation"));
     children.push(bulletItem("Option 2 — Assistance pendant le contrôle"));

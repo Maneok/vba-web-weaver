@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
 
   try {
     const { siren, raison_sociale } = await req.json();
-    if (!siren) {
+    if (!siren || typeof siren !== "string") {
       return new Response(JSON.stringify({ error: "siren requis", documents: [], status: "error" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

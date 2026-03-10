@@ -365,7 +365,7 @@ export default function DiagnosticPage() {
           </h3>
           <div className="space-y-2">
             {autoRecommandations.map((rec, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
+              <div key={`auto-${i}-${rec.slice(0, 20)}`} className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
                 <span className="font-bold text-amber-400 text-sm">{i + 1}.</span>
                 <p className="text-sm text-slate-300">{rec}</p>
               </div>
@@ -383,7 +383,7 @@ export default function DiagnosticPage() {
           </h3>
           <div className="space-y-2">
             {report.recommandationsPrioritaires.map((rec, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+              <div key={`prio-${i}-${rec.slice(0, 20)}`} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10">
                 <span className="font-bold text-red-400 text-sm">{i + 1}.</span>
                 <p className="text-sm text-slate-300">{rec}</p>
               </div>

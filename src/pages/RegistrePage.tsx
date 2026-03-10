@@ -125,9 +125,19 @@ export default function RegistrePage() {
     });
     if (sortKey) {
       result = [...result].sort((a, b) => {
-        const va = String(a[sortKey] ?? "").toLowerCase();
-        const vb = String(b[sortKey] ?? "").toLowerCase();
-        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+        const va = a[sortKey] ?? null;
+        const vb = b[sortKey] ?? null;
+        // Null-last sorting
+        if (va === null && vb === null) return 0;
+        if (va === null) return 1;
+        if (vb === null) return -1;
+        let cmp: number;
+        if (sortKey === "date") {
+          // Date-aware comparison
+          cmp = String(va).localeCompare(String(vb));
+        } else {
+          cmp = String(va).toLowerCase() < String(vb).toLowerCase() ? -1 : String(va).toLowerCase() > String(vb).toLowerCase() ? 1 : 0;
+        }
         return sortDir === "asc" ? cmp : -cmp;
       });
     }

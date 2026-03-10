@@ -150,6 +150,7 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({
       matches: allMatches,
       checked,
+      skipped: Math.max(0, persons.length - 10),
       hasCriticalMatch,
       hasPPE,
       status: allMatches.length > 0 ? (hasCriticalMatch ? "ALERTE" : "ATTENTION") : "ok",

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
+import type { Client, EtatDossier, MissionType, OuiNon, VigilanceLevel, EtatPilotage, StatutClient } from "@/lib/types";
 import { computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
 import LettreMissionA4Preview from "@/components/lettre-mission/LettreMissionA4Preview";
@@ -33,9 +34,9 @@ function buildClientFromData(data: LMWizardData) {
     iban: data.iban,
     bic: data.bic,
     // Fill required fields with defaults
-    etat: "EN_COURS" as any,
+    etat: "EN COURS" as EtatDossier,
     comptable: "",
-    mission: data.type_mission as any,
+    mission: "TENUE COMPTABLE" as MissionType,
     domaine: "",
     effectif: "",
     dateCreation: "",
@@ -46,12 +47,12 @@ function buildClientFromData(data: LMWizardData) {
     frequence: data.frequence_facturation,
     associe: data.associe_signataire,
     superviseur: data.chef_mission,
-    ppe: "NON" as any,
-    paysRisque: "NON" as any,
-    atypique: "NON" as any,
-    distanciel: "NON" as any,
-    cash: "NON" as any,
-    pression: "NON" as any,
+    ppe: "NON" as OuiNon,
+    paysRisque: "NON" as OuiNon,
+    atypique: "NON" as OuiNon,
+    distanciel: "NON" as OuiNon,
+    cash: "NON" as OuiNon,
+    pression: "NON" as OuiNon,
     scoreActivite: 0,
     scorePays: 0,
     scoreMission: 0,
@@ -59,13 +60,13 @@ function buildClientFromData(data: LMWizardData) {
     scoreStructure: 0,
     malus: 0,
     scoreGlobal: 0,
-    nivVigilance: "STANDARD" as any,
+    nivVigilance: "STANDARD" as VigilanceLevel,
     dateCreationLigne: "",
     dateDerniereRevue: "",
     dateButoir: "",
-    etatPilotage: "A JOUR" as any,
+    etatPilotage: "A JOUR" as EtatPilotage,
     dateExpCni: "",
-    statut: "ACTIF" as any,
+    statut: "ACTIF" as StatutClient,
     be: "",
   };
 }
@@ -115,7 +116,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
     <div className="bg-white rounded-lg shadow-2xl overflow-hidden">
       <LettreMissionA4Preview
         sections={DEFAULT_TEMPLATE}
-        client={client as any}
+        client={client as Client}
         genre="M"
         missions={missions}
         honoraires={honoraires}

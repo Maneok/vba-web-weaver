@@ -270,7 +270,7 @@ export default function HelpPage() {
             <div className="absolute left-6 right-6 top-full mt-1 max-w-xl bg-slate-900 border border-white/[0.08] rounded-lg shadow-xl max-h-64 overflow-y-auto z-20">
               {searchResults.map((r, i) => (
                 <button
-                  key={i}
+                  key={`${r.section}-${r.title}`}
                   onClick={() => scrollTo(r.section)}
                   className="w-full text-left px-4 py-2.5 hover:bg-white/[0.04] flex items-center gap-2 border-b border-white/[0.04] last:border-0"
                 >
@@ -486,7 +486,7 @@ export default function HelpPage() {
               <Accordion type="multiple" className="space-y-2">
                 {FAQ_ITEMS.map((item, i) => (
                   <AccordionItem
-                    key={i}
+                    key={`faq-${i}`}
                     value={`faq-${i}`}
                     className="border border-white/[0.06] rounded-lg bg-white/[0.02] px-4 data-[state=open]:bg-white/[0.03]"
                   >

@@ -283,6 +283,13 @@ export default function GedPage() {
     e.preventDefault();
     setDragOver(false);
     const files = Array.from(e.dataTransfer.files);
+    const MAX_DROP_SIZE = 100 * 1024 * 1024; // 100 Mo
+    for (const file of files) {
+      if (file.size > MAX_DROP_SIZE) {
+        toast.error("Fichier trop volumineux (max 100 Mo)");
+        return;
+      }
+    }
     if (files.length > 0) {
       setPendingFiles(files);
       const name = files[0].name.toLowerCase();
@@ -301,6 +308,14 @@ export default function GedPage() {
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    const MAX_DROP_SIZE = 100 * 1024 * 1024; // 100 Mo
+    for (const file of files) {
+      if (file.size > MAX_DROP_SIZE) {
+        toast.error("Fichier trop volumineux (max 100 Mo)");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+    }
     if (files.length > 0) {
       setPendingFiles(files);
       setUploadDialogOpen(true);
@@ -860,7 +875,7 @@ export default function GedPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               {pendingFiles.map((file, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm bg-white/5 rounded-lg p-2.5 border border-white/5">
+                <div key={`${file.name}-${file.size}`} className="flex items-center gap-2 text-sm bg-white/5 rounded-lg p-2.5 border border-white/5">
                   {getFileIcon(file.name)}
                   <span className="truncate text-slate-200">{file.name}</span>
                   <span className="text-slate-500 ml-auto shrink-0">

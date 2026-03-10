@@ -246,8 +246,8 @@ export default function ControleInterne() {
                     {ctrl.controleur && <span className="text-xs text-slate-500">Controleur : {ctrl.controleur}</span>}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {ctrl.dossiers.map((d, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{d}</Badge>
+                    {ctrl.dossiers.map((d) => (
+                      <Badge key={d} variant="outline" className="text-xs">{d}</Badge>
                     ))}
                   </div>
                 </div>

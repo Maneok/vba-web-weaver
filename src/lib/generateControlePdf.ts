@@ -253,7 +253,7 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
         const acRow = [
           safe(nc.dossierAudite, 25),
           safe(nc.resultatGlobal, 20),
-          safe(nc.actionCorrectrice, 20) || "A definir",
+          nc.actionCorrectrice ? safe(nc.actionCorrectrice, 20) : "A definir",
           fmtEch,
           suiviLabel[nc.suiviStatut] || nc.suiviStatut || "A traiter",
         ];

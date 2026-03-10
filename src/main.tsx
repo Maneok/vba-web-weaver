@@ -9,7 +9,10 @@ initMonitoring();
 // Gestion globale des promesses non gerees
 window.addEventListener("unhandledrejection", (event) => {
   const reason = event.reason instanceof Error ? event.reason.message : String(event.reason);
-  console.error("[Global] Promesse non geree:", reason);
+  // Silently swallow in production to avoid noisy console output
+  if (import.meta.env.DEV) {
+    console.error("[Global] Promesse non geree:", reason);
+  }
 });
 
 const rootElement = document.getElementById("root");

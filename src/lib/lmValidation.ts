@@ -65,11 +65,11 @@ export function validateStep4(data: Record<string, unknown>): ValidationError[] 
         const clean = iban.toUpperCase();
         const rearranged = clean.slice(4) + clean.slice(0, 4);
         const numeric = rearranged.replace(/[A-Z]/g, (c) => String(c.charCodeAt(0) - 55));
-        let remainder = "";
-        for (const digit of numeric) {
-          remainder = String(Number(remainder + digit) % 97);
+        let remainder = 0;
+        for (const ch of numeric) {
+          remainder = (remainder * 10 + parseInt(ch, 10)) % 97;
         }
-        if (remainder !== "1") {
+        if (remainder !== 1) {
           errors.push({ field: "iban", message: "Cle IBAN invalide (checksum incorrecte)" });
         }
       }

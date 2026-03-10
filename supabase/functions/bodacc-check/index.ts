@@ -65,8 +65,8 @@ Deno.serve(async (req) => {
           };
         });
       }
-    } catch {
-      // BODACC API unavailable — fallback to complements
+    } catch (error) {
+      console.error("[bodacc-check]", error);
     }
 
     // Fallback: use complements.collecte_procol from enterprise-lookup

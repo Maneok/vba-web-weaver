@@ -53,7 +53,7 @@ export function generateFicheAcceptation(client: Client) {
   addRow("Raison sociale", client.raisonSociale, "SIREN", client.siren);
   addRow("Forme juridique", client.forme, "Code APE", client.ape);
   addRow("Dirigeant", client.dirigeant, "Capital", `${(client.capital ?? 0).toLocaleString("fr-FR")} €`);
-  addRow("Adresse", `${client.adresse}, ${client.cp} ${client.ville}`);
+  addRow("Adresse", [client.adresse, client.cp, client.ville].filter(Boolean).join(", ") || "—");
   addRow("Téléphone", client.tel, "Email", client.mail);
   addRow("Effectif", client.effectif, "Date création", client.dateCreation);
   addRow("Domaine d'activité", client.domaine);
@@ -83,7 +83,7 @@ export function generateFicheAcceptation(client: Client) {
 
   // ====== FACTEURS DE RISQUE ======
   addTitle("3. FACTEURS DE RISQUE IDENTIFIÉS");
-  const flag = (v: string) => v === "OUI" ? "⚠ OUI" : "NON";
+  const flag = (v: string) => v === "OUI" ? "/!\\ OUI" : "NON";
   addRow("PPE (Pers. Politiquement Exposée)", flag(client.ppe), "Pays à risque", flag(client.paysRisque));
   addRow("Montage atypique", flag(client.atypique), "Relation à distance", flag(client.distanciel));
   addRow("Espèces significatives", flag(client.cash), "Pression du client", flag(client.pression));
@@ -188,11 +188,12 @@ export function generateFicheAcceptation(client: Client) {
   for (const s of scores) {
     doc.text(s.label, tableX + 2, tableY);
     // Color-coded bar
-    const barW = ((s.value ?? 0) / 100) * 30;
-    const barColor: [number, number, number] = s.value >= 61 ? [244, 67, 54] : s.value >= 26 ? [255, 152, 0] : [76, 175, 80];
+    const sv = s.value ?? 0;
+    const barW = (sv / 100) * 30;
+    const barColor: [number, number, number] = sv >= 61 ? [244, 67, 54] : sv >= 26 ? [255, 152, 0] : [76, 175, 80];
     doc.setFillColor(barColor[0], barColor[1], barColor[2]);
     doc.rect(tableX + 40, tableY - 2.5, barW, 3, "F");
-    doc.text(String(s.value), tableX + 72, tableY);
+    doc.text(String(sv), tableX + 72, tableY);
     tableY += 5.5;
   }
 
@@ -200,8 +201,8 @@ export function generateFicheAcceptation(client: Client) {
   tableY += 2;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
-  doc.text(`SCORE GLOBAL : ${client.scoreGlobal}`, tableX + 2, tableY);
-  if (client.malus > 0) {
+  doc.text(`SCORE GLOBAL : ${client.scoreGlobal ?? 0}`, tableX + 2, tableY);
+  if ((client.malus ?? 0) > 0) {
     tableY += 5;
     doc.setFontSize(8);
     doc.setTextColor(200, 0, 0);
@@ -239,9 +240,12 @@ export function generateFicheAcceptation(client: Client) {
   y += 2;
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("☐  ACCEPTATION SANS RÉSERVE", marginL + 5, y); y += 6;
-  doc.text("☐  ACCEPTATION AVEC VIGILANCE RENFORCÉE", marginL + 5, y); y += 6;
-  doc.text("☐  REFUS DE LA MISSION", marginL + 5, y); y += 10;
+  doc.rect(marginL + 5, y - 3, 3.5, 3.5);
+  doc.text("  ACCEPTATION SANS RESERVE", marginL + 9, y); y += 6;
+  doc.rect(marginL + 5, y - 3, 3.5, 3.5);
+  doc.text("  ACCEPTATION AVEC VIGILANCE RENFORCEE", marginL + 9, y); y += 6;
+  doc.rect(marginL + 5, y - 3, 3.5, 3.5);
+  doc.text("  REFUS DE LA MISSION", marginL + 9, y); y += 10;
 
   addRow("Date de la décision", "_ _ / _ _ / _ _ _ _", "Signature de l'associé", "____________________");
   y += 15;

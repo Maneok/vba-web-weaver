@@ -79,7 +79,7 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
         const { LMPdfBuilder } = await import("@/lib/lettreMissionPdf");
         const lm = buildLettreMission(sanitized, client, cabinet);
         const builder = new LMPdfBuilder(lm);
-        (builder as any).build();
+        builder.build();
         toast.success("PDF genere avec succes");
       } catch (err: unknown) {
         logger.error("PDF export error:", err);
@@ -291,11 +291,11 @@ function buildLettreMission(data: LMWizardData, client: Client | null, cabinet: 
         juridique: 0,
         sociale: 0,
         fiscal: 0,
-        frequence: data.frequence_facturation as any,
+        frequence: data.frequence_facturation as "MENSUEL" | "TRIMESTRIEL" | "ANNUEL",
       },
       associe: data.associe_signataire,
       superviseur: data.chef_mission,
-      comptable: data.collaborateurs[0] || "",
+      comptable: (Array.isArray(data.collaborateurs) && data.collaborateurs.length > 0) ? data.collaborateurs[0] : "",
     },
     numero: `LM-${new Date().getFullYear()}-001`,
     date: new Date().toLocaleDateString("fr-FR"),

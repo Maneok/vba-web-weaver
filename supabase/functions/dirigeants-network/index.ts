@@ -62,8 +62,8 @@ Deno.serve(async (req) => {
           try { pData = await pRes.json(); } catch { pData = {}; }
           pappersReps = pData.representants ?? [];
         }
-      } catch {
-        // Pappers failed
+      } catch (error) {
+        console.error("[dirigeants-network] Pappers fetch failed:", error);
       }
     }
 

@@ -6,12 +6,14 @@ import { Users, GraduationCap, Shield, AlertTriangle } from "lucide-react";
 import type { Collaborateur } from "@/lib/types";
 
 function getInitials(nom: string) {
+  if (!nom) return "??";
   return nom
     .split(/\s+/)
+    .filter(w => w.length > 0)
     .map(w => w[0])
     .join("")
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || "??";
 }
 
 function isFormationExpired(dateStr: string) {

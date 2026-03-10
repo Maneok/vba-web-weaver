@@ -93,8 +93,8 @@ function loadTemplates(): Template[] {
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored) as Template[];
-      if (parsed.length > 0) return parsed;
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed as Template[];
     }
   } catch { /* ignore */ }
   return PRELOADED_TEMPLATES;

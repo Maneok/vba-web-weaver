@@ -279,7 +279,7 @@ export default function DashboardPage() {
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
 
   const handleRefresh = useCallback(() => {
-    refreshAll().then(() => setLastRefresh(new Date())).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
+    refreshAll().then(() => { if (mountedRef.current) setLastRefresh(new Date()); }).catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
   }, [refreshAll]);
 
   const showOnboarding = !isLoading && clients.length === 0 && !isOnboardingComplete();

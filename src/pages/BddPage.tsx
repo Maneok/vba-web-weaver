@@ -389,7 +389,7 @@ export default function BddPage() {
                           if (md.form?.siren?.replace(/\s/g, "") === draft.siren.replace(/\s/g, "")) {
                             sessionStorage.removeItem("draft_nouveau_client");
                           }
-                        } catch {}
+                        } catch { /* JSON parse error — ignore stale draft */ }
                       }
                       setDrafts(prev => prev.filter(d => d.key !== draft.key));
                       toast.success("Brouillon supprime");
@@ -569,7 +569,7 @@ export default function BddPage() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0">
+                        <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0" aria-label="Actions">
                           <MoreHorizontal className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -638,10 +638,10 @@ export default function BddPage() {
             </p>
             {/* 13. Pagination with first/last page buttons */}
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(0)} className="h-8 w-8 p-0" title="Premiere page">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(0)} className="h-8 w-8 p-0" title="Premiere page" aria-label="Premiere page">
                 <ChevronsLeft className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0" title="Page precedente">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0" title="Page precedente" aria-label="Page precedente">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -659,10 +659,10 @@ export default function BddPage() {
                   </Button>
                 );
               })}
-              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0" title="Page suivante">
+              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0" title="Page suivante" aria-label="Page suivante">
                 <ChevronRightIcon className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} className="h-8 w-8 p-0" title="Derniere page">
+              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} className="h-8 w-8 p-0" title="Derniere page" aria-label="Derniere page">
                 <ChevronsRight className="w-4 h-4" />
               </Button>
             </div>

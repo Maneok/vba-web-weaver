@@ -469,7 +469,9 @@ export default function ControlePage() {
 
     const controlledSirens = new Set(controles.map((c) => c.siren));
     const validClients = clients.filter((c) => c.etat === "VALIDE");
-    const coverageRate = validClients.length > 0 ? Math.round((controlledSirens.size / validClients.length) * 100) : 0;
+    const validSirens = new Set(validClients.map((c) => c.siren));
+    const controlledValidCount = [...controlledSirens].filter((s) => validSirens.has(s)).length;
+    const coverageRate = validClients.length > 0 ? Math.min(100, Math.round((controlledValidCount / validClients.length) * 100)) : 0;
 
     return { total, conformes, ncMineur, ncMajeur, reserves, incidents, tauxConformite, trend, coverageRate, controlledSirens, validClients };
   }, [controles, clients]);

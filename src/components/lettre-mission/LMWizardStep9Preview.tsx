@@ -27,7 +27,7 @@ function loadCabinet(): CabinetInfo {
   try {
     const raw = sessionStorage.getItem("cabinet_info") || localStorage.getItem("cabinet_info");
     if (raw) return JSON.parse(raw);
-  } catch {}
+  } catch { /* parse error — use defaults */ }
   return { nom: "Cabinet Comptable", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" };
 }
 

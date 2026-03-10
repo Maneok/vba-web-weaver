@@ -18,6 +18,7 @@ export default function LMWizardStep3Infos({ data, onChange }: Props) {
 
   const validateField = (field: string, value: any) => {
     let error = "";
+    if (field === "dirigeant" && !String(value).trim()) error = "Nom du dirigeant requis";
     if (field === "cp" && value && !/^\d{5}$/.test(value)) error = "Code postal invalide (5 chiffres)";
     if (field === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = "Email invalide";
     if (field === "siren" && value && !/^\d{9}$/.test(value.replace(/\s/g, ""))) error = "SIREN invalide (9 chiffres)";
@@ -50,10 +51,11 @@ export default function LMWizardStep3Infos({ data, onChange }: Props) {
             value={data.dirigeant}
             onChange={(e) => onChange({ dirigeant: e.target.value })}
             onBlur={(e) => validateField("dirigeant", e.target.value)}
-            className={inputCls}
+            className={fieldErrors.dirigeant ? errorInputCls : inputCls}
             placeholder="Nom du dirigeant"
             autoComplete="name"
           />
+          {fieldErrors.dirigeant && <p className="text-xs text-red-400 mt-0.5">{fieldErrors.dirigeant}</p>}
         </div>
         <div className="space-y-1.5">
           <Label className="text-slate-400 text-xs">Qualite</Label>

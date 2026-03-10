@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { LM_STATUTS, computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
-import type { Client } from "@/lib/types";
+import type { Client, EtatDossier, MissionType, OuiNon, VigilanceLevel, EtatPilotage, StatutClient } from "@/lib/types";
 import { sanitizeWizardData } from "@/lib/lmValidation";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
 import { Button } from "@/components/ui/button";
@@ -37,9 +37,9 @@ function buildClientForExport(data: LMWizardData): Client {
     tel: data.telephone,
     iban: data.iban,
     bic: data.bic,
-    etat: "EN_COURS" as any,
+    etat: "EN COURS" as EtatDossier,
     comptable: "",
-    mission: data.type_mission as any,
+    mission: "TENUE COMPTABLE" as MissionType,
     domaine: "",
     effectif: "",
     dateCreation: "",
@@ -50,19 +50,19 @@ function buildClientForExport(data: LMWizardData): Client {
     frequence: data.frequence_facturation,
     associe: data.associe_signataire,
     superviseur: data.chef_mission,
-    ppe: "NON" as any,
-    paysRisque: "NON" as any,
-    atypique: "NON" as any,
-    distanciel: "NON" as any,
-    cash: "NON" as any,
-    pression: "NON" as any,
+    ppe: "NON" as OuiNon,
+    paysRisque: "NON" as OuiNon,
+    atypique: "NON" as OuiNon,
+    distanciel: "NON" as OuiNon,
+    cash: "NON" as OuiNon,
+    pression: "NON" as OuiNon,
     scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
     malus: 0, scoreGlobal: 0,
-    nivVigilance: "STANDARD" as any,
+    nivVigilance: "STANDARD" as VigilanceLevel,
     dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
-    etatPilotage: "A JOUR" as any,
+    etatPilotage: "A JOUR" as EtatPilotage,
     dateExpCni: "",
-    statut: "ACTIF" as any,
+    statut: "ACTIF" as StatutClient,
     be: "",
   };
 }
@@ -246,7 +246,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         comptable: data.honoraires_ht,
         constitution: 0,
         juridique: 0,
-        frequence: (data.frequence_facturation || "MENSUEL") as any,
+        frequence: (data.frequence_facturation || "MENSUEL") as "MENSUEL" | "TRIMESTRIEL" | "ANNUEL",
       },
       cabinet: {
         nom: "Cabinet Expertise Comptable",

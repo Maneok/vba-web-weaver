@@ -59,6 +59,11 @@ Deno.serve(async (req) => {
         if (!res.ok) continue;
 
         // P6-35: Guard against non-JSON response
+        const resContentType = res.headers.get("content-type") || "";
+        if (!resContentType.includes("application/json")) {
+          console.warn(`[news-check] Non-JSON response from Google CSE: ${resContentType}`);
+          continue;
+        }
         let data: any;
         try { data = await res.json(); } catch { data = {}; }
         const items = data.items ?? [];

@@ -73,10 +73,10 @@ export function generateLettreMission(client: Client) {
   y += 7;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  doc.text(client.raisonSociale, marginL, y); y += 5;
-  doc.text(`${client.forme} — SIREN ${client.siren}`, marginL, y); y += 5;
-  doc.text(`${client.adresse}, ${client.cp} ${client.ville}`, marginL, y); y += 5;
-  doc.text(`A l'attention de ${client.dirigeant}`, marginL, y); y += 10;
+  doc.text(client.raisonSociale || "—", marginL, y); y += 5;
+  doc.text(`${client.forme || "—"} — SIREN ${client.siren || "—"}`, marginL, y); y += 5;
+  doc.text(`${client.adresse || ""}, ${client.cp || ""} ${client.ville || ""}`, marginL, y); y += 5;
+  doc.text(`A l'attention de ${client.dirigeant || "—"}`, marginL, y); y += 10;
 
   // === OBJET ===
   doc.setFontSize(11);
@@ -86,7 +86,7 @@ export function generateLettreMission(client: Client) {
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  const introText = `Madame, Monsieur,\n\nNous avons l'honneur de vous confirmer les termes et conditions de notre intervention pour la mission de ${client.mission} que vous nous confiez.`;
+  const introText = `Madame, Monsieur,\n\nNous avons l'honneur de vous confirmer les termes et conditions de notre intervention pour la mission de ${client.mission || "presentation des comptes"} que vous nous confiez.`;
   const introLines = doc.splitTextToSize(introText, contentW);
   doc.text(introLines, marginL, y);
   y += introLines.length * 5 + 5;
@@ -105,19 +105,19 @@ export function generateLettreMission(client: Client) {
     ["Associe signataire", client.associe],
     ["Superviseur", client.superviseur],
     ["Comptable referent", client.comptable],
-    ["Honoraires HT", `${client.honoraires.toLocaleString("fr-FR")} EUR`],
+    ["Honoraires HT", `${(client.honoraires ?? 0).toLocaleString("fr-FR")} EUR`],
   ];
   for (const [label, val] of missionDetails) {
     doc.setFont("helvetica", "bold");
     doc.text(`${label} :`, marginL + 5, y);
     doc.setFont("helvetica", "normal");
-    doc.text(val, marginL + 60, y);
+    doc.text(val || "—", marginL + 60, y);
     y += 5;
   }
   y += 5;
 
   // === BLOC LCB-FT DYNAMIQUE ===
-  const lmLab = LM_LAB_TEXTES[client.nivVigilance];
+  const lmLab = LM_LAB_TEXTES[client.nivVigilance] ?? LM_LAB_TEXTES["STANDARD"];
   if (y > 200) { doc.addPage(); y = 20; }
 
   doc.setFontSize(11);
@@ -176,8 +176,8 @@ export function generateLettreMission(client: Client) {
   y += 5;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
-  doc.text(`${client.associe} — Associe signataire`, marginL, y);
-  doc.text(client.dirigeant, marginL + 100, y);
+  doc.text(`${client.associe || "—"} — Associe signataire`, marginL, y);
+  doc.text(client.dirigeant || "—", marginL + 100, y);
   y += 15;
   doc.text("Signature :", marginL, y);
   doc.text("Signature :", marginL + 100, y);

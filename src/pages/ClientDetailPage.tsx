@@ -398,7 +398,7 @@ function ClientDetailContent({ client }: { client: Client }) {
               ) : (
                 <div className="flex gap-2">
                   <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}><Save className="w-3.5 h-3.5" /> Sauvegarder</Button>
-                  <Button variant="outline" size="sm" onClick={() => setEditing(false)}><X className="w-3.5 h-3.5" /></Button>
+                  <Button variant="outline" size="sm" onClick={() => setEditing(false)} aria-label="Annuler la modification"><X className="w-3.5 h-3.5" /></Button>
                 </div>
               )}
             </div>
@@ -1044,8 +1044,8 @@ function ClientDetailContent({ client }: { client: Client }) {
                           <MapPin className="w-3 h-3" /> Google Maps <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
-                      {(screening.google.data as any).streetViewUrl && (
-                        <a href={(screening.google.data as any).streetViewUrl} target="_blank" rel="noopener noreferrer"
+                      {screening.google.data.streetViewUrl && (
+                        <a href={screening.google.data.streetViewUrl} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1 text-xs text-blue-400 hover:underline">
                           Street View <ExternalLink className="w-3 h-3" />
                         </a>
