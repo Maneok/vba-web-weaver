@@ -153,7 +153,8 @@ export default function AppLayout() {
         </div>
       )}
 
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-white px-3 py-2 rounded">
+      {/* OPT-16: Better focus visibility for skip link */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-white px-3 py-2 rounded focus:outline-2 focus:outline-offset-2 focus:outline-blue-400">
         Aller au contenu principal
       </a>
       <AppSidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
@@ -195,7 +196,8 @@ export default function AppLayout() {
                         {item.label}
                       </button>
                     ) : (
-                      <span className={isLast ? "text-slate-200 font-medium" : "text-slate-500"}>
+                      // OPT-17: aria-current on last breadcrumb for screen readers
+                      <span className={isLast ? "text-slate-200 font-medium" : "text-slate-500"} aria-current={isLast ? "page" : undefined}>
                         {item.label}
                       </span>
                     )}
@@ -213,9 +215,10 @@ export default function AppLayout() {
               <Settings className="h-3.5 w-3.5" />
               Parametres
             </button>
-            <span className="hidden sm:inline text-[11px] text-slate-500 font-mono">
+            {/* OPT-34: Accessible date display */}
+            <time dateTime={new Date().toISOString().split("T")[0]} className="hidden sm:inline text-[11px] text-slate-500 font-mono">
               {formatRelativeDate(new Date())}
-            </span>
+            </time>
             <div className="w-px h-5 bg-white/[0.06]" />
 
             <NotificationBell />

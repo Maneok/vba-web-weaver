@@ -105,12 +105,16 @@ export function validateSiren(siren: string): boolean {
 }
 
 /** Validate French postal code */
+// OPT-44: Properly handle DOM-TOM 3-digit ranges (971-976, 984-988)
 export function validateCodePostal(cp: string): boolean {
   if (!cp || typeof cp !== "string") return false;
   if (!/^\d{5}$/.test(cp)) return false;
   const dept = parseInt(cp.slice(0, 2), 10);
-  // Valid French departments: 01-95, 2A/2B (20), 97x (DOM), 98x (TOM)
-  return (dept >= 1 && dept <= 95) || dept === 97 || dept === 98;
+  // Mainland + Corsica (01-95, includes 20 for Corsica 2A/2B)
+  if (dept >= 1 && dept <= 95) return true;
+  // DOM: 971-976, TOM: 984-988
+  const dept3 = parseInt(cp.slice(0, 3), 10);
+  return (dept3 >= 971 && dept3 <= 976) || (dept3 >= 984 && dept3 <= 988);
 }
 
 export type ClientFormData = z.infer<typeof clientSchema>;

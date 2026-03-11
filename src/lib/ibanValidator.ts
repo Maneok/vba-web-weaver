@@ -1,3 +1,12 @@
+// OPT-46: Hoist KNOWN_IBAN_COUNTRIES to module level (avoid re-creation per call)
+const KNOWN_IBAN_COUNTRIES = new Set([
+  "AD","AE","AL","AT","AZ","BA","BE","BG","BH","BR","BY","CH","CR","CY","CZ",
+  "DE","DK","DO","EE","EG","ES","FI","FO","FR","GB","GE","GI","GL","GR","GT",
+  "HR","HU","IE","IL","IQ","IS","IT","JO","KW","KZ","LB","LC","LI","LT","LU",
+  "LV","MC","MD","ME","MK","MR","MT","MU","NL","NO","PK","PL","PS","PT","QA",
+  "RO","RS","SA","SC","SE","SI","SK","SM","ST","SV","TL","TN","TR","UA","VA","VG","XK",
+]);
+
 export function validateIBAN(iban: string): { valid: boolean; bankName?: string; error?: string } {
   if (!iban || typeof iban !== "string") return { valid: false, error: "IBAN requis" };
   const trimmed = iban.trim();
@@ -7,14 +16,6 @@ export function validateIBAN(iban: string): { valid: boolean; bankName?: string;
   const clean = trimmed.replace(/\s/g, "").toUpperCase();
   if (clean.length < 15 || clean.length > 34) return { valid: false, error: "Longueur IBAN invalide (15-34 caractères)" };
   if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(clean)) return { valid: false, error: "Format IBAN invalide" };
-  // Validate country code against known IBAN countries
-  const KNOWN_IBAN_COUNTRIES = new Set([
-    "AD","AE","AL","AT","AZ","BA","BE","BG","BH","BR","BY","CH","CR","CY","CZ",
-    "DE","DK","DO","EE","EG","ES","FI","FO","FR","GB","GE","GI","GL","GR","GT",
-    "HR","HU","IE","IL","IQ","IS","IT","JO","KW","KZ","LB","LC","LI","LT","LU",
-    "LV","MC","MD","ME","MK","MR","MT","MU","NL","NO","PK","PL","PS","PT","QA",
-    "RO","RS","SA","SC","SE","SI","SK","SM","ST","SV","TL","TN","TR","UA","VA","VG","XK",
-  ]);
   const countryCode = clean.slice(0, 2);
   if (!KNOWN_IBAN_COUNTRIES.has(countryCode)) return { valid: false, error: `Code pays IBAN inconnu: ${countryCode}` };
   // Country-specific length checks

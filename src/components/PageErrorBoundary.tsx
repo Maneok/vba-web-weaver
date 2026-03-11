@@ -26,8 +26,9 @@ export default class PageErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      // OPT-26: role="alert" for screen reader announcement
       return (
-        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 animate-fade-in-up">
+        <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 p-6 animate-fade-in-up" role="alert">
           <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center">
             <AlertTriangle className="w-8 h-8 text-amber-400" />
           </div>

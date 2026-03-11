@@ -89,6 +89,12 @@ export const PAYS_RISQUE: string[] = [
   "SAMOA AMERICAINES",
 ];
 
+// OPT-1: Pre-computed Set for O(1) country risk lookups
+export const PAYS_RISQUE_SET = new Set(PAYS_RISQUE);
+
+// OPT-2: Pre-computed Set for O(1) cash-intensive APE lookups
+export const APE_CASH_SET = new Set(APE_CASH);
+
 // ====== STRUCTURE SCORING ======
 function scoreStructure(forme: string): number {
   if (!forme || typeof forme !== "string") return 20; // default fallback
@@ -232,14 +238,26 @@ export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview
   return d.toISOString().split("T")[0];
 }
 
+// OPT-3: Cache Date.now() to avoid multiple Date object creations
 export function getPilotageStatus(dateButoir: string): string {
   if (!dateButoir) return "RETARD";
-  const now = new Date();
   const butoir = new Date(dateButoir);
   if (isNaN(butoir.getTime())) return "RETARD";
-  const diffDays = (butoir.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
+  const diffDays = (butoir.getTime() - Date.now()) / 86400000;
   if (diffDays < 0) return "RETARD";
-  if (diffDays < 60) return "BIENTÔT";
+  if (diffDays < 60) return "BIENTOT";
   return "A JOUR";
+}
+
+// OPT-4: Helper to check if a nationality matches a risk country (used in multiple places)
+export function isRiskCountry(nationality: string): boolean {
+  if (!nationality) return false;
+  const upper = nationality.toUpperCase().trim();
+  if (PAYS_RISQUE_SET.has(upper)) return true;
+  // Partial match for compound names
+  for (const p of PAYS_RISQUE) {
+    if (upper.includes(p)) return true;
+  }
+  return false;
 }
 

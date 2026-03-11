@@ -225,7 +225,7 @@ describe("riskEngine — review dates & pilotage", () => {
 
   it("28. getPilotageStatus within 60 days => BIENTOT", () => {
     const d = new Date(); d.setDate(d.getDate() + 30);
-    expect(getPilotageStatus(d.toISOString().split("T")[0])).toBe("BIENTÔT");
+    expect(getPilotageStatus(d.toISOString().split("T")[0])).toBe("BIENTOT");
   });
 
   it("29. getPilotageStatus far future => A JOUR", () => {

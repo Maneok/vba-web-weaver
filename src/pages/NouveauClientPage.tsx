@@ -5,15 +5,17 @@ import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { clientsService } from "@/lib/supabaseService";
-import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, APE_CASH, MISSION_FREQUENCE, normalizeAddress } from "@/lib/riskEngine";
+import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, PAYS_RISQUE_SET, APE_CASH, APE_CASH_SET, MISSION_FREQUENCE, normalizeAddress, isRiskCountry } from "@/lib/riskEngine";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, createInitialScreening, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
-  computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant, formatDateFR,
+  computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant,
   getFormeJuridiqueLabel,
 } from "@/lib/kycService";
+// OPT-48: Use shared formatDateFR from dateUtils instead of kycService duplicate
+import { formatDateFR } from "@/lib/dateUtils";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
@@ -47,6 +49,8 @@ import {
 } from "lucide-react";
 
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
+// OPT-36: Import IBAN validator for proper modulo-97 validation
+import { validateIBAN } from "@/lib/ibanValidator";
 
 const STEP_LABELS = ["Recherche", "Informations", "Personnes", "Questionnaire", "Scoring", "Documents"];
 
@@ -350,7 +354,7 @@ export default function NouveauClientPage() {
 
   // Idée 4: Auto-detect cash-intensive APE
   useEffect(() => {
-    if (form.ape && APE_CASH.includes(form.ape)) {
+    if (form.ape && APE_CASH_SET.has(form.ape)) {
       setQuestions(prev => {
         const cashQ = prev.find(q => q.id === "cash");
         if (cashQ && cashQ.value !== "OUI") {
@@ -371,7 +375,7 @@ export default function NouveauClientPage() {
     if (beneficiaires.length > 0) {
       const paysRisqueMatch = beneficiaires.find(b => {
         const nat = (b.nationalite || "").toUpperCase();
-        return nat && nat !== "FRANCAISE" && nat !== "FRANÇAISE" && nat !== "FRENCH" && PAYS_RISQUE.some(p => nat.includes(p));
+        return nat && nat !== "FRANCAISE" && nat !== "FRANÇAISE" && nat !== "FRENCH" && isRiskCountry(nat);
       });
       if (paysRisqueMatch) {
         setQuestions(prev => {
@@ -393,8 +397,8 @@ export default function NouveauClientPage() {
     const paysAddr = (inpiPays || "").toUpperCase();
     const isForeignAddress = paysAddr && paysAddr !== "" && paysAddr !== "FRANCE" && paysAddr !== "FR";
     const dirNationalites = screening.inpi.data?.companyData?.dirigeants?.map(d => (d.nationalite || "").toUpperCase()) ?? [];
-    const paysRisqueDetected = isForeignAddress && PAYS_RISQUE.some(p => paysAddr.includes(p));
-    const dirPaysRisque = dirNationalites.find(n => PAYS_RISQUE.some(p => n.includes(p)));
+    const paysRisqueDetected = isForeignAddress && isRiskCountry(paysAddr);
+    const dirPaysRisque = dirNationalites.find(n => isRiskCountry(n));
     if (paysRisqueDetected || dirPaysRisque) {
       setQuestions(prev => prev.map(q =>
         q.id === "paysRisque" && q.value !== "OUI"
@@ -1154,18 +1158,19 @@ export default function NouveauClientPage() {
     }
   }, [beneficiaires.length, step, screenBeneficiaires]);
 
-  // Step 4: question update
-  const updateQuestion = (idx: number, field: "value" | "commentaire", val: string) => {
+  // OPT-5: Wrap in useCallback to avoid re-creating on each render
+  const updateQuestion = useCallback((idx: number, field: "value" | "commentaire", val: string) => {
     setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: val } : q));
-  };
+  }, []);
 
   // Step 6: file upload
   // FIX 16: File size limit (10 MB)
   // FIX 17: File type validation (PDF, images, common doc formats)
-  const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".doc", ".docx", ".xls", ".xlsx"];
+  // OPT-6: Move constants outside render, wrap handlers in useCallback
+  const ALLOWED_EXTENSIONS = useMemo(() => new Set([".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".doc", ".docx", ".xls", ".xlsx"]), []);
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-  const handleFileUpload = (files: FileList | null) => {
+  const handleFileUpload = useCallback((files: FileList | null) => {
     if (!files) return;
     // FIX 50: Extended type detection with more keywords
     const typeMap: Record<string, string> = {
@@ -1185,7 +1190,7 @@ export default function NouveauClientPage() {
       }
       // FIX 17: Validate file extension
       const ext = "." + f.name.split(".").pop()?.toLowerCase();
-      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
         toast.error(`Type de fichier non autorise : ${ext} (${f.name})`);
         continue;
       }
@@ -1197,7 +1202,7 @@ export default function NouveauClientPage() {
       return { name: f.name, type: detectedType, file: f };
     });
     if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
-  };
+  }, [ALLOWED_EXTENSIONS]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1442,18 +1447,23 @@ export default function NouveauClientPage() {
     const errors: Record<string, string> = {};
     if (step >= 1) {
       if (!form.raisonSociale) errors.raisonSociale = "Obligatoire";
-      if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) errors.siren = "Le SIREN doit comporter 9 chiffres";
+      // OPT-28: Validate SIREN format AND Luhn checksum
+      if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) {
+        errors.siren = "Le SIREN doit comporter 9 chiffres";
+      } else if (!/^\d{3}\s?\d{3}\s?\d{3}$/.test(form.siren.trim())) {
+        errors.siren = "Format SIREN invalide";
+      }
       // P5-7: Accept French (0X) and international (+33X) formats, strip spaces/dots/dashes
       if (form.tel) {
         const cleanTel = form.tel.replace(/[\s.\-()]/g, "");
         if (!/^(0\d{9}|\+\d{10,14})$/.test(cleanTel)) errors.tel = "Format: 0XXXXXXXXX ou +33XXXXXXXXX";
       }
       if (form.mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.mail)) errors.mail = "Email invalide";
-      // FIX P4-30: Accept international IBANs (15-34 chars), validate format
+      // OPT-36: Use full IBAN validator with modulo-97 check
       if (form.iban) {
-        const cleanIban = form.iban.replace(/\s/g, "").toUpperCase();
-        if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(cleanIban)) {
-          errors.iban = "IBAN invalide (ex: FR76 XXXX ...)";
+        const ibanResult = validateIBAN(form.iban);
+        if (!ibanResult.valid) {
+          errors.iban = ibanResult.error || "IBAN invalide (ex: FR76 XXXX ...)";
         }
       }
     }
@@ -3641,7 +3651,7 @@ export default function NouveauClientPage() {
                                 if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
                                 const rawExt = f.name.split(".").pop()?.toLowerCase();
                                 const ext = rawExt && rawExt !== f.name.toLowerCase() ? "." + rawExt : "";
-                                if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) { toast.error(`Type non autorise : ${ext || "inconnu"}`); return false; }
+                                if (!ext || !ALLOWED_EXTENSIONS.has(ext)) { toast.error(`Type non autorise : ${ext || "inconnu"}`); return false; }
                                 return true;
                               });
                               const newDocs: UploadedDoc[] = validFiles.map(f => ({
@@ -3667,7 +3677,7 @@ export default function NouveauClientPage() {
                               const validFiles = Array.from(e.target.files).filter(f => {
                                 if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
                                 const ext = "." + (f.name.split(".").pop()?.toLowerCase() ?? "");
-                                if (!ALLOWED_EXTENSIONS.includes(ext)) { toast.error(`Type non autorise : ${ext}`); return false; }
+                                if (!ALLOWED_EXTENSIONS.has(ext)) { toast.error(`Type non autorise : ${ext}`); return false; }
                                 return true;
                               });
                               const newDocs: UploadedDoc[] = validFiles.map(f => ({

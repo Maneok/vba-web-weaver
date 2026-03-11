@@ -6,14 +6,7 @@ import "./index.css";
 
 initMonitoring();
 
-// Gestion globale des promesses non gerees
-window.addEventListener("unhandledrejection", (event) => {
-  const reason = event.reason instanceof Error ? event.reason.message : String(event.reason);
-  // Silently swallow in production to avoid noisy console output
-  if (import.meta.env.DEV) {
-    console.error("[Global] Promesse non geree:", reason);
-  }
-});
+// OPT-50: Removed duplicate unhandledrejection listener — already handled by initMonitoring() in vitals.ts
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {

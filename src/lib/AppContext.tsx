@@ -40,12 +40,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   clientsRef.current = clients;
   // Track in-flight updates per client ref to prevent race conditions
   const pendingUpdatesRef = useRef<Set<string>>(new Set());
+  // OPT-49: Cache user email for local log entries (avoids hardcoded "Utilisateur")
+  const userEmailRef = useRef("Utilisateur");
 
   // Load data from Supabase or fallback to JSON
   const loadData = useCallback(async () => {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
+        userEmailRef.current = "Utilisateur";
         // No auth session: use local JSON data
         setClients(O90_CLIENTS);
         setCollaborateurs(O90_COLLABORATEURS);
@@ -55,6 +58,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
         return;
       }
+
+      // OPT-49: Cache user email for local log entries
+      userEmailRef.current = session.user?.email || "Utilisateur";
 
       // Authenticated: load from Supabase
       const [dbClients, dbCollabs, dbAlertes, dbLogs] = await Promise.all([
@@ -138,7 +144,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // Local log entry
     setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
-      utilisateur: "Utilisateur",
+      utilisateur: userEmailRef.current,
       refClient: client.ref,
       typeAction: "CREATION",
       details: `Nouveau dossier cree: ${client.raisonSociale}`,
@@ -182,7 +188,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     setLogs(prev => [{
       horodatage: new Date().toISOString().replace("T", " ").slice(0, 16),
-      utilisateur: "Utilisateur",
+      utilisateur: userEmailRef.current,
       refClient: ref,
       typeAction: "REVUE/MAJ",
       details: `Mise a jour du dossier`,
@@ -278,10 +284,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (!removed) return prev;
       const next = prev.filter(a => a.id !== id);
 
+      // OPT-39: Use registreService.delete instead of raw supabase call
       if (isOnline) {
-        supabase.from("alertes_registre").delete().eq("id", id).then(({ error }) => {
-          if (error) {
-            logger.error("AppContext", "Failed to delete alerte from Supabase:", error);
+        registreService.delete(id).then((success) => {
+          if (!success) {
+            logger.error("AppContext", "Failed to delete alerte from Supabase");
             setAlertes(p => [removed, ...p]);
             toast.error("Erreur lors de la suppression de l'alerte");
           }

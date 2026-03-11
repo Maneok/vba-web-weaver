@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
-import { MAX_RETRIES, RETRY_DELAY_MS } from "@/lib/constants";
+import { MAX_RETRIES, RETRY_DELAY_MS, AUDIT_TRAIL_FETCH_LIMIT } from "@/lib/constants";
 
 async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
@@ -18,8 +18,8 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
   throw new Error(`${label} failed after ${MAX_RETRIES + 1} attempts`);
 }
 
-// Strip fields that should never be overwritten by client code
-const PROTECTED_FIELDS = ["id", "cabinet_id", "created_at", "user_id"] as const;
+// OPT-8: Strip fields that should never be overwritten by client code
+const PROTECTED_FIELDS = ["id", "cabinet_id", "created_at", "user_id", "updated_at"] as const;
 function stripProtected(updates: Record<string, unknown>): Record<string, unknown> {
   const safe = { ...updates };
   for (const f of PROTECTED_FIELDS) delete safe[f];
@@ -146,11 +146,15 @@ export const clientsService = {
     return data;
   },
 
+  // OPT-37: Throw on delete failure for consistency with deleteByRef
   async delete(id: string) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return;
     const { error } = await supabase.from("clients").delete().eq("id", id).eq("cabinet_id", cabinetId);
-    if (error) logger.error("DB", "clients delete:", error);
+    if (error) {
+      logger.error("DB", "clients delete:", error);
+      throw error;
+    }
   },
 
   async deleteByRef(ref: string) {
@@ -310,6 +314,22 @@ export const registreService = {
     }
     return data;
   },
+
+  // OPT-39: Add delete method to registreService (was using raw supabase in AppContext)
+  async delete(id: string) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return false;
+    const { error } = await supabase
+      .from("alertes_registre")
+      .delete()
+      .eq("id", id)
+      .eq("cabinet_id", cabinetId);
+    if (error) {
+      logger.error("DB", "registre delete:", error);
+      return false;
+    }
+    return true;
+  },
 };
 
 // ===== AUDIT TRAIL (LOGS) =====
@@ -337,7 +357,8 @@ export const logsService = {
     }
   },
 
-  async getAll(limit = 200, offset = 0) {
+  // OPT-40: Use centralized AUDIT_TRAIL_FETCH_LIMIT constant instead of hardcoded 200
+  async getAll(limit = AUDIT_TRAIL_FETCH_LIMIT, offset = 0) {
     try {
       const cabinetId = await getCabinetId();
       if (!cabinetId) return [];
@@ -438,6 +459,7 @@ export const brouillonsService = {
     return data;
   },
 
+  // OPT-10: Use atomic upsert instead of check-then-act to prevent race conditions
   async save(siren: string, formData: unknown, step: number) {
     if (!siren || !siren.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
@@ -445,21 +467,13 @@ export const brouillonsService = {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return;
     const clean = siren.replace(/\s/g, "");
-    const existing = await brouillonsService.getBySiren(clean);
-    if (existing) {
-      const { error } = await supabase
-        .from("brouillons")
-        .update({ data: formData, step, updated_at: new Date().toISOString() })
-        .eq("id", existing.id)
-        .eq("user_id", user.id)
-        .eq("cabinet_id", cabinetId);
-      if (error) logger.error("DB", "brouillon update:", error);
-    } else {
-      const { error } = await supabase
-        .from("brouillons")
-        .insert({ user_id: user.id, cabinet_id: cabinetId, siren: clean, data: formData, step });
-      if (error) logger.error("DB", "brouillon insert:", error);
-    }
+    const { error } = await supabase
+      .from("brouillons")
+      .upsert(
+        { user_id: user.id, cabinet_id: cabinetId, siren: clean, data: formData, step, updated_at: new Date().toISOString() },
+        { onConflict: "user_id,cabinet_id,siren" }
+      );
+    if (error) logger.error("DB", "brouillon upsert:", error);
   },
 
   async delete(siren: string) {

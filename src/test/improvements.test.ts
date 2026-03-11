@@ -550,7 +550,7 @@ describe("#20: getPilotageStatus — edge cases", () => {
   it("should return BIENTOT for dates within 60 days", () => {
     const soon = new Date();
     soon.setDate(soon.getDate() + 30);
-    expect(getPilotageStatus(soon.toISOString().split("T")[0])).toBe("BIENTÔT");
+    expect(getPilotageStatus(soon.toISOString().split("T")[0])).toBe("BIENTOT");
   });
 
   it("should return A JOUR for dates beyond 60 days", () => {
