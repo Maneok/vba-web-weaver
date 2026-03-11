@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import { lazy, Suspense, useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -25,10 +25,10 @@ import { CabinetHealthScore } from "@/components/dashboard/CabinetHealthScore";
 import { ActionsOfDay } from "@/components/dashboard/ActionsOfDay";
 import { DrillDownSheet } from "@/components/dashboard/DrillDownSheet";
 
-// Advanced analytics (lazy-loaded in tab)
-import { RiskHeatmap } from "@/components/dashboard/RiskHeatmap";
-import { VigilanceDonut } from "@/components/dashboard/VigilanceDonut";
-import { ComplianceGauge } from "@/components/dashboard/ComplianceGauge";
+// Advanced analytics — truly lazy-loaded (only fetched when user clicks "Analyse avancee")
+const RiskHeatmap = lazy(() => import("@/components/dashboard/RiskHeatmap").then(m => ({ default: m.RiskHeatmap })));
+const VigilanceDonut = lazy(() => import("@/components/dashboard/VigilanceDonut").then(m => ({ default: m.VigilanceDonut })));
+const ComplianceGauge = lazy(() => import("@/components/dashboard/ComplianceGauge").then(m => ({ default: m.ComplianceGauge })));
 
 import { useCountUp } from "@/hooks/useCountUp";
 import { QuickActionsFAB } from "@/components/dashboard/QuickActions";
@@ -469,18 +469,24 @@ export default function DashboardPage() {
         </button>
 
         {showAdvanced && (
-          <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <RiskHeatmap clients={clients} loading={isLoading} />
-              <VigilanceDonut
-                simplifiee={stats.simplifiee}
-                standard={stats.standard}
-                renforcee={stats.renforcee}
-                loading={isLoading}
-              />
+          <Suspense fallback={
+            <div className="mt-4 flex items-center justify-center py-12">
+              <div className="h-6 w-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
             </div>
-            <ComplianceGauge items={complianceItems} loading={isLoading} />
-          </div>
+          }>
+            <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <RiskHeatmap clients={clients} loading={isLoading} />
+                <VigilanceDonut
+                  simplifiee={stats.simplifiee}
+                  standard={stats.standard}
+                  renforcee={stats.renforcee}
+                  loading={isLoading}
+                />
+              </div>
+              <ComplianceGauge items={complianceItems} loading={isLoading} />
+            </div>
+          </Suspense>
         )}
       </div>
 
