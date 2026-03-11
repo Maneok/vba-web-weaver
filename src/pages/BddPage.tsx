@@ -12,8 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap, RefreshCw } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
@@ -42,7 +43,7 @@ type SortKey = "raisonSociale" | "scoreGlobal" | "nivVigilance" | "etatPilotage"
 type SortDir = "asc" | "desc";
 
 export default function BddPage() {
-  const { clients, updateClient, deleteClient, isLoading } = useAppState();
+  const { clients, updateClient, deleteClient, isLoading, refreshClients } = useAppState();
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -57,6 +58,7 @@ export default function BddPage() {
   const [page, setPage] = useState(0);
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(new Set());
   const [selectAllPages, setSelectAllPages] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "single"; ref: string; name: string } | { type: "bulk"; refs: string[] } | null>(null);
   const debouncedSearch = useDebounce(search, 250);
 
   useDocumentTitle("Base Clients");
@@ -261,6 +263,9 @@ export default function BddPage() {
           <p className="text-sm text-slate-500 mt-0.5">{clients.length} dossiers · {filtered.length} affiches</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => refreshClients()} title="Rafraichir la liste">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </Button>
           <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportCSV}>
             <Download className="w-3.5 h-3.5" /> Export CSV
           </Button>
@@ -469,14 +474,7 @@ export default function BddPage() {
               onClick={() => {
                 const validRefs = [...selectedRefs].filter(ref => clients.some(c => c.ref === ref));
                 if (validRefs.length === 0) return;
-                if (!confirm(`Supprimer ${validRefs.length} client(s) ?`)) return;
-                try {
-                  validRefs.forEach(ref => deleteClient(ref));
-                  setSelectedRefs(new Set());
-                  toast.success("Clients supprimes");
-                } catch (err) {
-                  toast.error("Erreur lors de la suppression des clients");
-                }
+                setDeleteTarget({ type: "bulk", refs: validRefs });
               }}
             >
               <Trash2 className="w-3 h-3" /> Supprimer
@@ -600,7 +598,7 @@ export default function BddPage() {
                           <Archive className="w-3.5 h-3.5 mr-2" /> Archiver
                         </DropdownMenuItem>
                         {profile?.role === "ADMIN" && (
-                          <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10" onClick={(e) => { e.stopPropagation(); if (confirm("Supprimer definitivement ce client ?")) { deleteClient(client.ref); toast.success("Client supprime"); } }}>
+                          <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: "single", ref: client.ref, name: client.raisonSociale || client.ref }); }}>
                             <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
                           </DropdownMenuItem>
                         )}
@@ -669,6 +667,43 @@ export default function BddPage() {
           </div>
         )}
       </div>
+
+      {/* Confirmation suppression */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-400">Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              {deleteTarget?.type === "single"
+                ? `Etes-vous sur de vouloir supprimer definitivement "${deleteTarget.name}" ? Cette action est irreversible.`
+                : `Etes-vous sur de vouloir supprimer definitivement ${deleteTarget?.refs.length} client(s) ? Cette action est irreversible.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={() => {
+              if (!deleteTarget) return;
+              try {
+                if (deleteTarget.type === "single") {
+                  deleteClient(deleteTarget.ref);
+                  toast.success("Client supprime");
+                } else {
+                  deleteTarget.refs.forEach(ref => deleteClient(ref));
+                  setSelectedRefs(new Set());
+                  setSelectAllPages(false);
+                  toast.success(`${deleteTarget.refs.length} clients supprimes`);
+                }
+              } catch {
+                toast.error("Erreur lors de la suppression");
+              }
+              setDeleteTarget(null);
+            }}>
+              <Trash2 className="w-4 h-4 mr-2" /> Confirmer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -311,6 +311,7 @@ function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
 // ─────────────────────────────────────────
 export default function LettreMissionPage() {
   const navigate = useNavigate();
+  const { ref: urlRef } = useParams<{ ref?: string }>();
   const { clients } = useAppState();
   const { hasPermission, profile } = useAuth();
   const isMobile = useIsMobile();
@@ -391,6 +392,36 @@ export default function LettreMissionPage() {
   // ── Init: restore draft + load Supabase ──
   useEffect(() => {
     let cancelled = false;
+    // If URL has a client ref, pre-fill from that client (skip draft restore)
+    if (urlRef && clients.length > 0) {
+      const client = clients.find((c) => c.ref === urlRef);
+      if (client && !data.client_id) {
+        setData((prev) => ({
+          ...prev,
+          client_id: client.ref,
+          client_ref: client.ref,
+          raison_sociale: client.raisonSociale,
+          siren: client.siren,
+          forme_juridique: client.forme,
+          dirigeant: client.dirigeant,
+          qualite_dirigeant: client.forme === "ENTREPRISE INDIVIDUELLE" ? "Gerant" : "President",
+          adresse: client.adresse,
+          cp: client.cp,
+          ville: client.ville,
+          capital: String(client.capital || ""),
+          ape: client.ape,
+          email: client.mail,
+          telephone: client.tel,
+          iban: client.iban,
+          bic: client.bic,
+          type_mission: client.mission?.includes("REVISION") || client.mission?.includes("SURVEILLANCE")
+            ? "SURVEILLANCE"
+            : "TENUE",
+        }));
+        loadSavedLetters();
+        return () => { cancelled = true; };
+      }
+    }
     try {
       const raw = sessionStorage.getItem("lm_wizard_draft");
       if (raw) {
@@ -406,7 +437,7 @@ export default function LettreMissionPage() {
     loadSupabaseDraft(cancelled);
     loadSavedLetters();
     return () => { cancelled = true; };
-  }, []);
+  }, [urlRef, clients.length]);
 
   const loadSupabaseDraft = async (cancelled: boolean) => {
     try {

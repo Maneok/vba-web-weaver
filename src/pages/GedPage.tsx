@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Upload, FileText, Trash2, Download, Clock, AlertTriangle, Loader2,
@@ -123,6 +123,8 @@ export default function GedPage() {
 
   // Version dialog
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
+  const [duplicateConfirm, setDuplicateConfirm] = useState<{ names: string; proceed: () => void } | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
@@ -359,15 +361,26 @@ export default function GedPage() {
     const duplicates = pendingFiles.filter((f) => existingNames.has(f.name.toLowerCase()));
     if (duplicates.length > 0) {
       const names = duplicates.map((f) => `"${f.name}"`).join(", ");
-      const proceed = window.confirm(
-        `Les documents suivants existent deja : ${names}.\n\nVoulez-vous les importer quand meme ? Utilisez le versionning pour mettre a jour un document existant.`
-      );
-      if (!proceed) return;
+      setDuplicateConfirm({
+        names,
+        proceed: () => {
+          setDuplicateConfirm(null);
+          doUpload(pendingFiles);
+        },
+      });
+      return;
     }
+
+    doUpload(pendingFiles);
+  };
+
+  const doUpload = async (filesToUpload: File[]) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Vous devez etre connecte"); return; }
 
     setUploading(true);
     try {
-      for (const file of pendingFiles) {
+      for (const file of filesToUpload) {
         const timestamp = Date.now();
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const filePath = `${user.id}/${timestamp}_${safeName}`;
@@ -406,7 +419,7 @@ export default function GedPage() {
         });
       }
 
-      toast.success(`${pendingFiles.length} document(s) importe(s)`);
+      toast.success(`${filesToUpload.length} document(s) importe(s)`);
       setUploadDialogOpen(false);
       setPendingFiles([]);
       setUploadCategory("autre");
@@ -420,8 +433,10 @@ export default function GedPage() {
     }
   };
 
-  const deleteDocument = async (doc: Document) => {
-    if (!window.confirm(`Voulez-vous vraiment supprimer le document "${doc.name}" ?`)) return;
+  const confirmDeleteDocument = async () => {
+    const doc = deleteTarget;
+    if (!doc) return;
+    setDeleteTarget(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -850,7 +865,7 @@ export default function GedPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
-                          onClick={() => deleteDocument(doc)}
+                          onClick={() => setDeleteTarget(doc)}
                           title="Supprimer"
                           aria-label={`Supprimer ${doc.name}`}
                         >
@@ -1002,6 +1017,34 @@ export default function GedPage() {
                 )}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm delete document */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Supprimer le document</DialogTitle>
+            <DialogDescription>Voulez-vous vraiment supprimer le document "{deleteTarget?.name}" ? Cette action est irreversible.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={confirmDeleteDocument}>Supprimer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm duplicate import */}
+      <Dialog open={!!duplicateConfirm} onOpenChange={(open) => { if (!open) setDuplicateConfirm(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Documents en doublon</DialogTitle>
+            <DialogDescription>Les documents suivants existent deja : {duplicateConfirm?.names}. Voulez-vous les importer quand meme ? Utilisez le versionning pour mettre a jour un document existant.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDuplicateConfirm(null)}>Annuler</Button>
+            <Button onClick={() => duplicateConfirm?.proceed()}>Importer quand meme</Button>
           </div>
         </DialogContent>
       </Dialog>

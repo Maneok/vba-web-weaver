@@ -614,16 +614,16 @@ export default function GouvernancePage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-400">
                 <Trash2 className="w-5 h-5" />
-                Desactiver le collaborateur
+                Supprimer le collaborateur
               </DialogTitle>
               <DialogDescription>
-                Etes-vous sur de vouloir desactiver <strong>{deletingCollab?.nom}</strong> ? Cette action est reversible.
+                Etes-vous sur de vouloir supprimer <strong>{deletingCollab?.nom}</strong> ? Cette action est definitive et irreversible.
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 justify-end mt-4">
               <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>Annuler</Button>
               <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" /> {deleting ? "Suppression..." : "Desactiver"}
+                <Trash2 className="w-3.5 h-3.5" /> {deleting ? "Suppression..." : "Supprimer"}
               </Button>
             </div>
           </DialogContent>

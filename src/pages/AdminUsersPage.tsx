@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -32,6 +32,7 @@ export default function AdminUsersPage() {
   const [inviteRole, setInviteRole] = useState<UserRole>("COLLABORATEUR");
   const [inviting, setInviting] = useState(false);
   const [updating, setUpdating] = useState(false);
+  const [toggleTarget, setToggleTarget] = useState<UserProfile | null>(null);
   const isAdmin = profile?.role === "ADMIN";
 
   useDocumentTitle("Gestion Utilisateurs");
@@ -149,7 +150,7 @@ export default function AdminUsersPage() {
       });
 
       toast.success("Role mis a jour");
-      loadUsers();
+      await loadUsers();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erreur lors de la mise a jour du role";
       toast.error(message);
@@ -158,7 +159,7 @@ export default function AdminUsersPage() {
     }
   };
 
-  const toggleUserActive = async (userId: string) => {
+  const requestToggleUser = (userId: string) => {
     if (!isAdmin) { toast.error("Acces refuse"); return; }
     const user = users.find((u) => u.id === userId);
     if (!user) return;
@@ -166,15 +167,19 @@ export default function AdminUsersPage() {
       toast.error("Vous ne pouvez pas desactiver votre propre compte");
       return;
     }
+    setToggleTarget(user);
+  };
 
+  const confirmToggleUser = async () => {
+    if (!toggleTarget) return;
+    const user = toggleTarget;
     const newStatus = !user.is_active;
-    const action = newStatus ? "activer" : "desactiver";
-    if (!window.confirm(`Voulez-vous vraiment ${action} ${user.full_name || user.email} ?`)) return;
+    setToggleTarget(null);
 
     const { error } = await supabase
       .from("profiles")
       .update({ is_active: newStatus })
-      .eq("id", userId);
+      .eq("id", user.id);
 
     if (error) {
       toast.error("Erreur lors de la mise a jour");
@@ -184,13 +189,13 @@ export default function AdminUsersPage() {
     await logAudit({
       action: newStatus ? "ACTIVATION_UTILISATEUR" : "DESACTIVATION_UTILISATEUR",
       table_name: "profiles",
-      record_id: userId,
+      record_id: user.id,
       old_data: { is_active: user.is_active },
       new_data: { is_active: newStatus },
     });
 
     toast.success(newStatus ? "Utilisateur active" : "Utilisateur desactive");
-    loadUsers();
+    await loadUsers();
   };
 
   const adminCount = users.filter((u) => u.role === "ADMIN" && u.is_active).length;
@@ -395,7 +400,7 @@ export default function AdminUsersPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => toggleUserActive(u.id)}
+                      onClick={() => requestToggleUser(u.id)}
                       aria-label={u.is_active ? `Desactiver ${u.full_name || u.email}` : `Activer ${u.full_name || u.email}`}
                     >
                       {u.is_active ? (
@@ -438,6 +443,25 @@ export default function AdminUsersPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Confirmation activation/desactivation */}
+      <Dialog open={!!toggleTarget} onOpenChange={(open) => { if (!open) setToggleTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{toggleTarget?.is_active ? "Desactiver" : "Activer"} l'utilisateur</DialogTitle>
+            <DialogDescription>
+              Voulez-vous vraiment {toggleTarget?.is_active ? "desactiver" : "activer"} <strong>{toggleTarget?.full_name || toggleTarget?.email}</strong> ?
+              {toggleTarget?.is_active && " L'utilisateur ne pourra plus se connecter."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setToggleTarget(null)}>Annuler</Button>
+            <Button variant={toggleTarget?.is_active ? "destructive" : "default"} onClick={confirmToggleUser}>
+              {toggleTarget?.is_active ? "Desactiver" : "Activer"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

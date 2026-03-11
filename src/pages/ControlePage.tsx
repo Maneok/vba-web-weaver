@@ -12,7 +12,7 @@ import { controlesService } from "@/lib/supabaseService";
 import { formatDateFR, timeAgo } from "@/lib/dateUtils";
 import { downloadCSV } from "@/lib/csvUtils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -319,6 +319,7 @@ export default function ControlePage() {
   const [form, setForm] = useState<ControleQualite>({ ...emptyForm });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formDirty, setFormDirty] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showTemplates, setShowTemplates] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
@@ -783,13 +784,22 @@ export default function ControlePage() {
     // If Dialog calls with open=true, ignore
     if (open === true) return;
     if (formDirty) {
-      if (!window.confirm("Des modifications non enregistrees seront perdues. Fermer quand meme ?")) return;
+      setShowCloseConfirm(true);
+      return;
     }
     setShowForm(false);
     setFormDirty(false);
     setEditMode(false);
     setShowTemplates(null);
   }, [formDirty]);
+
+  const confirmCloseForm = useCallback(() => {
+    setShowCloseConfirm(false);
+    setShowForm(false);
+    setFormDirty(false);
+    setEditMode(false);
+    setShowTemplates(null);
+  }, []);
 
   // BUG FIX #16: Copy with error handling
   const handleCopyControl = async (c: ControleQualite) => {
@@ -2040,6 +2050,20 @@ export default function ControlePage() {
                 {deleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 Supprimer
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Confirm close form with unsaved changes ── */}
+        <Dialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Modifications non enregistrees</DialogTitle>
+              <DialogDescription>Des modifications non enregistrees seront perdues. Fermer quand meme ?</DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowCloseConfirm(false)}>Annuler</Button>
+              <Button variant="destructive" onClick={confirmCloseForm}>Fermer sans enregistrer</Button>
             </div>
           </DialogContent>
         </Dialog>

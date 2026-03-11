@@ -8,11 +8,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFoo
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, BookOpen, Plus, AlertTriangle, Download, FileWarning, X, ChevronLeft, ChevronRight, ArrowUpDown, FileX2 } from "lucide-react";
+import { Search, BookOpen, Plus, AlertTriangle, Download, FileWarning, X, ChevronLeft, ChevronRight, ArrowUpDown, FileX2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { ALERT_CATEGORIES as CATEGORIES, DEFAULT_ASSOCIES, DEFAULT_SUPERVISEURS } from "@/lib/constants";
 
@@ -53,7 +53,7 @@ function exportCSV(data: AlerteRegistre[], filename: string) {
 
 export default function RegistrePage() {
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
-  const { alertes, addAlerte, clients } = useAppState();
+  const { alertes, addAlerte, updateAlerte, deleteAlerte, clients } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState<string>("all");
   const [filterCategorie, setFilterCategorie] = useState<string>("all");
@@ -68,6 +68,7 @@ export default function RegistrePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortKey, setSortKey] = useState<"date" | "clientConcerne" | "categorie" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(search, 250);
 
@@ -445,6 +446,54 @@ export default function RegistrePage() {
               <DetailRow label="Date butoir" value={formatDateFR(selectedAlerte.dateButoir)} mono />
               <DetailRow label="Type de decision" value={selectedAlerte.typeDecision || "—"} />
               <DetailRow label="Validateur" value={selectedAlerte.validateur || "—"} />
+
+              {/* Action buttons */}
+              <div className="pt-4 border-t border-white/[0.06] space-y-2">
+                <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Actions</p>
+                {selectedAlerte.statut === "EN COURS" && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => {
+                      if (selectedAlerte.id) {
+                        updateAlerte(selectedAlerte.id, { statut: "CLÔTURÉ" });
+                        setSelectedAlerte({ ...selectedAlerte, statut: "CLÔTURÉ" });
+                        toast.success("Alerte cloturee");
+                      }
+                    }}
+                  >
+                    <Check className="w-3.5 h-3.5" /> Cloturer l'alerte
+                  </Button>
+                )}
+                {selectedAlerte.statut === "CLÔTURÉ" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-2 border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+                    onClick={() => {
+                      if (selectedAlerte.id) {
+                        updateAlerte(selectedAlerte.id, { statut: "EN COURS" });
+                        setSelectedAlerte({ ...selectedAlerte, statut: "EN COURS" });
+                        toast.info("Alerte repassee en cours");
+                      }
+                    }}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" /> Reouvrir l'alerte
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  onClick={() => {
+                    if (selectedAlerte.id) {
+                      setDeleteTargetId(selectedAlerte.id);
+                    }
+                  }}
+                >
+                  <FileWarning className="w-3.5 h-3.5" /> Supprimer
+                </Button>
+              </div>
             </div>
           )}
         </SheetContent>
@@ -496,9 +545,30 @@ export default function RegistrePage() {
               <Input type="date" value={newAlerte.dateEcheance} onChange={e => { setNewAlerte(p => ({ ...p, dateEcheance: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.dateEcheance; return n; }); }} className={`bg-white/[0.03] border-white/[0.06] ${formErrors.dateEcheance ? "border-red-500" : ""}`} aria-invalid={!!formErrors.dateEcheance} />
               {formErrors.dateEcheance && <p className="text-xs text-red-400 mt-1">{formErrors.dateEcheance}</p>}
             </div>
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleAddAlerte} disabled={!newAlerte.client || !newAlerte.details}>
+            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleAddAlerte} disabled={!newAlerte.client || !newAlerte.details.trim() || !newAlerte.responsable || !newAlerte.dateEcheance}>
               Enregistrer l'alerte
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm delete alerte */}
+      <Dialog open={!!deleteTargetId} onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Supprimer l'alerte</DialogTitle>
+            <DialogDescription>Supprimer cette alerte du registre ? Cette action est irreversible.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeleteTargetId(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={() => {
+              if (deleteTargetId) {
+                deleteAlerte(deleteTargetId);
+                setSelectedAlerte(null);
+                setDeleteTargetId(null);
+                toast.success("Alerte supprimee");
+              }
+            }}>Supprimer</Button>
           </div>
         </DialogContent>
       </Dialog>

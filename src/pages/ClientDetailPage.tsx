@@ -19,6 +19,7 @@ import type { Client, OuiNon, EtatPilotage } from "@/lib/types";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -145,6 +146,8 @@ function ClientDetailContent({ client }: { client: Client }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ ...client });
   const [tab, setTab] = useState("informations");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   // Sync editForm when client data changes (e.g. from external updates)
   useEffect(() => {
@@ -295,22 +298,30 @@ function ClientDetailContent({ client }: { client: Client }) {
   }, [client.scoreGlobal]);
 
   const handleSave = () => {
-    const risk = calculateRiskScore({
-      ape: editForm.ape, paysRisque: editForm.paysRisque === "OUI",
-      mission: editForm.mission, dateCreation: editForm.dateCreation,
-      dateReprise: editForm.dateReprise, effectif: editForm.effectif,
-      forme: editForm.forme, ppe: editForm.ppe === "OUI",
-      atypique: editForm.atypique === "OUI", distanciel: editForm.distanciel === "OUI",
-      cash: editForm.cash === "OUI", pression: editForm.pression === "OUI",
-    });
-    const now = new Date().toISOString().split("T")[0];
-    const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
-    updateClient(client.ref, {
-      ...editForm, ...risk, dateDerniereRevue: now, dateButoir,
-      etatPilotage: getPilotageStatus(dateButoir) as EtatPilotage,
-    });
-    setEditing(false);
-    toast.success("Client mis a jour");
+    setSaving(true);
+    try {
+      const risk = calculateRiskScore({
+        ape: editForm.ape, paysRisque: editForm.paysRisque === "OUI",
+        mission: editForm.mission, dateCreation: editForm.dateCreation,
+        dateReprise: editForm.dateReprise, effectif: editForm.effectif,
+        forme: editForm.forme, ppe: editForm.ppe === "OUI",
+        atypique: editForm.atypique === "OUI", distanciel: editForm.distanciel === "OUI",
+        cash: editForm.cash === "OUI", pression: editForm.pression === "OUI",
+      });
+      const now = new Date().toISOString().split("T")[0];
+      const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
+      updateClient(client.ref, {
+        ...editForm, ...risk, dateDerniereRevue: now, dateButoir,
+        etatPilotage: getPilotageStatus(dateButoir) as EtatPilotage,
+      });
+      setEditing(false);
+      toast.success("Client mis a jour");
+    } catch (err) {
+      logger.error("ClientDetail", "Save failed:", err);
+      toast.error("Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateDiligence = (idx: number, field: keyof Diligence, val: string) => {
@@ -356,7 +367,7 @@ function ClientDetailContent({ client }: { client: Client }) {
           <Shield className="w-4 h-4" /> Lancer screening
         </Button>
         {profile?.role === "ADMIN" && (
-          <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => { if (confirm("Supprimer definitivement ce client ?")) { deleteClient(client.ref); navigate("/bdd"); toast.success("Client supprime"); } }}>
+          <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => setShowDeleteConfirm(true)}>
             <Trash2 className="w-4 h-4" /> Supprimer
           </Button>
         )}
@@ -398,7 +409,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}><Save className="w-3.5 h-3.5" /> Sauvegarder</Button>
+                  <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Sauvegarder</Button>
                   <Button variant="outline" size="sm" onClick={() => setEditing(false)} aria-label="Annuler la modification"><X className="w-3.5 h-3.5" /></Button>
                 </div>
               )}
@@ -1238,6 +1249,25 @@ function ClientDetailContent({ client }: { client: Client }) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation suppression */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-400">Supprimer le client</DialogTitle>
+            <DialogDescription>
+              Etes-vous sur de vouloir supprimer definitivement <strong>{client.raisonSociale}</strong> ({client.ref}) ?
+              Cette action est irreversible.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={() => { deleteClient(client.ref); navigate("/bdd"); toast.success("Client supprime"); }}>
+              <Trash2 className="w-4 h-4 mr-2" /> Confirmer la suppression
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
