@@ -125,14 +125,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!result) {
           logger.error("AppContext", "Failed to persist client to Supabase");
           setClients(prev => prev.filter(c => c.ref !== client.ref));
-          toast.error("Erreur lors de la sauvegarde du client");
-          return;
+          throw new Error("Echec de la sauvegarde en base de donnees");
         }
         logsService.add("CREATION", `Nouveau dossier cree: ${client.raisonSociale}`, client.ref, "clients").catch(err => logger.error("AppContext", "Audit log failed:", err));
       } catch (err) {
         logger.error("AppContext", "Create client exception:", err);
         setClients(prev => prev.filter(c => c.ref !== client.ref));
-        toast.error("Erreur lors de la sauvegarde du client");
+        throw err instanceof Error ? err : new Error("Erreur lors de la sauvegarde du client");
       }
     }
 
