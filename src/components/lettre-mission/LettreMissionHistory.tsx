@@ -97,8 +97,8 @@ export default function LettreMissionHistory() {
         options: { genre: "M" as const, regimeFiscal: "", exerciceDebut: "", exerciceFin: "", tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "", periodicite: "" },
       });
       toast.success(`PDF ${record.numero} re-genere`);
-    } catch (err: any) {
-      toast.error(err?.message || "Erreur lors de la re-generation");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Erreur lors de la re-generation");
     }
   };
 
@@ -222,7 +222,7 @@ export default function LettreMissionHistory() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Voir PDF" aria-label="Voir PDF">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Voir PDF" aria-label="Voir PDF" onClick={() => handleRegenerate(record)}>
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button
