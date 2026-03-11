@@ -111,7 +111,7 @@ export default function RegistrePage() {
 
   // --- Filtered data ---
   const filtered = useMemo(() => {
-    const result = alertes.filter(a => {
+    let result = alertes.filter(a => {
       const q = debouncedSearch.toLowerCase();
       const matchSearch = !debouncedSearch ||
         (a.clientConcerne ?? "").toLowerCase().includes(q) ||
