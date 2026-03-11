@@ -45,7 +45,7 @@ export default function SubscriptionBanner() {
       });
 
     return () => { cancelled = true; };
-  }, [user, navigate]);
+  }, [user, navigate, location.pathname]);
 
   if (!accessData || dismissed) return null;
 

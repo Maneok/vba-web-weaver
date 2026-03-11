@@ -157,7 +157,7 @@ export function mapDbCollaborateur(row: Record<string, unknown>): Collaborateur 
     id: row.id != null ? String(row.id) : undefined,
     nom: str(row.nom),
     fonction: str(row.fonction),
-    referentLcb: !!row.referent_lcb,
+    referentLcb: row.referent_lcb === true || row.referent_lcb === "OUI",
     suppleant: str(row.suppleant),
     niveauCompetence: str(row.niveau_competence),
     dateSignatureManuel: str(row.date_signature_manuel),

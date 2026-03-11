@@ -2,9 +2,9 @@ import { describe, it, expect, beforeEach } from "vitest";
 
 // ── Tests for widget order persistence & migration ──────────
 
-type WidgetKey = "kpi" | "cockpit" | "graphique" | "alertes" | "activite" | "repartition" | "equipe";
+type WidgetKey = "kpi" | "cockpit" | "graphique" | "alertes" | "activite" | "repartition" | "equipe" | "objectifs" | "qualite";
 
-const DEFAULT_ORDER: WidgetKey[] = ["kpi", "cockpit", "graphique", "alertes", "activite", "repartition", "equipe"];
+const DEFAULT_ORDER: WidgetKey[] = ["kpi", "cockpit", "graphique", "alertes", "activite", "repartition", "equipe", "objectifs", "qualite"];
 const STORAGE_KEY_ORDER = "dashboard-widget-order";
 
 let store: Record<string, string> = {};
@@ -37,7 +37,7 @@ describe("Widget order — loadOrder", () => {
   });
 
   it("charge un ordre complet sauvegardé", () => {
-    const custom: WidgetKey[] = ["equipe", "cockpit", "repartition", "activite", "alertes", "graphique", "kpi"];
+    const custom: WidgetKey[] = ["qualite", "equipe", "cockpit", "repartition", "activite", "alertes", "graphique", "kpi", "objectifs"];
     mockStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(custom));
     expect(loadOrder()).toEqual(custom);
   });
@@ -52,24 +52,35 @@ describe("Widget order — loadOrder", () => {
     expect(loadOrder()).toEqual(DEFAULT_ORDER);
   });
 
-  it("migre un ancien ordre avec 5 clés vers 7 clés", () => {
-    // Old order from before cockpit & equipe were added
+  it("migre un ancien ordre avec 5 clés vers 9 clés", () => {
     const oldOrder = ["repartition", "activite", "alertes", "graphique", "kpi"];
     mockStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(oldOrder));
     const result = loadOrder();
-    // Should keep old order and append cockpit + equipe
-    expect(result.length).toBe(7);
+    expect(result.length).toBe(9);
     expect(result[0]).toBe("repartition");
     expect(result[4]).toBe("kpi");
     expect(result).toContain("cockpit");
     expect(result).toContain("equipe");
+    expect(result).toContain("objectifs");
+    expect(result).toContain("qualite");
+  });
+
+  it("migre un ancien ordre avec 7 clés vers 9 clés", () => {
+    const oldOrder = ["equipe", "cockpit", "repartition", "activite", "alertes", "graphique", "kpi"];
+    mockStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(oldOrder));
+    const result = loadOrder();
+    expect(result.length).toBe(9);
+    expect(result).toContain("objectifs");
+    expect(result).toContain("qualite");
+    // New keys appended at end
+    expect(result.indexOf("objectifs")).toBeGreaterThan(result.indexOf("kpi"));
   });
 
   it("ignore les clés invalides dans le storage", () => {
     const badOrder = ["kpi", "unknown", "graphique"];
     mockStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(badOrder));
     const result = loadOrder();
-    expect(result.length).toBe(7);
+    expect(result.length).toBe(9);
     expect(result).not.toContain("unknown");
   });
 
@@ -77,9 +88,8 @@ describe("Widget order — loadOrder", () => {
     const duped = ["kpi", "kpi", "graphique"];
     mockStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(duped));
     const result = loadOrder();
-    // Should have all 7 unique keys
-    expect(result.length).toBe(7);
-    expect(new Set(result).size).toBe(7);
+    expect(result.length).toBe(9);
+    expect(new Set(result).size).toBe(9);
   });
 
   it("gère un tableau vide", () => {
@@ -93,8 +103,8 @@ describe("Widget order — loadOrder", () => {
     expect(loadOrder()).toEqual(DEFAULT_ORDER);
   });
 
-  it("les 7 clés par défaut sont bien définies", () => {
-    expect(DEFAULT_ORDER).toHaveLength(7);
+  it("les 9 clés par défaut sont bien définies", () => {
+    expect(DEFAULT_ORDER).toHaveLength(9);
     expect(DEFAULT_ORDER).toContain("kpi");
     expect(DEFAULT_ORDER).toContain("cockpit");
     expect(DEFAULT_ORDER).toContain("graphique");
@@ -102,5 +112,7 @@ describe("Widget order — loadOrder", () => {
     expect(DEFAULT_ORDER).toContain("activite");
     expect(DEFAULT_ORDER).toContain("repartition");
     expect(DEFAULT_ORDER).toContain("equipe");
+    expect(DEFAULT_ORDER).toContain("objectifs");
+    expect(DEFAULT_ORDER).toContain("qualite");
   });
 });

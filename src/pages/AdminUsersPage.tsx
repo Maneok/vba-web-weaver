@@ -43,7 +43,7 @@ export default function AdminUsersPage() {
       .select("*")
       .eq("cabinet_id", profile.cabinet_id)
       .order("created_at", { ascending: true });
-    if (data) setUsers(data as UserProfile[]);
+    if (Array.isArray(data)) setUsers(data as UserProfile[]);
   }, [profile?.cabinet_id]);
 
   useEffect(() => {

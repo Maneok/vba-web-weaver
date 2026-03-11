@@ -167,6 +167,7 @@ export function replaceVariables(
   options?: LettreMissionOptions
 ): string {
   if (!text) return "";
+  if (!client) return text;
 
   let result = text;
   const dateVars = getDateVariables();

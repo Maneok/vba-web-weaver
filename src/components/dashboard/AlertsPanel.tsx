@@ -1,7 +1,10 @@
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, ChevronRight } from "lucide-react";
+import { AlertTriangle, ChevronRight, Filter } from "lucide-react";
 import type { AlerteRegistre } from "@/lib/types";
+
+type AlertFilter = "all" | "open" | "closed";
 
 interface AlertsPanelProps {
   alertes: AlerteRegistre[];
@@ -36,8 +39,14 @@ function formatDate(d: string | null | undefined): string {
   }
 }
 
+function isAlertOpen(a: AlerteRegistre): boolean {
+  const s = (a.statut || "").toUpperCase();
+  return !s.includes("CLOS") && !s.includes("FERME") && !s.includes("RESOLU");
+}
+
 export function AlertsPanel({ alertes, loading = false }: AlertsPanelProps) {
   const navigate = useNavigate();
+  const [filter, setFilter] = useState<AlertFilter>("all");
 
   if (loading) {
     return (
@@ -56,10 +65,20 @@ export function AlertsPanel({ alertes, loading = false }: AlertsPanelProps) {
     );
   }
 
+  // Filter alerts
+  const filteredAlertes = alertes.filter(a => {
+    if (filter === "open") return isAlertOpen(a);
+    if (filter === "closed") return !isAlertOpen(a);
+    return true;
+  });
+
+  const openCount = alertes.filter(isAlertOpen).length;
+  const closedCount = alertes.length - openCount;
+
   // Sort: open alerts first, then by priority, then by date
-  const sortedAlertes = [...alertes].sort((a, b) => {
-    const aOpen = !(a.statut || "").toUpperCase().match(/CLOS|FERME|RESOLU/);
-    const bOpen = !(b.statut || "").toUpperCase().match(/CLOS|FERME|RESOLU/);
+  const sortedAlertes = [...filteredAlertes].sort((a, b) => {
+    const aOpen = isAlertOpen(a);
+    const bOpen = isAlertOpen(b);
     if (aOpen !== bOpen) return aOpen ? -1 : 1;
     const prio = { CRITIQUE: 0, HAUTE: 1, MOYENNE: 2, BASSE: 3 } as Record<string, number>;
     const ap = prio[(a.priorite || "").toUpperCase()] ?? 4;
@@ -91,6 +110,30 @@ export function AlertsPanel({ alertes, loading = false }: AlertsPanelProps) {
           Voir tout <ChevronRight className="w-3 h-3" />
         </button>
       </div>
+
+      {/* Filter chips */}
+      {alertes.length > 0 && (
+        <div className="flex gap-1.5 mb-3 print:hidden" role="group" aria-label="Filtrer les alertes">
+          {([
+            { key: "all" as AlertFilter, label: "Tout", count: alertes.length },
+            { key: "open" as AlertFilter, label: "En cours", count: openCount },
+            { key: "closed" as AlertFilter, label: "Clos", count: closedCount },
+          ]).map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              aria-pressed={filter === f.key}
+              className={`text-[10px] px-2 py-0.5 rounded-full border transition-colors ${
+                filter === f.key
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-transparent text-muted-foreground border-border hover:border-primary/50"
+              }`}
+            >
+              {f.label} ({f.count})
+            </button>
+          ))}
+        </div>
+      )}
 
       {alertes.length === 0 ? (
         <div className="text-center py-8">

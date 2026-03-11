@@ -49,7 +49,13 @@ import DashboardSearch from "@/components/dashboard/DashboardSearch";
 import DashboardShortcutsHelp from "@/components/dashboard/DashboardShortcutsHelp";
 import DashboardStaff from "@/components/dashboard/DashboardStaff";
 import DashboardExport from "@/components/dashboard/DashboardExport";
+import DashboardGoals from "@/components/dashboard/DashboardGoals";
+import DashboardDataQuality from "@/components/dashboard/DashboardDataQuality";
+import DashboardAccessibility from "@/components/dashboard/DashboardAccessibility";
+import DashboardPrintHeader from "@/components/dashboard/DashboardPrintHeader";
+import DashboardPrintFooter from "@/components/dashboard/DashboardPrintFooter";
 import DataFreshnessIndicator from "@/components/dashboard/DataFreshnessIndicator";
+import { useReducedMotion, useAutoRefreshInterval } from "@/components/dashboard/DashboardReducedMotion";
 
 // ── Helpers ──────────────────────────────────────────────────
 function formatTime(d: Date): string {
@@ -71,9 +77,9 @@ function generateSparkline(current: number): { v: number }[] {
 }
 
 // ── Widget keys & persistence ────────────────────────────────
-type WidgetKey = "kpi" | "cockpit" | "graphique" | "alertes" | "activite" | "repartition" | "equipe";
+type WidgetKey = "kpi" | "cockpit" | "graphique" | "alertes" | "activite" | "repartition" | "equipe" | "objectifs" | "qualite";
 
-const DEFAULT_ORDER: WidgetKey[] = ["kpi", "cockpit", "graphique", "alertes", "activite", "repartition", "equipe"];
+const DEFAULT_ORDER: WidgetKey[] = ["kpi", "cockpit", "graphique", "alertes", "activite", "repartition", "equipe", "objectifs", "qualite"];
 const STORAGE_KEY_VIS = "dashboard-widgets";
 const STORAGE_KEY_ORDER = "dashboard-widget-order";
 
@@ -85,6 +91,8 @@ interface WidgetVisibility {
   activite: boolean;
   repartition: boolean;
   equipe: boolean;
+  objectifs: boolean;
+  qualite: boolean;
 }
 
 const DEFAULT_WIDGETS: WidgetVisibility = {
@@ -95,6 +103,8 @@ const DEFAULT_WIDGETS: WidgetVisibility = {
   activite: true,
   repartition: true,
   equipe: true,
+  objectifs: true,
+  qualite: true,
 };
 
 function loadVisibility(): WidgetVisibility {
@@ -145,6 +155,8 @@ const WIDGET_META: Record<WidgetKey, { label: string; description: string }> = {
   activite: { label: "Fil d'activité", description: "Dernières actions effectuées" },
   repartition: { label: "Jauges de conformité", description: "Indicateurs de conformité détaillés" },
   equipe: { label: "Équipe & formations", description: "Collaborateurs et état des formations LCB-FT" },
+  objectifs: { label: "Objectifs de conformité", description: "Suivi des cibles et progression" },
+  qualite: { label: "Qualité des données", description: "Taux de remplissage des champs clés" },
 };
 
 // ── Main Dashboard ──────────────────────────────────────────
@@ -160,6 +172,9 @@ export default function DashboardPage() {
   const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(loadOrder);
   const [dragMode, setDragMode] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [announcements, setAnnouncements] = useState<string[]>([]);
+  const reducedMotion = useReducedMotion();
+  const [autoRefreshInterval, setAutoRefreshInterval] = useAutoRefreshInterval();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
   const refreshAllRef = useRef(refreshAll);
@@ -206,7 +221,7 @@ export default function DashboardPage() {
   };
 
   const setAllWidgets = (visible: boolean) => {
-    const next: WidgetVisibility = { kpi: visible, cockpit: visible, graphique: visible, alertes: visible, activite: visible, repartition: visible, equipe: visible };
+    const next: WidgetVisibility = { kpi: visible, cockpit: visible, graphique: visible, alertes: visible, activite: visible, repartition: visible, equipe: visible, objectifs: visible, qualite: visible };
     setWidgets(next);
     saveVisibility(next);
   };
@@ -244,16 +259,23 @@ export default function DashboardPage() {
     return () => window.removeEventListener("keydown", handleKey);
   }, [navigate, handleRefresh]);
 
-  // ── Auto-refresh every 60s ────────────────────────────────
+  // ── Auto-refresh with configurable interval ──────────────
   useEffect(() => {
     mountedRef.current = true;
     const doRefresh = () => {
       if (document.hidden) return;
       refreshAllRef.current()
-        .then(() => { if (mountedRef.current) setLastRefresh(new Date()); })
+        .then(() => {
+          if (mountedRef.current) {
+            setLastRefresh(new Date());
+            setAnnouncements(prev => [...prev.slice(-4), "Données actualisées"]);
+          }
+        })
         .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err));
     };
-    refreshTimer.current = setInterval(doRefresh, 60000);
+    if (autoRefreshInterval > 0) {
+      refreshTimer.current = setInterval(doRefresh, autoRefreshInterval);
+    }
     const handleVisibility = () => { if (!document.hidden) doRefresh(); };
     document.addEventListener("visibilitychange", handleVisibility);
     return () => {
@@ -261,7 +283,7 @@ export default function DashboardPage() {
       if (refreshTimer.current) clearInterval(refreshTimer.current);
       document.removeEventListener("visibilitychange", handleVisibility);
     };
-  }, []);
+  }, [autoRefreshInterval]);
 
   // ── Load notification count ───────────────────────────────
   useEffect(() => {
@@ -377,12 +399,16 @@ export default function DashboardPage() {
       if (!col.derniereFormation) return false;
       try { const d = new Date(col.derniereFormation); if (isNaN(d.getTime())) return false; return (now.getTime() - d.getTime()) / (86400000 * 365) < 1; } catch { return false; }
     }).length;
+    const withBE = actifs.filter(c => c.beneficiaireEffectif).length;
+    const withAddr = actifs.filter(c => c.adresse).length;
     return [
-      { label: "Identification clients", value: Math.round((withScreening / total) * 100), description: "Screening complet (SIREN + dirigeant)" },
-      { label: "Documents KYC", value: Math.round((withDocs / total) * 100), description: "CNI / pièce d'identité renseignée" },
-      { label: "Lettres de mission", value: Math.round((withLM / total) * 100), description: "LM signées vs clients actifs" },
-      { label: "Formation collaborateurs", value: Math.round((trained / collabTotal) * 100), description: "Formations < 12 mois" },
-      { label: "Contrôle qualité", value: 0, description: "Contrôles réalisés vs attendus" },
+      { label: "Identification clients", value: Math.round((withScreening / total) * 100), target: 90, description: "Screening complet (SIREN + dirigeant)" },
+      { label: "Documents KYC", value: Math.round((withDocs / total) * 100), target: 85, description: "CNI / pièce d'identité renseignée" },
+      { label: "Lettres de mission", value: Math.round((withLM / total) * 100), target: 80, description: "LM signées vs clients actifs" },
+      { label: "Formation collaborateurs", value: Math.round((trained / collabTotal) * 100), target: 100, description: "Formations < 12 mois" },
+      { label: "Bénéficiaires effectifs", value: Math.round((withBE / total) * 100), target: 90, description: "BE identifiés" },
+      { label: "Adresses vérifiées", value: Math.round((withAddr / total) * 100), target: 95, description: "Adresse renseignée" },
+      { label: "Contrôle qualité", value: 0, target: 80, description: "Contrôles réalisés vs attendus" },
     ];
   }, [clients, collaborateurs]);
 
@@ -392,7 +418,36 @@ export default function DashboardPage() {
     [clients, collaborateurs, alertes]
   );
 
+  // ── Goals computation ────────────────────────────────────
+  const goalsData = useMemo(() => {
+    return complianceItems
+      .filter(item => item.target != null && item.target > 0)
+      .map((item, i) => ({
+        id: `goal-${i}`,
+        label: item.label,
+        current: item.value,
+        target: item.target!,
+        description: item.description || "",
+      }));
+  }, [complianceItems]);
+
+  // ── Data quality computation ────────────────────────────
+  const dataQualityCategories = useMemo(() => {
+    const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
+    const total = actifs.length;
+    if (total === 0) return [];
+    return [
+      { label: "SIREN", total, filled: actifs.filter(c => c.siren).length, icon: null },
+      { label: "Dirigeant", total, filled: actifs.filter(c => c.dirigeant).length, icon: null },
+      { label: "CNI", total, filled: actifs.filter(c => c.lienCni).length, icon: null },
+      { label: "Adresse", total, filled: actifs.filter(c => c.adresse).length, icon: null },
+      { label: "Code APE", total, filled: actifs.filter(c => c.codeApe).length, icon: null },
+      { label: "Vigilance", total, filled: actifs.filter(c => c.nivVigilance).length, icon: null },
+    ];
+  }, [clients]);
+
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
+  const cabinetName = profile?.cabinet_id ? "Cabinet" : "GRIMY";
 
   const handleRefresh = useCallback(() => {
     const now = Date.now();
@@ -400,7 +455,12 @@ export default function DashboardPage() {
     lastManualRefresh.current = now;
     setIsRefreshing(true);
     refreshAll()
-      .then(() => { if (mountedRef.current) setLastRefresh(new Date()); })
+      .then(() => {
+        if (mountedRef.current) {
+          setLastRefresh(new Date());
+          setAnnouncements(prev => [...prev.slice(-4), "Données actualisées"]);
+        }
+      })
       .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err))
       .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
   }, [refreshAll]);
@@ -424,13 +484,19 @@ export default function DashboardPage() {
     activite: <DashboardActivity logs={logs} isLoading={isLoading} />,
     repartition: <DashboardVigilance complianceItems={complianceItems} isLoading={isLoading} />,
     equipe: <DashboardStaff collaborateurs={collaborateurs} isLoading={isLoading} />,
+    objectifs: <DashboardGoals goals={goalsData} isLoading={isLoading} />,
+    qualite: <DashboardDataQuality categories={dataQualityCategories} isLoading={isLoading} />,
   };
 
   // Filter to visible widgets only
   const visibleWidgets = widgetOrder.filter(k => widgets[k]);
 
+  const printDate = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+
   return (
-    <div className="p-6 lg:p-8 max-w-[1600px] mx-auto animate-fade-in-up print:bg-white print:text-black print:p-4" role="main" aria-label="Tableau de bord">
+    <DashboardAccessibility announcements={announcements}>
+    <div className={`p-6 lg:p-8 max-w-[1600px] mx-auto ${reducedMotion ? "" : "animate-fade-in-up"} print:bg-white print:text-black print:p-4`} role="main" aria-label="Tableau de bord">
+      <DashboardPrintHeader cabinetName={cabinetName} userName={userName} date={printDate} />
       {showOnboarding && <OnboardingWizard />}
 
       {/* ── TOP BAR ────────────────────────────────────────── */}
@@ -631,14 +697,18 @@ export default function DashboardPage() {
       <QuickActionsFAB />
       <DashboardShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
 
+      <DashboardPrintFooter cabinetName={cabinetName} />
+
       <style>{`
         @media print {
           .print\\:hidden { display: none !important; }
           .print\\:bg-white { background: white !important; }
           .print\\:text-black { color: black !important; }
+          .print\\:block { display: block !important; }
           * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
         }
       `}</style>
     </div>
+    </DashboardAccessibility>
   );
 }

@@ -325,7 +325,7 @@ export function analyzeCockpit(
 
   // Sort urgencies: critique first, then warning, then info
   const severityOrder = { critique: 0, warning: 1, info: 2 };
-  urgencies.sort((a, b) => severityOrder[a.severity] - severityOrder[b.severity]);
+  urgencies.sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3));
 
   // Stats
   const actifs = safeClients.filter(c => c.statut !== "INACTIF");

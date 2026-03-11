@@ -91,15 +91,15 @@ export default function LogsPage() {
     const now = Date.now();
     const last7d = logs.filter(l => {
       const d = new Date(l.horodatage.replace(" ", "T"));
-      return (now - d.getTime()) < 7 * 86400000;
+      return !isNaN(d.getTime()) && (now - d.getTime()) < 7 * 86400000;
     }).length;
     const last30d = logs.filter(l => {
       const d = new Date(l.horodatage.replace(" ", "T"));
-      return (now - d.getTime()) < 30 * 86400000;
+      return !isNaN(d.getTime()) && (now - d.getTime()) < 30 * 86400000;
     }).length;
     const last90d = logs.filter(l => {
       const d = new Date(l.horodatage.replace(" ", "T"));
-      return (now - d.getTime()) < 90 * 86400000;
+      return !isNaN(d.getTime()) && (now - d.getTime()) < 90 * 86400000;
     }).length;
 
     // Action distribution

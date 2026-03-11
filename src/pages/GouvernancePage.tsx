@@ -87,7 +87,7 @@ export default function GouvernancePage() {
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       result = result.filter(c =>
-        c.nom.toLowerCase().includes(q) ||
+        (c.nom ?? "").toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q) ||
         c.fonction?.toLowerCase().includes(q)
       );

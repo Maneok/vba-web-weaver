@@ -55,7 +55,7 @@ export default function NotificationBell() {
         .limit(10);
 
       if (error) throw error;
-      setNotifications((data as Notification[]) ?? []);
+      setNotifications(Array.isArray(data) ? (data as Notification[]) : []);
     } catch (err) {
       logger.debug("Notifications", "fetch failed:", err);
     } finally {

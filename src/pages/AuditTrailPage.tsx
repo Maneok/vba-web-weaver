@@ -162,13 +162,13 @@ export default function AuditTrailPage() {
   const filtered = useMemo(() => {
     let result = entries.filter(e => {
       const matchSearch = !debouncedSearch ||
-        e.action.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (e.action ?? "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         e.user_email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         e.table_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         e.record_id?.toLowerCase().includes(debouncedSearch.toLowerCase());
       const matchAction = filterAction === "all" || e.action === filterAction;
       const matchUser = filterUser === "all" || e.user_email === filterUser;
-      const dateStr = e.created_at.split("T")[0];
+      const dateStr = (e.created_at ?? "").split("T")[0];
       const matchDateStart = !dateStart || dateStr >= dateStart;
       const matchDateEnd = !dateEnd || dateStr <= dateEnd;
       return matchSearch && matchAction && matchUser && matchDateStart && matchDateEnd;

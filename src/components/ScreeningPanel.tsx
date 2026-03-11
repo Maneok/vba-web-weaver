@@ -150,7 +150,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: (screening.sanctions.data?.status as Status) ?? (screening.sanctions.error ? "ERREUR" : null),
       loading: screening.sanctions.loading,
       detail: screening.sanctions.data ? `${screening.sanctions.data.checked} personne(s) verifiee(s)` : undefined,
-      alertes: screening.sanctions.data?.matches?.map(m => m.details),
+      alertes: screening.sanctions.data?.matches?.map(m => m.details).filter(Boolean),
       timeMs: screening.sanctions.timeMs,
       errorMsg: screening.sanctions.error,
     },
@@ -222,7 +222,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       detail: screening.network.data
         ? `${screening.network.data.totalCompanies ?? 0} societe(s), ${screening.network.data.totalPersons ?? 0} personne(s)`
         : undefined,
-      alertes: screening.network.data?.alertes?.map((a: unknown) => (a as { message: string }).message),
+      alertes: screening.network.data?.alertes?.map((a: unknown) => typeof a === "object" && a !== null && "message" in a ? (a as { message: string }).message : String(a ?? "")).filter(Boolean),
       timeMs: screening.network.timeMs,
       errorMsg: screening.network.error,
     },

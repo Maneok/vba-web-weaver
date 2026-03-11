@@ -12,6 +12,8 @@ interface WidgetVisibility {
   activite: boolean;
   repartition: boolean;
   equipe: boolean;
+  objectifs: boolean;
+  qualite: boolean;
 }
 
 const DEFAULT_WIDGETS: WidgetVisibility = {
@@ -22,6 +24,8 @@ const DEFAULT_WIDGETS: WidgetVisibility = {
   activite: true,
   repartition: true,
   equipe: true,
+  objectifs: true,
+  qualite: true,
 };
 
 // In-memory storage mock
@@ -67,7 +71,7 @@ describe("Widget visibility — loadWidgetVisibility", () => {
 
   // Test 23
   it("charge les préférences sauvegardées", () => {
-    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: false, cockpit: true, graphique: true, alertes: true, activite: true, repartition: true, equipe: true }));
+    mockStorage.setItem(WIDGET_STORAGE_KEY, JSON.stringify({ kpi: false, cockpit: true, graphique: true, alertes: true, activite: true, repartition: true, equipe: true, objectifs: true, qualite: true }));
     const result = loadWidgetVisibility();
     expect(result.kpi).toBe(false);
     expect(result.graphique).toBe(true);
@@ -98,6 +102,8 @@ describe("Widget visibility — loadWidgetVisibility", () => {
     expect(result.repartition).toBe(true);
     expect(result.cockpit).toBe(true);
     expect(result.equipe).toBe(true);
+    expect(result.objectifs).toBe(true);
+    expect(result.qualite).toBe(true);
   });
 
   // Test 27
@@ -135,7 +141,7 @@ describe("Widget visibility — saveWidgetVisibility", () => {
 
   // Test 31
   it("roundtrip save → load", () => {
-    const prefs: WidgetVisibility = { kpi: false, cockpit: true, graphique: false, alertes: true, activite: false, repartition: true, equipe: false };
+    const prefs: WidgetVisibility = { kpi: false, cockpit: true, graphique: false, alertes: true, activite: false, repartition: true, equipe: false, objectifs: true, qualite: false };
     saveWidgetVisibility(prefs);
     expect(loadWidgetVisibility()).toEqual(prefs);
   });
@@ -167,21 +173,21 @@ describe("Widget visibility — toggle logic", () => {
 
   // Test 35
   it("setAllWidgets true active tout", () => {
-    const next: WidgetVisibility = { kpi: true, cockpit: true, graphique: true, alertes: true, activite: true, repartition: true, equipe: true };
+    const next: WidgetVisibility = { kpi: true, cockpit: true, graphique: true, alertes: true, activite: true, repartition: true, equipe: true, objectifs: true, qualite: true };
     expect(Object.values(next).every(v => v === true)).toBe(true);
   });
 
   // Test 36
   it("setAllWidgets false masque tout", () => {
-    const next: WidgetVisibility = { kpi: false, cockpit: false, graphique: false, alertes: false, activite: false, repartition: false, equipe: false };
+    const next: WidgetVisibility = { kpi: false, cockpit: false, graphique: false, alertes: false, activite: false, repartition: false, equipe: false, objectifs: false, qualite: false };
     expect(Object.values(next).every(v => v === false)).toBe(true);
   });
 
   // Test 37
   it("hiddenCount est correct", () => {
-    const w: WidgetVisibility = { kpi: false, cockpit: true, graphique: true, alertes: false, activite: true, repartition: false, equipe: true };
+    const w: WidgetVisibility = { kpi: false, cockpit: true, graphique: true, alertes: false, activite: true, repartition: false, equipe: true, objectifs: true, qualite: false };
     const hiddenCount = Object.values(w).filter(v => !v).length;
-    expect(hiddenCount).toBe(3);
+    expect(hiddenCount).toBe(4);
   });
 
   // Test 38
@@ -192,15 +198,15 @@ describe("Widget visibility — toggle logic", () => {
 
   // Test 39
   it("allHidden quand tout masqué", () => {
-    const w: WidgetVisibility = { kpi: false, cockpit: false, graphique: false, alertes: false, activite: false, repartition: false, equipe: false };
+    const w: WidgetVisibility = { kpi: false, cockpit: false, graphique: false, alertes: false, activite: false, repartition: false, equipe: false, objectifs: false, qualite: false };
     const hiddenCount = Object.values(w).filter(v => !v).length;
-    expect(hiddenCount).toBe(7);
+    expect(hiddenCount).toBe(9);
   });
 
   // Test 40
-  it("les 7 clés de widgets sont bien définies", () => {
+  it("les 9 clés de widgets sont bien définies", () => {
     const keys = Object.keys(DEFAULT_WIDGETS);
-    expect(keys).toHaveLength(7);
+    expect(keys).toHaveLength(9);
     expect(keys).toContain("kpi");
     expect(keys).toContain("cockpit");
     expect(keys).toContain("graphique");
@@ -208,5 +214,7 @@ describe("Widget visibility — toggle logic", () => {
     expect(keys).toContain("activite");
     expect(keys).toContain("repartition");
     expect(keys).toContain("equipe");
+    expect(keys).toContain("objectifs");
+    expect(keys).toContain("qualite");
   });
 });

@@ -3,6 +3,7 @@ import { ShieldCheck } from "lucide-react";
 interface GaugeItem {
   label: string;
   value: number; // 0-100
+  target?: number; // 0-100, optional compliance target
   description?: string;
 }
 
@@ -82,15 +83,32 @@ export function ComplianceGauge({ items, loading = false }: ComplianceGaugeProps
                 aria-valuenow={clampedValue}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={`${item.label} : ${clampedValue}% — ${statusLabel(clampedValue)}`}
+                aria-label={`${item.label} : ${clampedValue}%${item.target ? ` (objectif : ${item.target}%)` : ""} — ${statusLabel(clampedValue)}`}
               >
                 <div
                   className={`h-full rounded-full bg-gradient-to-r ${barColor(clampedValue)} transition-all duration-1000 ease-out`}
                   style={{ width: `${clampedValue}%` }}
                 />
+                {item.target != null && item.target > 0 && item.target <= 100 && (
+                  <div
+                    className="absolute top-0 h-full w-0.5 bg-foreground/40"
+                    style={{ left: `${item.target}%` }}
+                    title={`Objectif : ${item.target}%`}
+                    aria-hidden="true"
+                  />
+                )}
               </div>
-              {item.description && (
-                <p className="text-[10px] text-muted-foreground mt-1">{item.description}</p>
+              {(item.description || item.target != null) && (
+                <div className="flex items-center justify-between mt-1">
+                  {item.description && (
+                    <p className="text-[10px] text-muted-foreground">{item.description}</p>
+                  )}
+                  {item.target != null && item.target > 0 && (
+                    <span className={`text-[10px] font-medium ${clampedValue >= item.target ? "text-emerald-500" : "text-muted-foreground"}`}>
+                      {clampedValue >= item.target ? "✓ Objectif atteint" : `Objectif : ${item.target}%`}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
           );

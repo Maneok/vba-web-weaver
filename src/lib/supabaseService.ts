@@ -326,15 +326,24 @@ export const logsService = {
   },
 
   async getAll(limit = 200, offset = 0) {
-    const cabinetId = await getCabinetId();
-    if (!cabinetId) return [];
-    const { data } = await supabase
-      .from("audit_trail")
-      .select("created_at, user_email, record_id, action, new_data")
-      .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
-    return data || [];
+    try {
+      const cabinetId = await getCabinetId();
+      if (!cabinetId) return [];
+      const { data, error } = await supabase
+        .from("audit_trail")
+        .select("created_at, user_email, record_id, action, new_data")
+        .eq("cabinet_id", cabinetId)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
+      if (error) {
+        logger.error("AuditTrail", "getAll error:", error.message);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      logger.error("AuditTrail", "getAll exception:", err);
+      return [];
+    }
   },
 };
 
@@ -402,6 +411,7 @@ export const controlesService = {
 // ===== BROUILLONS =====
 export const brouillonsService = {
   async getBySiren(siren: string) {
+    if (!siren || !siren.trim()) return null;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
     const cabinetId = await getCabinetId();
@@ -417,6 +427,7 @@ export const brouillonsService = {
   },
 
   async save(siren: string, formData: unknown, step: number) {
+    if (!siren || !siren.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
     const cabinetId = await getCabinetId();
