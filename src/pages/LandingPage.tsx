@@ -308,93 +308,110 @@ const PROFILES = [
 ] as const;
 
 /* ══════════════════════════════════════════════════════════════
-   Hero background illustrations per profession — very subtle SVGs
+   Hero background illustrations per profession — CSS-class based
    ══════════════════════════════════════════════════════════════ */
 function HeroBgIllustration({ profileId }: { profileId: string }) {
-  const baseClass = "absolute inset-0 w-full h-full transition-opacity duration-1000 pointer-events-none";
-  const s = "var(--l-hero-illus)";
+  const b = "absolute inset-0 w-full h-full transition-opacity duration-1000 ease-in-out pointer-events-none";
+  const on = (id: string) => profileId === id ? "opacity-100" : "opacity-0";
 
   return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {/* Expert-comptable — spreadsheet grid + numbers */}
-      <svg className={`${baseClass} ${profileId === "ec" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
-        {[200, 400, 600, 800, 1000].map(x => <line key={`v${x}`} x1={x} y1={80} x2={x} y2={720} stroke={s} strokeWidth="0.5" />)}
-        {[160, 280, 400, 520, 640].map(y => <line key={`h${y}`} x1={100} y1={y} x2={1100} y2={y} stroke={s} strokeWidth="0.5" />)}
-        <text x="150" y="220" fill={s} fontSize="28" fontFamily="serif" opacity="0.7">12 450</text>
-        <text x="850" y="340" fill={s} fontSize="24" fontFamily="serif" opacity="0.5">8 920</text>
-        <text x="450" y="600" fill={s} fontSize="20" fontFamily="serif" opacity="0.4">3 180</text>
-        <text x="720" y="180" fill={s} fontSize="32" fontFamily="serif" opacity="0.6">€</text>
-        <text x="250" y="500" fill={s} fontSize="26" fontFamily="serif" opacity="0.5">%</text>
-        <rect x="920" y="520" width="140" height="180" rx="16" stroke={s} strokeWidth="1" opacity="0.4" />
-        <rect x="940" y="545" width="100" height="30" rx="4" stroke={s} strokeWidth="0.5" opacity="0.3" />
-        {[0,1,2].map(r => [0,1,2].map(c => <rect key={`k${r}${c}`} x={940 + c * 35} y={590 + r * 35} width="25" height="25" rx="4" stroke={s} strokeWidth="0.5" opacity="0.25" />))}
+    <div className="absolute inset-0 overflow-hidden pointer-events-none hero-illus-wrap" aria-hidden="true">
+      {/* ── Expert-comptable ── */}
+      <svg className={`${b} ${on("ec")}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        {[150, 300, 450, 600, 750, 900, 1050].map(x => <line key={`v${x}`} x1={x} y1={50} x2={x} y2={750} className="hi-line" />)}
+        {[100, 200, 300, 400, 500, 600, 700].map(y => <line key={`h${y}`} x1={50} y1={y} x2={1150} y2={y} className="hi-line" />)}
+        <text x="100" y="180" className="hi-num-lg">12 450</text>
+        <text x="900" y="280" className="hi-num-lg">8 920</text>
+        <text x="120" y="620" className="hi-num">47 310</text>
+        <text x="960" y="640" className="hi-num">6 780</text>
+        <text x="80" y="420" className="hi-sym">€</text>
+        <text x="1060" y="180" className="hi-sym">€</text>
+        <text x="180" y="720" className="hi-sym">%</text>
+        <rect x="940" y="440" width="180" height="240" rx="20" className="hi-strong" />
+        <rect x="965" y="468" width="130" height="40" rx="6" className="hi-shape" />
+        {[0,1,2].map(r => [0,1,2].map(c => <rect key={`k${r}${c}`} x={965 + c * 44} y={525 + r * 44} width="32" height="32" rx="6" className="hi-shape" />))}
+        <circle cx="100" cy="340" r="50" className="hi-shape" />
+        <path d="M100 340 L100 290 A50 50 0 0 1 143 365 Z" className="hi-fill" />
       </svg>
 
-      {/* Commissaire aux comptes — audit circles + balance */}
-      <svg className={`${baseClass} ${profileId === "cac" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
-        {[120, 200, 280, 360].map(r => <circle key={r} cx="200" cy="400" r={r} stroke={s} strokeWidth="0.5" strokeDasharray="8 12" />)}
-        {[80, 140, 200, 260].map(r => <circle key={`r${r}`} cx="1000" cy="350" r={r} stroke={s} strokeWidth="0.5" strokeDasharray="4 8" />)}
-        <line x1="580" y1="150" x2="620" y2="150" stroke={s} strokeWidth="1.5" opacity="0.5" />
-        <line x1="600" y1="150" x2="600" y2="100" stroke={s} strokeWidth="1" opacity="0.5" />
-        <line x1="540" y1="100" x2="660" y2="100" stroke={s} strokeWidth="1" opacity="0.5" />
-        <path d="M540 100 L520 140 L560 140 Z" stroke={s} strokeWidth="0.8" opacity="0.4" />
-        <path d="M660 100 L640 140 L680 140 Z" stroke={s} strokeWidth="0.8" opacity="0.4" />
-        <path d="M150 620 l8 8 l16 -16" stroke={s} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
-        <path d="M900 600 l8 8 l16 -16" stroke={s} strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
-        <text x="850" y="650" fill={s} fontSize="18" fontFamily="serif" opacity="0.4">AUDIT</text>
+      {/* ── Commissaire aux comptes ── */}
+      <svg className={`${b} ${on("cac")}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        {[80, 140, 200, 260, 320].map(r => <circle key={r} cx="160" cy="400" r={r} className="hi-circle" strokeDasharray={r > 200 ? "10 15" : "6 10"} />)}
+        {[60, 120, 180, 240].map(r => <circle key={`r${r}`} cx="1040" cy="350" r={r} className="hi-circle" strokeDasharray="5 12" />)}
+        <line x1="600" y1="80" x2="600" y2="160" className="hi-strong" />
+        <line x1="480" y1="80" x2="720" y2="80" className="hi-strong" />
+        <circle cx="600" cy="70" r="8" className="hi-shape" />
+        <path d="M480 80 L455 140 L505 140 Z" className="hi-shape" />
+        <path d="M720 80 L695 140 L745 140 Z" className="hi-shape" />
+        <path d="M100 650 l14 14 l28 -28" className="hi-check" />
+        <path d="M1000 620 l14 14 l28 -28" className="hi-check" />
+        <path d="M920 180 l10 10 l20 -20" className="hi-check-sm" />
+        <circle cx="1050" cy="620" r="35" className="hi-strong" />
+        <line x1="1075" y1="645" x2="1105" y2="675" className="hi-strong" strokeLinecap="round" />
+        <text x="90" y="710" className="hi-label">AUDIT</text>
+        <text x="980" y="720" className="hi-label">VÉRIFIÉ</text>
       </svg>
 
-      {/* Avocat — pillars + law reference */}
-      <svg className={`${baseClass} ${profileId === "avocat" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
-        {[100, 160].map(x => (
+      {/* ── Avocat ── */}
+      <svg className={`${b} ${on("avocat")}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        {[60, 140].map(x => (
           <g key={x}>
-            <rect x={x} y={200} width={24} height={400} stroke={s} strokeWidth="0.8" opacity="0.3" rx="2" />
-            <rect x={x - 8} y={190} width={40} height={12} stroke={s} strokeWidth="0.5" opacity="0.25" rx="2" />
-            <rect x={x - 8} y={600} width={40} height={12} stroke={s} strokeWidth="0.5" opacity="0.25" rx="2" />
+            <rect x={x} y={160} width={32} height={480} rx="4" className="hi-strong" />
+            <rect x={x - 12} y={145} width={56} height={18} rx="4" className="hi-shape" />
+            <rect x={x - 12} y={638} width={56} height={18} rx="4" className="hi-shape" />
+            {[0,1,2,3,4,5,6].map(i => <line key={i} x1={x + 8} y1={200 + i * 60} x2={x + 24} y2={200 + i * 60} className="hi-line" />)}
           </g>
         ))}
-        {[1020, 1080].map(x => (
+        {[1020, 1100].map(x => (
           <g key={x}>
-            <rect x={x} y={250} width={24} height={350} stroke={s} strokeWidth="0.8" opacity="0.3" rx="2" />
-            <rect x={x - 8} y={240} width={40} height={12} stroke={s} strokeWidth="0.5" opacity="0.25" rx="2" />
-            <rect x={x - 8} y={600} width={40} height={12} stroke={s} strokeWidth="0.5" opacity="0.25" rx="2" />
+            <rect x={x} y={200} width={32} height={440} rx="4" className="hi-strong" />
+            <rect x={x - 12} y={185} width={56} height={18} rx="4" className="hi-shape" />
+            <rect x={x - 12} y={638} width={56} height={18} rx="4" className="hi-shape" />
           </g>
         ))}
-        {[0,1,2,3,4].map(i => <line key={i} x1={350} y1={580 + i * 18} x2={650 - i * 30} y2={580 + i * 18} stroke={s} strokeWidth="0.5" opacity={0.2 + i * 0.05} />)}
-        <text x="380" y="560" fill={s} fontSize="14" fontFamily="serif" opacity="0.35">Art. L.561-2 CMF</text>
-        <text x="900" y="200" fill={s} fontSize="64" fontFamily="serif" opacity="0.15">§</text>
+        <text x="120" y="760" className="hi-giant">§</text>
+        <text x="1000" y="160" className="hi-giant">§</text>
+        {[0,1,2,3,4,5].map(i => <line key={i} x1={300} y1={620 + i * 20} x2={700 - i * 40} y2={620 + i * 20} className="hi-line-m" />)}
+        <text x="300" y="600" className="hi-label">Art. L.561-2 CMF</text>
       </svg>
 
-      {/* Notaire — seal + quill */}
-      <svg className={`${baseClass} ${profileId === "notaire" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
-        <circle cx="200" cy="400" r="100" stroke={s} strokeWidth="1" opacity="0.3" />
-        <circle cx="200" cy="400" r="80" stroke={s} strokeWidth="0.5" opacity="0.25" />
-        <circle cx="200" cy="400" r="60" stroke={s} strokeWidth="0.5" strokeDasharray="3 5" opacity="0.2" />
-        <text x="200" y="410" fill={s} fontSize="22" fontFamily="serif" textAnchor="middle" opacity="0.3">ACTE</text>
-        {Array.from({ length: 24 }).map((_, i) => {
-          const a = (i / 24) * Math.PI * 2;
-          return <circle key={i} cx={200 + Math.cos(a) * 95} cy={400 + Math.sin(a) * 95} r="5" stroke={s} strokeWidth="0.4" opacity="0.2" />;
+      {/* ── Notaire ── */}
+      <svg className={`${b} ${on("notaire")}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        <circle cx="170" cy="380" r="130" className="hi-strong" />
+        <circle cx="170" cy="380" r="105" className="hi-shape" />
+        <circle cx="170" cy="380" r="80" className="hi-circle" strokeDasharray="4 6" />
+        <text x="170" y="385" className="hi-seal" textAnchor="middle">ACTE</text>
+        <text x="170" y="410" className="hi-seal-sm" textAnchor="middle">AUTHENTIQUE</text>
+        {Array.from({ length: 32 }).map((_, i) => {
+          const a = (i / 32) * Math.PI * 2;
+          return <circle key={i} cx={170 + Math.cos(a) * 122} cy={380 + Math.sin(a) * 122} r="7" className="hi-dot" />;
         })}
-        <path d="M980 180 Q960 300 1020 500" stroke={s} strokeWidth="1" opacity="0.35" />
-        <path d="M980 180 Q990 170 1000 180 Q990 190 980 180" stroke={s} strokeWidth="0.8" opacity="0.3" />
-        <rect x="800" y="550" width="200" height="180" rx="8" stroke={s} strokeWidth="0.5" opacity="0.2" />
-        {[0,1,2,3,4].map(i => <line key={i} x1={820} y1={580 + i * 22} x2={980} y2={580 + i * 22} stroke={s} strokeWidth="0.4" opacity="0.15" />)}
-        <path d="M180 500 L200 530 L220 500" stroke={s} strokeWidth="0.8" opacity="0.25" />
+        <path d="M130 510 L170 560 L210 510" className="hi-shape" />
+        <path d="M1020 120 Q990 280 1060 520" className="hi-strong" />
+        <path d="M1020 120 C1030 100 1045 110 1035 125" className="hi-shape" />
+        <rect x="820" y="500" width="240" height="250" rx="12" className="hi-strong" />
+        {[0,1,2,3,4,5,6].map(i => <line key={i} x1={845} y1={540 + i * 26} x2={1035} y2={540 + i * 26} className="hi-line" />)}
+        <circle cx="920" cy="710" r="18" className="hi-fill" />
       </svg>
 
-      {/* Agent immobilier — buildings + key */}
-      <svg className={`${baseClass} ${profileId === "immo" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
-        <rect x="80" y="300" width="120" height="400" stroke={s} strokeWidth="0.8" opacity="0.3" rx="4" />
-        <rect x="220" y="400" width="80" height="300" stroke={s} strokeWidth="0.6" opacity="0.25" rx="4" />
-        {[0,1,2,3].map(r => [0,1].map(c => <rect key={`w${r}${c}`} x={100 + c * 55} y={330 + r * 80} width={30} height={35} rx="3" stroke={s} strokeWidth="0.4" opacity="0.2" />))}
-        <rect x="950" y="200" width="140" height="500" stroke={s} strokeWidth="0.8" opacity="0.3" rx="4" />
-        <rect x="870" y="350" width="65" height="350" stroke={s} strokeWidth="0.6" opacity="0.2" rx="4" />
-        {[0,1,2,3,4].map(r => [0,1].map(c => <rect key={`wr${r}${c}`} x={970 + c * 55} y={230 + r * 80} width={30} height={35} rx="3" stroke={s} strokeWidth="0.4" opacity="0.2" />))}
-        <path d="M550 580 L600 530 L650 580 Z" stroke={s} strokeWidth="0.8" opacity="0.25" />
-        <rect x="560" y="580" width="80" height="60" stroke={s} strokeWidth="0.6" opacity="0.2" rx="2" />
-        <circle cx="600" cy="700" r="12" stroke={s} strokeWidth="0.8" opacity="0.2" />
-        <line x1="612" y1="700" x2="645" y2="700" stroke={s} strokeWidth="0.6" opacity="0.2" />
-        <line x1="640" y1="695" x2="640" y2="710" stroke={s} strokeWidth="0.5" opacity="0.15" />
+      {/* ── Agent immobilier ── */}
+      <svg className={`${b} ${on("immo")}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        <rect x="50" y="250" width="150" height="500" rx="6" className="hi-strong" />
+        <rect x="220" y="370" width="100" height="380" rx="6" className="hi-shape" />
+        <rect x="340" y="450" width="70" height="300" rx="6" className="hi-line-m" />
+        {[0,1,2,3,4,5].map(r => [0,1,2].map(c => <rect key={`wl${r}${c}`} x={70 + c * 42} y={285 + r * 70} width={28} height={38} rx="4" className="hi-win" />))}
+        {[0,1,2,3].map(r => [0,1].map(c => <rect key={`wm${r}${c}`} x={235 + c * 42} y={400 + r * 70} width={28} height={38} rx="4" className="hi-win" />))}
+        <rect x="920" y="150" width="170" height="600" rx="6" className="hi-strong" />
+        <rect x="830" y="300" width="80" height="450" rx="6" className="hi-shape" />
+        {[0,1,2,3,4,5,6].map(r => [0,1,2].map(c => <rect key={`wr${r}${c}`} x={940 + c * 46} y={185 + r * 70} width={30} height={40} rx="4" className="hi-win" />))}
+        <path d="M530 600 L600 540 L670 600 Z" className="hi-strong" />
+        <rect x="545" y="600" width="110" height="80" rx="4" className="hi-strong" />
+        <rect x="580" y="630" width="40" height="50" rx="3" className="hi-shape" />
+        <circle cx="600" cy="740" r="16" className="hi-strong" />
+        <circle cx="600" cy="740" r="6" className="hi-shape" />
+        <line x1="616" y1="740" x2="660" y2="740" className="hi-strong" strokeLinecap="round" />
+        <line x1="650" y1="733" x2="650" y2="750" className="hi-shape" />
+        <line x1="640" y1="733" x2="640" y2="747" className="hi-shape" />
       </svg>
     </div>
   );
@@ -1280,7 +1297,11 @@ export default function LandingPage() {
           --l-mock-bar-bg: rgba(255,255,255,0.05);
           --l-circle-track: rgba(255,255,255,0.08);
           --l-toggle-off: #374151;
-          --l-hero-illus: rgba(59, 130, 246, 0.04);
+          --l-hi-stroke: rgba(100, 140, 255, 0.12);
+          --l-hi-stroke-strong: rgba(100, 140, 255, 0.18);
+          --l-hi-fill: rgba(100, 140, 255, 0.06);
+          --l-hi-text: rgba(100, 140, 255, 0.14);
+          --l-hi-text-lg: rgba(100, 140, 255, 0.10);
         }
         .theme-light {
           --l-bg-primary: #f8f6f1;
@@ -1303,7 +1324,11 @@ export default function LandingPage() {
           --l-accent: #7c3aed;
           --l-accent-light: rgba(139,92,246,0.1);
           --l-toggle-off: #c4bfd0;
-          --l-hero-illus: rgba(120, 80, 200, 0.05);
+          --l-hi-stroke: rgba(120, 80, 200, 0.13);
+          --l-hi-stroke-strong: rgba(120, 80, 200, 0.20);
+          --l-hi-fill: rgba(120, 80, 200, 0.07);
+          --l-hi-text: rgba(120, 80, 200, 0.16);
+          --l-hi-text-lg: rgba(120, 80, 200, 0.11);
         }
         .landing-root { color: var(--l-text); }
 
@@ -1337,6 +1362,29 @@ export default function LandingPage() {
         }
         .theme-light .hero-glow {
           background: radial-gradient(ellipse 80% 50% at 50% -20%, rgba(120,80,200,0.1) 0%, transparent 70%);
+        }
+
+        /* Hero illustration SVG classes */
+        .hi-line { stroke: var(--l-hi-stroke); stroke-width: 1; }
+        .hi-line-m { stroke: var(--l-hi-stroke-strong); stroke-width: 1.5; }
+        .hi-shape { stroke: var(--l-hi-stroke); stroke-width: 1.5; }
+        .hi-strong { stroke: var(--l-hi-stroke-strong); stroke-width: 2; }
+        .hi-fill { fill: var(--l-hi-fill); stroke: var(--l-hi-stroke-strong); stroke-width: 1.5; }
+        .hi-circle { stroke: var(--l-hi-stroke); stroke-width: 1; }
+        .hi-num { fill: var(--l-hi-text); font-size: 24px; font-family: serif; }
+        .hi-num-lg { fill: var(--l-hi-text-lg); font-size: 36px; font-family: serif; font-weight: bold; }
+        .hi-sym { fill: var(--l-hi-text); font-size: 48px; font-family: serif; }
+        .hi-label { fill: var(--l-hi-text); font-size: 16px; font-family: serif; letter-spacing: 2px; }
+        .hi-giant { fill: var(--l-hi-text-lg); font-size: 80px; font-family: serif; }
+        .hi-check { stroke: var(--l-hi-stroke-strong); stroke-width: 3; stroke-linecap: round; fill: none; }
+        .hi-check-sm { stroke: var(--l-hi-stroke); stroke-width: 2; stroke-linecap: round; fill: none; }
+        .hi-seal { fill: var(--l-hi-text); font-size: 28px; font-family: serif; font-weight: bold; letter-spacing: 4px; }
+        .hi-seal-sm { fill: var(--l-hi-text-lg); font-size: 12px; font-family: serif; letter-spacing: 3px; }
+        .hi-dot { stroke: var(--l-hi-stroke); stroke-width: 1; fill: none; }
+        .hi-win { stroke: var(--l-hi-stroke); stroke-width: 1; fill: var(--l-hi-fill); }
+        /* Hide illustrations on small screens where they overlap text */
+        @media (max-width: 768px) {
+          .hero-illus-wrap { display: none; }
         }
 
         /* #9 — Micro-interactions */
