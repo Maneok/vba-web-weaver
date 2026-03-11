@@ -32,27 +32,30 @@ interface AppSidebarProps {
 
 const APP_VERSION = "1.0.0";
 
-const MAIN_NAV = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; shortcut: string };
+
+const PRINCIPAL_NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "D" },
   { to: "/bdd", label: "Base Clients", icon: Users, shortcut: "B" },
-  { to: "/lettre-mission", label: "Lettre de Mission", icon: FileText, shortcut: "L" },
-  { to: "/gouvernance", label: "Gouvernance", icon: ShieldCheck, shortcut: "G" },
-  { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck, shortcut: "Q" },
-  { to: "/registre", label: "Registre LCB", icon: AlertTriangle, shortcut: "R" },
-] as const;
+];
 
-const TOOLS_NAV = [
+const CONFORMITE_NAV: NavItem[] = [
+  { to: "/registre", label: "Registre LCB", icon: AlertTriangle, shortcut: "R" },
+  { to: "/logs", label: "Journal d'audit", icon: ScrollText, shortcut: "J" },
+  { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck, shortcut: "Q" },
+];
+
+const OUTILS_NAV: NavItem[] = [
   { to: "/ged", label: "Documents / GED", icon: FolderOpen, shortcut: "E" },
   { to: "/diagnostic", label: "Diagnostic 360", icon: Activity, shortcut: "3" },
-  { to: "/logs", label: "Journal d'audit", icon: ScrollText, shortcut: "J" },
-] as const;
+  { to: "/gouvernance", label: "Gouvernance", icon: ShieldCheck, shortcut: "G" },
+  { to: "/lettre-mission", label: "Lettre de Mission", icon: FileText, shortcut: "L" },
+];
 
-const SETTINGS_NAV = [
+const CONFIG_NAV: NavItem[] = [
   { to: "/parametres", label: "Parametres", icon: Settings, shortcut: "P" },
   { to: "/aide", label: "Aide", icon: HelpCircle, shortcut: "?" },
-] as const;
-
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; shortcut: string };
+];
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { alertes, clients } = useAppState();
@@ -126,7 +129,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
     if (collapsed) {
       return (
-        <Tooltip key={item.to} delayDuration={0}>
+        <Tooltip key={item.to} delayDuration={200}>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
           <TooltipContent side="right" className="font-medium">
             {item.label}
@@ -141,17 +144,22 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     return link;
   };
 
-  const renderSection = (items: readonly NavItem[], label?: string) => (
-    <div className="space-y-0.5">
-      {label && !collapsed && (
-        <p className="px-3 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
+  const renderSection = (items: NavItem[], label: string, isFirst = false) => (
+    <div>
+      {!isFirst && collapsed && (
+        <div className="mx-3 my-2 border-t border-slate-800/50" />
+      )}
+      {!isFirst && !collapsed && (
+        <div className="mt-2 border-t border-slate-800/50" />
+      )}
+      {!collapsed && (
+        <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-500">
           {label}
         </p>
       )}
-      {collapsed && label && (
-        <div className="mx-3 my-2 border-t border-white/[0.06]" />
-      )}
-      {items.map((item) => renderNavItem(item as NavItem))}
+      <div className="space-y-0.5">
+        {items.map((item) => renderNavItem(item))}
+      </div>
     </div>
   );
 
@@ -162,16 +170,6 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     >
       <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
       {!collapsed && <span>Nouveau Client</span>}
-    </button>
-  );
-
-  const lettreMissionBtn = (
-    <button
-      onClick={() => navigate("/lettre-mission")}
-      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-violet-500/20 via-blue-500/15 to-indigo-500/20 text-violet-300 hover:from-violet-500/30 hover:via-blue-500/25 hover:to-indigo-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
-    >
-      <FileText className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
-      {!collapsed && <span>Lettre de Mission</span>}
     </button>
   );
 
@@ -212,31 +210,24 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {renderSection([...MAIN_NAV], "Navigation")}
-          {renderSection([...TOOLS_NAV], "Outils")}
-          {renderSection([...SETTINGS_NAV], "Systeme")}
+        <nav className="flex-1 overflow-y-auto p-3">
+          {renderSection(PRINCIPAL_NAV, "Principal", true)}
 
-          {/* Action buttons */}
-          <div className="pt-3 mt-3 border-t border-white/[0.06] space-y-2">
+          {/* Nouveau Client button — part of Principal group */}
+          <div className="mt-1.5 space-y-0.5">
             {collapsed ? (
-              <>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>{nouveauClientBtn}</TooltipTrigger>
-                  <TooltipContent side="right">Nouveau Client</TooltipContent>
-                </Tooltip>
-                <Tooltip delayDuration={0}>
-                  <TooltipTrigger asChild>{lettreMissionBtn}</TooltipTrigger>
-                  <TooltipContent side="right">Lettre de Mission</TooltipContent>
-                </Tooltip>
-              </>
+              <Tooltip delayDuration={200}>
+                <TooltipTrigger asChild>{nouveauClientBtn}</TooltipTrigger>
+                <TooltipContent side="right">Nouveau Client</TooltipContent>
+              </Tooltip>
             ) : (
-              <>
-                {nouveauClientBtn}
-                {lettreMissionBtn}
-              </>
+              nouveauClientBtn
             )}
           </div>
+
+          {renderSection(CONFORMITE_NAV, "Conformite")}
+          {renderSection(OUTILS_NAV, "Outils")}
+          {renderSection(CONFIG_NAV, "Configuration")}
         </nav>
 
         {/* User info + logout + version */}
@@ -251,7 +242,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           )}
 
           {collapsed ? (
-            <Tooltip delayDuration={0}>
+            <Tooltip delayDuration={200}>
               <TooltipTrigger asChild>
                 <button
                   onClick={handleSignOut}
