@@ -1409,7 +1409,8 @@ export default function NouveauClientPage() {
     setShowSuccessModal(true);
     } catch (err: unknown) {
       logger.error("[Submit] Error:", err);
-      toast.error("Erreur lors de la creation du client");
+      const msg = err instanceof Error ? err.message : "Erreur lors de la creation du client";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
