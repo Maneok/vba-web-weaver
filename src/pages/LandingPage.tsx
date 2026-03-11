@@ -11,6 +11,7 @@
    ═══════════════════════════════════════════════════════════════ */
 import React, { useEffect, useRef, useState, useCallback, useMemo, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
