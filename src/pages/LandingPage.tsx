@@ -9,7 +9,7 @@
    - Témoignages, FAQ, Pricing, Footer légal
    NE PAS REMPLACER — améliorer en place uniquement.
    ═══════════════════════════════════════════════════════════════ */
-
+import React, { useEffect, useRef, useState, useCallback, useMemo, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -564,7 +564,7 @@ function TiltCard({ children, className = "" }: { children: ReactNode; className
 }
 
 /* #17 — Wave separator */
-const WaveDivider = memo(function WaveDivider({ flip = false, className = "" }: { flip?: boolean; className?: string }) {
+const WaveDivider = React.memo(function WaveDivider({ flip = false, className = "" }: { flip?: boolean; className?: string }) {
   return (
     <div className={`w-full overflow-hidden leading-[0] ${flip ? "rotate-180" : ""} ${className}`} aria-hidden="true">
       <svg viewBox="0 0 1440 60" preserveAspectRatio="none" className="w-full h-10 sm:h-14">
@@ -622,7 +622,7 @@ const DEMO_APIS = [
   { name: "Base nationale PEP", icon: Shield },
 ];
 
-const RadarChart = memo(function RadarChart() {
+const RadarChart = React.memo(function RadarChart() {
   const axes = [
     { label: "Activit\u00e9", value: 0.85 },
     { label: "Pays", value: 0.95 },
@@ -970,7 +970,7 @@ function AnimatedMockDashboard() {
 }
 
 /* #20 — Responsive comparison mobile card */
-const CompMobileCard = memo(function CompMobileCard({ row }: { row: CompRow }) {
+const CompMobileCard = React.memo(function CompMobileCard({ row }: { row: CompRow }) {
   return (
     <div className="rounded-xl border border-[--l-border] bg-[--l-surface] p-4 space-y-3">
       <p className="text-sm font-medium text-[--l-text]">{row.label}</p>
@@ -989,7 +989,7 @@ const CompMobileCard = memo(function CompMobileCard({ row }: { row: CompRow }) {
 });
 
 /* Comparison cell */
-const CompCell = memo(function CompCell({ value, accent }: { value: CompValue; accent?: boolean }) {
+const CompCell = React.memo(function CompCell({ value, accent }: { value: CompValue; accent?: boolean }) {
   if (value === "yes") return <Check className={`mx-auto h-5 w-5 ${accent ? "text-emerald-400" : "text-emerald-400/70"}`} />;
   if (value === "no") return <X className="mx-auto h-5 w-5 text-red-400/60" />;
   if (value === "partial") return <span className="text-xs font-medium text-amber-400">Partiel</span>;
@@ -2572,8 +2572,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ══════ FOOTER — #8 working links ══════ */}
+        </main>
 
+        {/* ══════ FOOTER — #8 working links ══════ */}
+        <footer>
           <div className="mx-auto max-w-7xl px-6">
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div className="lg:col-span-1">
