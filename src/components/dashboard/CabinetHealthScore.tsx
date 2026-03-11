@@ -7,6 +7,7 @@ interface CabinetHealthScoreProps {
   formationsAJour: number;
   revuesAJour: number;
   totalActions: number;
+  totalClients?: number;
   loading?: boolean;
 }
 
@@ -22,9 +23,13 @@ export function CabinetHealthScore({
   formationsAJour,
   revuesAJour,
   totalActions,
+  totalClients = 0,
   loading = false,
 }: CabinetHealthScoreProps) {
   const score = useMemo(() => {
+    // No clients → no meaningful score
+    if (totalClients === 0) return 0;
+
     let s = 0;
     if (tauxConformite >= 80) s += 25;
     else s += Math.round((tauxConformite / 80) * 25);
@@ -40,7 +45,7 @@ export function CabinetHealthScore({
     else s += Math.round((revuesAJour / 90) * 25);
 
     return Math.min(100, s);
-  }, [tauxConformite, mttrDays, formationsAJour, revuesAJour]);
+  }, [tauxConformite, mttrDays, formationsAJour, revuesAJour, totalClients]);
 
   const animatedScore = useCountUp(score, 1800);
   const color = scoreColor(score);
@@ -59,7 +64,10 @@ export function CabinetHealthScore({
   // Contextual phrase
   let phrase: string;
   let phraseColor: string;
-  if (score >= 75) {
+  if (totalClients === 0) {
+    phrase = "Ajoutez votre premier client pour commencer";
+    phraseColor = "hsl(var(--muted-foreground))";
+  } else if (score >= 75) {
     phrase = "Votre cabinet est en conformite";
     phraseColor = "#10B981";
   } else if (score >= 50) {

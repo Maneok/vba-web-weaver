@@ -8,7 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import {
   Users, ShieldCheck, AlertTriangle, Euro,
   Bell, RefreshCw, Printer, ChevronDown, BarChart3,
+  Plus, MoreHorizontal, FileText,
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import { KPICard } from "@/components/dashboard/KPICard";
 import { AlertsPanel } from "@/components/dashboard/AlertsPanel";
@@ -273,11 +280,17 @@ export default function DashboardPage() {
           </div>
 
           <div className="flex items-center gap-2 print:hidden">
-            {/* Pret controle badge */}
-            <Badge variant="outline" className="text-xs gap-1 text-muted-foreground">
-              <ShieldCheck className="w-3 h-3" />
-              Pret controle : {pretControle}%
-            </Badge>
+            {/* Primary CTA */}
+            <Button size="sm" className="gap-1.5" onClick={() => navigate("/nouveau-client")}>
+              <Plus className="w-4 h-4" />
+              Nouveau client
+            </Button>
+
+            {/* Secondary: refresh */}
+            <Button size="sm" variant="ghost" className="gap-1.5 text-muted-foreground" onClick={handleRefresh}>
+              <RefreshCw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Actualiser</span>
+            </Button>
 
             {/* Notification bell */}
             <button
@@ -293,9 +306,28 @@ export default function DashboardPage() {
               )}
             </button>
 
-            <Button size="sm" variant="ghost" className="h-8 w-8 p-0" onClick={() => window.print()} title="Imprimer">
-              <Printer className="w-4 h-4" />
-            </Button>
+            {/* Overflow menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="w-4 h-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => window.print()}>
+                  <Printer className="mr-2 w-4 h-4" /> Imprimer
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate("/diagnostic")}>
+                  <FileText className="mr-2 w-4 h-4" /> Diagnostic 360
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            {/* Pret controle badge */}
+            <Badge variant="outline" className="text-xs gap-1 text-muted-foreground hidden md:flex">
+              <ShieldCheck className="w-3 h-3" />
+              Pret controle : {pretControle}%
+            </Badge>
           </div>
         </div>
 
@@ -307,6 +339,7 @@ export default function DashboardPage() {
             formationsAJour={stats.formationsAJour}
             revuesAJour={stats.revuesAJour}
             totalActions={totalActions}
+            totalClients={stats.totalClients}
             loading={isLoading}
           />
         </div>
@@ -341,11 +374,13 @@ export default function DashboardPage() {
             title="Clients actifs"
             value={animClients}
             color="#3b82f6"
-            trendPercent={12}
+            trendPercent={stats.totalClients > 0 ? 12 : 0}
             trendUp={true}
-            sparklineData={generateSparkline(stats.totalClients)}
+            sparklineData={stats.totalClients > 0 ? generateSparkline(stats.totalClients) : undefined}
             onClick={() => setDrillDown("clients")}
             loading={isLoading}
+            emptyLabel="Aucun client actif|Ajouter un client"
+            emptyAction={() => navigate("/nouveau-client")}
           />
         </div>
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: "50ms" }}>
@@ -354,9 +389,10 @@ export default function DashboardPage() {
             title="Alertes en cours"
             value={animAlertes}
             color="#f59e0b"
-            sparklineData={generateSparkline(stats.alertesEnCours)}
+            sparklineData={stats.alertesEnCours > 0 ? generateSparkline(stats.alertesEnCours) : undefined}
             onClick={() => setDrillDown("alertes")}
             loading={isLoading}
+            emptyLabel="Aucune alerte active"
           />
         </div>
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: "100ms" }}>
@@ -365,8 +401,10 @@ export default function DashboardPage() {
             title="Taux conformite"
             value={`${stats.tauxConformite}%`}
             color={conformiteColor}
-            sparklineData={generateSparkline(stats.tauxConformite)}
+            sparklineData={stats.tauxConformite > 0 ? generateSparkline(stats.tauxConformite) : undefined}
             loading={isLoading}
+            emptyLabel="Completez vos fiches clients|Voir la base"
+            emptyAction={() => navigate("/bdd")}
           />
         </div>
         <div className="animate-in fade-in slide-in-from-bottom-2 duration-300" style={{ animationDelay: "150ms" }}>
@@ -375,8 +413,10 @@ export default function DashboardPage() {
             title="CA previsionnel"
             value={`${(stats.caPrevisionnel / 1000).toFixed(0)}k\u20AC`}
             color="#3b82f6"
-            sparklineData={generateSparkline(stats.caPrevisionnel / 1000)}
+            sparklineData={stats.caPrevisionnel > 0 ? generateSparkline(stats.caPrevisionnel / 1000) : undefined}
             loading={isLoading}
+            emptyLabel="Renseignez les honoraires|Voir la base"
+            emptyAction={() => navigate("/bdd")}
           />
         </div>
       </div>

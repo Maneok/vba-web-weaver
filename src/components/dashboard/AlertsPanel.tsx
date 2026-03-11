@@ -62,7 +62,15 @@ export function AlertsPanel({ alertes, loading = false }: AlertsPanelProps) {
       </div>
 
       {alertes.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">Aucune alerte recente</p>
+        <div className="text-center py-6">
+          <p className="text-sm text-muted-foreground">Aucune alerte recente</p>
+          <button
+            onClick={() => navigate("/bdd")}
+            className="text-xs text-primary hover:underline mt-2"
+          >
+            Verifier la base clients
+          </button>
+        </div>
       ) : (
         <div className="space-y-0.5">
           {alertes.slice(0, 5).map((a, i) => (

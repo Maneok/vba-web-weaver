@@ -52,7 +52,12 @@ function formatRelativeDate(date: Date): string {
 }
 
 export default function AppLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const saved = localStorage.getItem("sidebar_collapsed");
+      return saved === null ? false : saved === "true";
+    } catch { return false; }
+  });
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPending, startTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -94,7 +99,11 @@ export default function AppLayout() {
   const handleSidebarToggle = () => {
     // Preserve scroll position on sidebar toggle
     const scrollTop = scrollRef.current?.scrollTop ?? 0;
-    setSidebarCollapsed(prev => !prev);
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem("sidebar_collapsed", String(next)); } catch {}
+      return next;
+    });
     requestAnimationFrame(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = scrollTop;
     });

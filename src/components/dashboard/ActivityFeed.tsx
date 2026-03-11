@@ -64,7 +64,10 @@ export function ActivityFeed({ logs, loading = false }: ActivityFeedProps) {
       </h3>
 
       {recent.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-6">Aucune activite recente</p>
+        <div className="text-center py-6">
+          <p className="text-sm text-muted-foreground">Aucune activite recente</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Les actions de votre equipe apparaitront ici</p>
+        </div>
       ) : (
         <>
           {/* Desktop: horizontal scrollable */}
