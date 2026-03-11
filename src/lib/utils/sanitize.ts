@@ -20,6 +20,7 @@ export function sanitizeHtml(input: string): string {
 /** Sanitize user input for safe storage (XSS prevention) */
 export function sanitizeInput(input: string): string {
   if (!input) return "";
+  if (typeof input !== "string") return String(input);
   return input
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

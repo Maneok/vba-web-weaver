@@ -81,13 +81,14 @@ export const emailSchema = z
 
 /** Validate an email string — returns null if valid, or a French error message */
 export function validateEmail(email: string): string | null {
-  if (!email || email.trim() === "") return null; // empty is valid (not required)
+  if (!email || typeof email !== "string" || email.trim() === "") return null; // empty is valid (not required)
   const result = emailSchema.safeParse(email);
   return result.success ? null : result.error.errors[0]?.message ?? "Adresse email invalide";
 }
 
 /** Validate SIREN using Luhn algorithm */
 export function validateSiren(siren: string): boolean {
+  if (!siren || typeof siren !== "string") return false;
   const clean = siren.replace(/\s/g, "");
   if (!/^\d{9}$/.test(clean)) return false;
   // Luhn check
@@ -105,6 +106,7 @@ export function validateSiren(siren: string): boolean {
 
 /** Validate French postal code */
 export function validateCodePostal(cp: string): boolean {
+  if (!cp || typeof cp !== "string") return false;
   if (!/^\d{5}$/.test(cp)) return false;
   const dept = parseInt(cp.slice(0, 2), 10);
   // Valid French departments: 01-95, 2A/2B (20), 97x (DOM), 98x (TOM)

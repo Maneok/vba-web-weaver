@@ -51,7 +51,7 @@ export function parseCSV(csv: string): string[][] {
 
 /** Column header → Client field mapping */
 const CSV_FIELD_MAP: Record<string, keyof Client> = {
-  "raison_sociale": "raisonSociale", "raison sociale": "raisonSociale", "nom": "raisonSociale",
+  "raisonsociale": "raisonSociale", "raison_sociale": "raisonSociale", "raison sociale": "raisonSociale", "nom": "raisonSociale",
   "forme": "forme", "forme_juridique": "forme", "forme juridique": "forme",
   "siren": "siren", "adresse": "adresse", "cp": "cp", "code_postal": "cp",
   "code postal": "cp", "ville": "ville", "dirigeant": "dirigeant",
@@ -59,6 +59,9 @@ const CSV_FIELD_MAP: Record<string, keyof Client> = {
   "ape": "ape", "naf": "ape", "code_ape": "ape", "capital": "capital",
   "effectif": "effectif", "honoraires": "honoraires", "mission": "mission",
   "frequence": "frequence", "date_creation": "dateCreation", "date creation": "dateCreation",
+  "datecreation": "dateCreation", "scoreglobal": "scoreGlobal", "score_global": "scoreGlobal",
+  "nivvigilance": "nivVigilance", "niv_vigilance": "nivVigilance", "vigilance": "nivVigilance",
+  "datebutoir": "dateButoir", "date_butoir": "dateButoir", "statut": "statut", "ref": "ref",
 };
 
 /** Parse CSV into partial Client objects with row-level validation */
