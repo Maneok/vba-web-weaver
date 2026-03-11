@@ -1,4 +1,5 @@
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "./types";
+import { logger } from "./logger";
 import clientsRaw from "../../clients_o90.json";
 import gouvRaw from "../../gouv_o90.json";
 import registreRaw from "../../registre_o90.json";
@@ -27,7 +28,7 @@ function mapClient(raw: Record<string, unknown>): Client {
     cp: (raw.code_postal as string) || "",
     ville: (raw.ville as string) || "",
     siren: (raw.siren as string) || "",
-    capital: (raw.capital as number) || 0,
+    capital: (raw.capital as number) ?? 0,
     ape: (raw.ape as string) || "",
     dirigeant: (raw.dirigeant as string) || "",
     domaine: (raw.domaine as string) || "",
@@ -36,9 +37,9 @@ function mapClient(raw: Record<string, unknown>): Client {
     mail: (raw.email as string) || "",
     dateCreation: (raw.date_creation as string) || "",
     dateReprise: (raw.date_reprise as string) || "",
-    honoraires: (raw.honoraires as number) || 0,
-    reprise: (raw.reprise as number) || 0,
-    juridique: (raw.juridique as number) || 0,
+    honoraires: (raw.honoraires as number) ?? 0,
+    reprise: (raw.reprise as number) ?? 0,
+    juridique: (raw.juridique as number) ?? 0,
     frequence: (raw.frequence as string) || "MENSUEL",
     iban: (raw.iban as string) || "",
     bic: (raw.bic as string) || "",
@@ -50,13 +51,13 @@ function mapClient(raw: Record<string, unknown>): Client {
     distanciel: ((raw.distanciel as string) || "NON") as "OUI" | "NON",
     cash: ((raw.cash as string) || "NON") as "OUI" | "NON",
     pression: ((raw.pression as string) || "NON") as "OUI" | "NON",
-    scoreActivite: (raw.score_activite as number) || 0,
-    scorePays: (raw.score_pays as number) || 0,
-    scoreMission: (raw.score_mission as number) || 0,
-    scoreMaturite: (raw.score_maturite as number) || 0,
-    scoreStructure: (raw.score_structure as number) || 0,
-    malus: (raw.malus as number) || 0,
-    scoreGlobal: (raw.score_global as number) || 0,
+    scoreActivite: (raw.score_activite as number) ?? 0,
+    scorePays: (raw.score_pays as number) ?? 0,
+    scoreMission: (raw.score_mission as number) ?? 0,
+    scoreMaturite: (raw.score_maturite as number) ?? 0,
+    scoreStructure: (raw.score_structure as number) ?? 0,
+    malus: (raw.malus as number) ?? 0,
+    scoreGlobal: (raw.score_global as number) ?? 0,
     nivVigilance: ((raw.niv_vigilance as string) || "SIMPLIFIEE") as "SIMPLIFIEE" | "STANDARD" | "RENFORCEE",
     dateCreationLigne: (raw.date_creation_ligne as string) || "",
     dateDerniereRevue: (raw.date_derniere_revue as string) || "",
@@ -102,12 +103,32 @@ function mapAlerte(raw: Record<string, unknown>): AlerteRegistre {
   };
 }
 
+// ====== SAFE LOADING HELPERS ======
+function safeLoadArray<T>(
+  raw: unknown,
+  mapper: (item: Record<string, unknown>) => T,
+  label: string
+): T[] {
+  try {
+    if (!Array.isArray(raw)) {
+      logger.warn("DataLoader", `Données ${label} invalides : tableau attendu, reçu ${typeof raw}`);
+      return [];
+    }
+    const result = (raw as Record<string, unknown>[]).map(mapper);
+    logger.debug("DataLoader", `${result.length} ${label} chargé(s) depuis O90`);
+    return result;
+  } catch (err: unknown) {
+    logger.error("DataLoader", `Échec du chargement des ${label}`, err);
+    return [];
+  }
+}
+
 // ====== EXPORTED DATA ======
-export const O90_CLIENTS: Client[] = (clientsRaw as Record<string, unknown>[]).map(mapClient);
+export const O90_CLIENTS: Client[] = safeLoadArray(clientsRaw, mapClient, "clients");
 
-export const O90_COLLABORATEURS: Collaborateur[] = (gouvRaw as Record<string, unknown>[]).map(mapCollaborateur);
+export const O90_COLLABORATEURS: Collaborateur[] = safeLoadArray(gouvRaw, mapCollaborateur, "collaborateurs");
 
-export const O90_ALERTES: AlerteRegistre[] = (registreRaw as Record<string, unknown>[]).map(mapAlerte);
+export const O90_ALERTES: AlerteRegistre[] = safeLoadArray(registreRaw, mapAlerte, "alertes");
 
 export const O90_LOGS: LogEntry[] = [
   {

@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
+import { downloadCSV } from "@/lib/csvUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,16 +59,9 @@ function exportAuditCSV(entries: AuditRow[]) {
     e.action,
     e.table_name || "",
     e.record_id || "",
-    e.new_data ? JSON.stringify(e.new_data).slice(0, 500) : "",
+    e.new_data ? JSON.stringify(e.new_data).slice(0, 2000) : "",
   ]);
-  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${(v || "").replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`).join(";"))].join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `audit-trail-${new Date().toISOString().split("T")[0]}.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCSV(headers, rows, `audit-trail-${new Date().toISOString().split("T")[0]}.csv`);
 }
 
 function renderDiffView(oldData: Record<string, unknown> | null, newData: Record<string, unknown> | null) {
@@ -115,6 +111,9 @@ export default function AuditTrailPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedEntry, setSelectedEntry] = useState<AuditRow | null>(null);
   const [sortDir, setSortDir] = useState<"desc" | "asc">("desc");
+  const debouncedSearch = useDebounce(search, 300);
+
+  useDocumentTitle("Journal d'Audit");
 
   useEffect(() => {
     let mounted = true;
@@ -130,9 +129,9 @@ export default function AuditTrailPage() {
           logger.error("[AuditTrail] load error:", error);
           toast.error("Erreur lors du chargement du journal d'audit");
         } else if (data) {
-          setEntries(data as AuditRow[]);
+          setEntries((data ?? []) as AuditRow[]);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         if (mounted) {
           logger.error("[AuditTrail] exception:", err);
           toast.error("Erreur lors du chargement du journal d'audit");
@@ -162,14 +161,14 @@ export default function AuditTrailPage() {
   // Filtered & sorted
   const filtered = useMemo(() => {
     let result = entries.filter(e => {
-      const matchSearch = !search ||
-        e.action.toLowerCase().includes(search.toLowerCase()) ||
-        e.user_email?.toLowerCase().includes(search.toLowerCase()) ||
-        e.table_name?.toLowerCase().includes(search.toLowerCase()) ||
-        e.record_id?.toLowerCase().includes(search.toLowerCase());
+      const matchSearch = !debouncedSearch ||
+        (e.action ?? "").toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        e.user_email?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        e.table_name?.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        e.record_id?.toLowerCase().includes(debouncedSearch.toLowerCase());
       const matchAction = filterAction === "all" || e.action === filterAction;
       const matchUser = filterUser === "all" || e.user_email === filterUser;
-      const dateStr = e.created_at.split("T")[0];
+      const dateStr = (e.created_at ?? "").split("T")[0];
       const matchDateStart = !dateStart || dateStr >= dateStart;
       const matchDateEnd = !dateEnd || dateStr <= dateEnd;
       return matchSearch && matchAction && matchUser && matchDateStart && matchDateEnd;
@@ -178,7 +177,7 @@ export default function AuditTrailPage() {
     if (sortDir === "asc") result = [...result].reverse();
 
     return result;
-  }, [entries, search, filterAction, filterUser, dateStart, dateEnd, sortDir]);
+  }, [entries, debouncedSearch, filterAction, filterUser, dateStart, dateEnd, sortDir]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(currentPage, totalPages);
@@ -253,11 +252,12 @@ export default function AuditTrailPage() {
             placeholder="Rechercher par action, email, table..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+            aria-label="Rechercher dans le journal d'audit"
             className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
           />
         </div>
         <Select value={filterAction} onValueChange={v => { setFilterAction(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-[170px] bg-white/[0.03] border-white/[0.06] text-slate-300">
+          <SelectTrigger className="w-[170px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par type d'action">
             <SelectValue placeholder="Type d'action" />
           </SelectTrigger>
           <SelectContent>
@@ -266,7 +266,7 @@ export default function AuditTrailPage() {
           </SelectContent>
         </Select>
         <Select value={filterUser} onValueChange={v => { setFilterUser(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-[200px] bg-white/[0.03] border-white/[0.06] text-slate-300">
+          <SelectTrigger className="w-[200px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par utilisateur">
             <SelectValue placeholder="Utilisateur" />
           </SelectTrigger>
           <SelectContent>
@@ -274,8 +274,8 @@ export default function AuditTrailPage() {
             {uniqueUsers.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
-        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateStart} max={dateEnd || undefined} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} aria-label="Date de debut du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateEnd} min={dateStart || undefined} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} aria-label="Date de fin du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
         {hasFilters && (
           <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters}>
             <X className="w-3 h-3 mr-1" /> Effacer
@@ -360,7 +360,17 @@ export default function AuditTrailPage() {
                           </Button>
                         </div>
                       ) : (
-                        "Aucune entree dans le journal d'audit"
+                        <div className="flex flex-col items-center gap-3">
+                          <div className="w-16 h-16 rounded-full bg-slate-500/10 flex items-center justify-center">
+                            <Shield className="w-8 h-8 text-slate-600" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-slate-400">Aucune entree dans le journal d'audit</p>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Les actions reglementaires seront enregistrees ici automatiquement.
+                            </p>
+                          </div>
+                        </div>
                       )}
                     </TableCell>
                   </TableRow>

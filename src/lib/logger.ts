@@ -15,32 +15,41 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
   error: 3,
 };
 
-const MIN_LEVEL: LogLevel = IS_DEV ? "debug" : "error";
+const MIN_LEVEL: LogLevel = IS_DEV ? "debug" : "warn";
 
 function shouldLog(level: LogLevel): boolean {
   return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[MIN_LEVEL];
 }
 
-function formatPrefix(tag: string): string {
-  return `[${tag}]`;
+function timestamp(): string {
+  return new Date().toISOString();
+}
+
+function formatPrefix(level: LogLevel, tag: string): string {
+  return `${timestamp()} [${level.toUpperCase()}] [${tag}]`;
 }
 
 export const logger = {
-  debug(tag: string, ...args: unknown[]) {
-    if (shouldLog("debug")) console.log(formatPrefix(tag), ...args);
+  debug(tag: string, ...args: unknown[]): void {
+    if (shouldLog("debug")) console.log(formatPrefix("debug", tag), ...args);
   },
 
-  info(tag: string, ...args: unknown[]) {
-    if (shouldLog("info")) console.log(formatPrefix(tag), ...args);
+  info(tag: string, ...args: unknown[]): void {
+    if (shouldLog("info")) console.log(formatPrefix("info", tag), ...args);
   },
 
-  warn(tag: string, ...args: unknown[]) {
-    if (shouldLog("warn")) console.warn(formatPrefix(tag), ...args);
+  warn(tag: string, ...args: unknown[]): void {
+    if (shouldLog("warn")) console.warn(formatPrefix("warn", tag), ...args);
   },
 
-  error(tag: string, ...args: unknown[]) {
-    if (shouldLog("error")) console.error(formatPrefix(tag), ...args);
-    // Future: send to error tracking service
-    // errorTracker.capture(tag, args);
+  error(tag: string, ...args: unknown[]): void {
+    if (shouldLog("error")) {
+      console.error(formatPrefix("error", tag), ...args);
+      // In production, capture stack trace for debugging
+      if (!IS_DEV) {
+        const err = args.find(a => a instanceof Error) as Error | undefined;
+        if (err?.stack) console.error(formatPrefix("error", tag), "Stack:", err.stack);
+      }
+    }
   },
 };

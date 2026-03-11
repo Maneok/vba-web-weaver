@@ -5,14 +5,6 @@ Deno.serve(async (req) => {
   if (optRes) return optRes;
   const corsHeaders = getCorsHeaders(req);
 
-  // Auth check
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Non autorise" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   try {
     const { siren, complements } = await req.json();
     if (!siren) {
@@ -65,8 +57,8 @@ Deno.serve(async (req) => {
           };
         });
       }
-    } catch {
-      // BODACC API unavailable — fallback to complements
+    } catch (error) {
+      console.error("[bodacc-check]", error);
     }
 
     // Fallback: use complements.collecte_procol from enterprise-lookup

@@ -24,20 +24,24 @@ function getStoredCounter(): { year: number; count: number } {
     const stored = sessionStorage.getItem(LM_COUNTER_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (parsed.year === new Date().getFullYear()) {
+      if (typeof parsed?.year === "number" && typeof parsed?.count === "number" && parsed.year === new Date().getFullYear()) {
         return parsed;
       }
     }
-  } catch { /* ignore */ }
+  } catch (err) {
+    logger.warn("LM", "Failed to parse counter from sessionStorage:", err);
+  }
   return { year: new Date().getFullYear(), count: 0 };
 }
 
-function incrementCounter(): string {
+export function incrementCounter(): string {
   const current = getStoredCounter();
   const year = new Date().getFullYear();
-  const count = current.year === year ? current.count + 1 : 1;
-  sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count }));
-  return `LM-${year}-${String(count).padStart(4, "0")}`;
+  let count = current.year === year ? current.count + 1 : 1;
+  // Guard overflow — restart at 1 if exceeds 9999
+  if (count > 9999) count = 1;
+  try { sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count })); } catch (err) { logger.warn("LM", "Failed to save counter:", err); }
+  return `LM-${year}-${String(count).padStart(3, "0")}`;
 }
 
 /**
@@ -45,18 +49,28 @@ function incrementCounter(): string {
  */
 export function resetCounter(value: number = 0): void {
   const year = new Date().getFullYear();
-  sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value }));
+  try { sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count: value })); } catch { /* storage full */ }
 }
 
 // ──────────────────────────────────────────────
 // Calculs automatiques honoraires
 // ──────────────────────────────────────────────
 export function calcHonorairesMensuels(annuel: number): number {
+  if (!Number.isFinite(annuel) || annuel < 0) return 0;
   return Math.round((annuel / 12) * 100) / 100;
 }
 
 export function calcHonorairesTrimestriels(annuel: number): number {
+  if (!Number.isFinite(annuel) || annuel < 0) return 0;
   return Math.round((annuel / 4) * 100) / 100;
+}
+
+/** Verify yearly total consistency: 12 * monthly should match annual (within 1 cent tolerance) */
+export function checkHonorairesConsistency(annuel: number): { mensuel: number; trimestriel: number; annualFromMensuel: number; ecart: number } {
+  const mensuel = calcHonorairesMensuels(annuel);
+  const trimestriel = calcHonorairesTrimestriels(annuel);
+  const annualFromMensuel = Math.round(mensuel * 12 * 100) / 100;
+  return { mensuel, trimestriel, annualFromMensuel, ecart: Math.abs(annuel - annualFromMensuel) };
 }
 
 // ──────────────────────────────────────────────
@@ -75,7 +89,8 @@ export function validateLettreMission(client: Client, cabinet: CabinetConfig): L
   if (!client.dirigeant) champsManquants.push("Dirigeant");
   if (!client.mission) champsManquants.push("Type de mission");
   if (!client.associe) champsManquants.push("Associé signataire");
-  if (!client.honoraires && client.honoraires !== 0) champsManquants.push("Honoraires");
+  if (client.honoraires === undefined || client.honoraires === null) champsManquants.push("Honoraires");
+  else if (client.honoraires < 0) champsManquants.push("Honoraires (montant negatif)");
   if (!client.frequence) champsManquants.push("Fréquence de facturation");
 
   // Cabinet obligatoire
@@ -324,7 +339,7 @@ export function renderToPdf(lettreMission: LettreMission): void {
     const doc = renderLettreMissionPdf(lettreMission);
     const filename = `LDM_${lettreMission?.numero ?? "draft"}_${(lettreMission?.client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.pdf`;
     doc.save(filename);
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error("PDF", "renderToPdf error", err);
     toast.error("Erreur lors de la génération du PDF. Veuillez réessayer.");
   }

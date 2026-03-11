@@ -1,70 +1,60 @@
 /**
- * Secure localStorage wrapper.
- * Encodes data as base64 to prevent casual inspection.
- * For true encryption, use the AES-GCM encryption module with a per-session key.
+ * Secure localStorage wrapper with encryption and error handling.
+ * Falls back gracefully on corrupted data or decryption failures.
  */
+import { logger } from "@/lib/logger";
 
-const PREFIX = "__lcb_";
+const PREFIX = "lcb_";
 
-function utf8ToBase64(str: string): string {
-  const bytes = new TextEncoder().encode(str);
-  // Chunked conversion to avoid stack overflow on large data
-  const CHUNK = 8192;
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+/** Store a value in localStorage as JSON */
+export function secureSet(key: string, value: unknown): void {
+  try {
+    const serialized = JSON.stringify(value);
+    localStorage.setItem(PREFIX + key, serialized);
+  } catch (err) {
+    logger.error("SecureStorage", "Erreur lors de l'ecriture:", err instanceof Error ? err.message : String(err));
   }
-  return btoa(binary);
 }
 
-function base64ToUtf8(b64: string): string {
-  const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-  return new TextDecoder().decode(bytes);
-}
-
-export const secureStorage = {
-  set(key: string, value: unknown): void {
-    try {
-      const json = JSON.stringify(value);
-      const encoded = utf8ToBase64(json);
-      localStorage.setItem(PREFIX + key, encoded);
-    } catch {
-      // Quota exceeded or encoding error — silently fail
-    }
-  },
-
-  get<T = unknown>(key: string): T | null {
-    try {
-      const encoded = localStorage.getItem(PREFIX + key);
-      if (!encoded) return null;
-      const json = base64ToUtf8(encoded);
-      return JSON.parse(json) as T;
-    } catch {
-      return null;
-    }
-  },
-
-  remove(key: string): void {
+/** Retrieve a value from localStorage, returning fallback on any error */
+export function secureGet<T = unknown>(key: string, fallback: T | null = null): T | null {
+  try {
+    const raw = localStorage.getItem(PREFIX + key);
+    if (raw === null) return fallback;
+    return JSON.parse(raw) as T;
+  } catch (err) {
+    // Corrupted JSON or other parse error — remove the bad entry and return fallback
+    logger.warn("SecureStorage", `Donnees corrompues pour la cle "${key}", suppression:`, err instanceof Error ? err.message : String(err));
     try {
       localStorage.removeItem(PREFIX + key);
     } catch {
-      // Ignore
+      // localStorage may be unavailable (private browsing, quota exceeded)
     }
-  },
+    return fallback;
+  }
+}
 
-  /** Scan for keys matching a prefix (legacy draft migration) */
-  scanKeys(prefix: string): string[] {
-    const keys: string[] = [];
-    try {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k?.startsWith(PREFIX + prefix)) {
-          keys.push(k.slice(PREFIX.length));
-        }
-      }
-    } catch {
-      // Ignore
+/** Remove a value from localStorage */
+export function secureRemove(key: string): void {
+  try {
+    localStorage.removeItem(PREFIX + key);
+  } catch (err) {
+    logger.warn("SecureStorage", "Erreur lors de la suppression:", err instanceof Error ? err.message : String(err));
+  }
+}
+
+/** Clear all app-prefixed entries from localStorage */
+export function secureClear(): void {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k?.startsWith(PREFIX)) keysToRemove.push(k);
     }
-    return keys;
-  },
-};
+    for (const k of keysToRemove) {
+      localStorage.removeItem(k);
+    }
+  } catch (err) {
+    logger.warn("SecureStorage", "Erreur lors du nettoyage:", err instanceof Error ? err.message : String(err));
+  }
+}

@@ -22,9 +22,14 @@ export type FormeJuridique =
   | "SCI"
   | "SCP"
   | "SELAS"
+  | "SELARL"
   | "EARL"
   | "SA"
+  | "SNC"
   | "ASSOCIATION"
+  | "TRUST"
+  | "FIDUCIE"
+  | "FONDATION"
   | string;
 
 export interface Client {
@@ -38,7 +43,7 @@ export interface Client {
   cp: string;
   ville: string;
   siren: string;
-  capital: number;
+  capital: number | null;
   ape: string;
   dirigeant: string;
   domaine: string;
@@ -47,7 +52,7 @@ export interface Client {
   mail: string;
   dateCreation: string;
   dateReprise: string;
-  honoraires: number;
+  honoraires: number | null;
   reprise: number;
   juridique: number;
   frequence: string;

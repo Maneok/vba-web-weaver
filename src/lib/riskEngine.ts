@@ -1,4 +1,5 @@
 import type { VigilanceLevel } from "./types";
+import { RISK_THRESHOLDS } from "./constants";
 
 // ====== CASH-INTENSIVE APE CODES (Idée 4) ======
 export const APE_CASH: string[] = [
@@ -31,23 +32,24 @@ export function calculateDateButoir(nivVigilance: VigilanceLevel): string {
 
 // ====== ADDRESS NORMALIZATION (Idée 17) ======
 export function normalizeAddress(addr: string): string {
+  if (!addr || typeof addr !== "string") return "";
   return addr
     .toUpperCase()
     .replace(/[,;.]/g, " ")
-    .replace(/\b(AVENUE|AV)\b/g, "AV")
-    .replace(/\b(BOULEVARD|BD|BLVD)\b/g, "BD")
-    .replace(/\b(ROUTE|RTE)\b/g, "RTE")
-    .replace(/\b(PLACE|PL)\b/g, "PL")
-    .replace(/\b(IMPASSE|IMP)\b/g, "IMP")
-    .replace(/\b(ALLEE|ALL)\b/g, "ALL")
-    .replace(/\b(CHEMIN|CH)\b/g, "CH")
+    .replace(/\bAVENUE\b/g, "AV")
+    .replace(/\bBOULEVARD\b/g, "BD")
+    .replace(/\bROUTE\b/g, "RTE")
+    .replace(/\bPLACE\b/g, "PL")
+    .replace(/\bIMPASSE\b/g, "IMP")
+    .replace(/\bALLEE\b/g, "ALL")
+    .replace(/\bCHEMIN\b/g, "CH")
     .replace(/\bRUE\b/g, "RUE")
     .replace(/\s+/g, " ")
     .trim();
 }
 
 // ====== MISSION SCORING ======
-const MISSION_SCORES: Record<string, number> = {
+export const MISSION_SCORES: Record<string, number> = {
   "TENUE COMPTABLE": 10,
   "SOCIAL / PAIE SEULE": 10,
   "IRPP": 20,
@@ -58,7 +60,7 @@ const MISSION_SCORES: Record<string, number> = {
 };
 
 // ====== ACTIVITY (APE) SCORING ======
-const APE_SCORES: Record<string, number> = {
+export const APE_SCORES: Record<string, number> = {
   "56.10A": 30, "10.71C": 30, "47.11D": 30, "55.10Z": 30, "68.20A": 30, "68.20B": 30,
   "47.73Z": 20, "96.02A": 25, "47.76Z": 25, "47.11B": 25, "73.11Z": 25, "71.11Z": 25,
   "86.21Z": 20, "86.23Z": 20, "62.20Z": 25, "01.21Z": 25, "70.22Z": 25,
@@ -73,7 +75,7 @@ const APE_SCORES: Record<string, number> = {
 };
 
 // ====== COUNTRY RISK ======
-const PAYS_RISQUE: string[] = [
+export const PAYS_RISQUE: string[] = [
   "AFGHANISTAN", "ALGERIE", "ANGOLA", "ANGUILLA", "ANTIGUA-ET-BARBUDA",
   "BIELORUSSIE", "BULGARIE", "BURKINA FASO", "CAMEROUN", "CONGO (RDC)",
   "COREE DU NORD", "COTE D'IVOIRE", "CROATIE", "EMIRATS ARABES UNIS",
@@ -89,6 +91,7 @@ const PAYS_RISQUE: string[] = [
 
 // ====== STRUCTURE SCORING ======
 function scoreStructure(forme: string): number {
+  if (!forme || typeof forme !== "string") return 20; // default fallback
   const f = forme.toUpperCase().trim();
   if (["ENTREPRISE INDIVIDUELLE", "SNC", "ARTISAN"].some(k => f.includes(k))) return 0;
   if (f.includes("EARL")) return 0;
@@ -114,18 +117,19 @@ function scoreMaturite(
   // P5-10: Guard against invalid/missing date — treat as recent creation (higher risk)
   if (!dateCreation || isNaN(creation.getTime())) return 65;
   const isReprise = dateReprise && dateReprise !== dateCreation;
-  const ancienneteYears = (now.getTime() - creation.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
+  const ancienneteYears = Math.max(0, (now.getTime() - creation.getTime()) / (365.25 * 24 * 60 * 60 * 1000));
   // P5-9: More robust employee detection — old check only matched exact "0 SALARIÉ"
-  const hasSalaries = effectif && !/^0\b|^0 |AUCUN|NEANT|0 SALAR/i.test(effectif.trim()) && effectif.trim() !== "0";
+  const hasSalaries = effectif && !/^0\b|^0 |AUCUN|N[EÉ]ANT|0 SALAR/i.test(effectif.trim()) && effectif.trim() !== "0";
   const formeUpper = (forme || "").toUpperCase();
   const isSCI = formeUpper.includes("SCI") || formeUpper.includes("HOLDING");
 
-  if (!isReprise) return 10; // Created by firm
-
+  // P6-52: Score by anciennete regardless of reprise status
+  // isReprise=false means client was created by firm → lower risk for mature companies
   if (ancienneteYears < 1) return 65;
-  if (ancienneteYears < 3) return 50;
+  if (ancienneteYears < 3) return isReprise ? 50 : 30;
   if (hasSalaries || isSCI) return 0;
-  return 80; // Dormant shell
+  if (!isReprise) return 10; // Created by firm, old, no employees
+  return 80; // Dormant shell — old company, reprise, no employees
 }
 
 // ====== MAIN RISK CALCULATION ======
@@ -152,17 +156,21 @@ export function calculateRiskScore(params: {
   scoreGlobal: number;
   nivVigilance: VigilanceLevel;
 } {
-  // PPE or Atypique = forced 100
+  // PPE or Atypique = forced 100, but still compute malus for audit trail
   if (params.ppe || params.atypique) {
     const sa = APE_SCORES[params.ape] ?? 25;
     const sp = params.paysRisque ? 100 : 0;
     const sm = MISSION_SCORES[params.mission] ?? 25;
     const smat = scoreMaturite(params.dateCreation, params.dateReprise, params.effectif, params.forme);
     const ss = scoreStructure(params.forme);
+    let mal = 0;
+    if (params.cash) mal += 40;
+    if (params.pression) mal += 40;
+    if (params.distanciel) mal += 30;
     return {
       scoreActivite: sa, scorePays: sp, scoreMission: sm,
       scoreMaturite: smat, scoreStructure: ss,
-      malus: 0, scoreGlobal: 100, nivVigilance: "RENFORCEE",
+      malus: mal, scoreGlobal: 100, nivVigilance: "RENFORCEE",
     };
   }
 
@@ -194,8 +202,8 @@ export function calculateRiskScore(params: {
   scoreGlobal = Math.min(scoreGlobal, 120);
 
   let nivVigilance: VigilanceLevel;
-  if (scoreGlobal <= 25) nivVigilance = "SIMPLIFIEE";
-  else if (scoreGlobal < 60) nivVigilance = "STANDARD";
+  if (scoreGlobal <= RISK_THRESHOLDS.SIMPLIFIEE_MAX) nivVigilance = "SIMPLIFIEE";
+  else if (scoreGlobal <= RISK_THRESHOLDS.STANDARD_MAX) nivVigilance = "STANDARD";
   else nivVigilance = "RENFORCEE";
 
   return {
@@ -213,17 +221,19 @@ export function calculateRiskScore(params: {
 // ====== REVIEW DATE CALCULATION ======
 export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview: string): string {
   let d = new Date(lastReview);
-  // Guard against invalid date — fallback to today (no recursion to avoid stack overflow)
+  // P5-11: Guard against invalid date — fallback to today (iterative, no recursion)
   if (isNaN(d.getTime())) d = new Date();
+  // Use UTC methods to avoid timezone-dependent date shifts
   switch (nivVigilance) {
-    case "SIMPLIFIEE": d.setMonth(d.getMonth() + 36); break;
-    case "STANDARD": d.setMonth(d.getMonth() + 12); break;
-    case "RENFORCEE": d.setMonth(d.getMonth() + 6); break;
+    case "SIMPLIFIEE": d.setUTCFullYear(d.getUTCFullYear() + 3); break;
+    case "STANDARD": d.setUTCFullYear(d.getUTCFullYear() + 1); break;
+    case "RENFORCEE": d.setUTCMonth(d.getUTCMonth() + 6); break;
   }
   return d.toISOString().split("T")[0];
 }
 
 export function getPilotageStatus(dateButoir: string): string {
+  if (!dateButoir) return "RETARD";
   const now = new Date();
   const butoir = new Date(dateButoir);
   if (isNaN(butoir.getTime())) return "RETARD";
@@ -233,4 +243,3 @@ export function getPilotageStatus(dateButoir: string): string {
   return "A JOUR";
 }
 
-export { PAYS_RISQUE, APE_SCORES, MISSION_SCORES };

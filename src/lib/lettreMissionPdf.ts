@@ -23,6 +23,7 @@ const WHITE = { r: 255, g: 255, b: 255 };
 // Helpers
 // ──────────────────────────────────────────────
 function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  if (!hex || typeof hex !== "string") return { ...NAVY };
   const h = hex.replace("#", "");
   if (h.length < 6) return { ...NAVY };
   const r = parseInt(h.substring(0, 2), 16);
@@ -230,7 +231,7 @@ class LMPdfBuilder {
     if (cab?.logo) {
       try {
         this.doc.addImage(cab.logo, "PNG", MARGIN_L, MARGIN_TOP, 25, 25);
-      } catch { /* logo invalide */ }
+      } catch (err) { logger.warn("PDF", "Invalid logo image:", err); }
     }
 
     // Coordonnées cabinet à droite
@@ -1125,7 +1126,7 @@ export function renderLettreMissionPdf(lm: LettreMission): jsPDF {
   try {
     const builder = new LMPdfBuilder(lm);
     return builder.build();
-  } catch (err) {
+  } catch (err: unknown) {
     logger.error("PDF", "Erreur lors de la génération du PDF", err);
     // Return a minimal error PDF so callers never get undefined
     const fallback = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -1187,6 +1188,7 @@ const REPARTITION_TASKS: [string, boolean, boolean][] = [
 ];
 
 export function renderNewLettreMissionPdf(params: NewPdfParams): void {
+  try {
   const { sections, client, genre, missions, honoraires, cabinet, variables,
     status = "brouillon", signatureExpert, signatureClient } = params;
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -1531,4 +1533,16 @@ export function renderNewLettreMissionPdf(params: NewPdfParams): void {
   const dateStr = new Date().toISOString().slice(0, 10);
   const filename = `LM_${(client.raisonSociale || "client").replace(/\s+/g, "_")}_${dateStr}.pdf`;
   doc.save(filename);
+  } catch (err: unknown) {
+    logger.error("PDF", "Erreur lors de la génération du PDF template", err);
+    // Generate a minimal error PDF so the user gets feedback
+    const fallback = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    fallback.setFontSize(14);
+    fallback.setTextColor(220, 38, 38);
+    fallback.text("Erreur lors de la génération du PDF.", 25, 40);
+    fallback.setFontSize(10);
+    fallback.setTextColor(80, 80, 80);
+    fallback.text(String(err), 25, 50);
+    fallback.save("LM_erreur.pdf");
+  }
 }

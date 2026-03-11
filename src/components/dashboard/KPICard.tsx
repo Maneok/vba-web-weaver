@@ -15,10 +15,8 @@ interface KPICardProps {
   sparklineData?: { v: number }[];
   onClick?: () => void;
   loading?: boolean;
-  /** Label shown when value is 0 — use "|" to split text from CTA label */
-  emptyLabel?: string;
-  /** Callback for the empty-state CTA */
-  emptyAction?: () => void;
+  /** Accessible description for screen readers */
+  ariaLabel?: string;
 }
 
 function Sparkline({ data, color, width = 64, height = 28 }: {
@@ -32,25 +30,27 @@ function Sparkline({ data, color, width = 64, height = 28 }: {
   if (!data || data.length < 2) return null;
 
   return (
-    <ResponsiveContainer width={width} height={height}>
-      <AreaChart data={data}>
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-            <stop offset="100%" stopColor={color} stopOpacity={0} />
-          </linearGradient>
-        </defs>
-        <Area
-          type="monotone"
-          dataKey="v"
-          stroke={color}
-          strokeWidth={2}
-          fill={`url(#${gradientId})`}
-          dot={false}
-          isAnimationActive={false}
-        />
-      </AreaChart>
-    </ResponsiveContainer>
+    <div className="print:hidden" aria-hidden="true">
+      <ResponsiveContainer width={width} height={height}>
+        <AreaChart data={data}>
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
+              <stop offset="100%" stopColor={color} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+          <Area
+            type="monotone"
+            dataKey="v"
+            stroke={color}
+            strokeWidth={2}
+            fill={`url(#${gradientId})`}
+            dot={false}
+            isAnimationActive={false}
+          />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
@@ -64,89 +64,62 @@ export function KPICard({
   sparklineData,
   onClick,
   loading = false,
-  emptyLabel,
-  emptyAction,
+  ariaLabel,
 }: KPICardProps) {
   if (loading) {
     return (
-      <div className="bg-card rounded-2xl p-5 border border-border">
+      <div className="bg-card rounded-2xl p-5 border border-border print:break-inside-avoid">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-9 h-9 rounded-xl skeleton-shimmer" />
-          <div className="h-3 w-24 rounded skeleton-shimmer" />
+          <div className="w-9 h-9 rounded-xl bg-muted skeleton-shimmer" />
+          <div className="h-3 w-20 bg-muted rounded skeleton-shimmer" />
         </div>
         <div className="flex items-end justify-between">
-          <div className="h-8 w-16 rounded skeleton-shimmer" />
-          <div className="h-6 w-16 rounded skeleton-shimmer" />
+          <div className="h-8 w-16 bg-muted rounded skeleton-shimmer" />
+          <div className="h-7 w-16 bg-muted rounded skeleton-shimmer" />
         </div>
       </div>
     );
   }
 
-  // Detect empty state: numeric 0, "0", "0%", "0k€"
-  const numericValue = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, ""));
-  const isEmpty = numericValue === 0 || isNaN(numericValue);
-
-  // Sparkline: only show when meaningful data exists (5+ points, not all zero)
-  const allZero = sparklineData?.every(p => p.v === 0) ?? true;
-  const showSparkline = !isEmpty && sparklineData && sparklineData.length >= 5 && !allZero;
-
-  // Trend: never show when value is 0
-  const showTrend = trendPercent !== undefined && trendPercent !== 0 && !isEmpty;
-
-  // Parse empty label: "Aucun client|Ajouter un client"
-  const [emptyText, emptyCta] = (emptyLabel || "").split("|").map(s => s.trim());
+  const isClickable = !!onClick;
+  const computedAriaLabel = ariaLabel || `${title} : ${value}`;
 
   return (
     <div
-      className={`bg-card rounded-2xl p-5 border border-border hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group ${onClick ? "cursor-pointer" : ""}`}
+      className={`bg-card rounded-2xl p-5 border border-border hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 hover:scale-[1.03] hover:border-white/[0.12] transition-all duration-300 group print:break-inside-avoid print:shadow-none print:hover:scale-100 print:hover:translate-y-0 ${isClickable ? "cursor-pointer" : ""}`}
       onClick={onClick}
-      role={onClick ? "button" : undefined}
-      tabIndex={onClick ? 0 : undefined}
-      onKeyDown={onClick ? (e) => { if (e.key === "Enter" || e.key === " ") onClick(); } : undefined}
+      role={isClickable ? "button" : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={isClickable ? (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      } : undefined}
+      aria-label={computedAriaLabel}
     >
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
-          <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center"
-            style={{ backgroundColor: isEmpty ? "hsl(var(--muted))" : `${color}15` }}
-          >
-            <Icon className="w-5 h-5" style={{ color: isEmpty ? "hsl(var(--muted-foreground))" : color }} />
+          <div className="w-9 h-9 rounded-xl flex items-center justify-center transition-transform duration-300 group-hover:scale-110" style={{ backgroundColor: `${color}15` }}>
+            <Icon className="w-5 h-5" style={{ color }} aria-hidden="true" />
           </div>
           <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
             {title}
           </span>
         </div>
-        {showTrend && (
+        {trendPercent !== undefined && (
           <Badge
             variant={trendUp ? "default" : "destructive"}
             className="text-xs px-1.5 py-0.5"
           >
-            {trendUp ? "\u2191" : "\u2193"} {Math.abs(trendPercent!)}%
+            {trendUp ? "\u2191" : "\u2193"} {Math.abs(trendPercent)}%
           </Badge>
         )}
       </div>
       <div className="flex items-end justify-between">
-        <div>
-          <span className="text-3xl font-bold">{value}</span>
-          {isEmpty && emptyText && (
-            <p className="text-xs text-muted-foreground mt-1">
-              {emptyText}
-              {emptyCta && emptyAction && (
-                <>
-                  {" — "}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); emptyAction(); }}
-                    className="text-primary hover:underline font-medium"
-                  >
-                    {emptyCta}
-                  </button>
-                </>
-              )}
-            </p>
-          )}
-        </div>
-        {showSparkline && (
-          <Sparkline data={sparklineData!} color={color} />
+        <span className="text-3xl font-bold tabular-nums tracking-tight">{value}</span>
+        {sparklineData && sparklineData.length > 1 && (
+          <Sparkline data={sparklineData} color={color} />
         )}
       </div>
     </div>

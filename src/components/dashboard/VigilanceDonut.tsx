@@ -32,25 +32,29 @@ export function VigilanceDonut({ simplifiee, standard, renforcee, loading = fals
   }
 
   const data = [
-    { name: "Simplifiee", value: simplifiee, color: COLORS.simplifiee },
+    { name: "Simplifiée", value: simplifiee, color: COLORS.simplifiee },
     { name: "Standard", value: standard, color: COLORS.standard },
-    { name: "Renforcee", value: renforcee, color: COLORS.renforcee },
+    { name: "Renforcée", value: renforcee, color: COLORS.renforcee },
   ].filter(d => d.value > 0);
 
   const total = simplifiee + standard + renforcee;
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5">
+    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid" role="figure" aria-label={`Répartition vigilance : ${simplifiee} simplifiée, ${standard} standard, ${renforcee} renforcée`}>
       <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
-        <PieChartIcon className="w-4 h-4 text-primary" />
-        Repartition vigilance
+        <PieChartIcon className="w-4 h-4 text-primary" aria-hidden="true" />
+        Répartition vigilance
       </h3>
 
       {total === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-12">Aucune donnee</p>
+        <div className="text-center py-12">
+          <PieChartIcon className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Aucune donnée</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">Ajoutez des clients pour voir la répartition</p>
+        </div>
       ) : (
         <>
-          <div className="w-full aspect-square max-w-[220px] mx-auto">
+          <div className="w-full aspect-square max-w-[220px] mx-auto print:max-w-[160px]">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
@@ -68,28 +72,31 @@ export function VigilanceDonut({ simplifiee, standard, renforcee, loading = fals
                   ))}
                 </Pie>
                 <Tooltip
-                  formatter={(value: number, name: string) => [`${value} clients`, name]}
+                  formatter={(value: number, name: string) => [`${value} client${value > 1 ? "s" : ""}`, name]}
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
                     borderRadius: "8px",
                     fontSize: "12px",
+                    color: "hsl(var(--card-foreground))",
                   }}
+                  labelStyle={{ color: "hsl(var(--card-foreground))" }}
                 />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <div className="flex justify-center gap-4 mt-3">
+          <div className="flex justify-center gap-4 mt-3 flex-wrap">
             {[
-              { label: "Simplifiee", value: simplifiee, color: COLORS.simplifiee },
+              { label: "Simplifiée", value: simplifiee, color: COLORS.simplifiee },
               { label: "Standard", value: standard, color: COLORS.standard },
-              { label: "Renforcee", value: renforcee, color: COLORS.renforcee },
+              { label: "Renforcée", value: renforcee, color: COLORS.renforcee },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} aria-hidden="true" />
                 <span className="text-xs text-muted-foreground">
                   {item.value} {item.label.toLowerCase()}
+                  {total > 0 && <span className="ml-1 opacity-60">({Math.round((item.value / total) * 100)}%)</span>}
                 </span>
               </div>
             ))}

@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Eye, Copy, RefreshCw, Search, FileText, Calendar } from "lucide-react";
+import { Eye, Copy, RefreshCw, Search, FileText, Calendar, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 
 export interface LettreMissionRecord {
@@ -41,12 +41,14 @@ const STATUT_STYLES: Record<string, { variant: "default" | "secondary" | "outlin
 
 export default function LettreMissionHistory() {
   const [records, setRecords] = useState<LettreMissionRecord[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [statutFilter, setStatutFilter] = useState("Tous");
   const [dateFrom, setDateFrom] = useState("");
 
   useEffect(() => {
     setRecords(loadHistory());
+    setLoading(false);
   }, []);
 
   const filtered = records.filter((r) => {
@@ -69,12 +71,35 @@ export default function LettreMissionHistory() {
     };
     const updated = [...records, dup];
     setRecords(updated);
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(updated)); } catch { /* storage full */ }
     toast.success("Lettre dupliquee en brouillon");
   };
 
-  const handleRegenerate = (record: LettreMissionRecord) => {
-    toast.info(`Re-generation de ${record.numero} en cours...`);
+  const handleRegenerate = async (record: LettreMissionRecord) => {
+    try {
+      toast.info(`Re-generation de ${record.numero} en cours...`);
+      const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
+      const dummyClient = {
+        ref: record.id, raisonSociale: record.clientName, formeJuridique: "", siren: "",
+        adresse: "", cp: "", ville: "", dirigeant: "", mail: "", telephone: "",
+        ape: "", mission: "", comptable: "", associeSignataire: "", honoraires: 0, frequence: "",
+        ppe: "NON", paysRisque: "NON", atypique: "NON", distanciel: "NON", cash: "NON", pression: "NON",
+        scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
+        malus: 0, scoreGlobal: 0, nivVigilance: "STANDARD" as const,
+        dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
+        etatPilotage: "A JOUR", dateExpCni: "", statut: "ACTIF", be: "",
+      };
+      await renderLettreMissionPdf({
+        numero: record.numero,
+        date: new Date().toLocaleDateString("fr-FR"),
+        client: dummyClient,
+        cabinet: { nom: "Cabinet", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" },
+        options: { genre: "M" as const, regimeFiscal: "", exerciceDebut: "", exerciceFin: "", tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "", periodicite: "" },
+      });
+      toast.success(`PDF ${record.numero} re-genere`);
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de la re-generation");
+    }
   };
 
   return (
@@ -136,69 +161,93 @@ export default function LettreMissionHistory() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.map((record) => {
-              const style = STATUT_STYLES[record.statut];
-              return (
-                <TableRow key={record.id} className="border-white/[0.04]">
-                  <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-blue-400/60" />
-                      <span className="font-mono text-xs">{record.numero}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="font-medium">{record.clientName}</TableCell>
-                  <TableCell className="text-muted-foreground text-xs">
-                    {new Date(record.date).toLocaleDateString("fr-FR")}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {record.missions.map((m, i) => (
-                        <Badge key={i} variant="outline" className="text-[10px] border-white/10">
-                          {m}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={style.variant} className={style.className}>
-                      {record.statut}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button variant="ghost" size="icon" className="h-8 w-8" title="Voir PDF">
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Dupliquer"
-                        onClick={() => handleDuplicate(record)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        title="Re-generer"
-                        onClick={() => handleRegenerate(record)}
-                      >
-                        <RefreshCw className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            {filtered.length === 0 && (
+            {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  <FileText className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  Aucune lettre de mission trouvee
+                <TableCell colSpan={6} className="text-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-blue-400 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground">Chargement de l'historique...</p>
                 </TableCell>
               </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
+                  {records.length === 0 ? (
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-14 h-14 rounded-full bg-slate-500/10 flex items-center justify-center">
+                        <FileText className="h-7 w-7 text-slate-600" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-slate-400">Aucune lettre de mission</p>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Les lettres generees apparaitront dans cet historique.
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center gap-2">
+                      <Search className="h-6 w-6 text-slate-600" />
+                      <p className="text-sm">Aucune lettre ne correspond aux filtres</p>
+                    </div>
+                  )}
+                </TableCell>
+              </TableRow>
+            ) : (
+              filtered.map((record) => {
+                const style = STATUT_STYLES[record.statut];
+                return (
+                  <TableRow key={record.id} className="border-white/[0.04]">
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-blue-400/60" />
+                        <span className="font-mono text-xs">{record.numero}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="font-medium">{record.clientName}</TableCell>
+                    <TableCell className="text-muted-foreground text-xs">
+                      {new Date(record.date).toLocaleDateString("fr-FR")}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        {record.missions.map((m, i) => (
+                          <Badge key={i} variant="outline" className="text-[10px] border-white/10">
+                            {m}
+                          </Badge>
+                        ))}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={style.variant} className={style.className}>
+                        {record.statut}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8" title="Voir PDF" aria-label="Voir PDF">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Dupliquer"
+                          onClick={() => handleDuplicate(record)}
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Re-generer"
+                          onClick={() => handleRegenerate(record)}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>

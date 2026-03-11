@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, Save, Loader2, RotateCcw, Info, Check } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+
+const SubscriptionSettings = lazy(() => import("@/components/settings/SubscriptionSettings"));
 
 /* ---------- types ---------- */
 
@@ -162,10 +165,19 @@ export default function SettingsPage() {
   const [savedCabinet, setSavedCabinet] = useState(false);
   const [savedScoring, setSavedScoring] = useState(false);
   const [savedLcbft, setSavedLcbft] = useState(false);
+  const savedTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    const timers = savedTimersRef.current;
+    return () => { timers.forEach(clearTimeout); timers.length = 0; };
+  }, []);
 
   const [cabinet, setCabinet] = useState<CabinetInfo>(DEFAULT_CABINET);
   const [scoring, setScoring] = useState<ScoringConfig>(DEFAULT_SCORING);
   const [lcbft, setLcbft] = useState<LcbftConfig>(DEFAULT_LCBFT);
+
+  useDocumentTitle("Parametres");
 
   // Snapshot of last saved values for dirty tracking
   const [savedCabinetSnapshot, setSavedCabinetSnapshot] = useState<CabinetInfo>(DEFAULT_CABINET);
@@ -188,60 +200,61 @@ export default function SettingsPage() {
   activeTabRef.current = activeTab;
 
   // Dirty state helpers
-  const dirtyCabinet = JSON.stringify(cabinet) !== JSON.stringify(savedCabinetSnapshot);
-  const dirtyScoring = JSON.stringify(scoring) !== JSON.stringify(savedScoringSnapshot);
-  const dirtyLcbft = JSON.stringify(lcbft) !== JSON.stringify(savedLcbftSnapshot);
+  const dirtyCabinet = useMemo(() => JSON.stringify(cabinet) !== JSON.stringify(savedCabinetSnapshot), [cabinet, savedCabinetSnapshot]);
+  const dirtyScoring = useMemo(() => JSON.stringify(scoring) !== JSON.stringify(savedScoringSnapshot), [scoring, savedScoringSnapshot]);
+  const dirtyLcbft = useMemo(() => JSON.stringify(lcbft) !== JSON.stringify(savedLcbftSnapshot), [lcbft, savedLcbftSnapshot]);
 
   /* --- load --- */
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (cancelled) return;
-      if (!user) {
-        setLoading(false);
-        return;
-      }
-      setUserId(user.id);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (!user) return;
+        setUserId(user.id);
 
-      const { data, error } = await supabase
-        .from("parametres")
-        .select("*")
-        .eq("user_id", user.id);
+        const { data, error } = await supabase
+          .from("parametres")
+          .select("*")
+          .eq("user_id", user.id);
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (error) {
-        logger.error("Settings", "Error loading parametres:", error);
-        toast.error("Erreur lors du chargement des parametres");
-        setLoading(false);
-        return;
-      }
+        if (error) {
+          logger.error("Settings", "Error loading parametres:", error);
+          toast.error("Erreur lors du chargement des parametres");
+          return;
+        }
 
-      if (data) {
-        for (const row of data) {
-          if (row.cle === "cabinet_info" && row.valeur) {
-            const merged = { ...DEFAULT_CABINET, ...(row.valeur as Partial<CabinetInfo>) };
-            setCabinet(merged);
-            setSavedCabinetSnapshot(merged);
-            if (row.updated_at) setLastSavedCabinet(row.updated_at);
-          }
-          if (row.cle === "scoring_config" && row.valeur) {
-            const merged = { ...DEFAULT_SCORING, ...(row.valeur as Partial<ScoringConfig>) };
-            setScoring(merged);
-            setSavedScoringSnapshot(merged);
-            if (row.updated_at) setLastSavedScoring(row.updated_at);
-          }
-          if (row.cle === "lcbft_config" && row.valeur) {
-            const merged = { ...DEFAULT_LCBFT, ...(row.valeur as Partial<LcbftConfig>) };
-            setLcbft(merged);
-            setSavedLcbftSnapshot(merged);
-            if (row.updated_at) setLastSavedLcbft(row.updated_at);
+        if (data) {
+          for (const row of data) {
+            if (row.cle === "cabinet_info" && row.valeur) {
+              const merged = { ...DEFAULT_CABINET, ...(row.valeur as Partial<CabinetInfo>) };
+              setCabinet(merged);
+              setSavedCabinetSnapshot(merged);
+              if (row.updated_at) setLastSavedCabinet(row.updated_at);
+            }
+            if (row.cle === "scoring_config" && row.valeur) {
+              const merged = { ...DEFAULT_SCORING, ...(row.valeur as Partial<ScoringConfig>) };
+              setScoring(merged);
+              setSavedScoringSnapshot(merged);
+              if (row.updated_at) setLastSavedScoring(row.updated_at);
+            }
+            if (row.cle === "lcbft_config" && row.valeur) {
+              const merged = { ...DEFAULT_LCBFT, ...(row.valeur as Partial<LcbftConfig>) };
+              setLcbft(merged);
+              setSavedLcbftSnapshot(merged);
+              if (row.updated_at) setLastSavedLcbft(row.updated_at);
+            }
           }
         }
+      } catch (err) {
+        logger.error("Settings", "Error loading parametres:", err);
+        toast.error("Erreur lors du chargement des parametres");
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      setLoading(false);
     }
     load();
     return () => { cancelled = true; };
@@ -257,21 +270,28 @@ export default function SettingsPage() {
       return;
     }
     setSavingCabinet(true);
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: now },
-      { onConflict: "user_id,cle" }
-    );
-    setSavingCabinet(false);
-    if (error) {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("parametres").upsert(
+        { user_id: userId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: now },
+        { onConflict: "user_id,cle" }
+      );
+      if (error) {
+        toast.error(error.message || "Erreur lors de la sauvegarde");
+        logger.error("Settings", "Erreur sauvegarde cabinet:", error);
+      } else {
+        setSavedCabinetSnapshot({ ...cabinet });
+        setLastSavedCabinet(now);
+        setSavedCabinet(true);
+        const t = setTimeout(() => { setSavedCabinet(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
+        savedTimersRef.current.push(t);
+        toast.success("Informations cabinet enregistrees");
+      }
+    } catch (err) {
+      logger.error("Settings", "Erreur sauvegarde cabinet:", err);
       toast.error("Erreur lors de la sauvegarde");
-      logger.error("Settings", "Erreur sauvegarde cabinet", error);
-    } else {
-      setSavedCabinetSnapshot({ ...cabinet });
-      setLastSavedCabinet(now);
-      setSavedCabinet(true);
-      setTimeout(() => setSavedCabinet(false), 1500);
-      toast.success("Informations cabinet enregistrees");
+    } finally {
+      setSavingCabinet(false);
     }
   }, [userId, cabinet]);
 
@@ -284,21 +304,28 @@ export default function SettingsPage() {
       return;
     }
     setSavingScoring(true);
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: now },
-      { onConflict: "user_id,cle" }
-    );
-    setSavingScoring(false);
-    if (error) {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("parametres").upsert(
+        { user_id: userId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: now },
+        { onConflict: "user_id,cle" }
+      );
+      if (error) {
+        toast.error("Erreur lors de la sauvegarde");
+        logger.error("Settings", "Erreur sauvegarde scoring", error);
+      } else {
+        setSavedScoringSnapshot({ ...scoring });
+        setLastSavedScoring(now);
+        setSavedScoring(true);
+        const t = setTimeout(() => { setSavedScoring(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
+        savedTimersRef.current.push(t);
+        toast.success("Configuration scoring enregistree");
+      }
+    } catch (err) {
+      logger.error("Settings", "Erreur sauvegarde scoring:", err);
       toast.error("Erreur lors de la sauvegarde");
-      logger.error("Settings", "Erreur sauvegarde scoring", error);
-    } else {
-      setSavedScoringSnapshot({ ...scoring });
-      setLastSavedScoring(now);
-      setSavedScoring(true);
-      setTimeout(() => setSavedScoring(false), 1500);
-      toast.success("Configuration scoring enregistree");
+    } finally {
+      setSavingScoring(false);
     }
   }, [userId, scoring]);
 
@@ -311,21 +338,28 @@ export default function SettingsPage() {
       return;
     }
     setSavingLcbft(true);
-    const now = new Date().toISOString();
-    const { error } = await supabase.from("parametres").upsert(
-      { user_id: userId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: now },
-      { onConflict: "user_id,cle" }
-    );
-    setSavingLcbft(false);
-    if (error) {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase.from("parametres").upsert(
+        { user_id: userId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: now },
+        { onConflict: "user_id,cle" }
+      );
+      if (error) {
+        toast.error("Erreur lors de la sauvegarde");
+        logger.error("Settings", "Erreur sauvegarde LCB-FT", error);
+      } else {
+        setSavedLcbftSnapshot({ ...lcbft });
+        setLastSavedLcbft(now);
+        setSavedLcbft(true);
+        const t = setTimeout(() => { setSavedLcbft(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
+        savedTimersRef.current.push(t);
+        toast.success("Configuration LCB-FT enregistree");
+      }
+    } catch (err) {
+      logger.error("Settings", "Erreur sauvegarde LCB-FT:", err);
       toast.error("Erreur lors de la sauvegarde");
-      logger.error("Settings", "Erreur sauvegarde LCB-FT", error);
-    } else {
-      setSavedLcbftSnapshot({ ...lcbft });
-      setLastSavedLcbft(now);
-      setSavedLcbft(true);
-      setTimeout(() => setSavedLcbft(false), 1500);
-      toast.success("Configuration LCB-FT enregistree");
+    } finally {
+      setSavingLcbft(false);
     }
   }, [userId, lcbft]);
 
@@ -346,17 +380,29 @@ export default function SettingsPage() {
 
   /* --- reset to defaults --- */
   function resetCabinet() {
-    setCabinet(DEFAULT_CABINET);
+    setCabinet({ ...savedCabinetSnapshot });
     setCabinetErrors({});
   }
   function resetScoring() {
-    setScoring(DEFAULT_SCORING);
+    setScoring({ ...savedScoringSnapshot });
     setScoringErrors({});
   }
   function resetLcbft() {
-    setLcbft(DEFAULT_LCBFT);
+    setLcbft({ ...savedLcbftSnapshot });
     setLcbftErrors({});
   }
+
+  /* --- warn before leaving with unsaved changes --- */
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (dirtyCabinet || dirtyScoring || dirtyLcbft) {
+        e.preventDefault();
+        e.returnValue = "Les modifications non sauvegardees seront perdues";
+      }
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirtyCabinet, dirtyScoring, dirtyLcbft]);
 
   /* --- keyboard shortcut Ctrl+S --- */
   useEffect(() => {
@@ -380,8 +426,8 @@ export default function SettingsPage() {
       (activeTab === "scoring" && dirtyScoring) ||
       (activeTab === "lcbft" && dirtyLcbft);
     if (currentDirty) {
-      const confirmed = window.confirm("Vous avez des modifications non enregistrees. Voulez-vous vraiment changer d'onglet ?");
-      if (!confirmed) return;
+      toast.warning("Modifications non enregistrees. Sauvegardez avant de changer d'onglet.");
+      return;
     }
     setActiveTab(newTab);
   }
@@ -441,6 +487,10 @@ export default function SettingsPage() {
             <ShieldCheck className="w-4 h-4" />
             <span className="hidden sm:inline">LCB-FT</span>
             {dirtyLcbft && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
+          </TabsTrigger>
+          <TabsTrigger value="abonnement" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <CreditCard className="w-4 h-4" />
+            <span className="hidden sm:inline">Abonnement</span>
           </TabsTrigger>
         </TabsList>
 
@@ -528,7 +578,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex items-center justify-between pt-2">
-              <Button variant="ghost" size="sm" onClick={resetCabinet} className="gap-2 text-slate-400 hover:text-slate-200">
+              <Button variant="ghost" size="sm" onClick={resetCabinet} aria-label="Reinitialiser les informations du cabinet" className="gap-2 text-slate-400 hover:text-slate-200">
                 <RotateCcw className="w-3.5 h-3.5" />
                 Reinitialiser
               </Button>
@@ -537,6 +587,7 @@ export default function SettingsPage() {
                 <Button
                   onClick={saveCabinet}
                   disabled={savingCabinet}
+                  aria-label="Enregistrer les informations du cabinet"
                   className={`gap-2 transition-colors duration-300 ${savedCabinet ? "bg-green-600 hover:bg-green-600" : ""}`}
                 >
                   {savingCabinet ? <Loader2 className="w-4 h-4 animate-spin" /> : savedCabinet ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
@@ -561,17 +612,17 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-bas">Seuil SIMPLIFIEE (max)</Label>
-                  <Input id="sc-bas" type="number" value={scoring.seuil_bas} onChange={(e) => updateScoring("seuil_bas", Number(e.target.value))} />
+                  <Input id="sc-bas" type="number" min={0} value={scoring.seuil_bas} onChange={(e) => updateScoring("seuil_bas", Number(e.target.value))} />
                   <p className="text-[11px] text-slate-500">Score &le; ce seuil = vigilance SIMPLIFIEE</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-haut">Seuil RENFORCEE (min)</Label>
-                  <Input id="sc-haut" type="number" value={scoring.seuil_haut} onChange={(e) => updateScoring("seuil_haut", Number(e.target.value))} />
+                  <Input id="sc-haut" type="number" min={0} value={scoring.seuil_haut} onChange={(e) => updateScoring("seuil_haut", Number(e.target.value))} />
                   <p className="text-[11px] text-slate-500">Score &ge; ce seuil = vigilance RENFORCEE</p>
                 </div>
                 <div className="space-y-2">
                   <Label className="text-slate-400 text-xs">STANDARD (auto)</Label>
-                  <p className="text-sm text-slate-300 pt-2">{scoring.seuil_bas + 1} &ndash; {scoring.seuil_haut - 1}</p>
+                  <p className="text-sm text-slate-300 pt-2">{scoring.seuil_bas + 1 <= scoring.seuil_haut - 1 ? `${scoring.seuil_bas + 1} \u2013 ${scoring.seuil_haut - 1}` : "Plage invalide"}</p>
                   <p className="text-[11px] text-slate-500">Plage calculee automatiquement</p>
                 </div>
               </div>
@@ -583,23 +634,23 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-cash">Especes (cash)</Label>
-                  <Input id="sc-cash" type="number" value={scoring.malus_cash} onChange={(e) => updateScoring("malus_cash", Number(e.target.value))} />
+                  <Input id="sc-cash" type="number" min={0} value={scoring.malus_cash} onChange={(e) => updateScoring("malus_cash", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-pression">Pression / urgence</Label>
-                  <Input id="sc-pression" type="number" value={scoring.malus_pression} onChange={(e) => updateScoring("malus_pression", Number(e.target.value))} />
+                  <Input id="sc-pression" type="number" min={0} value={scoring.malus_pression} onChange={(e) => updateScoring("malus_pression", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-dist">Distanciel</Label>
-                  <Input id="sc-dist" type="number" value={scoring.malus_distanciel} onChange={(e) => updateScoring("malus_distanciel", Number(e.target.value))} />
+                  <Input id="sc-dist" type="number" min={0} value={scoring.malus_distanciel} onChange={(e) => updateScoring("malus_distanciel", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-ppe">PPE</Label>
-                  <Input id="sc-ppe" type="number" value={scoring.malus_ppe} onChange={(e) => updateScoring("malus_ppe", Number(e.target.value))} />
+                  <Input id="sc-ppe" type="number" min={0} value={scoring.malus_ppe} onChange={(e) => updateScoring("malus_ppe", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-atyp">Atypique</Label>
-                  <Input id="sc-atyp" type="number" value={scoring.malus_atypique} onChange={(e) => updateScoring("malus_atypique", Number(e.target.value))} />
+                  <Input id="sc-atyp" type="number" min={0} value={scoring.malus_atypique} onChange={(e) => updateScoring("malus_atypique", Number(e.target.value))} />
                 </div>
               </div>
             </div>
@@ -610,21 +661,21 @@ export default function SettingsPage() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-rev-std">Revue STANDARD</Label>
-                  <Input id="sc-rev-std" type="number" value={scoring.revue_standard_mois} onChange={(e) => updateScoring("revue_standard_mois", Number(e.target.value))} />
+                  <Input id="sc-rev-std" type="number" min={1} value={scoring.revue_standard_mois} onChange={(e) => updateScoring("revue_standard_mois", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-rev-renf">Revue RENFORCEE</Label>
-                  <Input id="sc-rev-renf" type="number" value={scoring.revue_renforcee_mois} onChange={(e) => updateScoring("revue_renforcee_mois", Number(e.target.value))} />
+                  <Input id="sc-rev-renf" type="number" min={1} value={scoring.revue_renforcee_mois} onChange={(e) => updateScoring("revue_renforcee_mois", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-rev-simp">Revue SIMPLIFIEE</Label>
-                  <Input id="sc-rev-simp" type="number" value={scoring.revue_simplifiee_mois} onChange={(e) => updateScoring("revue_simplifiee_mois", Number(e.target.value))} />
+                  <Input id="sc-rev-simp" type="number" min={1} value={scoring.revue_simplifiee_mois} onChange={(e) => updateScoring("revue_simplifiee_mois", Number(e.target.value))} />
                 </div>
               </div>
             </div>
 
             <div className="flex justify-end pt-2">
-              <Button onClick={saveScoring} disabled={savingScoring} className="gap-2">
+              <Button onClick={saveScoring} disabled={savingScoring} aria-label="Enregistrer la configuration du scoring" className="gap-2">
                 {savingScoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Enregistrer
               </Button>
@@ -709,12 +760,27 @@ export default function SettingsPage() {
             </div>
 
             <div className="flex justify-end pt-2">
-              <Button onClick={saveLcbft} disabled={savingLcbft} className="gap-2">
+              <Button onClick={saveLcbft} disabled={savingLcbft} aria-label="Enregistrer la configuration LCB-FT" className="gap-2">
                 {savingLcbft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Enregistrer
               </Button>
             </div>
           </div>
+        </TabsContent>
+
+        {/* ===== ABONNEMENT TAB ===== */}
+        <TabsContent value="abonnement">
+          <Suspense
+            fallback={
+              <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
+                <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
+                <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
+                <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
+              </div>
+            }
+          >
+            <SubscriptionSettings />
+          </Suspense>
         </TabsContent>
       </Tabs>
     </div>

@@ -270,7 +270,7 @@ function parseFinancials(bilansSaisis: any[]): any[] {
       const liasse = (page.liasses ?? []).find((l: any) => l.code === code);
       if (!liasse) return null;
       const raw = liasse.m1 || liasse.m3 || "0";
-      return parseInt(String(raw).replace(/^0+/, "") || "0");
+      return parseInt(String(raw).replace(/^0+/, "") || "0", 10);
     };
 
     const getValue = (codes: string[], pageHint?: number): number | null => {

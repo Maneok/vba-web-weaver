@@ -34,7 +34,7 @@ Deno.serve(async (req) => {
     if (!anthropicKey) {
       return new Response(
         JSON.stringify({ error: "ANTHROPIC_API_KEY non configurée", extracted: null }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -143,9 +143,15 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text().catch(() => "unknown");
       console.error("Anthropic API error:", anthropicRes.status, errText);
+      if (anthropicRes.status === 429) {
+        return new Response(
+          JSON.stringify({ error: "Service OCR temporairement sature, reessayez dans quelques instants", extracted: null }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: "Erreur OCR: service temporairement indisponible", extracted: null }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -154,7 +160,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
       console.error("Anthropic returned non-JSON response:", contentType);
       return new Response(
         JSON.stringify({ error: "Erreur OCR: reponse invalide", extracted: null }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
     const anthropicData = await anthropicRes.json();
@@ -163,11 +169,14 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
     // Parse JSON from response (handle potential markdown wrapping)
     let extracted = null;
     try {
+      extracted = JSON.parse(textContent);
+    } catch {
       const jsonMatch = textContent.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
-        extracted = JSON.parse(jsonMatch[0]);
+        try { extracted = JSON.parse(jsonMatch[0]); } catch { /* ignore */ }
       }
-    } catch {
+    }
+    if (!extracted) {
       console.error("Failed to parse OCR JSON:", textContent);
     }
 
@@ -191,7 +200,7 @@ Réponds UNIQUEMENT avec le JSON, sans markdown ni explication. Si un champ n'es
     console.error("OCR error:", (error as Error).message);
     return new Response(
       JSON.stringify({ error: "Erreur interne OCR", extracted: null }),
-      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

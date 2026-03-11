@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Search, Plus, BookOpen, Trash2 } from "lucide-react";
+import { sanitizeText } from "@/lib/lmValidation";
 
 export interface Clause {
   id: string;
@@ -144,14 +145,21 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) {
       try {
-        setCustomClauses(JSON.parse(stored));
+        const parsed: Clause[] = JSON.parse(stored);
+        // Re-sanitize stored clauses in case sessionStorage was tampered with
+        const sanitized = parsed.map((c) => ({
+          ...c,
+          title: sanitizeText(String(c.title || "")),
+          content: sanitizeText(String(c.content || "")),
+        }));
+        setCustomClauses(sanitized);
       } catch { /* ignore */ }
     }
   }, []);
 
   const saveCustomClauses = (clauses: Clause[]) => {
     setCustomClauses(clauses);
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(clauses));
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(clauses)); } catch { /* storage full */ }
   };
 
   const allClauses = [...DEFAULT_CLAUSES, ...customClauses];
@@ -169,8 +177,8 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
     if (!newTitle.trim() || !newContent.trim()) return;
     const clause: Clause = {
       id: `custom-${Date.now()}`,
-      title: newTitle.trim(),
-      content: newContent.trim(),
+      title: sanitizeText(newTitle.trim()),
+      content: sanitizeText(newContent.trim()),
       category: "Custom",
       obligatoire: false,
     };
@@ -247,7 +255,7 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
                   </div>
                 </div>
                 <p className="text-xs text-muted-foreground line-clamp-2">
-                  {clause.content.slice(0, 120)}...
+                  {clause.content ? `${clause.content.slice(0, 120)}${clause.content.length > 120 ? "..." : ""}` : ""}
                 </p>
                 <Badge variant="outline" className="text-[10px] mt-1">
                   {clause.category}

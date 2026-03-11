@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -77,8 +77,8 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     navigate("/auth", { replace: true });
   };
 
-  const alertesEnCours = alertes.filter((a) => a.statut === "EN COURS").length;
-  const retardCount = clients.filter((c) => c.etatPilotage === "RETARD").length;
+  const alertesEnCours = useMemo(() => alertes.filter((a) => a.statut === "EN COURS").length, [alertes]);
+  const retardCount = useMemo(() => clients.filter((c) => c.etatPilotage === "RETARD").length, [clients]);
 
   const badges: Record<string, { count: number; color: string }> = {
     "/": { count: retardCount, color: "bg-amber-400" },
@@ -98,6 +98,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         key={item.to}
         to={item.to}
         end={item.to === "/"}
+        aria-label={collapsed ? item.label : undefined}
         aria-current={location.pathname === item.to || (item.to === "/" && location.pathname === "/") ? "page" : undefined}
         className={({ isActive }) =>
           `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
@@ -166,12 +167,25 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const nouveauClientBtn = (
     <button
       onClick={() => navigate("/nouveau-client")}
+      aria-label="Nouveau Client"
       className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-emerald-500/20 to-teal-500/15 text-emerald-400 hover:from-emerald-500/30 hover:to-teal-500/25 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
     >
       <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
       {!collapsed && <span>Nouveau Client</span>}
     </button>
   );
+
+  const lettreMissionBtn = (
+    <button
+      onClick={() => navigate("/lettre-mission")}
+      aria-label="Lettre de Mission"
+      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-violet-500/20 via-blue-500/15 to-indigo-500/20 text-violet-300 hover:from-violet-500/30 hover:via-blue-500/25 hover:to-indigo-500/30 hover:shadow-[0_0_20px_rgba(139,92,246,0.15)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+    >
+      <FileText className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+      {!collapsed && <span>Lettre de Mission</span>}
+    </button>
+  );
+
 
   return (
     <TooltipProvider>
@@ -210,7 +224,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto p-3">
+        <nav aria-label="Menu principal" className="flex-1 overflow-y-auto p-3">
           {renderSection(PRINCIPAL_NAV, "Principal", true)}
 
           {/* Nouveau Client button — part of Principal group */}
@@ -246,6 +260,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               <TooltipTrigger asChild>
                 <button
                   onClick={handleSignOut}
+                  aria-label="Deconnexion"
                   className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
                 >
                   <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />
@@ -256,6 +271,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           ) : (
             <button
               onClick={handleSignOut}
+              aria-label="Deconnexion"
               className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
             >
               <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />

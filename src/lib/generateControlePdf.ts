@@ -163,7 +163,8 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
     if (c.nivVigilance === "SIMPLIFIEE" && (c.ppe === "OUI" || c.paysRisque === "OUI")) {
       anomalies.push("INCOHERENCE: Vigilance simplifiee avec facteur de risque");
     }
-    if (c.dateExpCni && new Date(c.dateExpCni) < new Date()) {
+    const expCniDate = c.dateExpCni ? new Date(c.dateExpCni) : null;
+    if (expCniDate && !isNaN(expCniDate.getTime()) && expCniDate < new Date()) {
       anomalies.push("CNI EXPIREE");
     }
     if (c.etatPilotage === "RETARD") {
@@ -221,7 +222,7 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
 
   // === NON-CONFORMITY ACTION PLAN ===
   if (controles) {
-    const ncControles = controles.filter((c) => c.resultatGlobal?.startsWith("NON CONFORME"));
+    const ncControles = controles.filter((c) => (c.resultatGlobal ?? "").startsWith("NON CONFORME"));
     if (ncControles.length > 0) {
       y = pageGuard(doc, y, 30);
 
@@ -247,17 +248,12 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
       for (const nc of ncControles) {
         y = pageGuard(doc, y, 8);
         let fmtEch = "—";
-        if (nc.dateEcheance) {
-          try {
-            const d = new Date(nc.dateEcheance);
-            fmtEch = isNaN(d.getTime()) ? nc.dateEcheance : d.toLocaleDateString("fr-FR");
-          } catch { fmtEch = nc.dateEcheance; }
-        }
+        if (nc.dateEcheance) { const d = new Date(nc.dateEcheance); fmtEch = isNaN(d.getTime()) ? nc.dateEcheance : d.toLocaleDateString("fr-FR"); }
         const suiviLabel: Record<string, string> = { A_TRAITER: "A traiter", EN_COURS: "En cours", RESOLU: "Resolu", CLOTURE: "Cloture" };
         const acRow = [
           safe(nc.dossierAudite, 25),
           safe(nc.resultatGlobal, 20),
-          safe(nc.actionCorrectrice, 20) || "A definir",
+          nc.actionCorrectrice ? safe(nc.actionCorrectrice, 20) : "A definir",
           fmtEch,
           suiviLabel[nc.suiviStatut] || nc.suiviStatut || "A traiter",
         ];

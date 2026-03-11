@@ -1,5 +1,22 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { MAX_RETRIES, RETRY_DELAY_MS } from "@/lib/constants";
+
+async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (attempt < MAX_RETRIES) {
+        logger.warn("DB", `${label} failed (attempt ${attempt + 1}), retrying in ${RETRY_DELAY_MS}ms...`);
+        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+      } else {
+        throw e;
+      }
+    }
+  }
+  throw new Error(`${label} failed after ${MAX_RETRIES + 1} attempts`);
+}
 
 // Strip fields that should never be overwritten by client code
 const PROTECTED_FIELDS = ["id", "cabinet_id", "created_at", "user_id"] as const;
@@ -9,23 +26,48 @@ function stripProtected(updates: Record<string, unknown>): Record<string, unknow
   return safe;
 }
 
-// Helper: get current user's cabinet_id from profile
+// Helper: get current user's cabinet_id from profile (cached)
+let _cachedCabinetId: string | null = null;
+let _cachedUserId: string | null = null;
+
+export function clearCabinetCache() {
+  _cachedCabinetId = null;
+  _cachedUserId = null;
+}
+
 async function getCabinetId(): Promise<string | null> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("cabinet_id")
-      .eq("id", user.id)
-      .single();
-    if (error) {
-      logger.error("DB", "getCabinetId error:", error);
-      return null;
+    if (!user) { _cachedCabinetId = null; _cachedUserId = null; return null; }
+    // Return cache if same user
+    if (_cachedCabinetId && _cachedUserId === user.id) return _cachedCabinetId;
+
+    // Try up to 3 times with increasing delay (profile may not be created yet on first login)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("cabinet_id")
+        .eq("id", user.id)
+        .single();
+      if (!error && data?.cabinet_id) {
+        _cachedCabinetId = data.cabinet_id;
+        _cachedUserId = user.id;
+        return _cachedCabinetId;
+      }
+      if (attempt < 2) {
+        logger.warn("DB", `getCabinetId attempt ${attempt + 1} failed, retrying in ${(attempt + 1) * 500}ms...`);
+        await new Promise(r => setTimeout(r, (attempt + 1) * 500));
+      } else {
+        logger.error("DB", "getCabinetId failed after 3 attempts:", error?.message ?? "cabinet_id is null");
+      }
     }
-    return data?.cabinet_id || null;
+    _cachedCabinetId = null;
+    _cachedUserId = null;
+    return null;
   } catch (e) {
     logger.error("DB", "getCabinetId exception:", e);
+    _cachedCabinetId = null;
+    _cachedUserId = null;
     return null;
   }
 }
@@ -35,21 +77,29 @@ export const clientsService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    const { data, error } = await supabase
-      .from("clients")
-      .select("*")
-      .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false });
-    if (error) {
-      logger.error("DB", "clients getAll:", error);
+    return withRetry("clients.getAll", async () => {
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("cabinet_id", cabinetId)
+        .order("created_at", { ascending: false });
+      if (error) {
+        logger.error("DB", "clients getAll:", error);
+        throw error;
+      }
+      return data || [];
+    }).catch((err) => {
+      logger.error("DB", "clients.getAll failed after retries:", err);
       return [];
-    }
-    return data || [];
+    });
   },
 
   async create(client: Record<string, unknown>) {
     const cabinetId = await getCabinetId();
-    if (!cabinetId) return null;
+    if (!cabinetId) {
+      logger.error("DB", "clients.create: no cabinet_id — user profile may not be initialized");
+      return null;
+    }
     const { data, error } = await supabase
       .from("clients")
       .insert({ ...client, cabinet_id: cabinetId })
@@ -103,15 +153,30 @@ export const clientsService = {
     if (error) logger.error("DB", "clients delete:", error);
   },
 
+  async deleteByRef(ref: string) {
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return;
+    const { error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("ref", ref)
+      .eq("cabinet_id", cabinetId);
+    if (error) {
+      logger.error("DB", "clients deleteByRef:", error);
+      throw error;
+    }
+  },
+
   async getByRef(ref: string) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("clients")
       .select("*")
       .eq("cabinet_id", cabinetId)
       .eq("ref", ref)
       .single();
+    if (error) logger.error("DB", "clients getByRef:", error);
     return data;
   },
 
@@ -119,12 +184,13 @@ export const clientsService = {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
     const clean = siren.replace(/\s/g, "");
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("clients")
       .select("*")
       .eq("cabinet_id", cabinetId)
       .eq("siren", clean)
       .maybeSingle();
+    if (error) logger.error("DB", "clients getBySiren:", error);
     return data;
   },
 };
@@ -134,12 +200,21 @@ export const collaborateursService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    const { data } = await supabase
-      .from("collaborateurs")
-      .select("*")
-      .eq("cabinet_id", cabinetId)
-      .order("nom");
-    return data || [];
+    return withRetry("collab.getAll", async () => {
+      const { data, error } = await supabase
+        .from("collaborateurs")
+        .select("*")
+        .eq("cabinet_id", cabinetId)
+        .order("nom");
+      if (error) {
+        logger.error("DB", "collab getAll:", error);
+        throw error;
+      }
+      return data || [];
+    }).catch((err) => {
+      logger.error("DB", "collab.getAll failed after retries:", err);
+      return [];
+    });
   },
 
   async create(collab: Record<string, unknown>) {
@@ -160,20 +235,25 @@ export const collaborateursService = {
   async update(id: string, updates: Record<string, unknown>) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("collaborateurs")
-      .update(stripProtected(updates))
+      .update({ ...stripProtected(updates), updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
       .single();
+    if (error) {
+      logger.error("DB", "collab update:", error);
+      return null;
+    }
     return data;
   },
 
   async delete(id: string) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return;
-    await supabase.from("collaborateurs").delete().eq("id", id).eq("cabinet_id", cabinetId);
+    const { error } = await supabase.from("collaborateurs").delete().eq("id", id).eq("cabinet_id", cabinetId);
+    if (error) logger.error("DB", "collab delete:", error);
   },
 };
 
@@ -182,12 +262,21 @@ export const registreService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    const { data } = await supabase
-      .from("alertes_registre")
-      .select("*")
-      .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false });
-    return data || [];
+    return withRetry("registre.getAll", async () => {
+      const { data, error } = await supabase
+        .from("alertes_registre")
+        .select("*")
+        .eq("cabinet_id", cabinetId)
+        .order("created_at", { ascending: false });
+      if (error) {
+        logger.error("DB", "registre getAll:", error);
+        throw error;
+      }
+      return data || [];
+    }).catch((err) => {
+      logger.error("DB", "registre.getAll failed after retries:", err);
+      return [];
+    });
   },
 
   async create(alerte: Record<string, unknown>) {
@@ -208,13 +297,17 @@ export const registreService = {
   async update(id: string, updates: Record<string, unknown>) {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return null;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("alertes_registre")
-      .update(stripProtected(updates))
+      .update({ ...stripProtected(updates), updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
       .single();
+    if (error) {
+      logger.error("DB", "registre update:", error);
+      return null;
+    }
     return data;
   },
 };
@@ -222,31 +315,47 @@ export const registreService = {
 // ===== AUDIT TRAIL (LOGS) =====
 export const logsService = {
   async add(action: string, details: string, recordId?: string, tableName?: string) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const cabinetId = await getCabinetId();
-    if (!cabinetId) return;
-    await supabase.from("audit_trail").insert({
-      cabinet_id: cabinetId,
-      user_id: user.id,
-      user_email: user.email || "",
-      action,
-      table_name: tableName || "",
-      record_id: recordId || "",
-      new_data: { details },
-    });
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const cabinetId = await getCabinetId();
+      if (!cabinetId) return;
+      const { error } = await supabase.from("audit_trail").insert({
+        cabinet_id: cabinetId,
+        user_id: user.id,
+        user_email: user.email || "",
+        action,
+        table_name: tableName || "",
+        record_id: recordId || "",
+        new_data: { details },
+      });
+      if (error) {
+        logger.error("AuditTrail", "Failed to write audit log:", error.message);
+      }
+    } catch (err) {
+      logger.error("AuditTrail", "Exception writing audit log:", err);
+    }
   },
 
-  async getAll() {
-    const cabinetId = await getCabinetId();
-    if (!cabinetId) return [];
-    const { data } = await supabase
-      .from("audit_trail")
-      .select("*")
-      .eq("cabinet_id", cabinetId)
-      .order("created_at", { ascending: false })
-      .limit(200);
-    return data || [];
+  async getAll(limit = 200, offset = 0) {
+    try {
+      const cabinetId = await getCabinetId();
+      if (!cabinetId) return [];
+      const { data, error } = await supabase
+        .from("audit_trail")
+        .select("created_at, user_email, record_id, action, new_data")
+        .eq("cabinet_id", cabinetId)
+        .order("created_at", { ascending: false })
+        .range(offset, offset + limit - 1);
+      if (error) {
+        logger.error("AuditTrail", "getAll error:", error.message);
+        return [];
+      }
+      return data || [];
+    } catch (err) {
+      logger.error("AuditTrail", "getAll exception:", err);
+      return [];
+    }
   },
 };
 
@@ -283,7 +392,7 @@ export const controlesService = {
     if (!cabinetId) return null;
     const { data, error } = await supabase
       .from("controles_qualite")
-      .update(controle)
+      .update({ ...stripProtected(controle), updated_at: new Date().toISOString() })
       .eq("id", id)
       .eq("cabinet_id", cabinetId)
       .select()
@@ -314,42 +423,56 @@ export const controlesService = {
 // ===== BROUILLONS =====
 export const brouillonsService = {
   async getBySiren(siren: string) {
+    if (!siren || !siren.trim()) return null;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return null;
     const { data } = await supabase
       .from("brouillons")
       .select("*")
       .eq("user_id", user.id)
+      .eq("cabinet_id", cabinetId)
       .eq("siren", siren.replace(/\s/g, ""))
       .maybeSingle();
     return data;
   },
 
   async save(siren: string, formData: unknown, step: number) {
+    if (!siren || !siren.trim()) return;
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return;
     const clean = siren.replace(/\s/g, "");
-    const existing = await this.getBySiren(clean);
+    const existing = await brouillonsService.getBySiren(clean);
     if (existing) {
-      await supabase
+      const { error } = await supabase
         .from("brouillons")
         .update({ data: formData, step, updated_at: new Date().toISOString() })
         .eq("id", existing.id)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .eq("cabinet_id", cabinetId);
+      if (error) logger.error("DB", "brouillon update:", error);
     } else {
-      await supabase
+      const { error } = await supabase
         .from("brouillons")
-        .insert({ user_id: user.id, siren: clean, data: formData, step });
+        .insert({ user_id: user.id, cabinet_id: cabinetId, siren: clean, data: formData, step });
+      if (error) logger.error("DB", "brouillon insert:", error);
     }
   },
 
   async delete(siren: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
-    await supabase
+    const cabinetId = await getCabinetId();
+    if (!cabinetId) return;
+    const { error } = await supabase
       .from("brouillons")
       .delete()
       .eq("user_id", user.id)
+      .eq("cabinet_id", cabinetId)
       .eq("siren", siren.replace(/\s/g, ""));
+    if (error) logger.error("DB", "brouillon delete:", error);
   },
 };

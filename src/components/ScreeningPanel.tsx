@@ -12,9 +12,9 @@ function normalizeStatus(s: string | null): string | null {
   if (upper === "ATTENTION" || upper === "INDISPONIBLE") return "ATTENTION";
   if (upper === "ALERTE") return "ALERTE";
   if (upper === "PARTIAL") return "ATTENTION";
-  // P5-26: Also normalize "PARTIAL" and "AUCUN_RESULTAT" edge function statuses
+  if (upper === "AUCUN_RESULTAT") return "OK";
   if (upper === "UNAVAILABLE" || upper === "ERREUR" || upper === "ERROR" || upper === "SERVICE INDISPONIBLE") return "ERREUR";
-  return upper;
+  return "ERREUR";
 }
 
 function StatusIcon({ status, loading }: { status: Status | null; loading: boolean }) {
@@ -117,7 +117,8 @@ export default function ScreeningPanel({ screening, compact }: Props) {
   const inpiDocsStored = (screening.inpi.data?.storedCount ?? 0) + (screening.documents.data?.autoRecovered ?? 0);
   const inpiDocsTotal = (screening.inpi.data?.totalDocuments ?? 0) + (screening.documents.data?.total ?? 0);
   const inpiDocsLoading = screening.inpi.loading || screening.documents.loading;
-  const inpiDocsStatus = inpiDocsStored > 0 ? "OK" : inpiDocsTotal > 0 ? "ATTENTION" : (screening.inpi.data || screening.documents.data) ? "ATTENTION" : null;
+  const inpiDocsError = !inpiDocsLoading && (screening.inpi.error || screening.documents.error);
+  const inpiDocsStatus = inpiDocsStored > 0 ? "OK" : inpiDocsTotal > 0 ? "ATTENTION" : inpiDocsError ? "ERREUR" : (screening.inpi.data || screening.documents.data) ? "ATTENTION" : null;
 
   const rows: Array<{
     key: string;
@@ -128,6 +129,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
     detail?: string;
     alertes?: string[];
     timeMs?: number;
+    errorMsg?: string | null;
   }> = [
     {
       key: "enterprise",
@@ -139,6 +141,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
         ? `INPI${screening.enterprise.data ? " + Annuaire" : ""}`
         : undefined,
       timeMs: screening.enterprise.timeMs,
+      errorMsg: enterpriseError ? String(screening.enterprise.error || screening.inpi.error || "Service indisponible") : null,
     },
     {
       key: "sanctions",
@@ -147,8 +150,9 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: (screening.sanctions.data?.status as Status) ?? (screening.sanctions.error ? "ERREUR" : null),
       loading: screening.sanctions.loading,
       detail: screening.sanctions.data ? `${screening.sanctions.data.checked} personne(s) verifiee(s)` : undefined,
-      alertes: screening.sanctions.data?.matches.map(m => m.details),
+      alertes: screening.sanctions.data?.matches?.map(m => m.details).filter(Boolean),
       timeMs: screening.sanctions.timeMs,
+      errorMsg: screening.sanctions.error,
     },
     {
       key: "inpi_docs",
@@ -170,12 +174,13 @@ export default function ScreeningPanel({ screening, compact }: Props) {
       status: (screening.bodacc.data?.status as Status) ?? (screening.bodacc.error ? "ERREUR" : null),
       loading: screening.bodacc.loading,
       detail: screening.bodacc.data
-        ? screening.bodacc.data.annonces.length > 0
+        ? (screening.bodacc.data.annonces?.length ?? 0) > 0
           ? `${screening.bodacc.data.annonces.length} annonce(s)`
           : "Aucune procedure collective"
         : undefined,
       alertes: screening.bodacc.data?.alertes,
       timeMs: screening.bodacc.timeMs,
+      errorMsg: screening.bodacc.error,
     },
     {
       key: "localisation",
@@ -190,15 +195,47 @@ export default function ScreeningPanel({ screening, compact }: Props) {
           : undefined,
       alertes: screening.google.data?.alertes,
       timeMs: screening.google.timeMs,
+      errorMsg: screening.google.error,
+    },
+    // P6-45: Add news and network rows
+    {
+      key: "news",
+      icon: <Newspaper className="w-4 h-4 text-cyan-400" />,
+      label: "Revue de presse",
+      status: (screening.news.data?.status as Status) ?? (screening.news.error ? "ERREUR" : null),
+      loading: screening.news.loading,
+      detail: screening.news.data
+        ? (screening.news.data.articles?.length ?? 0) > 0
+          ? `${screening.news.data.articles.length} article(s)`
+          : "Aucun article"
+        : undefined,
+      alertes: screening.news.data?.alertes,
+      timeMs: screening.news.timeMs,
+      errorMsg: screening.news.error,
+    },
+    {
+      key: "network",
+      icon: <Users className="w-4 h-4 text-orange-400" />,
+      label: "Reseau dirigeants",
+      status: (screening.network.data?.status as Status) ?? (screening.network.error ? "ERREUR" : null),
+      loading: screening.network.loading,
+      detail: screening.network.data
+        ? `${screening.network.data.totalCompanies ?? 0} societe(s), ${screening.network.data.totalPersons ?? 0} personne(s)`
+        : undefined,
+      alertes: screening.network.data?.alertes?.map((a: unknown) => typeof a === "object" && a !== null && "message" in a ? (a as { message: string }).message : String(a ?? "")).filter(Boolean),
+      timeMs: screening.network.timeMs,
+      errorMsg: screening.network.error,
     },
   ];
+
+  const anyLoading = screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading || screening.network.loading || screening.inpi.loading || screening.documents.loading;
 
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
       <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
         <Shield className="w-4 h-4 text-blue-400" />
         <h3 className="text-sm font-semibold text-slate-300">Screening automatique</h3>
-        {(screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading || screening.inpi.loading) && (
+        {anyLoading && (
           <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin ml-auto" />
         )}
       </div>
@@ -225,11 +262,18 @@ export default function ScreeningPanel({ screening, compact }: Props) {
               </div>
             </div>
 
+            {/* Error message */}
+            {row.errorMsg && !row.loading && (
+              <div className="mt-1.5 ml-7 text-[10px] text-slate-500 italic">
+                {row.errorMsg}
+              </div>
+            )}
+
             {/* Alertes */}
             {row.alertes && row.alertes.length > 0 && (
               <div className="mt-2 ml-7 space-y-1">
                 {row.alertes.slice(0, 3).map((alert, i) => (
-                  <div key={i} className="flex items-start gap-2 text-xs">
+                  <div key={`${row.key}-alert-${i}`} className="flex items-start gap-2 text-xs">
                     <AlertTriangle className="w-3 h-3 text-red-400 mt-0.5 shrink-0" />
                     <span className="text-red-300">{alert}</span>
                   </div>

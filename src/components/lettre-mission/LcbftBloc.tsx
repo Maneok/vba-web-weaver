@@ -12,6 +12,14 @@ interface LcbftBlocProps {
 export default function LcbftBloc({ vigilanceLevel, client }: LcbftBlocProps) {
   const template = LCBFT_TEMPLATES[vigilanceLevel];
 
+  if (!template) {
+    return (
+      <div className="border rounded p-4 text-sm text-gray-500">
+        Niveau de vigilance inconnu : {vigilanceLevel}
+      </div>
+    );
+  }
+
   return (
     <div className="border-l-4 border-[#0f172a] bg-[#f8fafc] rounded-r-lg overflow-hidden">
       {/* Header */}

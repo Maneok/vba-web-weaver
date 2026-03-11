@@ -1,15 +1,18 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import {
   ClipboardCheck, FileDown, RefreshCw, Plus, Eye, AlertTriangle, CheckCircle2,
   XCircle, Info, Search, ChevronUp, ChevronDown, ChevronLeft, ChevronRight,
   Download, Trash2, Edit3, BarChart3, ShieldCheck, ShieldAlert, Target,
   ArrowUpDown, ChevronsLeft, ChevronsRight, Shuffle, UserCheck, FileText,
-  Printer, Copy, X, Percent, Hash, ArrowRight, Minus,
+  Printer, Copy, X, Percent, Hash, ArrowRight, Minus, Loader2,
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { controlesService } from "@/lib/supabaseService";
+import { formatDateFR, timeAgo } from "@/lib/dateUtils";
+import { downloadCSV } from "@/lib/csvUtils";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VigilanceBadge, ScoreGauge } from "@/components/RiskBadges";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "sonner";
@@ -83,30 +86,7 @@ const resultatConfig: Record<ResultatGlobal, { color: string; icon: typeof Check
 const PAGE_SIZES = [10, 25, 50] as const;
 
 // ─── Helpers ────────────────────────────────────────────────────────
-function formatDateFR(iso: string): string {
-  if (!iso) return "—";
-  try {
-    return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
-  } catch {
-    return iso;
-  }
-}
-
-// BUG FIX #10: handle future dates and NaN
-function relativeDate(iso: string): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  const diff = Date.now() - d.getTime();
-  if (diff < 0) return "A venir";
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return "Aujourd'hui";
-  if (days === 1) return "Hier";
-  if (days < 7) return `Il y a ${days} jours`;
-  if (days < 30) return `Il y a ${Math.floor(days / 7)} sem.`;
-  if (days < 365) return `Il y a ${Math.floor(days / 30)} mois`;
-  return `Il y a ${Math.floor(days / 365)} an(s)`;
-}
+// formatDateFR and timeAgo imported from @/lib/dateUtils
 
 // BUG FIX #42: id handling — don't return undefined as value
 function mapDbToControle(row: Record<string, unknown>): ControleQualite {
@@ -311,6 +291,9 @@ export default function ControlePage() {
   const [deleting, setDeleting] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showDrawOptions, setShowDrawOptions] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
+
+  useDocumentTitle("Controle Qualite");
 
   // Filter & sort state
   const [search, setSearch] = useState("");
@@ -336,6 +319,7 @@ export default function ControlePage() {
   const [form, setForm] = useState<ControleQualite>({ ...emptyForm });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [formDirty, setFormDirty] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [showTemplates, setShowTemplates] = useState<string | null>(null);
 
   const searchRef = useRef<HTMLInputElement>(null);
@@ -363,6 +347,13 @@ export default function ControlePage() {
     loadControles();
     return () => { loadControlesRef.current = false; };
   }, [loadControles]);
+
+  // Clear detailId when the selected control no longer exists in the list
+  useEffect(() => {
+    if (detailId && !controles.find(c => c.id === detailId)) {
+      setDetailId(null);
+    }
+  }, [controles, detailId]);
 
   // BUG FIX #23/#24: Keyboard shortcuts only when no dialog open
   useEffect(() => {
@@ -479,7 +470,9 @@ export default function ControlePage() {
 
     const controlledSirens = new Set(controles.map((c) => c.siren));
     const validClients = clients.filter((c) => c.etat === "VALIDE");
-    const coverageRate = validClients.length > 0 ? Math.round((controlledSirens.size / validClients.length) * 100) : 0;
+    const validSirens = new Set(validClients.map((c) => c.siren));
+    const controlledValidCount = [...controlledSirens].filter((s) => validSirens.has(s)).length;
+    const coverageRate = validClients.length > 0 ? Math.min(100, Math.round((controlledValidCount / validClients.length) * 100)) : 0;
 
     return { total, conformes, ncMineur, ncMajeur, reserves, incidents, tauxConformite, trend, coverageRate, controlledSirens, validClients };
   }, [controles, clients]);
@@ -496,8 +489,8 @@ export default function ControlePage() {
 
   // ── BUG FIX #7: Detail by ID instead of index ──
   const detailControle = useMemo(
-    () => detailId ? filteredControles.find((c) => c.id === detailId) ?? null : null,
-    [detailId, filteredControles]
+    () => detailId ? controles.find((c) => c.id === detailId) ?? null : null,
+    [detailId, controles]
   );
 
   const detailIndexInFiltered = useMemo(
@@ -582,6 +575,7 @@ export default function ControlePage() {
     }
 
     // BUG FIX #6: only prefill the first one (batch loop was useless)
+    if (selected.length === 0) { toast.error("Aucun client selectionne"); return; }
     prefillForm(selected[0]);
     setShowDrawOptions(false);
     setShowForm(true);
@@ -745,42 +739,44 @@ export default function ControlePage() {
       "Controleur", "Action correctrice", "Echeance", "Suivi",
     ];
     const rows = filteredControles.map((c) => [
-      c.dateTirage, c.dossierAudite, c.siren, c.forme, c.scoreGlobal, c.nivVigilance,
+      c.dateTirage, c.dossierAudite, c.siren, c.forme, String(c.scoreGlobal), c.nivVigilance,
       c.ppe, c.paysRisque, c.atypique, c.distanciel, c.cash, c.pression,
-      c.point1, c.point2, c.point3, c.resultatGlobal, c.incident, c.commentaire,
+      c.point1, c.point2, c.point3, c.resultatGlobal, c.incident ? "OUI" : "NON", c.commentaire,
       c.controleur, c.actionCorrectrice, c.dateEcheance, c.suiviStatut,
     ]);
-    // BUG FIX #17: replace newlines in field values to avoid breaking CSV rows
-    const csv = [headers.join(";"), ...rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`).join(";"))].join("\n");
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `Controles_Qualite_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    // BUG FIX #18: delay revoke to let download start
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    downloadCSV(headers, rows, `Controles_Qualite_${new Date().toISOString().slice(0, 10)}.csv`);
     toast.success(`${filteredControles.length} controles exportes en CSV`);
   };
 
   // ── Export PDF ──
   // BUG FIX #20/#26: check both controles and clients
-  const handleExportPDF = () => {
+  const handleExportPDF = async () => {
     const valides = clients.filter((c) => c.etat === "VALIDE");
     if (controles.length === 0 && valides.length === 0) {
       toast.error("Aucune donnee pour le rapport");
       return;
     }
-    generateRapportControle(
-      valides.slice(0, 5),
-      filteredControles
-    );
-    toast.success("Rapport de controle genere (PDF)");
+    setExportingPdf(true);
+    try {
+      await generateRapportControle(
+        valides.slice(0, 5),
+        filteredControles
+      );
+      toast.success("Rapport de controle genere (PDF)");
+    } catch {
+      toast.error("Erreur lors de la generation du rapport PDF");
+    } finally {
+      setExportingPdf(false);
+    }
   };
 
   const handleExportSinglePDF = (c: ControleQualite) => {
-    generateSingleControlePdf(c);
-    toast.success("Fiche de controle generee (PDF)");
+    try {
+      generateSingleControlePdf(c);
+      toast.success("Fiche de controle generee (PDF)");
+    } catch {
+      toast.error("Erreur lors de la generation de la fiche PDF");
+    }
   };
 
   // BUG FIX #9: handleCloseForm properly handles Dialog's boolean param
@@ -788,13 +784,22 @@ export default function ControlePage() {
     // If Dialog calls with open=true, ignore
     if (open === true) return;
     if (formDirty) {
-      if (!window.confirm("Des modifications non enregistrees seront perdues. Fermer quand meme ?")) return;
+      setShowCloseConfirm(true);
+      return;
     }
     setShowForm(false);
     setFormDirty(false);
     setEditMode(false);
     setShowTemplates(null);
   }, [formDirty]);
+
+  const confirmCloseForm = useCallback(() => {
+    setShowCloseConfirm(false);
+    setShowForm(false);
+    setFormDirty(false);
+    setEditMode(false);
+    setShowTemplates(null);
+  }, []);
 
   // BUG FIX #16: Copy with error handling
   const handleCopyControl = async (c: ControleQualite) => {
@@ -924,8 +929,8 @@ export default function ControlePage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportPDF} disabled={controles.length === 0 && clients.filter((c) => c.etat === "VALIDE").length === 0}>
-                  <FileDown className="w-3.5 h-3.5" /> PDF
+                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportPDF} disabled={exportingPdf || (controles.length === 0 && clients.filter((c) => c.etat === "VALIDE").length === 0)}>
+                  {exportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />} {exportingPdf ? "Generation..." : "PDF"}
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Generer un rapport PDF complet</TooltipContent>
@@ -1119,19 +1124,19 @@ export default function ControlePage() {
                     <table className="w-full text-sm" role="table">
                       <thead>
                         <tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")} aria-label="Trier par date">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")} aria-label="Trier par date" role="button">
                             <span className="flex items-center gap-1">Date <SortIconIndicator field="dateTirage" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dossierAudite")} aria-label="Trier par dossier">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dossierAudite")} aria-label="Trier par dossier" role="button">
                             <span className="flex items-center gap-1">Dossier audite <SortIconIndicator field="dossierAudite" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("scoreGlobal")} aria-label="Trier par score">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("scoreGlobal")} aria-label="Trier par score" role="button">
                             <span className="flex items-center gap-1">Score <SortIconIndicator field="scoreGlobal" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("nivVigilance")} aria-label="Trier par vigilance">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("nivVigilance")} aria-label="Trier par vigilance" role="button">
                             <span className="flex items-center gap-1">Vigilance <SortIconIndicator field="nivVigilance" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("resultatGlobal")} aria-label="Trier par resultat">
+                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("resultatGlobal")} aria-label="Trier par resultat" role="button">
                             <span className="flex items-center gap-1">Resultat <SortIconIndicator field="resultatGlobal" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
                           <th className="px-6 py-3 font-medium">Controleur</th>
@@ -1155,7 +1160,7 @@ export default function ControlePage() {
                                   <TooltipTrigger asChild>
                                     <span className="text-slate-400 font-mono text-xs">{formatDateFR(c.dateTirage)}</span>
                                   </TooltipTrigger>
-                                  <TooltipContent>{relativeDate(c.dateTirage)}</TooltipContent>
+                                  <TooltipContent>{timeAgo(c.dateTirage)}</TooltipContent>
                                 </Tooltip>
                               </td>
                               <td className="px-6 py-3.5">
@@ -1179,7 +1184,7 @@ export default function ControlePage() {
                                       <ShieldAlert className="w-3.5 h-3.5 text-amber-400 ml-1.5 inline" />
                                     </TooltipTrigger>
                                     <TooltipContent side="right" className="max-w-xs">
-                                      {anomalies.map((a, i) => <p key={i} className="text-xs">{a}</p>)}
+                                      {anomalies.map((a) => <p key={a} className="text-xs">{a}</p>)}
                                     </TooltipContent>
                                   </Tooltip>
                                 )}
@@ -1215,6 +1220,7 @@ export default function ControlePage() {
                         className="rounded border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-xs text-slate-300"
                         value={pageSize}
                         onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
+                        aria-label="Nombre de resultats par page"
                       >
                         {PAGE_SIZES.map((s) => (
                           <option key={s} value={s} className="bg-slate-900">{s}</option>
@@ -1536,6 +1542,7 @@ export default function ControlePage() {
                       value={drawCount}
                       onChange={(e) => setDrawCount(Number(e.target.value))}
                       className="flex-1"
+                      aria-label="Nombre de clients a tirer"
                     />
                     <span className="text-sm font-bold text-slate-200 tabular-nums w-6 text-center">{drawCount}</span>
                   </div>
@@ -1563,6 +1570,7 @@ export default function ControlePage() {
                     className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                     value={clientSearch}
                     onChange={(e) => setClientSearch(e.target.value)}
+                    aria-label="Rechercher un client pour le tirage"
                   />
                   <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-white/[0.06] p-2">
                     {availableClients.slice(0, 20).map((c) => (
@@ -1650,6 +1658,7 @@ export default function ControlePage() {
                   placeholder="Nom du controleur..."
                   value={form.controleur}
                   onChange={(e) => { setForm((prev) => ({ ...prev, controleur: e.target.value })); setFormDirty(true); }}
+                  aria-label="Nom du controleur"
                 />
                 {formErrors.controleur && <p className="text-xs text-red-400">{formErrors.controleur}</p>}
               </div>
@@ -1682,6 +1691,7 @@ export default function ControlePage() {
                       placeholder={cp.placeholder}
                       value={form[cp.key]}
                       onChange={(e) => { setForm((prev) => ({ ...prev, [cp.key]: e.target.value })); setFormDirty(true); }}
+                      aria-label={cp.label}
                     />
                     {formErrors[cp.key] && <p className="text-xs text-red-400">{formErrors[cp.key]}</p>}
                     {showTemplates === cp.key && (
@@ -1757,6 +1767,7 @@ export default function ControlePage() {
                       placeholder="Decrire les actions a mener pour corriger la non-conformite..."
                       value={form.actionCorrectrice}
                       onChange={(e) => { setForm((prev) => ({ ...prev, actionCorrectrice: e.target.value })); setFormDirty(true); }}
+                      aria-label="Action correctrice"
                     />
                     {formErrors.actionCorrectrice && <p className="text-xs text-red-400">{formErrors.actionCorrectrice}</p>}
                   </div>
@@ -1771,6 +1782,7 @@ export default function ControlePage() {
                         value={form.dateEcheance}
                         min={new Date().toISOString().split("T")[0]}
                         onChange={(e) => { setForm((prev) => ({ ...prev, dateEcheance: e.target.value })); setFormDirty(true); }}
+                        aria-label="Date d'echeance"
                       />
                       {formErrors.dateEcheance && <p className="text-xs text-red-400">{formErrors.dateEcheance}</p>}
                     </div>
@@ -1780,6 +1792,7 @@ export default function ControlePage() {
                         className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                         value={form.suiviStatut}
                         onChange={(e) => { setForm((prev) => ({ ...prev, suiviStatut: e.target.value })); setFormDirty(true); }}
+                        aria-label="Statut de suivi"
                       >
                         {SUIVI_OPTIONS.map((opt) => (
                           <option key={opt.value} value={opt.value} className="bg-slate-900">{opt.label}</option>
@@ -1799,6 +1812,7 @@ export default function ControlePage() {
                   placeholder="Decrire l'incident le cas echeant..."
                   value={form.incident}
                   onChange={(e) => { setForm((prev) => ({ ...prev, incident: e.target.value })); setFormDirty(true); }}
+                  aria-label="Incident declare"
                 />
               </div>
 
@@ -1815,6 +1829,7 @@ export default function ControlePage() {
                   placeholder="Observations complementaires..."
                   value={form.commentaire}
                   onChange={(e) => { setForm((prev) => ({ ...prev, commentaire: e.target.value })); setFormDirty(true); }}
+                  aria-label="Commentaire"
                 />
               </div>
 
@@ -1895,7 +1910,7 @@ export default function ControlePage() {
                         <p className="text-sm font-semibold text-slate-200">{detailControle.dossierAudite}</p>
                         <p className="text-xs text-slate-500 mt-0.5">
                           {detailControle.siren} · {detailControle.forme} · {formatDateFR(detailControle.dateTirage)}
-                          <span className="text-slate-600 ml-1">({relativeDate(detailControle.dateTirage)})</span>
+                          <span className="text-slate-600 ml-1">({timeAgo(detailControle.dateTirage)})</span>
                         </p>
                         {detailControle.controleur && (
                           <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
@@ -1979,8 +1994,8 @@ export default function ControlePage() {
                           <ShieldAlert className="w-3.5 h-3.5" /> Anomalies detectees
                         </p>
                         <ul className="space-y-1">
-                          {anomalies.map((a, i) => (
-                            <li key={i} className="text-xs text-amber-300/80">- {a}</li>
+                          {anomalies.map((a) => (
+                            <li key={a} className="text-xs text-amber-300/80">- {a}</li>
                           ))}
                         </ul>
                       </div>
@@ -2035,6 +2050,20 @@ export default function ControlePage() {
                 {deleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                 Supprimer
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Confirm close form with unsaved changes ── */}
+        <Dialog open={showCloseConfirm} onOpenChange={setShowCloseConfirm}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Modifications non enregistrees</DialogTitle>
+              <DialogDescription>Des modifications non enregistrees seront perdues. Fermer quand meme ?</DialogDescription>
+            </DialogHeader>
+            <div className="flex gap-2 justify-end">
+              <Button variant="outline" onClick={() => setShowCloseConfirm(false)}>Annuler</Button>
+              <Button variant="destructive" onClick={confirmCloseForm}>Fermer sans enregistrer</Button>
             </div>
           </DialogContent>
         </Dialog>

@@ -1,4 +1,5 @@
 import { useMemo, useEffect, useState } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { runDiagnostic360, type DiagnosticReport, type DiagnosticItem } from "@/lib/diagnosticEngine";
@@ -72,7 +73,7 @@ const NOTE_COLORS: Record<string, string> = {
 // DiagnosticItemCard
 // ---------------------------------------------------------------------------
 function DiagnosticItemCard({ item }: { item: DiagnosticItem }) {
-  const config = STATUS_CONFIG[item.statut];
+  const config = STATUS_CONFIG[item.statut as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.OK;
   const Icon = config.icon;
   return (
     <div className={`p-3 rounded-lg border ${config.border} ${config.bg}`}>
@@ -103,6 +104,8 @@ function DiagnosticItemCard({ item }: { item: DiagnosticItem }) {
 export default function DiagnosticPage() {
   const { clients, collaborateurs, alertes, logs } = useAppState();
 
+  useDocumentTitle("Diagnostic");
+
   // --- Supabase data: controles + parametres ---
   const [controles, setControles] = useState<Record<string, unknown>[]>([]);
   const [derniereFormation, setDerniereFormation] = useState<string | null>(null);
@@ -124,15 +127,17 @@ export default function DiagnosticPage() {
           .from("parametres")
           .select("valeur")
           .eq("cle", "lcbft_config")
+          .eq("user_id", user.id)
           .maybeSingle();
         if (cancelled) return;
         if (data?.valeur) {
           const valeur = data.valeur as Record<string, unknown>;
+          if (cancelled) return;
           if (valeur.date_derniere_formation) {
             setDerniereFormation(valeur.date_derniere_formation as string);
           }
         }
-      } catch (err) {
+      } catch (err: unknown) {
         logger.error("[Diagnostic] loadParametres error:", err);
         if (!cancelled) toast.error("Erreur lors du chargement des parametres");
       }
@@ -153,7 +158,7 @@ export default function DiagnosticPage() {
     const totalControles = controles.length;
     const conformes = controles.filter((c) => {
       const res = (c.resultat_global as string) || "";
-      return res.startsWith("CONFORME");
+      return res === "CONFORME" || res === "CONFORME AVEC RESERVES";
     }).length;
     const tauxConformite = totalControles > 0 ? (conformes / totalControles) * 100 : 0;
 
@@ -240,7 +245,7 @@ export default function DiagnosticPage() {
   const okCount = report.items.filter((i) => i.statut === "OK").length;
 
   return (
-    <div className="p-6 space-y-6 max-w-5xl mx-auto">
+    <div className="p-6 lg:p-8 space-y-6 max-w-[1200px] mx-auto" role="main" aria-label="Diagnostic 360 Tracfin">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -253,9 +258,10 @@ export default function DiagnosticPage() {
           </p>
         </div>
         <Button
-          onClick={() => generateDiagnosticPdf(report)}
+          onClick={() => { try { generateDiagnosticPdf(report); toast.success("PDF diagnostic genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}
           variant="outline"
           className="gap-2 border-white/10 text-slate-300 hover:bg-white/5"
+          aria-label="Exporter le diagnostic en PDF"
         >
           <FileDown className="w-4 h-4" />
           Exporter le diagnostic en PDF
@@ -263,7 +269,7 @@ export default function DiagnosticPage() {
       </div>
 
       {/* Score Banner */}
-      <div className="glass-card overflow-hidden">
+      <div className="glass-card overflow-hidden" role="region" aria-label="Score global du dispositif">
         <div className={`bg-gradient-to-r ${NOTE_COLORS[report.noteLettre] || NOTE_COLORS.D} p-6`}>
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center">
@@ -300,14 +306,14 @@ export default function DiagnosticPage() {
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full h-3 rounded-full bg-white/5 overflow-hidden flex">
-        <div className="bg-emerald-500 transition-all" style={{ width: `${(okCount / report.items.length) * 100}%` }} />
-        <div className="bg-amber-400 transition-all" style={{ width: `${(alerteCount / report.items.length) * 100}%` }} />
-        <div className="bg-red-500 transition-all" style={{ width: `${(critiques / report.items.length) * 100}%` }} />
+      <div className="w-full h-3 rounded-full bg-white/5 overflow-hidden flex" role="progressbar" aria-label={`Repartition : ${okCount} conformes, ${alerteCount} alertes, ${critiques} critiques`} aria-valuenow={report.scoreGlobalDispositif} aria-valuemin={0} aria-valuemax={100}>
+        <div className="bg-emerald-500 transition-all" style={{ width: `${report.items.length > 0 ? (okCount / report.items.length) * 100 : 0}%` }} />
+        <div className="bg-amber-400 transition-all" style={{ width: `${report.items.length > 0 ? (alerteCount / report.items.length) * 100 : 0}%` }} />
+        <div className="bg-red-500 transition-all" style={{ width: `${report.items.length > 0 ? (critiques / report.items.length) * 100 : 0}%` }} />
       </div>
 
       {/* Circular Gauges */}
-      <div className="glass-card p-6">
+      <div className="glass-card p-6" role="region" aria-label="Indicateurs cles de conformite">
         <div className="flex items-center gap-2 mb-5">
           <Activity className="w-4 h-4 text-sky-400" />
           <h2 className="text-sm font-semibold text-slate-200">Indicateurs cles</h2>
@@ -364,7 +370,7 @@ export default function DiagnosticPage() {
           </h3>
           <div className="space-y-2">
             {autoRecommandations.map((rec, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
+              <div key={`auto-${i}-${rec.slice(0, 20)}`} className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
                 <span className="font-bold text-amber-400 text-sm">{i + 1}.</span>
                 <p className="text-sm text-slate-300">{rec}</p>
               </div>
@@ -382,7 +388,7 @@ export default function DiagnosticPage() {
           </h3>
           <div className="space-y-2">
             {report.recommandationsPrioritaires.map((rec, i) => (
-              <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10">
+              <div key={`prio-${i}-${rec.slice(0, 20)}`} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10">
                 <span className="font-bold text-red-400 text-sm">{i + 1}.</span>
                 <p className="text-sm text-slate-300">{rec}</p>
               </div>

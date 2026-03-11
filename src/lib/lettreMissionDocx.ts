@@ -17,7 +17,9 @@ import {
   NumberFormat,
 } from "docx";
 import { saveAs } from "file-saver";
+import { logger } from "@/lib/logger";
 import type { LettreMission } from "@/types/lettreMission";
+import type { Client } from "@/lib/types";
 
 const NAVY = "1A1A2E";
 const GREY = "F5F5F8";
@@ -179,6 +181,7 @@ function str(v: unknown): string {
 }
 
 export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> {
+  try {
   const { client, cabinet, options: opts } = lm;
   const children: (Paragraph | Table)[] = [];
 
@@ -241,8 +244,8 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
   children.push(new Table({
     width: { size: 100, type: WidthType.PERCENTAGE },
     rows: [
-      tableRow2Col("Périodicité", opts.periodicite, true),
-      tableRow2Col("Outil comptable", opts.outilComptable, false),
+      tableRow2Col("Périodicité", opts?.periodicite ?? "—", true),
+      tableRow2Col("Outil comptable", opts?.outilComptable ?? "—", false),
     ],
   }));
 
@@ -279,25 +282,25 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
   children.push(bodyText(`Notre cabinet s'engage à exécuter la mission de ${str(client?.mission)} conformément aux normes professionnelles et au Code de déontologie.`));
 
   children.push(subHeading("Durée de la mission"));
-  children.push(bodyText(`La mission prend effet du ${opts.exerciceDebut} au ${opts.exerciceFin}, renouvelable par tacite reconduction avec préavis de 3 mois.`));
+  children.push(bodyText(`La mission prend effet du ${opts?.exerciceDebut ?? "—"} au ${opts?.exerciceFin ?? "—"}, renouvelable par tacite reconduction avec préavis de 3 mois.`));
 
   children.push(subHeading("Nature et limites"));
   children.push(bodyText("Notre mission consiste en la tenue/surveillance de votre comptabilité et présentation des comptes annuels. Elle ne constitue ni un audit, ni un commissariat aux comptes."));
 
-  if (opts.missionSociale) {
+  if (opts?.missionSociale) {
     children.push(subHeading("Mission sociale"));
     children.push(bulletItem("Établissement des bulletins de paie et DSN"));
     children.push(bulletItem("Gestion des entrées/sorties du personnel"));
     children.push(bulletItem("Calcul et déclaration des charges sociales"));
     children.push(bulletItem("Assistance en droit social courant"));
   }
-  if (opts.missionJuridique) {
+  if (opts?.missionJuridique) {
     children.push(subHeading("Mission juridique"));
     children.push(bulletItem("Rédaction des PV d'assemblées générales"));
     children.push(bulletItem("Formalités de modification statutaire"));
     children.push(bulletItem("Tenue des registres obligatoires"));
   }
-  if (opts.missionControleFiscal) {
+  if (opts?.missionControleFiscal) {
     children.push(subHeading("Assistance au contrôle fiscal"));
     children.push(bulletItem("Option 1 — Assistance à la préparation"));
     children.push(bulletItem("Option 2 — Assistance pendant le contrôle"));
@@ -465,6 +468,10 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
   const filename = `LDM_${lm?.numero ?? "draft"}_${(client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.docx`;
   const blob = await Packer.toBlob(docx);
   saveAs(blob, filename);
+  } catch (err: unknown) {
+    logger.error("DOCX", "Erreur lors de la génération du DOCX", err);
+    throw new Error(`Échec de la génération du document DOCX : ${err instanceof Error ? err.message : String(err)}`);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -473,7 +480,6 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
 
 import type { TemplateSection } from "@/lib/lettreMissionTemplate";
 import { replaceTemplateVariables } from "@/lib/lettreMissionTemplate";
-import type { Client } from "@/lib/types";
 
 interface NewDocxParams {
   sections: TemplateSection[];
@@ -516,6 +522,7 @@ const REPARTITION_TASKS_DOCX: { tache: string; cabinet: boolean; client: boolean
 ];
 
 export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise<void> {
+  try {
   const { sections, client, missions, honoraires, cabinet, variables } = params;
   const children: (Paragraph | Table)[] = [];
 
@@ -699,4 +706,8 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
   const filename = `LM_${(client.raisonSociale || "client").replace(/\s+/g, "_")}_${dateStr}.docx`;
   const blob = await Packer.toBlob(docxDoc);
   saveAs(blob, filename);
+  } catch (err: unknown) {
+    logger.error("DOCX", "Erreur lors de la génération du DOCX template", err);
+    throw new Error(`Échec de la génération du document DOCX : ${err instanceof Error ? err.message : String(err)}`);
+  }
 }

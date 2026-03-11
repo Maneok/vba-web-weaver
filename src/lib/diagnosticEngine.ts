@@ -1,5 +1,39 @@
 import type { Client, Collaborateur, AlerteRegistre, LogEntry } from "./types";
 
+// ── Thresholds & constants ──
+const THRESHOLD_CLASSIFICATION_OK = 90;
+const THRESHOLD_CLASSIFICATION_WARN = 70;
+const THRESHOLD_PROSPECT_STALE_DAYS = 90;
+const THRESHOLD_PROSPECT_STALE_WARN = 3;
+const THRESHOLD_CLIENTS_SANS_SCORE_WARN = 2;
+const THRESHOLD_RETARD_WARN_PCT = 20;
+const THRESHOLD_REVISION_SOON_DAYS = 60;
+const THRESHOLD_REVISION_SOON_WARN = 3;
+const THRESHOLD_CNI_EXPIRY_SOON_DAYS = 90;
+const THRESHOLD_KYC_INCOMPLETE_WARN = 3;
+const THRESHOLD_BE_MISSING_WARN = 3;
+const THRESHOLD_DOCS_MISSING_WARN = 5;
+const THRESHOLD_FORMATION_OK_PCT = 90;
+const THRESHOLD_FORMATION_WARN_PCT = 60;
+const THRESHOLD_LOGS_OK = 10;
+const THRESHOLD_LOGS_WARN = 3;
+const THRESHOLD_LOG_WINDOW_DAYS = 90;
+const THRESHOLD_ACTION_DIVERSITY_OK = 4;
+const THRESHOLD_ACTION_DIVERSITY_WARN = 2;
+const THRESHOLD_RENFORCEE_OK_PCT = 30;
+const THRESHOLD_RENFORCEE_WARN_PCT = 50;
+const THRESHOLD_SCORE_MOYEN_OK = 40;
+const THRESHOLD_SCORE_MOYEN_WARN = 60;
+const THRESHOLD_CAPITAL_LOW = 100;
+const THRESHOLD_HONORAIRES_HIGH = 10000;
+const THRESHOLD_DOMICILIATION_WARN = 3;
+const SCORE_OK_POINTS = 10;
+const SCORE_ALERTE_POINTS = 5;
+const NOTE_A_THRESHOLD = 80;
+const NOTE_B_THRESHOLD = 60;
+const NOTE_C_THRESHOLD = 40;
+const MS_PER_DAY = 1000 * 60 * 60 * 24;
+
 export interface DiagnosticItem {
   categorie: string;
   indicateur: string;
@@ -27,8 +61,14 @@ export function runDiagnostic360(
   const items: DiagnosticItem[] = [];
   const now = new Date();
 
-  const actifs = clients.filter(c => c.statut !== "INACTIF");
-  const valides = clients.filter(c => c.etat === "VALIDE");
+  // Guard against null/undefined inputs
+  const safeClients = Array.isArray(clients) ? clients : [];
+  const safeCollaborateurs = Array.isArray(collaborateurs) ? collaborateurs : [];
+  const safeAlertes = Array.isArray(alertes) ? alertes : [];
+  const safeLogs = Array.isArray(logs) ? logs : [];
+
+  const actifs = safeClients.filter(c => c.statut !== "INACTIF");
+  const valides = safeClients.filter(c => c.etat === "VALIDE");
 
   // === 1. COUVERTURE DU PORTEFEUILLE ===
   const tauxClassification = actifs.length > 0
@@ -37,27 +77,27 @@ export function runDiagnostic360(
   items.push({
     categorie: "CLASSIFICATION",
     indicateur: "Taux de dossiers classifies (VALIDE)",
-    statut: tauxClassification >= 90 ? "OK" : tauxClassification >= 70 ? "ALERTE" : "CRITIQUE",
+    statut: tauxClassification >= THRESHOLD_CLASSIFICATION_OK ? "OK" : tauxClassification >= THRESHOLD_CLASSIFICATION_WARN ? "ALERTE" : "CRITIQUE",
     detail: `${valides.length}/${actifs.length} dossiers classes (${tauxClassification}%)`,
-    recommandation: tauxClassification < 90 ? "Finaliser la classification de tous les dossiers actifs." : "Aucune action requise.",
+    recommandation: tauxClassification < THRESHOLD_CLASSIFICATION_OK ? "Finaliser la classification de tous les dossiers actifs." : "Aucune action requise.",
     referenceReglementaire: "Art. L.561-5 CMF",
   });
 
   // === 2. DOSSIERS PROSPECT STAGNANTS ===
-  const prospects = clients.filter(c => c.etat === "PROSPECT");
+  const prospects = safeClients.filter(c => c.etat === "PROSPECT");
   const prospectAnciens = prospects.filter(c => {
     if (!c.dateCreationLigne) return false;
     const ts = new Date(c.dateCreationLigne).getTime();
     if (isNaN(ts)) return false;
-    const diff = (now.getTime() - ts) / (1000 * 60 * 60 * 24);
-    return diff > 90;
+    const diff = (now.getTime() - ts) / MS_PER_DAY;
+    return diff > THRESHOLD_PROSPECT_STALE_DAYS;
   });
   if (prospects.length > 0) {
     items.push({
       categorie: "CLASSIFICATION",
       indicateur: "Dossiers prospect stagnants (>90 jours)",
-      statut: prospectAnciens.length === 0 ? "OK" : prospectAnciens.length <= 3 ? "ALERTE" : "CRITIQUE",
-      detail: `${prospectAnciens.length} prospect(s) non traite(s) depuis plus de 90 jours`,
+      statut: prospectAnciens.length === 0 ? "OK" : prospectAnciens.length <= THRESHOLD_PROSPECT_STALE_WARN ? "ALERTE" : "CRITIQUE",
+      detail: `${prospectAnciens.length} prospect(s) non traite(s) depuis plus de ${THRESHOLD_PROSPECT_STALE_DAYS} jours`,
       recommandation: prospectAnciens.length > 0
         ? "Valider ou refuser les prospects en attente pour maintenir un portefeuille propre."
         : "Aucune action requise.",
@@ -74,7 +114,7 @@ export function runDiagnostic360(
     statut: incoherences.length === 0 ? "OK" : "CRITIQUE",
     detail: incoherences.length === 0
       ? "Aucune incoherence detectee"
-      : `${incoherences.length} client(s) en vigilance SIMPLIFIEE avec facteurs de risque actifs: ${incoherences.map(c => c.raisonSociale).join(", ")}`,
+      : `${incoherences.length} client(s) en vigilance SIMPLIFIEE avec facteurs de risque actifs: ${incoherences.map(c => c.raisonSociale || "Inconnu").join(", ")}`,
     recommandation: incoherences.length > 0
       ? "Recalculer immediatement le scoring de ces clients. Un client PPE/Pays risque/Atypique ne peut etre en vigilance simplifiee."
       : "Aucune action requise.",
@@ -82,11 +122,11 @@ export function runDiagnostic360(
   });
 
   // === 4. SCORING - Clients sans score ===
-  const sansScore = actifs.filter(c => c.scoreGlobal === 0 && c.etat === "VALIDE");
+  const sansScore = actifs.filter(c => (c.scoreGlobal ?? 0) === 0 && c.etat === "VALIDE");
   items.push({
     categorie: "SCORING",
     indicateur: "Clients valides sans scoring",
-    statut: sansScore.length === 0 ? "OK" : sansScore.length <= 2 ? "ALERTE" : "CRITIQUE",
+    statut: sansScore.length === 0 ? "OK" : sansScore.length <= THRESHOLD_CLIENTS_SANS_SCORE_WARN ? "ALERTE" : "CRITIQUE",
     detail: sansScore.length === 0
       ? "Tous les clients valides ont un scoring"
       : `${sansScore.length} client(s) valide(s) sans scoring calcule`,
@@ -105,10 +145,10 @@ export function runDiagnostic360(
   items.push({
     categorie: "REVISIONS",
     indicateur: "Taux de revisions en retard",
-    statut: tauxRetard === 0 ? "OK" : tauxRetard <= 20 ? "ALERTE" : "CRITIQUE",
+    statut: tauxRetard === 0 ? "OK" : tauxRetard <= THRESHOLD_RETARD_WARN_PCT ? "ALERTE" : "CRITIQUE",
     detail: `${retards.length}/${actifs.length} dossiers en retard de revision (${tauxRetard}%)`,
     recommandation: retards.length > 0
-      ? `Planifier en urgence la revue de: ${retards.slice(0, 5).map(c => c.raisonSociale).join(", ")}${retards.length > 5 ? ` et ${retards.length - 5} autres` : ""}`
+      ? `Planifier en urgence la revue de: ${retards.slice(0, 5).map(c => c.raisonSociale || "Inconnu").join(", ")}${retards.length > 5 ? ` et ${retards.length - 5} autres` : ""}`
       : "Aucune action requise.",
     referenceReglementaire: "Art. L.561-6 CMF",
   });
@@ -118,16 +158,16 @@ export function runDiagnostic360(
     if (!c.dateButoir) return false;
     const butoir = new Date(c.dateButoir);
     if (isNaN(butoir.getTime())) return false;
-    const diff = (butoir.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    return diff > 0 && diff <= 60;
+    const diff = (butoir.getTime() - now.getTime()) / MS_PER_DAY;
+    return diff > 0 && diff <= THRESHOLD_REVISION_SOON_DAYS;
   });
   if (bientotEchus.length > 0) {
     items.push({
       categorie: "REVISIONS",
       indicateur: "Revisions a echeance proche (< 60 jours)",
-      statut: bientotEchus.length <= 3 ? "ALERTE" : "CRITIQUE",
-      detail: `${bientotEchus.length} dossier(s) arrivent a echeance dans les 60 prochains jours`,
-      recommandation: `Anticiper la revue de: ${bientotEchus.slice(0, 5).map(c => c.raisonSociale).join(", ")}`,
+      statut: bientotEchus.length <= THRESHOLD_REVISION_SOON_WARN ? "ALERTE" : "CRITIQUE",
+      detail: `${bientotEchus.length} dossier(s) arrivent a echeance dans les ${THRESHOLD_REVISION_SOON_DAYS} prochains jours`,
+      recommandation: `Anticiper la revue de: ${bientotEchus.slice(0, 5).map(c => c.raisonSociale || "Inconnu").join(", ")}`,
     });
   }
 
@@ -143,7 +183,7 @@ export function runDiagnostic360(
     statut: cniExp.length === 0 ? "OK" : "CRITIQUE",
     detail: cniExp.length === 0
       ? "Toutes les CNI sont a jour"
-      : `${cniExp.length} CNI expiree(s): ${cniExp.map(c => c.raisonSociale).join(", ")}`,
+      : `${cniExp.length} CNI expiree(s): ${cniExp.map(c => c.raisonSociale || "Inconnu").join(", ")}`,
     recommandation: cniExp.length > 0
       ? "Demander immediatement le renouvellement des pieces d'identite expirees."
       : "Aucune action requise.",
@@ -155,27 +195,27 @@ export function runDiagnostic360(
     if (!c.dateExpCni) return false;
     const exp = new Date(c.dateExpCni);
     if (isNaN(exp.getTime())) return false;
-    const diff = (exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24);
-    return diff > 0 && diff <= 90;
+    const diff = (exp.getTime() - now.getTime()) / MS_PER_DAY;
+    return diff > 0 && diff <= THRESHOLD_CNI_EXPIRY_SOON_DAYS;
   });
   if (cniBientot.length > 0) {
     items.push({
       categorie: "KYC",
       indicateur: "CNI expirant dans les 90 prochains jours",
       statut: "ALERTE",
-      detail: `${cniBientot.length} CNI expire(s) prochainement: ${cniBientot.map(c => c.raisonSociale).join(", ")}`,
+      detail: `${cniBientot.length} CNI expirant dans les ${THRESHOLD_CNI_EXPIRY_SOON_DAYS} prochains jours: ${cniBientot.map(c => c.raisonSociale || "Inconnu").join(", ")}`,
       recommandation: "Anticiper la demande de renouvellement des pieces d'identite.",
     });
   }
 
   // === 9. COMPLETUDE KYC ===
   const kycIncomplets = actifs.filter(c =>
-    !(c.siren || "").trim() || !(c.mail || "").trim() || !(c.adresse || "").trim()
+    !c.siren?.trim() || !c.mail?.trim() || !c.adresse?.trim()
   );
   items.push({
     categorie: "KYC",
     indicateur: "Completude des donnees KYC",
-    statut: kycIncomplets.length === 0 ? "OK" : kycIncomplets.length <= 3 ? "ALERTE" : "CRITIQUE",
+    statut: kycIncomplets.length === 0 ? "OK" : kycIncomplets.length <= THRESHOLD_KYC_INCOMPLETE_WARN ? "ALERTE" : "CRITIQUE",
     detail: `${kycIncomplets.length} dossier(s) avec donnees KYC incompletes`,
     recommandation: kycIncomplets.length > 0
       ? "Completer les informations manquantes (SIREN, email, adresse)."
@@ -188,7 +228,7 @@ export function runDiagnostic360(
   items.push({
     categorie: "KYC",
     indicateur: "Beneficiaires effectifs renseignes",
-    statut: sansBE.length === 0 ? "OK" : sansBE.length <= 3 ? "ALERTE" : "CRITIQUE",
+    statut: sansBE.length === 0 ? "OK" : sansBE.length <= THRESHOLD_BE_MISSING_WARN ? "ALERTE" : "CRITIQUE",
     detail: sansBE.length === 0
       ? "Tous les dossiers ont leurs beneficiaires effectifs"
       : `${sansBE.length} dossier(s) sans beneficiaire effectif identifie`,
@@ -203,7 +243,7 @@ export function runDiagnostic360(
   items.push({
     categorie: "KYC",
     indicateur: "Documents justificatifs (KBIS, statuts, CNI)",
-    statut: sansDocuments.length === 0 ? "OK" : sansDocuments.length <= 5 ? "ALERTE" : "CRITIQUE",
+    statut: sansDocuments.length === 0 ? "OK" : sansDocuments.length <= THRESHOLD_DOCS_MISSING_WARN ? "ALERTE" : "CRITIQUE",
     detail: sansDocuments.length === 0
       ? "Tous les dossiers ont au moins un document"
       : `${sansDocuments.length} dossier(s) sans aucun document justificatif`,
@@ -213,7 +253,7 @@ export function runDiagnostic360(
   });
 
   // === 12. GOUVERNANCE & FORMATION ===
-  const referents = collaborateurs.filter(c => c.referentLcb);
+  const referents = safeCollaborateurs.filter(c => c.referentLcb);
   items.push({
     categorie: "GOUVERNANCE",
     indicateur: "Referent LCB-FT designe",
@@ -228,7 +268,7 @@ export function runDiagnostic360(
   });
 
   // === 13. SUPPLEANT ===
-  const suppleants = collaborateurs.filter(c => c.suppleant && !c.referentLcb);
+  const suppleants = safeCollaborateurs.filter(c => c.suppleant && !c.referentLcb);
   items.push({
     categorie: "GOUVERNANCE",
     indicateur: "Suppleant du referent designe",
@@ -242,17 +282,17 @@ export function runDiagnostic360(
   });
 
   // === 14. FORMATION ===
-  const aFormer = collaborateurs.filter(c =>
-    c.statutFormation.includes("FORMER") || c.statutFormation.includes("JAMAIS")
+  const aFormer = safeCollaborateurs.filter(c =>
+    (c.statutFormation ?? "").includes("FORMER") || (c.statutFormation ?? "").includes("JAMAIS")
   );
-  const tauxFormation = collaborateurs.length > 0
-    ? Math.round(((collaborateurs.length - aFormer.length) / collaborateurs.length) * 100)
+  const tauxFormation = safeCollaborateurs.length > 0
+    ? Math.round(((safeCollaborateurs.length - aFormer.length) / safeCollaborateurs.length) * 100)
     : 0;
   items.push({
     categorie: "GOUVERNANCE",
     indicateur: "Taux de formation LCB-FT",
-    statut: tauxFormation >= 90 ? "OK" : tauxFormation >= 60 ? "ALERTE" : "CRITIQUE",
-    detail: `${collaborateurs.length - aFormer.length}/${collaborateurs.length} collaborateurs formes (${tauxFormation}%)`,
+    statut: tauxFormation >= THRESHOLD_FORMATION_OK_PCT ? "OK" : tauxFormation >= THRESHOLD_FORMATION_WARN_PCT ? "ALERTE" : "CRITIQUE",
+    detail: `${safeCollaborateurs.length - aFormer.length}/${safeCollaborateurs.length} collaborateurs formes (${tauxFormation}%)`,
     recommandation: aFormer.length > 0
       ? `Former en priorite: ${aFormer.map(c => c.nom).join(", ")}`
       : "Aucune action requise.",
@@ -260,7 +300,7 @@ export function runDiagnostic360(
   });
 
   // === 15. MANUEL INTERNE ===
-  const sansManuel = collaborateurs.filter(c => !c.dateSignatureManuel);
+  const sansManuel = safeCollaborateurs.filter(c => !c.dateSignatureManuel);
   items.push({
     categorie: "GOUVERNANCE",
     indicateur: "Signature du Manuel Interne LAB",
@@ -275,7 +315,7 @@ export function runDiagnostic360(
   });
 
   // === 16. REGISTRE DES ALERTES ===
-  const alertesEnCours = alertes.filter(a => a.statut === "EN COURS");
+  const alertesEnCours = safeAlertes.filter(a => a.statut === "EN COURS");
   const alertesEnRetard = alertesEnCours.filter(a => {
     if (!a.dateButoir) return false;
     const d = new Date(a.dateButoir);
@@ -294,7 +334,7 @@ export function runDiagnostic360(
   });
 
   // === 17. DECLARATIONS TRACFIN ===
-  const tracfinDeclarations = alertes.filter(a => (a.typeDecision || "").toLowerCase().includes("tracfin"));
+  const tracfinDeclarations = safeAlertes.filter(a => (a.typeDecision || "").toLowerCase().includes("tracfin"));
   items.push({
     categorie: "REGISTRE",
     indicateur: "Suivi des declarations TRACFIN",
@@ -305,17 +345,17 @@ export function runDiagnostic360(
   });
 
   // === 18. TRACABILITE (LOGS) ===
-  const logsRecents = logs.filter(l => {
+  const logsRecents = safeLogs.filter(l => {
     if (!l.horodatage) return false;
     const d = new Date(l.horodatage.replace(" ", "T"));
     if (isNaN(d.getTime())) return false;
-    return (now.getTime() - d.getTime()) < 90 * 24 * 60 * 60 * 1000;
+    return (now.getTime() - d.getTime()) < THRESHOLD_LOG_WINDOW_DAYS * MS_PER_DAY;
   });
   items.push({
     categorie: "TRACABILITE",
     indicateur: "Activite du journal d'audit (90 derniers jours)",
-    statut: logsRecents.length >= 10 ? "OK" : logsRecents.length >= 3 ? "ALERTE" : "CRITIQUE",
-    detail: `${logsRecents.length} entree(s) dans le journal sur les 90 derniers jours`,
+    statut: logsRecents.length >= THRESHOLD_LOGS_OK ? "OK" : logsRecents.length >= THRESHOLD_LOGS_WARN ? "ALERTE" : "CRITIQUE",
+    detail: `${logsRecents.length} entree(s) dans le journal sur les ${THRESHOLD_LOG_WINDOW_DAYS} derniers jours`,
     recommandation: logsRecents.length < 10
       ? "L'activite de suivi semble faible. Verifier que toutes les actions sont bien tracees."
       : "Aucune action requise.",
@@ -326,9 +366,9 @@ export function runDiagnostic360(
   items.push({
     categorie: "TRACABILITE",
     indicateur: "Diversite des actions tracees",
-    statut: actionTypes.size >= 4 ? "OK" : actionTypes.size >= 2 ? "ALERTE" : "CRITIQUE",
-    detail: `${actionTypes.size} type(s) d'action distinct(s) dans les 90 derniers jours`,
-    recommandation: actionTypes.size < 4
+    statut: actionTypes.size >= THRESHOLD_ACTION_DIVERSITY_OK ? "OK" : actionTypes.size >= THRESHOLD_ACTION_DIVERSITY_WARN ? "ALERTE" : "CRITIQUE",
+    detail: `${actionTypes.size} type(s) d'action distinct(s) dans les ${THRESHOLD_LOG_WINDOW_DAYS} derniers jours`,
+    recommandation: actionTypes.size < THRESHOLD_ACTION_DIVERSITY_OK
       ? "Verifier que les screenings, scorings, revues et alertes sont correctement traces."
       : "Aucune action requise.",
   });
@@ -339,31 +379,33 @@ export function runDiagnostic360(
   items.push({
     categorie: "RISQUE GLOBAL",
     indicateur: "Proportion de clients en vigilance renforcee",
-    statut: tauxRenforce <= 30 ? "OK" : tauxRenforce <= 50 ? "ALERTE" : "CRITIQUE",
+    statut: tauxRenforce <= THRESHOLD_RENFORCEE_OK_PCT ? "OK" : tauxRenforce <= THRESHOLD_RENFORCEE_WARN_PCT ? "ALERTE" : "CRITIQUE",
     detail: `${renforcees.length}/${actifs.length} clients en vigilance renforcee (${tauxRenforce}%)`,
-    recommandation: tauxRenforce > 30
+    recommandation: tauxRenforce > THRESHOLD_RENFORCEE_OK_PCT
       ? "Le portefeuille presente une concentration de risque elevee. Envisager un examen des acceptations."
       : "Aucune action requise.",
   });
 
   // === 21. SCORE MOYEN DU PORTEFEUILLE ===
   const scoreMoyen = actifs.length > 0
-    ? Math.round(actifs.reduce((s, c) => s + c.scoreGlobal, 0) / actifs.length)
+    ? Math.round(actifs.reduce((s, c) => s + (c.scoreGlobal ?? 0), 0) / actifs.length)
     : 0;
   items.push({
     categorie: "RISQUE GLOBAL",
     indicateur: "Score de risque moyen du portefeuille",
-    statut: scoreMoyen <= 40 ? "OK" : scoreMoyen <= 60 ? "ALERTE" : "CRITIQUE",
+    statut: scoreMoyen <= THRESHOLD_SCORE_MOYEN_OK ? "OK" : scoreMoyen <= THRESHOLD_SCORE_MOYEN_WARN ? "ALERTE" : "CRITIQUE",
     detail: `Score moyen: ${scoreMoyen}/120`,
-    recommandation: scoreMoyen > 40
+    recommandation: scoreMoyen > THRESHOLD_SCORE_MOYEN_OK
       ? "Le niveau de risque moyen est eleve. Renforcer les mesures de vigilance."
       : "Aucune action requise.",
   });
 
   // === 22. CAPITAL ADEQUACY ===
   const capitalAnomalie = actifs.filter(c => {
-    if (c.capital <= 0 || c.honoraires <= 0) return false;
-    return c.capital < 100 && c.honoraires > 10000;
+    const cap = c.capital ?? 0;
+    const hon = c.honoraires ?? 0;
+    if (cap <= 0 || hon <= 0) return false;
+    return cap < THRESHOLD_CAPITAL_LOW && hon > THRESHOLD_HONORAIRES_HIGH;
   });
   if (capitalAnomalie.length > 0) {
     items.push({
@@ -381,12 +423,35 @@ export function runDiagnostic360(
     items.push({
       categorie: "RISQUE GLOBAL",
       indicateur: "Clients en mission de domiciliation",
-      statut: domicilies.length <= 3 ? "ALERTE" : "CRITIQUE",
+      statut: domicilies.length <= THRESHOLD_DOMICILIATION_WARN ? "ALERTE" : "CRITIQUE",
       detail: `${domicilies.length} client(s) en domiciliation — mission a risque eleve`,
       recommandation: "Appliquer des mesures de vigilance renforcees pour tous les clients domicilies.",
       referenceReglementaire: "Art. L.561-10 CMF",
     });
   }
+
+  // === 24. DOUBLONS SIREN ===
+  const sirenMap = new Map<string, string[]>();
+  for (const c of actifs) {
+    if (!c.siren || c.siren.trim() === "") continue;
+    const normalizedSiren = c.siren.replace(/\s/g, "");
+    if (normalizedSiren.length < 9) continue;
+    const existing = sirenMap.get(normalizedSiren) || [];
+    existing.push(c.raisonSociale || c.ref || "Inconnu");
+    sirenMap.set(normalizedSiren, existing);
+  }
+  const doublonsCount = [...sirenMap.values()].filter(v => v.length > 1).length;
+  items.push({
+    categorie: "KYC",
+    indicateur: "Doublons SIREN dans le portefeuille",
+    statut: doublonsCount === 0 ? "OK" : "ALERTE",
+    detail: doublonsCount === 0
+      ? "Aucun doublon SIREN detecte"
+      : `${doublonsCount} SIREN(s) present(s) en doublon dans le portefeuille`,
+    recommandation: doublonsCount > 0
+      ? "Verifier et fusionner ou archiver les dossiers en doublon."
+      : "Aucune action requise.",
+  });
 
   // === CALCUL NOTE GLOBALE ===
   const critiques = items.filter(i => i.statut === "CRITIQUE").length;
@@ -394,11 +459,11 @@ export function runDiagnostic360(
   const okCount = items.filter(i => i.statut === "OK").length;
 
   // Score pondéré: OK=10pts, ALERTE=5pts, CRITIQUE=0pts
-  const maxPoints = items.length * 10;
-  const points = okCount * 10 + alerteCount * 5;
-  const scoreDispositif = maxPoints > 0 ? Math.round((points / maxPoints) * 100) : 0;
+  const maxPoints = items.length * SCORE_OK_POINTS;
+  const points = okCount * SCORE_OK_POINTS + alerteCount * SCORE_ALERTE_POINTS;
+  const scoreDispositif = maxPoints > 0 ? Math.min(Math.round((points / maxPoints) * 100), 100) : 0;
 
-  const noteLettre = scoreDispositif >= 80 ? "A" : scoreDispositif >= 60 ? "B" : scoreDispositif >= 40 ? "C" : "D";
+  const noteLettre = scoreDispositif >= NOTE_A_THRESHOLD ? "A" : scoreDispositif >= NOTE_B_THRESHOLD ? "B" : scoreDispositif >= NOTE_C_THRESHOLD ? "C" : "D";
 
   const recommandationsPrioritaires = items
     .filter(i => i.statut === "CRITIQUE")

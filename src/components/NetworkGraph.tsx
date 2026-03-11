@@ -12,10 +12,23 @@ interface Props {
 
 export default function NetworkGraph({ nodes, edges, width = 700, height = 500, onNodeClick }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const onNodeClickRef = useRef(onNodeClick);
+  onNodeClickRef.current = onNodeClick;
 
   useEffect(() => {
-    if (!svgRef.current || !nodes || nodes.length === 0) return;
-    const safeEdges = edges ?? [];
+    // P6-81: Skip simulation for single node (no edges to display)
+    if (!svgRef.current || !nodes || nodes.length === 0) {
+      // Clean up SVG when nodes become empty
+      if (svgRef.current) d3.select(svgRef.current).selectAll("*").remove();
+      return;
+    }
+    if (nodes.length === 1 && (!edges || edges.length === 0)) {
+      // Clean up SVG from previous render with more nodes
+      d3.select(svgRef.current).selectAll("*").remove();
+      return;
+    }
+    const nodeIds = new Set(nodes.map(n => n.id));
+    const safeEdges = (edges ?? []).filter(e => e.source && e.target && nodeIds.has(e.source) && nodeIds.has(e.target));
 
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
@@ -46,7 +59,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
     // #14: Role-based edge coloring
     const roleColor = (label: string): string => {
-      const l = label.toLowerCase();
+      const l = (label ?? "").toLowerCase();
       if (l.includes("président") || l.includes("president")) return "rgba(59, 130, 246, 0.5)";
       if (l.includes("gérant") || l.includes("gerant")) return "rgba(16, 185, 129, 0.5)";
       if (l.includes("associé") || l.includes("associe")) return "rgba(249, 115, 22, 0.5)";
@@ -68,7 +81,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .data(simEdges)
       .join("text")
       .text(d => {
-        const parts = d.label.split(" (");
+        const parts = (d.label ?? "").split(" (");
         return parts[0];
       })
       .attr("font-size", "8px")
@@ -107,10 +120,10 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         })
       );
 
-    // Click handler
+    // Click handler (use ref to always get latest callback without re-running effect)
     node.on("click", (_event, d: any) => {
-      if (onNodeClick) {
-        onNodeClick(d as NetworkNode);
+      if (onNodeClickRef.current) {
+        onNodeClickRef.current(d as NetworkNode);
       } else {
         // Default: open Pappers for companies
         if (d.type === "company" && d.siren) {
@@ -177,10 +190,18 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
     });
 
-    return () => { simulation.stop(); };
-  }, [nodes, edges, width, height, onNodeClick]);
+    return () => {
+      simulation.stop();
+      simulation.on("tick", null);
+      node.on("click", null);
+      node.on(".drag", null);
+      svg.on(".zoom", null);
+      svg.selectAll("*").remove();
+    };
+  // P6-44: Remove onNodeClick from deps to avoid re-render loops (ref-stable via useRef in parent)
+  }, [nodes, edges, width, height]);
 
-  if (nodes.length === 0) {
+  if (nodes.length === 0 || (nodes.length === 1 && (!edges || edges.length === 0))) {
     return (
       <div className="flex items-center justify-center h-[400px] text-slate-500 text-sm">
         Aucune donnee de reseau disponible
@@ -191,6 +212,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   return (
     <svg
       ref={svgRef}
+      role="img"
+      aria-label="Graphe du reseau de relations entre entites"
       width={width}
       height={height}
       className="w-full"

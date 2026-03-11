@@ -13,6 +13,7 @@ let _cachedKey: CryptoKey | null = null;
 
 async function getKey(): Promise<CryptoKey> {
   if (_cachedKey) return _cachedKey;
+  if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) throw new Error("Encryption keys not configured");
   const encoder = new TextEncoder();
   const keyMaterial = await crypto.subtle.importKey(
     "raw",
@@ -34,20 +35,24 @@ async function getKey(): Promise<CryptoKey> {
 export async function encryptField(plaintext: string): Promise<string> {
   if (!plaintext) return "";
   if (!ENCRYPTION_KEY || !ENCRYPTION_SALT) throw new Error("Encryption keys not configured");
-  const key = await getKey();
-  const iv = crypto.getRandomValues(new Uint8Array(12));
-  const encoded = new TextEncoder().encode(plaintext);
-  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
-  const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
-  combined.set(iv);
-  combined.set(new Uint8Array(ciphertext), iv.length);
-  // Chunked conversion to avoid stack overflow on large data
-  const CHUNK = 8192;
-  let binary = "";
-  for (let i = 0; i < combined.length; i += CHUNK) {
-    binary += String.fromCharCode(...combined.subarray(i, i + CHUNK));
+  try {
+    const key = await getKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const encoded = new TextEncoder().encode(plaintext);
+    const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, key, encoded);
+    const combined = new Uint8Array(iv.length + new Uint8Array(ciphertext).length);
+    combined.set(iv);
+    combined.set(new Uint8Array(ciphertext), iv.length);
+    // Use chunked conversion to avoid "Maximum call stack size exceeded" on large data
+    let binary = "";
+    for (let i = 0; i < combined.length; i++) {
+      binary += String.fromCharCode(combined[i]);
+    }
+    return btoa(binary);
+  } catch (err) {
+    logger.error("[Encryption] Encryption failed:", err instanceof Error ? err.message : String(err));
+    throw new Error("Encryption failed — sensitive data was not stored");
   }
-  return btoa(binary);
 }
 
 export async function decryptField(encrypted: string): Promise<string> {
@@ -60,8 +65,9 @@ export async function decryptField(encrypted: string): Promise<string> {
     const ciphertext = combined.slice(12);
     const decrypted = await crypto.subtle.decrypt({ name: "AES-GCM", iv }, key, ciphertext);
     return new TextDecoder().decode(decrypted);
-  } catch {
-    // FIX 15: Never return raw ciphertext — return masked placeholder
+  } catch (err) {
+    // Never return raw ciphertext — log and return masked placeholder
+    logger.warn("[Encryption] Decryption failed:", err instanceof Error ? err.message : String(err));
     return "••••••••";
   }
 }

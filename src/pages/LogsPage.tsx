@@ -1,5 +1,7 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
+import { downloadCSV } from "@/lib/csvUtils";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -78,6 +80,8 @@ export default function LogsPage() {
   const [dateStart, setDateStart] = useState("");
   const [dateEnd, setDateEnd] = useState("");
 
+  useDocumentTitle("Historique");
+
   // Unique values for filters
   const uniqueActions = useMemo(() => Array.from(new Set(logs.map(l => l.typeAction))).sort(), [logs]);
   const uniqueUsers = useMemo(() => Array.from(new Set(logs.map(l => l.utilisateur).filter(Boolean))).sort(), [logs]);
@@ -87,15 +91,15 @@ export default function LogsPage() {
     const now = Date.now();
     const last7d = logs.filter(l => {
       const d = new Date(l.horodatage.replace(" ", "T"));
-      return (now - d.getTime()) < 7 * 86400000;
+      return !isNaN(d.getTime()) && (now - d.getTime()) < 7 * 86400000;
     }).length;
     const last30d = logs.filter(l => {
       const d = new Date(l.horodatage.replace(" ", "T"));
-      return (now - d.getTime()) < 30 * 86400000;
+      return !isNaN(d.getTime()) && (now - d.getTime()) < 30 * 86400000;
     }).length;
     const last90d = logs.filter(l => {
       const d = new Date(l.horodatage.replace(" ", "T"));
-      return (now - d.getTime()) < 90 * 86400000;
+      return !isNaN(d.getTime()) && (now - d.getTime()) < 90 * 86400000;
     }).length;
 
     // Action distribution
@@ -107,27 +111,30 @@ export default function LogsPage() {
   }, [logs]);
 
   // Day grouping helper
-  const getDayLabel = (horodatage: string): string => {
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const yesterday = useMemo(() => new Date(Date.now() - 86400000).toISOString().split("T")[0], []);
+
+  const getDayLabel = useCallback((horodatage: string): string => {
     const dateStr = getDateFromHorodatage(horodatage);
     if (!dateStr) return "Inconnu";
-    const today = new Date().toISOString().split("T")[0];
-    const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0];
     if (dateStr === today) return "Aujourd'hui";
     if (dateStr === yesterday) return "Hier";
     try {
-      return new Date(dateStr).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return "Date inconnue";
+      return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
     } catch { return dateStr; }
-  };
+  }, [today, yesterday]);
 
   const filtered = useMemo(() => {
     let result = logs;
     if (search) {
       const q = search.toLowerCase();
       result = result.filter(log =>
-        (log.typeAction || "").toLowerCase().includes(q) ||
-        (log.details || "").toLowerCase().includes(q) ||
-        (log.refClient || "").toLowerCase().includes(q) ||
-        (log.utilisateur || "").toLowerCase().includes(q)
+        log.typeAction.toLowerCase().includes(q) ||
+        log.details.toLowerCase().includes(q) ||
+        log.refClient.toLowerCase().includes(q) ||
+        log.utilisateur.toLowerCase().includes(q)
       );
     }
     if (filterAction !== "all") result = result.filter(l => l.typeAction === filterAction);
@@ -168,7 +175,7 @@ export default function LogsPage() {
     }
     if (currentGroup.length > 0) groups.push({ label: currentLabel, logs: currentGroup });
     return groups;
-  }, [visible]);
+  }, [visible, getDayLabel]);
 
   return (
     <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
@@ -184,18 +191,11 @@ export default function LogsPage() {
           variant="outline"
           size="sm"
           className="gap-1.5 border-white/[0.06]"
+          aria-label="Exporter le journal en CSV"
           onClick={() => {
             const headers = ["Horodatage", "Utilisateur", "Action", "Reference", "Details"];
-            const csvSafe = (v: string) => `"${(v || "").replace(/"/g, '""').replace(/\n/g, " ").replace(/\r/g, "")}"`;
-            const rows = filtered.map(l => [l.horodatage, l.utilisateur, l.typeAction, l.refClient, l.details].map(csvSafe));
-            const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
-            const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `journal_actions_${new Date().toISOString().slice(0, 10)}.csv`;
-            a.click();
-            URL.revokeObjectURL(url);
+            const rows = filtered.map(l => [l.horodatage, l.utilisateur, l.typeAction, l.refClient, l.details]);
+            downloadCSV(headers, rows, `journal_actions_${new Date().toISOString().slice(0, 10)}.csv`);
             toast.success(`Export CSV genere (${filtered.length} entrees)`);
           }}
         >
@@ -207,7 +207,7 @@ export default function LogsPage() {
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 animate-fade-in-up">
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-            <ScrollText className="w-4.5 h-4.5 text-blue-400" />
+            <ScrollText className="w-[18px] h-[18px] text-blue-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-white">{stats.total}</p>
@@ -216,7 +216,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
-            <Calendar className="w-4.5 h-4.5 text-emerald-400" />
+            <Calendar className="w-[18px] h-[18px] text-emerald-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-emerald-400">{stats.last7d}</p>
@@ -225,7 +225,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-purple-500/10 flex items-center justify-center">
-            <Calendar className="w-4.5 h-4.5 text-purple-400" />
+            <Calendar className="w-[18px] h-[18px] text-purple-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-purple-400">{stats.last30d}</p>
@@ -234,7 +234,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center">
-            <Calendar className="w-4.5 h-4.5 text-amber-400" />
+            <Calendar className="w-[18px] h-[18px] text-amber-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-amber-400">{stats.last90d}</p>
@@ -243,7 +243,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-slate-500/10 flex items-center justify-center">
-            <Activity className="w-4.5 h-4.5 text-slate-400" />
+            <Activity className="w-[18px] h-[18px] text-slate-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-white">{filtered.length}</p>
@@ -284,11 +284,12 @@ export default function LogsPage() {
             placeholder="Rechercher par action, details, reference, utilisateur..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
+            aria-label="Rechercher dans le journal"
             className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
           />
         </div>
         <Select value={filterAction} onValueChange={v => { setFilterAction(v); setVisibleCount(PAGE_SIZE); }}>
-          <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.06] text-slate-300">
+          <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par type d'action">
             <SelectValue placeholder="Type d'action" />
           </SelectTrigger>
           <SelectContent>
@@ -297,7 +298,7 @@ export default function LogsPage() {
           </SelectContent>
         </Select>
         <Select value={filterUser} onValueChange={v => { setFilterUser(v); setVisibleCount(PAGE_SIZE); }}>
-          <SelectTrigger className="w-[160px] bg-white/[0.03] border-white/[0.06] text-slate-300">
+          <SelectTrigger className="w-[160px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par utilisateur">
             <SelectValue placeholder="Utilisateur" />
           </SelectTrigger>
           <SelectContent>
@@ -305,10 +306,10 @@ export default function LogsPage() {
             {uniqueUsers.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setVisibleCount(PAGE_SIZE); }} className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
-        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setVisibleCount(PAGE_SIZE); }} className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de debut" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de fin" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters}>
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters} aria-label="Effacer tous les filtres">
             <X className="w-3 h-3 mr-1" /> Effacer
           </Button>
         )}
@@ -326,7 +327,19 @@ export default function LogsPage() {
                   Effacer les filtres
                 </Button>
               </div>
-            ) : "Aucune entree dans le journal"}
+            ) : (
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-16 h-16 rounded-full bg-slate-500/10 flex items-center justify-center">
+                  <ScrollText className="w-8 h-8 text-slate-600" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-400">Aucune entree dans le journal</p>
+                  <p className="text-xs text-slate-600 mt-1">
+                    Les actions effectuees dans l'application apparaitront ici automatiquement.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <div className="relative">
@@ -391,6 +404,7 @@ export default function LogsPage() {
             <button
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
               className="px-6 py-2.5 text-sm font-medium rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors"
+              aria-label={`Charger ${filtered.length - visibleCount} entrees supplementaires`}
             >
               Charger plus ({filtered.length - visibleCount} restants)
             </button>

@@ -22,13 +22,18 @@ export default defineConfig(({ mode }) => ({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Split vendor libs into a stable chunk to match Vercel's splitting
           if (id.includes("node_modules")) {
-            if (id.includes("react") || id.includes("react-dom") || id.includes("scheduler")) {
+            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router-dom") || id.includes("scheduler")) {
               return "vendor";
             }
             if (id.includes("recharts") || id.includes("d3-")) {
-              return "recharts";
+              return "charts";
+            }
+            if (id.includes("@supabase/supabase-js")) {
+              return "supabase";
+            }
+            if (id.includes("jspdf")) {
+              return "pdf";
             }
           }
         },

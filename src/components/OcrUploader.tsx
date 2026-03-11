@@ -110,9 +110,19 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+function parseFrenchDate(dateStr: string): Date {
+  // Handle dd/mm/yyyy format from OCR
+  const ddmmyyyy = dateStr.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (ddmmyyyy) {
+    return new Date(Number(ddmmyyyy[3]), Number(ddmmyyyy[2]) - 1, Number(ddmmyyyy[1]));
+  }
+  // Fallback to ISO / native parsing
+  return new Date(dateStr);
+}
+
 function daysExpired(dateStr: string | null): number | null {
   if (!dateStr) return null;
-  const expDate = new Date(dateStr);
+  const expDate = parseFrenchDate(dateStr);
   if (isNaN(expDate.getTime())) return null;
   const now = new Date();
   const diffMs = now.getTime() - expDate.getTime();
@@ -121,7 +131,7 @@ function daysExpired(dateStr: string | null): number | null {
 
 function formatDateDisplay(dateStr: string | null): string {
   if (!dateStr) return "—";
-  const d = new Date(dateStr);
+  const d = parseFrenchDate(dateStr);
   if (isNaN(d.getTime())) return dateStr;
   return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
@@ -152,6 +162,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
       if (validationError) {
         setStatus("error");
         setErrorMsg(validationError);
+        if (inputRef.current) inputRef.current.value = "";
         return;
       }
 
@@ -226,14 +237,14 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
         }
 
         setAlerts(newAlerts);
-        onExtracted?.(result, mode);
-      } catch (err) {
+        // P6-51: Don't auto-call onExtracted here — let user validate first via handleValidate button
+      } catch (err: unknown) {
         setStatus("error");
         setErrorMsg("Extraction automatique impossible — saisie manuelle");
         logger.error("OCR", "OCR extraction error", err);
       }
     },
-    [mode, clientSiren, onExtracted]
+    [mode, clientSiren]
   );
 
   const handleDrop = useCallback(
@@ -275,6 +286,14 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
     <div className="space-y-3">
       {/* Drop zone */}
       <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if ((e.key === "Enter" || e.key === " ") && status !== "loading") {
+            e.preventDefault();
+            inputRef.current?.click();
+          }
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragOver(true);
@@ -282,6 +301,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
         onDragLeave={() => setDragOver(false)}
         onDrop={handleDrop}
         onClick={() => status !== "loading" && inputRef.current?.click()}
+        aria-label={`Zone de depot pour ${config.label}`}
         className={`
           relative border-2 border-dashed rounded-lg ${compact ? "p-3" : "p-6"} text-center cursor-pointer transition-all
           ${dragOver ? "border-blue-400 bg-blue-500/10" : "border-white/10 hover:border-white/20 bg-white/[0.02]"}
@@ -294,6 +314,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
           accept={config.accept}
           onChange={handleFileChange}
           className="hidden"
+          aria-label={`Importer un fichier ${config.label}`}
         />
 
         {status === "loading" ? (
@@ -317,7 +338,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
       {/* Alerts (expiration, IBAN, SIREN mismatch) */}
       {alerts.map((alert, i) => (
         <div
-          key={i}
+          key={`${alert.type}-${alert.message.slice(0, 30)}-${i}`}
           className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
             alert.type === "error"
               ? "bg-red-500/10 border border-red-500/20 text-red-400"
