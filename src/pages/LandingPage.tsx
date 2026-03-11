@@ -2572,8 +2572,10 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* ══════ FOOTER — #8 working links ══════ */}
+        </main>
 
+        {/* ══════ FOOTER — #8 working links ══════ */}
+        <footer>
           <div className="mx-auto max-w-7xl px-6">
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div className="lg:col-span-1">
