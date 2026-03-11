@@ -42,16 +42,7 @@ export function MonthlyChart({ data, loading = false }: MonthlyChartProps) {
     try { localStorage.setItem(CHART_MODE_KEY, m); } catch { /* ignore */ }
   };
 
-  if (loading) {
-    return (
-      <div className="bg-card rounded-2xl border border-border p-5">
-        <div className="h-5 w-52 bg-muted rounded animate-pulse mb-4" />
-        <div className="h-64 bg-muted rounded-xl animate-pulse" />
-      </div>
-    );
-  }
-
-  // Aggregate quarterly if needed
+  // All hooks MUST be called before any early return (Rules of Hooks)
   const chartData = useMemo(() =>
     mode === "trimestriel"
       ? data.reduce<MonthlyDataPoint[]>((acc, d, i) => {
@@ -69,6 +60,15 @@ export function MonthlyChart({ data, loading = false }: MonthlyChartProps) {
   );
 
   const total = chartData.reduce((s, d) => s + d.simplifiee + d.standard + d.renforcee, 0);
+
+  if (loading) {
+    return (
+      <div className="bg-card rounded-2xl border border-border p-5">
+        <div className="h-5 w-52 bg-muted rounded animate-pulse mb-4" />
+        <div className="h-64 bg-muted rounded-xl animate-pulse" />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid" role="figure" aria-label="Évolution du portefeuille clients par niveau de vigilance">
