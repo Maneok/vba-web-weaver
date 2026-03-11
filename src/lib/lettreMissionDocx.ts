@@ -625,8 +625,8 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
       honoRows.push(honoTotal4Col("TOTAL", totalHT));
       children.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: honoRows }));
 
-      const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : "annuel";
-      const divisor = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : 1;
+      const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : honoraires.frequence === "SEMESTRIEL" ? "semestriel" : "annuel";
+      const divisor = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : honoraires.frequence === "SEMESTRIEL" ? 2 : 1;
       children.push(bodyText(`Facturation ${freqLabel} : ${formatMontant(Math.round((honoraires.comptable / divisor) * 100) / 100)} HT`));
       continue;
     }

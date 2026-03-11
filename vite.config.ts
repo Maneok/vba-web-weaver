@@ -21,11 +21,21 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          vendor: ["react", "react-dom", "react-router-dom"],
-          supabase: ["@supabase/supabase-js"],
-          charts: ["recharts"],
-          pdf: ["jspdf"],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("react") || id.includes("react-dom") || id.includes("react-router-dom") || id.includes("scheduler")) {
+              return "vendor";
+            }
+            if (id.includes("recharts") || id.includes("d3-")) {
+              return "charts";
+            }
+            if (id.includes("@supabase/supabase-js")) {
+              return "supabase";
+            }
+            if (id.includes("jspdf")) {
+              return "pdf";
+            }
+          }
         },
       },
     },

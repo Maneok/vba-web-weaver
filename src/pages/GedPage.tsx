@@ -74,6 +74,10 @@ const EXPIRABLE_CATEGORIES = ["cni", "kbis"];
 
 function getExpirationStatus(expirationDate: string | null): { label: string; variant: "default" | "destructive" | "secondary" | "outline"; daysLeft: number } | null {
   if (!expirationDate) return null;
+  try {
+    const parsed = parseISO(expirationDate);
+    if (isNaN(parsed.getTime())) return null;
+  } catch { return null; }
   const days = differenceInDays(parseISO(expirationDate), new Date());
   if (days < 0) return { label: `Expire depuis ${Math.abs(days)}j`, variant: "destructive", daysLeft: days };
   if (days <= 30) return { label: `Expire dans ${days}j`, variant: "destructive", daysLeft: days };

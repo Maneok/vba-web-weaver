@@ -44,7 +44,7 @@ export const MISSIONS: MissionType[] = [
 ];
 
 // Billing frequencies
-export const FREQUENCES = ["MENSUEL", "TRIMESTRIEL", "ANNUEL"] as const;
+export const FREQUENCES = ["MENSUEL", "TRIMESTRIEL", "SEMESTRIEL", "ANNUEL"] as const;
 
 // Default team members — to be replaced by collaborateurs from Supabase
 export const DEFAULT_COMPTABLES = ["MAGALIE", "JULIEN", "FANNY", "SERGE", "JOSE"] as const;

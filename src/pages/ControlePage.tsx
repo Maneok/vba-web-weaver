@@ -158,10 +158,10 @@ function detectAnomalies(c: ControleQualite): string[] {
   if (c.nivVigilance === "RENFORCEE" && c.scoreGlobal <= 25) {
     anomalies.push("Vigilance renforcee avec score faible (<= 25) - justification requise");
   }
-  if (c.resultatGlobal.startsWith("NON CONFORME") && !c.actionCorrectrice) {
+  if (c.resultatGlobal?.startsWith("NON CONFORME") && !c.actionCorrectrice) {
     anomalies.push("Non-conformite sans action correctrice definie");
   }
-  if (c.resultatGlobal.startsWith("NON CONFORME") && !c.dateEcheance) {
+  if (c.resultatGlobal?.startsWith("NON CONFORME") && !c.dateEcheance) {
     anomalies.push("Non-conformite sans date d'echeance pour correction");
   }
   const riskCount = [c.ppe, c.paysRisque, c.atypique, c.distanciel, c.cash, c.pression]
@@ -381,7 +381,7 @@ export default function ControlePage() {
     // Stat filter
     if (activeStatFilter) {
       if (activeStatFilter === "CONFORME") result = result.filter((c) => c.resultatGlobal === "CONFORME");
-      else if (activeStatFilter === "NON_CONFORME") result = result.filter((c) => c.resultatGlobal.startsWith("NON CONFORME"));
+      else if (activeStatFilter === "NON_CONFORME") result = result.filter((c) => c.resultatGlobal?.startsWith("NON CONFORME"));
       else if (activeStatFilter === "RESERVES") result = result.filter((c) => c.resultatGlobal === "CONFORME AVEC RESERVES");
       else if (activeStatFilter === "INCIDENTS") result = result.filter((c) => c.incident);
     }
@@ -391,11 +391,11 @@ export default function ControlePage() {
       const q = search.toLowerCase();
       result = result.filter(
         (c) =>
-          c.dossierAudite.toLowerCase().includes(q) ||
-          c.siren.includes(q) ||
-          c.controleur.toLowerCase().includes(q) ||
-          c.incident.toLowerCase().includes(q) ||
-          c.commentaire.toLowerCase().includes(q)
+          (c.dossierAudite || "").toLowerCase().includes(q) ||
+          (c.siren || "").includes(q) ||
+          (c.controleur || "").toLowerCase().includes(q) ||
+          (c.incident || "").toLowerCase().includes(q) ||
+          (c.commentaire || "").toLowerCase().includes(q)
       );
     }
 

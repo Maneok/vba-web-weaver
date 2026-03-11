@@ -27,6 +27,7 @@ const GedPage = lazy(() => import("@/pages/GedPage"));
 const LettreMissionPage = lazy(() => import("@/pages/LettreMissionPage"));
 const HelpPage = lazy(() => import("@/pages/HelpPage"));
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
+const OnboardingPage = lazy(() => import("@/pages/OnboardingPage"));
 const MentionsLegalesPage = lazy(() => import("@/pages/MentionsLegalesPage"));
 const CGVPage = lazy(() => import("@/pages/CGVPage"));
 const PolitiqueConfidentialitePage = lazy(() => import("@/pages/PolitiqueConfidentialitePage"));
@@ -82,6 +83,7 @@ const App = () => (
               <Routes>
                 <Route path="/landing" element={<SafePage><LandingPage /></SafePage>} />
                 <Route path="/auth" element={<SafePage><AuthPage /></SafePage>} />
+                <Route path="/onboarding" element={<ProtectedRoute skipOnboardingCheck><SafePage><OnboardingPage /></SafePage></ProtectedRoute>} />
                 <Route path="/mentions-legales" element={<SafePage><MentionsLegalesPage /></SafePage>} />
                 <Route path="/cgv" element={<SafePage><CGVPage /></SafePage>} />
                 <Route path="/confidentialite" element={<SafePage><PolitiqueConfidentialitePage /></SafePage>} />

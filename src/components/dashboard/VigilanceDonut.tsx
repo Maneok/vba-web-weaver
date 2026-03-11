@@ -20,8 +20,13 @@ export function VigilanceDonut({ simplifiee, standard, renforcee, loading = fals
   if (loading) {
     return (
       <div className="bg-card rounded-2xl border border-border p-5">
-        <div className="h-5 w-40 bg-muted rounded animate-pulse mb-4" />
-        <div className="w-48 h-48 mx-auto rounded-full bg-muted animate-pulse" />
+        <div className="h-4 w-40 rounded skeleton-shimmer mb-4" />
+        <div className="w-48 h-48 mx-auto rounded-full skeleton-shimmer" />
+        <div className="flex justify-center gap-4 mt-3">
+          <div className="h-3 w-16 rounded skeleton-shimmer" />
+          <div className="h-3 w-16 rounded skeleton-shimmer" />
+          <div className="h-3 w-16 rounded skeleton-shimmer" />
+        </div>
       </div>
     );
   }

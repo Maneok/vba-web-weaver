@@ -181,6 +181,36 @@ export default function DashboardPage() {
   const mountedRef = useRef(true);
   const lastManualRefresh = useRef(0);
 
+  // ── Handlers declared before any useEffect to prevent TDZ in production builds ──
+  const handleRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastManualRefresh.current < 3000) return;
+    lastManualRefresh.current = now;
+    setIsRefreshing(true);
+    refreshAll()
+      .then(() => {
+        if (mountedRef.current) {
+          setLastRefresh(new Date());
+          setAnnouncements(prev => [...prev.slice(-4), "Données actualisées"]);
+        }
+      })
+      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err))
+      .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
+  }, [refreshAll]);
+
+  const handleMarkNotificationAsRead = useCallback((id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));
+    supabase.from("notifications").update({ lue: true }).eq("id", id).then(() => {});
+  }, []);
+
+  const handleMarkAllNotificationsAsRead = useCallback(() => {
+    const unreadIds = notifications.filter(n => !n.lue).map(n => n.id);
+    setNotifications(prev => prev.map(n => ({ ...n, lue: true })));
+    if (unreadIds.length > 0) {
+      supabase.from("notifications").update({ lue: true }).in("id", unreadIds).then(() => {});
+    }
+  }, [notifications]);
+
   const greeting = useMemo(() => new Date().getHours() < 18 ? "Bonjour" : "Bonsoir", []);
 
   useDocumentTitle("Dashboard");
@@ -469,35 +499,6 @@ export default function DashboardPage() {
 
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
   const cabinetName = profile?.cabinet_id ? "Cabinet" : "GRIMY";
-
-  const handleRefresh = useCallback(() => {
-    const now = Date.now();
-    if (now - lastManualRefresh.current < 3000) return;
-    lastManualRefresh.current = now;
-    setIsRefreshing(true);
-    refreshAll()
-      .then(() => {
-        if (mountedRef.current) {
-          setLastRefresh(new Date());
-          setAnnouncements(prev => [...prev.slice(-4), "Données actualisées"]);
-        }
-      })
-      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err))
-      .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
-  }, [refreshAll]);
-
-  const handleMarkNotificationAsRead = useCallback((id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));
-    supabase.from("notifications").update({ lue: true }).eq("id", id).then(() => {});
-  }, []);
-
-  const handleMarkAllNotificationsAsRead = useCallback(() => {
-    const unreadIds = notifications.filter(n => !n.lue).map(n => n.id);
-    setNotifications(prev => prev.map(n => ({ ...n, lue: true })));
-    if (unreadIds.length > 0) {
-      supabase.from("notifications").update({ lue: true }).in("id", unreadIds).then(() => {});
-    }
-  }, [notifications]);
 
   const showOnboarding = !isLoading && clients.length === 0 && !isOnboardingComplete();
 
