@@ -84,6 +84,11 @@ export default function DashboardPage() {
   const [drillDown, setDrillDown] = useState<"clients" | "alertes" | "revues" | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
 
+  // ── Refresh handler (declared before any useEffect to avoid TDZ) ──
+  const handleRefresh = useCallback(() => {
+    refreshAll().then(() => setLastRefresh(new Date())).catch(e => logger.warn("Dashboard", "Manual refresh failed:", e));
+  }, [refreshAll]);
+
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -265,10 +270,6 @@ export default function DashboardPage() {
   const conformiteColor = stats.tauxConformite >= 80 ? "#22c55e" : stats.tauxConformite >= 50 ? "#f59e0b" : "#ef4444";
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
   const firstName = userName.split(" ")[0];
-
-  const handleRefresh = useCallback(() => {
-    refreshAll().then(() => setLastRefresh(new Date())).catch(e => logger.warn("Dashboard", "Manual refresh failed:", e));
-  }, [refreshAll]);
 
   return (
     <div className="min-h-screen print:bg-white print:text-black page-fade-in">
