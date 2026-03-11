@@ -56,6 +56,18 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
   const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
+  // All hooks MUST be called before any early return (Rules of Hooks)
+  const allUrgencies = cockpit.urgencies ?? [];
+  const counts = countBySeverity(allUrgencies);
+
+  const urgencies = useMemo(() => {
+    return allUrgencies.filter(u => {
+      if (severityFilter !== "all" && u.severity !== severityFilter) return false;
+      if (categoryFilter !== "all" && mapTypeToCategory(u.type) !== categoryFilter) return false;
+      return true;
+    });
+  }, [allUrgencies, severityFilter, categoryFilter]);
+
   if (isLoading) {
     return (
       <div
@@ -84,17 +96,6 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
       </div>
     );
   }
-
-  const allUrgencies = cockpit.urgencies ?? [];
-  const counts = countBySeverity(allUrgencies);
-
-  const urgencies = useMemo(() => {
-    return allUrgencies.filter(u => {
-      if (severityFilter !== "all" && u.severity !== severityFilter) return false;
-      if (categoryFilter !== "all" && mapTypeToCategory(u.type) !== categoryFilter) return false;
-      return true;
-    });
-  }, [allUrgencies, severityFilter, categoryFilter]);
 
   const visibleItems = expanded ? urgencies : urgencies.slice(0, VISIBLE_DEFAULT);
   const hiddenCount = urgencies.length - VISIBLE_DEFAULT;
