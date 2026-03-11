@@ -30,3 +30,6 @@ bun.lockb
 *.sln
 *.sw?
 .claude/
+
+# Generated PDFs
+*.pdf
