@@ -29,8 +29,21 @@ export function MonthlyChart({ data, loading = false }: MonthlyChartProps) {
   if (loading) {
     return (
       <div className="bg-card rounded-2xl border border-border p-5">
-        <div className="h-5 w-52 bg-muted rounded animate-pulse mb-4" />
-        <div className="h-64 bg-muted rounded-xl animate-pulse" />
+        <div className="flex items-center justify-between mb-4">
+          <div className="h-4 w-48 rounded skeleton-shimmer" />
+          <div className="h-7 w-24 rounded skeleton-shimmer" />
+        </div>
+        <div className="h-64 relative overflow-hidden rounded-xl">
+          <div className="absolute bottom-0 left-0 right-0 flex items-end gap-2 px-4 pb-4">
+            {[40, 65, 50, 80, 55, 70, 45, 75, 60, 85, 50, 70].map((h, i) => (
+              <div
+                key={i}
+                className="flex-1 rounded-t skeleton-shimmer"
+                style={{ height: `${h}%`, opacity: 0.5 }}
+              />
+            ))}
+          </div>
+        </div>
       </div>
     );
   }

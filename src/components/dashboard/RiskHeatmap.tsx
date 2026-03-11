@@ -31,8 +31,8 @@ export function RiskHeatmap({ clients, loading = false }: RiskHeatmapProps) {
   if (loading) {
     return (
       <div className="bg-card rounded-2xl border border-border p-5">
-        <div className="h-5 w-48 bg-muted rounded animate-pulse mb-4" />
-        <div className="h-64 bg-muted rounded-xl animate-pulse" />
+        <div className="h-4 w-48 rounded skeleton-shimmer mb-4" />
+        <div className="h-64 rounded-xl skeleton-shimmer" />
       </div>
     );
   }

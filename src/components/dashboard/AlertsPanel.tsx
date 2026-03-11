@@ -32,13 +32,13 @@ export function AlertsPanel({ alertes, loading = false }: AlertsPanelProps) {
   if (loading) {
     return (
       <div className="bg-card rounded-2xl border border-border p-5">
-        <div className="h-5 w-36 bg-muted rounded animate-pulse mb-4" />
+        <div className="h-4 w-36 rounded skeleton-shimmer mb-4" />
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="flex items-center gap-3 py-3 border-b border-border last:border-0">
-            <div className="w-8 h-8 rounded-full bg-muted animate-pulse" />
+            <div className="w-8 h-8 rounded-full skeleton-shimmer" />
             <div className="flex-1 space-y-2">
-              <div className="h-3 w-3/4 bg-muted rounded animate-pulse" />
-              <div className="h-2.5 w-1/2 bg-muted rounded animate-pulse" />
+              <div className="h-3 w-3/4 rounded skeleton-shimmer" />
+              <div className="h-2.5 w-1/2 rounded skeleton-shimmer" />
             </div>
           </div>
         ))}

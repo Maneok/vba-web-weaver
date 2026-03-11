@@ -44,10 +44,10 @@ export function ActivityFeed({ logs, loading = false }: ActivityFeedProps) {
   if (loading) {
     return (
       <div className="bg-card rounded-2xl border border-border p-5">
-        <div className="h-5 w-32 bg-muted rounded animate-pulse mb-4" />
-        <div className="flex gap-4 overflow-hidden">
+        <div className="h-4 w-32 rounded skeleton-shimmer mb-4" />
+        <div className="flex gap-3 overflow-hidden">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="shrink-0 w-56 h-20 bg-muted rounded-xl animate-pulse" />
+            <div key={i} className="shrink-0 w-60 h-20 rounded-xl skeleton-shimmer" />
           ))}
         </div>
       </div>

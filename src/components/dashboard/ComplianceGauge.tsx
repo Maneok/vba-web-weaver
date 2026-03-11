@@ -27,11 +27,11 @@ export function ComplianceGauge({ items, loading = false }: ComplianceGaugeProps
   if (loading) {
     return (
       <div className="bg-card rounded-2xl border border-border p-5">
-        <div className="h-5 w-44 bg-muted rounded animate-pulse mb-6" />
+        <div className="h-4 w-44 rounded skeleton-shimmer mb-6" />
         {Array.from({ length: 5 }).map((_, i) => (
           <div key={i} className="mb-4">
-            <div className="h-3 w-40 bg-muted rounded animate-pulse mb-2" />
-            <div className="h-3 w-full bg-muted rounded-full animate-pulse" />
+            <div className="h-3 w-40 rounded skeleton-shimmer mb-2" />
+            <div className="h-3 w-full rounded-full skeleton-shimmer" />
           </div>
         ))}
       </div>

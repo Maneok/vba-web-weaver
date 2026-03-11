@@ -55,8 +55,13 @@ export function CabinetHealthScore({
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center py-8">
-        <div className="w-[120px] h-[120px] rounded-full bg-muted animate-pulse" />
-        <div className="h-4 w-48 bg-muted rounded animate-pulse mt-4" />
+        <div className="w-[120px] h-[120px] rounded-full skeleton-shimmer" />
+        <div className="h-4 w-48 rounded skeleton-shimmer mt-4" />
+        <div className="flex gap-4 mt-3">
+          <div className="h-3 w-20 rounded skeleton-shimmer" />
+          <div className="h-3 w-14 rounded skeleton-shimmer" />
+          <div className="h-3 w-20 rounded skeleton-shimmer" />
+        </div>
       </div>
     );
   }

@@ -69,14 +69,14 @@ export function KPICard({
 }: KPICardProps) {
   if (loading) {
     return (
-      <div className="bg-card rounded-2xl p-5 border border-border animate-pulse">
+      <div className="bg-card rounded-2xl p-5 border border-border">
         <div className="flex items-center gap-2 mb-3">
-          <div className="w-9 h-9 rounded-xl bg-muted" />
-          <div className="h-3 w-20 bg-muted rounded" />
+          <div className="w-9 h-9 rounded-xl skeleton-shimmer" />
+          <div className="h-3 w-24 rounded skeleton-shimmer" />
         </div>
         <div className="flex items-end justify-between">
-          <div className="h-8 w-16 bg-muted rounded" />
-          <div className="h-7 w-16 bg-muted rounded" />
+          <div className="h-8 w-16 rounded skeleton-shimmer" />
+          <div className="h-6 w-16 rounded skeleton-shimmer" />
         </div>
       </div>
     );
@@ -98,7 +98,7 @@ export function KPICard({
 
   return (
     <div
-      className={`bg-card rounded-2xl p-5 border border-border hover:shadow-lg transition-all group ${onClick ? "cursor-pointer" : ""}`}
+      className={`bg-card rounded-2xl p-5 border border-border hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 group ${onClick ? "cursor-pointer" : ""}`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
       tabIndex={onClick ? 0 : undefined}

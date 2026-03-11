@@ -196,9 +196,21 @@
   100% { background-position: 200% 0; }
 }
 .skeleton-shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
+  background: linear-gradient(90deg,
+    hsl(217 33% 20%) 25%,
+    hsl(217 33% 25%) 50%,
+    hsl(217 33% 20%) 75%
+  );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* CTA button feedback */
+.btn-press { @apply active:scale-95 transition-transform duration-100; }
+
+/* Page content fade-in */
+.page-fade-in {
+  animation: page-fade-in 0.3s ease-out forwards;
 }
 
 /* Progress bar */
@@ -245,6 +257,16 @@ tr {
 /* Toast position fix */
 [data-sonner-toaster] {
   --offset: 16px !important;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Print styles */

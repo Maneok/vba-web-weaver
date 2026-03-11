@@ -107,7 +107,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         <Icon className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
         {!collapsed && (
           <>
-            <span className="truncate">{item.label}</span>
+            <span className="truncate animate-fade-in-up">{item.label}</span>
             {hasBadge && (
               <span className="ml-auto rounded-full bg-blue-500/20 px-2 py-0.5 text-[11px] font-medium text-blue-200">
                 {badge.count}
@@ -272,9 +272,16 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             </button>
           )}
 
-          {/* Version */}
-          <div className={`mt-2 text-center text-[10px] text-slate-700 select-none ${collapsed ? "px-1" : "px-3"}`}>
-            v{APP_VERSION}
+          {/* Trust footer + version */}
+          <div className={`mt-2 text-center select-none ${collapsed ? "px-1" : "px-3"}`}>
+            {!collapsed && (
+              <p className="text-[10px] text-slate-600 mb-0.5">
+                Conforme LCB-FT · Art. L.561-2 CMF
+              </p>
+            )}
+            <p className="text-[10px] text-slate-700">
+              GRIMY v{APP_VERSION}-beta
+            </p>
           </div>
         </div>
       </aside>

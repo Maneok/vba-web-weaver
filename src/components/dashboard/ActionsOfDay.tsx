@@ -170,9 +170,15 @@ export function ActionsOfDay({
   if (loading) {
     return (
       <div className="bg-card rounded-2xl border border-border p-5">
-        <div className="h-5 w-48 bg-muted rounded animate-pulse mb-4" />
+        <div className="h-4 w-48 rounded skeleton-shimmer mb-4" />
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="h-12 bg-muted rounded-xl animate-pulse mb-2" />
+          <div key={i} className="flex items-center gap-3 mb-2">
+            <div className="w-8 h-8 rounded-lg skeleton-shimmer" />
+            <div className="flex-1 space-y-1.5">
+              <div className="h-3 w-3/4 rounded skeleton-shimmer" />
+              <div className="h-2.5 w-1/2 rounded skeleton-shimmer" />
+            </div>
+          </div>
         ))}
       </div>
     );

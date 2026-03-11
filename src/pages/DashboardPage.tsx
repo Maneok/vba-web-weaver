@@ -48,6 +48,15 @@ function formatTime(d: Date): string {
   return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function formatTimeAgo(d: Date): { label: string; stale: boolean } {
+  const diffMin = Math.round((Date.now() - d.getTime()) / 60000);
+  if (diffMin < 1) return { label: "a l'instant", stale: false };
+  if (diffMin < 60) return { label: `il y a ${diffMin} min`, stale: false };
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return { label: `il y a ${diffH}h`, stale: diffH >= 6 };
+  return { label: `il y a ${Math.floor(diffH / 24)}j`, stale: true };
+}
+
 function generateSparkline(current: number): { v: number }[] {
   // Deterministic sparkline based on current value (avoids Math.random in render)
   const points: { v: number }[] = [];
@@ -262,7 +271,7 @@ export default function DashboardPage() {
   }, [refreshAll]);
 
   return (
-    <div className="min-h-screen print:bg-white print:text-black">
+    <div className="min-h-screen print:bg-white print:text-black page-fade-in">
 
       {/* ═══════════════════════════════════════════════════════════
           ZONE 1 — RASSURANCE (above the fold, ~40vh)
@@ -281,7 +290,7 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-2 print:hidden">
             {/* Primary CTA */}
-            <Button size="sm" className="gap-1.5" onClick={() => navigate("/nouveau-client")}>
+            <Button size="sm" className="gap-1.5 active:scale-95 transition-transform" onClick={() => navigate("/nouveau-client")}>
               <Plus className="w-4 h-4" />
               Nouveau client
             </Button>
@@ -475,13 +484,25 @@ export default function DashboardPage() {
         )}
       </div>
 
-      {/* ── Footer: Last update ────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pb-4 print:hidden">
-        <span>Derniere mise a jour : {formatTime(lastRefresh)}</span>
-        <button className="hover:text-foreground transition-colors" onClick={handleRefresh} title="Rafraichir">
-          <RefreshCw className="w-3.5 h-3.5" />
-        </button>
-      </div>
+      {/* ── Footer: Last update + trust ─────────────────────────── */}
+      {(() => {
+        const freshness = formatTimeAgo(lastRefresh);
+        return (
+          <div className="flex flex-col items-center gap-1 pb-4 print:hidden">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span className={freshness.stale ? "text-amber-400" : ""}>
+                Derniere synchro : {freshness.label}
+              </span>
+              <button className="hover:text-foreground transition-colors" onClick={handleRefresh} title={`Rafraichir (${formatTime(lastRefresh)})`}>
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <span className="text-[10px] text-slate-600">
+              Conforme LCB-FT · Art. L.561-2 CMF
+            </span>
+          </div>
+        );
+      })()}
 
       {/* ── Mobile FAB ─────────────────────────────────────────── */}
       <QuickActionsFAB />
