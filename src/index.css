@@ -241,11 +241,10 @@
   animation: progress-indeterminate 1.5s ease-in-out infinite;
 }
 
-/* Focus ring improvements */
+/* Focus ring improvements — rounded to match the element's own border-radius */
 *:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(217 91% 60% / 0.5);
-  border-radius: inherit;
 }
 
 /* Better selection color */
