@@ -19,6 +19,7 @@ import {
 } from "@/lib/lmWizardTypes";
 import { VALIDATORS, sanitizeWizardData } from "@/lib/lmValidation";
 import { incrementCounter } from "@/lib/lettreMissionEngine";
+import type { Client } from "@/lib/types";
 
 import LMStep1Client from "@/components/lettre-mission/LMStep1Client";
 import LMStep2Missions from "@/components/lettre-mission/LMStep2Missions";
@@ -602,7 +603,11 @@ export default function LettreMissionPage() {
       const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmId);
       if (error) throw error;
     } else {
-      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, user_id: authData?.user?.id, cabinet_id: profile?.cabinet_id }).select("id").maybeSingle();
+      if (!profile?.cabinet_id) {
+        toast.error("Impossible de sauvegarder : profil non initialise. Reconnectez-vous.");
+        return;
+      }
+      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, user_id: authData?.user?.id, cabinet_id: profile.cabinet_id }).select("id").maybeSingle();
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }

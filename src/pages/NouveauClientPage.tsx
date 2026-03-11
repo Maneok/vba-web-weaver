@@ -1838,7 +1838,7 @@ export default function NouveauClientPage() {
                 )}
               </div>
 
-              <Button onClick={handleSearch} disabled={searchLoading || screeningRunning || !searchQuery.trim() || !isOnline} className="bg-blue-600 hover:bg-blue-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+              <Button onClick={handleSearch} disabled={searchLoading || screeningRunning || !searchQuery.trim()} className="bg-blue-600 hover:bg-blue-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
                 {searchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 <span className="ml-1.5">Recuperer</span>
               </Button>
@@ -3888,12 +3888,20 @@ export default function NouveauClientPage() {
             </div>
           ) : (
             <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !isOnline}
+              onClick={() => {
+                if (!isOnline) {
+                  toast.error("Connexion au serveur requise pour creer un client. Verifiez votre connexion internet.");
+                  return;
+                }
+                handleSubmit();
+              }}
+              disabled={isSubmitting}
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               {isSubmitting ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Creation en cours...</>
+              ) : !isOnline ? (
+                <><WifiOff className="w-4 h-4" /> Hors ligne — Creation impossible</>
               ) : (
                 <><Check className="w-4 h-4" /> Valider et creer le client</>
               )}

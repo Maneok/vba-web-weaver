@@ -41,20 +41,29 @@ async function getCabinetId(): Promise<string | null> {
     if (!user) { _cachedCabinetId = null; _cachedUserId = null; return null; }
     // Return cache if same user
     if (_cachedCabinetId && _cachedUserId === user.id) return _cachedCabinetId;
-    const { data, error } = await supabase
-      .from("profiles")
-      .select("cabinet_id")
-      .eq("id", user.id)
-      .single();
-    if (error) {
-      logger.error("DB", "getCabinetId error:", error);
-      _cachedCabinetId = null;
-      _cachedUserId = null;
-      return null;
+
+    // Try up to 3 times with increasing delay (profile may not be created yet on first login)
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("cabinet_id")
+        .eq("id", user.id)
+        .single();
+      if (!error && data?.cabinet_id) {
+        _cachedCabinetId = data.cabinet_id;
+        _cachedUserId = user.id;
+        return _cachedCabinetId;
+      }
+      if (attempt < 2) {
+        logger.warn("DB", `getCabinetId attempt ${attempt + 1} failed, retrying in ${(attempt + 1) * 500}ms...`);
+        await new Promise(r => setTimeout(r, (attempt + 1) * 500));
+      } else {
+        logger.error("DB", "getCabinetId failed after 3 attempts:", error?.message ?? "cabinet_id is null");
+      }
     }
-    _cachedCabinetId = data?.cabinet_id || null;
-    _cachedUserId = user.id;
-    return _cachedCabinetId;
+    _cachedCabinetId = null;
+    _cachedUserId = null;
+    return null;
   } catch (e) {
     logger.error("DB", "getCabinetId exception:", e);
     _cachedCabinetId = null;
@@ -87,7 +96,10 @@ export const clientsService = {
 
   async create(client: Record<string, unknown>) {
     const cabinetId = await getCabinetId();
-    if (!cabinetId) return null;
+    if (!cabinetId) {
+      logger.error("DB", "clients.create: no cabinet_id — user profile may not be initialized");
+      return null;
+    }
     const { data, error } = await supabase
       .from("clients")
       .insert({ ...client, cabinet_id: cabinetId })

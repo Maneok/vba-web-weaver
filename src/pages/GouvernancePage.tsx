@@ -134,7 +134,7 @@ export default function GouvernancePage() {
         setSaving(false);
         return;
       }
-      await collaborateursService.create({
+      const result = await collaborateursService.create({
         nom: newCollab.nom.trim(),
         fonction: newCollab.fonction,
         email: newCollab.email.trim(),
@@ -146,6 +146,10 @@ export default function GouvernancePage() {
         referent_lcb: newCollab.referentLcb,
         statut_formation: newCollab.derniereFormation ? getFormationBadge(newCollab.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
       });
+      if (!result) {
+        toast.error("Erreur lors de l'ajout du collaborateur");
+        return;
+      }
       await refreshAll();
       setNewCollab({ ...EMPTY_FORM });
       setShowAddDialog(false);
@@ -174,7 +178,7 @@ export default function GouvernancePage() {
         setSaving(false);
         return;
       }
-      await collaborateursService.update(editingCollab.id, {
+      const result = await collaborateursService.update(editingCollab.id, {
         nom: editForm.nom.trim(),
         fonction: editForm.fonction,
         email: editForm.email.trim(),
@@ -186,6 +190,10 @@ export default function GouvernancePage() {
         referent_lcb: editForm.referentLcb,
         statut_formation: editForm.derniereFormation ? getFormationBadge(editForm.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
       });
+      if (!result) {
+        toast.error("Erreur lors de la modification du collaborateur");
+        return;
+      }
       await refreshAll();
       setShowEditDialog(false);
       setEditingCollab(null);
