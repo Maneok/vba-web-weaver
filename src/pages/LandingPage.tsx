@@ -310,6 +310,99 @@ const PROFILES = [
 ] as const;
 
 /* ══════════════════════════════════════════════════════════════
+   Hero background illustrations per profession — very subtle SVGs
+   ══════════════════════════════════════════════════════════════ */
+function HeroBgIllustration({ profileId }: { profileId: string }) {
+  const baseClass = "absolute inset-0 w-full h-full transition-opacity duration-1000 pointer-events-none";
+  const s = "var(--l-hero-illus)";
+
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+      {/* Expert-comptable — spreadsheet grid + numbers */}
+      <svg className={`${baseClass} ${profileId === "ec" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        {[200, 400, 600, 800, 1000].map(x => <line key={`v${x}`} x1={x} y1={80} x2={x} y2={720} stroke={s} strokeWidth="0.5" />)}
+        {[160, 280, 400, 520, 640].map(y => <line key={`h${y}`} x1={100} y1={y} x2={1100} y2={y} stroke={s} strokeWidth="0.5" />)}
+        <text x="150" y="220" fill={s} fontSize="28" fontFamily="serif" opacity="0.7">12 450</text>
+        <text x="850" y="340" fill={s} fontSize="24" fontFamily="serif" opacity="0.5">8 920</text>
+        <text x="450" y="600" fill={s} fontSize="20" fontFamily="serif" opacity="0.4">3 180</text>
+        <text x="720" y="180" fill={s} fontSize="32" fontFamily="serif" opacity="0.6">€</text>
+        <text x="250" y="500" fill={s} fontSize="26" fontFamily="serif" opacity="0.5">%</text>
+        <rect x="920" y="520" width="140" height="180" rx="16" stroke={s} strokeWidth="1" opacity="0.4" />
+        <rect x="940" y="545" width="100" height="30" rx="4" stroke={s} strokeWidth="0.5" opacity="0.3" />
+        {[0,1,2].map(r => [0,1,2].map(c => <rect key={`k${r}${c}`} x={940 + c * 35} y={590 + r * 35} width="25" height="25" rx="4" stroke={s} strokeWidth="0.5" opacity="0.25" />))}
+      </svg>
+
+      {/* Commissaire aux comptes — audit circles + balance */}
+      <svg className={`${baseClass} ${profileId === "cac" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        {[120, 200, 280, 360].map(r => <circle key={r} cx="200" cy="400" r={r} stroke={s} strokeWidth="0.5" strokeDasharray="8 12" />)}
+        {[80, 140, 200, 260].map(r => <circle key={`r${r}`} cx="1000" cy="350" r={r} stroke={s} strokeWidth="0.5" strokeDasharray="4 8" />)}
+        <line x1="580" y1="150" x2="620" y2="150" stroke={s} strokeWidth="1.5" opacity="0.5" />
+        <line x1="600" y1="150" x2="600" y2="100" stroke={s} strokeWidth="1" opacity="0.5" />
+        <line x1="540" y1="100" x2="660" y2="100" stroke={s} strokeWidth="1" opacity="0.5" />
+        <path d="M540 100 L520 140 L560 140 Z" stroke={s} strokeWidth="0.8" opacity="0.4" />
+        <path d="M660 100 L640 140 L680 140 Z" stroke={s} strokeWidth="0.8" opacity="0.4" />
+        <path d="M150 620 l8 8 l16 -16" stroke={s} strokeWidth="1.5" strokeLinecap="round" opacity="0.5" />
+        <path d="M900 600 l8 8 l16 -16" stroke={s} strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
+        <text x="850" y="650" fill={s} fontSize="18" fontFamily="serif" opacity="0.4">AUDIT</text>
+      </svg>
+
+      {/* Avocat — pillars + law reference */}
+      <svg className={`${baseClass} ${profileId === "avocat" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        {[100, 160].map(x => (
+          <g key={x}>
+            <rect x={x} y={200} width={24} height={400} stroke={s} strokeWidth="0.8" opacity="0.3" rx="2" />
+            <rect x={x - 8} y={190} width={40} height={12} stroke={s} strokeWidth="0.5" opacity="0.25" rx="2" />
+            <rect x={x - 8} y={600} width={40} height={12} stroke={s} strokeWidth="0.5" opacity="0.25" rx="2" />
+          </g>
+        ))}
+        {[1020, 1080].map(x => (
+          <g key={x}>
+            <rect x={x} y={250} width={24} height={350} stroke={s} strokeWidth="0.8" opacity="0.3" rx="2" />
+            <rect x={x - 8} y={240} width={40} height={12} stroke={s} strokeWidth="0.5" opacity="0.25" rx="2" />
+            <rect x={x - 8} y={600} width={40} height={12} stroke={s} strokeWidth="0.5" opacity="0.25" rx="2" />
+          </g>
+        ))}
+        {[0,1,2,3,4].map(i => <line key={i} x1={350} y1={580 + i * 18} x2={650 - i * 30} y2={580 + i * 18} stroke={s} strokeWidth="0.5" opacity={0.2 + i * 0.05} />)}
+        <text x="380" y="560" fill={s} fontSize="14" fontFamily="serif" opacity="0.35">Art. L.561-2 CMF</text>
+        <text x="900" y="200" fill={s} fontSize="64" fontFamily="serif" opacity="0.15">§</text>
+      </svg>
+
+      {/* Notaire — seal + quill */}
+      <svg className={`${baseClass} ${profileId === "notaire" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        <circle cx="200" cy="400" r="100" stroke={s} strokeWidth="1" opacity="0.3" />
+        <circle cx="200" cy="400" r="80" stroke={s} strokeWidth="0.5" opacity="0.25" />
+        <circle cx="200" cy="400" r="60" stroke={s} strokeWidth="0.5" strokeDasharray="3 5" opacity="0.2" />
+        <text x="200" y="410" fill={s} fontSize="22" fontFamily="serif" textAnchor="middle" opacity="0.3">ACTE</text>
+        {Array.from({ length: 24 }).map((_, i) => {
+          const a = (i / 24) * Math.PI * 2;
+          return <circle key={i} cx={200 + Math.cos(a) * 95} cy={400 + Math.sin(a) * 95} r="5" stroke={s} strokeWidth="0.4" opacity="0.2" />;
+        })}
+        <path d="M980 180 Q960 300 1020 500" stroke={s} strokeWidth="1" opacity="0.35" />
+        <path d="M980 180 Q990 170 1000 180 Q990 190 980 180" stroke={s} strokeWidth="0.8" opacity="0.3" />
+        <rect x="800" y="550" width="200" height="180" rx="8" stroke={s} strokeWidth="0.5" opacity="0.2" />
+        {[0,1,2,3,4].map(i => <line key={i} x1={820} y1={580 + i * 22} x2={980} y2={580 + i * 22} stroke={s} strokeWidth="0.4" opacity="0.15" />)}
+        <path d="M180 500 L200 530 L220 500" stroke={s} strokeWidth="0.8" opacity="0.25" />
+      </svg>
+
+      {/* Agent immobilier — buildings + key */}
+      <svg className={`${baseClass} ${profileId === "immo" ? "opacity-100" : "opacity-0"}`} viewBox="0 0 1200 800" fill="none" preserveAspectRatio="xMidYMid slice">
+        <rect x="80" y="300" width="120" height="400" stroke={s} strokeWidth="0.8" opacity="0.3" rx="4" />
+        <rect x="220" y="400" width="80" height="300" stroke={s} strokeWidth="0.6" opacity="0.25" rx="4" />
+        {[0,1,2,3].map(r => [0,1].map(c => <rect key={`w${r}${c}`} x={100 + c * 55} y={330 + r * 80} width={30} height={35} rx="3" stroke={s} strokeWidth="0.4" opacity="0.2" />))}
+        <rect x="950" y="200" width="140" height="500" stroke={s} strokeWidth="0.8" opacity="0.3" rx="4" />
+        <rect x="870" y="350" width="65" height="350" stroke={s} strokeWidth="0.6" opacity="0.2" rx="4" />
+        {[0,1,2,3,4].map(r => [0,1].map(c => <rect key={`wr${r}${c}`} x={970 + c * 55} y={230 + r * 80} width={30} height={35} rx="3" stroke={s} strokeWidth="0.4" opacity="0.2" />))}
+        <path d="M550 580 L600 530 L650 580 Z" stroke={s} strokeWidth="0.8" opacity="0.25" />
+        <rect x="560" y="580" width="80" height="60" stroke={s} strokeWidth="0.6" opacity="0.2" rx="2" />
+        <circle cx="600" cy="700" r="12" stroke={s} strokeWidth="0.8" opacity="0.2" />
+        <line x1="612" y1="700" x2="645" y2="700" stroke={s} strokeWidth="0.6" opacity="0.2" />
+        <line x1="640" y1="695" x2="640" y2="710" stroke={s} strokeWidth="0.5" opacity="0.15" />
+      </svg>
+    </div>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════
    #16 — ROI Calculator
    ══════════════════════════════════════════════════════════════ */
 function ROICalculator() {
@@ -855,11 +948,11 @@ function CompMobileCard({ row }: { row: CompRow }) {
   return (
     <div className="rounded-xl border border-[--l-border] bg-[--l-surface] p-4 space-y-3">
       <p className="text-sm font-medium text-[--l-text]">{row.label}</p>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        {(["grimy", "kanta", "excel"] as const).map((k) => (
+      <div className="grid grid-cols-2 gap-2 text-center">
+        {(["grimy", "excel"] as const).map((k) => (
           <div key={k} className="space-y-1">
             <span className={`text-[10px] uppercase tracking-wider ${k === "grimy" ? "text-emerald-400 font-semibold" : "text-[--l-text-5]"}`}>
-              {k === "grimy" ? "GRIMY" : k === "kanta" ? "Kanta" : "Excel"}
+              {k === "grimy" ? "GRIMY" : "Excel"}
             </span>
             <div><CompCell value={row[k]} accent={k === "grimy"} /></div>
           </div>
@@ -938,19 +1031,19 @@ const timelineSteps = [
 ];
 
 type CompValue = "yes" | "no" | "partial" | string;
-type CompRow = { label: string; grimy: CompValue; kanta: CompValue; excel: CompValue };
+type CompRow = { label: string; grimy: CompValue; excel: CompValue };
 const comparison: CompRow[] = [
-  { label: "Screening automatique (9 APIs)", grimy: "yes", kanta: "partial", excel: "no" },
-  { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Scoring multi-critères NPLAB", grimy: "yes", kanta: "yes", excel: "Manuel" },
-  { label: "Lettre de mission auto", grimy: "yes", kanta: "yes", excel: "no" },
-  { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Gel des avoirs DG Trésor", grimy: "yes", kanta: "no", excel: "no" },
-  { label: "Gouvernance complète (formations, manuel, contrôle interne)", grimy: "yes", kanta: "partial", excel: "no" },
-  { label: "Mode contrôleur CROEC", grimy: "yes", kanta: "yes", excel: "no" },
-  { label: "Journal d'audit certifié", grimy: "yes", kanta: "partial", excel: "no" },
-  { label: "Prix transparent", grimy: "29€/mois", kanta: "Sur devis", excel: "Gratuit" },
-  { label: "Mise en conformité", grimy: "10 min", kanta: "30 jours", excel: "∞" },
+  { label: "Screening automatique (9 APIs)", grimy: "yes", excel: "no" },
+  { label: "Documents INPI (statuts, comptes PDF)", grimy: "yes", excel: "no" },
+  { label: "Scoring multi-critères NPLAB", grimy: "yes", excel: "Manuel" },
+  { label: "Lettre de mission auto", grimy: "yes", excel: "no" },
+  { label: "OCR Cloud Vision (CNI/RIB)", grimy: "yes", excel: "no" },
+  { label: "Gel des avoirs DG Trésor", grimy: "yes", excel: "no" },
+  { label: "Gouvernance complète (formations, manuel, contrôle interne)", grimy: "yes", excel: "no" },
+  { label: "Mode contrôleur CROEC", grimy: "yes", excel: "no" },
+  { label: "Journal d'audit certifié", grimy: "yes", excel: "no" },
+  { label: "Prix transparent", grimy: "29€/mois", excel: "Gratuit" },
+  { label: "Mise en conformité", grimy: "10 min", excel: "∞" },
 ];
 
 /* #18 — Features with badges */
@@ -1199,6 +1292,7 @@ export default function LandingPage() {
           --l-mock-bar-bg: rgba(255,255,255,0.05);
           --l-circle-track: rgba(255,255,255,0.08);
           --l-toggle-off: #374151;
+          --l-hero-illus: rgba(59, 130, 246, 0.04);
         }
         .theme-light {
           --l-bg-primary: #f8f6f1;
@@ -1221,6 +1315,7 @@ export default function LandingPage() {
           --l-accent: #7c3aed;
           --l-accent-light: rgba(139,92,246,0.1);
           --l-toggle-off: #c4bfd0;
+          --l-hero-illus: rgba(120, 80, 200, 0.05);
         }
         .landing-root { color: var(--l-text); }
 
@@ -1507,6 +1602,8 @@ export default function LandingPage() {
           <div className="hero-glow absolute inset-0" />
           {/* #9 — Dot grid background */}
           <div className="absolute inset-0 dot-grid" />
+          {/* Profession-specific background illustration */}
+          <HeroBgIllustration profileId={PROFILES[selectedProfile].id} />
           {/* Animated blob shapes (#11 #39) */}
           <div className="absolute top-20 left-[10%] h-72 w-72 rounded-full bg-blue-600/10 blur-3xl" style={{ animation: "blob1 12s ease-in-out infinite" }} />
           <div className="absolute bottom-20 right-[10%] h-96 w-96 rounded-full bg-indigo-600/8 blur-3xl" style={{ animation: "blob2 15s ease-in-out infinite" }} />
@@ -1817,12 +1914,12 @@ export default function LandingPage() {
         {/* ══════ COMPARAISON — #14 highlighted column ══════ */}
         <section id="comparaison" className="py-28">
           <div className="mx-auto max-w-5xl px-6">
-            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs les alternatives</h2>
+            <h2 data-reveal className="mb-4 text-center font-serif text-3xl font-bold tracking-tight opacity-0 translate-y-10 transition-all duration-700 sm:text-4xl">GRIMY vs Excel</h2>
             <p data-reveal className="mx-auto mb-14 max-w-xl text-center opacity-0 translate-y-10 transition-all duration-700 delay-100" style={{ color: "var(--l-text-3)" }}>
-              Comparez et choisissez la solution la plus complète pour votre conformité LAB.
+              Comparez votre méthode actuelle à une solution dédiée à la conformité LAB.
             </p>
 
-            {/* Desktop table — 4 columns with Kanta */}
+            {/* Desktop table — GRIMY vs Excel */}
             <div data-reveal className="hidden md:block overflow-x-auto rounded-2xl border backdrop-blur-sm opacity-0 translate-y-10 transition-all duration-700 delay-200" style={{ borderColor: "var(--l-border)", background: "var(--l-surface)" }}>
               <table className="w-full text-sm">
                 <thead>
@@ -1831,7 +1928,6 @@ export default function LandingPage() {
                     <th className="px-6 py-5 text-center grimy-col rounded-tl-lg">
                       <span className="text-sm font-bold text-emerald-400">GRIMY</span>
                     </th>
-                    <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Kanta</th>
                     <th className="px-6 py-5 text-center text-sm font-medium" style={{ color: "var(--l-text-4)" }}>Excel / Manuel</th>
                   </tr>
                 </thead>
@@ -1840,7 +1936,6 @@ export default function LandingPage() {
                     <tr key={row.label} className="table-row-hover" style={{ borderBottom: "1px solid var(--l-border-subtle)" }}>
                       <td className="px-6 py-4" style={{ color: "var(--l-text-2)" }}>{row.label}</td>
                       <td className="px-6 py-4 text-center grimy-col"><CompCell value={row.grimy} accent /></td>
-                      <td className="px-6 py-4 text-center"><CompCell value={row.kanta} /></td>
                       <td className="px-6 py-4 text-center"><CompCell value={row.excel} /></td>
                     </tr>
                   ))}
