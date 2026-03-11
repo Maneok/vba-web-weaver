@@ -234,6 +234,22 @@ export default function DashboardPage() {
   const allVisible = hiddenCount === 0;
   const allHidden = hiddenCount === DEFAULT_ORDER.length;
 
+  const handleRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastManualRefresh.current < 3000) return;
+    lastManualRefresh.current = now;
+    setIsRefreshing(true);
+    refreshAll()
+      .then(() => {
+        if (mountedRef.current) {
+          setLastRefresh(new Date());
+          setAnnouncements(prev => [...prev.slice(-4), "Données actualisées"]);
+        }
+      })
+      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err))
+      .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
+  }, [refreshAll]);
+
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
@@ -475,22 +491,6 @@ export default function DashboardPage() {
 
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
   const cabinetName = profile?.cabinet_id ? "Cabinet" : "GRIMY";
-
-  const handleRefresh = useCallback(() => {
-    const now = Date.now();
-    if (now - lastManualRefresh.current < 3000) return;
-    lastManualRefresh.current = now;
-    setIsRefreshing(true);
-    refreshAll()
-      .then(() => {
-        if (mountedRef.current) {
-          setLastRefresh(new Date());
-          setAnnouncements(prev => [...prev.slice(-4), "Données actualisées"]);
-        }
-      })
-      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err))
-      .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
-  }, [refreshAll]);
 
   const handleMarkNotificationAsRead = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));
