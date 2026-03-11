@@ -13,7 +13,7 @@ interface DashboardCockpitProps {
   isLoading: boolean;
 }
 
-const VISIBLE_DEFAULT = 8;
+const VISIBLE_DEFAULT = 5;
 
 const severityDot: Record<CockpitUrgency["severity"], string> = {
   critique: "bg-red-500 animate-pulse",
@@ -104,13 +104,18 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
   return (
     <div
       className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid"
-      aria-label="Cockpit LCB-FT"
+      aria-label="Actions requises"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-sm flex items-center gap-2">
           <ShieldAlert className="w-4 h-4 text-primary" aria-hidden="true" />
-          Cockpit LCB-FT
+          Actions requises
+          {allUrgencies.length > 0 && (
+            <Badge className="bg-primary/15 text-primary border-0 text-[10px] font-bold">
+              {allUrgencies.length}
+            </Badge>
+          )}
         </h3>
         {urgencies.length > 0 && (
           <div className="flex items-center gap-1.5" aria-label="Résumé des anomalies">
@@ -151,10 +156,10 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
         <div className="text-center py-8">
           <CheckCircle2 className="w-8 h-8 text-emerald-500/60 mx-auto mb-2" aria-hidden="true" />
           <p className="text-sm text-muted-foreground">
-            {hasActiveFilters ? "Aucune anomalie pour ces filtres" : "Aucune anomalie détectée"}
+            {hasActiveFilters ? "Aucune anomalie pour ces filtres" : "Tous vos dossiers sont à jour"}
           </p>
           {!hasActiveFilters && (
-            <p className="text-xs text-emerald-500/80 mt-1 font-medium">Conformité OK</p>
+            <p className="text-xs text-emerald-500/80 mt-1 font-medium">Aucune action requise</p>
           )}
           {hasActiveFilters && (
             <button

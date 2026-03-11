@@ -1,57 +1,15 @@
 import { type LucideIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  ResponsiveContainer, AreaChart, Area,
-} from "recharts";
-import { useId } from "react";
 
 interface KPICardProps {
   icon: LucideIcon;
   title: string;
   value: string | number;
   color: string;
-  trendPercent?: number;
-  trendUp?: boolean;
-  sparklineData?: { v: number }[];
+  subValue?: string;
   onClick?: () => void;
   loading?: boolean;
   /** Accessible description for screen readers */
   ariaLabel?: string;
-}
-
-function Sparkline({ data, color, width = 64, height = 28 }: {
-  data: { v: number }[];
-  color: string;
-  width?: number;
-  height?: number;
-}) {
-  const gradientId = useId().replace(/:/g, "_");
-
-  if (!data || data.length < 2) return null;
-
-  return (
-    <div className="print:hidden" aria-hidden="true">
-      <ResponsiveContainer width={width} height={height}>
-        <AreaChart data={data}>
-          <defs>
-            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={color} stopOpacity={0.3} />
-              <stop offset="100%" stopColor={color} stopOpacity={0} />
-            </linearGradient>
-          </defs>
-          <Area
-            type="monotone"
-            dataKey="v"
-            stroke={color}
-            strokeWidth={2}
-            fill={`url(#${gradientId})`}
-            dot={false}
-            isAnimationActive={false}
-          />
-        </AreaChart>
-      </ResponsiveContainer>
-    </div>
-  );
 }
 
 export function KPICard({
@@ -59,9 +17,7 @@ export function KPICard({
   title,
   value,
   color,
-  trendPercent,
-  trendUp = true,
-  sparklineData,
+  subValue,
   onClick,
   loading = false,
   ariaLabel,
@@ -75,7 +31,6 @@ export function KPICard({
         </div>
         <div className="flex items-end justify-between">
           <div className="h-8 w-16 bg-muted rounded skeleton-shimmer" />
-          <div className="h-7 w-16 bg-muted rounded skeleton-shimmer" />
         </div>
       </div>
     );
@@ -107,19 +62,11 @@ export function KPICard({
             {title}
           </span>
         </div>
-        {trendPercent !== undefined && (
-          <Badge
-            variant={trendUp ? "default" : "destructive"}
-            className="text-xs px-1.5 py-0.5"
-          >
-            {trendUp ? "\u2191" : "\u2193"} {Math.abs(trendPercent)}%
-          </Badge>
-        )}
       </div>
-      <div className="flex items-end justify-between">
+      <div>
         <span className="text-3xl font-bold tabular-nums tracking-tight">{value}</span>
-        {sparklineData && sparklineData.length > 1 && (
-          <Sparkline data={sparklineData} color={color} />
+        {subValue && (
+          <p className="text-xs text-muted-foreground mt-1">{subValue}</p>
         )}
       </div>
     </div>
