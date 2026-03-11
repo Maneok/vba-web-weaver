@@ -46,18 +46,14 @@ export default function OnboardingPage() {
       // Helper to upsert a parametres row
       const upsertParam = async (key: string, value: unknown) => {
         const jsonValue = JSON.stringify(value);
-        // Try update first, then insert
-        const { error: updateError } = await supabase
+        const { error } = await supabase
           .from("parametres")
-          .update({ valeur: jsonValue, updated_at: new Date().toISOString() })
-          .eq("user_id", user.id)
-          .eq("cle", key);
-
-        if (updateError) {
-          // Row doesn't exist — insert
-          await supabase
-            .from("parametres")
-            .insert({ user_id: user.id, cle: key, valeur: jsonValue });
+          .upsert(
+            { user_id: user.id, cle: key, valeur: jsonValue, updated_at: new Date().toISOString() },
+            { onConflict: "user_id,cle" }
+          );
+        if (error) {
+          logger.warn("Onboarding", `upsert ${key} failed:`, error.message);
         }
       };
 

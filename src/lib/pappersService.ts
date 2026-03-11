@@ -50,22 +50,28 @@ export async function searchPappers(
   if (!query || !query.trim()) {
     return { results: [], error: "Veuillez saisir un terme de recherche." };
   }
-  try {
-    // Check if already aborted before starting
-    if (signal?.aborted) {
-      return { results: [], error: "Requete annulee" };
+  if (signal?.aborted) {
+    return { results: [], error: "Requete annulee" };
+  }
+
+  // Strategy: try free API first (no CORS issues), then edge function for premium features
+  if (!downloadDocs) {
+    // Simple search — use free recherche-entreprises.api.gouv.fr directly (no CORS, no auth needed)
+    const freeResult = await fallbackRechercheEntreprises(mode, query, signal);
+    if (freeResult.results.length > 0) {
+      return freeResult;
     }
+  }
 
-    let data, error;
-
-    // Add a 10-second timeout to prevent hanging requests
+  // If free API returned nothing or we need docs, try edge function
+  try {
     const timeoutController = new AbortController();
     const timeoutId = setTimeout(() => timeoutController.abort(), 10000);
-    // If caller provided a signal, abort our controller when it fires
     if (signal) {
       signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
     }
 
+    let data, error;
     try {
       const result = await supabase.functions.invoke("pappers-lookup", {
         body: { mode, query, download_docs: downloadDocs },
@@ -74,25 +80,21 @@ export async function searchPappers(
       error = result.error;
     } catch (invokeErr) {
       clearTimeout(timeoutId);
-      if (timeoutController.signal.aborted) {
-        logger.warn("Pappers", "Edge function timed out after 10s, trying fallback");
-        return await fallbackDataGouv(mode, query, signal);
-      }
-      throw invokeErr;
+      // Edge function failed (CORS, network, etc.) — already tried free API above
+      const msg = invokeErr instanceof Error ? invokeErr.message : "Erreur";
+      logger.debug("Pappers", "Edge function unavailable:", msg);
+      return { results: [], error: "Aucun resultat trouve." };
     } finally {
       clearTimeout(timeoutId);
     }
 
-    // Check if aborted after the call
     if (signal?.aborted) {
       return { results: [], error: "Requete annulee" };
     }
 
     if (error) {
-      // Edge function failed — try direct data.gouv.fr fallback from client
-      const msg = error.message ?? "Erreur inconnue";
-      logger.warn("Pappers", "Edge function failed, trying direct fallback:", msg);
-      return await fallbackDataGouv(mode, query, signal);
+      logger.debug("Pappers", "Edge function error:", error.message);
+      return { results: [], error: "Aucun resultat trouve." };
     }
 
     return data as PappersResponse;
@@ -100,95 +102,74 @@ export async function searchPappers(
     if (signal?.aborted) {
       return { results: [], error: "Requete annulee" };
     }
-    // Network error — try direct fallback
     const msg = err instanceof Error ? err.message : "Erreur reseau";
-    logger.warn("Pappers", "Appel reseau echoue:", msg);
-    return await fallbackDataGouv(mode, query, signal);
+    logger.debug("Pappers", "Search failed:", msg);
+    return { results: [], error: "Aucun resultat trouve." };
   }
 }
 
-async function fallbackDataGouv(mode: SearchMode, query: string, signal?: AbortSignal): Promise<PappersResponse> {
+async function fallbackRechercheEntreprises(mode: SearchMode, query: string, signal?: AbortSignal): Promise<PappersResponse> {
   try {
     if (signal?.aborted) return { results: [], error: "Requete annulee" };
 
     const clean = query.replace(/\s/g, "");
+    const searchQuery = (mode === "siren" && /^\d{9,14}$/.test(clean)) ? clean.slice(0, 9) : query;
 
-    if (mode === "siren" && /^\d{9,14}$/.test(clean)) {
-      const siren = clean.slice(0, 9);
-      const res = await fetch(
-        `https://entreprise.data.gouv.fr/api/sirene/v3/unites_legales/${siren}`,
-        { signal: signal ?? AbortSignal.timeout(10000) }
-      );
-      if (!res.ok) {
-        return { results: [], error: "Aucun resultat trouve sur data.gouv.fr", source: "datagouv" };
-      }
-      const data = await res.json() as Record<string, unknown>;
-      const ul = data?.unite_legale as Record<string, unknown> | undefined;
-      if (!ul) return { results: [], error: "Donnees non disponibles", source: "datagouv" };
+    const res = await fetch(
+      `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(searchQuery)}&page=1&per_page=5`,
+      { signal: signal ?? AbortSignal.timeout(10000) }
+    );
 
-      const siege = (ul.etablissement_siege ?? {}) as Record<string, unknown>;
-      return {
-        results: [{
-          siren: `${siren.slice(0, 3)} ${siren.slice(3, 6)} ${siren.slice(6, 9)}`,
-          raison_sociale: String(ul.denomination || ul.nom_raison_sociale || "").toUpperCase(),
-          forme_juridique: String(ul.nature_juridique || ul.categorie_juridique || "Non specifie"),
-          forme_juridique_raw: String(ul.categorie_juridique ?? ""),
-          adresse: String(siege?.geo_adresse || "").toUpperCase(),
-          code_postal: String(siege?.code_postal ?? ""),
-          ville: String(siege?.libelle_commune ?? "").toUpperCase(),
-          ape: String(ul.activite_principale ?? ""),
-          libelle_ape: "",
-          capital: 0,
-          date_creation: String(ul.date_creation ?? ""),
-          effectif: "0 SALARIE",
-          dirigeant: "",
-          beneficiaires_effectifs: "",
-          beneficiaires_details: [],
-          representants: [],
-          documents_disponibles: [],
-          document_urls: {},
-          source: "datagouv",
-        }],
-        source: "datagouv",
-      };
+    if (!res.ok) {
+      logger.warn("Pappers", `recherche-entreprises returned ${res.status}`);
+      return { results: [], error: "Aucun resultat trouve.", source: "datagouv" };
     }
 
-    // Name search fallback
-    if (mode === "nom" || mode === "dirigeant") {
-      const res = await fetch(
-        `https://entreprise.data.gouv.fr/api/sirene/v1/full_text/${encodeURIComponent(query)}?per_page=5`,
-        { signal: signal ?? AbortSignal.timeout(10000) }
-      );
-      if (!res.ok) return { results: [], error: "Recherche echouee", source: "datagouv" };
-      const data = await res.json();
-      const results: PappersResult[] = (data.etablissement ?? []).slice(0, 5).map((e: Record<string, string>) => ({
-        siren: e.siren ? `${e.siren.slice(0, 3)} ${e.siren.slice(3, 6)} ${e.siren.slice(6, 9)}` : "",
-        raison_sociale: (e.nom_raison_sociale || e.l1_normalisee || "").toUpperCase(),
-        forme_juridique: e.libelle_nature_juridique_entreprise || "Non specifie",
-        forme_juridique_raw: e.libelle_nature_juridique_entreprise ?? "",
-        adresse: (e.geo_adresse || "").toUpperCase(),
-        code_postal: e.code_postal ?? "",
-        ville: (e.libelle_commune ?? "").toUpperCase(),
-        ape: e.activite_principale ?? "",
-        libelle_ape: e.libelle_activite_principale ?? "",
+    const data = await res.json();
+    const items = data?.results ?? [];
+
+    if (items.length === 0) {
+      return { results: [], error: "Aucun resultat trouve pour cette recherche.", source: "datagouv" };
+    }
+
+    const results: PappersResult[] = items.slice(0, 5).map((e: Record<string, unknown>) => {
+      const siren = String(e.siren ?? "");
+      const siege = (e.siege as Record<string, unknown>) ?? {};
+      const dirigeants = Array.isArray(e.dirigeants) ? e.dirigeants : [];
+      const activite = String(e.activite_principale ?? "");
+      const libelleActivite = String(e.libelle_activite_principale ?? "");
+      const natureJuridique = String(e.nature_juridique ?? "Non specifie");
+
+      return {
+        siren: siren.length === 9 ? `${siren.slice(0, 3)} ${siren.slice(3, 6)} ${siren.slice(6, 9)}` : siren,
+        raison_sociale: String(e.nom_complet || e.nom_raison_sociale || "").toUpperCase(),
+        forme_juridique: natureJuridique,
+        forme_juridique_raw: natureJuridique,
+        adresse: String(siege.adresse ?? "").toUpperCase(),
+        code_postal: String(siege.code_postal ?? ""),
+        ville: String(siege.libelle_commune ?? "").toUpperCase(),
+        ape: activite,
+        libelle_ape: libelleActivite,
         capital: 0,
-        date_creation: e.date_creation ?? "",
-        effectif: "0 SALARIE",
-        dirigeant: "",
+        date_creation: String(e.date_creation ?? ""),
+        effectif: String(e.tranche_effectif_salarie ?? "0 SALARIE"),
+        dirigeant: dirigeants.length > 0 ? String((dirigeants[0] as Record<string, unknown>)?.nom ?? "") : "",
         beneficiaires_effectifs: "",
         beneficiaires_details: [],
-        representants: [],
+        representants: dirigeants.slice(0, 5).map((d: Record<string, unknown>) => ({
+          nom: String(d.nom ?? ""),
+          qualite: String(d.qualite ?? d.fonction ?? ""),
+        })),
         documents_disponibles: [],
         document_urls: {},
         source: "datagouv" as const,
-      }));
-      return { results, source: "datagouv" };
-    }
+      };
+    });
 
-    return { results: [], error: "Mode de recherche non supporte en mode fallback", source: "datagouv" };
+    return { results, source: "datagouv" };
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Erreur inconnue";
-    logger.warn("Pappers", "Fallback data.gouv.fr echoue:", msg);
+    logger.warn("Pappers", "Fallback recherche-entreprises echoue:", msg);
     return { results: [], error: "Toutes les sources de donnees sont indisponibles. Veuillez reessayer." };
   }
 }
