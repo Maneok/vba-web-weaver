@@ -117,7 +117,7 @@ async function fallbackRechercheEntreprises(mode: SearchMode, query: string, sig
 
     const res = await fetch(
       `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(searchQuery)}&page=1&per_page=5`,
-      { signal: signal ?? AbortSignal.timeout(10000) }
+      { signal: signal ?? (() => { const c = new AbortController(); setTimeout(() => c.abort(), 10000); return c.signal; })() }
     );
 
     if (!res.ok) {
@@ -185,7 +185,7 @@ export async function checkGelAvoirs(siren: string, dirigeant: string): Promise<
   try {
     const res = await fetch(
       "https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1/publication/derniere-publication-et-sanctions",
-      { signal: AbortSignal.timeout(5000) }
+      { signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 5000); return c.signal; })() }
     );
     if (!res.ok) return { matched: false, matches: [] };
 

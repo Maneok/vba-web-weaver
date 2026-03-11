@@ -575,7 +575,9 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
     url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&page=1&per_page=5`;
   }
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  const fetchController = new AbortController();
+  setTimeout(() => fetchController.abort(), 8000);
+  const res = await fetch(url, { signal: fetchController.signal });
   if (!res.ok) throw new Error(`API returned ${res.status}`);
 
   const data = await res.json() as Record<string, unknown>;
