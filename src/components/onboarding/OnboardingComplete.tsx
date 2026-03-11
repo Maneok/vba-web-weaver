@@ -1,4 +1,3 @@
-import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { UserPlus } from "lucide-react";
 import type { CabinetData } from "./OnboardingStep1Cabinet";
@@ -10,7 +9,8 @@ interface CompleteProps {
 }
 
 export function OnboardingComplete({ cabinetName, responsableName, cabinetData }: CompleteProps) {
-  const navigate = useNavigate();
+  // Use window.location for a full page reload — ensures ProtectedRoute re-checks onboarding flag
+  const goTo = (path: string) => { window.location.href = path; };
 
   return (
     <div className="text-center space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -96,14 +96,14 @@ export function OnboardingComplete({ cabinetName, responsableName, cabinetData }
       <div className="flex flex-col items-center gap-3 pt-2">
         <Button
           size="lg"
-          onClick={() => navigate("/", { replace: true })}
+          onClick={() => goTo("/")}
           className="px-8 text-base"
         >
           Acceder a mon dashboard
         </Button>
         <Button
           variant="ghost"
-          onClick={() => navigate("/nouveau-client", { replace: true })}
+          onClick={() => goTo("/nouveau-client")}
           className="text-slate-400 hover:text-slate-200 gap-2"
         >
           <UserPlus className="w-4 h-4" />
