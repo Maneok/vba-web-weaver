@@ -1,7 +1,10 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { collaborateursService } from "@/lib/supabaseService";
+import { formatDateFR } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -42,14 +45,8 @@ function getFormationBadge(dateStr: string) {
   return { label: "Expiree", color: "bg-red-500/15 text-red-400" };
 }
 
-function formatDate(dateStr: string) {
-  if (!dateStr) return "---";
-  try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
-}
+// formatDate alias → using shared formatDateFR from dateUtils
+const formatDate = formatDateFR;
 
 type SortField = "nom" | "fonction" | "niveauCompetence" | "derniereFormation" | "statutFormation";
 type SortDirection = "asc" | "desc";
@@ -66,6 +63,8 @@ export default function GouvernancePage() {
   const { collaborateurs, isLoading, isOnline, refreshAll } = useAppState();
   const [activeTab, setActiveTab] = useState("organisation");
 
+  useDocumentTitle("Gouvernance");
+
   // Annuaire state
   const [search, setSearch] = useState("");
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -75,26 +74,30 @@ export default function GouvernancePage() {
   const [deletingCollab, setDeletingCollab] = useState<typeof collaborateurs[0] | null>(null);
   const [newCollab, setNewCollab] = useState({ ...EMPTY_FORM });
   const [editForm, setEditForm] = useState({ ...EMPTY_FORM });
+  const [saving, setSaving] = useState(false);
   const [sortField, setSortField] = useState<SortField>("nom");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+
+  // Debounced search for collaborateurs filtering
+  const debouncedSearch = useDebounce(search, 300);
 
   // Filtered & sorted collaborateurs
   const filtered = useMemo(() => {
     let result = collaborateurs;
-    if (search) {
-      const q = search.toLowerCase();
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(c =>
-        c.nom.toLowerCase().includes(q) ||
+        (c.nom ?? "").toLowerCase().includes(q) ||
         c.email?.toLowerCase().includes(q) ||
         c.fonction?.toLowerCase().includes(q)
       );
     }
     return [...result].sort((a, b) => {
-      const av = (a[sortField] || "").toString().toLowerCase();
-      const bv = (b[sortField] || "").toString().toLowerCase();
+      const av = String(a[sortField] ?? "").toLowerCase();
+      const bv = String(b[sortField] ?? "").toLowerCase();
       return sortDir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
     });
-  }, [collaborateurs, search, sortField, sortDir]);
+  }, [collaborateurs, debouncedSearch, sortField, sortDir]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -124,71 +127,106 @@ export default function GouvernancePage() {
       toast.error("Email invalide");
       return;
     }
+    setSaving(true);
     try {
-      if (isOnline) {
-        await collaborateursService.create({
-          nom: newCollab.nom.trim(),
-          fonction: newCollab.fonction,
-          email: newCollab.email.trim(),
-          niveau_competence: newCollab.niveau_competence,
-          suppleant: newCollab.suppleant,
-          telephone: newCollab.telephone,
-          derniere_formation: newCollab.derniereFormation || null,
-          date_signature_manuel: newCollab.dateSignatureManuel || null,
-          referent_lcb: newCollab.referentLcb,
-          statut_formation: newCollab.derniereFormation ? getFormationBadge(newCollab.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
-        });
-        await refreshAll();
+      if (!isOnline) {
+        toast.warning("Vous etes hors ligne. Les donnees n'ont pas ete sauvegardees. Reessayez avec une connexion internet.");
+        setSaving(false);
+        return;
       }
+      const result = await collaborateursService.create({
+        nom: newCollab.nom.trim(),
+        fonction: newCollab.fonction,
+        email: newCollab.email.trim(),
+        niveau_competence: newCollab.niveau_competence,
+        suppleant: newCollab.suppleant,
+        telephone: newCollab.telephone,
+        derniere_formation: newCollab.derniereFormation || null,
+        date_signature_manuel: newCollab.dateSignatureManuel || null,
+        referent_lcb: newCollab.referentLcb,
+        statut_formation: newCollab.derniereFormation ? getFormationBadge(newCollab.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
+      });
+      if (!result) {
+        toast.error("Erreur lors de l'ajout du collaborateur");
+        return;
+      }
+      await refreshAll();
       setNewCollab({ ...EMPTY_FORM });
       setShowAddDialog(false);
       toast.success("Collaborateur ajoute avec succes");
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("Erreur ajout collaborateur", err);
-      toast.error("Erreur lors de l'ajout");
+      toast.error("Erreur lors de l'ajout du collaborateur");
+    } finally {
+      setSaving(false);
     }
   }, [newCollab, isOnline, refreshAll]);
 
   const handleEdit = useCallback(async () => {
-    if (!editingCollab?.id || !editForm.nom.trim()) return;
+    if (!editingCollab?.id || !editForm.nom.trim()) {
+      toast.error("Le nom est requis");
+      return;
+    }
+    if (editForm.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editForm.email)) {
+      toast.error("Email invalide");
+      return;
+    }
+    setSaving(true);
     try {
-      if (isOnline) {
-        await collaborateursService.update(editingCollab.id, {
-          nom: editForm.nom.trim(),
-          fonction: editForm.fonction,
-          email: editForm.email.trim(),
-          niveau_competence: editForm.niveau_competence,
-          suppleant: editForm.suppleant,
-          telephone: editForm.telephone,
-          derniere_formation: editForm.derniereFormation || null,
-          date_signature_manuel: editForm.dateSignatureManuel || null,
-          referent_lcb: editForm.referentLcb,
-          statut_formation: editForm.derniereFormation ? getFormationBadge(editForm.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
-        });
-        await refreshAll();
+      if (!isOnline) {
+        toast.warning("Vous etes hors ligne. Les modifications n'ont pas ete sauvegardees. Reessayez avec une connexion internet.");
+        setSaving(false);
+        return;
       }
+      const result = await collaborateursService.update(editingCollab.id, {
+        nom: editForm.nom.trim(),
+        fonction: editForm.fonction,
+        email: editForm.email.trim(),
+        niveau_competence: editForm.niveau_competence,
+        suppleant: editForm.suppleant,
+        telephone: editForm.telephone,
+        derniere_formation: editForm.derniereFormation || null,
+        date_signature_manuel: editForm.dateSignatureManuel || null,
+        referent_lcb: editForm.referentLcb,
+        statut_formation: editForm.derniereFormation ? getFormationBadge(editForm.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
+      });
+      if (!result) {
+        toast.error("Erreur lors de la modification du collaborateur");
+        return;
+      }
+      await refreshAll();
       setShowEditDialog(false);
       setEditingCollab(null);
       toast.success("Collaborateur modifie");
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("Erreur modification collaborateur", err);
-      toast.error("Erreur lors de la modification");
+      toast.error("Erreur lors de la modification du collaborateur");
+    } finally {
+      setSaving(false);
     }
   }, [editingCollab, editForm, isOnline, refreshAll]);
 
+  const [deleting, setDeleting] = useState(false);
+
   const handleDelete = useCallback(async () => {
     if (!deletingCollab?.id) return;
+    setDeleting(true);
     try {
-      if (isOnline) {
-        await collaborateursService.delete(deletingCollab.id);
-        await refreshAll();
+      if (!isOnline) {
+        toast.warning("Vous etes hors ligne. La suppression n'a pas ete effectuee. Reessayez avec une connexion internet.");
+        setDeleting(false);
+        return;
       }
+      await collaborateursService.delete(deletingCollab.id);
+      await refreshAll();
       setShowDeleteDialog(false);
       setDeletingCollab(null);
       toast.success("Collaborateur supprime");
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("Erreur suppression collaborateur", err);
-      toast.error("Erreur lors de la suppression");
+      toast.error("Erreur lors de la suppression du collaborateur");
+    } finally {
+      setDeleting(false);
     }
   }, [deletingCollab, isOnline, refreshAll]);
 
@@ -264,7 +302,7 @@ export default function GouvernancePage() {
         </div>
 
         {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" aria-label="Sections de la gouvernance LCB-FT">
           <TabsList className="w-full grid grid-cols-5 h-auto">
             <TabsTrigger value="organisation" className="gap-1.5 text-xs sm:text-sm py-2">
               <Users className="w-4 h-4 hidden sm:block" />
@@ -336,6 +374,7 @@ export default function GouvernancePage() {
                     placeholder="Rechercher un collaborateur..."
                     value={search}
                     onChange={e => setSearch(e.target.value)}
+                    aria-label="Rechercher un collaborateur par nom, email ou fonction"
                     className="pl-9 max-w-sm"
                   />
                 </div>
@@ -346,12 +385,12 @@ export default function GouvernancePage() {
                     <TableHeader>
                       <TableRow>
                         <SortableHeader field="nom">Nom</SortableHeader>
-                        <TableHead>Email</TableHead>
+                        <TableHead scope="col">Email</TableHead>
                         <SortableHeader field="fonction">Role GRIMY</SortableHeader>
-                        <TableHead>Role LCB</TableHead>
+                        <TableHead scope="col">Role LCB</TableHead>
                         <SortableHeader field="niveauCompetence">Statut</SortableHeader>
                         <SortableHeader field="derniereFormation">Derniere formation</SortableHeader>
-                        <TableHead>Actions</TableHead>
+                        <TableHead scope="col">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -506,14 +545,15 @@ export default function GouvernancePage() {
                   checked={newCollab.referentLcb}
                   onChange={e => setNewCollab(p => ({ ...p, referentLcb: e.target.checked }))}
                   className="rounded"
+                  aria-label="Designer comme referent LCB-FT"
                   id="new-referent"
                 />
                 <Label htmlFor="new-referent" className="text-sm">Referent LCB-FT</Label>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowAddDialog(false)}>Annuler</Button>
-                <Button onClick={handleAdd} className="gap-1.5">
-                  <UserPlus className="w-3.5 h-3.5" /> Ajouter
+                <Button variant="outline" onClick={() => setShowAddDialog(false)} disabled={saving}>Annuler</Button>
+                <Button onClick={handleAdd} disabled={saving} className="gap-1.5">
+                  <UserPlus className="w-3.5 h-3.5" /> {saving ? "Ajout..." : "Ajouter"}
                 </Button>
               </div>
             </div>
@@ -553,14 +593,15 @@ export default function GouvernancePage() {
                   checked={editForm.referentLcb}
                   onChange={e => setEditForm(p => ({ ...p, referentLcb: e.target.checked }))}
                   className="rounded"
+                  aria-label="Designer comme referent LCB-FT"
                   id="edit-referent"
                 />
                 <Label htmlFor="edit-referent" className="text-sm">Referent LCB-FT</Label>
               </div>
               <div className="flex gap-2 justify-end">
-                <Button variant="outline" onClick={() => setShowEditDialog(false)}>Annuler</Button>
-                <Button onClick={handleEdit} className="gap-1.5">
-                  <Pencil className="w-3.5 h-3.5" /> Enregistrer
+                <Button variant="outline" onClick={() => setShowEditDialog(false)} disabled={saving}>Annuler</Button>
+                <Button onClick={handleEdit} disabled={saving} className="gap-1.5">
+                  <Pencil className="w-3.5 h-3.5" /> {saving ? "Enregistrement..." : "Enregistrer"}
                 </Button>
               </div>
             </div>
@@ -573,16 +614,16 @@ export default function GouvernancePage() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-400">
                 <Trash2 className="w-5 h-5" />
-                Desactiver le collaborateur
+                Supprimer le collaborateur
               </DialogTitle>
               <DialogDescription>
-                Etes-vous sur de vouloir desactiver <strong>{deletingCollab?.nom}</strong> ? Cette action est reversible.
+                Etes-vous sur de vouloir supprimer <strong>{deletingCollab?.nom}</strong> ? Cette action est definitive et irreversible.
               </DialogDescription>
             </DialogHeader>
             <div className="flex gap-2 justify-end mt-4">
-              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Annuler</Button>
-              <Button variant="destructive" onClick={handleDelete} className="gap-1.5">
-                <Trash2 className="w-3.5 h-3.5" /> Desactiver
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)} disabled={deleting}>Annuler</Button>
+              <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="gap-1.5">
+                <Trash2 className="w-3.5 h-3.5" /> {deleting ? "Suppression..." : "Supprimer"}
               </Button>
             </div>
           </DialogContent>

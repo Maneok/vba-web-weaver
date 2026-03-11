@@ -93,15 +93,15 @@ function loadTemplates(): Template[] {
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const parsed = JSON.parse(stored) as Template[];
-      if (parsed.length > 0) return parsed;
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed as Template[];
     }
   } catch { /* ignore */ }
   return PRELOADED_TEMPLATES;
 }
 
 function saveTemplates(templates: Template[]) {
-  sessionStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(templates)); } catch { /* storage full */ }
 }
 
 interface TemplateManagerProps {
@@ -130,14 +130,27 @@ export default function TemplateManager({ onLoadTemplate }: TemplateManagerProps
       name: `${tpl.name} (copie)`,
       isDefault: false,
       updatedAt: new Date().toISOString(),
-      blocks: tpl.blocks.map((b) => ({ ...b, id: `b-${Date.now()}-${Math.random().toString(36).slice(2, 6)}` })),
+      blocks: tpl.blocks.map((b) => ({ ...b, id: crypto.randomUUID() })),
     };
     updateAndSave([...templates, dup]);
     toast.success("Template duplique");
   };
 
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+
   const handleDelete = (id: string) => {
-    updateAndSave(templates.filter((t) => t.id !== id));
+    const tpl = templates.find((t) => t.id === id);
+    if (tpl?.isDefault) {
+      toast.error("Impossible de supprimer le template par defaut");
+      return;
+    }
+    setDeleteConfirmId(id);
+  };
+
+  const confirmDelete = () => {
+    if (!deleteConfirmId) return;
+    updateAndSave(templates.filter((t) => t.id !== deleteConfirmId));
+    setDeleteConfirmId(null);
     toast.success("Template supprime");
   };
 
@@ -259,6 +272,22 @@ export default function TemplateManager({ onLoadTemplate }: TemplateManagerProps
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditDialog(null)}>Annuler</Button>
             <Button onClick={handleEditSave}>Sauvegarder</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={!!deleteConfirmId} onOpenChange={(open) => !open && setDeleteConfirmId(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Etes-vous sur de vouloir supprimer ce template ? Cette action est irreversible.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={confirmDelete}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

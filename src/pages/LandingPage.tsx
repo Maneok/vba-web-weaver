@@ -9,7 +9,7 @@
    - Témoignages, FAQ, Pricing, Footer légal
    NE PAS REMPLACER — améliorer en place uniquement.
    ═══════════════════════════════════════════════════════════════ */
-import { useEffect, useRef, useState, useCallback, useMemo, memo, type ReactNode } from "react";
+
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -197,6 +197,7 @@ function useTimelineProgress() {
       if (!el) return;
       const rect = el.getBoundingClientRect();
       const total = el.offsetHeight - window.innerHeight * 0.6;
+      if (total <= 0) return;
       const scrolled = -rect.top + window.innerHeight * 0.3;
       setProgress(Math.min(Math.max(scrolled / total, 0), 1));
     };
@@ -1259,6 +1260,16 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
 
+  useDocumentTitle("GRIMY | Conformite LCB-FT");
+
+  /* SEO — meta description */
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="description"]') || document.createElement('meta');
+    meta.setAttribute('name', 'description');
+    meta.setAttribute('content', 'GRIMY - Plateforme de conformité LCB-FT pour professionnels assujettis. Gestion KYC, scoring de risque, lettres de mission.');
+    if (!meta.parentElement) document.head.appendChild(meta);
+  }, []);
+
   /* #11 — Scroll lock (mobile menu OR legal modal) */
   useEffect(() => {
     document.body.style.overflow = (mobileMenu || legalModal) ? "hidden" : "";
@@ -1825,7 +1836,7 @@ export default function LandingPage() {
               <Link to="/auth" className="hidden sm:inline-flex">
                 <Button variant="ghost" className="btn-press" style={{ color: "var(--l-text-3)" }}>Se connecter</Button>
               </Link>
-              <Link to="/auth" className="hidden sm:inline-flex">
+              <Link to="/auth" className="hidden sm:inline-flex" aria-label="Demarrer l'essai gratuit">
                 <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-500/20 btn-press text-white">Démarrer</Button>
               </Link>
 
@@ -1852,6 +1863,7 @@ export default function LandingPage() {
           </div>
         </nav>
 
+        <main>
         {/* ══════ 2. HERO ══════ */}
         <section id="hero" className="relative min-h-screen flex items-center justify-center overflow-hidden" style={{ paddingTop: showUrgencyBanner ? "5rem" : "4rem" }}>
           <div className="hero-glow absolute inset-0" />
@@ -1899,12 +1911,12 @@ export default function LandingPage() {
             </div>
 
             <div className={`flex flex-col sm:flex-row items-center justify-center gap-3 transition-all duration-1000 delay-500 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
-              <Link to="/auth">
+              <Link to="/auth" aria-label="Demarrer l'essai gratuit de 14 jours">
                 <Button size="lg" className="h-12 px-8 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-blue-600/25 btn-press text-white cta-glow">
                   Essai gratuit 14 jours <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Button size="lg" variant="outline" className="h-12 px-8 text-base btn-press" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }} onClick={() => scrollTo("demo")}>
+              <Button size="lg" variant="outline" className="h-12 px-8 text-base btn-press" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }} onClick={() => scrollTo("demo")} aria-label="Voir la demonstration du produit">
                 Voir la démo <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
@@ -2561,7 +2573,7 @@ export default function LandingPage() {
         </section>
 
         {/* ══════ FOOTER — #8 working links ══════ */}
-        <footer className="border-t py-16" style={{ borderColor: "var(--l-border)" }} role="contentinfo">
+
           <div className="mx-auto max-w-7xl px-6">
             <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
               <div className="lg:col-span-1">
@@ -2605,7 +2617,7 @@ export default function LandingPage() {
       {/* ══════ #4 — STICKY CTA BAR (appears after hero) ══════ */}
       {!heroInView && (
         <div className="fixed bottom-0 left-0 right-0 z-40 border-t p-3 backdrop-blur-xl sm:hidden transition-all sticky-cta-safe" style={{ borderColor: "var(--l-border)", background: "var(--l-bg-blur)" }}>
-          <Link to="/auth" className="block">
+          <Link to="/auth" className="block" aria-label="Demarrer a partir de 29 euros par mois">
             <Button className="w-full h-11 bg-gradient-to-r from-blue-600 to-indigo-600 shadow-lg shadow-blue-600/25 btn-press text-white cta-glow">
               Essai gratuit 14 jours — À partir de 29€/mois <ArrowRight className="ml-2 h-4 w-4" />
             </Button>

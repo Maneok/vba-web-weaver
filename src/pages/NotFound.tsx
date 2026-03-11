@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Home, ArrowLeft, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -6,7 +7,7 @@ const NotFound = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  void location.pathname;
+  useDocumentTitle("Page Introuvable");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

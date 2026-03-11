@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { downloadCSV } from "@/lib/csvUtils";
 import { useDebounce } from "@/hooks/useDebounce";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -10,13 +12,24 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap, RefreshCw } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
 
 const PAGE_SIZE = 25;
+
+/** Calculate KYC completion percentage based on key fields */
+function computeKycPercent(client: Client): number {
+  let s = 0;
+  if (client.siren) s += 25;
+  if (client.mail) s += 25;
+  if (client.iban) s += 25;
+  if (client.adresse) s += 25;
+  return s;
+}
 
 interface DraftInfo {
   siren: string;
@@ -30,7 +43,7 @@ type SortKey = "raisonSociale" | "scoreGlobal" | "nivVigilance" | "etatPilotage"
 type SortDir = "asc" | "desc";
 
 export default function BddPage() {
-  const { clients, updateClient, deleteClient, isLoading } = useAppState();
+  const { clients, updateClient, deleteClient, isLoading, refreshClients } = useAppState();
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -45,7 +58,10 @@ export default function BddPage() {
   const [page, setPage] = useState(0);
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(new Set());
   const [selectAllPages, setSelectAllPages] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ type: "single"; ref: string; name: string } | { type: "bulk"; refs: string[] } | null>(null);
   const debouncedSearch = useDebounce(search, 250);
+
+  useDocumentTitle("Base Clients");
 
   // 7. Sync filter state to URL
   useEffect(() => {
@@ -142,18 +158,18 @@ export default function BddPage() {
       : <ChevronDown className="w-3 h-3 text-blue-400" />;
   };
 
-  // Reset to page 0 when filters change
-  useEffect(() => { setPage(0); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
+  // Reset to page 0 and clear selectAllPages when filters change
+  useEffect(() => { setPage(0); setSelectAllPages(false); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.toLowerCase();
     const result = clients.filter(c => {
       const matchSearch = !q ||
-        c.raisonSociale.toLowerCase().includes(q) ||
-        c.ref.toLowerCase().includes(q) ||
-        c.siren.includes(debouncedSearch) ||
-        c.dirigeant.toLowerCase().includes(q) ||
-        c.comptable.toLowerCase().includes(q);
+        (c.raisonSociale || "").toLowerCase().includes(q) ||
+        (c.ref || "").toLowerCase().includes(q) ||
+        (c.siren || "").includes(debouncedSearch) ||
+        (c.dirigeant || "").toLowerCase().includes(q) ||
+        (c.comptable || "").toLowerCase().includes(q);
       const matchVig = filterVigilance === "all" || c.nivVigilance === filterVigilance;
       const matchPil = filterPilotage === "all" || c.etatPilotage === filterPilotage;
       const matchEtat = filterEtat === "all" ||
@@ -181,36 +197,15 @@ export default function BddPage() {
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
   const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  // FIX 16: CSV injection protection
-  function csvSafe(val: unknown): string {
-    const s = String(val ?? "");
-    if (/^[=+\-@\t\r]/.test(s)) return `'${s}`;
-    if (s.includes(";") || s.includes('"') || s.includes("\n")) return `"${s.replace(/"/g, '""')}"`;
-    return s;
-  }
-
   const handleExportCSV = () => {
     const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "KYC%", "Butoir"];
     const exportable = filtered.filter(c => !c.nonDiffusible);
     const excluded = filtered.length - exportable.length;
-    const rows = exportable.map(c => {
-      let kyc = 0;
-      if (c.siren) kyc += 25;
-      if (c.mail) kyc += 25;
-      if (c.iban) kyc += 25;
-      if (c.adresse) kyc += 25;
-      return [c.ref, c.raisonSociale, c.siren, c.forme, c.mission, c.comptable, c.scoreGlobal, c.nivVigilance, c.etatPilotage, `${kyc}%`, c.dateButoir].map(csvSafe);
-    });
-    const csv = [headers.join(";"), ...rows.map(r => r.join(";"))].join("\n");
-    // 1. Add BOM for proper UTF-8 encoding in Excel
-    const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "clients_lcb.csv";
-    a.click();
-    // 11. Cleanup objectURL after download starts to prevent memory leak
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    const rows = exportable.map(c => [
+      String(c.ref), c.raisonSociale, c.siren, c.forme, c.mission, c.comptable,
+      String(c.scoreGlobal), c.nivVigilance, c.etatPilotage, `${computeKycPercent(c)}%`, c.dateButoir,
+    ]);
+    downloadCSV(headers, rows, "clients_lcb.csv");
     if (excluded > 0) {
       toast.warning(`Export CSV genere — ${excluded} client(s) non-diffusible(s) exclus (art. R.123-320 C.com)`);
     } else {
@@ -268,6 +263,9 @@ export default function BddPage() {
           <p className="text-sm text-slate-500 mt-0.5">{clients.length} dossiers · {filtered.length} affiches</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => refreshClients()} title="Rafraichir la liste">
+            <RefreshCw className="w-3.5 h-3.5" />
+          </Button>
           <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportCSV}>
             <Download className="w-3.5 h-3.5" /> Export CSV
           </Button>
@@ -388,7 +386,16 @@ export default function BddPage() {
                     className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0"
                     onClick={() => {
                       sessionStorage.removeItem(draft.key);
-                      if (draft.key !== "draft_nouveau_client") sessionStorage.removeItem("draft_nouveau_client");
+                      // Also remove main draft if it matches this SIREN
+                      const mainDraft = sessionStorage.getItem("draft_nouveau_client");
+                      if (mainDraft) {
+                        try {
+                          const md = JSON.parse(mainDraft);
+                          if (md.form?.siren?.replace(/\s/g, "") === draft.siren.replace(/\s/g, "")) {
+                            sessionStorage.removeItem("draft_nouveau_client");
+                          }
+                        } catch { /* JSON parse error — ignore stale draft */ }
+                      }
                       setDrafts(prev => prev.filter(d => d.key !== draft.key));
                       toast.success("Brouillon supprime");
                     }}
@@ -431,24 +438,30 @@ export default function BddPage() {
             className="gap-1 text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
             onClick={() => {
               // 15. Confirmation toast with undo for archive action
-              const refsToArchive = new Set(selectedRefs);
-              const previousStates = new Map<string, string>();
-              refsToArchive.forEach(ref => {
-                const client = clients.find(c => c.ref === ref);
-                if (client) previousStates.set(ref, client.etat);
-              });
-              refsToArchive.forEach(ref => updateClient(ref, { etat: "ARCHIVE" }));
-              setSelectedRefs(new Set());
-              setSelectAllPages(false);
-              toast.success(`${refsToArchive.size} client(s) archive(s)`, {
-                action: {
-                  label: "Annuler",
-                  onClick: () => {
-                    previousStates.forEach((etat, ref) => updateClient(ref, { etat: etat as Client["etat"] }));
-                    toast.info("Archivage annule");
+              try {
+                const validRefs = [...selectedRefs].filter(ref => clients.some(c => c.ref === ref));
+                if (validRefs.length === 0) return;
+                const refsToArchive = new Set(validRefs);
+                const previousStates = new Map<string, string>();
+                refsToArchive.forEach(ref => {
+                  const client = clients.find(c => c.ref === ref);
+                  if (client) previousStates.set(ref, client.etat);
+                });
+                refsToArchive.forEach(ref => updateClient(ref, { etat: "ARCHIVE" }));
+                setSelectedRefs(new Set());
+                setSelectAllPages(false);
+                toast.success(`${refsToArchive.size} client(s) archive(s)`, {
+                  action: {
+                    label: "Annuler",
+                    onClick: () => {
+                      previousStates.forEach((etat, ref) => updateClient(ref, { etat: etat as Client["etat"] }));
+                      toast.info("Archivage annule");
+                    },
                   },
-                },
-              });
+                });
+              } catch (err) {
+                toast.error("Erreur lors de l'archivage des clients");
+              }
             }}
           >
             <Archive className="w-3 h-3" /> Archiver
@@ -459,10 +472,9 @@ export default function BddPage() {
               variant="outline"
               className="gap-1 text-xs border-red-500/30 text-red-300 hover:bg-red-500/10"
               onClick={() => {
-                if (!confirm(`Supprimer ${selectedRefs.size} client(s) ?`)) return;
-                selectedRefs.forEach(ref => deleteClient(ref));
-                setSelectedRefs(new Set());
-                toast.success("Clients supprimes");
+                const validRefs = [...selectedRefs].filter(ref => clients.some(c => c.ref === ref));
+                if (validRefs.length === 0) return;
+                setDeleteTarget({ type: "bulk", refs: validRefs });
               }}
             >
               <Trash2 className="w-3 h-3" /> Supprimer
@@ -495,21 +507,21 @@ export default function BddPage() {
                   />
                 </TableHead>
                 <TableHead className="w-[90px] text-slate-500 text-[11px] uppercase tracking-wider">Ref</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")}>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("raisonSociale"); } }} role="button" tabIndex={0} aria-label="Trier par Raison Sociale">
                   <div className="flex items-center gap-1.5">Raison Sociale <SortIcon column="raisonSociale" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Forme</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")}>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("comptable"); } }} role="button" tabIndex={0} aria-label="Trier par Comptable">
                   <div className="flex items-center gap-1.5">Comptable <SortIcon column="comptable" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Mission</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")}>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("scoreGlobal"); } }} role="button" tabIndex={0} aria-label="Trier par Score">
                   <div className="flex items-center gap-1.5 justify-center">Score <SortIcon column="scoreGlobal" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")}>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="button" tabIndex={0} aria-label="Trier par Butoir">
                   <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
                 </TableHead>
                 <TableHead className="w-[80px]"></TableHead>
@@ -519,7 +531,7 @@ export default function BddPage() {
               {paginated.map((client, idx) => (
                 <TableRow
                   key={client.ref}
-                  className={`cursor-pointer border-white/[0.04] transition-colors hover:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "even:bg-white/[0.01]" : ""}`}
+                  className={`cursor-pointer border-white/[0.04] transition-colors hover:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "bg-white/[0.01]" : ""}`}
                   onClick={() => navigate(`/client/${client.ref}`)}
                 >
                   <TableCell onClick={e => e.stopPropagation()}>
@@ -531,6 +543,7 @@ export default function BddPage() {
                         const next = new Set(selectedRefs);
                         e.target.checked ? next.add(client.ref) : next.delete(client.ref);
                         setSelectedRefs(next);
+                        if (selectAllPages && !e.target.checked) setSelectAllPages(false);
                       }}
                       aria-label={`Selectionner ${client.raisonSociale}`}
                     />
@@ -545,11 +558,7 @@ export default function BddPage() {
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
                   <TableCell className="text-center">
                     {(() => {
-                      let s = 0;
-                      if (client.siren) s += 25;
-                      if (client.mail) s += 25;
-                      if (client.iban) s += 25;
-                      if (client.adresse) s += 25;
+                      const s = computeKycPercent(client);
                       const color = s >= 75 ? "text-emerald-400" : s >= 50 ? "text-amber-400" : "text-red-400";
                       return <span className={`text-xs font-mono font-semibold ${color}`}>{s}%</span>;
                     })()}
@@ -558,7 +567,7 @@ export default function BddPage() {
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0">
+                        <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0" aria-label="Actions">
                           <MoreHorizontal className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -569,7 +578,7 @@ export default function BddPage() {
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/client/${client.ref}`); }}>
                           <Edit3 className="w-3.5 h-3.5 mr-2" /> Modifier
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); generateFicheAcceptation(client); toast.success("PDF genere"); }}>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}>
                           <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => {
@@ -589,7 +598,7 @@ export default function BddPage() {
                           <Archive className="w-3.5 h-3.5 mr-2" /> Archiver
                         </DropdownMenuItem>
                         {profile?.role === "ADMIN" && (
-                          <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10" onClick={(e) => { e.stopPropagation(); if (confirm("Supprimer definitivement ce client ?")) { deleteClient(client.ref); toast.success("Client supprime"); } }}>
+                          <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: "single", ref: client.ref, name: client.raisonSociale || client.ref }); }}>
                             <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
                           </DropdownMenuItem>
                         )}
@@ -627,10 +636,10 @@ export default function BddPage() {
             </p>
             {/* 13. Pagination with first/last page buttons */}
             <div className="flex items-center gap-1">
-              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(0)} className="h-8 w-8 p-0" title="Premiere page">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(0)} className="h-8 w-8 p-0" title="Premiere page" aria-label="Premiere page">
                 <ChevronsLeft className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0" title="Page precedente">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0" title="Page precedente" aria-label="Page precedente">
                 <ChevronLeft className="w-4 h-4" />
               </Button>
               {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -648,16 +657,53 @@ export default function BddPage() {
                   </Button>
                 );
               })}
-              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0" title="Page suivante">
+              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0" title="Page suivante" aria-label="Page suivante">
                 <ChevronRightIcon className="w-4 h-4" />
               </Button>
-              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} className="h-8 w-8 p-0" title="Derniere page">
+              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} className="h-8 w-8 p-0" title="Derniere page" aria-label="Derniere page">
                 <ChevronsRight className="w-4 h-4" />
               </Button>
             </div>
           </div>
         )}
       </div>
+
+      {/* Confirmation suppression */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-400">Confirmer la suppression</DialogTitle>
+            <DialogDescription>
+              {deleteTarget?.type === "single"
+                ? `Etes-vous sur de vouloir supprimer definitivement "${deleteTarget.name}" ? Cette action est irreversible.`
+                : `Etes-vous sur de vouloir supprimer definitivement ${deleteTarget?.refs.length} client(s) ? Cette action est irreversible.`
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={() => {
+              if (!deleteTarget) return;
+              try {
+                if (deleteTarget.type === "single") {
+                  deleteClient(deleteTarget.ref);
+                  toast.success("Client supprime");
+                } else {
+                  deleteTarget.refs.forEach(ref => deleteClient(ref));
+                  setSelectedRefs(new Set());
+                  setSelectAllPages(false);
+                  toast.success(`${deleteTarget.refs.length} clients supprimes`);
+                }
+              } catch {
+                toast.error("Erreur lors de la suppression");
+              }
+              setDeleteTarget(null);
+            }}>
+              <Trash2 className="w-4 h-4 mr-2" /> Confirmer
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

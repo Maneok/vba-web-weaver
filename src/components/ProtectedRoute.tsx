@@ -1,20 +1,70 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import type { PermissionAction } from "@/lib/auth/types";
 import { Loader2, RefreshCw, LogOut, WifiOff } from "lucide-react";
+import { logger } from "@/lib/logger";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermission?: PermissionAction;
+  /** If true, skip onboarding check (used for /onboarding route itself) */
+  skipOnboardingCheck?: boolean;
 }
 
-export default function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requiredPermission, skipOnboardingCheck }: ProtectedRouteProps) {
   const { session, profile, loading, hasPermission, signOut, refreshProfile } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
-  const [retryCount, setRetryCount] = useState(0);
+  const retriedRef = useRef(false);
   const signOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const retryCountRef = useRef(0);
+
+  // Onboarding check: has the user completed onboarding?
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (skipOnboardingCheck || !profile) {
+      setOnboardingChecked(true);
+      return;
+    }
+
+    // Check localStorage first (instant, works even if DB save failed)
+    const localFlag = localStorage.getItem("grimy_onboarding_completed");
+    if (localFlag === profile.id) {
+      setNeedsOnboarding(false);
+      setOnboardingChecked(true);
+      return;
+    }
+
+    let cancelled = false;
+
+    supabase
+      .from("parametres")
+      .select("valeur")
+      .eq("user_id", profile.id)
+      .eq("cle", "onboarding_completed")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const completed = data?.valeur === "true" || data?.valeur === '"true"';
+        if (completed) {
+          // Sync localStorage for future fast checks
+          localStorage.setItem("grimy_onboarding_completed", profile.id);
+        }
+        setNeedsOnboarding(!completed);
+        setOnboardingChecked(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOnboardingChecked(true); // fail open — don't block
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [profile?.id, skipOnboardingCheck]);
 
   // Safety timeout — 10s max spinner (AuthContext safety is 8s, this is a fallback)
   useEffect(() => {
@@ -26,23 +76,23 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     return () => clearTimeout(timer);
   }, [loading]);
 
-  // Reset retry counter when session changes (new login)
+  // Reset retry flag when session changes (new login)
   useEffect(() => {
-    setRetryCount(0);
+    retriedRef.current = false;
+    retryCountRef.current = 0;
   }, [session?.access_token]);
 
   // Auto-retry profile fetch once on timeout (before showing error)
   useEffect(() => {
-    if (timedOut && session && !profile && retryCount === 0) {
-      let cancelled = false;
-      setRetryCount(1);
+    if (timedOut && session && !profile && !retriedRef.current) {
+      retriedRef.current = true;
+      retryCountRef.current = 1;
       setRetrying(true);
       refreshProfile()
-        .catch(() => {})
-        .finally(() => { if (!cancelled) setRetrying(false); });
-      return () => { cancelled = true; };
+        .catch((err) => logger.warn("ProtectedRoute", "Profile refresh failed:", err))
+        .finally(() => setRetrying(false));
     }
-  }, [timedOut, session, profile, retryCount, refreshProfile]);
+  }, [timedOut, session, profile, refreshProfile]);
 
   // Cleanup signout timer on unmount
   useEffect(() => {
@@ -51,10 +101,23 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
     };
   }, []);
 
+  // Auto sign-out for deactivated accounts
+  useEffect(() => {
+    if (!profile) return;
+    if (profile.is_active) {
+      if (signOutTimerRef.current) { clearTimeout(signOutTimerRef.current); signOutTimerRef.current = null; }
+      return;
+    }
+    if (!signOutTimerRef.current) {
+      signOutTimerRef.current = setTimeout(() => signOut(), 3000);
+    }
+    return () => { if (signOutTimerRef.current) { clearTimeout(signOutTimerRef.current); signOutTimerRef.current = null; } };
+  }, [profile, profile?.is_active, signOut]);
+
   // Manual retry handler
   const handleRetry = useCallback(async () => {
     setRetrying(true);
-    setRetryCount((c) => c + 1);
+    retryCountRef.current += 1;
     try {
       await refreshProfile();
     } catch {
@@ -67,8 +130,8 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   // Auth is still initializing (or retrying)
   if ((loading && !timedOut) || retrying) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-3">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-3" role="status" aria-live="polite">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" aria-label="Chargement en cours" />
         <p className="text-sm text-muted-foreground animate-pulse">
           Chargement de votre espace...
         </p>
@@ -112,7 +175,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
             Se deconnecter
           </button>
         </div>
-        {retryCount > 1 && (
+        {retryCountRef.current > 1 && (
           <p className="text-xs text-muted-foreground/60 max-w-sm text-center">
             Si le probleme persiste, essayez de vous deconnecter puis de vous reconnecter.
           </p>
@@ -122,12 +185,9 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   }
 
   if (!profile.is_active) {
-    if (!signOutTimerRef.current) {
-      signOutTimerRef.current = setTimeout(() => signOut(), 3000);
-    }
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-3" role="alert">
           <p className="text-lg font-semibold text-destructive">Compte desactive</p>
           <p className="text-sm text-muted-foreground">Contactez votre administrateur. Deconnexion automatique...</p>
           <button
@@ -144,7 +204,7 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
   if (requiredPermission && !hasPermission(requiredPermission)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-2">
+        <div className="text-center space-y-2" role="alert">
           <p className="text-lg font-semibold text-destructive">Acces refuse</p>
           <p className="text-sm text-muted-foreground">
             Vous n'avez pas les droits necessaires pour acceder a cette page.
@@ -152,6 +212,22 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
         </div>
       </div>
     );
+  }
+
+  // Onboarding redirect: if not completed, redirect to /onboarding
+  if (!skipOnboardingCheck && !onboardingChecked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground animate-pulse">
+          Chargement de votre espace...
+        </p>
+      </div>
+    );
+  }
+
+  if (!skipOnboardingCheck && needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;

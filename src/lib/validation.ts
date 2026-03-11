@@ -1,82 +1,118 @@
+/**
+ * Zod validation schemas with French error messages.
+ * Used across forms for consistent client-side validation.
+ */
 import { z } from "zod";
 
-// ===== CLIENT =====
+/** Schema for client creation / editing */
 export const clientSchema = z.object({
-  ref: z.string().min(1, "Reference requise"),
-  raisonSociale: z.string().min(1, "Raison sociale requise"),
-  siren: z.string().regex(/^\d{9}$/, "SIREN invalide (9 chiffres)"),
-  forme: z.string().min(1, "Forme juridique requise"),
-  adresse: z.string().optional().default(""),
-  cp: z.string().regex(/^\d{5}$/, "Code postal invalide (5 chiffres)").or(z.literal("")),
-  ville: z.string().optional().default(""),
-  mail: z.string().email("Email invalide").or(z.literal("")),
-  tel: z.string().optional().default(""),
-  capital: z.number().min(0, "Capital doit etre positif").default(0),
-  ape: z.string().optional().default(""),
-  dirigeant: z.string().optional().default(""),
-  mission: z.string().min(1, "Mission requise"),
-  comptable: z.string().optional().default(""),
-  honoraires: z.number().min(0).default(0),
-  ppe: z.enum(["OUI", "NON"]).default("NON"),
-  paysRisque: z.enum(["OUI", "NON"]).default("NON"),
-  atypique: z.enum(["OUI", "NON"]).default("NON"),
-  distanciel: z.enum(["OUI", "NON"]).default("NON"),
-  cash: z.enum(["OUI", "NON"]).default("NON"),
-  pression: z.enum(["OUI", "NON"]).default("NON"),
+  raisonSociale: z
+    .string({ required_error: "La raison sociale est obligatoire" })
+    .min(1, "La raison sociale est obligatoire")
+    .max(200, "La raison sociale ne doit pas depasser 200 caracteres"),
+  forme: z
+    .string({ required_error: "La forme juridique est obligatoire" })
+    .min(1, "La forme juridique est obligatoire"),
+  siren: z
+    .string()
+    .regex(/^\d{3}\s?\d{3}\s?\d{3}$/, "Le SIREN doit contenir 9 chiffres")
+    .or(z.literal(""))
+    .optional(),
+  adresse: z
+    .string({ required_error: "L'adresse est obligatoire" })
+    .min(1, "L'adresse est obligatoire"),
+  cp: z
+    .string({ required_error: "Le code postal est obligatoire" })
+    .regex(/^\d{5}$/, "Le code postal doit contenir 5 chiffres"),
+  ville: z
+    .string({ required_error: "La ville est obligatoire" })
+    .min(1, "La ville est obligatoire"),
+  dirigeant: z
+    .string({ required_error: "Le nom du dirigeant est obligatoire" })
+    .min(1, "Le nom du dirigeant est obligatoire"),
+  mail: z
+    .string()
+    .email("L'adresse email est invalide")
+    .or(z.literal(""))
+    .optional(),
+  tel: z
+    .string()
+    .regex(/^(?:(?:\+33|0)\s*[1-9](?:[\s.-]*\d{2}){4}|[\d\s+()-]{10,20})$/, "Le numero de telephone est invalide")
+    .or(z.literal(""))
+    .optional(),
 });
 
-export const clientUpdateSchema = clientSchema.partial();
-
-// ===== COLLABORATEUR =====
+/** Schema for collaborateur */
 export const collaborateurSchema = z.object({
-  nom: z.string().min(1, "Nom requis"),
-  fonction: z.string().min(1, "Fonction requise"),
-  email: z.string().email("Email invalide").or(z.literal("")),
-  referent_lcb: z.boolean().default(false),
-  suppleant: z.string().optional().default(""),
-  niveau_competence: z.string().optional().default(""),
+  nom: z
+    .string({ required_error: "Le nom est obligatoire" })
+    .min(1, "Le nom est obligatoire"),
+  fonction: z
+    .string({ required_error: "La fonction est obligatoire" })
+    .min(1, "La fonction est obligatoire"),
+  email: z
+    .string({ required_error: "L'email est obligatoire" })
+    .email("L'adresse email est invalide"),
 });
 
-// ===== ALERTE =====
+/** Schema for alerte registre */
 export const alerteSchema = z.object({
-  date: z.string().min(1, "Date requise"),
-  client_concerne: z.string().min(1, "Client requis"),
-  categorie: z.string().min(1, "Categorie requise"),
-  details: z.string().min(1, "Details requis"),
-  action_prise: z.string().optional().default(""),
-  responsable: z.string().optional().default(""),
-  qualification: z.string().optional().default(""),
-  statut: z.string().optional().default("EN COURS"),
+  date: z
+    .string({ required_error: "La date est obligatoire" })
+    .min(1, "La date est obligatoire"),
+  clientConcerne: z
+    .string({ required_error: "Le client concerne est obligatoire" })
+    .min(1, "Le client concerne est obligatoire"),
+  categorie: z
+    .string({ required_error: "La categorie est obligatoire" })
+    .min(1, "La categorie est obligatoire"),
+  details: z
+    .string({ required_error: "Les details sont obligatoires" })
+    .min(1, "Les details sont obligatoires"),
+  responsable: z
+    .string({ required_error: "Le responsable est obligatoire" })
+    .min(1, "Le responsable est obligatoire"),
 });
 
-// ===== INVITATION =====
-export const inviteSchema = z.object({
-  email: z.string().email("Email invalide").max(254),
-  fullName: z.string().min(2, "Nom trop court").max(100, "Nom trop long"),
-  role: z.enum(["ADMIN", "SUPERVISEUR", "COLLABORATEUR", "STAGIAIRE"]),
-});
+/** Standalone email validation schema with French error message */
+export const emailSchema = z
+  .string()
+  .email("Adresse email invalide. Veuillez saisir une adresse au format valide (ex: nom@domaine.fr)");
 
-// ===== Helpers =====
-export function validateClient(data: unknown) {
-  return clientSchema.safeParse(data);
+/** Validate an email string — returns null if valid, or a French error message */
+export function validateEmail(email: string): string | null {
+  if (!email || typeof email !== "string" || email.trim() === "") return null; // empty is valid (not required)
+  const result = emailSchema.safeParse(email);
+  return result.success ? null : result.error.errors[0]?.message ?? "Adresse email invalide";
 }
 
-export function validateClientUpdate(data: unknown) {
-  return clientUpdateSchema.safeParse(data);
+/** Validate SIREN using Luhn algorithm */
+export function validateSiren(siren: string): boolean {
+  if (!siren || typeof siren !== "string") return false;
+  const clean = siren.replace(/\s/g, "");
+  if (!/^\d{9}$/.test(clean)) return false;
+  // Luhn check
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    let digit = parseInt(clean[i], 10);
+    if (i % 2 === 1) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  return sum % 10 === 0;
 }
 
-export function validateCollaborateur(data: unknown) {
-  return collaborateurSchema.safeParse(data);
+/** Validate French postal code */
+export function validateCodePostal(cp: string): boolean {
+  if (!cp || typeof cp !== "string") return false;
+  if (!/^\d{5}$/.test(cp)) return false;
+  const dept = parseInt(cp.slice(0, 2), 10);
+  // Valid French departments: 01-95, 2A/2B (20), 97x (DOM), 98x (TOM)
+  return (dept >= 1 && dept <= 95) || dept === 97 || dept === 98;
 }
 
-export function validateAlerte(data: unknown) {
-  return alerteSchema.safeParse(data);
-}
-
-export function validateInvite(data: unknown) {
-  return inviteSchema.safeParse(data);
-}
-
-export function formatZodErrors(error: z.ZodError): string {
-  return error.errors.map(e => e.message).join(", ");
-}
+export type ClientFormData = z.infer<typeof clientSchema>;
+export type CollaborateurFormData = z.infer<typeof collaborateurSchema>;
+export type AlerteFormData = z.infer<typeof alerteSchema>;

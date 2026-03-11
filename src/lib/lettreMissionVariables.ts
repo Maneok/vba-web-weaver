@@ -48,30 +48,30 @@ Toute impossibilité de mettre en œuvre ces mesures pourra conduire le cabinet 
 // Mapping colonnes BDD → variables {{...}}
 // ──────────────────────────────────────────────
 const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
-  ref: (c) => c.ref,
-  raison_sociale: (c) => c.raisonSociale,
-  forme_juridique: (c) => c.forme,
-  siren: (c) => c.siren,
-  adresse: (c) => c.adresse,
-  cp: (c) => c.cp,
-  ville: (c) => c.ville,
-  dirigeant: (c) => c.dirigeant,
-  capital: (c) => c.capital?.toLocaleString("fr-FR") ?? "",
-  ape: (c) => c.ape,
-  domaine: (c) => c.domaine,
-  effectif: (c) => c.effectif,
-  tel: (c) => c.tel,
-  mail: (c) => c.mail,
-  honoraires: (c) => c.honoraires?.toLocaleString("fr-FR") ?? "0",
-  reprise: (c) => c.reprise?.toLocaleString("fr-FR") ?? "0",
-  juridique: (c) => c.juridique?.toLocaleString("fr-FR") ?? "0",
-  frequence: (c) => c.frequence,
-  iban: (c) => c.iban,
-  bic: (c) => c.bic,
-  associe: (c) => c.associe,
-  superviseur: (c) => c.superviseur,
-  comptable: (c) => c.comptable,
-  mission: (c) => c.mission,
+  ref: (c) => c.ref ?? "",
+  raison_sociale: (c) => c.raisonSociale ?? "",
+  forme_juridique: (c) => c.forme ?? "",
+  siren: (c) => c.siren ?? "",
+  adresse: (c) => c.adresse ?? "",
+  cp: (c) => c.cp ?? "",
+  ville: (c) => c.ville ?? "",
+  dirigeant: (c) => c.dirigeant ?? "",
+  capital: (c) => (c.capital ?? 0).toLocaleString("fr-FR"),
+  ape: (c) => c.ape ?? "",
+  domaine: (c) => c.domaine ?? "",
+  effectif: (c) => c.effectif ?? "",
+  tel: (c) => c.tel ?? "",
+  mail: (c) => c.mail ?? "",
+  honoraires: (c) => (c.honoraires ?? 0).toLocaleString("fr-FR"),
+  reprise: (c) => (c.reprise ?? 0).toLocaleString("fr-FR"),
+  juridique: (c) => (c.juridique ?? 0).toLocaleString("fr-FR"),
+  frequence: (c) => c.frequence ?? "",
+  iban: (c) => c.iban ?? "",
+  bic: (c) => c.bic ?? "",
+  associe: (c) => c.associe ?? "",
+  superviseur: (c) => c.superviseur ?? "",
+  comptable: (c) => c.comptable ?? "",
+  mission: (c) => c.mission ?? "",
   etat: (c) => c.etat,
   niv_vigilance: (c) => c.nivVigilance,
   score_global: (c) => String(c.scoreGlobal ?? 0),
@@ -101,7 +101,7 @@ const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   type_personne: (c) => c.typePersonne ?? "",
   code_postal: (c) => c.cp,
   adresse_complete: (c) => `${c.adresse}, ${c.cp} ${c.ville}`,
-  honoraires_ttc: (c) => (c.honoraires * 1.2)?.toLocaleString("fr-FR") ?? "0",
+  honoraires_ttc: (c) => ((c.honoraires ?? 0) * 1.2).toLocaleString("fr-FR"),
   hono: (c) => `${c.honoraires?.toLocaleString("fr-FR") ?? "0"} € HT`,
   honoraires_juridique: (c) => `${c.juridique?.toLocaleString("fr-FR") ?? "0"} € HT`,
   telephone: (c) => c.tel,
@@ -141,13 +141,13 @@ function getOptionsVariables(options?: LettreMissionOptions): Record<string, str
     genre: options.genre === "F" ? "Mme" : "M.",
     formule_politesse: options.genre === "F" ? "Chère Madame" : "Cher Monsieur",
     setup: `${options.fraisConstitution?.toLocaleString("fr-FR") ?? "0"} € HT`,
-    exercice_debut: options.exerciceDebut,
-    exercice_fin: options.exerciceFin,
-    regime_fiscal: options.regimeFiscal,
-    tva_regime: options.tvaRegime,
-    volume_comptable: options.volumeComptable,
-    periodicite: options.periodicite,
-    outil_comptable: options.outilComptable,
+    exercice_debut: options.exerciceDebut ?? "",
+    exercice_fin: options.exerciceFin ?? "",
+    regime_fiscal: options.regimeFiscal ?? "",
+    tva_regime: options.tvaRegime ?? "",
+    volume_comptable: options.volumeComptable ?? "",
+    periodicite: options.periodicite ?? "",
+    outil_comptable: options.outilComptable ?? "",
     honoraires_social: `${options.honorairesSocial?.toLocaleString("fr-FR") ?? "0"} € HT`,
     honoraires_controle_fiscal: `${options.honorairesControleFiscal?.toLocaleString("fr-FR") ?? "0"} € HT`,
   };
@@ -167,6 +167,7 @@ export function replaceVariables(
   options?: LettreMissionOptions
 ): string {
   if (!text) return "";
+  if (!client) return text;
 
   let result = text;
   const dateVars = getDateVariables();
@@ -211,6 +212,9 @@ export function replaceVariables(
     /\{\{bloc_vigilance_lab\}\}/gi,
     getVigilanceVariable(client.nivVigilance)
   );
+
+  // Final pass: replace any remaining unresolved {{variables}} with empty string
+  result = result.replace(/\{\{\w+\}\}/g, "");
 
   return result;
 }

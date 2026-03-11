@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +9,7 @@ import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPi
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
-  INITIAL_SCREENING, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
+  INITIAL_SCREENING, createInitialScreening, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
   computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant, formatDateFR,
   getFormeJuridiqueLabel,
@@ -40,12 +41,12 @@ import {
 import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
-  Map, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
+  Map as MapIcon, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen,
 } from "lucide-react";
 
-import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS } from "@/lib/constants";
+import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
 
 const STEP_LABELS = ["Recherche", "Informations", "Personnes", "Questionnaire", "Scoring", "Documents"];
 
@@ -93,8 +94,10 @@ interface UploadedDoc {
 
 export default function NouveauClientPage() {
   const navigate = useNavigate();
-  const { clients, addClient, refreshClients } = useAppState();
+  const { clients, addClient, refreshClients, isOnline } = useAppState();
   const [step, setStep] = useState(0);
+
+  useDocumentTitle("Nouveau Client");
 
   // Step 1 - Search
   const [searchMode, setSearchMode] = useState<"siren" | "nom" | "dirigeant">("siren");
@@ -107,7 +110,7 @@ export default function NouveauClientPage() {
   const [duplicateRef, setDuplicateRef] = useState("");
   const [dataSource, setDataSource] = useState<string>("");
   const [gelAvoirsAlert, setGelAvoirsAlert] = useState<string[]>([]);
-  const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
+  const [screening, setScreening] = useState<ScreeningState>(() => createInitialScreening());
   const [autoFields, setAutoFields] = useState<Set<string>>(new Set());
   const [capitalSource, setCapitalSource] = useState("");
   const [selectedEnterprise, setSelectedEnterprise] = useState<EnterpriseResult | null>(null);
@@ -185,14 +188,16 @@ export default function NouveauClientPage() {
   // #81: Search debounce timer
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // #90: Online status
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  // Screening timeout (30s) — show prominent skip button
+  const [screeningTimedOut, setScreeningTimedOut] = useState(false);
+  const screeningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // #11: Collapsible sections state for step 1
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   // #40: Collapsed beneficiaires
   const [collapsedBE, setCollapsedBE] = useState<Record<number, boolean>>({});
+  useEffect(() => { setCollapsedBE({}); }, [beneficiaires.length]);
 
   // #51: Animated score
   const [animatedScore, setAnimatedScore] = useState(0);
@@ -232,73 +237,55 @@ export default function NouveauClientPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // #90: Online status tracking
-  useEffect(() => {
-    const onLine = () => setIsOnline(true);
-    const offLine = () => setIsOnline(false);
-    window.addEventListener("online", onLine);
-    window.addEventListener("offline", offLine);
-    return () => { window.removeEventListener("online", onLine); window.removeEventListener("offline", offLine); };
-  }, []);
-
   // #77: Warn before leaving with unsaved changes
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
       if (hasUnsavedChanges && step > 0) {
         e.preventDefault();
+        e.returnValue = "Les modifications non sauvegardees seront perdues";
       }
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasUnsavedChanges, step]);
 
-  // #51: Animate score on step 4
-  useEffect(() => {
-    if (step === 4) {
-      setAnimatedScore(0);
-      const target = adjustedScore;
-      const duration = 1200;
-      const start = performance.now();
-      const animate = (now: number) => {
-        const elapsed = now - start;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = 1 - Math.pow(1 - progress, 3);
-        setAnimatedScore(Math.round(eased * target));
-        if (progress < 1) requestAnimationFrame(animate);
-      };
-      requestAnimationFrame(animate);
-    }
-  }, [step, adjustedScore]);
+  // NOTE: Score animation useEffect moved after adjustedScore declaration (see below)
+  // to prevent TDZ "Cannot access 'ne' before initialization" after Vite minification.
 
   // FIX 9: Save draft to localStorage on step change (silent)
   useEffect(() => {
     if (step > 0 || form.siren) {
-      const draftData = { form, step, beneficiaires, questions, decision, motifRefus, savedAt: Date.now() };
-      sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
-      // Also save per-SIREN draft for multi-draft support
-      if (form.siren) {
-        const cleanSiren = form.siren.replace(/\s/g, "");
-        if (cleanSiren.length === 9) {
-          sessionStorage.setItem(`draft_nc_${cleanSiren}`, JSON.stringify(draftData));
+      const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
+      try {
+        sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
+        // Also save per-SIREN draft for multi-draft support
+        if (form.siren) {
+          const cleanSiren = form.siren.replace(/\s/g, "");
+          if (cleanSiren.length === 9) {
+            sessionStorage.setItem(`draft_nc_${cleanSiren}`, JSON.stringify(draftData));
+          }
         }
-      }
+      } catch { /* storage full */ }
     }
-  }, [step, form, beneficiaires, questions, decision, motifRefus]);
+  }, [step, form, beneficiaires, questions, decision, motifRefus, motifReserve]);
 
   // FIX 2: Silent draft restore — no popup
   const restoreDraft = useCallback((draft: string) => {
     try {
       const data = JSON.parse(draft);
-      if (data.form?.siren) {
-        setForm(data.form);
-        setStep(data.step || 0);
-        if (data.beneficiaires) setBeneficiaires(data.beneficiaires);
-        if (data.questions) setQuestions(data.questions);
-        if (data.decision) setDecision(data.decision);
-        if (data.motifRefus) setMotifRefus(data.motifRefus);
-        setDraftBanner({ restoredAt: new Date(data.savedAt || Date.now()) });
-      }
-    } catch {}
+      // Validate draft structure before restoring
+      if (!data || typeof data !== "object" || !data.form || typeof data.form !== "object" || !data.form.siren) return;
+      setForm(data.form);
+      setStep(typeof data.step === "number" && data.step >= 0 && data.step <= 4 ? data.step : 0);
+      if (Array.isArray(data.beneficiaires)) setBeneficiaires(data.beneficiaires);
+      if (data.questions && typeof data.questions === "object") setQuestions(data.questions);
+      if (typeof data.decision === "string") setDecision(data.decision);
+      if (typeof data.motifRefus === "string") setMotifRefus(data.motifRefus);
+      if (typeof data.motifReserve === "string") setMotifReserve(data.motifReserve);
+      setDraftBanner({ restoredAt: new Date(data.savedAt || Date.now()) });
+    } catch (err) {
+      logger.warn("NouveauClient", "Failed to restore draft:", err);
+    }
   }, []);
 
   // On mount: silently restore draft if exists
@@ -310,7 +297,9 @@ export default function NouveauClientPage() {
         if (data.form?.siren) {
           restoreDraft(draft);
         }
-      } catch {}
+      } catch (err) {
+        logger.warn("NouveauClient", "Failed to parse draft:", err);
+      }
     }
   }, [restoreDraft]);
 
@@ -342,14 +331,14 @@ export default function NouveauClientPage() {
   }, [sanctionsCritical]);
 
   // P6-25: Auto-suggest frequency based on mission type — only on mission change (not frequence)
-  const prevMissionRef = useMemo(() => ({ current: form.mission }), []);
+  const prevMissionRef = useRef(form.mission);
   useEffect(() => {
     const suggested = MISSION_FREQUENCE[form.mission];
     if (suggested && form.mission !== prevMissionRef.current) {
       set("frequence", suggested);
     }
     prevMissionRef.current = form.mission;
-  }, [form.mission, set, prevMissionRef]);
+  }, [form.mission, set]);
 
   // #24: Auto-detect domiciliataire → mission DOMICILIATION
   const inpiDomiciliataire = screening.inpi.data?.companyData?.domiciliataire;
@@ -448,6 +437,26 @@ export default function NouveauClientPage() {
   const totalMalus = risk.malus + extraMalus + bodaccMalus;
   const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus, 120);
 
+  // #51: Animate score on step 4 (placed after adjustedScore to avoid TDZ)
+  useEffect(() => {
+    if (step === 4) {
+      setAnimatedScore(0);
+      const target = adjustedScore;
+      const duration = 1200;
+      const start = performance.now();
+      let rafId: number;
+      const animate = (now: number) => {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        setAnimatedScore(Math.round(eased * target));
+        if (progress < 1) rafId = requestAnimationFrame(animate);
+      };
+      rafId = requestAnimationFrame(animate);
+      return () => cancelAnimationFrame(rafId);
+    }
+  }, [step, adjustedScore]);
+
   // Radar data
   const radarData = useMemo(() => [
     { subject: "Activite", score: risk.scoreActivite, fullMark: 100 },
@@ -476,14 +485,14 @@ export default function NouveauClientPage() {
       ...(screening.inpi.data?.documents ?? []),
     ];
     const found = required.filter(r =>
-      documents.some(d => d.type.toUpperCase().includes(r.toUpperCase())) ||
+      documents.some(d => (d.type ?? "").toUpperCase().includes(r.toUpperCase())) ||
       autoDocs.some(d => {
-        const typeUp = d.type.toUpperCase();
+        const typeUp = (d.type ?? "").toUpperCase();
         const typeMatch = typeUp.includes(r.toUpperCase());
         // Only Extrait RNE/RBE count as KBIS equivalent, NOT generic "Actes"
         const kbisMatch = r === "KBIS" && (typeUp.includes("EXTRAIT") || typeUp === "KBIS");
-        const isAvailable = d.status === "auto" || d.status === "lien_direct" || (d as any).storedInSupabase === true;
-        const notAuthOnly = !(d as any).needsAuth || (d as any).storedInSupabase;
+        const isAvailable = d.status === "auto" || d.status === "lien_direct" || d.storedInSupabase === true;
+        const notAuthOnly = !d.needsAuth || (d as any).storedInSupabase;
         return (typeMatch || kbisMatch) && isAvailable && notAuthOnly;
       })
     );
@@ -532,8 +541,20 @@ export default function NouveauClientPage() {
     return keys.some(k => screening[k].loading);
   }, [screening]);
 
+  // Screening timeout: when screeningRunning turns false, clear timeout
+  useEffect(() => {
+    if (!screeningRunning && screeningTimeoutRef.current) {
+      clearTimeout(screeningTimeoutRef.current);
+      screeningTimeoutRef.current = null;
+    }
+  }, [screeningRunning]);
+
   // Launch parallel screening checks
   const launchScreening = (enterprise: EnterpriseResult) => {
+    // Start 30s timeout for screening
+    setScreeningTimedOut(false);
+    if (screeningTimeoutRef.current) clearTimeout(screeningTimeoutRef.current);
+    screeningTimeoutRef.current = setTimeout(() => setScreeningTimedOut(true), 30000);
     const siren = enterprise.siren;
     const dirigeants = enterprise.dirigeants ?? [];
     const raisonSociale = enterprise.raison_sociale;
@@ -625,7 +646,7 @@ export default function NouveauClientPage() {
         // FIX 6: Apply forme juridique label from INPI code
         if (inpi.formeJuridique) {
           const formeLabel = getFormeJuridiqueLabel(inpi.formeJuridique);
-          const formeMatch = FORMES.find(f => f === formeLabel || formeLabel.toUpperCase().includes(f));
+          const formeMatch = FORMES.find(f => f === formeLabel || (formeLabel ?? "").toUpperCase().includes(f));
           if (formeMatch) inpiAutoSet("forme", formeMatch);
         }
         if (Object.keys(updates).length > 0) {
@@ -665,7 +686,7 @@ export default function NouveauClientPage() {
             // Deduplicate: by nom (uppercase), keep the version with the most info
             const deduped = new Map<string, typeof enrichedBE[0]>();
             for (const be of enrichedBE) {
-              const key = be.nom.toUpperCase();
+              const key = (be.nom ?? "").toUpperCase();
               const existing = deduped.get(key);
               if (!existing || (!existing.prenom && be.prenom) || (!existing.dateNaissance && be.dateNaissance)) {
                 deduped.set(key, be);
@@ -673,7 +694,7 @@ export default function NouveauClientPage() {
             }
 
             // Merge with previous, avoiding duplicates
-            const existingNoms = new Set(prev.map(b => b.nom.toUpperCase()));
+            const existingNoms = new Set(prev.map(b => (b.nom ?? "").toUpperCase()));
             const newBE = Array.from(deduped.values()).filter(b => !existingNoms.has(b.nom.toUpperCase()));
 
             // Also update existing entries that lack prenom
@@ -783,7 +804,7 @@ export default function NouveauClientPage() {
     // #2: Save to search history
     setSearchHistory(prev => {
       const updated = [searchQuery.trim(), ...prev.filter(h => h !== searchQuery.trim())].slice(0, 5);
-      localStorage.setItem("search_history_lcb", JSON.stringify(updated));
+      try { localStorage.setItem("search_history_lcb", JSON.stringify(updated)); } catch { /* storage full */ }
       return updated;
     });
     setShowSearchHistory(false);
@@ -899,7 +920,7 @@ export default function NouveauClientPage() {
         selectPappersResult(res.results[0]);
       }
     }
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("NouveauClient", "handleSearch error:", err);
       setSearchError("Erreur lors de la recherche. Veuillez reessayer.");
       setSearchLoading(false);
@@ -951,7 +972,7 @@ export default function NouveauClientPage() {
     // Populate form with enriched data
     // FIX 6: Apply forme juridique label from code if needed
     const rawForme = entData?.forme_juridique ?? result.forme_juridique ?? "";
-    const rawFormeCode = (entData as any)?.forme_juridique_code ?? "";
+    const rawFormeCode = entData?.forme_juridique_code ?? "";
     const resolvedForme = rawFormeCode ? getFormeJuridiqueLabel(rawFormeCode) : rawForme;
     const formeMatch = FORMES.find(f =>
       f === resolvedForme ||
@@ -1107,29 +1128,31 @@ export default function NouveauClientPage() {
     setBeneficiaires(prev => prev.filter((_, i) => i !== idx));
   };
 
-  // #22: Screen each BE via OpenSanctions
+  // #22: Screen each BE via OpenSanctions (functional setState to avoid stale closure)
   const screenBeneficiaires = useCallback((bList: Beneficiaire[]) => {
     bList.forEach(b => {
       if (!b.nom || b.nom.length < 2) return;
       const key = `${b.nom}-${b.prenom}`;
-      if (beScreening[key]) return; // already screened
-      setBeScreening(prev => ({ ...prev, [key]: "loading" }));
-      checkSanctions([{ nom: b.nom, prenom: b.prenom, dateNaissance: b.dateNaissance, nationalite: b.nationalite }])
-        .then(result => {
-          setBeScreening(prev => ({ ...prev, [key]: result.hasCriticalMatch || result.hasPPE ? "match" : "clean" }));
-          if (result.hasCriticalMatch) toast.error(`ALERTE : ${b.prenom} ${b.nom} — match sanctions`);
-          if (result.hasPPE) toast.warning(`PPE detectee : ${b.prenom} ${b.nom}`);
-        })
-        .catch(() => setBeScreening(prev => ({ ...prev, [key]: "error" })));
+      setBeScreening(prev => {
+        if (prev[key]) return prev; // already screened
+        checkSanctions([{ nom: b.nom, prenom: b.prenom, dateNaissance: b.dateNaissance, nationalite: b.nationalite }])
+          .then(result => {
+            setBeScreening(p => ({ ...p, [key]: result.hasCriticalMatch || result.hasPPE ? "match" : "clean" }));
+            if (result.hasCriticalMatch) toast.error(`ALERTE : ${b.prenom} ${b.nom} — match sanctions`);
+            if (result.hasPPE) toast.warning(`PPE detectee : ${b.prenom} ${b.nom}`);
+          })
+          .catch(() => setBeScreening(p => ({ ...p, [key]: "error" })));
+        return { ...prev, [key]: "loading" };
+      });
     });
-  }, [beScreening]);
+  }, []);
 
   // Auto-screen BE when they are first set
   useEffect(() => {
     if (beneficiaires.length > 0 && step === 2) {
       screenBeneficiaires(beneficiaires);
     }
-  }, [beneficiaires.length, step]);
+  }, [beneficiaires.length, step, screenBeneficiaires]);
 
   // Step 4: question update
   const updateQuestion = (idx: number, field: "value" | "commentaire", val: string) => {
@@ -1321,7 +1344,7 @@ export default function NouveauClientPage() {
       else if (newClient.scoreGlobal >= 25) newClient.nivVigilance = "STANDARD";
     }
 
-    addClient(newClient);
+    await addClient(newClient);
 
     // P5-3: Clear draft AFTER successful addClient (was before, losing data on failure)
     sessionStorage.removeItem("draft_nouveau_client");
@@ -1364,14 +1387,14 @@ export default function NouveauClientPage() {
           } else {
             logger.debug(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
           }
-        } catch (err) {
+        } catch (err: unknown) {
           logger.error(`[Submit] Upload error for ${doc.name}:`, err);
         }
       }
     }
 
     // #25: Refresh clients from Supabase after creation
-    refreshClients().catch(() => {});
+    refreshClients().catch((e) => logger.warn("Client", "Refresh after creation failed:", e));
 
     // Idee 27: Auto-generate fiche PDF in background
     try {
@@ -1384,9 +1407,10 @@ export default function NouveauClientPage() {
     // Idee 28: Show success modal instead of navigating directly
     setCreatedClientRef(ref);
     setShowSuccessModal(true);
-    } catch (err) {
+    } catch (err: unknown) {
       logger.error("[Submit] Error:", err);
-      toast.error("Erreur lors de la creation du client");
+      const msg = err instanceof Error ? err.message : "Erreur lors de la creation du client";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1403,11 +1427,15 @@ export default function NouveauClientPage() {
       }
       case 2: return true;
       case 3: return questionsValid;
-      case 4: return decision !== "";
+      case 4: {
+        if (!decision) return false;
+        if (decision === "REFUSER" && !motifRefus.trim()) return false;
+        return true;
+      }
       case 5: return true;
       default: return true;
     }
-  }, [step, form, questionsValid, decision]);
+  }, [step, form, questionsValid, decision, motifRefus]);
 
   // Validation errors for step 2
   const validationErrors = useMemo(() => {
@@ -1540,11 +1568,9 @@ export default function NouveauClientPage() {
       }
       if (e.key === "Enter" && !e.shiftKey) {
         const active = document.activeElement;
-        if (active && (active.tagName === "TEXTAREA")) return;
-        if (active && active.tagName === "INPUT") {
-          e.preventDefault();
-          if (step < 5 && canGoNext) setStep(s => s + 1);
-        }
+        if (active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT" || active.tagName === "SELECT")) return;
+        e.preventDefault();
+        if (step < 5 && canGoNext) setStep(s => s + 1);
       }
     };
     window.addEventListener("keydown", handler);
@@ -1664,7 +1690,7 @@ export default function NouveauClientPage() {
       )}
 
       {/* FIX 46: Improved stepper with animated transitions + #72: Connected line + #73: Checkmarks */}
-      <div className="glass-card p-4 shadow-lg">
+      <div className="glass-card p-4 shadow-lg" role="navigation" aria-label="Progression du formulaire">
         {/* #75: Estimated completion time */}
         <div className="flex items-center justify-end gap-1.5 mb-2">
           <Clock className="w-3 h-3 text-slate-600" />
@@ -1713,7 +1739,7 @@ export default function NouveauClientPage() {
       <div className={`glass-card p-6 transition-all duration-300 ${fieldsVisible ? "opacity-100 translate-y-0" : stepDirection === "right" ? "opacity-0 translate-x-4" : "opacity-0 -translate-x-4"}`} style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.15)" }}>
         {/* STEP 0: SEARCH */}
         {step === 0 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 1 : Recherche de l'entreprise">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-white mb-1">Recherche de l'entreprise</h2>
@@ -1780,12 +1806,14 @@ export default function NouveauClientPage() {
                     const items = PLACEHOLDERS[searchMode];
                     return items[placeholderIdx % items.length];
                   })()}
+                  aria-label="Rechercher une entreprise par SIREN, nom ou dirigeant"
                   className="pl-9 pr-9 bg-white/[0.03] border-white/[0.06] focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all"
                 />
                 {/* #3: Clear button */}
                 {searchQuery && (
                   <button
                     onClick={() => { setSearchQuery(""); setSearchResults([]); setSearchError(""); }}
+                    aria-label="Effacer la recherche"
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
                   >
                     <X className="w-4 h-4" />
@@ -1800,7 +1828,7 @@ export default function NouveauClientPage() {
                     </div>
                     {searchHistory.map((h, i) => (
                       <button
-                        key={i}
+                        key={h}
                         onMouseDown={() => { setSearchQuery(h); setShowSearchHistory(false); }}
                         className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04] transition-colors flex items-center gap-2"
                       >
@@ -1811,7 +1839,7 @@ export default function NouveauClientPage() {
                 )}
               </div>
 
-              <Button onClick={handleSearch} disabled={searchLoading || screeningRunning || !searchQuery.trim() || !isOnline} className="bg-blue-600 hover:bg-blue-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
+              <Button onClick={handleSearch} disabled={searchLoading || screeningRunning || !searchQuery.trim()} className="bg-blue-600 hover:bg-blue-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]">
                 {searchLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                 <span className="ml-1.5">Recuperer</span>
               </Button>
@@ -1855,7 +1883,7 @@ export default function NouveauClientPage() {
                   <span className="text-sm font-bold text-red-400">ALERTE : Registre des gels d'avoirs du Tresor</span>
                 </div>
                 {gelAvoirsAlert.map((msg, i) => (
-                  <p key={i} className="text-xs text-red-300 ml-7">{msg}</p>
+                  <p key={`gel-${i}-${msg.slice(0, 20)}`} className="text-xs text-red-300 ml-7">{msg}</p>
                 ))}
                 <p className="text-xs text-red-400 mt-2 ml-7 font-semibold">Vigilance RENFORCEE obligatoire — Validation du referent LCB requise</p>
               </div>
@@ -1884,9 +1912,9 @@ export default function NouveauClientPage() {
                   <span className="text-[10px] text-slate-600">— selectionnez une entreprise</span>
                 </div>
                 <div className="max-h-60 overflow-y-auto space-y-1.5">
-                  {searchResults.map((r, i) => (
+                  {searchResults.map((r) => (
                     <button
-                      key={i}
+                      key={r.siren}
                       onClick={() => selectPappersResult(r)}
                       className={`w-full text-left p-3 rounded-lg border transition-all duration-200 hover:scale-[1.005] ${
                         selectedResult?.siren === r.siren
@@ -1919,8 +1947,19 @@ export default function NouveauClientPage() {
                   {screeningRunning && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />}
                 </div>
                 <Progress value={(screeningProgress.completedCount / screeningProgress.totalCount) * 100} className="h-2" />
-                {/* #9: Skip screening button */}
-                {screeningRunning && (
+                {/* #9: Skip screening button — prominent after 30s timeout */}
+                {screeningRunning && screeningTimedOut && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setStep(1)}
+                    className="w-full mt-2 gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    Screening trop long — Passer cette etape
+                  </Button>
+                )}
+                {screeningRunning && !screeningTimedOut && (
                   <button
                     onClick={() => setStep(1)}
                     className="text-xs text-slate-500 hover:text-blue-400 transition-colors mt-1"
@@ -1940,7 +1979,7 @@ export default function NouveauClientPage() {
             {amlSignals.length > 0 && (
               <div className="space-y-2">
                 {amlSignals.map((signal, i) => (
-                  <div key={i} className={`p-3 rounded-lg flex items-start gap-2 ${
+                  <div key={`aml-${i}-${signal.message.slice(0, 20)}`} className={`p-3 rounded-lg flex items-start gap-2 ${
                     signal.severity === "red" ? "bg-red-500/10 border border-red-500/20" :
                     signal.severity === "orange" ? "bg-amber-500/10 border border-amber-500/20" :
                     "bg-blue-500/10 border border-blue-500/20"
@@ -2002,7 +2041,7 @@ export default function NouveauClientPage() {
                 {(screening.network.data.alertes?.length ?? 0) > 0 && (
                   <div className="px-4 py-3 border-t border-white/[0.06] space-y-1">
                     {screening.network.data.alertes.slice(0, 5).map((a, i) => (
-                      <div key={i} className="flex items-start gap-2 text-xs">
+                      <div key={`net-${i}-${a.message.slice(0, 20)}`} className="flex items-start gap-2 text-xs">
                         <AlertTriangle className={`w-3 h-3 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />
                         <span className={a.severity === "red" ? "text-red-300" : "text-amber-300"}>{a.message}</span>
                       </div>
@@ -2052,7 +2091,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 1: INFORMATION — FIX 4: Split into 2 sections */}
         {step === 1 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 2 : Informations du client">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white">Informations du client</h2>
               {/* #24: Required fields progress bar */}
@@ -2149,10 +2188,10 @@ export default function NouveauClientPage() {
                       <SourceField label="SIRET" value={form.siret} onChange={v => set("siret", formatSiretInput(v))} placeholder="XXX XXX XXX XXXXX" source={autoFields.has("siret") ? "data.gouv" : undefined} autoFilled={autoFields.has("siret")} />
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <Label className="text-[10px] text-slate-500 uppercase">Capital social {form.forme !== "ENTREPRISE INDIVIDUELLE" && <span className="text-red-400">*</span>}</Label>
+                          <Label htmlFor="capital-social" className="text-[10px] text-slate-500 uppercase">Capital social {form.forme !== "ENTREPRISE INDIVIDUELLE" && <span className="text-red-400">*</span>}</Label>
                           {capitalSource && form.capital > 0 && <Badge className={`text-[9px] border-0 ${capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-400"}`}>{capitalSource}</Badge>}
                         </div>
-                        <Input type="number" value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="Non renseigne" className={`bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${!form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
+                        <Input id="capital-social" type="number" min={0} value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="Non renseigne" className={`bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${!form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
                         {(() => {
                           const f = form.forme.toUpperCase();
                           const isEI = f.includes("INDIVIDUEL") || f.includes("EI");
@@ -2384,7 +2423,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 2: BENEFICIAIRES */}
         {step === 2 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 3 : Beneficiaires effectifs">
             {/* FIX 59: Improved BE header with count */}
             <div className="flex items-center justify-between">
               <div>
@@ -2486,7 +2525,7 @@ export default function NouveauClientPage() {
                 const status = beScreening[key];
                 const isCollapsed = collapsedBE[i];
                 return (
-                  <div key={i} className={`rounded-lg border transition-all duration-200 overflow-hidden ${
+                  <div key={key || `be-${i}`} className={`rounded-lg border transition-all duration-200 overflow-hidden ${
                     status === "match" ? "border-red-500/30 bg-red-500/[0.03]" :
                     "border-white/[0.06] bg-white/[0.02]"
                   }`}>
@@ -2529,22 +2568,22 @@ export default function NouveauClientPage() {
                       <div className="px-4 pb-4 pt-1 border-t border-white/[0.04]">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <Label className="text-[10px] text-slate-500 uppercase">Nom</Label>
-                            <Input value={b.nom} onChange={e => updateBeneficiaire(i, "nom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="NOM" />
+                            <Label htmlFor={`be-nom-${i}`} className="text-[10px] text-slate-500 uppercase">Nom</Label>
+                            <Input id={`be-nom-${i}`} value={b.nom} onChange={e => updateBeneficiaire(i, "nom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="NOM" />
                           </div>
                           <div>
-                            <Label className="text-[10px] text-slate-500 uppercase">Prenom</Label>
-                            <Input value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="Prenom" />
+                            <Label htmlFor={`be-prenom-${i}`} className="text-[10px] text-slate-500 uppercase">Prenom</Label>
+                            <Input id={`be-prenom-${i}`} value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="Prenom" />
                           </div>
                           {/* #35: Date picker for birth date */}
                           <div>
-                            <Label className="text-[10px] text-slate-500 uppercase">Date naissance</Label>
-                            <Input type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
+                            <Label htmlFor={`be-datenaissance-${i}`} className="text-[10px] text-slate-500 uppercase">Date naissance</Label>
+                            <Input id={`be-datenaissance-${i}`} type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
                           </div>
                           {/* #34: Nationality with common suggestions */}
                           <div>
-                            <Label className="text-[10px] text-slate-500 uppercase">Nationalite</Label>
-                            <Input value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list={`nat-list-${i}`} />
+                            <Label htmlFor={`be-nationalite-${i}`} className="text-[10px] text-slate-500 uppercase">Nationalite</Label>
+                            <Input id={`be-nationalite-${i}`} value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list={`nat-list-${i}`} />
                             <datalist id={`nat-list-${i}`}>
                               {["FRANCAISE", "ALGERIENNE", "MAROCAINE", "TUNISIENNE", "PORTUGAISE", "ITALIENNE", "ESPAGNOLE", "ALLEMANDE", "BELGE", "BRITANNIQUE", "AMERICAINE", "CHINOISE", "RUSSE", "TURQUE", "LIBANAISE"].map(n => <option key={n} value={n} />)}
                             </datalist>
@@ -2581,7 +2620,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 3: QUESTIONNAIRE LCB-FT */}
         {step === 3 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 4 : Questionnaire LCB-FT">
             {/* FIX 58: Questionnaire header with OUI count + #41: Progress */}
             <div className="flex items-center justify-between">
               <div>
@@ -2607,11 +2646,11 @@ export default function NouveauClientPage() {
             </div>
 
             {/* #43: Real-time risk level indicator */}
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 120`}>
               <BarChart3 className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400">Niveau de risque en temps reel :</span>
               <VigilanceBadge level={risk.nivVigilance} />
-              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={120}>
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     adjustedScore >= 60 ? "bg-red-500" : adjustedScore >= 25 ? "bg-amber-500" : "bg-emerald-500"
@@ -2786,7 +2825,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 4: SCORING & DECISION */}
         {step === 4 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 5 : Scoring et decision">
             <h2 className="text-lg font-semibold text-white">Scoring et Decision</h2>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -3013,7 +3052,7 @@ export default function NouveauClientPage() {
 
         {/* STEP 5: DOCUMENTS */}
         {step === 5 && (
-          <div className="space-y-6">
+          <div className="space-y-6" role="region" aria-label="Etape 6 : Documents et finalisation">
             {/* Header with KYC progress */}
             <div className="flex items-center justify-between">
               <div>
@@ -3220,14 +3259,14 @@ export default function NouveauClientPage() {
               const seen = new Set<string>();
               // Prefer inpi docs first (more likely to have stored PDFs)
               const allDocs = [...inpiDocs, ...fetchDocs].filter(d => {
-                const dateKey = (d as any).dateDepot || (d as any).dateCloture || "";
-                const key = `${d.type}-${(d as any).source || ""}-${dateKey}`.toLowerCase();
+                const dateKey = d.dateDepot || d.dateCloture || "";
+                const key = `${d.type}-${d.source || ""}-${dateKey}`.toLowerCase();
                 if (seen.has(key)) return false;
                 seen.add(key);
                 return true;
               });
               const storedDocs = allDocs.filter(d => d.storedInSupabase);
-              const linkDocs = allDocs.filter(d => !d.storedInSupabase && d.url && d.status !== "manquant" && !(d as any).needsAuth);
+              const linkDocs = allDocs.filter(d => !d.storedInSupabase && d.url && d.status !== "manquant" && !d.needsAuth);
               const isLoading = screening.inpi.loading || screening.documents.loading;
 
               if (storedDocs.length === 0 && linkDocs.length === 0 && !isLoading) {
@@ -3338,7 +3377,7 @@ export default function NouveauClientPage() {
                         <tr className="bg-white/[0.03]">
                           <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
                           {screening.inpi.data.financials.map((f, i) => (
-                            <th key={i} className="text-right py-2.5 px-3 text-slate-400 font-medium">
+                            <th key={f.dateCloture || `fin-${i}`} className="text-right py-2.5 px-3 text-slate-400 font-medium">
                               {f.dateCloture ? formatDateFR(f.dateCloture) : `Exercice ${i + 1}`}
                             </th>
                           ))}
@@ -3362,7 +3401,7 @@ export default function NouveauClientPage() {
                                 const val = f[row.key];
                                 const isNeg = typeof val === "number" && val < 0;
                                 return (
-                                  <td key={i} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
+                                  <td key={f.dateCloture || `fin-${i}`} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
                                     {val != null ? (row.key === "effectif" ? val : `${typeof val === "number" ? val.toLocaleString("fr-FR") : val} \u20AC`) : "—"}
                                   </td>
                                 );
@@ -3455,8 +3494,8 @@ export default function NouveauClientPage() {
               const seenKeys = new Set<string>();
               const allDocs = rawDocs.filter(d => {
                 // FIX P4-12: Better dedup key — type+source+date instead of type+label
-                const dateKey = (d as any).dateDepot || (d as any).dateCloture || "";
-                const key = `${d.type.toUpperCase()}-${(d as any).source || ""}-${dateKey}`;
+                const dateKey = d.dateDepot || d.dateCloture || "";
+                const key = `${d.type.toUpperCase()}-${d.source || ""}-${dateKey}`;
                 if (seenKeys.has(key)) return false;
                 seenKeys.add(key);
                 return true;
@@ -3464,7 +3503,7 @@ export default function NouveauClientPage() {
               // FIX P4-10: needsAuth docs are NOT accessible — don't count them as stored
               const hasStoredPdf = (types: string[]) => allDocs.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t)) &&
-                (d as any).storedInSupabase === true
+                d.storedInSupabase === true
               );
               const hasUpload = (types: string[]) => documents.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t))
@@ -3757,11 +3796,11 @@ export default function NouveauClientPage() {
             size="sm"
             className={`gap-1.5 shadow-lg border-white/[0.1] bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-400 hover:text-blue-400"}`}
             onClick={() => {
-              const draftData = { form, step, beneficiaires, questions, decision, motifRefus, savedAt: Date.now() };
-              sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
+              const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
+              try { sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData)); } catch { /* storage full */ }
               setDraftSaved(true);
               toast.success("Brouillon sauvegarde");
-              setTimeout(() => setDraftSaved(false), 2000);
+              setTimeout(() => setDraftSaved(false), AUTOSAVE_DELAY_MS);
             }}
           >
             {draftSaved ? <Check className="w-3.5 h-3.5" /> : <Save className="w-3.5 h-3.5" />}
@@ -3801,44 +3840,69 @@ export default function NouveauClientPage() {
           </div>
 
           {step < 5 ? (
-            <Button
-              onClick={() => {
-                if (!canGoNext) {
-                  const missing: string[] = [];
-                  if (step === 1) {
-                    if (!form.raisonSociale) missing.push("Raison sociale");
-                    if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) missing.push("SIREN (9 chiffres)");
-                    if (!form.forme) missing.push("Forme juridique");
-                    if (!form.ape) missing.push("Code APE");
-                    if (!form.dirigeant) missing.push("Dirigeant");
-                    if (!form.adresse) missing.push("Adresse");
-                    if (!form.cp) missing.push("Code postal");
-                    if (!form.ville) missing.push("Ville");
+            <div className="flex items-center gap-2">
+              {/* Skip step button — shown when validation blocks on steps with requirements */}
+              {!canGoNext && [1, 3, 4].includes(step) && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    toast.info("Etape passee — vous pourrez y revenir plus tard");
+                    setStep(step + 1);
+                  }}
+                  className="gap-1 text-xs text-slate-500 hover:text-slate-300"
+                >
+                  Passer
+                  <ArrowRight className="w-3 h-3" />
+                </Button>
+              )}
+              <Button
+                onClick={() => {
+                  if (!canGoNext) {
+                    const missing: string[] = [];
+                    if (step === 1) {
+                      if (!form.raisonSociale) missing.push("Raison sociale");
+                      if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) missing.push("SIREN (9 chiffres)");
+                      if (!form.forme) missing.push("Forme juridique");
+                      if (!form.ape) missing.push("Code APE");
+                      if (!form.dirigeant) missing.push("Dirigeant");
+                      if (!form.adresse) missing.push("Adresse");
+                      if (!form.cp) missing.push("Code postal");
+                      if (!form.ville) missing.push("Ville");
+                    }
+                    if (step === 3 && !questionsValid) missing.push("Commentaires obligatoires pour reponses OUI");
+                    if (step === 4 && !decision) missing.push("Decision requise");
+                    if (missing.length > 0) {
+                      toast.warning(`Champs manquants : ${missing.join(", ")}`);
+                      // #22: Smooth scroll to first error
+                      scrollToFirstError();
+                    }
+                    return;
                   }
-                  if (step === 3 && !questionsValid) missing.push("Commentaires obligatoires pour reponses OUI");
-                  if (step === 4 && !decision) missing.push("Decision requise");
-                  if (missing.length > 0) {
-                    toast.warning(`Champs manquants : ${missing.join(", ")}`);
-                    // #22: Smooth scroll to first error
-                    scrollToFirstError();
-                  }
-                  return;
-                }
-                setStep(step + 1);
-              }}
-              className="gap-1.5 bg-blue-600 hover:bg-blue-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-blue-500/10"
-            >
-              Suivant
-              <ChevronRight className="w-4 h-4" />
-            </Button>
+                  setStep(step + 1);
+                }}
+                className="gap-1.5 bg-blue-600 hover:bg-blue-700 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shadow-md shadow-blue-500/10"
+              >
+                Suivant
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
           ) : (
             <Button
-              onClick={handleSubmit}
-              disabled={isSubmitting || !isOnline}
+              onClick={() => {
+                if (!isOnline) {
+                  toast.error("Connexion au serveur requise pour creer un client. Verifiez votre connexion internet.");
+                  return;
+                }
+                handleSubmit();
+              }}
+              disabled={isSubmitting}
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 shadow-lg shadow-emerald-500/20 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
             >
               {isSubmitting ? (
                 <><Loader2 className="w-4 h-4 animate-spin" /> Creation en cours...</>
+              ) : !isOnline ? (
+                <><WifiOff className="w-4 h-4" /> Hors ligne — Creation impossible</>
               ) : (
                 <><Check className="w-4 h-4" /> Valider et creer le client</>
               )}
@@ -3952,7 +4016,9 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
     if (lat && lng) { setGeoLat(lat); setGeoLng(lng); return; }
     if (!fullAddr || fullAddr.length < 5) return;
     setGeoLoading(true);
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: AbortSignal.timeout(10000) })
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: controller.signal })
       .then(r => r.json())
       .then((data: Array<{ lat: string; lon: string }>) => {
         if (data.length > 0) {
@@ -3962,15 +4028,16 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
           if (!isNaN(parsedLng)) setGeoLng(parsedLng);
         }
       })
-      .catch(() => {})
-      .finally(() => setGeoLoading(false));
+      .catch((e) => logger.warn("Geo", "Geocoding failed:", e))
+      .finally(() => { clearTimeout(timeoutId); setGeoLoading(false); });
+    return () => { clearTimeout(timeoutId); controller.abort(); };
   }, [lat, lng, fullAddr]);
 
   return (
     <div className="rounded-lg border border-white/[0.06] overflow-hidden">
       <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Map className="w-4 h-4 text-emerald-400" />
+          <MapIcon className="w-4 h-4 text-emerald-400" />
           <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
           {geoLoading && <Loader2 className="w-3 h-3 animate-spin text-blue-400" />}
         </div>
@@ -4007,7 +4074,7 @@ function highlightMatch(text: string, query: string): JSX.Element | string {
     // Try word-by-word matching
     const words = query.trim().split(/\s+/).filter(w => w.length >= 2);
     if (words.length === 0) return text;
-    let result = text;
+    const result = text;
     const parts: (JSX.Element | string)[] = [];
     let lastIdx = 0;
     for (const word of words) {
@@ -4112,6 +4179,7 @@ function SourceField({ label, value, onChange, type = "text", error, placeholder
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         readOnly={isLocked}
+        {...(type === "number" ? { min: 0 } : {})}
         className={`${bgClass} mt-1 ${borderClass} focus:ring-2 focus:ring-blue-500/30 transition-all ${isLocked ? "cursor-not-allowed opacity-70" : ""}`}
       />
       {/* #23: Inline validation errors + #94: Error styling */}
@@ -4181,6 +4249,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
+        {...(type === "number" ? { min: 0 } : {})}
         className={`bg-white/[0.03] mt-1 focus:ring-2 focus:ring-blue-500/30 transition-all ${error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : !isEmpty ? "border-emerald-500/20" : "border-white/[0.06]"}`}
       />
       {/* #94: Error styling with icon */}

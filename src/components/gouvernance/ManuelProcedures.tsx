@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -62,21 +62,40 @@ const DEFAULT_VERSIONS: ManuelVersion[] = [
   },
 ];
 
+const MP_VERSIONS_KEY = "lcb-manuel-procedures-versions";
+const MP_LECTURES_KEY = "lcb-manuel-procedures-lectures";
+
+function loadVersions(): ManuelVersion[] {
+  try {
+    const stored = localStorage.getItem(MP_VERSIONS_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return DEFAULT_VERSIONS;
+}
+
 export default function ManuelProcedures() {
   const { collaborateurs } = useAppState();
-  const [versions, setVersions] = useState<ManuelVersion[]>(DEFAULT_VERSIONS);
+  const [versions, setVersions] = useState<ManuelVersion[]>(loadVersions);
   const [showViewDialog, setShowViewDialog] = useState(false);
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [viewingVersion, setViewingVersion] = useState<ManuelVersion | null>(null);
   const [newVersion, setNewVersion] = useState({ resume: "", contenu: "" });
 
-  // Lecture tracking (mock data)
-  const [lectures, setLectures] = useState<LectureEntry[]>(() =>
-    collaborateurs.map((c, i) => ({
+  // Lecture tracking
+  const [lectures, setLectures] = useState<LectureEntry[]>(() => {
+    try {
+      const stored = localStorage.getItem(MP_LECTURES_KEY);
+      if (stored) return JSON.parse(stored);
+    } catch { /* ignore */ }
+    return collaborateurs.map((c, i) => ({
       collaborateur: c.nom,
       dateLecture: i < Math.ceil(collaborateurs.length * 0.6) ? "2026-02-01" : null,
-    }))
-  );
+    }));
+  });
+
+  // Persist to localStorage
+  useEffect(() => { try { localStorage.setItem(MP_VERSIONS_KEY, JSON.stringify(versions)); } catch { /* */ } }, [versions]);
+  useEffect(() => { try { localStorage.setItem(MP_LECTURES_KEY, JSON.stringify(lectures)); } catch { /* */ } }, [lectures]);
 
   const currentVersion = versions.find(v => v.statut === "VALIDE") || versions[0];
   const readCount = lectures.filter(l => l.dateLecture).length;
@@ -167,7 +186,12 @@ export default function ManuelProcedures() {
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => currentVersion && handleView(currentVersion)}>
                 <Eye className="w-3.5 h-3.5" /> Voir
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+                if (currentVersion) {
+                  setNewVersion({ resume: currentVersion.resume, contenu: currentVersion.contenu });
+                  setShowNewDialog(true);
+                }
+              }}>
                 <Pencil className="w-3.5 h-3.5" /> Modifier
               </Button>
               <Button size="sm" className="gap-1.5" onClick={() => setShowNewDialog(true)}>
@@ -190,6 +214,13 @@ export default function ManuelProcedures() {
           </Button>
         </CardHeader>
         <CardContent>
+          {lectures.length === 0 ? (
+            <div className="text-center py-6 text-slate-500">
+              <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
+              <p className="text-sm">Aucun collaborateur enregistre</p>
+              <p className="text-xs mt-1">Ajoutez des collaborateurs pour suivre la diffusion du manuel</p>
+            </div>
+          ) : (
           <div className="space-y-2">
             {lectures.map(l => (
               <div key={l.collaborateur} className="flex items-center justify-between py-2 px-3 rounded-md bg-white/[0.02] border border-white/[0.04]">
@@ -210,6 +241,7 @@ export default function ManuelProcedures() {
               </div>
             ))}
           </div>
+          )}
         </CardContent>
       </Card>
 

@@ -93,11 +93,17 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(217 33% 25%);
-    border-radius: 3px;
+    background: hsl(217 33% 22%);
+    border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(217 33% 35%);
+    background: hsl(217 33% 32%);
+  }
+
+  /* Firefox scrollbar */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(217 33% 22%) transparent;
   }
 }
 
@@ -123,6 +129,11 @@
   /* Glass card effect */
   .glass-card {
     @apply bg-card/80 backdrop-blur-xl border border-white/[0.06] rounded-xl shadow-xl shadow-black/20;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+  }
+  .glass-card:hover {
+    @apply border-white/[0.12];
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.35);
   }
 
   /* Glow effect for KPI cards */
@@ -137,6 +148,26 @@
   }
   .kpi-glow-amber {
     box-shadow: 0 0 30px -5px rgba(245, 158, 11, 0.15);
+  }
+
+  /* Page container — standard padding for all app pages */
+  .page-container {
+    @apply p-6 lg:p-8 mx-auto;
+    max-width: 1400px;
+  }
+
+  /* Card lift effect on hover */
+  .card-hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+  .card-hover-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 24px -8px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Section divider */
+  .section-divider {
+    @apply border-t border-white/[0.04] my-2;
   }
 }
 
@@ -196,9 +227,9 @@
   100% { background-position: 200% 0; }
 }
 .skeleton-shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.04) 50%, transparent 75%);
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%);
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2s ease-in-out infinite;
 }
 
 /* Progress bar */
@@ -213,7 +244,7 @@
 /* Focus ring improvements */
 *:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px hsl(217 91% 60% / 0.5);
+  box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(217 91% 60% / 0.5);
   border-radius: inherit;
 }
 
@@ -235,16 +266,39 @@
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Table row hover transition */
 tr {
-  transition: background-color 150ms ease;
+  transition: background-color 150ms ease, box-shadow 150ms ease;
+}
+
+/* Table header sticky */
+thead th {
+  position: relative;
+}
+
+/* Better table striping for dark theme */
+tbody tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.01);
 }
 
 /* Toast position fix */
 [data-sonner-toaster] {
   --offset: 16px !important;
+}
+
+/* Respect reduced-motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Safe area for iPhone notch / home indicator */
@@ -282,9 +336,61 @@ tr {
   animation: bounce-once 0.5s ease-out;
 }
 
+/* Staggered animation for grid children */
+@keyframes stagger-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-stagger-in > * {
+  animation: stagger-in 0.4s ease-out forwards;
+  opacity: 0;
+}
+.animate-stagger-in > *:nth-child(1) { animation-delay: 0ms; }
+.animate-stagger-in > *:nth-child(2) { animation-delay: 50ms; }
+.animate-stagger-in > *:nth-child(3) { animation-delay: 100ms; }
+.animate-stagger-in > *:nth-child(4) { animation-delay: 150ms; }
+.animate-stagger-in > *:nth-child(5) { animation-delay: 200ms; }
+.animate-stagger-in > *:nth-child(6) { animation-delay: 250ms; }
+.animate-stagger-in > *:nth-child(7) { animation-delay: 300ms; }
+.animate-stagger-in > *:nth-child(8) { animation-delay: 350ms; }
+
+/* Subtle glow on interactive cards */
+.interactive-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.interactive-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.interactive-card:active {
+  transform: translateY(0);
+}
+
+/* Better scrollbar on hover */
+::-webkit-scrollbar-thumb {
+  transition: background 0.2s ease;
+}
+
+/* Responsive typography */
+@media (min-width: 1024px) {
+  .text-responsive-xl { font-size: 1.5rem; }
+  .text-responsive-2xl { font-size: 1.75rem; }
+}
+
 /* Print styles */
 @media print {
   .no-print { display: none !important; }
   .glass-card { border: 1px solid #ddd; box-shadow: none; backdrop-filter: none; background: white; }
   body { background: white; color: black; }
+  /* Hide sidebar and header in print */
+  aside { display: none !important; }
+  header { display: none !important; }
+  [class*="lg:pl-"] { padding-left: 0 !important; }
 }

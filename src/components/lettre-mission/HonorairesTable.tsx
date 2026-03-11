@@ -29,8 +29,9 @@ export default function HonorairesTable({
   missions,
 }: HonorairesTableProps) {
   const montantPeriodique = useMemo(() => {
-    if (values.frequence === "mensuel") return values.honoraires / 12;
-    return values.honoraires / 4;
+    const safeHonoraires = Math.max(0, values.honoraires || 0);
+    const raw = values.frequence === "mensuel" ? safeHonoraires / 12 : safeHonoraires / 4;
+    return Math.round(raw * 100) / 100;
   }, [values.honoraires, values.frequence]);
 
   const controleFiscalMontant = useMemo(() => {
@@ -63,13 +64,16 @@ export default function HonorairesTable({
                 {ligne.editable && ligne.editKey ? (
                   <input
                     type="number"
+                    min="0"
                     value={values[ligne.editKey]}
-                    onChange={(e) =>
+                    onChange={(e) => {
+                      const val = Number(e.target.value);
                       onChange({
                         ...values,
-                        [ligne.editKey!]: Number(e.target.value) || 0,
-                      })
-                    }
+                        [ligne.editKey!]: val >= 0 ? val : 0,
+                      });
+                    }}
+                    aria-label={`Montant ${ligne.label}`}
                     className="w-24 text-right border rounded px-2 py-0.5 text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                   />
                 ) : (
@@ -207,6 +211,7 @@ export default function HonorairesTable({
                 frequence: e.target.value as "mensuel" | "trimestriel",
               })
             }
+            aria-label="Frequence de paiement"
             className="border rounded px-2 py-1 text-sm focus:ring-1 focus:ring-blue-500"
           >
             <option value="mensuel">Mensuel</option>

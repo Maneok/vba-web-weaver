@@ -70,7 +70,7 @@ export default function CabinetConfigForm() {
   };
 
   const handleSave = () => {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config)); } catch { /* storage full */ }
     toast.success("Configuration du cabinet sauvegardee");
   };
 

@@ -15,14 +15,6 @@ Deno.serve(async (req) => {
   if (optRes) return optRes;
   const corsHeaders = getCorsHeaders(req);
 
-  // Auth check
-  const authHeader = req.headers.get("Authorization");
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return new Response(JSON.stringify({ error: "Non autorise" }), {
-      status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
-  }
-
   try {
     const body = await req.json();
     const nom = typeof body?.nom === "string" ? body.nom.slice(0, 200) : "";
@@ -68,10 +60,10 @@ Deno.serve(async (req) => {
     const sanctions: GelSanction[] = data.sanctions ?? data.Sanctions ?? data.registreDesSanctions ?? [];
 
     if (sanctions.length === 0) {
-      // Try alternative data path
+      // P6-42: Try alternative data path with type guard
       const registre = data.registreNationalDesGels ?? data.RegistreNationalDesGels ?? {};
-      const personnes = registre.personnesPhysiques ?? registre.PersonnesPhysiques ?? [];
-      const entites = registre.personnesMorales ?? registre.PersonnesMorales ?? registre.entites ?? [];
+      const personnes = Array.isArray(registre.personnesPhysiques ?? registre.PersonnesPhysiques) ? (registre.personnesPhysiques ?? registre.PersonnesPhysiques) : [];
+      const entites = Array.isArray(registre.personnesMorales ?? registre.PersonnesMorales ?? registre.entites) ? (registre.personnesMorales ?? registre.PersonnesMorales ?? registre.entites) : [];
       sanctions.push(...personnes, ...entites);
     }
 

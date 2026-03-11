@@ -42,7 +42,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
       const applied = applyFormConditionals(base, data.forme_juridique, client?.effectif || "");
       onChange({ missions_selected: applied });
     }
-  }, []);
+  }, [data.missions_selected.length, data.forme_juridique, client?.effectif, onChange]);
 
   const missions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
 
@@ -52,7 +52,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     suggestionsShown.current = true;
 
     // Effectif > 0 but social not checked
-    if (client?.effectif && parseInt(client.effectif) > 0) {
+    if (client?.effectif && parseInt(client.effectif, 10) > 0) {
       const social = missions.find((m) => m.section_id === "social");
       if (social && !social.selected) {
         toast.info(`Ce client a ${client.effectif} salarie(s). Souhaitez-vous ajouter la mission sociale ?`, {
@@ -92,7 +92,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
         });
       }
     }
-  }, [missions.length]);
+  }, [missions.length, client?.effectif, data.forme_juridique, missions, onChange]);
 
   const toggleSection = (sectionId: string) => {
     const m = missions.find((x) => x.section_id === sectionId);

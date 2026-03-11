@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { FileText, FileDown, Mail, Upload, Save, CheckCircle2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 interface Props {
   data: LMWizardData;
@@ -78,10 +79,10 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
         const { LMPdfBuilder } = await import("@/lib/lettreMissionPdf");
         const lm = buildLettreMission(sanitized, client, cabinet);
         const builder = new LMPdfBuilder(lm);
-        (builder as any).build();
+        builder.build();
         toast.success("PDF genere avec succes");
-      } catch (err) {
-        console.error("PDF export error:", err);
+      } catch (err: unknown) {
+        logger.error("PDF export error:", err);
         toast.error("Erreur lors de la generation du PDF");
       }
     });
@@ -94,8 +95,8 @@ export default function LMWizardStep10Export({ data, onChange, onSave }: Props) 
         const lm = buildLettreMission(sanitized, client, cabinet);
         await renderLettreMissionDocx(lm);
         toast.success("DOCX genere avec succes");
-      } catch (err) {
-        console.error("DOCX export error:", err);
+      } catch (err: unknown) {
+        logger.error("DOCX export error:", err);
         toast.error("Erreur lors de la generation du DOCX");
       }
     });
@@ -290,11 +291,11 @@ function buildLettreMission(data: LMWizardData, client: Client | null, cabinet: 
         juridique: 0,
         sociale: 0,
         fiscal: 0,
-        frequence: data.frequence_facturation as any,
+        frequence: data.frequence_facturation as "MENSUEL" | "TRIMESTRIEL" | "ANNUEL",
       },
       associe: data.associe_signataire,
       superviseur: data.chef_mission,
-      comptable: data.collaborateurs[0] || "",
+      comptable: (Array.isArray(data.collaborateurs) && data.collaborateurs.length > 0) ? data.collaborateurs[0] : "",
     },
     numero: `LM-${new Date().getFullYear()}-001`,
     date: new Date().toLocaleDateString("fr-FR"),

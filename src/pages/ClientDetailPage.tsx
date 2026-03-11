@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -11,12 +12,14 @@ import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult,
 } from "@/lib/kycService";
+import { logger } from "@/lib/logger";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
 import type { Client, OuiNon, EtatPilotage } from "@/lib/types";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -76,6 +79,12 @@ export default function ClientDetailPage() {
 
   const contextClient = isValidRef ? clients.find(c => c.ref === ref) : undefined;
 
+  // Reset fallback when ref changes (avoid stale data when navigating between clients)
+  useEffect(() => {
+    setFallbackClient(null);
+    setNotFound(false);
+  }, [ref]);
+
   // Fallback: load from Supabase if context doesn't have the client (e.g. direct URL)
   useEffect(() => {
     if (contextClient || fallbackClient || !isValidRef) return;
@@ -96,20 +105,33 @@ export default function ClientDetailPage() {
 
   const client = contextClient || fallbackClient;
 
+  useDocumentTitle(client ? `${client.raisonSociale} — Fiche Client` : "Fiche Client");
+
   if (loading) {
     return (
-      <div className="p-8 text-center">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto" />
-        <p className="text-slate-400 mt-2">Chargement du client...</p>
+      <div className="p-8 flex flex-col items-center justify-center min-h-[40vh]">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+        <p className="text-slate-400 mt-3 text-sm">Chargement du client...</p>
       </div>
     );
   }
 
   if (!client || notFound) {
     return (
-      <div className="p-8 text-center">
-        <p className="text-slate-400">Client introuvable</p>
-        <Button onClick={() => navigate("/bdd")} variant="outline" className="mt-4">Retour</Button>
+      <div className="p-8 flex flex-col items-center justify-center min-h-[40vh]">
+        <div className="w-16 h-16 rounded-full bg-slate-500/10 flex items-center justify-center mb-4">
+          <User className="w-8 h-8 text-slate-600" />
+        </div>
+        <p className="text-base font-medium text-slate-300">Client introuvable</p>
+        <p className="text-sm text-slate-500 mt-1">
+          {!isValidRef
+            ? "La reference fournie n'est pas valide."
+            : "Ce client n'existe pas ou a ete supprime."}
+        </p>
+        <Button onClick={() => navigate("/bdd")} variant="outline" className="mt-5 gap-2 border-white/10">
+          <ArrowLeft className="w-4 h-4" />
+          Retour a la base clients
+        </Button>
       </div>
     );
   }
@@ -124,14 +146,28 @@ function ClientDetailContent({ client }: { client: Client }) {
   const [editing, setEditing] = useState(false);
   const [editForm, setEditForm] = useState({ ...client });
   const [tab, setTab] = useState("informations");
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Sync editForm when client data changes (e.g. from external updates)
+  useEffect(() => {
+    if (!editing) {
+      setEditForm({ ...client });
+    }
+  }, [client, editing]);
 
   // Screening state
   const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
   const [screeningLaunched, setScreeningLaunched] = useState(false);
+  const screeningLaunchedRef = useRef(false);
 
   // Launch screening when Compliance or Reseau tab is opened
+  const screeningMountedRef = useRef(true);
+  useEffect(() => { return () => { screeningMountedRef.current = false; }; }, []);
+
   const launchComplianceScreening = useCallback(() => {
-    if (screeningLaunched) return;
+    if (screeningLaunchedRef.current) return;
+    screeningLaunchedRef.current = true;
     setScreeningLaunched(true);
 
     const siren = client.siren;
@@ -142,6 +178,7 @@ function ClientDetailContent({ client }: { client: Client }) {
     // Enterprise lookup to get dirigeants
     setScreening(prev => ({ ...prev, enterprise: { loading: true, data: null, error: null } }));
     searchEnterprise("siren", siren.replace(/\s/g, "")).then(res => {
+      if (!screeningMountedRef.current) return;
       const data = res.results ?? [];
       setScreening(prev => ({ ...prev, enterprise: { loading: false, data, error: null } }));
 
@@ -154,48 +191,55 @@ function ClientDetailContent({ client }: { client: Client }) {
       // Sanctions
       setScreening(prev => ({ ...prev, sanctions: { loading: true, data: null, error: null } }));
       checkSanctions(personsToCheck, siren.replace(/\s/g, "")).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, sanctions: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur" } })));
+      }).catch((err) => { logger.error("Screening", "sanctions check failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur sanctions" } })); });
 
       // BODACC
       setScreening(prev => ({ ...prev, bodacc: { loading: true, data: null, error: null } }));
       checkBodacc(siren, raisonSociale).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, bodacc: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur" } })));
+      }).catch((err) => { logger.error("Screening", "BODACC check failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur BODACC" } })); });
 
       // Google Places
       setScreening(prev => ({ ...prev, google: { loading: true, data: null, error: null } }));
       verifyGooglePlaces(raisonSociale, ville).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, google: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur" } })));
+      }).catch((err) => { logger.error("Screening", "Google Places failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur Google" } })); });
 
       // News
       setScreening(prev => ({ ...prev, news: { loading: true, data: null, error: null } }));
       checkNews(raisonSociale, dirigeant).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, news: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur" } })));
+      }).catch((err) => { logger.error("Screening", "news check failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur actualites" } })); });
 
       // Network
       if (dirigeants.length > 0) {
         setScreening(prev => ({ ...prev, network: { loading: true, data: null, error: null } }));
         analyzeNetwork(siren, dirigeants).then(d => {
+          if (!screeningMountedRef.current) return;
           setScreening(prev => ({ ...prev, network: { loading: false, data: d, error: null } }));
-        }).catch(() => setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur" } })));
+        }).catch((err) => { logger.error("Screening", "network analysis failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur reseau" } })); });
       }
 
       // Documents
       setScreening(prev => ({ ...prev, documents: { loading: true, data: null, error: null } }));
       fetchDocuments(siren, raisonSociale).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, documents: { loading: false, data: d, error: null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })));
+      }).catch((err) => { logger.error("Screening", "documents fetch failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur documents" } })); });
 
       // INPI
       setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
       fetchInpiDocuments(siren.replace(/\s/g, "")).then(d => {
+        if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, inpi: { loading: false, data: d, error: d.error || null } }));
-      }).catch(() => setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })));
-    }).catch(() => setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur" } })));
-  }, [screeningLaunched, client]);
+      }).catch((err) => { logger.error("Screening", "INPI fetch failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur INPI" } })); });
+    }).catch((err) => { logger.error("Screening", "enterprise search failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur entreprise" } })); });
+  }, [client]);
 
   // Auto-launch screening on compliance/reseau/financier/historique_legal tab
   useEffect(() => {
@@ -245,31 +289,39 @@ function ClientDetailContent({ client }: { client: Client }) {
   const scoreHistory = useMemo(() => {
     const base = client.scoreGlobal;
     return [
-      { date: "J-12", score: Math.max(0, base + Math.round(Math.random() * 10 - 5)) },
-      { date: "J-9", score: Math.max(0, base + Math.round(Math.random() * 8 - 4)) },
-      { date: "J-6", score: Math.max(0, base + Math.round(Math.random() * 6 - 3)) },
-      { date: "J-3", score: Math.max(0, base + Math.round(Math.random() * 4 - 2)) },
+      { date: "J-12", score: Math.max(0, base - 3) },
+      { date: "J-9", score: Math.max(0, base - 2) },
+      { date: "J-6", score: Math.max(0, base - 1) },
+      { date: "J-3", score: Math.max(0, base) },
       { date: "Actuel", score: base },
     ];
   }, [client.scoreGlobal]);
 
   const handleSave = () => {
-    const risk = calculateRiskScore({
-      ape: editForm.ape, paysRisque: editForm.paysRisque === "OUI",
-      mission: editForm.mission, dateCreation: editForm.dateCreation,
-      dateReprise: editForm.dateReprise, effectif: editForm.effectif,
-      forme: editForm.forme, ppe: editForm.ppe === "OUI",
-      atypique: editForm.atypique === "OUI", distanciel: editForm.distanciel === "OUI",
-      cash: editForm.cash === "OUI", pression: editForm.pression === "OUI",
-    });
-    const now = new Date().toISOString().split("T")[0];
-    const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
-    updateClient(client.ref, {
-      ...editForm, ...risk, dateDerniereRevue: now, dateButoir,
-      etatPilotage: getPilotageStatus(dateButoir) as EtatPilotage,
-    });
-    setEditing(false);
-    toast.success("Client mis a jour");
+    setSaving(true);
+    try {
+      const risk = calculateRiskScore({
+        ape: editForm.ape, paysRisque: editForm.paysRisque === "OUI",
+        mission: editForm.mission, dateCreation: editForm.dateCreation,
+        dateReprise: editForm.dateReprise, effectif: editForm.effectif,
+        forme: editForm.forme, ppe: editForm.ppe === "OUI",
+        atypique: editForm.atypique === "OUI", distanciel: editForm.distanciel === "OUI",
+        cash: editForm.cash === "OUI", pression: editForm.pression === "OUI",
+      });
+      const now = new Date().toISOString().split("T")[0];
+      const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
+      updateClient(client.ref, {
+        ...editForm, ...risk, dateDerniereRevue: now, dateButoir,
+        etatPilotage: getPilotageStatus(dateButoir) as EtatPilotage,
+      });
+      setEditing(false);
+      toast.success("Client mis a jour");
+    } catch (err) {
+      logger.error("ClientDetail", "Save failed:", err);
+      toast.error("Erreur lors de la sauvegarde");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateDiligence = (idx: number, field: keyof Diligence, val: string) => {
@@ -286,7 +338,7 @@ function ClientDetailContent({ client }: { client: Client }) {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 hover:text-white">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 hover:text-white" aria-label="Retour a la liste des clients">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div>
@@ -301,21 +353,21 @@ function ClientDetailContent({ client }: { client: Client }) {
       </div>
 
       {/* Action buttons */}
-      <div className="flex flex-wrap gap-3">
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateFicheAcceptation(client); toast.success("Fiche LCB-FT generee"); }}>
+      <div className="flex flex-wrap gap-3" role="toolbar" aria-label="Actions client">
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { try { generateFicheAcceptation(client); toast.success("Fiche LCB-FT generee"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }} aria-label="Telecharger la fiche LCB-FT en PDF">
           <FileDown className="w-4 h-4" /> Fiche LCB-FT (PDF)
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { generateLettreMission(client); toast.success("Lettre de mission generee"); }}>
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { try { generateLettreMission(client); toast.success("Lettre de mission generee"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }} aria-label="Telecharger la lettre de mission en PDF">
           <FileDown className="w-4 h-4" /> Lettre de mission (PDF)
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400" onClick={() => navigate(`/lettre-mission/${client.ref}`)}>
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400" onClick={() => navigate(`/lettre-mission/${client.ref}`)} aria-label="Generer une lettre de mission">
           <FileText className="w-4 h-4" /> Générer lettre de mission
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }}>
+        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }} aria-label="Lancer le screening de conformite">
           <Shield className="w-4 h-4" /> Lancer screening
         </Button>
         {profile?.role === "ADMIN" && (
-          <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => { if (confirm("Supprimer definitivement ce client ?")) { deleteClient(client.ref); navigate("/bdd"); toast.success("Client supprime"); } }}>
+          <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => setShowDeleteConfirm(true)}>
             <Trash2 className="w-4 h-4" /> Supprimer
           </Button>
         )}
@@ -326,13 +378,13 @@ function ClientDetailContent({ client }: { client: Client }) {
         <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 flex flex-wrap gap-2 items-center">
           <AlertTriangle className="w-4 h-4 text-red-400" />
           {maluses.map((m, i) => (
-            <Badge key={i} className="bg-red-500/10 text-red-400 border-0 text-[11px]">{m}</Badge>
+            <Badge key={m} className="bg-red-500/10 text-red-400 border-0 text-[11px]">{m}</Badge>
           ))}
         </div>
       )}
 
       {/* Tabs */}
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs value={tab} onValueChange={setTab} aria-label="Sections de la fiche client">
         <TabsList className="bg-white/[0.03] border border-white/[0.06] flex-wrap h-auto gap-0.5 p-1">
           <TabsTrigger value="informations" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Informations</TabsTrigger>
           <TabsTrigger value="personnes" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Personnes</TabsTrigger>
@@ -357,8 +409,8 @@ function ClientDetailContent({ client }: { client: Client }) {
                 </Button>
               ) : (
                 <div className="flex gap-2">
-                  <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handleSave}><Save className="w-3.5 h-3.5" /> Sauvegarder</Button>
-                  <Button variant="outline" size="sm" onClick={() => setEditing(false)}><X className="w-3.5 h-3.5" /></Button>
+                  <Button size="sm" className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={handleSave} disabled={saving}>{saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Sauvegarder</Button>
+                  <Button variant="outline" size="sm" onClick={() => setEditing(false)} aria-label="Annuler la modification"><X className="w-3.5 h-3.5" /></Button>
                 </div>
               )}
             </div>
@@ -438,7 +490,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <span className="text-sm font-bold text-red-400">ALERTES SANCTIONS / PPE</span>
                 </div>
                 {screening.sanctions.data.matches.map((m, i) => (
-                  <div key={i} className="ml-7 text-xs text-red-300">
+                  <div key={`${m.person}-${m.score}-${i}`} className="ml-7 text-xs text-red-300">
                     <span className="font-semibold">{m.person}</span> — {m.details}
                     {m.isPPE && <Badge className="ml-2 bg-red-500/20 text-red-400 border-0 text-[9px]">PPE</Badge>}
                   </div>
@@ -452,15 +504,21 @@ function ClientDetailContent({ client }: { client: Client }) {
               </div>
             )}
 
-            {client.be ? (
+            {client.be && client.be.trim() ? (
               <div className="space-y-2">
-                {client.be.split(",").map((b, i) => (
-                  <div key={i} className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
+                {(() => {
+                  let entries: Array<{ nom: string; prenom?: string }> = [];
+                  try { entries = JSON.parse(client.be); } catch { entries = client.be.split(",").map(s => ({ nom: s.trim() })); }
+                  if (!Array.isArray(entries)) entries = [{ nom: String(entries) }];
+                  entries = entries.filter(e => e.nom && e.nom.trim() !== "");
+                  return entries;
+                })().map((b) => (
+                  <div key={b.nom} className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                         <User className="w-4 h-4 text-blue-400" />
                       </div>
-                      <span className="text-sm text-slate-200">{b.trim()}</span>
+                      <span className="text-sm text-slate-200">{b.prenom ? `${b.prenom} ${b.nom}` : b.nom}</span>
                     </div>
                     {client.ppe === "OUI" && (
                       <Badge className="bg-red-500/10 text-red-400 border-0 text-[10px]">PPE</Badge>
@@ -502,7 +560,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                 {screening.network.data.alertes.length > 0 && (
                   <div className="space-y-2">
                     {screening.network.data.alertes.map((a, i) => (
-                      <div key={i} className={`p-3 rounded-lg flex items-start gap-2 ${
+                      <div key={`${a.severity}-${a.message.slice(0, 40)}-${i}`} className={`p-3 rounded-lg flex items-start gap-2 ${
                         a.severity === "red" ? "bg-red-500/10 border border-red-500/20" : "bg-amber-500/10 border border-amber-500/20"
                       }`}>
                         <AlertTriangle className={`w-4 h-4 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />
@@ -775,12 +833,9 @@ function ClientDetailContent({ client }: { client: Client }) {
                     <Globe className="w-3.5 h-3.5" /> Recuperer documents
                   </Button>
                 )}
-                <label>
-                  <input type="file" multiple className="hidden" onChange={() => toast.info("Upload simule")} />
-                  <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06] cursor-pointer" asChild>
-                    <span><Upload className="w-3.5 h-3.5" /> Ajouter</span>
-                  </Button>
-                </label>
+                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => navigate("/ged")}>
+                  <Upload className="w-3.5 h-3.5" /> Ajouter via GED
+                </Button>
               </div>
             </div>
 
@@ -998,8 +1053,8 @@ function ClientDetailContent({ client }: { client: Client }) {
                           <MapPin className="w-3 h-3" /> Google Maps <ExternalLink className="w-3 h-3" />
                         </a>
                       )}
-                      {(screening.google.data as any).streetViewUrl && (
-                        <a href={(screening.google.data as any).streetViewUrl} target="_blank" rel="noopener noreferrer"
+                      {screening.google.data.streetViewUrl && (
+                        <a href={screening.google.data.streetViewUrl} target="_blank" rel="noopener noreferrer"
                           className="flex items-center gap-1 text-xs text-blue-400 hover:underline">
                           Street View <ExternalLink className="w-3 h-3" />
                         </a>
@@ -1194,6 +1249,25 @@ function ClientDetailContent({ client }: { client: Client }) {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Confirmation suppression */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-red-400">Supprimer le client</DialogTitle>
+            <DialogDescription>
+              Etes-vous sur de vouloir supprimer definitivement <strong>{client.raisonSociale}</strong> ({client.ref}) ?
+              Cette action est irreversible.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={() => { deleteClient(client.ref); navigate("/bdd"); toast.success("Client supprime"); }}>
+              <Trash2 className="w-4 h-4 mr-2" /> Confirmer la suppression
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

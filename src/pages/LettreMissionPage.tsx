@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useNavigate, useParams } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
+import { logger } from "@/lib/logger";
 import { toast } from "sonner";
 import {
   LM_STEP_TITLES,
@@ -16,6 +18,8 @@ import {
   type SavedLetter,
 } from "@/lib/lmWizardTypes";
 import { VALIDATORS, sanitizeWizardData } from "@/lib/lmValidation";
+import { incrementCounter } from "@/lib/lettreMissionEngine";
+import type { Client } from "@/lib/types";
 
 import LMStep1Client from "@/components/lettre-mission/LMStep1Client";
 import LMStep2Missions from "@/components/lettre-mission/LMStep2Missions";
@@ -70,14 +74,15 @@ function LetterHistory({
     // Filter by periode
     if (filterPeriode !== "all") {
       const now = new Date();
+      const safeDate = (s: string) => { const d = new Date(s); return isNaN(d.getTime()) ? null : d; };
       if (filterPeriode === "7j") {
         const d = new Date(); d.setDate(d.getDate() - 7);
-        result = result.filter((l) => new Date(l.updated_at) >= d);
+        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt >= d : false; });
       } else if (filterPeriode === "30j") {
         const d = new Date(); d.setDate(d.getDate() - 30);
-        result = result.filter((l) => new Date(l.updated_at) >= d);
+        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt >= d : false; });
       } else if (filterPeriode === "annee") {
-        result = result.filter((l) => new Date(l.updated_at).getFullYear() === now.getFullYear());
+        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt.getFullYear() === now.getFullYear() : false; });
       }
     }
 
@@ -102,7 +107,7 @@ function LetterHistory({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <div className="flex items-center justify-center py-20 p-6 lg:p-8">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
         <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
       </div>
@@ -111,7 +116,7 @@ function LetterHistory({
 
   if (letters.length === 0) {
     return (
-      <div className="text-center py-20">
+      <div className="text-center py-20 p-6 lg:p-8">
         <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
         <p className="text-slate-400 text-sm">Aucune lettre de mission</p>
         <p className="text-slate-500 text-xs mt-1">Creez votre premiere lettre</p>
@@ -120,7 +125,7 @@ function LetterHistory({
   }
 
   return (
-    <div className="space-y-4">
+    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4">
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
@@ -272,7 +277,7 @@ function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
       const wd = l.wizard_data;
       if (!wd?.date_debut || !wd?.duree) return false;
       const start = new Date(wd.date_debut);
-      const years = parseInt(wd.duree) || 1;
+      const years = parseInt(wd.duree, 10) || 1;
       const end = new Date(start);
       end.setFullYear(end.getFullYear() + years);
       return end >= now && end <= in60Days;
@@ -306,24 +311,15 @@ function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
 // ─────────────────────────────────────────
 export default function LettreMissionPage() {
   const navigate = useNavigate();
+  const { ref: urlRef } = useParams<{ ref?: string }>();
   const { clients } = useAppState();
   const { hasPermission, profile } = useAuth();
   const isMobile = useIsMobile();
   const [activeTab, setActiveTab] = useState("wizard");
 
-  // ── Permission check ──
-  if (!hasPermission("write_clients")) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
-        <ShieldAlert className="w-12 h-12 text-red-400" />
-        <p className="text-white font-medium">Acces refuse</p>
-        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
-        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
-      </div>
-    );
-  }
+  useDocumentTitle("Lettre de Mission");
 
-  // ── Wizard state ──
+  // ── Wizard state (all hooks must be declared before any early return) ──
   const [step, setStep] = useState(0);
   const [data, setData] = useState<LMWizardData>({ ...INITIAL_LM_WIZARD_DATA });
   const [stepDirection, setStepDirection] = useState<"left" | "right">("right");
@@ -335,20 +331,47 @@ export default function LettreMissionPage() {
 
   // Draft
   const [showDraftBanner, setShowDraftBanner] = useState(false);
-  const [draftInfo, setDraftInfo] = useState<{ id: string; wizard_data: any; wizard_step: number } | null>(null);
+  const [draftInfo, setDraftInfo] = useState<{ id: string; wizard_data: Record<string, unknown>; wizard_step: number } | null>(null);
 
   // History
   const [savedLetters, setSavedLetters] = useState<SavedLetter[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
   // Swipe
-  const touchStartX = useRef(0);
+  const touchStartX = useRef<number | null>(null);
+
+  // ── Permission check (after all hooks) ──
+  if (!hasPermission("write_clients")) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
+        <ShieldAlert className="w-12 h-12 text-red-400" />
+        <p className="text-white font-medium">Acces refuse</p>
+        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
+        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
+      </div>
+    );
+  }
 
   // ── H) Time tracking ──
   useEffect(() => {
     if (!data.started_at) {
       setData((prev) => ({ ...prev, started_at: new Date().toISOString() }));
     }
+  }, []);
+
+  // ── Warn on unsaved changes (beforeunload) ──
+  useEffect(() => {
+    if (!data.client_id) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [data.client_id]);
+
+  // ── Clean up auto-save timer on unmount ──
+  useEffect(() => {
+    return () => { clearTimeout(saveTimer.current); };
   }, []);
 
   // ── Step animation + scroll ──
@@ -363,11 +386,42 @@ export default function LettreMissionPage() {
 
   // ── sessionStorage draft ──
   useEffect(() => {
-    sessionStorage.setItem("lm_wizard_draft", JSON.stringify({ ...data, wizard_step: step }));
+    try { sessionStorage.setItem("lm_wizard_draft", JSON.stringify({ ...data, wizard_step: step })); } catch { /* storage full */ }
   }, [data, step]);
 
   // ── Init: restore draft + load Supabase ──
   useEffect(() => {
+    let cancelled = false;
+    // If URL has a client ref, pre-fill from that client (skip draft restore)
+    if (urlRef && clients.length > 0) {
+      const client = clients.find((c) => c.ref === urlRef);
+      if (client && !data.client_id) {
+        setData((prev) => ({
+          ...prev,
+          client_id: client.ref,
+          client_ref: client.ref,
+          raison_sociale: client.raisonSociale,
+          siren: client.siren,
+          forme_juridique: client.forme,
+          dirigeant: client.dirigeant,
+          qualite_dirigeant: client.forme === "ENTREPRISE INDIVIDUELLE" ? "Gerant" : "President",
+          adresse: client.adresse,
+          cp: client.cp,
+          ville: client.ville,
+          capital: String(client.capital || ""),
+          ape: client.ape,
+          email: client.mail,
+          telephone: client.tel,
+          iban: client.iban,
+          bic: client.bic,
+          type_mission: client.mission?.includes("REVISION") || client.mission?.includes("SURVEILLANCE")
+            ? "SURVEILLANCE"
+            : "TENUE",
+        }));
+        loadSavedLetters();
+        return () => { cancelled = true; };
+      }
+    }
     try {
       const raw = sessionStorage.getItem("lm_wizard_draft");
       if (raw) {
@@ -377,12 +431,15 @@ export default function LettreMissionPage() {
           if (parsed.wizard_step > 0) setStep(parsed.wizard_step);
         }
       }
-    } catch {}
-    loadSupabaseDraft();
+    } catch (e) {
+      logger.warn("LM", "Failed to restore session draft:", e);
+    }
+    loadSupabaseDraft(cancelled);
     loadSavedLetters();
-  }, []);
+    return () => { cancelled = true; };
+  }, [urlRef, clients.length]);
 
-  const loadSupabaseDraft = async () => {
+  const loadSupabaseDraft = async (cancelled: boolean) => {
     try {
       const { data: drafts } = await supabase
         .from("lettres_mission")
@@ -390,11 +447,14 @@ export default function LettreMissionPage() {
         .eq("statut", "brouillon")
         .order("updated_at", { ascending: false })
         .limit(1);
+      if (cancelled) return;
       if (drafts && drafts.length > 0 && drafts[0].wizard_data?.client_id) {
-        setDraftInfo(drafts[0] as any);
+        setDraftInfo(drafts[0] as { id: string; wizard_data: Record<string, unknown>; wizard_step: number });
         setShowDraftBanner(true);
       }
-    } catch {}
+    } catch (e) {
+      logger.warn("LM", "Failed to load Supabase draft:", e);
+    }
   };
 
   const resumeDraft = () => {
@@ -404,6 +464,7 @@ export default function LettreMissionPage() {
       setStep(draftInfo.wizard_step || 0);
       setShowDraftBanner(false);
       setActiveTab("wizard");
+      warningShown.current = false;
     }
   };
 
@@ -429,7 +490,7 @@ export default function LettreMissionPage() {
             toast.warning("Ce client a deja une lettre de mission active");
           }
         })
-        .catch(() => {});
+        .catch((e) => logger.warn("LM", "Existing LM check failed:", e));
     }
   }, [data.client_id]);
 
@@ -442,7 +503,8 @@ export default function LettreMissionPage() {
       if (!authData?.user) return;
       const payload = { wizard_data: data, wizard_step: step, updated_at: new Date().toISOString() };
       if (lmId) {
-        await supabase.from("lettres_mission").update(payload).eq("id", lmId);
+        const { error: updErr } = await supabase.from("lettres_mission").update(payload).eq("id", lmId);
+        if (updErr) throw updErr;
       } else {
         const { data: ins } = await supabase
           .from("lettres_mission")
@@ -455,7 +517,7 @@ export default function LettreMissionPage() {
             statut: "brouillon",
             wizard_data: data,
             wizard_step: step,
-            numero: `LM-${new Date().getFullYear()}-${String(savedLetters.length + 1).padStart(3, "0")}`,
+            numero: incrementCounter(),
           })
           .select("id")
           .maybeSingle();
@@ -463,8 +525,10 @@ export default function LettreMissionPage() {
       }
       setLastSaved(new Date());
       toast.success("Sauvegarde", { duration: 1500 });
-    } catch {}
-  }, [data, step, lmId, profile?.cabinet_id, savedLetters.length]);
+    } catch (e) {
+      logger.warn("LM", "Auto-save failed:", e);
+    }
+  }, [data, step, lmId, profile?.cabinet_id]);
 
   // Trigger auto-save on data change (debounced 2s)
   useEffect(() => {
@@ -472,7 +536,7 @@ export default function LettreMissionPage() {
     clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(saveToSupabase, 2000);
     return () => clearTimeout(saveTimer.current);
-  }, [data, step]);
+  }, [data, step, saveToSupabase]);
 
   const loadSavedLetters = async () => {
     setHistoryLoading(true);
@@ -499,7 +563,9 @@ export default function LettreMissionPage() {
           }))
         );
       }
-    } catch {}
+    } catch (e) {
+      logger.warn("LM", "Failed to load letters:", e);
+    }
     setHistoryLoading(false);
   };
 
@@ -535,14 +601,18 @@ export default function LettreMissionPage() {
   }, [step]);
 
   // Swipe
-  const handleTouchStart = (e: React.TouchEvent) => { touchStartX.current = e.targetTouches[0].clientX; };
+  const handleTouchStart = (e: React.TouchEvent) => { if (e.targetTouches.length > 0) touchStartX.current = e.targetTouches[0].clientX; };
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.changedTouches.length === 0) return;
+    if (touchStartX.current === null) return;
     const diff = touchStartX.current - e.changedTouches[0].clientX;
+    touchStartX.current = null;
     if (Math.abs(diff) > 75) { diff > 0 ? handleNext() : handlePrevious(); }
   };
 
   // ── H) Compute duration on final save ──
   const handleSave = async () => {
+   try {
     // Compute duration
     let duration = 0;
     if (data.started_at) {
@@ -551,19 +621,24 @@ export default function LettreMissionPage() {
     const finalData = { ...data, duration_seconds: duration };
 
     const sanitized = sanitizeWizardData(finalData);
+    const { data: authData } = await supabase.auth.getUser();
     const payload = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,
       type_mission: sanitized.type_mission,
       statut: sanitized.statut,
       wizard_data: sanitized,
-      numero: sanitized.numero_lettre || `LM-${new Date().getFullYear()}-${String(savedLetters.length + 1).padStart(3, "0")}`,
+      numero: sanitized.numero_lettre || incrementCounter(),
     };
     if (lmId) {
       const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmId);
       if (error) throw error;
     } else {
-      const { data: ins, error } = await supabase.from("lettres_mission").insert(payload).select("id").maybeSingle();
+      if (!profile?.cabinet_id) {
+        toast.error("Impossible de sauvegarder : profil non initialise. Reconnectez-vous.");
+        return;
+      }
+      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, user_id: authData?.user?.id, cabinet_id: profile.cabinet_id }).select("id").maybeSingle();
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }
@@ -573,10 +648,14 @@ export default function LettreMissionPage() {
       table_name: "lettres_mission",
       record_id: lmId || undefined,
       new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, statut: sanitized.statut, duration_seconds: duration },
-    }).catch(() => {});
+    }).catch((e) => logger.warn("LM", "Audit log failed:", e));
     sessionStorage.removeItem("lm_wizard_draft");
     setLastSaved(new Date());
     await loadSavedLetters();
+   } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "Erreur lors de la sauvegarde";
+    toast.error(msg);
+   }
   };
 
   const handleReset = () => {
@@ -621,7 +700,8 @@ export default function LettreMissionPage() {
   // G) Archive
   const handleArchive = async (letter: SavedLetter) => {
     try {
-      await supabase.from("lettres_mission").update({ statut: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
+      const { error } = await supabase.from("lettres_mission").update({ statut: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
+      if (error) throw error;
       toast.success("Lettre archivee");
       await loadSavedLetters();
     } catch {
@@ -651,13 +731,13 @@ export default function LettreMissionPage() {
       };
       await renderLettreMissionPdf({
         numero: letter.numero, date: new Date().toLocaleDateString("fr-FR"),
-        client: client as any,
+        client: client as Client,
         cabinet: { nom: "Cabinet Expertise Comptable", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" },
         options: {
           genre: "M" as const,
-          missionSociale: wd.missions_selected?.some((m: any) => m.section_id === "social" && m.selected),
-          missionJuridique: wd.missions_selected?.some((m: any) => m.section_id === "juridique" && m.selected),
-          missionControleFiscal: wd.missions_selected?.some((m: any) => m.section_id === "fiscal" && m.selected),
+          missionSociale: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "social" && m.selected),
+          missionJuridique: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "juridique" && m.selected),
+          missionControleFiscal: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "fiscal" && m.selected),
           regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
           tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
           periodicite: wd.frequence_facturation,
@@ -708,7 +788,7 @@ export default function LettreMissionPage() {
   const nextDisabled = !isStepValid(step);
 
   return (
-    <div className="space-y-4 sm:space-y-6 animate-fade-in-up">
+    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4 sm:space-y-6 animate-fade-in-up">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

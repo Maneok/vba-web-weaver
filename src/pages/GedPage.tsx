@@ -1,13 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
+import { useDebounce } from "@/hooks/useDebounce";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
-  Upload, FileText, Trash2, Download, Clock, AlertTriangle,
+  Upload, FileText, Trash2, Download, Clock, AlertTriangle, Loader2,
   Search, FolderOpen, History, Eye, Plus, X, File,
   ChevronRight, ChevronDown, Building2, FileImage, FileCode,
 } from "lucide-react";
@@ -72,6 +74,10 @@ const EXPIRABLE_CATEGORIES = ["cni", "kbis"];
 
 function getExpirationStatus(expirationDate: string | null): { label: string; variant: "default" | "destructive" | "secondary" | "outline"; daysLeft: number } | null {
   if (!expirationDate) return null;
+  try {
+    const parsed = parseISO(expirationDate);
+    if (isNaN(parsed.getTime())) return null;
+  } catch { return null; }
   const days = differenceInDays(parseISO(expirationDate), new Date());
   if (days < 0) return { label: `Expire depuis ${Math.abs(days)}j`, variant: "destructive", daysLeft: days };
   if (days <= 30) return { label: `Expire dans ${days}j`, variant: "destructive", daysLeft: days };
@@ -80,6 +86,7 @@ function getExpirationStatus(expirationDate: string | null): { label: string; va
 }
 
 function formatFileSize(bytes: number): string {
+  if (!bytes || isNaN(bytes) || bytes < 0) return "0 o";
   if (bytes < 1024) return `${bytes} o`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
@@ -109,6 +116,8 @@ export default function GedPage() {
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useDocumentTitle("GED");
+
   // Upload dialog
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -118,6 +127,8 @@ export default function GedPage() {
 
   // Version dialog
   const [versionDialogOpen, setVersionDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Document | null>(null);
+  const [duplicateConfirm, setDuplicateConfirm] = useState<{ names: string; proceed: () => void } | null>(null);
   const [selectedDoc, setSelectedDoc] = useState<Document | null>(null);
   const [versions, setVersions] = useState<DocumentVersion[]>([]);
   const [newVersionFile, setNewVersionFile] = useState<File | null>(null);
@@ -128,27 +139,36 @@ export default function GedPage() {
   const [storageLoading, setStorageLoading] = useState(true);
   const [storageSearch, setStorageSearch] = useState("");
 
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
+  const debouncedStorageSearch = useDebounce(storageSearch, 300);
+
   const fetchDocuments = useCallback(async () => {
     setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-      setLoading(false);
-      return;
-    }
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    const { data, error } = await supabase
-      .from("documents")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("updated_at", { ascending: false });
+      const { data, error } = await supabase
+        .from("documents")
+        .select("*")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false });
 
-    if (error) {
+      if (error) {
+        toast.error("Erreur chargement documents");
+        logger.error("GED", "Erreur chargement documents", error);
+      } else {
+        setDocuments((data as Document[]) || []);
+      }
+    } catch (err) {
       toast.error("Erreur chargement documents");
-      logger.error("GED", "Erreur chargement documents", error);
-    } else {
-      setDocuments((data as Document[]) || []);
+      logger.error("GED", "fetchDocuments exception", err);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }, []);
 
   const fetchStorageFiles = useCallback(async () => {
@@ -171,42 +191,48 @@ export default function GedPage() {
         return;
       }
 
-      // For each folder (SIREN), list its files
-      const sirenFolders: SirenFolder[] = [];
-      for (const folder of folders) {
-        // Skip non-folder entries (files at root level)
-        if (folder.id) {
-          // This is a file, not a folder — treat root files separately
-          continue;
-        }
+      // For each folder (SIREN), list its files in parallel
+      const folderEntries = folders.filter(folder => !folder.id);
 
-        const { data: files } = await supabase.storage
-          .from("kyc-documents")
-          .list(folder.name, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
+      const results = await Promise.all(
+        folderEntries.map(async (folder) => {
+          try {
+            const { data: files, error: listErr } = await supabase.storage
+              .from("kyc-documents")
+              .list(folder.name, { limit: 100, sortBy: { column: "created_at", order: "desc" } });
 
-        if (files && files.length > 0) {
-          sirenFolders.push({
-            siren: folder.name,
-            files: files as StorageFile[],
-            expanded: false,
-          });
-        }
-      }
+            if (listErr) {
+              logger.error("GED", `Error listing folder ${folder.name}:`, listErr);
+              return null;
+            }
 
-      setStorageFolders(sirenFolders);
-    } catch (err) {
+            if (files && files.length > 0) {
+              return {
+                siren: folder.name,
+                files: files as StorageFile[],
+                expanded: false,
+              } as SirenFolder;
+            }
+            return null;
+          } catch (err) {
+            logger.error("GED", `Exception listing folder ${folder.name}:`, err);
+            return null;
+          }
+        })
+      );
+
+      setStorageFolders(results.filter(Boolean) as SirenFolder[]);
+    } catch (err: unknown) {
       logger.error("GED", "Error fetching storage", err);
+      toast.error("Erreur lors du chargement des documents KYC");
+    } finally {
+      setStorageLoading(false);
     }
-    setStorageLoading(false);
   }, []);
 
   useEffect(() => {
-    let cancelled = false;
-    if (!cancelled) {
-      fetchDocuments();
-      fetchStorageFiles();
-    }
-    return () => { cancelled = true; };
+    fetchDocuments();
+    fetchStorageFiles();
   }, [fetchDocuments, fetchStorageFiles]);
 
   const toggleFolder = (siren: string) => {
@@ -221,25 +247,23 @@ export default function GedPage() {
     const filePath = `${siren}/${fileName}`;
     const { data, error } = await supabase.storage
       .from("kyc-documents")
-      .download(filePath);
+      .createSignedUrl(filePath, 3600);
 
-    if (error) {
+    if (error || !data?.signedUrl) {
       toast.error("Erreur telechargement");
       return;
     }
 
-    const url = URL.createObjectURL(data);
     const a = document.createElement("a");
-    a.href = url;
+    a.href = data.signedUrl;
     a.download = fileName;
     a.click();
-    URL.revokeObjectURL(url);
   };
 
   const filteredStorageFolders = storageFolders
     .map((folder) => {
-      if (!storageSearch) return folder;
-      const searchLower = storageSearch.toLowerCase();
+      if (!debouncedStorageSearch) return folder;
+      const searchLower = debouncedStorageSearch.toLowerCase();
       const sirenMatch = folder.siren.toLowerCase().includes(searchLower);
       const matchingFiles = folder.files.filter((f) =>
         f.name.toLowerCase().includes(searchLower)
@@ -265,6 +289,13 @@ export default function GedPage() {
     e.preventDefault();
     setDragOver(false);
     const files = Array.from(e.dataTransfer.files);
+    const MAX_DROP_SIZE = 100 * 1024 * 1024; // 100 Mo
+    for (const file of files) {
+      if (file.size > MAX_DROP_SIZE) {
+        toast.error("Fichier trop volumineux (max 100 Mo)");
+        return;
+      }
+    }
     if (files.length > 0) {
       setPendingFiles(files);
       const name = files[0].name.toLowerCase();
@@ -283,6 +314,14 @@ export default function GedPage() {
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
+    const MAX_DROP_SIZE = 100 * 1024 * 1024; // 100 Mo
+    for (const file of files) {
+      if (file.size > MAX_DROP_SIZE) {
+        toast.error("Fichier trop volumineux (max 100 Mo)");
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        return;
+      }
+    }
     if (files.length > 0) {
       setPendingFiles(files);
       setUploadDialogOpen(true);
@@ -309,8 +348,8 @@ export default function GedPage() {
         toast.error(`"${file.name}" depasse la taille maximale (20 Mo)`);
         return;
       }
-      const ext = "." + file.name.split(".").pop()?.toLowerCase();
-      if (!ALLOWED_EXTENSIONS.includes(ext) && !ALLOWED_TYPES.includes(file.type)) {
+      const ext = "." + (file.name.split(".").pop()?.toLowerCase() || "");
+      if (!ALLOWED_EXTENSIONS.includes(ext) || (!ALLOWED_TYPES.includes(file.type) && file.type !== "")) {
         toast.error(`"${file.name}" : type de fichier non autorise`);
         return;
       }
@@ -321,9 +360,31 @@ export default function GedPage() {
       }
     }
 
+    // Check for duplicate file names among existing documents
+    const existingNames = new Set(documents.map((d) => d.name.toLowerCase()));
+    const duplicates = pendingFiles.filter((f) => existingNames.has(f.name.toLowerCase()));
+    if (duplicates.length > 0) {
+      const names = duplicates.map((f) => `"${f.name}"`).join(", ");
+      setDuplicateConfirm({
+        names,
+        proceed: () => {
+          setDuplicateConfirm(null);
+          doUpload(pendingFiles);
+        },
+      });
+      return;
+    }
+
+    doUpload(pendingFiles);
+  };
+
+  const doUpload = async (filesToUpload: File[]) => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { toast.error("Vous devez etre connecte"); return; }
+
     setUploading(true);
     try {
-      for (const file of pendingFiles) {
+      for (const file of filesToUpload) {
         const timestamp = Date.now();
         const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
         const filePath = `${user.id}/${timestamp}_${safeName}`;
@@ -362,7 +423,7 @@ export default function GedPage() {
         });
       }
 
-      toast.success(`${pendingFiles.length} document(s) importe(s)`);
+      toast.success(`${filesToUpload.length} document(s) importe(s)`);
       setUploadDialogOpen(false);
       setPendingFiles([]);
       setUploadCategory("autre");
@@ -376,23 +437,34 @@ export default function GedPage() {
     }
   };
 
-  const deleteDocument = async (doc: Document) => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+  const confirmDeleteDocument = async () => {
+    const doc = deleteTarget;
+    if (!doc) return;
+    setDeleteTarget(null);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
 
-    await supabase.storage.from("documents").remove([doc.file_path]);
-    const { data: versionData } = await supabase
-      .from("document_versions")
-      .select("file_path")
-      .eq("document_id", doc.id);
-    if (versionData) {
-      const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
-      if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
+      const { error: storageErr } = await supabase.storage.from("documents").remove([doc.file_path]);
+      if (storageErr) logger.warn("GED", "Storage delete warning:", storageErr);
+
+      const { data: versionData } = await supabase
+        .from("document_versions")
+        .select("file_path")
+        .eq("document_id", doc.id);
+      if (versionData) {
+        const paths = versionData.map((v: { file_path: string }) => v.file_path).filter((p: string) => p !== doc.file_path);
+        if (paths.length > 0) await supabase.storage.from("documents").remove(paths);
+      }
+
+      const { error: dbErr } = await supabase.from("documents").delete().eq("id", doc.id);
+      if (dbErr) throw dbErr;
+      toast.success("Document supprime");
+      fetchDocuments();
+    } catch (err) {
+      toast.error("Erreur lors de la suppression");
+      logger.error("GED", "deleteDocument error", err);
     }
-
-    await supabase.from("documents").delete().eq("id", doc.id);
-    toast.success("Document supprime");
-    fetchDocuments();
   };
 
   const downloadDocument = async (filePath: string, fileName: string) => {
@@ -400,7 +472,7 @@ export default function GedPage() {
       .from("documents")
       .download(filePath);
 
-    if (error) {
+    if (error || !data || data.size === 0) {
       toast.error("Erreur telechargement");
       return;
     }
@@ -410,7 +482,7 @@ export default function GedPage() {
     a.href = url;
     a.download = fileName;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
   };
 
   const openVersionDialog = async (doc: Document) => {
@@ -473,19 +545,21 @@ export default function GedPage() {
   // Filtered documents
   const filtered = documents.filter((doc) => {
     const matchSearch =
-      !searchTerm ||
-      doc.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.client_ref && doc.client_ref.toLowerCase().includes(searchTerm.toLowerCase()));
+      !debouncedSearchTerm ||
+      doc.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+      (doc.client_ref && doc.client_ref.toLowerCase().includes(debouncedSearchTerm.toLowerCase()));
     const matchCategory = filterCategory === "all" || doc.category === filterCategory;
     const matchExpiration = (() => {
       if (filterExpiration === "all") return true;
       if (filterExpiration === "expired") {
         const status = getExpirationStatus(doc.expiration_date);
-        return status && status.daysLeft < 0;
+        if (!status) return false;
+        return status.daysLeft < 0;
       }
       if (filterExpiration === "soon") {
         const status = getExpirationStatus(doc.expiration_date);
-        return status && status.daysLeft >= 0 && status.daysLeft <= 90;
+        if (!status) return false;
+        return status.daysLeft >= 0 && status.daysLeft <= 90;
       }
       return true;
     })();
@@ -552,6 +626,7 @@ export default function GedPage() {
               placeholder="Rechercher SIREN ou fichier..."
               value={storageSearch}
               onChange={(e) => setStorageSearch(e.target.value)}
+              aria-label="Rechercher par SIREN ou nom de fichier"
               className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
             />
           </div>
@@ -630,6 +705,9 @@ export default function GedPage() {
       {/* Drop zone                                                    */}
       {/* ============================================================ */}
       <div
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInputRef.current?.click(); } }}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -667,11 +745,12 @@ export default function GedPage() {
             placeholder="Rechercher par nom ou ref client..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            aria-label="Rechercher un document"
             className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
           />
         </div>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200" aria-label="Filtrer par categorie">
             <SelectValue placeholder="Categorie" />
           </SelectTrigger>
           <SelectContent>
@@ -682,7 +761,7 @@ export default function GedPage() {
           </SelectContent>
         </Select>
         <Select value={filterExpiration} onValueChange={setFilterExpiration}>
-          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200" aria-label="Filtrer par expiration">
             <SelectValue placeholder="Expiration" />
           </SelectTrigger>
           <SelectContent>
@@ -703,14 +782,14 @@ export default function GedPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-white/5 hover:bg-transparent">
-              <TableHead className="text-slate-400">Document</TableHead>
-              <TableHead className="text-slate-400">Categorie</TableHead>
-              <TableHead className="text-slate-400">Client</TableHead>
-              <TableHead className="text-slate-400">Taille</TableHead>
-              <TableHead className="text-slate-400">Version</TableHead>
-              <TableHead className="text-slate-400">Expiration</TableHead>
-              <TableHead className="text-slate-400">Modifie le</TableHead>
-              <TableHead className="text-right text-slate-400">Actions</TableHead>
+              <TableHead scope="col" className="text-slate-400">Document</TableHead>
+              <TableHead scope="col" className="text-slate-400">Categorie</TableHead>
+              <TableHead scope="col" className="text-slate-400">Client</TableHead>
+              <TableHead scope="col" className="text-slate-400">Taille</TableHead>
+              <TableHead scope="col" className="text-slate-400">Version</TableHead>
+              <TableHead scope="col" className="text-slate-400">Expiration</TableHead>
+              <TableHead scope="col" className="text-slate-400">Modifie le</TableHead>
+              <TableHead scope="col" className="text-right text-slate-400">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -772,6 +851,7 @@ export default function GedPage() {
                           className="h-8 w-8 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                           onClick={() => downloadDocument(doc.file_path, doc.name)}
                           title="Telecharger"
+                          aria-label={`Telecharger ${doc.name}`}
                         >
                           <Download className="w-4 h-4" />
                         </Button>
@@ -781,6 +861,7 @@ export default function GedPage() {
                           className="h-8 w-8 text-slate-400 hover:text-slate-200 hover:bg-white/5"
                           onClick={() => openVersionDialog(doc)}
                           title="Versions"
+                          aria-label={`Historique des versions de ${doc.name}`}
                         >
                           <History className="w-4 h-4" />
                         </Button>
@@ -788,8 +869,9 @@ export default function GedPage() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
-                          onClick={() => deleteDocument(doc)}
+                          onClick={() => setDeleteTarget(doc)}
                           title="Supprimer"
+                          aria-label={`Supprimer ${doc.name}`}
                         >
                           <Trash2 className="w-4 h-4" />
                         </Button>
@@ -812,7 +894,7 @@ export default function GedPage() {
           <div className="space-y-4">
             <div className="space-y-2">
               {pendingFiles.map((file, i) => (
-                <div key={i} className="flex items-center gap-2 text-sm bg-white/5 rounded-lg p-2.5 border border-white/5">
+                <div key={`${file.name}-${file.size}`} className="flex items-center gap-2 text-sm bg-white/5 rounded-lg p-2.5 border border-white/5">
                   {getFileIcon(file.name)}
                   <span className="truncate text-slate-200">{file.name}</span>
                   <span className="text-slate-500 ml-auto shrink-0">
@@ -862,11 +944,13 @@ export default function GedPage() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setUploadDialogOpen(false)} className="border-white/10 text-slate-300 hover:bg-white/5">
+            <Button type="button" variant="outline" onClick={() => setUploadDialogOpen(false)} className="border-white/10 text-slate-300 hover:bg-white/5">
               Annuler
             </Button>
-            <Button onClick={uploadFiles} disabled={uploading}>
-              {uploading ? "Import en cours..." : "Importer"}
+            <Button type="button" onClick={uploadFiles} disabled={uploading}>
+              {uploading ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Import en cours...</>
+              ) : "Importer"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -902,6 +986,7 @@ export default function GedPage() {
                     size="icon"
                     className="h-7 w-7 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                     onClick={() => downloadDocument(v.file_path, `v${v.version_number}_${selectedDoc?.name}`)}
+                    aria-label={`Telecharger version ${v.version_number}`}
                   >
                     <Download className="w-3.5 h-3.5" />
                   </Button>
@@ -924,14 +1009,46 @@ export default function GedPage() {
                 className="bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
               />
               <Button
+                type="button"
                 onClick={uploadNewVersion}
                 disabled={!newVersionFile || uploading}
                 className="w-full"
               >
-                <Plus className="w-4 h-4 mr-2" />
-                {uploading ? "Import..." : `Creer la version ${(selectedDoc?.current_version || 0) + 1}`}
+                {uploading ? (
+                  <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Import en cours...</>
+                ) : (
+                  <><Plus className="w-4 h-4 mr-2" /> Creer la version {(selectedDoc?.current_version || 0) + 1}</>
+                )}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm delete document */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Supprimer le document</DialogTitle>
+            <DialogDescription>Voulez-vous vraiment supprimer le document "{deleteTarget?.name}" ? Cette action est irreversible.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={confirmDeleteDocument}>Supprimer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm duplicate import */}
+      <Dialog open={!!duplicateConfirm} onOpenChange={(open) => { if (!open) setDuplicateConfirm(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Documents en doublon</DialogTitle>
+            <DialogDescription>Les documents suivants existent deja : {duplicateConfirm?.names}. Voulez-vous les importer quand meme ? Utilisez le versionning pour mettre a jour un document existant.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDuplicateConfirm(null)}>Annuler</Button>
+            <Button onClick={() => duplicateConfirm?.proceed()}>Importer quand meme</Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -156,5 +156,6 @@ export function generateDiagnosticPdf(report: DiagnosticReport) {
     );
   }
 
-  doc.save(`Diagnostic_360_Tracfin_${report.dateGeneration}.pdf`);
+  const safeDate = (report.dateGeneration || "").replace(/[/\\:*?"<>|]/g, "-");
+  doc.save(`Diagnostic_360_Tracfin_${safeDate}.pdf`);
 }

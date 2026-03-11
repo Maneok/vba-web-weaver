@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useTransition } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
-import NotificationCenter from "./NotificationCenter";
+import NotificationBell from "./NotificationBell";
+import SubscriptionBanner from "./SubscriptionBanner";
+
 import { ArrowLeft, ChevronRight, Keyboard, LogOut, Menu, ScrollText, Settings, User } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppState } from "@/lib/AppContext";
@@ -28,6 +30,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: { label: string; 
   "/parametres": { title: "Parametres", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Parametres" }] },
   "/lettre-mission": { title: "Lettre de Mission", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Lettre de Mission" }] },
   "/aide": { title: "Aide", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Aide" }] },
+  "/notifications": { title: "Notifications", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Notifications" }] },
 };
 
 /** Compute user initials safely for single-word or empty names */
@@ -52,7 +55,14 @@ function formatRelativeDate(date: Date): string {
 }
 
 export default function AppLayout() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      const stored = localStorage.getItem("sidebar-collapsed");
+      return stored !== null ? stored === "true" : true;
+    } catch {
+      return true;
+    }
+  });
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isPending, startTransition] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -63,6 +73,15 @@ export default function AppLayout() {
   const prevPathRef = useRef(location.pathname);
 
   const userInitials = getUserInitials(profile?.full_name);
+
+  // Persist sidebar collapsed state
+  useEffect(() => {
+    try {
+      localStorage.setItem("sidebar-collapsed", String(sidebarCollapsed));
+    } catch {
+      // Ignore storage errors (e.g. private browsing)
+    }
+  }, [sidebarCollapsed]);
 
   // Keyboard shortcut: Ctrl+B to toggle sidebar
   useEffect(() => {
@@ -162,26 +181,28 @@ export default function AppLayout() {
           )}
 
           <nav className="flex items-center gap-1.5 text-sm" aria-label="Fil d'ariane">
-            {page.breadcrumb.map((item, i) => {
-              const isLast = i === page.breadcrumb.length - 1;
-              return (
-                <span key={i} className="flex items-center gap-1.5">
-                  {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-600" />}
-                  {!isLast && item.path ? (
-                    <button
-                      onClick={() => startTransition(() => navigate(item.path!))}
-                      className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
-                    >
-                      {item.label}
-                    </button>
-                  ) : (
-                    <span className={isLast ? "text-slate-200 font-medium" : "text-slate-500"}>
-                      {item.label}
-                    </span>
-                  )}
-                </span>
-              );
-            })}
+            <ol className="flex items-center gap-1.5 list-none m-0 p-0">
+              {page.breadcrumb.map((item, i) => {
+                const isLast = i === page.breadcrumb.length - 1;
+                return (
+                  <li key={i} className="flex items-center gap-1.5">
+                    {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-600" />}
+                    {!isLast && item.path ? (
+                      <button
+                        onClick={() => startTransition(() => navigate(item.path!))}
+                        className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                      >
+                        {item.label}
+                      </button>
+                    ) : (
+                      <span className={isLast ? "text-slate-200 font-medium" : "text-slate-500"}>
+                        {item.label}
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
@@ -197,7 +218,7 @@ export default function AppLayout() {
             </span>
             <div className="w-px h-5 bg-white/[0.06]" />
 
-            <NotificationCenter />
+            <NotificationBell />
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -252,6 +273,8 @@ export default function AppLayout() {
           </div>
         </header>
 
+        <SubscriptionBanner />
+
         {!isOnline && session && (
           <div className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 text-center text-sm text-amber-300">
             Mode demonstration — Les donnees ne sont pas sauvegardees dans Supabase
@@ -267,6 +290,7 @@ export default function AppLayout() {
           id="main-content"
           className={`overflow-auto transition-opacity duration-200 ${isTransitioning ? "opacity-0" : "opacity-100"}`}
           aria-label={`Contenu ${page.title}`}
+          aria-live="polite"
         >
           <Outlet />
         </main>

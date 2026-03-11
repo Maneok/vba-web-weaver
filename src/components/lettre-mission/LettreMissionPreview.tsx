@@ -43,11 +43,11 @@ export default function LettreMissionPreview({
           Prévisualisation — {lettreMission.numero}
         </div>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleExportPdf}>
+          <Button size="sm" variant="outline" onClick={handleExportPdf} aria-label="Exporter la lettre de mission en PDF">
             <FileDown className="h-4 w-4 mr-1" />
             Exporter PDF
           </Button>
-          <Button size="sm" variant="outline" onClick={handleExportDocx}>
+          <Button size="sm" variant="outline" onClick={handleExportDocx} aria-label="Exporter la lettre de mission en DOCX">
             <FileText className="h-4 w-4 mr-1" />
             Exporter DOCX
           </Button>
@@ -147,10 +147,10 @@ export default function LettreMissionPreview({
                         ["Reprise comptable", client.reprise],
                         ["Mission juridique", client.juridique],
                       ].map(([label, amount], i) => (
-                        <tr key={i} className={i % 2 === 0 ? "bg-slate-50" : ""}>
+                        <tr key={label as string} className={i % 2 === 0 ? "bg-slate-50" : ""}>
                           <td className="p-2">{label as string}</td>
                           <td className="p-2 text-right">
-                            {((amount as number) ?? 0).toLocaleString("fr-FR")} €
+                            {(Number(amount) || 0).toLocaleString("fr-FR")} €
                           </td>
                         </tr>
                       ))}
@@ -173,6 +173,7 @@ export default function LettreMissionPreview({
                 STANDARD: "#FF9800",
                 RENFORCEE: "#F44336",
               };
+              const vig = client.nivVigilance || "STANDARD";
               return (
                 <div key={bloc.id} className="mb-6">
                   <SectionTitle num={sectionNum} title="Obligations LCB-FT" color={primaryColor} />
@@ -181,9 +182,9 @@ export default function LettreMissionPreview({
                       <span className="text-lg">🔒</span>
                       <span
                         className="px-3 py-1 rounded-full text-xs font-bold text-white"
-                        style={{ backgroundColor: vigColors[client.nivVigilance] ?? "#888" }}
+                        style={{ backgroundColor: vigColors[vig] ?? "#888" }}
                       >
-                        Vigilance {client.nivVigilance.charAt(0) + client.nivVigilance.slice(1).toLowerCase()}
+                        Vigilance {vig.charAt(0) + vig.slice(1).toLowerCase()}
                       </span>
                       <span className="text-sm text-slate-300">
                         Score de risque : {client.scoreGlobal}/100
@@ -199,7 +200,7 @@ export default function LettreMissionPreview({
 
             if (bloc.type === "kyc") {
               const checks: [string, boolean][] = [
-                ["Pièce d'identité du dirigeant en cours de validité", client.dateExpCni ? new Date(client.dateExpCni) > new Date() : false],
+                ["Pièce d'identité du dirigeant en cours de validité", client.dateExpCni ? (() => { const d = new Date(client.dateExpCni!); return !isNaN(d.getTime()) && d > new Date(); })() : false],
                 ["Extrait Kbis / Inscription RCS", !!client.lienKbis],
                 ["Statuts à jour", !!client.lienStatuts],
                 ["Bénéficiaires effectifs identifiés", !!client.be],
@@ -210,8 +211,8 @@ export default function LettreMissionPreview({
                 <div key={bloc.id} className="mb-6">
                   <SectionTitle num={sectionNum} title="Pièces justificatives (KYC)" color={primaryColor} />
                   <div className="space-y-2">
-                    {checks.map(([label, done], i) => (
-                      <div key={i} className="flex items-center gap-2 text-sm">
+                    {checks.map(([label, done]) => (
+                      <div key={label as string} className="flex items-center gap-2 text-sm">
                         <div
                           className={`w-4 h-4 border rounded flex items-center justify-center text-xs ${
                             done ? "bg-green-100 border-green-500 text-green-700" : "border-gray-300"
@@ -268,7 +269,7 @@ export default function LettreMissionPreview({
                     <Field label="SIRET créancier" value={cabinetConfig.siret} />
                     <Field label="Débiteur" value={client.raisonSociale} />
                     <Field label="IBAN" value={client.iban.replace(/(.{4})/g, "$1 ").trim()} />
-                    <Field label="BIC" value={client.bic} />
+                    <Field label="BIC" value={client.bic || ""} />
                     <Field label="Référence unique de mandat" value={`SEPA-${client.ref}`} />
                     <Field label="Type de paiement" value="Récurrent" />
                   </div>
@@ -317,11 +318,11 @@ function SectionTitle({ num, title, color }: { num: number; title: string; color
   );
 }
 
-function Field({ label, value }: { label: string; value: string }) {
+function Field({ label, value }: { label: string; value: string | undefined | null }) {
   return (
     <div className="flex gap-2">
       <span className="font-semibold text-gray-700 min-w-[140px]">{label} :</span>
-      <span>{value}</span>
+      <span>{value || "N/C"}</span>
     </div>
   );
 }

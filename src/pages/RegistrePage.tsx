@@ -1,21 +1,22 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
 import { useDebounce } from "@/hooks/useDebounce";
 import type { AlerteRegistre } from "@/lib/types";
+import { downloadCSV } from "@/lib/csvUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Search, BookOpen, Plus, AlertTriangle, Download, FileWarning, X, ChevronLeft, ChevronRight, ArrowUpDown, FileX2 } from "lucide-react";
+import { Search, BookOpen, Plus, AlertTriangle, Download, FileWarning, X, ChevronLeft, ChevronRight, ArrowUpDown, FileX2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { ALERT_CATEGORIES as CATEGORIES, DEFAULT_ASSOCIES, DEFAULT_SUPERVISEURS } from "@/lib/constants";
 
 const PAGE_SIZE = 20;
-const TODAY = new Date().toISOString().split("T")[0];
 
 function formatDateFR(dateStr: string | undefined): string {
   if (!dateStr) return "—";
@@ -26,14 +27,8 @@ function formatDateFR(dateStr: string | undefined): string {
   }
 }
 
-function sanitizeCSVValue(val: string | undefined): string {
-  const v = (val || "").replace(/"/g, '""');
-  if (/^[=+\-@\t\r]/.test(v)) return "'" + v;
-  return v;
-}
-
 function getCategoryBadgeClasses(categorie: string): string {
-  const upper = categorie.toUpperCase();
+  const upper = (categorie ?? "").toUpperCase();
   if (upper.includes("TRACFIN")) return "bg-red-600/20 text-red-400 border border-red-500/20";
   if (upper.includes("PPE")) return "bg-red-500/15 text-red-400 border border-red-500/15";
   if (upper.includes("PAYS")) return "bg-red-500/15 text-red-400 border border-red-500/15";
@@ -53,18 +48,12 @@ function exportCSV(data: AlerteRegistre[], filename: string) {
     a.date, a.clientConcerne, a.categorie, a.qualification, a.details,
     a.actionPrise, a.responsable, a.statut, a.dateButoir, a.typeDecision, a.validateur,
   ]);
-  const csv = [headers.join(";"), ...rows.map(r => r.map(v => `"${sanitizeCSVValue(v)}"`).join(";"))].join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
+  downloadCSV(headers, rows, filename);
 }
 
 export default function RegistrePage() {
-  const { alertes, addAlerte, clients } = useAppState();
+  const today = useMemo(() => new Date().toISOString().split("T")[0], []);
+  const { alertes, addAlerte, updateAlerte, deleteAlerte, clients } = useAppState();
   const [search, setSearch] = useState("");
   const [filterStatut, setFilterStatut] = useState<string>("all");
   const [filterCategorie, setFilterCategorie] = useState<string>("all");
@@ -79,8 +68,14 @@ export default function RegistrePage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortKey, setSortKey] = useState<"date" | "clientConcerne" | "categorie" | null>(null);
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
 
   const debouncedSearch = useDebounce(search, 250);
+
+  // Reset page when search changes
+  useEffect(() => { setCurrentPage(1); }, [debouncedSearch]);
+
+  useDocumentTitle("Registre LCB-FT");
 
   const hasActiveFilters = filterStatut !== "all" || filterCategorie !== "all" || dateStart !== "" || dateEnd !== "" || search !== "";
 
@@ -94,13 +89,15 @@ export default function RegistrePage() {
   }, []);
 
   const handleSort = useCallback((key: "date" | "clientConcerne" | "categorie") => {
-    if (sortKey === key) {
-      setSortDir(d => d === "asc" ? "desc" : "asc");
-    } else {
-      setSortKey(key);
+    setSortKey(prev => {
+      if (prev === key) {
+        setSortDir(d => d === "asc" ? "desc" : "asc");
+        return prev;
+      }
       setSortDir("asc");
-    }
-  }, [sortKey]);
+      return key;
+    });
+  }, []);
 
   // --- KPI counts ---
   const totalAlertes = alertes.length;
@@ -115,11 +112,12 @@ export default function RegistrePage() {
 
   // --- Filtered data ---
   const filtered = useMemo(() => {
-    const result = alertes.filter(a => {
+    let result = alertes.filter(a => {
+      const q = debouncedSearch.toLowerCase();
       const matchSearch = !debouncedSearch ||
-        a.clientConcerne.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        a.categorie.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        a.details.toLowerCase().includes(debouncedSearch.toLowerCase());
+        (a.clientConcerne ?? "").toLowerCase().includes(q) ||
+        (a.categorie ?? "").toLowerCase().includes(q) ||
+        (a.details ?? "").toLowerCase().includes(q);
       const matchStatut = filterStatut === "all" || a.statut === filterStatut;
       const matchCategorie = filterCategorie === "all" || a.categorie === filterCategorie;
       const matchDateStart = !dateStart || a.date >= dateStart;
@@ -127,10 +125,20 @@ export default function RegistrePage() {
       return matchSearch && matchStatut && matchCategorie && matchDateStart && matchDateEnd;
     });
     if (sortKey) {
-      result.sort((a, b) => {
-        const va = (a[sortKey] || "").toLowerCase();
-        const vb = (b[sortKey] || "").toLowerCase();
-        const cmp = va < vb ? -1 : va > vb ? 1 : 0;
+      result = [...result].sort((a, b) => {
+        const va = a[sortKey] ?? null;
+        const vb = b[sortKey] ?? null;
+        // Null-last sorting
+        if (va === null && vb === null) return 0;
+        if (va === null) return 1;
+        if (vb === null) return -1;
+        let cmp: number;
+        if (sortKey === "date") {
+          // Date-aware comparison
+          cmp = String(va).localeCompare(String(vb));
+        } else {
+          cmp = String(va).toLowerCase() < String(vb).toLowerCase() ? -1 : String(va).toLowerCase() > String(vb).toLowerCase() ? 1 : 0;
+        }
         return sortDir === "asc" ? cmp : -cmp;
       });
     }
@@ -156,7 +164,7 @@ export default function RegistrePage() {
     setFormErrors({});
     addAlerte({
       date: new Date().toISOString().split("T")[0],
-      clientConcerne: newAlerte.client,
+      clientConcerne: clients.find(c => c.ref === newAlerte.client)?.raisonSociale || newAlerte.client,
       categorie: newAlerte.categorie,
       details: newAlerte.details,
       actionPrise: "EN INVESTIGATION",
@@ -264,6 +272,7 @@ export default function RegistrePage() {
         <Input
           type="date"
           value={dateStart}
+          max={dateEnd || undefined}
           onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }}
           className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
           placeholder="Date debut"
@@ -272,6 +281,7 @@ export default function RegistrePage() {
         <Input
           type="date"
           value={dateEnd}
+          min={dateStart || undefined}
           onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }}
           className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
           placeholder="Date fin"
@@ -295,28 +305,28 @@ export default function RegistrePage() {
           <Table>
             <TableHeader>
               <TableRow className="border-white/[0.06] hover:bg-transparent">
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("date")} aria-label="Trier par date">
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("date")} aria-label="Trier par date" aria-sort={sortKey === "date" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Date <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("clientConcerne")} aria-label="Trier par client">
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("clientConcerne")} aria-label="Trier par client" aria-sort={sortKey === "clientConcerne" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Client <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("categorie")} aria-label="Trier par categorie">
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("categorie")} aria-label="Trier par categorie" aria-sort={sortKey === "categorie" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Categorie <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Qualification</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Action prise</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Responsable</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Statut</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Date butoir</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Qualification</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Action prise</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Responsable</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Statut</TableHead>
+                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Date butoir</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {paginatedData.map((a, i) => {
                 const globalIndex = (safePage - 1) * PAGE_SIZE + i;
                 const alerteId = (a as AlerteRegistre & { id?: string }).id || `ALR-${String(globalIndex + 1).padStart(4, "0")}`;
-                const isOverdue = a.dateButoir && a.dateButoir < TODAY && a.statut !== "CLÔTURÉ";
+                const isOverdue = a.dateButoir && a.dateButoir < today && a.statut !== "CLÔTURÉ";
                 return (
                   <TableRow
                     key={alerteId}
@@ -436,26 +446,75 @@ export default function RegistrePage() {
               <DetailRow label="Date butoir" value={formatDateFR(selectedAlerte.dateButoir)} mono />
               <DetailRow label="Type de decision" value={selectedAlerte.typeDecision || "—"} />
               <DetailRow label="Validateur" value={selectedAlerte.validateur || "—"} />
+
+              {/* Action buttons */}
+              <div className="pt-4 border-t border-white/[0.06] space-y-2">
+                <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Actions</p>
+                {selectedAlerte.statut === "EN COURS" && (
+                  <Button
+                    size="sm"
+                    className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700"
+                    onClick={() => {
+                      if (selectedAlerte.id) {
+                        updateAlerte(selectedAlerte.id, { statut: "CLÔTURÉ" });
+                        setSelectedAlerte({ ...selectedAlerte, statut: "CLÔTURÉ" });
+                        toast.success("Alerte cloturee");
+                      }
+                    }}
+                  >
+                    <Check className="w-3.5 h-3.5" /> Cloturer l'alerte
+                  </Button>
+                )}
+                {selectedAlerte.statut === "CLÔTURÉ" && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="w-full gap-2 border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+                    onClick={() => {
+                      if (selectedAlerte.id) {
+                        updateAlerte(selectedAlerte.id, { statut: "EN COURS" });
+                        setSelectedAlerte({ ...selectedAlerte, statut: "EN COURS" });
+                        toast.info("Alerte repassee en cours");
+                      }
+                    }}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5" /> Reouvrir l'alerte
+                  </Button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="w-full gap-2 border-red-500/30 text-red-400 hover:bg-red-500/10"
+                  onClick={() => {
+                    if (selectedAlerte.id) {
+                      setDeleteTargetId(selectedAlerte.id);
+                    }
+                  }}
+                >
+                  <FileWarning className="w-3.5 h-3.5" /> Supprimer
+                </Button>
+              </div>
             </div>
           )}
         </SheetContent>
       </Sheet>
 
       {/* New alert dialog */}
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+      <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) setFormErrors({}); }}>
         <DialogContent className="bg-[hsl(217,33%,14%)] border-white/[0.06]">
           <DialogHeader>
             <DialogTitle className="text-white">Nouvelle alerte LCB-FT</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-xs text-slate-400">Client concerne</Label>
-              <Select value={newAlerte.client} onValueChange={v => setNewAlerte(p => ({ ...p, client: v }))}>
-                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
+              <Label className="text-xs text-slate-400">Client concerne <span className="text-red-400">*</span></Label>
+              <Select value={newAlerte.client} onValueChange={v => { setNewAlerte(p => ({ ...p, client: v })); setFormErrors(p => { const n = { ...p }; delete n.client; return n; }); }}>
+                <SelectTrigger className={`bg-white/[0.03] border-white/[0.06] ${formErrors.client ? "border-red-500" : ""}`} aria-invalid={!!formErrors.client}><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
                 <SelectContent>
-                  {clients.map(c => <SelectItem key={c.ref} value={c.raisonSociale}>{c.raisonSociale} ({c.ref})</SelectItem>)}
+                  {clients.map(c => <SelectItem key={c.ref} value={c.ref}>{c.raisonSociale} ({c.ref})</SelectItem>)}
                 </SelectContent>
               </Select>
+              {formErrors.client && <p className="text-xs text-red-400 mt-1">{formErrors.client}</p>}
             </div>
             <div>
               <Label className="text-xs text-slate-400">Categorie</Label>
@@ -467,25 +526,49 @@ export default function RegistrePage() {
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Details</Label>
-              <Textarea value={newAlerte.details} onChange={e => setNewAlerte(p => ({ ...p, details: e.target.value }))} className="bg-white/[0.03] border-white/[0.06]" placeholder="Description de l'alerte..." />
+              <Label className="text-xs text-slate-400">Details <span className="text-red-400">*</span></Label>
+              <Textarea value={newAlerte.details} onChange={e => { setNewAlerte(p => ({ ...p, details: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.details; return n; }); }} className={`bg-white/[0.03] border-white/[0.06] ${formErrors.details ? "border-red-500" : ""}`} placeholder="Description de l'alerte..." aria-invalid={!!formErrors.details} />
+              {formErrors.details && <p className="text-xs text-red-400 mt-1">{formErrors.details}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Responsable</Label>
-              <Select value={newAlerte.responsable} onValueChange={v => setNewAlerte(p => ({ ...p, responsable: v }))}>
-                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue placeholder="Selectionnez" /></SelectTrigger>
+              <Label className="text-xs text-slate-400">Responsable <span className="text-red-400">*</span></Label>
+              <Select value={newAlerte.responsable} onValueChange={v => { setNewAlerte(p => ({ ...p, responsable: v })); setFormErrors(p => { const n = { ...p }; delete n.responsable; return n; }); }}>
+                <SelectTrigger className={`bg-white/[0.03] border-white/[0.06] ${formErrors.responsable ? "border-red-500" : ""}`} aria-invalid={!!formErrors.responsable}><SelectValue placeholder="Selectionnez" /></SelectTrigger>
                 <SelectContent>
                   {[...DEFAULT_ASSOCIES, ...DEFAULT_SUPERVISEURS].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
+              {formErrors.responsable && <p className="text-xs text-red-400 mt-1">{formErrors.responsable}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Date echeance</Label>
-              <Input type="date" value={newAlerte.dateEcheance} onChange={e => setNewAlerte(p => ({ ...p, dateEcheance: e.target.value }))} className="bg-white/[0.03] border-white/[0.06]" />
+              <Label className="text-xs text-slate-400">Date echeance <span className="text-red-400">*</span></Label>
+              <Input type="date" value={newAlerte.dateEcheance} onChange={e => { setNewAlerte(p => ({ ...p, dateEcheance: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.dateEcheance; return n; }); }} className={`bg-white/[0.03] border-white/[0.06] ${formErrors.dateEcheance ? "border-red-500" : ""}`} aria-invalid={!!formErrors.dateEcheance} />
+              {formErrors.dateEcheance && <p className="text-xs text-red-400 mt-1">{formErrors.dateEcheance}</p>}
             </div>
-            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleAddAlerte} disabled={!newAlerte.client || !newAlerte.details}>
+            <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleAddAlerte} disabled={!newAlerte.client || !newAlerte.details.trim() || !newAlerte.responsable || !newAlerte.dateEcheance}>
               Enregistrer l'alerte
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm delete alerte */}
+      <Dialog open={!!deleteTargetId} onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Supprimer l'alerte</DialogTitle>
+            <DialogDescription>Supprimer cette alerte du registre ? Cette action est irreversible.</DialogDescription>
+          </DialogHeader>
+          <div className="flex gap-2 justify-end">
+            <Button variant="outline" onClick={() => setDeleteTargetId(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={() => {
+              if (deleteTargetId) {
+                deleteAlerte(deleteTargetId);
+                setSelectedAlerte(null);
+                setDeleteTargetId(null);
+                toast.success("Alerte supprimee");
+              }
+            }}>Supprimer</Button>
           </div>
         </DialogContent>
       </Dialog>

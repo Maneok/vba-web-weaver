@@ -6,7 +6,7 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL ?? '';
 const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? '';
 
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  logger.warn('Supabase environment variables are missing. Backend features will not work.');
+  logger.error('Supabase', 'VITE_SUPABASE_URL or VITE_SUPABASE_PUBLISHABLE_KEY is missing. Backend features will not work.');
 }
 
 // Import the supabase client like this:
@@ -17,7 +17,7 @@ export const supabase = createClient<Database>(
   SUPABASE_PUBLISHABLE_KEY,
   {
     auth: {
-      storage: typeof window !== 'undefined' ? localStorage : undefined,
+      storage: typeof window !== 'undefined' ? sessionStorage : undefined,
       persistSession: true,
       autoRefreshToken: true,
       detectSessionInUrl: true, // Required for OAuth redirect (Google login)

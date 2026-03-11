@@ -12,14 +12,17 @@ let tokenRefreshing: Promise<string | null> | null = null;
 async function getINPIToken(): Promise<string | null> {
   if (cachedToken && Date.now() < tokenExpiry) return cachedToken;
   // Prevent thundering herd: reuse in-flight refresh
-  // FIX P4-4: Add 20s timeout to prevent indefinite hanging
   if (tokenRefreshing) {
     try {
       return await Promise.race([
         tokenRefreshing,
         new Promise<null>((_, reject) => setTimeout(() => reject(new Error("Token refresh timeout")), 20000)),
       ]);
-    } catch { return null; }
+    } catch {
+      // Timeout — clear the hanging promise so next call retries fresh
+      tokenRefreshing = null;
+      return null;
+    }
   }
   tokenRefreshing = _refreshINPIToken();
   try { return await tokenRefreshing; } finally { tokenRefreshing = null; }
@@ -165,7 +168,7 @@ Deno.serve(async (req) => {
 
   try {
     const { siren, raison_sociale } = await req.json();
-    if (!siren) {
+    if (!siren || typeof siren !== "string") {
       return new Response(JSON.stringify({ error: "siren requis", documents: [], status: "error" }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,6 +25,17 @@ export default function PappersSearch({ onSelect }: Props) {
   const [error, setError] = useState("");
   const [selectedSiren, setSelectedSiren] = useState<string | null>(null);
   const [downloadingDocs, setDownloadingDocs] = useState(false);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const handleSearchRef = useRef<() => void>(() => {});
+
+  // Cleanup pending timer and abort on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+      if (abortRef.current) abortRef.current.abort();
+    };
+  }, []);
 
   const placeholder: Record<SearchMode, string> = {
     siren: "Ex: 412 345 678",
@@ -38,30 +49,43 @@ export default function PappersSearch({ onSelect }: Props) {
     dirigeant: User,
   };
 
-  const handleSearch = async () => {
+  handleSearchRef.current = () => handleSearchInner();
+  const handleSearch = () => handleSearchRef.current();
+  const handleSearchInner = async () => {
     if (!query.trim()) return;
+    // Abort previous in-flight search
+    if (abortRef.current) abortRef.current.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setLoading(true);
     setError("");
     setResults([]);
     setSelectedSiren(null);
 
-    const res = await searchPappers(mode, query.trim());
-    setLoading(false);
+    try {
+      const res = await searchPappers(mode, query.trim(), false, controller.signal);
 
-    if (res.error) {
-      setError(res.error);
-      return;
-    }
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
 
-    if (res.results.length === 0) {
-      setError("Aucun resultat trouve pour cette recherche.");
-      return;
-    }
+      if (res.results.length === 0) {
+        setError("Aucun resultat trouve pour cette recherche.");
+        return;
+      }
 
-    setResults(res.results);
+      setResults(res.results);
 
-    if (res.results.length === 1) {
-      handleSelect(res.results[0]);
+      if (res.results.length === 1) {
+        handleSelect(res.results[0]);
+      }
+    } catch {
+      if (controller.signal.aborted) return;
+      setError("Erreur de connexion. Veuillez reessayer.");
+    } finally {
+      if (!controller.signal.aborted) setLoading(false);
     }
   };
 
@@ -71,11 +95,27 @@ export default function PappersSearch({ onSelect }: Props) {
   };
 
   const handleDownloadDocs = async (result: PappersResult) => {
+    if (!result?.siren) {
+      setError("SIREN manquant, impossible de telecharger les documents.");
+      return;
+    }
     setDownloadingDocs(true);
-    const res = await searchPappers("siren", result.siren.replace(/\s/g, ""), true);
-    setDownloadingDocs(false);
-    if (res.results.length > 0 && res.results[0].document_urls) {
-      onSelect({ ...result, document_urls: res.results[0].document_urls });
+    setError("");
+    try {
+      const res = await searchPappers("siren", result.siren.replace(/\s/g, ""), true);
+      if (res.error) {
+        setError(res.error);
+        return;
+      }
+      if (res.results?.length > 0 && res.results[0].document_urls) {
+        onSelect({ ...result, document_urls: res.results[0].document_urls });
+      } else {
+        setError("Aucun document disponible pour cette entreprise.");
+      }
+    } catch {
+      setError("Erreur lors du telechargement des documents. Veuillez reessayer.");
+    } finally {
+      setDownloadingDocs(false);
     }
   };
 
@@ -113,14 +153,27 @@ export default function PappersSearch({ onSelect }: Props) {
           <ModeIcon className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            onChange={(e) => {
+              const val = e.target.value;
+              setQuery(val);
+              if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+              if (val.trim()) {
+                searchTimerRef.current = setTimeout(() => handleSearch(), 500);
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+                handleSearch();
+              }
+            }}
             placeholder={placeholder[mode]}
+            aria-label="Rechercher une entreprise via Pappers"
             className="pl-8"
           />
         </div>
 
-        <Button onClick={handleSearch} disabled={loading || !query.trim()} size="default">
+        <Button onClick={() => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); handleSearch(); }} disabled={loading || !query.trim()} size="default">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
           <span className="ml-1">Rechercher</span>
         </Button>
@@ -138,7 +191,7 @@ export default function PappersSearch({ onSelect }: Props) {
           <div className="max-h-48 overflow-y-auto space-y-1">
             {results.map((r, i) => (
               <button
-                key={i}
+                key={r.siren || i}
                 onClick={() => handleSelect(r)}
                 className={`w-full text-left p-2 rounded-md border text-sm transition-colors hover:bg-accent ${
                   selectedSiren === r.siren

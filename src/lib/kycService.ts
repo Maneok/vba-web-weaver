@@ -319,7 +319,7 @@ export function resolveSourceValue<T>(
   sources: Array<{ source: DataSource; value: T | null | undefined }>,
 ): { value: T | null; source: DataSource | null; confidence: DataConfidence; divergences: Array<{ source: DataSource; value: T }> } {
   const priority = SOURCE_PRIORITY[fieldName] ?? [];
-  const available = sources.filter(s => s.value != null && s.value !== "" && s.value !== 0);
+  const available = sources.filter(s => s.value != null && s.value !== "");
   if (available.length === 0) return { value: null, source: null, confidence: "single_source", divergences: [] };
 
   // Check for divergences
@@ -393,7 +393,7 @@ export function detectAmlSignals(
   // Effectif = 0 and CA > 500k
   const latestCA = financials?.[0]?.chiffreAffaires;
   // P5-22: More robust zero-employee detection (matching riskEngine fix)
-  const hasZeroEmployees = /^0\b|^0 |AUCUN|NEANT/i.test(effectif.trim()) || effectif.trim() === "0";
+  const hasZeroEmployees = /^0\b|^0 |AUCUN|N[EÉ]ANT/i.test(effectif.trim()) || effectif.trim() === "0";
   if (hasZeroEmployees && latestCA && latestCA > 500000) {
     signals.push({
       type: "ca_sans_salaries",
@@ -407,16 +407,17 @@ export function detectAmlSignals(
   if (dateCreation) {
     const created = new Date(dateCreation);
     if (!isNaN(created.getTime())) {
-    const now = new Date();
-    const diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
-    if (diffMonths < 12 && diffMonths >= 0) {
-      signals.push({
-        type: "societe_recente",
-        message: `Societe creee il y a ${diffMonths} mois (< 1 an) — maturite tres faible`,
-        severity: "orange",
-        malus: 10,
-      });
-    }
+      const now = new Date();
+      let diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+      if (now.getDate() < created.getDate()) diffMonths--;
+      if (diffMonths < 12 && diffMonths >= 0) {
+        signals.push({
+          type: "societe_recente",
+          message: `Societe creee il y a ${diffMonths} mois (< 1 an) — maturite tres faible`,
+          severity: "orange",
+          malus: 10,
+        });
+      }
     }
   }
 
@@ -455,16 +456,19 @@ export interface ScreeningState {
   inpi: ScreeningSlot<InpiResult>;
 }
 
-export const INITIAL_SCREENING: ScreeningState = {
-  enterprise: { loading: false, data: null, error: null },
-  sanctions: { loading: false, data: null, error: null },
-  bodacc: { loading: false, data: null, error: null },
-  google: { loading: false, data: null, error: null },
-  news: { loading: false, data: null, error: null },
-  network: { loading: false, data: null, error: null },
-  documents: { loading: false, data: null, error: null },
-  inpi: { loading: false, data: null, error: null },
-};
+export function createInitialScreening(): ScreeningState {
+  return {
+    enterprise: { loading: false, data: null, error: null },
+    sanctions: { loading: false, data: null, error: null },
+    bodacc: { loading: false, data: null, error: null },
+    google: { loading: false, data: null, error: null },
+    news: { loading: false, data: null, error: null },
+    network: { loading: false, data: null, error: null },
+    documents: { loading: false, data: null, error: null },
+    inpi: { loading: false, data: null, error: null },
+  };
+}
+export const INITIAL_SCREENING: ScreeningState = createInitialScreening();
 
 // ====== CORRECTION 4: API Cache ======
 
@@ -548,10 +552,8 @@ async function callEdgeFunction<T>(name: string, body: Record<string, unknown>):
       body,
       signal: controller.signal as AbortSignal,
     });
-    if (error) throw new Error(error.message);
-    if (data && typeof data === "object" && (data as Record<string, unknown>).status === "unavailable") {
-      throw new Error("Service indisponible");
-    }
+    if (error) throw new Error(error.message || error.context?.message || JSON.stringify(error));
+    // P6-60: Don't throw on "unavailable" status — return it to callers for graceful handling
     return data as T;
   } catch (e) {
     if (controller.signal.aborted) {
@@ -573,11 +575,14 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
     url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&page=1&per_page=5`;
   }
 
-  const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+  const fetchController = new AbortController();
+  setTimeout(() => fetchController.abort(), 8000);
+  const res = await fetch(url, { signal: fetchController.signal });
   if (!res.ok) throw new Error(`API returned ${res.status}`);
 
-  const data = await res.json();
-  const results: EnterpriseResult[] = (data.results ?? []).slice(0, 10).map((r: Record<string, unknown>) => {
+  const data = await res.json() as Record<string, unknown>;
+  if (!data || typeof data !== "object") throw new Error("Invalid API response");
+  const results: EnterpriseResult[] = (Array.isArray(data.results) ? data.results : []).slice(0, 10).map((r: Record<string, unknown>) => {
     const siege = (r.siege ?? {}) as Record<string, unknown>;
     const dirigeants = ((r.dirigeants ?? []) as Array<Record<string, string>>).map(d => ({
       nom: d.nom ?? "",
@@ -612,10 +617,10 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
       ape: (siege.activite_principale as string) ?? (r.activite_principale as string) ?? "",
       libelle_ape: (siege.libelle_activite_principale as string) ?? "",
       capital: (r.capital as number) ?? 0,
-      capital_source: (r.capital as number) > 0 ? "data.gouv" : "",
+      capital_source: ((r.capital as number) ?? 0) > 0 ? "data.gouv" : "",
       date_creation: (r.date_creation as string) ?? "",
       effectif: (r.tranche_effectif_salarie as string) ?? "0 SALARIE",
-      dirigeant: dirigeants.length > 0 ? `${dirigeants[0].nom} ${dirigeants[0].prenom}`.trim().toUpperCase() : "",
+      dirigeant: dirigeants.length > 0 ? `${dirigeants[0].nom || ""} ${dirigeants[0].prenom || ""}`.trim().toUpperCase() : "",
       dirigeants,
       nombre_etablissements: (r.nombre_etablissements as number) ?? 1,
       etat_administratif: (r.etat_administratif as string) ?? "A",
@@ -668,8 +673,14 @@ export async function checkSanctions(
 }
 
 export async function checkBodacc(siren: string, raison_sociale?: string, complements?: Record<string, unknown>): Promise<BodaccResult> {
+  // P6-61: Add BODACC cache
+  const cleanSiren = siren.replace(/\s/g, "");
+  const cached = await getCachedResponse<BodaccResult>(cleanSiren, "bodacc");
+  if (cached) return cached;
   try {
-    return await callEdgeFunction<BodaccResult>("bodacc-check", { siren, raison_sociale, complements });
+    const result = await callEdgeFunction<BodaccResult>("bodacc-check", { siren, raison_sociale, complements });
+    if (result.status !== "unavailable") await setCachedResponse(cleanSiren, "bodacc", result);
+    return result;
   } catch {
     return { annonces: [], hasProcedureCollective: false, alertes: [], malus: 0, status: "unavailable" };
   }
@@ -679,7 +690,7 @@ export async function verifyGooglePlaces(raison_sociale: string, ville?: string)
   try {
     return await callEdgeFunction<GooglePlacesResult>("google-places-verify", { raison_sociale, ville });
   } catch {
-    return { found: false, place: null, alertes: [], mapsUrl: "", mapsEmbedUrl: null, streetViewUrl: null, status: "unavailable" };
+    return { found: false, place: null, alertes: [], mapsUrl: "", mapsEmbedUrl: null, streetViewUrl: null, status: "unavailable" } as GooglePlacesResult;
   }
 }
 
@@ -810,8 +821,14 @@ export function computeKycCompleteness(
     ...(inpiDocs ?? []),
   ];
   // FIX P4-8: Accept all stored/available statuses, not just "auto"
+  // P6-64: Also match "Extrait RNE"/"Extrait RBE" as KBIS equivalent
   const hasDocType = (typePattern: string) =>
-    allDocs.some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()) && (d.status === "auto" || d.status === "lien_direct" || d.storedInSupabase || d.downloadable)) ||
+    allDocs.some(d => {
+      const typeUp = d.type.toUpperCase();
+      const isMatch = typeUp.includes(typePattern.toUpperCase()) ||
+        (typePattern.toUpperCase() === "KBIS" && (typeUp.includes("EXTRAIT") || typeUp === "KBIS"));
+      return isMatch && (d.status === "auto" || d.status === "lien_direct" || d.storedInSupabase || d.downloadable);
+    }) ||
     (uploadedDocs ?? []).some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()));
 
   const fields: Array<{ label: string; ok: boolean }> = [

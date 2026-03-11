@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,9 +49,19 @@ const EMPTY_FORMATION = {
   theme: "", attestation_url: "", quiz_score: "", notes: "",
 };
 
+const FORMATIONS_STORAGE_KEY = "lcb-formations-panel";
+
+function loadFormations(): Formation[] {
+  try {
+    const stored = localStorage.getItem(FORMATIONS_STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return [];
+}
+
 export default function FormationsPanel() {
   const { collaborateurs } = useAppState();
-  const [formations, setFormations] = useState<Formation[]>([]);
+  const [formations, setFormations] = useState<Formation[]>(loadFormations);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newFormation, setNewFormation] = useState({ ...EMPTY_FORMATION });
   const [filterYear, setFilterYear] = useState<string>("all");
@@ -59,6 +69,11 @@ export default function FormationsPanel() {
   const [search, setSearch] = useState("");
 
   const currentYear = new Date().getFullYear();
+
+  // Persist formations to localStorage
+  useEffect(() => {
+    try { localStorage.setItem(FORMATIONS_STORAGE_KEY, JSON.stringify(formations)); } catch { /* storage full */ }
+  }, [formations]);
 
   // Build formations from collaborateur data + local state
   const allFormations = useMemo(() => {
@@ -187,7 +202,7 @@ export default function FormationsPanel() {
                     </Badge>
                   ))}
                 </div>
-                <Button variant="outline" size="sm" className="mt-3 gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10">
+                <Button variant="outline" size="sm" className="mt-3 gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10" onClick={() => setShowAddDialog(true)}>
                   <Calendar className="w-3.5 h-3.5" /> Planifier
                 </Button>
               </div>
@@ -217,6 +232,7 @@ export default function FormationsPanel() {
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9"
+                aria-label="Rechercher une formation"
               />
             </div>
             <Select value={filterYear} onValueChange={setFilterYear}>
@@ -262,7 +278,11 @@ export default function FormationsPanel() {
                 {filteredFormations.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={7} className="text-center py-8 text-slate-500">
-                      Aucune formation enregistree
+                      <GraduationCap className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">Aucune formation enregistree</p>
+                      {(search || filterYear !== "all" || filterCollab !== "all") && (
+                        <p className="text-xs mt-1">Essayez de modifier vos filtres de recherche</p>
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (

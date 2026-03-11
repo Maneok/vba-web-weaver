@@ -12,10 +12,12 @@ export const FORMES_JURIDIQUES = [
   "SARL",
   "EURL",
   "SAS",
+  "SASU",
   "SCI",
   "SCP",
   "SELAS",
   "SELARL",
+  "SELAFA",
   "EARL",
   "SA",
   "ASSOCIATION",
@@ -23,6 +25,11 @@ export const FORMES_JURIDIQUES = [
   "TRUST",
   "FIDUCIE",
   "FONDATION",
+  "GIE",
+  "LMNP",
+  "MICRO-ENTREPRISE",
+  "PROFESSION LIBERALE",
+  "SPFPL",
 ] as const;
 
 // Mission types
@@ -37,7 +44,7 @@ export const MISSIONS: MissionType[] = [
 ];
 
 // Billing frequencies
-export const FREQUENCES = ["MENSUEL", "TRIMESTRIEL", "ANNUEL"] as const;
+export const FREQUENCES = ["MENSUEL", "TRIMESTRIEL", "SEMESTRIEL", "ANNUEL"] as const;
 
 // Default team members — to be replaced by collaborateurs from Supabase
 export const DEFAULT_COMPTABLES = ["MAGALIE", "JULIEN", "FANNY", "SERGE", "JOSE"] as const;
@@ -106,6 +113,29 @@ export const RISK_THRESHOLDS = {
 // Pagination
 export const DEFAULT_PAGE_SIZE = 25;
 
+// Toast durations (ms)
+export const TOAST_DURATION_SHORT = 1500;
+export const TOAST_DURATION_DEFAULT = 4000;
+export const TOAST_DURATION_LONG = 6000;
+
+// Timeout values (ms)
+export const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+export const FETCH_TIMEOUT_MS = 15000;
+export const AUTOSAVE_DELAY_MS = 2000;
+export const AUTH_TIMEOUT_MS = 6000;
+export const RETRY_DELAY_MS = 1000;
+
+// Retry counts
+export const MAX_RETRIES = 1;
+
+// Audit trail fetch limit
+export const AUDIT_TRAIL_FETCH_LIMIT = 2000;
+
+// Cockpit thresholds (days)
+export const COCKPIT_CRITIQUE_DAYS = 180;
+export const CNI_WARNING_DAYS = 90;
+export const CNI_URGENT_DAYS = 30;
+
 // Fonction options for collaborateur forms
 export const FONCTION_OPTIONS = [
   { value: "ASSOCIE SIGNATAIRE", label: "Associe signataire" },
@@ -115,6 +145,13 @@ export const FONCTION_OPTIONS = [
   { value: "ALTERNANT", label: "Alternant" },
   { value: "SECRETAIRE", label: "Secretaire" },
 ] as const;
+
+// Vigilance level color mappings (shared across components)
+export const VIGILANCE_COLORS = {
+  SIMPLIFIEE: "bg-emerald-500/15 text-emerald-400 border-emerald-500/20",
+  STANDARD: "bg-amber-500/15 text-amber-400 border-amber-500/20",
+  RENFORCEE: "bg-red-500/15 text-red-400 border-red-500/20",
+} as const;
 
 // Audit trail action types
 export const AUDIT_ACTION_TYPES = [

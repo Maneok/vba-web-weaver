@@ -9,6 +9,7 @@ import { AuthProvider } from "@/lib/auth/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import PageErrorBoundary from "@/components/PageErrorBoundary";
+import CookieBanner from "@/components/CookieBanner";
 import AuthPage from "@/pages/AuthPage";
 
 // Lazy-loaded pages — code split per route
@@ -26,6 +27,17 @@ const GedPage = lazy(() => import("@/pages/GedPage"));
 const LettreMissionPage = lazy(() => import("@/pages/LettreMissionPage"));
 const HelpPage = lazy(() => import("@/pages/HelpPage"));
 const LandingPage = lazy(() => import("@/pages/LandingPage"));
+const OnboardingPage = lazy(() => import("@/pages/OnboardingPage"));
+const MentionsLegalesPage = lazy(() => import("@/pages/MentionsLegalesPage"));
+const CGVPage = lazy(() => import("@/pages/CGVPage"));
+const PolitiqueConfidentialitePage = lazy(() => import("@/pages/PolitiqueConfidentialitePage"));
+const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
+const SuspendedPage = lazy(() => import("@/pages/SuspendedPage"));
+const PricingPage = lazy(() => import("@/pages/PricingPage"));
+const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
+const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
+const AuditTrailPage = lazy(() => import("@/pages/AuditTrailPage"));
+const InvitePage = lazy(() => import("@/pages/InvitePage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
@@ -71,6 +83,14 @@ const App = () => (
               <Routes>
                 <Route path="/landing" element={<SafePage><LandingPage /></SafePage>} />
                 <Route path="/auth" element={<SafePage><AuthPage /></SafePage>} />
+                <Route path="/onboarding" element={<ProtectedRoute skipOnboardingCheck><SafePage><OnboardingPage /></SafePage></ProtectedRoute>} />
+                <Route path="/mentions-legales" element={<SafePage><MentionsLegalesPage /></SafePage>} />
+                <Route path="/cgv" element={<SafePage><CGVPage /></SafePage>} />
+                <Route path="/confidentialite" element={<SafePage><PolitiqueConfidentialitePage /></SafePage>} />
+                <Route path="/invite/:token" element={<SafePage><InvitePage /></SafePage>} />
+                <Route path="/pricing" element={<SafePage><PricingPage /></SafePage>} />
+                <Route path="/checkout-success" element={<ProtectedRoute><SafePage><CheckoutSuccessPage /></SafePage></ProtectedRoute>} />
+                <Route path="/suspended" element={<ProtectedRoute><SafePage><SuspendedPage /></SafePage></ProtectedRoute>} />
                 <Route path="/" element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
                   <Route index element={<SafePage><DashboardPage /></SafePage>} />
                   <Route path="bdd" element={<SafePage><BddPage /></SafePage>} />
@@ -85,7 +105,10 @@ const App = () => (
                   <Route path="lettre-mission/:ref" element={<SafePage><LettreMissionPage /></SafePage>} />
                   <Route path="diagnostic" element={<SafePage><DiagnosticPage /></SafePage>} />
                   <Route path="parametres" element={<SafePage><SettingsPage /></SafePage>} />
+                  <Route path="notifications" element={<SafePage><NotificationsPage /></SafePage>} />
                   <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
+                  <Route path="admin/users" element={<ProtectedRoute requiredPermission="manage_users"><SafePage><AdminUsersPage /></SafePage></ProtectedRoute>} />
+                  <Route path="audit" element={<ProtectedRoute requiredPermission="view_audit"><SafePage><AuditTrailPage /></SafePage></ProtectedRoute>} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />
                 </Route>
@@ -97,6 +120,7 @@ const App = () => (
       </AuthProvider>
       <Toaster />
       <Sonner richColors position="bottom-right" closeButton />
+      <CookieBanner />
     </TooltipProvider>
   </QueryClientProvider>
 );

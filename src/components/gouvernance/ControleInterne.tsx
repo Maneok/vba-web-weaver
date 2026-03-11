@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,11 +78,23 @@ const RESULTAT_LABELS = {
   NON_CONFORME: "Non conforme",
 };
 
+const CI_NC_KEY = "lcb-controle-interne-nc";
+const CI_PREVUS_KEY = "lcb-controle-interne-prevus";
+const CI_CROEC_KEY = "lcb-controle-interne-croec";
+
+function loadStorage<T>(key: string, fallback: T[]): T[] {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return fallback;
+}
+
 export default function ControleInterne() {
   const { collaborateurs, clients } = useAppState();
 
   // Non-conformites
-  const [nonConformites, setNonConformites] = useState<NonConformite[]>([]);
+  const [nonConformites, setNonConformites] = useState<NonConformite[]>(() => loadStorage<NonConformite>(CI_NC_KEY, []));
   const [showNcDialog, setShowNcDialog] = useState(false);
   const [ncFilter, setNcFilter] = useState<string>("all");
   const [ncSearch, setNcSearch] = useState("");
@@ -92,16 +104,21 @@ export default function ControleInterne() {
   });
 
   // Controles prevus
-  const [controlesPrevus, setControlesPrevus] = useState<ControlePrevu[]>([]);
+  const [controlesPrevus, setControlesPrevus] = useState<ControlePrevu[]>(() => loadStorage<ControlePrevu>(CI_PREVUS_KEY, []));
   const [showPlanDialog, setShowPlanDialog] = useState(false);
   const [newControle, setNewControle] = useState({ date: "", controleur: "", nbDossiers: 3 });
 
   // Controles CROEC
-  const [controlesCROEC, setControlesCROEC] = useState<ControleCROEC[]>([]);
+  const [controlesCROEC, setControlesCROEC] = useState<ControleCROEC[]>(() => loadStorage<ControleCROEC>(CI_CROEC_KEY, []));
   const [showCroecDialog, setShowCroecDialog] = useState(false);
   const [newCroec, setNewCroec] = useState({
     date: "", type: "Controle qualite", resultat: "CONFORME" as const, notes: "",
   });
+
+  // Persist to localStorage
+  useEffect(() => { try { localStorage.setItem(CI_NC_KEY, JSON.stringify(nonConformites)); } catch { /* */ } }, [nonConformites]);
+  useEffect(() => { try { localStorage.setItem(CI_PREVUS_KEY, JSON.stringify(controlesPrevus)); } catch { /* */ } }, [controlesPrevus]);
+  useEffect(() => { try { localStorage.setItem(CI_CROEC_KEY, JSON.stringify(controlesCROEC)); } catch { /* */ } }, [controlesCROEC]);
 
   // KPIs
   const kpis = useMemo(() => {
@@ -246,8 +263,8 @@ export default function ControleInterne() {
                     {ctrl.controleur && <span className="text-xs text-slate-500">Controleur : {ctrl.controleur}</span>}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {ctrl.dossiers.map((d, i) => (
-                      <Badge key={i} variant="outline" className="text-xs">{d}</Badge>
+                    {ctrl.dossiers.map((d) => (
+                      <Badge key={d} variant="outline" className="text-xs">{d}</Badge>
                     ))}
                   </div>
                 </div>
@@ -278,7 +295,7 @@ export default function ControleInterne() {
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-500" />
-              <Input placeholder="Rechercher..." value={ncSearch} onChange={e => setNcSearch(e.target.value)} className="pl-9" />
+              <Input placeholder="Rechercher..." value={ncSearch} onChange={e => setNcSearch(e.target.value)} className="pl-9" aria-label="Rechercher une non-conformite" />
             </div>
             <Select value={ncFilter} onValueChange={setNcFilter}>
               <SelectTrigger className="w-[160px]">
@@ -311,7 +328,11 @@ export default function ControleInterne() {
                 {filteredNcs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="text-center py-8 text-slate-500">
-                      Aucune non-conformite enregistree
+                      <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-40" />
+                      <p className="text-sm">Aucune non-conformite enregistree</p>
+                      {(ncSearch || ncFilter !== "all") && (
+                        <p className="text-xs mt-1">Essayez de modifier vos filtres de recherche</p>
+                      )}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -363,7 +384,9 @@ export default function ControleInterne() {
         <CardContent>
           {controlesCROEC.length === 0 ? (
             <div className="text-center py-6 text-slate-500">
+              <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Aucun controle CROEC enregistre</p>
+              <p className="text-xs mt-1">Ajoutez un controle passe pour constituer l'historique</p>
             </div>
           ) : (
             <div className="relative">
