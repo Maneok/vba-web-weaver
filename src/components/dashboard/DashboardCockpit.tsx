@@ -6,7 +6,7 @@ import DashboardCockpitFilters from "./DashboardCockpitFilters";
 import type { CockpitUrgency, CockpitSummary } from "@/lib/cockpitEngine";
 
 type SeverityFilter = "all" | "critique" | "warning" | "info";
-type CategoryFilter = "all" | "revision" | "cni" | "scoring" | "kyc" | "formation" | "be" | "document" | "autre";
+type CategoryFilter = "all" | "revision" | "cni" | "scoring" | "kyc" | "formation" | "be" | "document" | "alerte" | "autre";
 
 interface DashboardCockpitProps {
   cockpit: CockpitSummary;
@@ -45,8 +45,9 @@ function mapTypeToCategory(type: string): CategoryFilter {
   if (t.includes("kyc")) return "kyc";
   if (t.includes("formation")) return "formation";
   if (t.includes("be") || t.includes("beneficiaire")) return "be";
-  if (t.includes("document") || t.includes("doc")) return "document";
-  return "autre";
+  if (t.includes("document")) return "document";
+  if (t.includes("alerte")) return "alerte";
+  return "autre"; // fantome, capital, doublon, domiciliation
 }
 
 export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpitProps) {

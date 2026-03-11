@@ -1,7 +1,7 @@
 import { cn } from "@/lib/utils";
 
 type SeverityFilter = "all" | "critique" | "warning" | "info";
-type CategoryFilter = "all" | "revision" | "cni" | "scoring" | "kyc" | "formation" | "be" | "document" | "autre";
+type CategoryFilter = "all" | "revision" | "cni" | "scoring" | "kyc" | "formation" | "be" | "document" | "alerte" | "autre";
 
 interface DashboardCockpitFiltersProps {
   activeSeverity: SeverityFilter;
@@ -16,10 +16,10 @@ interface DashboardCockpitFiltersProps {
 }
 
 const severityOptions: { value: SeverityFilter; label: string; activeClass: string; inactiveClass: string }[] = [
-  { value: "all", label: "Tout", activeClass: "bg-slate-700 text-white", inactiveClass: "border-slate-300 text-slate-600 hover:bg-slate-100" },
-  { value: "critique", label: "Critique", activeClass: "bg-red-600 text-white", inactiveClass: "border-red-300 text-red-600 hover:bg-red-50" },
-  { value: "warning", label: "Warning", activeClass: "bg-orange-500 text-white", inactiveClass: "border-orange-300 text-orange-600 hover:bg-orange-50" },
-  { value: "info", label: "Info", activeClass: "bg-blue-500 text-white", inactiveClass: "border-blue-300 text-blue-600 hover:bg-blue-50" },
+  { value: "all", label: "Tout", activeClass: "bg-primary text-primary-foreground", inactiveClass: "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground" },
+  { value: "critique", label: "Critique", activeClass: "bg-red-600 text-white", inactiveClass: "border-border text-red-500 hover:bg-red-500/10" },
+  { value: "warning", label: "Warning", activeClass: "bg-orange-500 text-white", inactiveClass: "border-border text-orange-500 hover:bg-orange-500/10" },
+  { value: "info", label: "Info", activeClass: "bg-blue-500 text-white", inactiveClass: "border-border text-blue-500 hover:bg-blue-500/10" },
 ];
 
 const categoryOptions: { value: CategoryFilter; label: string }[] = [
@@ -31,6 +31,7 @@ const categoryOptions: { value: CategoryFilter; label: string }[] = [
   { value: "formation", label: "Formations" },
   { value: "be", label: "BE" },
   { value: "document", label: "Documents" },
+  { value: "alerte", label: "Alertes" },
   { value: "autre", label: "Autres" },
 ];
 

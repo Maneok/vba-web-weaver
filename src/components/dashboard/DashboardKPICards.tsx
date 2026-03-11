@@ -32,8 +32,6 @@ export function DashboardKPICards({ stats, sparklines, isLoading }: DashboardKPI
         title="Clients actifs"
         value={stats.totalClients}
         color="#3b82f6"
-        trendPercent={12}
-        trendUp
         sparklineData={sparklines.totalClients}
         onClick={() => navigate("/bdd")}
         loading={isLoading}
@@ -82,7 +80,7 @@ export function DashboardKPICards({ stats, sparklines, isLoading }: DashboardKPI
       <KPICard
         icon={Euro}
         title="CA prévisionnel"
-        value={`${(stats.caPrevisionnel / 1000).toFixed(0)}k\u20AC`}
+        value={`${(stats.caPrevisionnel / 1000).toFixed(0)}k€`}
         color="#3b82f6"
         sparklineData={sparklines.caPrevisionnel}
         loading={isLoading}

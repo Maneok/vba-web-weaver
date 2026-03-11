@@ -88,9 +88,9 @@ describe("DashboardKPICards — rendu", () => {
   });
 
   // Test 45
-  it("affiche le badge trend +12%", () => {
+  it("n'affiche pas de faux indicateur de tendance", () => {
     renderKPICards();
-    expect(screen.getByText(/12%/)).toBeInTheDocument();
+    expect(screen.queryByText(/12%/)).not.toBeInTheDocument();
   });
 });
 

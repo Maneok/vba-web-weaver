@@ -94,7 +94,7 @@ export default function DashboardGoals({ goals, isLoading }: DashboardGoalsProps
           <div className="mt-4 pt-3 border-t border-border">
             <p className="text-xs text-muted-foreground">
               <span className="font-medium text-foreground">{achievedCount}/{goals.length}</span>{" "}
-              objectif{goals.length > 1 ? "s" : ""} atteint{achievedCount > 1 ? "s" : ""}
+              {achievedCount > 1 ? "objectifs atteints" : "objectif atteint"}
             </p>
           </div>
         </>

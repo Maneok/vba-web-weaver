@@ -32,7 +32,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import {
-  Bell, RefreshCw, Settings, Loader2, Eye, EyeOff, GripVertical, RotateCcw,
+  RefreshCw, Settings, Loader2, Eye, EyeOff, GripVertical, RotateCcw,
   Building2, UserCheck, CreditCard, MapPin, Hash, ShieldCheck,
 } from "lucide-react";
 
@@ -61,10 +61,6 @@ import RiskDistributionMini from "@/components/dashboard/RiskDistributionMini";
 import { useReducedMotion, useAutoRefreshInterval } from "@/components/dashboard/DashboardReducedMotion";
 
 // ── Helpers ──────────────────────────────────────────────────
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
 function formatDateLong(): string {
   return new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -170,7 +166,6 @@ export default function DashboardPage() {
 
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [notificationCount, setNotificationCount] = useState(0);
   const [notifications, setNotifications] = useState<{ id: string; titre: string; message: string; type: "systeme" | "conformite" | "revue" | "alerte"; lue: boolean; created_at: string }[]>([]);
   const [widgets, setWidgets] = useState<WidgetVisibility>(loadVisibility);
   const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(loadOrder);
@@ -233,22 +228,6 @@ export default function DashboardPage() {
   const hiddenCount = Object.values(widgets).filter(v => !v).length;
   const allVisible = hiddenCount === 0;
   const allHidden = hiddenCount === DEFAULT_ORDER.length;
-
-  const handleRefresh = useCallback(() => {
-    const now = Date.now();
-    if (now - lastManualRefresh.current < 3000) return;
-    lastManualRefresh.current = now;
-    setIsRefreshing(true);
-    refreshAll()
-      .then(() => {
-        if (mountedRef.current) {
-          setLastRefresh(new Date());
-          setAnnouncements(prev => [...prev.slice(-4), "Données actualisées"]);
-        }
-      })
-      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err))
-      .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
-  }, [refreshAll]);
 
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
@@ -339,7 +318,6 @@ export default function DashboardPage() {
           created_at: n.created_at || new Date().toISOString(),
         }));
         setNotifications(items);
-        setNotificationCount(items.filter(n => !n.lue).length);
       })
       .catch((err: unknown) => {
         if (!cancelled) logger.warn("Dashboard", "Echec du chargement des notifications", { error: err instanceof Error ? err.message : String(err) });
@@ -492,16 +470,30 @@ export default function DashboardPage() {
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
   const cabinetName = profile?.cabinet_id ? "Cabinet" : "GRIMY";
 
+  const handleRefresh = useCallback(() => {
+    const now = Date.now();
+    if (now - lastManualRefresh.current < 3000) return;
+    lastManualRefresh.current = now;
+    setIsRefreshing(true);
+    refreshAll()
+      .then(() => {
+        if (mountedRef.current) {
+          setLastRefresh(new Date());
+          setAnnouncements(prev => [...prev.slice(-4), "Données actualisées"]);
+        }
+      })
+      .catch((err: unknown) => logger.debug("Dashboard", "refresh failed:", err))
+      .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
+  }, [refreshAll]);
+
   const handleMarkNotificationAsRead = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));
-    setNotificationCount(prev => Math.max(0, prev - 1));
     supabase.from("notifications").update({ lue: true }).eq("id", id).then(() => {});
   }, []);
 
   const handleMarkAllNotificationsAsRead = useCallback(() => {
     const unreadIds = notifications.filter(n => !n.lue).map(n => n.id);
     setNotifications(prev => prev.map(n => ({ ...n, lue: true })));
-    setNotificationCount(0);
     if (unreadIds.length > 0) {
       supabase.from("notifications").update({ lue: true }).in("id", unreadIds).then(() => {});
     }
@@ -559,9 +551,9 @@ export default function DashboardPage() {
           <p className="text-sm text-muted-foreground capitalize mt-1">{formatDateLong()}</p>
         </div>
 
-        <div className="flex items-center gap-2 print:hidden">
+        <div className="flex items-center gap-2 flex-wrap print:hidden">
           <DashboardSearch clients={clients} alertes={alertes} className="w-40 sm:w-56 md:w-64 lg:w-80" inputRef={searchInputRef} />
-          <QuickActionsBar notificationCount={notificationCount} />
+          <QuickActionsBar />
 
           {/* Notification center */}
           <DashboardNotificationCenter

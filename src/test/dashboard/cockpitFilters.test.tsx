@@ -28,11 +28,11 @@ describe("DashboardCockpitFilters", () => {
     expect(screen.getByText("Info")).toBeInTheDocument();
   });
 
-  it("renders category filter buttons (Tout, Révisions, CNI, Scoring, KYC, Formations, BE, Documents, Autres)", () => {
+  it("renders category filter buttons (Tout, Révisions, CNI, Scoring, KYC, Formations, BE, Documents, Alertes, Autres)", () => {
     renderFilters();
     const categoryGroup = screen.getByRole("group", { name: "Filtres par catégorie" });
     expect(categoryGroup).toBeInTheDocument();
-    for (const label of ["Révisions", "CNI", "Scoring", "KYC", "Formations", "BE", "Documents", "Autres"]) {
+    for (const label of ["Révisions", "CNI", "Scoring", "KYC", "Formations", "BE", "Documents", "Alertes", "Autres"]) {
       expect(screen.getByText(label)).toBeInTheDocument();
     }
   });

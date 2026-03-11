@@ -3,11 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { UserPlus, AlertTriangle, FileText, Plus, X } from "lucide-react";
 
-interface QuickActionsProps {
-  notificationCount?: number;
-}
-
-export function QuickActionsBar({ notificationCount = 0 }: QuickActionsProps) {
+export function QuickActionsBar() {
   const navigate = useNavigate();
 
   return (
