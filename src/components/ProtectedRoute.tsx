@@ -30,6 +30,15 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
       setOnboardingChecked(true);
       return;
     }
+
+    // Check localStorage first (instant, works even if DB save failed)
+    const localFlag = localStorage.getItem("grimy_onboarding_completed");
+    if (localFlag === profile.id) {
+      setNeedsOnboarding(false);
+      setOnboardingChecked(true);
+      return;
+    }
+
     let cancelled = false;
 
     supabase
@@ -41,6 +50,10 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
       .then(({ data }) => {
         if (cancelled) return;
         const completed = data?.valeur === "true" || data?.valeur === '"true"';
+        if (completed) {
+          // Sync localStorage for future fast checks
+          localStorage.setItem("grimy_onboarding_completed", profile.id);
+        }
         setNeedsOnboarding(!completed);
         setOnboardingChecked(true);
       })

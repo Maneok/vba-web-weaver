@@ -43,17 +43,21 @@ export default function OnboardingPage() {
     setSaving(true);
 
     try {
-      // Helper to upsert a parametres row
+      // Helper to upsert a parametres row (delete+insert — works regardless of unique constraints)
       const upsertParam = async (key: string, value: unknown) => {
         const jsonValue = JSON.stringify(value);
+        // Delete existing row first (ignore errors — may not exist)
+        await supabase
+          .from("parametres")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("cle", key);
+        // Insert new row
         const { error } = await supabase
           .from("parametres")
-          .upsert(
-            { user_id: user.id, cle: key, valeur: jsonValue, updated_at: new Date().toISOString() },
-            { onConflict: "user_id,cle" }
-          );
+          .insert({ user_id: user.id, cle: key, valeur: jsonValue, updated_at: new Date().toISOString() });
         if (error) {
-          logger.warn("Onboarding", `upsert ${key} failed:`, error.message);
+          logger.warn("Onboarding", `insert ${key} failed:`, error.message);
         }
       };
 
@@ -85,8 +89,9 @@ export default function OnboardingPage() {
         revue_simplifiee_mois: freqMonths * 3,
       });
 
-      // Mark onboarding as completed
+      // Mark onboarding as completed (DB + localStorage as fallback)
       await upsertParam("onboarding_completed", true);
+      localStorage.setItem("grimy_onboarding_completed", user.id);
 
       logger.info("Onboarding", "Onboarding completed for user:", user.id);
     } catch (err) {
