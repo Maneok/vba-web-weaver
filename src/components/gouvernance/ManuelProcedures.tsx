@@ -167,7 +167,12 @@ export default function ManuelProcedures() {
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => currentVersion && handleView(currentVersion)}>
                 <Eye className="w-3.5 h-3.5" /> Voir
               </Button>
-              <Button variant="outline" size="sm" className="gap-1.5">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+                if (currentVersion) {
+                  setNewVersion({ resume: currentVersion.resume, contenu: currentVersion.contenu });
+                  setShowNewDialog(true);
+                }
+              }}>
                 <Pencil className="w-3.5 h-3.5" /> Modifier
               </Button>
               <Button size="sm" className="gap-1.5" onClick={() => setShowNewDialog(true)}>

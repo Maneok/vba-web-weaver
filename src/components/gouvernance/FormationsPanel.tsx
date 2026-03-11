@@ -187,7 +187,7 @@ export default function FormationsPanel() {
                     </Badge>
                   ))}
                 </div>
-                <Button variant="outline" size="sm" className="mt-3 gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10">
+                <Button variant="outline" size="sm" className="mt-3 gap-1.5 text-amber-400 border-amber-500/30 hover:bg-amber-500/10" onClick={() => setShowAddDialog(true)}>
                   <Calendar className="w-3.5 h-3.5" /> Planifier
                 </Button>
               </div>
