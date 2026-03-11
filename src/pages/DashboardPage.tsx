@@ -33,6 +33,7 @@ import {
 } from "@dnd-kit/sortable";
 import {
   Bell, RefreshCw, Settings, Loader2, Eye, EyeOff, GripVertical, RotateCcw,
+  Building2, UserCheck, CreditCard, MapPin, Hash, ShieldCheck,
 } from "lucide-react";
 
 import OnboardingWizard, { isOnboardingComplete } from "@/components/OnboardingWizard";
@@ -55,6 +56,8 @@ import DashboardAccessibility from "@/components/dashboard/DashboardAccessibilit
 import DashboardPrintHeader from "@/components/dashboard/DashboardPrintHeader";
 import DashboardPrintFooter from "@/components/dashboard/DashboardPrintFooter";
 import DataFreshnessIndicator from "@/components/dashboard/DataFreshnessIndicator";
+import DashboardNotificationCenter from "@/components/dashboard/DashboardNotificationCenter";
+import RiskDistributionMini from "@/components/dashboard/RiskDistributionMini";
 import { useReducedMotion, useAutoRefreshInterval } from "@/components/dashboard/DashboardReducedMotion";
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -168,6 +171,7 @@ export default function DashboardPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+  const [notifications, setNotifications] = useState<{ id: string; titre: string; message: string; type: "systeme" | "conformite" | "revue" | "alerte"; lue: boolean; created_at: string }[]>([]);
   const [widgets, setWidgets] = useState<WidgetVisibility>(loadVisibility);
   const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(loadOrder);
   const [dragMode, setDragMode] = useState(false);
@@ -253,11 +257,24 @@ export default function DashboardPage() {
         case "/": e.preventDefault(); searchInputRef.current?.focus(); break;
         case "r": case "R": e.preventDefault(); handleRefresh(); break;
         case "d": case "D": e.preventDefault(); setDragMode(v => !v); break;
+        case "p": case "P": e.preventDefault(); window.print(); break;
+        default: {
+          const num = parseInt(e.key, 10);
+          if (num >= 1 && num <= 9) {
+            const visKeys = widgetOrder.filter(k => widgets[k]);
+            if (num <= visKeys.length) {
+              e.preventDefault();
+              const el = document.getElementById(`widget-${visKeys[num - 1]}`);
+              el?.scrollIntoView({ behavior: "smooth", block: "start" });
+              el?.focus();
+            }
+          }
+        }
       }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [navigate, handleRefresh]);
+  }, [navigate, handleRefresh, widgetOrder, widgets]);
 
   // ── Auto-refresh with configurable interval ──────────────
   useEffect(() => {
@@ -285,21 +302,31 @@ export default function DashboardPage() {
     };
   }, [autoRefreshInterval]);
 
-  // ── Load notification count ───────────────────────────────
+  // ── Load notifications ───────────────────────────────────
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
     supabase
       .from("notifications")
-      .select("id", { count: "exact", head: true })
-      .eq("lue", false)
-      .then(({ count, error }) => {
+      .select("id, titre, message, type, lue, created_at")
+      .order("created_at", { ascending: false })
+      .limit(30)
+      .then(({ data, error }) => {
         if (cancelled) return;
-        if (error) { logger.warn("Dashboard", "Notification count error:", error.message); return; }
-        setNotificationCount(typeof count === "number" ? count : 0);
+        if (error) { logger.warn("Dashboard", "Notification load error:", error.message); return; }
+        const items = (data || []).map((n: any) => ({
+          id: n.id,
+          titre: n.titre || "Notification",
+          message: n.message || "",
+          type: (n.type || "systeme") as "systeme" | "conformite" | "revue" | "alerte",
+          lue: !!n.lue,
+          created_at: n.created_at || new Date().toISOString(),
+        }));
+        setNotifications(items);
+        setNotificationCount(items.filter(n => !n.lue).length);
       })
       .catch((err: unknown) => {
-        if (!cancelled) logger.warn("Dashboard", "Echec du chargement du compteur de notifications", { error: err instanceof Error ? err.message : String(err) });
+        if (!cancelled) logger.warn("Dashboard", "Echec du chargement des notifications", { error: err instanceof Error ? err.message : String(err) });
       });
     return () => { cancelled = true; };
   }, [user, lastRefresh]);
@@ -437,12 +464,12 @@ export default function DashboardPage() {
     const total = actifs.length;
     if (total === 0) return [];
     return [
-      { label: "SIREN", total, filled: actifs.filter(c => c.siren).length, icon: null },
-      { label: "Dirigeant", total, filled: actifs.filter(c => c.dirigeant).length, icon: null },
-      { label: "CNI", total, filled: actifs.filter(c => c.lienCni).length, icon: null },
-      { label: "Adresse", total, filled: actifs.filter(c => c.adresse).length, icon: null },
-      { label: "Code APE", total, filled: actifs.filter(c => c.codeApe).length, icon: null },
-      { label: "Vigilance", total, filled: actifs.filter(c => c.nivVigilance).length, icon: null },
+      { label: "SIREN", total, filled: actifs.filter(c => c.siren).length, icon: <Building2 className="w-3.5 h-3.5" /> },
+      { label: "Dirigeant", total, filled: actifs.filter(c => c.dirigeant).length, icon: <UserCheck className="w-3.5 h-3.5" /> },
+      { label: "CNI", total, filled: actifs.filter(c => c.lienCni).length, icon: <CreditCard className="w-3.5 h-3.5" /> },
+      { label: "Adresse", total, filled: actifs.filter(c => c.adresse).length, icon: <MapPin className="w-3.5 h-3.5" /> },
+      { label: "Code APE", total, filled: actifs.filter(c => c.codeApe).length, icon: <Hash className="w-3.5 h-3.5" /> },
+      { label: "Vigilance", total, filled: actifs.filter(c => c.nivVigilance).length, icon: <ShieldCheck className="w-3.5 h-3.5" /> },
     ];
   }, [clients]);
 
@@ -465,11 +492,35 @@ export default function DashboardPage() {
       .finally(() => { if (mountedRef.current) setIsRefreshing(false); });
   }, [refreshAll]);
 
+  const handleMarkNotificationAsRead = useCallback((id: string) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));
+    setNotificationCount(prev => Math.max(0, prev - 1));
+    supabase.from("notifications").update({ lue: true }).eq("id", id).then(() => {});
+  }, []);
+
+  const handleMarkAllNotificationsAsRead = useCallback(() => {
+    const unreadIds = notifications.filter(n => !n.lue).map(n => n.id);
+    setNotifications(prev => prev.map(n => ({ ...n, lue: true })));
+    setNotificationCount(0);
+    if (unreadIds.length > 0) {
+      supabase.from("notifications").update({ lue: true }).in("id", unreadIds).then(() => {});
+    }
+  }, [notifications]);
+
   const showOnboarding = !isLoading && clients.length === 0 && !isOnboardingComplete();
 
   // ── Widget renderer ───────────────────────────────────────
   const widgetContent: Record<WidgetKey, ReactNode> = {
-    kpi: <DashboardKPICards stats={stats} sparklines={sparklines} isLoading={isLoading} />,
+    kpi: (
+      <>
+        <DashboardKPICards stats={stats} sparklines={sparklines} isLoading={isLoading} />
+        {!isLoading && stats.totalClients > 0 && (
+          <div className="mt-3 px-1">
+            <RiskDistributionMini simplifiee={stats.simplifiee} standard={stats.standard} renforcee={stats.renforcee} />
+          </div>
+        )}
+      </>
+    ),
     cockpit: <DashboardCockpit cockpit={cockpitData} isLoading={isLoading} />,
     graphique: (
       <DashboardChart
@@ -509,26 +560,19 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-2 print:hidden">
-          <DashboardSearch clients={clients} alertes={alertes} className="hidden md:block w-64 lg:w-80" inputRef={searchInputRef} />
+          <DashboardSearch clients={clients} alertes={alertes} className="w-40 sm:w-56 md:w-64 lg:w-80" inputRef={searchInputRef} />
           <QuickActionsBar notificationCount={notificationCount} />
 
-          {/* Notification bell */}
-          <button
-            className="relative w-9 h-9 rounded-xl bg-muted/50 flex items-center justify-center hover:bg-muted transition-colors"
-            onClick={() => navigate("/registre")}
-            title="Notifications"
-            aria-label={`Notifications${notificationCount > 0 ? ` (${notificationCount} non lues)` : ""}`}
-          >
-            <Bell className="w-4 h-4" />
-            {notificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center" aria-hidden="true">
-                {notificationCount > 9 ? "9+" : notificationCount}
-              </span>
-            )}
-          </button>
+          {/* Notification center */}
+          <DashboardNotificationCenter
+            notifications={notifications}
+            onMarkAsRead={handleMarkNotificationAsRead}
+            onMarkAllAsRead={handleMarkAllNotificationsAsRead}
+            isLoading={isLoading}
+          />
 
           {/* Export */}
-          <DashboardExport clients={clients} alertes={alertes} collaborateurs={collaborateurs} stats={stats} />
+          <DashboardExport clients={clients} alertes={alertes} collaborateurs={collaborateurs} stats={stats} cockpitUrgencies={cockpitData.urgencies} complianceItems={complianceItems} />
 
           {/* Drag mode toggle */}
           <Button
@@ -604,6 +648,34 @@ export default function DashboardPage() {
                 <Button size="sm" variant="outline" className="flex-1 text-xs gap-1.5" onClick={() => setAllWidgets(false)} disabled={allHidden}>
                   <EyeOff className="w-3.5 h-3.5" /> Tout masquer
                 </Button>
+              </div>
+              {/* Auto-refresh interval */}
+              <div className="pt-2 border-t border-border">
+                <label className="text-xs font-medium text-muted-foreground mb-2 block">
+                  <RefreshCw className="w-3.5 h-3.5 inline-block mr-1 align-text-bottom" />
+                  Actualisation automatique
+                </label>
+                <div className="flex gap-1.5 flex-wrap">
+                  {([
+                    { value: 0, label: "Désactivée" },
+                    { value: 30000, label: "30s" },
+                    { value: 60000, label: "1 min" },
+                    { value: 120000, label: "2 min" },
+                    { value: 300000, label: "5 min" },
+                  ] as const).map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setAutoRefreshInterval(opt.value)}
+                      className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${
+                        autoRefreshInterval === opt.value
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-transparent text-muted-foreground border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
               </div>
               {!isDefaultOrder && (
                 <Button size="sm" variant="ghost" className="w-full text-xs gap-1.5 mt-1" onClick={resetOrder}>

@@ -35,8 +35,9 @@ const sections: ShortcutSection[] = [
   {
     title: "Dashboard",
     shortcuts: [
-      { keys: ["1-5"], description: "Aller au widget N" },
+      { keys: ["1-9"], description: "Aller au widget N" },
       { keys: ["D"], description: "Mode drag" },
+      { keys: ["P"], description: "Imprimer" },
     ],
   },
   {

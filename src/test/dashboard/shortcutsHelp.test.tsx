@@ -63,7 +63,7 @@ describe("DashboardShortcutsHelp", () => {
     expect(keyTexts).toContain("/");
     expect(keyTexts).toContain("?");
     expect(keyTexts).toContain("R");
-    expect(keyTexts).toContain("1-5");
+    expect(keyTexts).toContain("1-9");
     expect(keyTexts).toContain("D");
     expect(keyTexts).toContain("Escape");
   });

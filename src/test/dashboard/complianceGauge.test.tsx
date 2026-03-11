@@ -63,6 +63,51 @@ describe("ComplianceGauge — rendu", () => {
   });
 });
 
+describe("ComplianceGauge — objectifs (target)", () => {
+  it("affiche le marqueur d'objectif quand target est défini", () => {
+    const items = [
+      { label: "Test", value: 70, target: 90, description: "Objectif test" },
+    ];
+    const { container } = render(<ComplianceGauge items={items} />);
+    const marker = container.querySelector("[title='Objectif : 90%']");
+    expect(marker).toBeInTheDocument();
+  });
+
+  it("affiche 'Objectif atteint' quand value >= target", () => {
+    const items = [
+      { label: "Test", value: 95, target: 90, description: "Objectif test" },
+    ];
+    render(<ComplianceGauge items={items} />);
+    expect(screen.getByText(/Objectif atteint/)).toBeInTheDocument();
+  });
+
+  it("affiche 'Objectif : X%' quand value < target", () => {
+    const items = [
+      { label: "Test", value: 70, target: 90, description: "Objectif test" },
+    ];
+    render(<ComplianceGauge items={items} />);
+    expect(screen.getByText("Objectif : 90%")).toBeInTheDocument();
+  });
+
+  it("n'affiche pas de marqueur quand target est absent", () => {
+    const items = [
+      { label: "Test", value: 70, description: "Sans objectif" },
+    ];
+    const { container } = render(<ComplianceGauge items={items} />);
+    const markers = container.querySelectorAll("[title*='Objectif']");
+    expect(markers).toHaveLength(0);
+  });
+
+  it("inclut target dans le label aria du progressbar", () => {
+    const items = [
+      { label: "Test", value: 70, target: 90, description: "Objectif" },
+    ];
+    render(<ComplianceGauge items={items} />);
+    const bar = screen.getByRole("progressbar");
+    expect(bar.getAttribute("aria-label")).toContain("objectif : 90%");
+  });
+});
+
 describe("ComplianceGauge — loading", () => {
   // Test bonus
   it("affiche des skeletons en loading", () => {

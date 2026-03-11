@@ -28,14 +28,16 @@ export function SortableWidget({ id, children, label, dragEnabled = false }: Sor
   };
 
   if (!dragEnabled) {
-    return <>{children}</>;
+    return <div id={`widget-${id}`} tabIndex={-1} className="outline-none">{children}</div>;
   }
 
   return (
     <div
+      id={`widget-${id}`}
       ref={setNodeRef}
       style={style}
-      className={`group/widget ${isDragging ? "opacity-60 scale-[0.98] ring-2 ring-primary/30 rounded-2xl" : ""}`}
+      tabIndex={-1}
+      className={`group/widget outline-none ${isDragging ? "opacity-60 scale-[0.98] ring-2 ring-primary/30 rounded-2xl" : ""}`}
     >
       <div
         className="absolute -left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-12 rounded-lg bg-card/90 backdrop-blur-sm border border-border shadow-md flex items-center justify-center cursor-grab active:cursor-grabbing opacity-0 group-hover/widget:opacity-100 hover:!opacity-100 focus-visible:opacity-100 transition-opacity print:hidden"

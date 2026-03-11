@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShieldAlert, CheckCircle2, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import DashboardCockpitFilters from "./DashboardCockpitFilters";
 import type { CockpitUrgency, CockpitSummary } from "@/lib/cockpitEngine";
+
+type SeverityFilter = "all" | "critique" | "warning" | "info";
+type CategoryFilter = "all" | "revision" | "cni" | "scoring" | "kyc" | "formation" | "be" | "document" | "autre";
 
 interface DashboardCockpitProps {
   cockpit: CockpitSummary;
@@ -33,9 +37,23 @@ function countBySeverity(urgencies: CockpitUrgency[]): Record<CockpitUrgency["se
   return counts;
 }
 
+function mapTypeToCategory(type: string): CategoryFilter {
+  const t = type.toLowerCase();
+  if (t.includes("revision") || t.includes("revue")) return "revision";
+  if (t.includes("cni") || t.includes("identite")) return "cni";
+  if (t.includes("scor")) return "scoring";
+  if (t.includes("kyc")) return "kyc";
+  if (t.includes("formation")) return "formation";
+  if (t.includes("be") || t.includes("beneficiaire")) return "be";
+  if (t.includes("document") || t.includes("doc")) return "document";
+  return "autre";
+}
+
 export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpitProps) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
+  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>("all");
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
 
   if (isLoading) {
     return (
@@ -66,10 +84,20 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
     );
   }
 
-  const urgencies = cockpit.urgencies ?? [];
-  const counts = countBySeverity(urgencies);
+  const allUrgencies = cockpit.urgencies ?? [];
+  const counts = countBySeverity(allUrgencies);
+
+  const urgencies = useMemo(() => {
+    return allUrgencies.filter(u => {
+      if (severityFilter !== "all" && u.severity !== severityFilter) return false;
+      if (categoryFilter !== "all" && mapTypeToCategory(u.type) !== categoryFilter) return false;
+      return true;
+    });
+  }, [allUrgencies, severityFilter, categoryFilter]);
+
   const visibleItems = expanded ? urgencies : urgencies.slice(0, VISIBLE_DEFAULT);
   const hiddenCount = urgencies.length - VISIBLE_DEFAULT;
+  const hasActiveFilters = severityFilter !== "all" || categoryFilter !== "all";
 
   return (
     <div
@@ -103,12 +131,37 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
         )}
       </div>
 
+      {/* Filters */}
+      {allUrgencies.length > 0 && (
+        <div className="mb-4 print:hidden">
+          <DashboardCockpitFilters
+            activeSeverity={severityFilter}
+            activeCategory={categoryFilter}
+            onSeverityChange={setSeverityFilter}
+            onCategoryChange={setCategoryFilter}
+            counts={counts}
+          />
+        </div>
+      )}
+
       {/* Empty state */}
       {urgencies.length === 0 ? (
         <div className="text-center py-8">
           <CheckCircle2 className="w-8 h-8 text-emerald-500/60 mx-auto mb-2" aria-hidden="true" />
-          <p className="text-sm text-muted-foreground">Aucune anomalie détectée</p>
-          <p className="text-xs text-emerald-500/80 mt-1 font-medium">Conformité OK</p>
+          <p className="text-sm text-muted-foreground">
+            {hasActiveFilters ? "Aucune anomalie pour ces filtres" : "Aucune anomalie détectée"}
+          </p>
+          {!hasActiveFilters && (
+            <p className="text-xs text-emerald-500/80 mt-1 font-medium">Conformité OK</p>
+          )}
+          {hasActiveFilters && (
+            <button
+              className="text-xs text-primary hover:underline mt-2"
+              onClick={() => { setSeverityFilter("all"); setCategoryFilter("all"); }}
+            >
+              Réinitialiser les filtres
+            </button>
+          )}
         </div>
       ) : (
         <>

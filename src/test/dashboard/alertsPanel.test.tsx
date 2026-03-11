@@ -157,6 +157,59 @@ describe("AlertsPanel — loading", () => {
   });
 });
 
+describe("AlertsPanel — filtres", () => {
+  beforeEach(() => mockNavigate.mockClear());
+
+  it("affiche les boutons de filtre quand il y a des alertes", () => {
+    render(<MemoryRouter><AlertsPanel alertes={sampleAlertes} /></MemoryRouter>);
+    expect(screen.getByText(/Tout \(3\)/)).toBeInTheDocument();
+    expect(screen.getByText(/En cours \(2\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Clos \(1\)/)).toBeInTheDocument();
+  });
+
+  it("filtre les alertes en cours", () => {
+    render(<MemoryRouter><AlertsPanel alertes={sampleAlertes} /></MemoryRouter>);
+    const enCoursBtn = screen.getByText(/En cours \(2\)/);
+    fireEvent.click(enCoursBtn);
+    const items = screen.getAllByRole("listitem");
+    items.forEach(item => {
+      expect(item.textContent).not.toContain("Clos");
+    });
+  });
+
+  it("filtre les alertes closes", () => {
+    render(<MemoryRouter><AlertsPanel alertes={sampleAlertes} /></MemoryRouter>);
+    const closBtn = screen.getByText(/Clos \(1\)/);
+    fireEvent.click(closBtn);
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0].textContent).toContain("SARL Tech");
+  });
+
+  it("le filtre Tout affiche toutes les alertes", () => {
+    render(<MemoryRouter><AlertsPanel alertes={sampleAlertes} /></MemoryRouter>);
+    // Click "En cours" first
+    fireEvent.click(screen.getByText(/En cours \(2\)/));
+    // Then click "Tout"
+    fireEvent.click(screen.getByText(/Tout \(3\)/));
+    const items = screen.getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+  });
+
+  it("n'affiche pas les filtres sans alertes", () => {
+    render(<MemoryRouter><AlertsPanel alertes={[]} /></MemoryRouter>);
+    expect(screen.queryByText(/Tout \(/)).not.toBeInTheDocument();
+  });
+
+  it("le bouton de filtre actif a l'attribut aria-pressed", () => {
+    render(<MemoryRouter><AlertsPanel alertes={sampleAlertes} /></MemoryRouter>);
+    const toutBtn = screen.getByText(/Tout \(3\)/);
+    expect(toutBtn).toHaveAttribute("aria-pressed", "true");
+    const enCoursBtn = screen.getByText(/En cours \(2\)/);
+    expect(enCoursBtn).toHaveAttribute("aria-pressed", "false");
+  });
+});
+
 describe("AlertsPanel — accessibilité", () => {
   // Test 77
   it("le bouton Voir tout a un aria-label descriptif", () => {

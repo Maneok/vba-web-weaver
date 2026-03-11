@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import type { Client, AlerteRegistre, Collaborateur } from "@/lib/types";
+import type { CockpitUrgency } from "@/lib/cockpitEngine";
 
 interface DashboardExportProps {
   clients: Client[];
@@ -21,6 +22,8 @@ interface DashboardExportProps {
     revuesEchues: number;
     caPrevisionnel: number;
   };
+  cockpitUrgencies?: CockpitUrgency[];
+  complianceItems?: { label: string; value: number; target?: number; description?: string }[];
 }
 
 function escapeCSV(val: unknown): string {
@@ -53,6 +56,8 @@ export default function DashboardExport({
   alertes,
   collaborateurs,
   stats,
+  cockpitUrgencies = [],
+  complianceItems = [],
 }: DashboardExportProps) {
   const [exporting, setExporting] = useState(false);
 
@@ -115,6 +120,42 @@ export default function DashboardExport({
     }
   }
 
+  function exportCockpit() {
+    setExporting(true);
+    try {
+      const headers = ["Sévérité", "Type", "Titre", "Détail", "Référence client"];
+      const rows = cockpitUrgencies.map((u) => [
+        u.severity,
+        u.type,
+        u.title,
+        u.detail,
+        u.ref || "",
+      ]);
+      const csv = [headers, ...rows].map((r) => r.map(escapeCSV).join(",")).join("\n");
+      downloadCSV(`anomalies-cockpit-${formatDate()}.csv`, csv);
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  function exportCompliance() {
+    setExporting(true);
+    try {
+      const headers = ["Indicateur", "Valeur (%)", "Objectif (%)", "Atteint", "Description"];
+      const rows = complianceItems.map((item) => [
+        item.label,
+        item.value,
+        item.target ?? "",
+        item.target != null ? (item.value >= item.target ? "Oui" : "Non") : "",
+        item.description || "",
+      ]);
+      const csv = [headers, ...rows].map((r) => r.map(escapeCSV).join(",")).join("\n");
+      downloadCSV(`conformite-${formatDate()}.csv`, csv);
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -146,6 +187,18 @@ export default function DashboardExport({
           <FileSpreadsheet className="w-4 h-4" />
           Alertes en cours
         </DropdownMenuItem>
+        {cockpitUrgencies.length > 0 && (
+          <DropdownMenuItem onClick={exportCockpit} className="gap-2 cursor-pointer">
+            <FileSpreadsheet className="w-4 h-4" />
+            Anomalies cockpit
+          </DropdownMenuItem>
+        )}
+        {complianceItems.length > 0 && (
+          <DropdownMenuItem onClick={exportCompliance} className="gap-2 cursor-pointer">
+            <FileSpreadsheet className="w-4 h-4" />
+            Rapport de conformité
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
