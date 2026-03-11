@@ -1,20 +1,55 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import type { PermissionAction } from "@/lib/auth/types";
 import { Loader2, RefreshCw, LogOut, WifiOff } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredPermission?: PermissionAction;
+  /** If true, skip onboarding check (used for /onboarding route itself) */
+  skipOnboardingCheck?: boolean;
 }
 
-export default function ProtectedRoute({ children, requiredPermission }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requiredPermission, skipOnboardingCheck }: ProtectedRouteProps) {
   const { session, profile, loading, hasPermission, signOut, refreshProfile } = useAuth();
   const [timedOut, setTimedOut] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const [retryCount, setRetryCount] = useState(0);
   const signOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Onboarding check: has the user completed onboarding?
+  const [onboardingChecked, setOnboardingChecked] = useState(false);
+  const [needsOnboarding, setNeedsOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (skipOnboardingCheck || !profile) {
+      setOnboardingChecked(true);
+      return;
+    }
+    let cancelled = false;
+
+    supabase
+      .from("parametres")
+      .select("valeur")
+      .eq("user_id", profile.id)
+      .eq("cle", "onboarding_completed")
+      .maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        const completed = data?.valeur === "true" || data?.valeur === '"true"';
+        setNeedsOnboarding(!completed);
+        setOnboardingChecked(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOnboardingChecked(true); // fail open — don't block
+        }
+      });
+
+    return () => { cancelled = true; };
+  }, [profile?.id, skipOnboardingCheck]);
 
   // Safety timeout — 10s max spinner (AuthContext safety is 8s, this is a fallback)
   useEffect(() => {
@@ -152,6 +187,22 @@ export default function ProtectedRoute({ children, requiredPermission }: Protect
         </div>
       </div>
     );
+  }
+
+  // Onboarding redirect: if not completed, redirect to /onboarding
+  if (!skipOnboardingCheck && !onboardingChecked) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-3">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground animate-pulse">
+          Chargement de votre espace...
+        </p>
+      </div>
+    );
+  }
+
+  if (!skipOnboardingCheck && needsOnboarding) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   return <>{children}</>;
