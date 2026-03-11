@@ -1,4 +1,4 @@
-import type { Client, Collaborateur, AlerteRegistre, LogEntry, ControleQualite } from "./types";
+import type { Client, Collaborateur, AlerteRegistre, AlertPriority, LogEntry, ControleQualite } from "./types";
 
 // ===== DB row (snake_case) → Frontend (camelCase) =====
 
@@ -88,6 +88,9 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     lienKbis: str(row.lien_kbis),
     lienStatuts: str(row.lien_statuts),
     lienCni: str(row.lien_cni),
+    dataProvenance: Array.isArray(row.data_provenance) ? row.data_provenance as Client["dataProvenance"] : undefined,
+    nonDiffusible: row.non_diffusible === true ? true : row.non_diffusible === false ? false : undefined,
+    typePersonne: (["morale", "physique", "exploitation", "unknown"].includes(str(row.type_personne))) ? str(row.type_personne) as Client["typePersonne"] : undefined,
   };
 }
 
@@ -148,6 +151,9 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.lienKbis !== undefined) row.lien_kbis = client.lienKbis;
   if (client.lienStatuts !== undefined) row.lien_statuts = client.lienStatuts;
   if (client.lienCni !== undefined) row.lien_cni = client.lienCni;
+  if (client.dataProvenance !== undefined) row.data_provenance = client.dataProvenance;
+  if (client.nonDiffusible !== undefined) row.non_diffusible = client.nonDiffusible;
+  if (client.typePersonne !== undefined) row.type_personne = client.typePersonne;
 
   return row;
 }
@@ -164,6 +170,8 @@ export function mapDbCollaborateur(row: Record<string, unknown>): Collaborateur 
     derniereFormation: str(row.derniere_formation),
     statutFormation: str(row.statut_formation),
     email: str(row.email),
+    telephone: row.telephone != null ? str(row.telephone) : undefined,
+    dateRecrutement: row.date_recrutement != null ? str(row.date_recrutement) : undefined,
   };
 }
 
@@ -181,6 +189,7 @@ export function mapDbAlerte(row: Record<string, unknown>): AlerteRegistre {
     dateButoir: str(row.date_butoir),
     typeDecision: str(row.type_decision),
     validateur: str(row.validateur),
+    priorite: (["CRITIQUE", "HAUTE", "MOYENNE", "BASSE"].includes(str(row.priorite))) ? str(row.priorite) as AlertPriority : undefined,
   };
 }
 
@@ -197,6 +206,7 @@ export function mapAlerteToDb(alerte: AlerteRegistre): Record<string, unknown> {
     date_butoir: alerte.dateButoir,
     type_decision: alerte.typeDecision,
     validateur: alerte.validateur,
+    priorite: alerte.priorite ?? null,
   };
 }
 
