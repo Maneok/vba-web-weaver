@@ -45,6 +45,7 @@ const queryClient = new QueryClient({
     queries: {
       retry: 2,
       staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000, // OPT-12: Keep cached data in memory 10 min
       refetchOnWindowFocus: false,
     },
   },

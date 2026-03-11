@@ -147,11 +147,12 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
   const renderSection = (items: NavItem[], label: string, isFirst = false) => (
     <div>
+      {/* OPT-18: role="separator" for screen readers */}
       {!isFirst && collapsed && (
-        <div className="mx-3 my-2 border-t border-slate-800/50" />
+        <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-slate-800/50" />
       )}
       {!isFirst && !collapsed && (
-        <div className="mt-2 border-t border-slate-800/50" />
+        <div role="separator" aria-hidden="true" className="mt-2 border-t border-slate-800/50" />
       )}
       {!collapsed && (
         <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-500">

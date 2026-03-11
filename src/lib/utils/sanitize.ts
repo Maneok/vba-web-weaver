@@ -3,18 +3,26 @@
  * Referenced in CLAUDE.md but was missing from the codebase.
  */
 
-/** Strip all HTML tags from a string */
+/** Strip all HTML tags from a string.
+ * OPT-7: Decode entities BEFORE stripping tags to prevent &lt;script&gt; bypass. */
 export function sanitizeHtml(input: string): string {
   if (!input) return "";
-  return input
-    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
-    .replace(/<[^>]+>/g, "")
+  // Phase 1: Decode HTML entities so encoded tags become real tags
+  // OPT-43: Also handle numeric entities (&#60; &#x3C; etc.) to prevent bypass
+  let decoded = input
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, dec) => String.fromCharCode(parseInt(dec, 10)))
+    .replace(/&#x27;/g, "'")
+    .replace(/&quot;/g, '"')
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
-    .replace(/&amp;/g, "&")
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .trim();
+    .replace(/&amp;/g, "&");
+  // Phase 2: Strip all tags (including decoded ones)
+  decoded = decoded
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, "");
+  return decoded.trim();
 }
 
 /** Sanitize user input for safe storage (XSS prevention) */

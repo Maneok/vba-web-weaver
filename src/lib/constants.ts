@@ -110,6 +110,11 @@ export const RISK_THRESHOLDS = {
   RENFORCEE_MIN: 60,
 } as const;
 
+// OPT-35: Validate threshold consistency at module load
+if (RISK_THRESHOLDS.SIMPLIFIEE_MAX >= RISK_THRESHOLDS.STANDARD_MAX || RISK_THRESHOLDS.STANDARD_MAX >= RISK_THRESHOLDS.RENFORCEE_MIN) {
+  throw new Error("Risk thresholds misconfigured: must be SIMPLIFIEE_MAX < STANDARD_MAX < RENFORCEE_MIN");
+}
+
 // Pagination
 export const DEFAULT_PAGE_SIZE = 25;
 

@@ -53,6 +53,24 @@ export function initMonitoring() {
         }
       });
       lcpObserver.observe({ type: "largest-contentful-paint", buffered: true });
+
+      // OPT-24: Track CLS (Cumulative Layout Shift) for UX quality
+      const clsObserver = new PerformanceObserver((list) => {
+        try {
+          let clsValue = 0;
+          for (const entry of list.getEntries()) {
+            if (!(entry as PerformanceEntry & { hadRecentInput?: boolean }).hadRecentInput) {
+              clsValue += (entry as PerformanceEntry & { value?: number }).value ?? 0;
+            }
+          }
+          if (clsValue > 0.1) {
+            logger.warn("Perf", `CLS: ${clsValue.toFixed(3)} (above threshold)`);
+          }
+        } catch {
+          // Ignore reporting errors
+        }
+      });
+      clsObserver.observe({ type: "layout-shift", buffered: true });
     } catch {
       // Observer not supported
     }

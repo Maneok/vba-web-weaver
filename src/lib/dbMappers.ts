@@ -210,10 +210,12 @@ export function mapAlerteToDb(alerte: AlerteRegistre): Record<string, unknown> {
   };
 }
 
+// OPT-42: Simplified date transform — removed IIFE for readability
 export function mapDbLog(row: Record<string, unknown>): LogEntry {
   const newData = (row.new_data != null && typeof row.new_data === "object") ? row.new_data as Record<string, unknown> : {};
+  const ts = str(row.created_at);
   return {
-    horodatage: (() => { const ts = str(row.created_at); return ts.includes("T") ? ts.replace("T", " ").slice(0, 16) : ts.slice(0, 16); })(),
+    horodatage: ts.includes("T") ? ts.replace("T", " ").slice(0, 16) : ts.slice(0, 16),
     utilisateur: str(row.user_email),
     refClient: str(row.record_id),
     typeAction: str(row.action),

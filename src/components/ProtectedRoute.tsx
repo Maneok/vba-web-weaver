@@ -57,7 +57,9 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
         setNeedsOnboarding(!completed);
         setOnboardingChecked(true);
       })
-      .catch(() => {
+      // OPT-13: Log onboarding check errors instead of silently swallowing
+      .catch((err) => {
+        logger.warn("ProtectedRoute", "Onboarding check failed:", err);
         if (!cancelled) {
           setOnboardingChecked(true); // fail open — don't block
         }

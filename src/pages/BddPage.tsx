@@ -287,8 +287,9 @@ export default function BddPage() {
             className="pl-9 pr-24 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
           />
           {/* 8. Live results count badge */}
+          {/* OPT-20: aria-live for dynamic result count updates */}
           {debouncedSearch && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-full">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-full" aria-live="polite" aria-atomic="true">
               {filtered.length} resultat{filtered.length !== 1 ? "s" : ""}
             </span>
           )}

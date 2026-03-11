@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
 
 // ====== FORME JURIDIQUE MAPPING (Probleme 5) ======
 
@@ -497,19 +498,25 @@ async function getUserCabinetId(): Promise<string | null> {
   }
 }
 
+// OPT-14: Add error logging to cache functions
 async function getCachedResponse<T>(siren: string, apiName: string): Promise<T | null> {
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("api_cache")
       .select("response_data, expires_at")
       .eq("siren", siren.replace(/\s/g, ""))
       .eq("api_name", apiName)
       .maybeSingle();
+    if (error) {
+      logger.warn("Cache", `Retrieval error for ${apiName}:`, error.message);
+      return null;
+    }
     if (data && new Date(data.expires_at) > new Date()) {
       return data.response_data as T;
     }
     return null;
-  } catch {
+  } catch (err) {
+    logger.warn("Cache", "getCachedResponse exception:", err);
     return null;
   }
 }
@@ -528,8 +535,8 @@ async function setCachedResponse(siren: string, apiName: string, responseData: u
       cached_at: new Date().toISOString(),
       expires_at: expiresAt,
     }, { onConflict: "siren,api_name,cabinet_id" });
-  } catch {
-    // Cache write failure is non-critical
+  } catch (err) {
+    logger.warn("Cache", "setCachedResponse write failed:", err);
   }
 }
 
@@ -575,14 +582,23 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
     url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&page=1&per_page=5`;
   }
 
+  // OPT-38: Proper AbortController cleanup with clearTimeout
   const fetchController = new AbortController();
-  setTimeout(() => fetchController.abort(), 8000);
-  const res = await fetch(url, { signal: fetchController.signal });
+  const fetchTimeout = setTimeout(() => fetchController.abort(), 8000);
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: fetchController.signal });
+  } finally {
+    clearTimeout(fetchTimeout);
+  }
   if (!res.ok) throw new Error(`API returned ${res.status}`);
 
   const data = await res.json() as Record<string, unknown>;
-  if (!data || typeof data !== "object") throw new Error("Invalid API response");
-  const results: EnterpriseResult[] = (Array.isArray(data.results) ? data.results : []).slice(0, 10).map((r: Record<string, unknown>) => {
+  // OPT-21: Validate response format before processing
+  if (!data || typeof data !== "object" || !("results" in data)) throw new Error("Invalid API response format");
+  const results: EnterpriseResult[] = (Array.isArray(data.results) ? data.results : [])
+    .filter((r: unknown) => r && typeof r === "object" && "siren" in (r as Record<string, unknown>))
+    .slice(0, 10).map((r: Record<string, unknown>) => {
     const siege = (r.siege ?? {}) as Record<string, unknown>;
     const dirigeants = ((r.dirigeants ?? []) as Array<Record<string, string>>).map(d => ({
       nom: d.nom ?? "",
@@ -797,7 +813,8 @@ export function pickPrincipalDirigeant(dirigeants: Dirigeant[]): string {
 }
 
 // ====== #19: Date formatting helper ======
-
+// OPT-48: Deprecated — use formatDateFR from @/lib/dateUtils instead
+/** @deprecated Use formatDateFR from @/lib/dateUtils */
 export function formatDateFR(dateStr: string): string {
   if (!dateStr) return "";
   const parts = dateStr.split("-");

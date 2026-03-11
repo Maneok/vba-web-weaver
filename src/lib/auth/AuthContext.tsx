@@ -180,7 +180,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signInWithEmail = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) {
-      logger.error("[Auth] Echec connexion email:", { code: error.status, message: error.message, email });
+      // OPT-9: Mask email in logs to avoid leaking PII
+      logger.error("[Auth] Echec connexion email:", { code: error.status, message: error.message });
       throw error;
     }
   }, []);
@@ -203,7 +204,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       options: { data: { full_name: fullName, ...(cabinetName ? { cabinet_name: cabinetName } : {}) } },
     });
     if (error) {
-      logger.error("[Auth] Echec inscription:", { code: error.status, message: error.message, email });
+      // OPT-9: Mask email in logs
+      logger.error("[Auth] Echec inscription:", { code: error.status, message: error.message });
       throw error;
     }
   }, []);

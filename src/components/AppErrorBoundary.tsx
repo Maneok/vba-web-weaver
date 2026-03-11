@@ -25,8 +25,9 @@ export default class AppErrorBoundary extends React.Component<
 
   render() {
     if (this.state.hasError) {
+      // OPT-27: role="alert" for screen reader announcement
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background p-6">
+        <div className="min-h-screen flex items-center justify-center bg-background p-6" role="alert">
           <div className="max-w-xl text-center space-y-3">
             <h1 className="text-2xl font-semibold text-white">Erreur d&apos;affichage</h1>
             <p className="text-slate-300">
