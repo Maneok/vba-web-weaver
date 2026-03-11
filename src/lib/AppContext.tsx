@@ -19,6 +19,8 @@ interface AppState {
   deleteClient: (ref: string) => void;
   addLog: (log: LogEntry) => void;
   addAlerte: (alerte: AlerteRegistre) => void;
+  updateAlerte: (id: string, updates: Partial<AlerteRegistre>) => void;
+  deleteAlerte: (id: string) => void;
   refreshClients: () => Promise<void>;
   refreshAll: () => Promise<void>;
 }
@@ -246,12 +248,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isOnline]);
 
+  const updateAlerte = useCallback((id: string, updates: Partial<AlerteRegistre>) => {
+    setAlertes(prev => {
+      const snapshot = prev.find(a => a.id === id);
+      if (!snapshot) return prev;
+      const next = prev.map(a => a.id === id ? { ...a, ...updates } : a);
+
+      if (isOnline) {
+        const dbUpdates = mapAlerteToDb(updates);
+        registreService.update(id, dbUpdates).then((result) => {
+          if (!result) {
+            logger.error("AppContext", "Failed to update alerte in Supabase");
+            setAlertes(p => p.map(a => a.id === id ? snapshot : a));
+            toast.error("Erreur lors de la mise a jour de l'alerte");
+          }
+        }).catch((err) => {
+          logger.error("AppContext", "Update alerte exception:", err);
+          setAlertes(p => p.map(a => a.id === id ? snapshot : a));
+          toast.error("Erreur lors de la mise a jour de l'alerte");
+        });
+      }
+
+      return next;
+    });
+  }, [isOnline]);
+
+  const deleteAlerte = useCallback((id: string) => {
+    setAlertes(prev => {
+      const removed = prev.find(a => a.id === id);
+      if (!removed) return prev;
+      const next = prev.filter(a => a.id !== id);
+
+      if (isOnline) {
+        supabase.from("alertes_registre").delete().eq("id", id).then(({ error }) => {
+          if (error) {
+            logger.error("AppContext", "Failed to delete alerte from Supabase:", error);
+            setAlertes(p => [removed, ...p]);
+            toast.error("Erreur lors de la suppression de l'alerte");
+          }
+        });
+        logsService.add("SUPPRESSION", `Alerte supprimee: ${removed.categorie} - ${removed.clientConcerne}`, "", "alertes_registre").catch(err => logger.error("AppContext", "Audit log failed:", err));
+      }
+
+      return next;
+    });
+  }, [isOnline]);
+
   const contextValue = useMemo<AppState>(() => ({
     clients, collaborateurs, alertes, logs,
     isLoading, isOnline,
-    addClient, updateClient, deleteClient, addLog, addAlerte,
+    addClient, updateClient, deleteClient, addLog, addAlerte, updateAlerte, deleteAlerte,
     refreshClients, refreshAll,
-  }), [clients, collaborateurs, alertes, logs, isLoading, isOnline, addClient, updateClient, deleteClient, addLog, addAlerte, refreshClients, refreshAll]);
+  }), [clients, collaborateurs, alertes, logs, isLoading, isOnline, addClient, updateClient, deleteClient, addLog, addAlerte, updateAlerte, deleteAlerte, refreshClients, refreshAll]);
 
   return (
     <AppContext.Provider value={contextValue}>

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -78,11 +78,23 @@ const RESULTAT_LABELS = {
   NON_CONFORME: "Non conforme",
 };
 
+const CI_NC_KEY = "lcb-controle-interne-nc";
+const CI_PREVUS_KEY = "lcb-controle-interne-prevus";
+const CI_CROEC_KEY = "lcb-controle-interne-croec";
+
+function loadStorage<T>(key: string, fallback: T[]): T[] {
+  try {
+    const stored = localStorage.getItem(key);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return fallback;
+}
+
 export default function ControleInterne() {
   const { collaborateurs, clients } = useAppState();
 
   // Non-conformites
-  const [nonConformites, setNonConformites] = useState<NonConformite[]>([]);
+  const [nonConformites, setNonConformites] = useState<NonConformite[]>(() => loadStorage<NonConformite>(CI_NC_KEY, []));
   const [showNcDialog, setShowNcDialog] = useState(false);
   const [ncFilter, setNcFilter] = useState<string>("all");
   const [ncSearch, setNcSearch] = useState("");
@@ -92,16 +104,21 @@ export default function ControleInterne() {
   });
 
   // Controles prevus
-  const [controlesPrevus, setControlesPrevus] = useState<ControlePrevu[]>([]);
+  const [controlesPrevus, setControlesPrevus] = useState<ControlePrevu[]>(() => loadStorage<ControlePrevu>(CI_PREVUS_KEY, []));
   const [showPlanDialog, setShowPlanDialog] = useState(false);
   const [newControle, setNewControle] = useState({ date: "", controleur: "", nbDossiers: 3 });
 
   // Controles CROEC
-  const [controlesCROEC, setControlesCROEC] = useState<ControleCROEC[]>([]);
+  const [controlesCROEC, setControlesCROEC] = useState<ControleCROEC[]>(() => loadStorage<ControleCROEC>(CI_CROEC_KEY, []));
   const [showCroecDialog, setShowCroecDialog] = useState(false);
   const [newCroec, setNewCroec] = useState({
     date: "", type: "Controle qualite", resultat: "CONFORME" as const, notes: "",
   });
+
+  // Persist to localStorage
+  useEffect(() => { try { localStorage.setItem(CI_NC_KEY, JSON.stringify(nonConformites)); } catch { /* */ } }, [nonConformites]);
+  useEffect(() => { try { localStorage.setItem(CI_PREVUS_KEY, JSON.stringify(controlesPrevus)); } catch { /* */ } }, [controlesPrevus]);
+  useEffect(() => { try { localStorage.setItem(CI_CROEC_KEY, JSON.stringify(controlesCROEC)); } catch { /* */ } }, [controlesCROEC]);
 
   // KPIs
   const kpis = useMemo(() => {

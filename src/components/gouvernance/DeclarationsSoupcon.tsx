@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,15 +54,30 @@ const STATUT_COLORS = {
   CLASSEE: "bg-slate-500/15 text-slate-400",
 };
 
+const DS_STORAGE_KEY = "lcb-declarations-soupcon";
+
+function loadDeclarations(): DeclarationSoupcon[] {
+  try {
+    const stored = localStorage.getItem(DS_STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore */ }
+  return [];
+}
+
 export default function DeclarationsSoupcon() {
   const { collaborateurs, clients } = useAppState();
-  const [declarations, setDeclarations] = useState<DeclarationSoupcon[]>([]);
+  const [declarations, setDeclarations] = useState<DeclarationSoupcon[]>(loadDeclarations);
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [newDs, setNewDs] = useState({
     client: "", elementsSuspects: "", motif: "",
     decision: "EN_ANALYSE" as const, justification: "", refTracfin: "",
   });
+
+  // Persist declarations to localStorage
+  useEffect(() => {
+    try { localStorage.setItem(DS_STORAGE_KEY, JSON.stringify(declarations)); } catch { /* storage full */ }
+  }, [declarations]);
 
   // Registre des abstentions (classes sans suite)
   const abstentions = useMemo(() =>

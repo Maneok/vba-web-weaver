@@ -38,12 +38,20 @@ export default function AdminUsersPage() {
 
   const loadUsers = useCallback(async () => {
     if (!profile?.cabinet_id) return;
-    const { data } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("cabinet_id", profile.cabinet_id)
-      .order("created_at", { ascending: true });
-    if (Array.isArray(data)) setUsers(data as UserProfile[]);
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("cabinet_id", profile.cabinet_id)
+        .order("created_at", { ascending: true });
+      if (error) {
+        toast.error("Erreur lors du chargement des utilisateurs");
+        return;
+      }
+      if (Array.isArray(data)) setUsers(data as UserProfile[]);
+    } catch {
+      toast.error("Impossible de charger les utilisateurs");
+    }
   }, [profile?.cabinet_id]);
 
   useEffect(() => {

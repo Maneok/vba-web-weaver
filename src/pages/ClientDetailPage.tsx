@@ -12,6 +12,7 @@ import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult,
 } from "@/lib/kycService";
+import { logger } from "@/lib/logger";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
 import type { Client, OuiNon, EtatPilotage } from "@/lib/types";
@@ -189,28 +190,28 @@ function ClientDetailContent({ client }: { client: Client }) {
       checkSanctions(personsToCheck, siren.replace(/\s/g, "")).then(d => {
         if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, sanctions: { loading: false, data: d, error: null } }));
-      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur" } })); });
+      }).catch((err) => { logger.error("Screening", "sanctions check failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, sanctions: { loading: false, data: null, error: "Erreur sanctions" } })); });
 
       // BODACC
       setScreening(prev => ({ ...prev, bodacc: { loading: true, data: null, error: null } }));
       checkBodacc(siren, raisonSociale).then(d => {
         if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, bodacc: { loading: false, data: d, error: null } }));
-      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur" } })); });
+      }).catch((err) => { logger.error("Screening", "BODACC check failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Erreur BODACC" } })); });
 
       // Google Places
       setScreening(prev => ({ ...prev, google: { loading: true, data: null, error: null } }));
       verifyGooglePlaces(raisonSociale, ville).then(d => {
         if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, google: { loading: false, data: d, error: null } }));
-      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur" } })); });
+      }).catch((err) => { logger.error("Screening", "Google Places failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Erreur Google" } })); });
 
       // News
       setScreening(prev => ({ ...prev, news: { loading: true, data: null, error: null } }));
       checkNews(raisonSociale, dirigeant).then(d => {
         if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, news: { loading: false, data: d, error: null } }));
-      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur" } })); });
+      }).catch((err) => { logger.error("Screening", "news check failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, news: { loading: false, data: null, error: "Erreur actualites" } })); });
 
       // Network
       if (dirigeants.length > 0) {
@@ -218,7 +219,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         analyzeNetwork(siren, dirigeants).then(d => {
           if (!screeningMountedRef.current) return;
           setScreening(prev => ({ ...prev, network: { loading: false, data: d, error: null } }));
-        }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur" } })); });
+        }).catch((err) => { logger.error("Screening", "network analysis failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, network: { loading: false, data: null, error: "Erreur reseau" } })); });
       }
 
       // Documents
@@ -226,15 +227,15 @@ function ClientDetailContent({ client }: { client: Client }) {
       fetchDocuments(siren, raisonSociale).then(d => {
         if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, documents: { loading: false, data: d, error: null } }));
-      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur" } })); });
+      }).catch((err) => { logger.error("Screening", "documents fetch failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, documents: { loading: false, data: null, error: "Erreur documents" } })); });
 
       // INPI
       setScreening(prev => ({ ...prev, inpi: { loading: true, data: null, error: null } }));
       fetchInpiDocuments(siren.replace(/\s/g, "")).then(d => {
         if (!screeningMountedRef.current) return;
         setScreening(prev => ({ ...prev, inpi: { loading: false, data: d, error: d.error || null } }));
-      }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur" } })); });
-    }).catch(() => { if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur" } })); });
+      }).catch((err) => { logger.error("Screening", "INPI fetch failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, inpi: { loading: false, data: null, error: "Erreur INPI" } })); });
+    }).catch((err) => { logger.error("Screening", "enterprise search failed:", err); if (!screeningMountedRef.current) return; setScreening(prev => ({ ...prev, enterprise: { loading: false, data: null, error: "Erreur entreprise" } })); });
   }, [client]);
 
   // Auto-launch screening on compliance/reseau/financier/historique_legal tab
@@ -821,12 +822,9 @@ function ClientDetailContent({ client }: { client: Client }) {
                     <Globe className="w-3.5 h-3.5" /> Recuperer documents
                   </Button>
                 )}
-                <label>
-                  <input type="file" multiple className="hidden" onChange={() => toast.info("Upload simule")} />
-                  <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06] cursor-pointer" asChild>
-                    <span><Upload className="w-3.5 h-3.5" /> Ajouter</span>
-                  </Button>
-                </label>
+                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => navigate("/ged")}>
+                  <Upload className="w-3.5 h-3.5" /> Ajouter via GED
+                </Button>
               </div>
             </div>
 

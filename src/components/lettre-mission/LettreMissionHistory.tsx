@@ -75,8 +75,31 @@ export default function LettreMissionHistory() {
     toast.success("Lettre dupliquee en brouillon");
   };
 
-  const handleRegenerate = (record: LettreMissionRecord) => {
-    toast.info(`Re-generation de ${record.numero} en cours...`);
+  const handleRegenerate = async (record: LettreMissionRecord) => {
+    try {
+      toast.info(`Re-generation de ${record.numero} en cours...`);
+      const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
+      const dummyClient = {
+        ref: record.id, raisonSociale: record.clientName, formeJuridique: "", siren: "",
+        adresse: "", cp: "", ville: "", dirigeant: "", mail: "", telephone: "",
+        ape: "", mission: "", comptable: "", associeSignataire: "", honoraires: 0, frequence: "",
+        ppe: "NON", paysRisque: "NON", atypique: "NON", distanciel: "NON", cash: "NON", pression: "NON",
+        scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
+        malus: 0, scoreGlobal: 0, nivVigilance: "STANDARD" as const,
+        dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
+        etatPilotage: "A JOUR", dateExpCni: "", statut: "ACTIF", be: "",
+      };
+      await renderLettreMissionPdf({
+        numero: record.numero,
+        date: new Date().toLocaleDateString("fr-FR"),
+        client: dummyClient,
+        cabinet: { nom: "Cabinet", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" },
+        options: { genre: "M" as const, regimeFiscal: "", exerciceDebut: "", exerciceFin: "", tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "", periodicite: "" },
+      });
+      toast.success(`PDF ${record.numero} re-genere`);
+    } catch (err: any) {
+      toast.error(err?.message || "Erreur lors de la re-generation");
+    }
   };
 
   return (

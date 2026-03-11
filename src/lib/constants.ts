@@ -12,10 +12,12 @@ export const FORMES_JURIDIQUES = [
   "SARL",
   "EURL",
   "SAS",
+  "SASU",
   "SCI",
   "SCP",
   "SELAS",
   "SELARL",
+  "SELAFA",
   "EARL",
   "SA",
   "ASSOCIATION",
@@ -23,6 +25,11 @@ export const FORMES_JURIDIQUES = [
   "TRUST",
   "FIDUCIE",
   "FONDATION",
+  "GIE",
+  "LMNP",
+  "MICRO-ENTREPRISE",
+  "PROFESSION LIBERALE",
+  "SPFPL",
 ] as const;
 
 // Mission types
