@@ -50,22 +50,28 @@ export async function searchPappers(
   if (!query || !query.trim()) {
     return { results: [], error: "Veuillez saisir un terme de recherche." };
   }
-  try {
-    // Check if already aborted before starting
-    if (signal?.aborted) {
-      return { results: [], error: "Requete annulee" };
+  if (signal?.aborted) {
+    return { results: [], error: "Requete annulee" };
+  }
+
+  // Strategy: try free API first (no CORS issues), then edge function for premium features
+  if (!downloadDocs) {
+    // Simple search — use free recherche-entreprises.api.gouv.fr directly (no CORS, no auth needed)
+    const freeResult = await fallbackRechercheEntreprises(mode, query, signal);
+    if (freeResult.results.length > 0) {
+      return freeResult;
     }
+  }
 
-    let data, error;
-
-    // Add a 10-second timeout to prevent hanging requests
+  // If free API returned nothing or we need docs, try edge function
+  try {
     const timeoutController = new AbortController();
     const timeoutId = setTimeout(() => timeoutController.abort(), 10000);
-    // If caller provided a signal, abort our controller when it fires
     if (signal) {
       signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
     }
 
+    let data, error;
     try {
       const result = await supabase.functions.invoke("pappers-lookup", {
         body: { mode, query, download_docs: downloadDocs },
@@ -74,25 +80,21 @@ export async function searchPappers(
       error = result.error;
     } catch (invokeErr) {
       clearTimeout(timeoutId);
-      if (timeoutController.signal.aborted) {
-        logger.warn("Pappers", "Edge function timed out after 10s, trying fallback");
-        return await fallbackRechercheEntreprises(mode, query, signal);
-      }
-      throw invokeErr;
+      // Edge function failed (CORS, network, etc.) — already tried free API above
+      const msg = invokeErr instanceof Error ? invokeErr.message : "Erreur";
+      logger.debug("Pappers", "Edge function unavailable:", msg);
+      return { results: [], error: "Aucun resultat trouve." };
     } finally {
       clearTimeout(timeoutId);
     }
 
-    // Check if aborted after the call
     if (signal?.aborted) {
       return { results: [], error: "Requete annulee" };
     }
 
     if (error) {
-      // Edge function failed — try direct data.gouv.fr fallback from client
-      const msg = error.message ?? "Erreur inconnue";
-      logger.warn("Pappers", "Edge function failed, trying direct fallback:", msg);
-      return await fallbackRechercheEntreprises(mode, query, signal);
+      logger.debug("Pappers", "Edge function error:", error.message);
+      return { results: [], error: "Aucun resultat trouve." };
     }
 
     return data as PappersResponse;
@@ -100,10 +102,9 @@ export async function searchPappers(
     if (signal?.aborted) {
       return { results: [], error: "Requete annulee" };
     }
-    // Network error — try direct fallback
     const msg = err instanceof Error ? err.message : "Erreur reseau";
-    logger.warn("Pappers", "Appel reseau echoue:", msg);
-    return await fallbackRechercheEntreprises(mode, query, signal);
+    logger.debug("Pappers", "Search failed:", msg);
+    return { results: [], error: "Aucun resultat trouve." };
   }
 }
 
