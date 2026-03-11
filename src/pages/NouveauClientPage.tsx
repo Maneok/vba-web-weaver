@@ -41,7 +41,7 @@ import {
 import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
-  Map, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
+  Map as MapIcon, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen,
 } from "lucide-react";
@@ -4015,7 +4015,9 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
     if (lat && lng) { setGeoLat(lat); setGeoLng(lng); return; }
     if (!fullAddr || fullAddr.length < 5) return;
     setGeoLoading(true);
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: AbortSignal.timeout(10000) })
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: controller.signal })
       .then(r => r.json())
       .then((data: Array<{ lat: string; lon: string }>) => {
         if (data.length > 0) {
@@ -4026,14 +4028,15 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
         }
       })
       .catch((e) => logger.warn("Geo", "Geocoding failed:", e))
-      .finally(() => setGeoLoading(false));
+      .finally(() => { clearTimeout(timeoutId); setGeoLoading(false); });
+    return () => { clearTimeout(timeoutId); controller.abort(); };
   }, [lat, lng, fullAddr]);
 
   return (
     <div className="rounded-lg border border-white/[0.06] overflow-hidden">
       <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Map className="w-4 h-4 text-emerald-400" />
+          <MapIcon className="w-4 h-4 text-emerald-400" />
           <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
           {geoLoading && <Loader2 className="w-3 h-3 animate-spin text-blue-400" />}
         </div>
