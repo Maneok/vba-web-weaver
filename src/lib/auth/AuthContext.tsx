@@ -88,9 +88,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       (event, s) => {
         if (cancelled) return;
         logger.debug("[Auth] State change:", event);
-        // #region agent log
-        fetch("http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"5f32be"},body:JSON.stringify({sessionId:"5f32be",runId:"initial",hypothesisId:"H1",location:"src/lib/auth/AuthContext.tsx:onAuthStateChange",message:"Auth state changed",data:{event,hasSession:!!s,hasUser:!!s?.user},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
 
         // Gestion gracieuse des erreurs de rafraichissement de session
         if (event === "TOKEN_REFRESHED" && !s) {
@@ -150,9 +147,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     fetchProfile(user.id)
       .then(p => {
         if (cancelled) return;
-        // #region agent log
-        fetch("http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"5f32be"},body:JSON.stringify({sessionId:"5f32be",runId:"initial",hypothesisId:"H2",location:"src/lib/auth/AuthContext.tsx:fetchProfile.then",message:"Profile fetch completed",data:{hasProfile:!!p,userPresent:!!user},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         setProfile(p);
         setLoading(false);
 
@@ -176,9 +170,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .catch((err) => {
         logger.warn("Auth", "profile fetch failed:", err);
         if (cancelled) return;
-        // #region agent log
-        fetch("http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"5f32be"},body:JSON.stringify({sessionId:"5f32be",runId:"initial",hypothesisId:"H2",location:"src/lib/auth/AuthContext.tsx:fetchProfile.catch",message:"Profile fetch threw error",data:{errorType:err instanceof Error ? err.name : "unknown"},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         setProfile(null);
         setLoading(false);
       });
