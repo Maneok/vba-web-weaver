@@ -155,18 +155,18 @@ export default function AppLayout() {
       )}
 
       {/* OPT-16: Better focus visibility for skip link */}
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-white px-3 py-2 rounded focus:outline-2 focus:outline-offset-2 focus:outline-blue-400">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-primary text-primary-foreground px-3 py-2 rounded focus:outline-2 focus:outline-offset-2 focus:outline-primary">
         Aller au contenu principal
       </a>
       <AppSidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
 
       <div ref={scrollRef} className={`transition-all duration-300 ${sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[260px]"}`}>
-        <header className="sticky top-0 z-30 h-16 flex items-center gap-4 px-6 bg-background/70 backdrop-blur-xl border-b border-transparent" style={{ borderImage: "linear-gradient(to right, transparent, rgba(255,255,255,0.06) 30%, rgba(59,130,246,0.15) 50%, rgba(255,255,255,0.06) 70%, transparent) 1" }}>
+        <header className="sticky top-0 z-30 h-16 flex items-center gap-4 px-6 bg-card/80 backdrop-blur-xl border-b border-border">
           {/* Mobile menu button with animation */}
           <button
             onClick={handleSidebarToggle}
             aria-label="Ouvrir ou fermer le menu"
-            className="lg:hidden p-2 rounded-lg hover:bg-white/[0.04] text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 transition-transform duration-200 active:scale-90"
+            className="lg:hidden p-2 rounded-lg hover:bg-muted text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-transform duration-200 active:scale-90"
           >
             <Menu className={`w-5 h-5 transition-transform duration-200 ${!sidebarCollapsed ? "rotate-90" : ""}`} />
           </button>
@@ -175,7 +175,7 @@ export default function AppLayout() {
           {isDetailPage && (
             <button
               onClick={() => navigate(isClientDetail ? "/bdd" : "/lettre-mission")}
-              className="hidden lg:flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors rounded-lg px-2 py-1 hover:bg-white/[0.04]"
+              className="hidden lg:flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1 hover:bg-muted"
             >
               <ArrowLeft className="w-4 h-4" />
               <span>Retour</span>
@@ -188,17 +188,17 @@ export default function AppLayout() {
                 const isLast = i === page.breadcrumb.length - 1;
                 return (
                   <li key={i} className="flex items-center gap-1.5">
-                    {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-600" />}
+                    {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
                     {!isLast && item.path ? (
                       <button
                         onClick={() => startTransition(() => navigate(item.path!))}
-                        className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                        className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                       >
                         {item.label}
                       </button>
                     ) : (
                       // OPT-17: aria-current on last breadcrumb for screen readers
-                      <span className={isLast ? "text-slate-200 font-medium" : "text-slate-500"} aria-current={isLast ? "page" : undefined}>
+                      <span className={isLast ? "text-foreground font-medium" : "text-muted-foreground"} aria-current={isLast ? "page" : undefined}>
                         {item.label}
                       </span>
                     )}
@@ -212,7 +212,7 @@ export default function AppLayout() {
             <ThemeToggle />
             <button
               onClick={() => navigate("/parametres")}
-              className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-xs text-slate-200 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-xs text-foreground hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Settings className="h-3.5 w-3.5" />
               Parametres
