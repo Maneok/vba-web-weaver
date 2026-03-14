@@ -20,7 +20,6 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
   const retriedRef = useRef(false);
   const signOutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const retryCountRef = useRef(0);
-  const lastDebugStateRef = useRef("");
 
   // Onboarding check: has the user completed onboarding?
   const [onboardingChecked, setOnboardingChecked] = useState(false);
@@ -51,9 +50,6 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
       .then(({ data }) => {
         if (cancelled) return;
         const completed = data?.valeur === "true" || data?.valeur === '"true"';
-        // #region agent log
-        fetch("http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"5f32be"},body:JSON.stringify({sessionId:"5f32be",runId:"initial",hypothesisId:"H3",location:"src/components/ProtectedRoute.tsx:onboarding.then",message:"Onboarding status checked",data:{completed,hadRow:!!data},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (completed) {
           // Sync localStorage for future fast checks
           localStorage.setItem("grimy_onboarding_completed", profile.id);
@@ -64,9 +60,6 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
       // OPT-13: Log onboarding check errors instead of silently swallowing
       .catch((err) => {
         logger.warn("ProtectedRoute", "Onboarding check failed:", err);
-        // #region agent log
-        fetch("http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"5f32be"},body:JSON.stringify({sessionId:"5f32be",runId:"initial",hypothesisId:"H3",location:"src/components/ProtectedRoute.tsx:onboarding.catch",message:"Onboarding check failed",data:{errorType:err instanceof Error ? err.name : "unknown"},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
         if (!cancelled) {
           setOnboardingChecked(true); // fail open — don't block
         }
@@ -109,24 +102,6 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
       if (signOutTimerRef.current) clearTimeout(signOutTimerRef.current);
     };
   }, []);
-
-  useEffect(() => {
-    const nextState = JSON.stringify({
-      loading: !!loading,
-      timedOut: !!timedOut,
-      hasSession: !!session,
-      hasProfile: !!profile,
-      onboardingChecked: !!onboardingChecked,
-      needsOnboarding: !!needsOnboarding,
-      skipOnboardingCheck: !!skipOnboardingCheck,
-      requiredPermission: requiredPermission ?? null,
-    });
-    if (nextState === lastDebugStateRef.current) return;
-    lastDebugStateRef.current = nextState;
-    // #region agent log
-    fetch("http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"5f32be"},body:JSON.stringify({sessionId:"5f32be",runId:"initial",hypothesisId:"H1_H3_H5",location:"src/components/ProtectedRoute.tsx:state-transition",message:"Protected route state transition",data:{loading:!!loading,timedOut:!!timedOut,hasSession:!!session,hasProfile:!!profile,onboardingChecked:!!onboardingChecked,needsOnboarding:!!needsOnboarding,hasRequiredPermission:requiredPermission ? hasPermission(requiredPermission) : true},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-  }, [loading, timedOut, session, profile, onboardingChecked, needsOnboarding, skipOnboardingCheck, requiredPermission, hasPermission]);
 
   // Auto sign-out for deactivated accounts
   useEffect(() => {
