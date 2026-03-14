@@ -12,33 +12,53 @@ import PageErrorBoundary from "@/components/PageErrorBoundary";
 import CookieBanner from "@/components/CookieBanner";
 import AuthPage from "@/pages/AuthPage";
 
-// Lazy-loaded pages — code split per route
-const DashboardPage = lazy(() => import("@/pages/DashboardPage"));
-const BddPage = lazy(() => import("@/pages/BddPage"));
-const GouvernancePage = lazy(() => import("@/pages/GouvernancePage"));
-const ControlePage = lazy(() => import("@/pages/ControlePage"));
-const RegistrePage = lazy(() => import("@/pages/RegistrePage"));
-const LogsPage = lazy(() => import("@/pages/LogsPage"));
-const NouveauClientPage = lazy(() => import("@/pages/NouveauClientPage"));
-const ClientDetailPage = lazy(() => import("@/pages/ClientDetailPage"));
-const DiagnosticPage = lazy(() => import("@/pages/DiagnosticPage"));
-const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
-const GedPage = lazy(() => import("@/pages/GedPage"));
-const LettreMissionPage = lazy(() => import("@/pages/LettreMissionPage"));
-const HelpPage = lazy(() => import("@/pages/HelpPage"));
-const LandingPage = lazy(() => import("@/pages/LandingPage"));
-const OnboardingPage = lazy(() => import("@/pages/OnboardingPage"));
-const MentionsLegalesPage = lazy(() => import("@/pages/MentionsLegalesPage"));
-const CGVPage = lazy(() => import("@/pages/CGVPage"));
-const PolitiqueConfidentialitePage = lazy(() => import("@/pages/PolitiqueConfidentialitePage"));
-const NotificationsPage = lazy(() => import("@/pages/NotificationsPage"));
-const SuspendedPage = lazy(() => import("@/pages/SuspendedPage"));
-const PricingPage = lazy(() => import("@/pages/PricingPage"));
-const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
-const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
-const AuditTrailPage = lazy(() => import("@/pages/AuditTrailPage"));
-const InvitePage = lazy(() => import("@/pages/InvitePage"));
-const NotFound = lazy(() => import("@/pages/NotFound"));
+/** Retry once with full page reload on chunk load failure (e.g. after deploy with new chunk hashes). */
+function lazyWithChunkReload<T extends React.ComponentType<unknown>>(
+  importFn: () => Promise<{ default: T }>
+) {
+  return lazy(async () => {
+    try {
+      return await importFn();
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const isChunkError =
+        /Failed to fetch dynamically imported module|Loading chunk \d+ failed|Loading CSS chunk \d+ failed/i.test(msg);
+      if (isChunkError && typeof window !== "undefined") {
+        window.location.reload();
+        return new Promise(() => {});
+      }
+      throw err;
+    }
+  });
+}
+
+// Lazy-loaded pages — code split per route (with reload on chunk error)
+const DashboardPage = lazyWithChunkReload(() => import("@/pages/DashboardPage"));
+const BddPage = lazyWithChunkReload(() => import("@/pages/BddPage"));
+const GouvernancePage = lazyWithChunkReload(() => import("@/pages/GouvernancePage"));
+const ControlePage = lazyWithChunkReload(() => import("@/pages/ControlePage"));
+const RegistrePage = lazyWithChunkReload(() => import("@/pages/RegistrePage"));
+const LogsPage = lazyWithChunkReload(() => import("@/pages/LogsPage"));
+const NouveauClientPage = lazyWithChunkReload(() => import("@/pages/NouveauClientPage"));
+const ClientDetailPage = lazyWithChunkReload(() => import("@/pages/ClientDetailPage"));
+const DiagnosticPage = lazyWithChunkReload(() => import("@/pages/DiagnosticPage"));
+const SettingsPage = lazyWithChunkReload(() => import("@/pages/SettingsPage"));
+const GedPage = lazyWithChunkReload(() => import("@/pages/GedPage"));
+const LettreMissionPage = lazyWithChunkReload(() => import("@/pages/LettreMissionPage"));
+const HelpPage = lazyWithChunkReload(() => import("@/pages/HelpPage"));
+const LandingPage = lazyWithChunkReload(() => import("@/pages/LandingPage"));
+const OnboardingPage = lazyWithChunkReload(() => import("@/pages/OnboardingPage"));
+const MentionsLegalesPage = lazyWithChunkReload(() => import("@/pages/MentionsLegalesPage"));
+const CGVPage = lazyWithChunkReload(() => import("@/pages/CGVPage"));
+const PolitiqueConfidentialitePage = lazyWithChunkReload(() => import("@/pages/PolitiqueConfidentialitePage"));
+const NotificationsPage = lazyWithChunkReload(() => import("@/pages/NotificationsPage"));
+const SuspendedPage = lazyWithChunkReload(() => import("@/pages/SuspendedPage"));
+const PricingPage = lazyWithChunkReload(() => import("@/pages/PricingPage"));
+const CheckoutSuccessPage = lazyWithChunkReload(() => import("@/pages/CheckoutSuccessPage"));
+const AdminUsersPage = lazyWithChunkReload(() => import("@/pages/AdminUsersPage"));
+const AuditTrailPage = lazyWithChunkReload(() => import("@/pages/AuditTrailPage"));
+const InvitePage = lazyWithChunkReload(() => import("@/pages/InvitePage"));
+const NotFound = lazyWithChunkReload(() => import("@/pages/NotFound"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
