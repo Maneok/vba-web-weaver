@@ -139,10 +139,10 @@ export default function AppLayout() {
 
   const roleLabel = profile?.role ? ROLE_LABELS[profile.role] : null;
   const roleBadgeColor: Record<string, string> = {
-    ADMIN: "bg-primary/20 text-primary",
-    SUPERVISEUR: "bg-violet-500/20 text-violet-600 dark:text-violet-300",
-    COLLABORATEUR: "bg-success/20 text-[hsl(var(--success))]",
-    STAGIAIRE: "bg-warning/20 text-[hsl(var(--warning))]",
+    ADMIN: "bg-blue-500/20 text-blue-300",
+    SUPERVISEUR: "bg-purple-500/20 text-purple-300",
+    COLLABORATEUR: "bg-emerald-500/20 text-emerald-300",
+    STAGIAIRE: "bg-amber-500/20 text-amber-300",
   };
 
   return (
@@ -212,16 +212,16 @@ export default function AppLayout() {
             <ThemeToggle />
             <button
               onClick={() => navigate("/parametres")}
-              className="hidden md:flex items-center gap-2 rounded-lg border border-border bg-muted/80 hover:bg-muted px-3 py-1.5 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+              className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-xs text-foreground hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <Settings className="h-3.5 w-3.5" />
               Parametres
             </button>
             {/* OPT-34: Accessible date display */}
-            <time dateTime={new Date().toISOString().split("T")[0]} className="hidden sm:inline text-[11px] text-muted-foreground font-mono">
+            <time dateTime={new Date().toISOString().split("T")[0]} className="hidden sm:inline text-[11px] text-slate-500 font-mono">
               {formatRelativeDate(new Date())}
             </time>
-            <div className="w-px h-5 bg-border" />
+            <div className="w-px h-5 bg-white/[0.06]" />
 
             <NotificationBell />
 
@@ -229,15 +229,15 @@ export default function AppLayout() {
               <DropdownMenuTrigger asChild>
                 <button
                   aria-label="Ouvrir le menu utilisateur"
-                  className="relative group w-9 h-9 rounded-full p-[2px] bg-[hsl(var(--primary))] hover:opacity-90 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-primary/25 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  className="relative group w-9 h-9 rounded-full p-[2px] bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 hover:from-blue-300 hover:to-indigo-500 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 >
-                  <span className="flex items-center justify-center w-full h-full rounded-full bg-background text-[11px] font-bold text-foreground">
+                  <span className="flex items-center justify-center w-full h-full rounded-full bg-slate-900 text-[11px] font-bold text-white">
                     {userInitials}
                   </span>
                   {/* Connection status indicator */}
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-background ${
-                      isOnline && session ? "bg-emerald-500" : "bg-destructive"
+                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${
+                      isOnline && session ? "bg-emerald-400" : "bg-red-400"
                     }`}
                     title={isOnline && session ? "Connecte" : "Hors ligne"}
                   />
@@ -247,7 +247,7 @@ export default function AppLayout() {
                 <DropdownMenuLabel className="flex flex-col gap-1">
                   <span>Mon espace</span>
                   {profile?.role && (
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full w-fit ${roleBadgeColor[profile.role] ?? "bg-muted text-muted-foreground"}`}>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full w-fit ${roleBadgeColor[profile.role] ?? "bg-slate-500/20 text-slate-300"}`}>
                       {roleLabel}
                     </span>
                   )}
@@ -263,14 +263,14 @@ export default function AppLayout() {
                   <ScrollText className="mr-2 h-4 w-4" /> Journal & securite
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem disabled className="text-muted-foreground text-xs justify-between">
+                <DropdownMenuItem disabled className="text-slate-500 text-xs justify-between">
                   <span className="flex items-center gap-2">
                     <Keyboard className="h-3.5 w-3.5" /> Sidebar
                   </span>
-                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-muted rounded border border-border">Ctrl+B</kbd>
+                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white/[0.06] rounded border border-white/[0.1]">Ctrl+B</kbd>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
+                <DropdownMenuItem onClick={handleSignOut} className="text-red-400 focus:text-red-300">
                   <LogOut className="mr-2 h-4 w-4" /> Deconnexion
                 </DropdownMenuItem>
               </DropdownMenuContent>
