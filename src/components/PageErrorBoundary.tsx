@@ -22,6 +22,9 @@ export default class PageErrorBoundary extends React.Component<
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error("[PageError]", error, errorInfo);
+    // #region agent log
+    fetch("http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d",{method:"POST",headers:{"Content-Type":"application/json","X-Debug-Session-Id":"5f32be"},body:JSON.stringify({sessionId:"5f32be",runId:"initial",hypothesisId:"H4",location:"src/components/PageErrorBoundary.tsx:componentDidCatch",message:"Page render error captured",data:{errorName:error.name,errorMessage:error.message},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
   }
 
   render() {

@@ -555,19 +555,94 @@ async function callEdgeFunction<T>(name: string, body: Record<string, unknown>):
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    // #region agent log
+    fetch('http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8a2eef'},
+      body:JSON.stringify({
+        sessionId:'8a2eef',
+        runId:'pre-fix',
+        hypothesisId:'H1_H2_H3',
+        location:'src/lib/kycService.ts:callEdgeFunction:before',
+        message:'Calling Supabase edge function',
+        data:{name, hasBody:Boolean(body), timeoutMs},
+        timestamp:Date.now()
+      })
+    }).catch(()=>{});
+    // #endregion
     const { data, error } = await supabase.functions.invoke(name, {
       body,
       signal: controller.signal as AbortSignal,
     });
     if (error) {
+      // #region agent log
+      fetch('http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8a2eef'},
+        body:JSON.stringify({
+          sessionId:'8a2eef',
+          runId:'pre-fix',
+          hypothesisId:'H1_H2_H3',
+          location:'src/lib/kycService.ts:callEdgeFunction:error',
+          message:'Supabase edge function returned error',
+          data:{name, errorMessage:error.message, errorContext:error.context ?? null},
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
       throw new Error(error.message || error.context?.message || JSON.stringify(error));
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8a2eef'},
+      body:JSON.stringify({
+        sessionId:'8a2eef',
+        runId:'pre-fix',
+        hypothesisId:'H1_H2_H3',
+        location:'src/lib/kycService.ts:callEdgeFunction:success',
+        message:'Supabase edge function succeeded',
+        data:{name, hasData:data!=null},
+        timestamp:Date.now()
+      })
+    }).catch(()=>{});
+    // #endregion
     // P6-60: Don't throw on "unavailable" status — return it to callers for graceful handling
     return data as T;
   } catch (e) {
     if (controller.signal.aborted) {
+      // #region agent log
+      fetch('http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8a2eef'},
+        body:JSON.stringify({
+          sessionId:'8a2eef',
+          runId:'pre-fix',
+          hypothesisId:'H1',
+          location:'src/lib/kycService.ts:callEdgeFunction:timeout',
+          message:'Supabase edge function timeout',
+          data:{name, timeoutMs},
+          timestamp:Date.now()
+        })
+      }).catch(()=>{});
+      // #endregion
       throw new Error(`Edge function "${name}" timed out after ${timeoutMs / 1000}s`);
     }
+    // #region agent log
+    fetch('http://127.0.0.1:7372/ingest/a32d5268-8cba-4344-9d1f-0380f8afdc2d',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-Debug-Session-Id':'8a2eef'},
+      body:JSON.stringify({
+        sessionId:'8a2eef',
+        runId:'pre-fix',
+        hypothesisId:'H2_H3',
+        location:'src/lib/kycService.ts:callEdgeFunction:exception',
+        message:'Supabase edge function threw exception',
+        data:{name, errorMessage:e instanceof Error ? e.message : String(e)},
+        timestamp:Date.now()
+      })
+    }).catch(()=>{});
+    // #endregion
     throw e;
   } finally {
     clearTimeout(timeoutId);
