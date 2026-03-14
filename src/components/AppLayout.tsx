@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import NotificationBell from "./NotificationBell";
 import SubscriptionBanner from "./SubscriptionBanner";
+import { ThemeToggle } from "./ThemeToggle";
 
 import { ArrowLeft, ChevronRight, Keyboard, LogOut, Menu, ScrollText, Settings, User } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -208,6 +209,7 @@ export default function AppLayout() {
           </nav>
 
           <div className="ml-auto flex items-center gap-3">
+            <ThemeToggle />
             <button
               onClick={() => navigate("/parametres")}
               className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-xs text-slate-200 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"

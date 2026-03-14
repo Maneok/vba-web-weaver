@@ -101,10 +101,10 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         aria-label={collapsed ? item.label : undefined}
         aria-current={location.pathname === item.to || (item.to === "/" && location.pathname === "/") ? "page" : undefined}
         className={({ isActive }) =>
-          `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+          `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--sidebar-ring))] ${
             isActive
-              ? "bg-blue-500/15 text-blue-200 border-l-[3px] border-blue-400 pl-[9px]"
-              : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
+              ? "bg-[hsl(var(--primary))]/12 text-[hsl(var(--primary-foreground))] border-l-[3px] border-[hsl(var(--primary))] pl-[9px]"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground border-l-[3px] border-transparent pl-[9px]"
           }`
         }
       >
@@ -149,13 +149,13 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     <div>
       {/* OPT-18: role="separator" for screen readers */}
       {!isFirst && collapsed && (
-        <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-slate-800/50" />
+        <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-[hsl(var(--sidebar-border))]/60" />
       )}
       {!isFirst && !collapsed && (
-        <div role="separator" aria-hidden="true" className="mt-2 border-t border-slate-800/50" />
+        <div role="separator" aria-hidden="true" className="mt-2 border-t border-[hsl(var(--sidebar-border))]/60" />
       )}
       {!collapsed && (
-        <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-500">
+        <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-muted-foreground">
           {label}
         </p>
       )}
@@ -191,23 +191,23 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   return (
     <TooltipProvider>
       <aside
-        className={`fixed inset-y-0 left-0 z-40 border-r border-white/[0.06] bg-slate-950/95 backdrop-blur-xl transition-all duration-300 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-40 border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--sidebar-background))]/95 backdrop-blur-xl transition-all duration-300 flex flex-col ${
           collapsed ? "w-[72px]" : "w-[260px]"
         }`}
       >
         {/* Header */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-white/[0.06]">
+        <div className="h-16 px-4 flex items-center justify-between border-b border-[hsl(var(--sidebar-border))]">
           <button
             onClick={onToggle}
             aria-label="Reduire ou etendre le menu lateral"
-            className="flex items-center gap-2 text-left text-sm font-semibold tracking-wide text-slate-100 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="flex items-center gap-2 text-left text-sm font-semibold tracking-wide text-[hsl(var(--sidebar-foreground))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--sidebar-ring))]"
           >
             {collapsed ? (
-              <span className="text-blue-400 font-bold">LCB</span>
+              <span className="text-[hsl(var(--sidebar-primary))] font-bold">LCB</span>
             ) : (
               <span>
                 Cabinet{" "}
-                <span className="text-blue-400">{cabinetName}</span>
+                <span className="text-[hsl(var(--sidebar-primary))]">{cabinetName}</span>
               </span>
             )}
           </button>
@@ -215,7 +215,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             <button
               onClick={onToggle}
               aria-label="Reduire le menu"
-              className="p-1 rounded-md text-slate-500 hover:text-slate-300 hover:bg-white/[0.04] transition-colors"
+              className="p-1 rounded-md text-slate-500 hover:text-slate-700 hover:bg-muted transition-colors"
             >
               <ChevronLeft
                 className="h-4 w-4 transition-transform duration-300"

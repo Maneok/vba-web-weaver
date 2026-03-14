@@ -3,7 +3,74 @@
 @tailwind utilities;
 
 @layer base {
+  /* Thème clair — par défaut (back‑office lumineux, inspiré de la landing) */
   :root {
+    --background: 210 40% 98%;
+    --foreground: 222 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 221 83% 53%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 215 20% 96%;
+    --secondary-foreground: 222 47% 15%;
+
+    --muted: 210 20% 96%;
+    --muted-foreground: 215 15% 42%;
+
+    --accent: 222 84% 56%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 142 72% 35%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 38 92% 50%;
+    --warning-foreground: 24 31% 20%;
+
+    --border: 214 17% 90%;
+    --input: 214 17% 90%;
+    --ring: 221 83% 53%;
+
+    --radius: 0.75rem;
+
+    --risk-low: 142 72% 35%;
+    --risk-low-foreground: 0 0% 100%;
+    --risk-medium: 38 92% 50%;
+    --risk-medium-foreground: 24 31% 20%;
+    --risk-high: 0 72% 51%;
+    --risk-high-foreground: 0 0% 100%;
+
+    --status-valid: 142 72% 35%;
+    --status-pending: 38 92% 50%;
+    --status-late: 0 72% 51%;
+    --status-soon: 25 95% 55%;
+
+    --sidebar-background: 210 40% 99%;
+    --sidebar-foreground: 222 47% 25%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 215 20% 96%;
+    --sidebar-accent-foreground: 222 47% 20%;
+    --sidebar-border: 214 17% 88%;
+    --sidebar-ring: 221 83% 53%;
+
+    --chart-1: 221 83% 53%;
+    --chart-2: 142 72% 35%;
+    --chart-3: 38 92% 50%;
+    --chart-4: 0 72% 51%;
+    --chart-5: 262 83% 58%;
+  }
+
+  /* Thème sombre — valeurs historiques de l’app, activées via .dark */
+  .dark {
     --background: 222 47% 11%;
     --foreground: 213 31% 91%;
 
