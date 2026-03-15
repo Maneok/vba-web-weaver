@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -156,6 +156,60 @@ function InfoTip({ text }: { text: string }) {
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+/* ---------- Referentiels sub-tabs ---------- */
+
+const REF_SUB_TABS = [
+  { value: "missions", label: "Missions", icon: Target },
+  { value: "pays", label: "Pays", icon: Globe },
+  { value: "types-juridiques", label: "Types Juridiques", icon: Scale },
+  { value: "activites", label: "Activites", icon: Building2 },
+  { value: "questions", label: "Questions", icon: HelpCircle },
+] as const;
+
+function RefSubTabs() {
+  const [subTab, setSubTab] = useState("missions");
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+          <BookOpen className="w-5 h-5" />
+          Referentiels
+        </h2>
+        <p className="text-sm text-slate-400 mt-1">Tables de reference pour le calcul de risque et la conformite LCB-FT.</p>
+      </div>
+      <Tabs value={subTab} onValueChange={setSubTab}>
+        <TabsList className="bg-white/5 border border-white/10">
+          {REF_SUB_TABS.map(({ value, label, icon: Icon }) => (
+            <TabsTrigger key={value} value={value} className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{label}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {REF_SUB_TABS.map(({ value }) => (
+          <TabsContent key={value} value={value}>
+            <Suspense
+              fallback={
+                <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
+                  <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
+                  <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
+                  <div className="h-64 w-full bg-white/5 rounded animate-pulse" />
+                </div>
+              }
+            >
+              {value === "missions" && <RefMissionsTab />}
+              {value === "pays" && <RefPaysTab />}
+              {value === "types-juridiques" && <RefTypesJuridiquesTab />}
+              {value === "activites" && <RefActivitesTab />}
+              {value === "questions" && <RefQuestionsTab />}
+            </Suspense>
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
   );
 }
 
@@ -493,25 +547,9 @@ export default function SettingsPage() {
             <span className="hidden sm:inline">LCB-FT</span>
             {dirtyLcbft && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
-          <TabsTrigger value="missions" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
-            <Target className="w-4 h-4" />
-            <span className="hidden sm:inline">Missions</span>
-          </TabsTrigger>
-          <TabsTrigger value="pays" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
-            <Globe className="w-4 h-4" />
-            <span className="hidden sm:inline">Pays</span>
-          </TabsTrigger>
-          <TabsTrigger value="types-juridiques" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
-            <Scale className="w-4 h-4" />
-            <span className="hidden sm:inline">Types Juridiques</span>
-          </TabsTrigger>
-          <TabsTrigger value="activites" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
-            <Building2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Activites</span>
-          </TabsTrigger>
-          <TabsTrigger value="questions" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
-            <HelpCircle className="w-4 h-4" />
-            <span className="hidden sm:inline">Questions</span>
+          <TabsTrigger value="referentiels" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <BookOpen className="w-4 h-4" />
+            <span className="hidden sm:inline">Referentiels</span>
           </TabsTrigger>
           <TabsTrigger value="abonnement" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
             <CreditCard className="w-4 h-4" />
@@ -793,26 +831,10 @@ export default function SettingsPage() {
           </div>
         </TabsContent>
 
-        {/* ===== REFERENTIELS TABS ===== */}
-        {["missions", "pays", "types-juridiques", "activites", "questions"].map((tab) => (
-          <TabsContent key={tab} value={tab}>
-            <Suspense
-              fallback={
-                <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
-                  <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
-                  <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
-                  <div className="h-64 w-full bg-white/5 rounded animate-pulse" />
-                </div>
-              }
-            >
-              {tab === "missions" && <RefMissionsTab />}
-              {tab === "pays" && <RefPaysTab />}
-              {tab === "types-juridiques" && <RefTypesJuridiquesTab />}
-              {tab === "activites" && <RefActivitesTab />}
-              {tab === "questions" && <RefQuestionsTab />}
-            </Suspense>
-          </TabsContent>
-        ))}
+        {/* ===== REFERENTIELS TAB (nested sub-tabs) ===== */}
+        <TabsContent value="referentiels">
+          <RefSubTabs />
+        </TabsContent>
 
         {/* ===== ABONNEMENT TAB ===== */}
         <TabsContent value="abonnement">

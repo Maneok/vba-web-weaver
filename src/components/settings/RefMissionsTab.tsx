@@ -4,35 +4,20 @@ import { clearScoringCache } from "@/lib/riskEngine";
 import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
 import { Badge } from "@/components/ui/badge";
 
-// #22 - Add type_mission and niveau_risque columns
 const columns: ColumnDef<RefMission>[] = [
-  { key: "code", label: "Code", width: "130px" },
+  { key: "code", label: "Code", width: "100px" },
   {
     key: "type_mission",
     label: "Type",
-    width: "180px",
+    width: "160px",
     render: (item) => {
       const val = item.type_mission;
       if (!val) return <span className="text-slate-600">\u2014</span>;
       return <Badge variant="outline" className="text-xs border-slate-500/30 text-slate-400 whitespace-nowrap">{val}</Badge>;
     },
   },
-  { key: "libelle", label: "Libelle" },
-  { key: "description", label: "Description" },
-  {
-    key: "niveau_risque",
-    label: "Niveau",
-    width: "100px",
-    render: (item) => {
-      const niv = item.niveau_risque;
-      if (!niv) return null;
-      const color = niv === "Faible" ? "text-emerald-400 border-emerald-500/30"
-        : niv === "Moyen" ? "text-amber-400 border-amber-500/30"
-        : "text-red-400 border-red-500/30";
-      return <Badge variant="outline" className={`text-xs ${color}`}>{niv}</Badge>;
-    },
-  },
-  { key: "score", label: "Score", width: "100px", render: (item) => <RiskBadge score={item.score} /> },
+  { key: "libelle", label: "Libelle", minWidth: "120px" },
+  { key: "score", label: "Risque", width: "100px", render: (item) => <RiskBadge score={item.score} /> },
   { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
 
