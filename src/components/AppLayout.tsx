@@ -159,7 +159,7 @@ export default function AppLayout() {
       </a>
       <AppSidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
 
-      <div ref={scrollRef} className={`transition-all duration-300 lg:${sidebarCollapsed ? "pl-[72px]" : "pl-[260px]"} pb-16 lg:pb-0`}>
+      <div ref={scrollRef} className={`transition-all duration-300 ${sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[260px]"} pb-16 lg:pb-0`}>
         <header className="sticky top-0 z-30 h-14 lg:h-16 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 bg-background/70 backdrop-blur-xl border-b border-transparent" style={{ borderImage: "linear-gradient(to right, transparent, rgba(255,255,255,0.06) 30%, rgba(59,130,246,0.15) 50%, rgba(255,255,255,0.06) 70%, transparent) 1" }}>
           {/* Mobile menu button with animation */}
           <button
