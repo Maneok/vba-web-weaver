@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import type { Client } from "@/lib/types";
 
@@ -26,14 +26,22 @@ function formatEuros(v: number): string {
 }
 
 export default function RevenueChart({ clients, loading }: Props) {
-  const data = useMemo(() => {
-    const map = new Map<string, number>();
+  const { data, totalCA } = useMemo(() => {
+    const map = new Map<string, { ca: number; count: number }>();
     for (const c of clients) {
       if (c.statut === "INACTIF" || !c.mission) continue;
-      map.set(c.mission, (map.get(c.mission) || 0) + (c.honoraires ?? 0));
+      const entry = map.get(c.mission) || { ca: 0, count: 0 };
+      entry.ca += c.honoraires ?? 0;
+      entry.count++;
+      map.set(c.mission, entry);
     }
-    return Array.from(map, ([mission, ca]) => ({ mission, ca }))
-      .sort((a, b) => b.ca - a.ca);
+    const items = Array.from(map, ([mission, { ca, count }]) => ({
+      mission,
+      ca,
+      count,
+      label: formatEuros(ca),
+    })).sort((a, b) => b.ca - a.ca);
+    return { data: items, totalCA: items.reduce((s, d) => s + d.ca, 0) };
   }, [clients]);
 
   if (loading) {
@@ -45,18 +53,21 @@ export default function RevenueChart({ clients, loading }: Props) {
     );
   }
 
-  const totalCA = data.reduce((s, d) => s + d.ca, 0);
-
   return (
     <div className="bg-card rounded-2xl border border-border p-5 h-[320px]">
-      <h3 className="text-sm font-semibold text-foreground mb-1">
-        Structure du chiffre d'affaires
-      </h3>
+      <div className="flex items-start justify-between mb-1">
+        <h3 className="text-sm font-semibold text-foreground">
+          Structure du chiffre d'affaires
+        </h3>
+        <span className="text-xs font-bold tabular-nums text-primary">
+          {formatEuros(totalCA)}
+        </span>
+      </div>
       <p className="text-[11px] text-muted-foreground mb-3">
-        CA total : {formatEuros(totalCA)}
+        Par type de mission · {data.length} catégorie{data.length > 1 ? "s" : ""}
       </p>
       <ResponsiveContainer width="100%" height={230}>
-        <BarChart data={data} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 5, right: 50, top: 5, bottom: 5 }}>
           <XAxis
             type="number"
             tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
@@ -65,7 +76,7 @@ export default function RevenueChart({ clients, loading }: Props) {
           <YAxis
             type="category"
             dataKey="mission"
-            width={110}
+            width={105}
             tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
           />
           <Tooltip
@@ -74,13 +85,22 @@ export default function RevenueChart({ clients, loading }: Props) {
               border: "1px solid hsl(var(--border))",
               borderRadius: 8,
               fontSize: 12,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}
-            formatter={(value: number) => [formatEuros(value), "CA"]}
+            formatter={(value: number, _: string, entry: any) => [
+              `${formatEuros(value)} · ${entry.payload.count} dossier${entry.payload.count > 1 ? "s" : ""}`,
+              "CA",
+            ]}
           />
-          <Bar dataKey="ca" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={1000}>
+          <Bar dataKey="ca" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={1000} barSize={18}>
             {data.map((entry) => (
               <Cell key={entry.mission} fill={MISSION_COLORS[entry.mission] || "#64748b"} />
             ))}
+            <LabelList
+              dataKey="label"
+              position="right"
+              style={{ fontSize: 10, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
