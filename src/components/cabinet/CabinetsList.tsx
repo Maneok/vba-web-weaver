@@ -366,6 +366,7 @@ export default function CabinetsList() {
       await supabase.from("parametres").upsert(
         {
           user_id: user.id,
+          cabinet_id: profile?.cabinet_id || null,
           cle: "cabinet_info",
           valeur: updated as unknown as Record<string, unknown>,
           updated_at: new Date().toISOString(),

@@ -361,6 +361,7 @@ function RefSubTabs() {
 
 export default function SettingsPage() {
   const [userId, setUserId] = useState<string | null>(null);
+  const [cabinetId, setCabinetId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [savingCabinet, setSavingCabinet] = useState(false);
   const [savingScoring, setSavingScoring] = useState(false);
@@ -425,6 +426,15 @@ export default function SettingsPage() {
         if (cancelled) return;
         if (!user) return;
         setUserId(user.id);
+
+        // Fetch cabinet_id from profile for RLS compliance
+        const { data: profileRow } = await supabase
+          .from("profiles")
+          .select("cabinet_id")
+          .eq("id", user.id)
+          .maybeSingle();
+        const userCabinetId = profileRow?.cabinet_id || null;
+        if (!cancelled) setCabinetId(userCabinetId);
 
         const { data, error } = await supabase
           .from("parametres")
@@ -494,7 +504,7 @@ export default function SettingsPage() {
 
           // Auto-save so it persists
           await supabase.from("parametres").upsert(
-            { user_id: user.id, cle: "cabinet_info", valeur: autoFilled as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+            { user_id: user.id, cabinet_id: userCabinetId, cle: "cabinet_info", valeur: autoFilled as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
             { onConflict: "user_id,cle" }
           );
         }
@@ -522,7 +532,7 @@ export default function SettingsPage() {
     try {
       const now = new Date().toISOString();
       const { error } = await supabase.from("parametres").upsert(
-        { user_id: userId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: now },
+        { user_id: userId, cabinet_id: cabinetId, cle: "cabinet_info", valeur: cabinet as unknown as Record<string, unknown>, updated_at: now },
         { onConflict: "user_id,cle" }
       );
       if (error) {
@@ -567,7 +577,7 @@ export default function SettingsPage() {
     } finally {
       setSavingCabinet(false);
     }
-  }, [userId, cabinet]);
+  }, [userId, cabinetId, cabinet]);
 
   const saveScoring = useCallback(async () => {
     if (!userId) return;
@@ -581,7 +591,7 @@ export default function SettingsPage() {
     try {
       const now = new Date().toISOString();
       const { error } = await supabase.from("parametres").upsert(
-        { user_id: userId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: now },
+        { user_id: userId, cabinet_id: cabinetId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: now },
         { onConflict: "user_id,cle" }
       );
       if (error) {
@@ -601,7 +611,7 @@ export default function SettingsPage() {
     } finally {
       setSavingScoring(false);
     }
-  }, [userId, scoring]);
+  }, [userId, cabinetId, scoring]);
 
   const saveLcbft = useCallback(async () => {
     if (!userId) return;
@@ -615,7 +625,7 @@ export default function SettingsPage() {
     try {
       const now = new Date().toISOString();
       const { error } = await supabase.from("parametres").upsert(
-        { user_id: userId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: now },
+        { user_id: userId, cabinet_id: cabinetId, cle: "lcbft_config", valeur: lcbft as unknown as Record<string, unknown>, updated_at: now },
         { onConflict: "user_id,cle" }
       );
       if (error) {
@@ -635,7 +645,7 @@ export default function SettingsPage() {
     } finally {
       setSavingLcbft(false);
     }
-  }, [userId, lcbft]);
+  }, [userId, cabinetId, lcbft]);
 
   /* --- update helpers --- */
   function updateCabinet<K extends keyof CabinetInfo>(key: K, value: CabinetInfo[K]) {
