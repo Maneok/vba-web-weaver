@@ -58,7 +58,13 @@ export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       const stored = localStorage.getItem("sidebar-collapsed");
-      return stored !== null ? stored === "true" : true;
+      const collapsed = stored !== null ? stored === "true" : true;
+      // Sync CSS var immediately (before first paint) to avoid layout flash
+      document.documentElement.style.setProperty(
+        "--sidebar-offset",
+        collapsed ? "72px" : "260px"
+      );
+      return collapsed;
     } catch {
       return true;
     }
@@ -74,13 +80,17 @@ export default function AppLayout() {
 
   const userInitials = getUserInitials(profile?.full_name);
 
-  // Persist sidebar collapsed state
+  // Persist sidebar collapsed state + keep CSS variable in sync
   useEffect(() => {
     try {
       localStorage.setItem("sidebar-collapsed", String(sidebarCollapsed));
     } catch {
       // Ignore storage errors (e.g. private browsing)
     }
+    document.documentElement.style.setProperty(
+      "--sidebar-offset",
+      sidebarCollapsed ? "72px" : "260px"
+    );
   }, [sidebarCollapsed]);
 
   // Keyboard shortcut: Ctrl+B to toggle sidebar
@@ -159,7 +169,7 @@ export default function AppLayout() {
       </a>
       <AppSidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
 
-      <div ref={scrollRef} className={`transition-all duration-300 ${sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[260px]"} pb-16 lg:pb-0`}>
+      <div ref={scrollRef} className="app-content-offset pb-16 lg:pb-0">
         <header className="sticky top-0 z-30 h-14 lg:h-16 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 bg-background/70 backdrop-blur-xl border-b border-transparent" style={{ borderImage: "linear-gradient(to right, transparent, rgba(255,255,255,0.06) 30%, rgba(59,130,246,0.15) 50%, rgba(255,255,255,0.06) 70%, transparent) 1" }}>
           {/* Mobile menu button with animation */}
           <button
