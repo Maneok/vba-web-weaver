@@ -7,38 +7,25 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { analyzeCockpit } from "@/lib/cockpitEngine";
 import {
-  RefreshCw, Loader2,
-  Building2, UserCheck, CreditCard, MapPin, Hash, ShieldCheck,
-  Users, Shield, AlertTriangle, FileText, GripVertical,
+  RefreshCw, Loader2, Users, Shield, AlertTriangle, FileText, GripVertical,
 } from "lucide-react";
 import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  KeyboardSensor,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  useSensor, useSensors, type DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  rectSortingStrategy,
-  useSortable,
+  arrayMove, SortableContext, sortableKeyboardCoordinates,
+  rectSortingStrategy, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import OnboardingWizard, { isOnboardingComplete } from "@/components/OnboardingWizard";
 import { QuickActionsFAB } from "@/components/dashboard/QuickActions";
 import { KPICard } from "@/components/dashboard/KPICard";
-import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
 import StatusBanner from "@/components/dashboard/StatusBanner";
-import DashboardCockpit from "@/components/dashboard/DashboardCockpit";
 import DashboardSearch from "@/components/dashboard/DashboardSearch";
 import DashboardShortcutsHelp from "@/components/dashboard/DashboardShortcutsHelp";
 import DashboardExport from "@/components/dashboard/DashboardExport";
-import DashboardDataQuality from "@/components/dashboard/DashboardDataQuality";
 import DashboardAccessibility from "@/components/dashboard/DashboardAccessibility";
 import DashboardPrintHeader from "@/components/dashboard/DashboardPrintHeader";
 import DashboardPrintFooter from "@/components/dashboard/DashboardPrintFooter";
@@ -46,40 +33,46 @@ import DataFreshnessIndicator from "@/components/dashboard/DataFreshnessIndicato
 import DashboardNotificationCenter from "@/components/dashboard/DashboardNotificationCenter";
 import { useReducedMotion, useAutoRefreshInterval } from "@/components/dashboard/DashboardReducedMotion";
 
-// ── Lazy-loaded recharts components (TDZ prevention) ─────────
-const ComplianceRadar = React.lazy(() => import("@/components/dashboard/ComplianceRadar"));
-const LazyMonthlyChart = React.lazy(() =>
-  import("@/components/dashboard/MonthlyChart").then(m => ({ default: m.MonthlyChart }))
-);
+// ── Lazy-loaded chart widgets ────────────────────────────────
+const LazyRiskRadar = React.lazy(() => import("@/components/dashboard/RiskRadarWidget"));
 const LazyVigilanceDonut = React.lazy(() =>
   import("@/components/dashboard/VigilanceDonut").then(m => ({ default: m.VigilanceDonut }))
 );
+const LazyRiskValues = React.lazy(() => import("@/components/dashboard/RiskValuesChart"));
+const LazyRevenue = React.lazy(() => import("@/components/dashboard/RevenueChart"));
+const LazyTopTypes = React.lazy(() => import("@/components/dashboard/TopClientTypes"));
+const LazyCollabCases = React.lazy(() => import("@/components/dashboard/CollaboratorCasesChart"));
+const LazyTraining = React.lazy(() => import("@/components/dashboard/TrainingStatusWidget"));
+const LazyFileUpdate = React.lazy(() => import("@/components/dashboard/FileUpdateStatusWidget"));
+const LazyControlStatus = React.lazy(() => import("@/components/dashboard/ControlStatusWidget"));
 
-// ── Skeleton fallback for lazy charts ────────────────────────
-function ChartSkeleton({ height = "h-[340px]" }: { height?: string }) {
+// ── Skeleton fallback ────────────────────────────────────────
+function ChartSkeleton() {
   return (
-    <div className={`bg-card rounded-2xl border border-border p-5 ${height} animate-pulse`}>
+    <div className="bg-card rounded-2xl border border-border p-5 h-[320px] animate-pulse">
       <div className="h-4 w-44 bg-muted rounded mb-4" />
       <div className="h-full bg-muted/50 rounded-xl" />
     </div>
   );
 }
 
+// ── Staggered animation wrapper ──────────────────────────────
+function AnimatedWidget({ children, index, reducedMotion }: { children: React.ReactNode; index: number; reducedMotion: boolean }) {
+  if (reducedMotion) return <>{children}</>;
+  return (
+    <div
+      className="opacity-0 animate-fade-in-up"
+      style={{ animationDelay: `${index * 80}ms`, animationFillMode: "forwards" }}
+    >
+      {children}
+    </div>
+  );
+}
+
 // ── DnD Widget wrapper ───────────────────────────────────────
 function DashboardWidget({ id, children }: { id: string; children: React.ReactNode }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  const style = { transform: CSS.Transform.toString(transform), transition };
 
   return (
     <div
@@ -101,37 +94,51 @@ function DashboardWidget({ id, children }: { id: string; children: React.ReactNo
   );
 }
 
-// ── Widget order persistence ─────────────────────────────────
-type WidgetKey = "cockpit" | "radar" | "chart" | "vigilance" | "activity" | "quality";
-const DEFAULT_ORDER: WidgetKey[] = ["cockpit", "radar", "chart", "vigilance", "activity", "quality"];
-const WIDGET_ORDER_KEY = "dashboard-widget-order-v2";
-
-function loadWidgetOrder(): WidgetKey[] {
-  try {
-    const stored = localStorage.getItem(WIDGET_ORDER_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        const valid = parsed.filter((k: string) => DEFAULT_ORDER.includes(k as WidgetKey)) as WidgetKey[];
-        const missing = DEFAULT_ORDER.filter(k => !valid.includes(k));
-        if (valid.length + missing.length === DEFAULT_ORDER.length) return [...valid, ...missing];
-      }
-    }
-  } catch { /* ignore */ }
-  return [...DEFAULT_ORDER];
+// ── Band section header ──────────────────────────────────────
+function BandHeader({ label, color }: { label: string; color: string }) {
+  return (
+    <div className="col-span-full flex items-center gap-3 mt-4 mb-1 print:mt-2">
+      <div className={`w-1 h-8 rounded-full ${color}`} />
+      <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</h2>
+      <div className="flex-1 h-px bg-border" />
+    </div>
+  );
 }
 
-function saveWidgetOrder(order: WidgetKey[]) {
-  try { localStorage.setItem(WIDGET_ORDER_KEY, JSON.stringify(order)); } catch { /* ignore */ }
+// ── Widget order persistence ─────────────────────────────────
+type WidgetKey =
+  | "riskRadar" | "vigilance" | "riskValues"
+  | "revenue" | "topTypes" | "collabCases"
+  | "training" | "fileUpdate" | "controlStatus";
+
+const BAND1_DEFAULT: WidgetKey[] = ["riskRadar", "vigilance", "riskValues"];
+const BAND2_DEFAULT: WidgetKey[] = ["revenue", "topTypes", "collabCases"];
+const BAND3_DEFAULT: WidgetKey[] = ["training", "fileUpdate", "controlStatus"];
+const ALL_WIDGETS: WidgetKey[] = [...BAND1_DEFAULT, ...BAND2_DEFAULT, ...BAND3_DEFAULT];
+const WIDGET_ORDER_KEY = "dashboard-widget-order-v3";
+
+function loadBandOrder(band: 1 | 2 | 3): WidgetKey[] {
+  const defaults = band === 1 ? BAND1_DEFAULT : band === 2 ? BAND2_DEFAULT : BAND3_DEFAULT;
+  try {
+    const stored = localStorage.getItem(`${WIDGET_ORDER_KEY}-b${band}`);
+    if (stored) {
+      const parsed = JSON.parse(stored) as string[];
+      const valid = parsed.filter(k => defaults.includes(k as WidgetKey)) as WidgetKey[];
+      const missing = defaults.filter(k => !valid.includes(k));
+      if (valid.length > 0) return [...valid, ...missing];
+    }
+  } catch { /* ignore */ }
+  return [...defaults];
+}
+
+function saveBandOrder(band: 1 | 2 | 3, order: WidgetKey[]) {
+  try { localStorage.setItem(`${WIDGET_ORDER_KEY}-b${band}`, JSON.stringify(order)); } catch { /* ignore */ }
 }
 
 // ── Helpers ──────────────────────────────────────────────────
 function formatDateLong(): string {
   return new Date().toLocaleDateString("fr-FR", {
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    year: "numeric",
+    weekday: "long", day: "numeric", month: "long", year: "numeric",
   });
 }
 
@@ -147,7 +154,9 @@ export default function DashboardPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<string[]>([]);
   const [missionsData, setMissionsData] = useState<{ count: number; ca: number | null }>({ count: 0, ca: null });
-  const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(loadWidgetOrder);
+  const [band1Order, setBand1Order] = useState<WidgetKey[]>(() => loadBandOrder(1));
+  const [band2Order, setBand2Order] = useState<WidgetKey[]>(() => loadBandOrder(2));
+  const [band3Order, setBand3Order] = useState<WidgetKey[]>(() => loadBandOrder(3));
   const reducedMotion = useReducedMotion();
   const [autoRefreshInterval] = useAutoRefreshInterval();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -163,17 +172,22 @@ export default function DashboardPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setWidgetOrder(prev => {
-        const oldIndex = prev.indexOf(active.id as WidgetKey);
-        const newIndex = prev.indexOf(over.id as WidgetKey);
-        const next = arrayMove(prev, oldIndex, newIndex);
-        saveWidgetOrder(next);
-        return next;
-      });
-    }
+  function makeDragHandler(
+    band: 1 | 2 | 3,
+    setter: React.Dispatch<React.SetStateAction<WidgetKey[]>>,
+  ) {
+    return (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (over && active.id !== over.id) {
+        setter(prev => {
+          const oldIndex = prev.indexOf(active.id as WidgetKey);
+          const newIndex = prev.indexOf(over.id as WidgetKey);
+          const next = arrayMove(prev, oldIndex, newIndex);
+          saveBandOrder(band, next);
+          return next;
+        });
+      }
+    };
   }
 
   // ── Handlers ────────────────────────────────────────────────
@@ -215,7 +229,6 @@ export default function DashboardPage() {
     function handleKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
       const inInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
           case "n": e.preventDefault(); navigate("/nouveau-client"); break;
@@ -223,9 +236,7 @@ export default function DashboardPage() {
         }
         return;
       }
-
       if (inInput) return;
-
       switch (e.key) {
         case "?": e.preventDefault(); setShortcutsOpen(true); break;
         case "/": e.preventDefault(); searchInputRef.current?.focus(); break;
@@ -291,7 +302,7 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [user, lastRefresh]);
 
-  // ── Load missions data (lettres de mission) ───────────────
+  // ── Load missions data ───────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -304,9 +315,7 @@ export default function DashboardPage() {
         const missions = data || [];
         const ca = missions.reduce((s: number, m: any) => s + (Number(m.honoraires_annuels) || 0), 0);
         setMissionsData({ count: missions.length, ca: ca > 0 ? ca : null });
-      } catch {
-        // Table or column might not exist — fail silently
-      }
+      } catch { /* Table might not exist */ }
     })();
     return () => { cancelled = true; };
   }, [lastRefresh]);
@@ -314,14 +323,15 @@ export default function DashboardPage() {
   // ── Computed stats ────────────────────────────────────────
   const stats = useMemo(() => {
     const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
-    const totalClients = actifs.length;
-    const simplifiee = clients.filter(c => c.nivVigilance === "SIMPLIFIEE").length;
-    const standard = clients.filter(c => c.nivVigilance === "STANDARD").length;
-    const renforcee = clients.filter(c => c.nivVigilance === "RENFORCEE").length;
-    return { totalClients, simplifiee, standard, renforcee };
+    return {
+      totalClients: actifs.length,
+      simplifiee: clients.filter(c => c.nivVigilance === "SIMPLIFIEE").length,
+      standard: clients.filter(c => c.nivVigilance === "STANDARD").length,
+      renforcee: clients.filter(c => c.nivVigilance === "RENFORCEE").length,
+    };
   }, [clients]);
 
-  // ── Compliance items (7 axes) ─────────────────────────────
+  // ── Compliance items (for export) ──────────────────────────
   const complianceItems = useMemo(() => {
     const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
     const total = actifs.length || 1;
@@ -337,17 +347,16 @@ export default function DashboardPage() {
     const withBE = actifs.filter(c => c.beneficiaireEffectif).length;
     const withAddr = actifs.filter(c => c.adresse).length;
     return [
-      { label: "Identification clients", value: Math.round((withScreening / total) * 100), target: 90, description: "Screening complet (SIREN + dirigeant)" },
-      { label: "Documents KYC", value: Math.round((withDocs / total) * 100), target: 85, description: "CNI / pièce d'identité renseignée" },
-      { label: "Lettres de mission", value: Math.round((withLM / total) * 100), target: 80, description: "LM signées vs clients actifs" },
-      { label: "Formation collaborateurs", value: Math.round((trained / collabTotal) * 100), target: 100, description: "Formations < 12 mois" },
-      { label: "Bénéficiaires effectifs", value: Math.round((withBE / total) * 100), target: 90, description: "BE identifiés" },
-      { label: "Adresses vérifiées", value: Math.round((withAddr / total) * 100), target: 95, description: "Adresse renseignée" },
-      { label: "Contrôle qualité", value: 0, target: 80, description: "Contrôles réalisés vs attendus" },
+      { label: "Identification clients", value: Math.round((withScreening / total) * 100), target: 90 },
+      { label: "Documents KYC", value: Math.round((withDocs / total) * 100), target: 85 },
+      { label: "Lettres de mission", value: Math.round((withLM / total) * 100), target: 80 },
+      { label: "Formation collaborateurs", value: Math.round((trained / collabTotal) * 100), target: 100 },
+      { label: "Bénéficiaires effectifs", value: Math.round((withBE / total) * 100), target: 90 },
+      { label: "Adresses vérifiées", value: Math.round((withAddr / total) * 100), target: 95 },
+      { label: "Contrôle qualité", value: 0, target: 80 },
     ];
   }, [clients, collaborateurs]);
 
-  // ── Compliance score (single source of truth) ──────────────
   const complianceScore = useMemo(() =>
     Math.round(complianceItems.reduce((sum, item) => sum + item.value, 0) / complianceItems.length),
     [complianceItems]
@@ -359,63 +368,22 @@ export default function DashboardPage() {
     [clients, collaborateurs, alertes]
   );
 
-  // ── Alertes count (critical + warning from cockpit) ───────
-  const criticalCount = useMemo(() => {
-    const urgencies = cockpitData.urgencies ?? [];
-    return urgencies.filter(u => u.severity === "critique").length;
-  }, [cockpitData]);
-
-  const warningCount = useMemo(() => {
-    const urgencies = cockpitData.urgencies ?? [];
-    return urgencies.filter(u => u.severity === "warning").length;
-  }, [cockpitData]);
-
+  const criticalCount = useMemo(() =>
+    (cockpitData.urgencies ?? []).filter(u => u.severity === "critique").length,
+    [cockpitData]
+  );
+  const warningCount = useMemo(() =>
+    (cockpitData.urgencies ?? []).filter(u => u.severity === "warning").length,
+    [cockpitData]
+  );
   const alertesCount = criticalCount + warningCount;
 
-  // ── Monthly chart data ────────────────────────────────────
-  const monthlyData = useMemo(() => {
-    const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
-    const now = new Date();
-    const result = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const beforeDate = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      const filtered = clients.filter(c => {
-        if (!c.dateCreationLigne) return true;
-        try { const cd = new Date(c.dateCreationLigne); return !isNaN(cd.getTime()) && cd <= beforeDate; } catch { return true; }
-      });
-      result.push({
-        month: months[d.getMonth()],
-        simplifiee: filtered.filter(c => c.nivVigilance === "SIMPLIFIEE").length,
-        standard: filtered.filter(c => c.nivVigilance === "STANDARD").length,
-        renforcee: filtered.filter(c => c.nivVigilance === "RENFORCEE").length,
-      });
-    }
-    return result;
-  }, [clients]);
-
-  // ── Data quality categories ───────────────────────────────
-  const dataQualityCategories = useMemo(() => {
-    const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
-    const total = actifs.length;
-    if (total === 0) return [];
-    return [
-      { label: "SIREN", total, filled: actifs.filter(c => c.siren).length, icon: <Building2 className="w-3.5 h-3.5" /> },
-      { label: "Dirigeant", total, filled: actifs.filter(c => c.dirigeant).length, icon: <UserCheck className="w-3.5 h-3.5" /> },
-      { label: "CNI", total, filled: actifs.filter(c => c.lienCni).length, icon: <CreditCard className="w-3.5 h-3.5" /> },
-      { label: "Adresse", total, filled: actifs.filter(c => c.adresse).length, icon: <MapPin className="w-3.5 h-3.5" /> },
-      { label: "Code APE", total, filled: actifs.filter(c => c.codeApe).length, icon: <Hash className="w-3.5 h-3.5" /> },
-      { label: "Vigilance", total, filled: actifs.filter(c => c.nivVigilance).length, icon: <ShieldCheck className="w-3.5 h-3.5" /> },
-    ];
-  }, [clients]);
-
-  // ── KPI card helpers ──────────────────────────────────────
+  // ── KPI helpers ──────────────────────────────────────────
   const conformiteColor = complianceScore >= 70 ? "#22c55e" : complianceScore >= 40 ? "#f59e0b" : "#ef4444";
   const alertesColor = alertesCount > 0 ? "#ef4444" : "#22c55e";
   const caSubValue = missionsData.ca != null
     ? `${(missionsData.ca / 1000).toFixed(1).replace(/\.0$/, "")}k€/an`
     : undefined;
-  const missionsSubValue = missionsData.count === 0 ? "Créer une lettre de mission" : caSubValue;
 
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
   const cabinetName = profile?.cabinet_id ? "Cabinet" : "GRIMY";
@@ -424,56 +392,66 @@ export default function DashboardPage() {
 
   // ── Widget content map ────────────────────────────────────
   const widgetContent: Record<WidgetKey, React.ReactNode> = {
-    cockpit: <DashboardCockpit cockpit={cockpitData} isLoading={isLoading} />,
-    radar: (
-      <React.Suspense fallback={<ChartSkeleton height="h-[380px]" />}>
-        <ComplianceRadar items={complianceItems} score={complianceScore} isLoading={isLoading} />
-      </React.Suspense>
-    ),
-    chart: (
-      <React.Suspense fallback={<ChartSkeleton />}>
-        <LazyMonthlyChart data={monthlyData} loading={isLoading} />
-      </React.Suspense>
-    ),
+    riskRadar: <LazyRiskRadar clients={clients} loading={isLoading} />,
     vigilance: (
-      <React.Suspense fallback={<ChartSkeleton />}>
-        <LazyVigilanceDonut
-          simplifiee={stats.simplifiee}
-          standard={stats.standard}
-          renforcee={stats.renforcee}
-          loading={isLoading}
-        />
-      </React.Suspense>
+      <LazyVigilanceDonut
+        simplifiee={stats.simplifiee}
+        standard={stats.standard}
+        renforcee={stats.renforcee}
+        loading={isLoading}
+      />
     ),
-    activity: (
-      <div className="space-y-2">
-        <ActivityFeed logs={logs.slice(0, 3)} loading={isLoading} />
-        {!isLoading && logs.length > 0 && (
-          <div className="text-center">
-            <button
-              onClick={() => navigate("/audit-trail")}
-              className="text-xs text-primary hover:underline transition-colors"
-            >
-              Voir le journal complet
-            </button>
-          </div>
-        )}
-      </div>
-    ),
-    quality: <DashboardDataQuality categories={dataQualityCategories} isLoading={isLoading} />,
+    riskValues: <LazyRiskValues clients={clients} loading={isLoading} />,
+    revenue: <LazyRevenue clients={clients} loading={isLoading} />,
+    topTypes: <LazyTopTypes clients={clients} loading={isLoading} />,
+    collabCases: <LazyCollabCases clients={clients} loading={isLoading} />,
+    training: <LazyTraining collaborateurs={collaborateurs} loading={isLoading} />,
+    fileUpdate: <LazyFileUpdate clients={clients} loading={isLoading} />,
+    controlStatus: <LazyControlStatus clients={clients} loading={isLoading} />,
   };
+
+  // ── Render band ───────────────────────────────────────────
+  function renderBand(
+    band: 1 | 2 | 3,
+    label: string,
+    color: string,
+    order: WidgetKey[],
+    setter: React.Dispatch<React.SetStateAction<WidgetKey[]>>,
+    startIndex: number,
+  ) {
+    return (
+      <>
+        <BandHeader label={label} color={color} />
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeDragHandler(band, setter)}>
+          <SortableContext items={order} strategy={rectSortingStrategy}>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {order.map((key, i) => (
+                <AnimatedWidget key={key} index={startIndex + i} reducedMotion={reducedMotion}>
+                  <DashboardWidget id={key}>
+                    <React.Suspense fallback={<ChartSkeleton />}>
+                      {widgetContent[key]}
+                    </React.Suspense>
+                  </DashboardWidget>
+                </AnimatedWidget>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </>
+    );
+  }
 
   return (
     <DashboardAccessibility announcements={announcements}>
     <div
-      className={`p-5 lg:p-8 max-w-[1400px] mx-auto ${reducedMotion ? "" : "animate-fade-in-up"} print:bg-white print:text-black print:p-4`}
+      className={`p-5 lg:p-8 max-w-[1440px] mx-auto ${reducedMotion ? "" : "animate-fade-in-up"} print:bg-white print:text-black print:p-4`}
       role="main"
       aria-label="Tableau de bord"
     >
       <DashboardPrintHeader cabinetName={cabinetName} userName={userName} date={printDate} />
       {showOnboarding && <OnboardingWizard />}
 
-      {/* ── TOP BAR (simplified: search + notifications + refresh) ── */}
+      {/* ── TOP BAR ── */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 print:mb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight">
@@ -481,7 +459,6 @@ export default function DashboardPage() {
           </h1>
           <p className="text-xs text-muted-foreground capitalize mt-0.5">{formatDateLong()}</p>
         </div>
-
         <div className="flex items-center gap-2 flex-wrap print:hidden">
           <DashboardSearch clients={clients} alertes={alertes} className="w-40 sm:w-56 md:w-64" inputRef={searchInputRef} />
           <DashboardNotificationCenter
@@ -510,25 +487,20 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════
-          ZONE FIXE — Statut + KPIs
-          ═══════════════════════════════════════════════════════ */}
-
-      {/* Bannière de statut émotionnelle */}
+      {/* ── STATUS BANNER ── */}
       <div className="mb-5">
-        <StatusBanner
-          criticalCount={criticalCount}
-          warningCount={warningCount}
-          isLoading={isLoading}
-        />
+        <StatusBanner criticalCount={criticalCount} warningCount={warningCount} isLoading={isLoading} />
       </div>
 
-      {/* 4 KPI Cards */}
-      <div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
-        role="region"
-        aria-label="Indicateurs clés"
-      >
+      {/* ── TITLE ── */}
+      <div className="text-center mb-6">
+        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/80">
+          Pilotage Cabinet Dynamique LCB-FT
+        </h2>
+      </div>
+
+      {/* ── 4 KPI Cards ── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" role="region" aria-label="Indicateurs clés">
         <KPICard
           icon={Users}
           title="Clients actifs"
@@ -565,32 +537,26 @@ export default function DashboardPage() {
           color="#8b5cf6"
           onClick={() => navigate("/lettre-mission")}
           loading={isLoading}
-          subValue={missionsSubValue}
-          ariaLabel={`${missionsData.count} mission${missionsData.count > 1 ? "s" : ""} active${missionsData.count > 1 ? "s" : ""}`}
+          subValue={missionsData.count === 0 ? "Créer une lettre de mission" : caSubValue}
+          ariaLabel={`${missionsData.count} mission${missionsData.count > 1 ? "s" : ""}`}
         />
       </div>
 
       {/* ═══════════════════════════════════════════════════════
-          ZONE DnD — 6 widgets réorganisables (grille 2 colonnes)
+          3 BANDES — 9 widgets réorganisables (grille 3 colonnes)
           ═══════════════════════════════════════════════════════ */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={widgetOrder} strategy={rectSortingStrategy}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
-            {widgetOrder.map(key => (
-              <DashboardWidget key={key} id={key}>
-                {widgetContent[key]}
-              </DashboardWidget>
-            ))}
-          </div>
-        </SortableContext>
-      </DndContext>
 
-      {/* ── Footer ────────────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-3 pb-4 print:hidden">
+      {/* BANDE 1 — RISQUE LCB-FT */}
+      {renderBand(1, "Risque LCB-FT", "bg-blue-500", band1Order, setBand1Order, 0)}
+
+      {/* BANDE 2 — PILOTAGE CABINET */}
+      {renderBand(2, "Pilotage Cabinet", "bg-amber-500", band2Order, setBand2Order, 3)}
+
+      {/* BANDE 3 — ALERTES CABINET */}
+      {renderBand(3, "Alertes Cabinet", "bg-red-500", band3Order, setBand3Order, 6)}
+
+      {/* ── Footer ── */}
+      <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-6 pb-4 print:hidden">
         <DataFreshnessIndicator lastRefresh={lastRefresh} staleThresholdMinutes={5} />
       </div>
 
@@ -599,6 +565,13 @@ export default function DashboardPage() {
       <DashboardPrintFooter cabinetName={cabinetName} />
 
       <style>{`
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(16px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up {
+          animation: fade-in-up 0.5s ease-out;
+        }
         @media print {
           .print\\:hidden { display: none !important; }
           .print\\:bg-white { background: white !important; }
