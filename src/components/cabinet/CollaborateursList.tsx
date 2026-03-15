@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useAppState } from "@/lib/AppContext";
 import { COMPETENCE_LEVELS } from "@/lib/constants";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -85,6 +86,16 @@ interface CabinetOption {
   nom: string;
 }
 
+// Map cabinet roles to collaborateurs.fonction values
+const ROLE_TO_FONCTION: Record<CabinetRole, string> = {
+  ADMIN: "ASSOCIE SIGNATAIRE",
+  SUPERVISEUR: "SUPERVISEUR",
+  COLLABORATEUR: "COLLABORATEUR",
+  CONTROLEUR: "SUPERVISEUR",
+  SECRETAIRE: "SECRETAIRE",
+  STAGIAIRE: "STAGIAIRE",
+};
+
 const PAGE_SIZE = 15;
 
 function getFormationBadge(date: string | null | undefined): { label: string; className: string } {
@@ -125,6 +136,7 @@ function SkeletonRows() {
 
 export default function CollaborateursList() {
   const { profile } = useAuth();
+  const { refreshAll } = useAppState();
   const [membres, setMembres] = useState<Membre[]>([]);
   const [cabinets, setCabinets] = useState<CabinetOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -269,21 +281,31 @@ export default function CollaborateursList() {
     e.preventDefault();
     if (!profile) return;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(inviteForm.email.trim())) {
+    const trimmedEmail = inviteForm.email.trim();
+    const trimmedName = inviteForm.nom.trim();
+    if (!emailRegex.test(trimmedEmail)) {
       toast.error("Adresse email invalide");
+      return;
+    }
+    if (trimmedName.length < 2) {
+      toast.error("Le nom doit contenir au moins 2 caracteres");
       return;
     }
     setInviting(true);
     try {
       const targetCabinet = inviteForm.cabinet_id || cabinets[0]?.id || profile.cabinet_id;
 
-      // Use the invite-user edge function instead of supabase.auth.signUp
-      const { data: { session } } = await supabase.auth.getSession();
+      // Map the cabinet role to the 4 auth-compatible roles for the edge function
+      // CONTROLEUR and SECRETAIRE are mapped to COLLABORATEUR for auth purposes
+      const authRole = ["ADMIN", "SUPERVISEUR", "COLLABORATEUR", "STAGIAIRE"].includes(inviteForm.role)
+        ? inviteForm.role
+        : "COLLABORATEUR";
+
       const res = await supabase.functions.invoke("invite-user", {
         body: {
-          email: inviteForm.email.trim(),
-          fullName: inviteForm.nom.trim(),
-          role: inviteForm.role,
+          email: trimmedEmail,
+          fullName: trimmedName,
+          role: authRole,
           cabinet_id: targetCabinet,
         },
       });
@@ -297,10 +319,43 @@ export default function CollaborateursList() {
         throw new Error(resData.error);
       }
 
-      toast.success(`Invitation envoyee a ${inviteForm.email}`);
+      // Sync: also create a record in the collaborateurs table
+      // so this person appears in Gouvernance > Organisation
+      const fonction = ROLE_TO_FONCTION[inviteForm.role] || "COLLABORATEUR";
+      // Check if collaborateur already exists with this email
+      const { data: existingCollab } = await supabase
+        .from("collaborateurs")
+        .select("id")
+        .eq("email", trimmedEmail)
+        .eq("cabinet_id", targetCabinet)
+        .maybeSingle();
+
+      if (!existingCollab) {
+        const { error: collabError } = await supabase
+          .from("collaborateurs")
+          .insert({
+            nom: trimmedName,
+            email: trimmedEmail,
+            fonction,
+            niveau_competence: "JUNIOR",
+            referent_lcb: false,
+            suppleant: "",
+            statut_formation: "JAMAIS FORME",
+            cabinet_id: targetCabinet,
+          });
+        if (collabError) {
+          logger.warn("CollaborateursList", "Sync collaborateurs failed", collabError);
+        }
+      }
+
+      toast.success(`Invitation envoyee a ${trimmedEmail}`);
       setInviteOpen(false);
       setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
-      inviteTimerRef.current = setTimeout(() => loadData(), 3000);
+      // Refresh both cabinet members and AppContext collaborateurs
+      inviteTimerRef.current = setTimeout(async () => {
+        await loadData();
+        await refreshAll();
+      }, 3000);
     } catch (err: unknown) {
       logger.error("CollaborateursList", "Erreur invitation", err);
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'invitation");

@@ -80,7 +80,7 @@ serve(async (req) => {
       });
     }
 
-    const validRoles = ["ADMIN", "SUPERVISEUR", "COLLABORATEUR", "STAGIAIRE"];
+    const validRoles = ["ADMIN", "SUPERVISEUR", "COLLABORATEUR", "CONTROLEUR", "SECRETAIRE", "STAGIAIRE"];
     if (!validRoles.includes(role)) {
       return new Response(JSON.stringify({ error: "Role invalide" }), {
         status: 400,
@@ -115,18 +115,16 @@ serve(async (req) => {
       });
     }
 
-    // Send password reset email so user sets their own password
-    const { error: resetError } = await adminClient.auth.admin.generateLink({
-      type: "recovery",
-      email,
-      options: {
-        redirectTo: `${Deno.env.get("SITE_URL") || supabaseUrl}/auth?reset=true`,
-      },
+    // Send password reset email so user can set their own password
+    // Use resetPasswordForEmail which actually sends the email (unlike generateLink)
+    const siteUrl = Deno.env.get("SITE_URL") || "https://grimy.app";
+    const { error: resetError } = await adminClient.auth.resetPasswordForEmail(email, {
+      redirectTo: `${siteUrl}/auth?reset=true`,
     });
 
     if (resetError) {
-      console.error("Password reset link error:", resetError);
-      // Non-blocking — user was still created
+      console.error("Password reset email error:", resetError);
+      // Non-blocking — user was still created, admin can resend manually
     }
 
     // Log the invitation in audit trail
