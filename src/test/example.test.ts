@@ -21,7 +21,7 @@ describe("riskEngine - calculateRiskScore", () => {
     const result = calculateRiskScore(baseParams);
     expect(result.scoreActivite).toBe(30); // APE 56.10A = 30
     expect(result.scorePays).toBe(0);
-    expect(result.scoreMission).toBe(10); // TENUE COMPTABLE = 10
+    expect(result.scoreMission).toBe(25); // TENUE COMPTABLE = 25
     expect(result.scoreStructure).toBe(20); // SARL = 20
     expect(result.malus).toBe(0);
   });
@@ -75,7 +75,7 @@ describe("riskEngine - calculateRiskScore", () => {
     const result = calculateRiskScore({
       ...baseParams,
       ape: "86.21Z", // 20
-      forme: "ENTREPRISE INDIVIDUELLE", // 0
+      forme: "ENTREPRISE INDIVIDUELLE", // 20
     });
     expect(result.scoreGlobal).toBeLessThanOrEqual(25);
     expect(result.nivVigilance).toBe("SIMPLIFIEE");

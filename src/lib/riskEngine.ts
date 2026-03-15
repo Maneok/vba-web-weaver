@@ -161,8 +161,8 @@ export function normalizeAddress(addr: string): string {
 
 // ====== MISSION SCORING ======
 export const MISSION_SCORES: Record<string, number> = {
-  "TENUE COMPTABLE": 10,
-  "SOCIAL / PAIE SEULE": 10,
+  "TENUE COMPTABLE": 25,
+  "SOCIAL / PAIE SEULE": 25,
   "IRPP": 20,
   "REVISION / SURVEILLANCE": 30,
   "CONSEIL DE GESTION": 40,
@@ -218,14 +218,18 @@ function scoreStructure(forme: string, scoringData?: ScoringData): number {
   }
 
   // Hardcoded fallback
-  if (["ENTREPRISE INDIVIDUELLE", "SNC", "ARTISAN"].some(k => f.includes(k))) return 0;
-  if (f.includes("EARL")) return 0;
+  if (["ENTREPRISE INDIVIDUELLE", "ARTISAN"].some(k => f.includes(k))) return 20;
+  if (f.includes("EARL")) return 20;
   if (f.includes("SARL") || f.includes("EURL")) return 20;
   if (["SELAS", "SELARL", "SCP"].some(k => f.includes(k))) return 30;
   if (f.includes("SCI") || f.includes("CIVILE")) return 35;
   if (f.includes("SAS")) return 40;
   if (f === "SA" || f.startsWith("SA ") || f.includes(" SA")) return 40;
-  if (f.includes("ASSOCIATION")) return 50;
+  if (f.includes("ASSOCIATION") || f.includes("ASSO")) return 60;
+  if (f === "SNC" || f.startsWith("SNC ")) return 60;
+  if (f === "CSE" || f.includes("COMITE SOCIAL")) return 60;
+  if (f === "GAEC") return 60;
+  if (f.includes("SCCV")) return 70;
   if (["TRUST", "FIDUCIE", "FONDATION"].some(k => f.includes(k))) return 100;
   return 20;
 }

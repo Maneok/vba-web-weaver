@@ -130,7 +130,7 @@ function mapToDb(updates: Record<string, unknown>): Record<string, unknown> {
   // #12 - Auto-compute niveau_risque when score changes
   if (typeof mapped.score === "number") {
     const s = mapped.score as number;
-    mapped.niveau_risque = s <= 25 ? "Faible" : s <= 60 ? "Moyen" : "\u00c9lev\u00e9";
+    mapped.niveau_risque = s < 20 ? "Faible" : s < 60 ? "Moyen" : "\u00c9lev\u00e9";
   }
   // gafi_noir → est_gafi_noir (etc.)
   if ("gafi_noir" in mapped) {

@@ -286,8 +286,8 @@ describe("MISSION_SCORES", () => {
     expect(max).toBe(80);
   });
 
-  it("TENUE COMPTABLE has lowest mission score (10)", () => {
-    expect(MISSION_SCORES["TENUE COMPTABLE"]).toBe(10);
+  it("IRPP has lowest mission score (20)", () => {
+    expect(MISSION_SCORES["IRPP"]).toBe(20);
   });
 
   it("all MISSION_SCORES values are positive numbers", () => {
