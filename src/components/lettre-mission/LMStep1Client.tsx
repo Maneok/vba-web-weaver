@@ -19,6 +19,9 @@ import {
   AlertTriangle, ShieldAlert, History, FileText, ShieldCheck, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
+import MissionTypeSelector from "@/components/lettre-mission/MissionTypeSelector";
+import { buildSectionsForMissionType } from "@/lib/lettreMissionModeles";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
 interface Props {
   data: LMWizardData;
@@ -333,9 +336,24 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </button>
           )}
 
-          {/* Type mission selection */}
+          {/* Type mission selection — normative OEC types */}
           <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-300">Type de mission</p>
+            <p className="text-sm font-medium text-slate-300">Type de mission (référentiel normatif OEC)</p>
+            <MissionTypeSelector
+              value={(data as any).mission_type_id || "presentation"}
+              onValueChange={(val) => {
+                const config = getMissionTypeConfig(val);
+                onChange({
+                  type_mission: config.shortLabel,
+                  mission_type_id: val,
+                } as any);
+              }}
+            />
+          </div>
+
+          {/* Legacy type mission — comptable */}
+          <div className="space-y-3">
+            <p className="text-sm font-medium text-slate-300">Mode comptable</p>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               {TYPES_MISSION.map(({ value, label, description, icon: Icon }) => {
                 const active = data.type_mission === value;

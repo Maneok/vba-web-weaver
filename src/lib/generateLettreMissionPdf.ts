@@ -86,7 +86,7 @@ export function generateLettreMission(client: Client) {
 
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
-  const introText = `Madame, Monsieur,\n\nNous avons l'honneur de vous confirmer les termes et conditions de notre intervention pour la mission de ${client.mission || "presentation des comptes"} que vous nous confiez.`;
+  const introText = `Madame, Monsieur,\n\nNous avons l'honneur de vous confirmer les termes et conditions de notre intervention pour la mission de ${client.mission || "expertise comptable"} que vous nous confiez.`;
   const introLines = doc.splitTextToSize(introText, contentW);
   doc.text(introLines, marginL, y);
   y += introLines.length * 5 + 5;

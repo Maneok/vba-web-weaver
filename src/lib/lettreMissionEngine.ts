@@ -16,6 +16,7 @@ import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
 import type { LMSection, LMModele } from "@/lib/lettreMissionModeles";
 import { getModeleById, getDefaultModele, GRIMY_DEFAULT_SECTIONS, GRIMY_DEFAULT_CGV, GRIMY_DEFAULT_REPARTITION } from "@/lib/lettreMissionModeles";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
 // ──────────────────────────────────────────────
 // Numérotation automatique (sessionStorage)
@@ -458,7 +459,11 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
   const fmt = (dt: Date) => dt.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
   const year = now.getFullYear();
 
-  return {
+  // Get mission type config for dynamic values
+  const missionTypeId = String(d.mission_type_id ?? d.type_mission ?? "presentation");
+  const mtConfig = getMissionTypeConfig(missionTypeId);
+
+  const vars: Record<string, string> = {
     // Client
     raison_sociale: String(d.raison_sociale ?? ""),
     forme_juridique: String(d.forme_juridique ?? ""),
@@ -500,9 +505,11 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     formule_politesse: "Monsieur",
     genre: "M.",
     periodicite: String(d.frequence_facturation ?? "MENSUEL"),
-    // Modele constants
-    referentiel_comptable: "PCG (règlement ANC n°2014-03)",
-    forme_rapport: "Attestation de présentation des comptes",
+    // Dynamic from mission type config
+    referentiel_comptable: mtConfig.referentielApplicable,
+    forme_rapport: mtConfig.formeRapport,
+    norme_ref: mtConfig.normeRef,
+    type_mission_label: mtConfig.label,
     indice_revision: "Indice INSEE prix services comptables",
     delai_mise_en_demeure: "30 jours",
     // Cabinet (filled later from profile if available)
@@ -510,6 +517,13 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     cabinet_nom: "",
     ville_cabinet: "",
   };
+
+  // Inject mission-type specific variables from wizard data
+  for (const sv of mtConfig.specificVariables) {
+    vars[sv.key] = String(d[sv.key] ?? "");
+  }
+
+  return vars;
 }
 
 // ──────────────────────────────────────────────
@@ -553,8 +567,14 @@ export async function generateFromModele(
   const missionsSelected = (wizardData.missions_selected as { section_id: string; selected: boolean }[]) ?? [];
   const resolvedSections = resolveModeleSections(modele.sections, variablesMap, missionsSelected);
 
-  // Resolve CGV
-  const resolvedCgv = resolveVariablesInText(modele.cgv_content, variablesMap);
+  // Resolve CGV + inject mission-type-specific clauses
+  const missionTypeId = String(wizardData.mission_type_id ?? wizardData.type_mission ?? modele.mission_type ?? "presentation");
+  const mtConfig = getMissionTypeConfig(missionTypeId);
+  let cgvText = modele.cgv_content;
+  if (mtConfig.cgvSpecificClauses.length > 0) {
+    cgvText += "\n\n" + mtConfig.cgvSpecificClauses.join("\n\n");
+  }
+  const resolvedCgv = resolveVariablesInText(cgvText, variablesMap);
 
   // Get next numero
   const numero = await getNextLmNumero(cabinetId);
@@ -568,6 +588,7 @@ export async function generateFromModele(
       client_ref: String(wizardData.client_ref ?? ""),
       numero,
       status: "brouillon",
+      mission_type: missionTypeId,
       sections_snapshot: resolvedSections,
       cgv_snapshot: resolvedCgv,
       repartition_snapshot: modele.repartition_taches,

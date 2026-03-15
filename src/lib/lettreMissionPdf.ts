@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import { logger } from "@/lib/logger";
 import type { LettreMission, CabinetConfig, LettreMissionOptions, EditorSectionSnapshot } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
 // ──────────────────────────────────────────────
 // Layout constants (A4 = 210 x 297mm)
@@ -270,7 +271,8 @@ class LMPdfBuilder {
     this.doc.text("LETTRE DE MISSION", PAGE_W / 2, this.y, { align: "center" });
     this.y += 6;
     this.doc.setFontSize(11);
-    this.doc.text("PRÉSENTATION DES COMPTES ANNUELS", PAGE_W / 2, this.y, { align: "center" });
+    const missionSubtitle = (this.lm?.options as any)?.missionTypeLabel || "PRÉSENTATION DES COMPTES ANNUELS";
+    this.doc.text(missionSubtitle.toUpperCase(), PAGE_W / 2, this.y, { align: "center" });
     this.y += 10;
 
     // Bloc info
@@ -1556,6 +1558,7 @@ export function generatePdfFromInstance(instance: {
   repartition_snapshot?: { label: string; cabinet: boolean; client: boolean; periodicite?: string }[];
   numero: string;
   status?: string;
+  mission_type?: string;
   variables_resolved?: Record<string, string>;
 }, cabinet: { nom: string; adresse: string; cp: string; ville: string; siret: string; numeroOEC: string; email: string; telephone: string }, options?: { signatureExpert?: string; signatureClient?: string }): void {
   try {
@@ -1599,7 +1602,21 @@ export function generatePdfFromInstance(instance: {
     doc.setFontSize(14);
     doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
     doc.text("LETTRE DE MISSION", PAGE_W / 2, y, { align: "center" });
-    y += 12;
+    y += 7;
+
+    // Mission type subtitle
+    if (instance.mission_type) {
+      const mtConf = getMissionTypeConfig(instance.mission_type);
+      doc.setFontSize(10);
+      doc.text(mtConf.label.toUpperCase(), PAGE_W / 2, y, { align: "center" });
+      doc.setFontSize(8);
+      y += 4;
+      doc.setTextColor(130, 130, 130);
+      doc.text(`Norme applicable : ${mtConf.normeRef}`, PAGE_W / 2, y, { align: "center" });
+      y += 8;
+    } else {
+      y += 5;
+    }
 
     let pageNum = 1;
 

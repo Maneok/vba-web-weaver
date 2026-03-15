@@ -20,6 +20,7 @@ import { saveAs } from "file-saver";
 import { logger } from "@/lib/logger";
 import type { LettreMission } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
 const NAVY = "1A1A2E";
 const GREY = "F5F5F8";
@@ -203,7 +204,7 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
 
   children.push(
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "PRÉSENTATION DES COMPTES ANNUELS", bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: (lm?.options as any)?.missionTypeLabel?.toUpperCase() || "PRÉSENTATION DES COMPTES ANNUELS", bold: true, size: 22, color: NAVY })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.ville}, le ${lm.date}  |  Réf. ${lm.numero}`, size: 18, color: "888888" })] }),
   );
 
@@ -721,6 +722,7 @@ export async function generateDocxFromInstance(instance: {
   repartition_snapshot?: { label: string; cabinet: boolean; client: boolean; periodicite?: string }[];
   numero: string;
   status?: string;
+  mission_type?: string;
 }, cabinet: { nom: string; adresse: string; cp: string; ville: string; siret: string; numeroOEC: string; email: string; telephone: string }): Promise<void> {
   try {
     const children: (Paragraph | Table)[] = [];
@@ -745,10 +747,29 @@ export async function generateDocxFromInstance(instance: {
     children.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
-        spacing: { before: 200, after: 300 },
+        spacing: { before: 200, after: 100 },
         children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })],
       }),
     );
+
+    // Mission type subtitle
+    if (instance.mission_type) {
+      const mtConf = getMissionTypeConfig(instance.mission_type);
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 80 },
+          children: [new TextRun({ text: mtConf.label.toUpperCase(), bold: true, size: 22, color: NAVY })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
+          children: [new TextRun({ text: `Norme applicable : ${mtConf.normeRef}`, size: 18, color: "888888" })],
+        }),
+      );
+    } else {
+      children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+    }
 
     // Sections
     for (const section of instance.sections_snapshot) {

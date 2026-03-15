@@ -1,5 +1,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { MISSION_TYPES, getMissionTypeConfig } from "./lettreMissionTypes";
+import type { MissionTypeConfig } from "./lettreMissionTypes";
 
 // ══════════════════════════════════════════════
 // Types
@@ -23,6 +25,7 @@ export interface LMModele {
   cabinet_id: string;
   nom: string;
   description?: string;
+  mission_type?: string;
   sections: LMSection[];
   cgv_content: string;
   repartition_taches: any[];
@@ -361,6 +364,204 @@ export const GRIMY_DEFAULT_REPARTITION = [
 ];
 
 // ══════════════════════════════════════════════
+// Build sections for a specific mission type
+// ══════════════════════════════════════════════
+
+function createSpecificSection(sectionId: string, config: MissionTypeConfig): LMSection {
+  const specificSections: Record<string, Partial<LMSection>> = {
+    equipe_audit: {
+      titre: "Composition de l'équipe d'audit",
+      contenu: "L'équipe d'audit sera composée de :\n{{composition_equipe}}\n\nSi certains membres ne pouvaient intervenir, nous mettrions à votre disposition des intervenants de compétences comparables.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "ISA 210 §10",
+    },
+    planning_audit: {
+      titre: "Planning d'intervention",
+      contenu: "Le planning prévisionnel d'intervention est le suivant :\n{{planning_audit}}\n\nCe planning pourra être ajusté en fonction des contraintes opérationnelles.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "ISA 210 §10",
+    },
+    declarations_ecrites: {
+      titre: "Déclarations écrites",
+      contenu: "Conformément à la norme ISA 580, nous vous demanderons de nous fournir des déclarations écrites confirmant certaines des déclarations faites au cours de l'audit, notamment sur l'exhaustivité des informations fournies et la reconnaissance de votre responsabilité dans l'établissement des états financiers.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "ISA 210 §10",
+    },
+    objet_attestation: {
+      titre: "Objet de l'attestation",
+      contenu: "L'attestation portera sur l'information suivante : {{objet_attestation}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 3100 §15",
+    },
+    nature_travaux_attestation: {
+      titre: "Nature des travaux",
+      contenu: "La nature de nos travaux comprend : {{nature_travaux_attestation}}.\n\nParticipation du responsable de mission à l'élaboration de l'information : {{participation_elaboration}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 3100 §15",
+    },
+    utilisation_prevue: {
+      titre: "Utilisation prévue des informations",
+      contenu: "L'utilisation prévue des informations prévisionnelles est : {{utilisation_prevue}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 3400 §11",
+    },
+    destinataires_info: {
+      titre: "Destinataires",
+      contenu: "Les destinataires des informations sont : {{destinataires_info}}.\nType de diffusion : {{type_diffusion}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 3400 §11",
+    },
+    nature_hypotheses: {
+      titre: "Nature des hypothèses",
+      contenu: "Les hypothèses retenues sont de nature : {{nature_hypotheses}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 3400 §11",
+    },
+    periode_couverte: {
+      titre: "Période couverte",
+      contenu: "Les informations prévisionnelles couvrent la période du {{periode_debut_prev}} au {{periode_fin_prev}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 3400 §11",
+    },
+    contexte_mission: {
+      titre: "Contexte de la mission",
+      contenu: "Le contexte de la mission est : {{contexte_mission}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 4400 §11",
+    },
+    informations_examinees: {
+      titre: "Informations examinées",
+      contenu: "Les informations sur lesquelles portent les procédures sont : {{informations_examinees}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 4400 §11",
+    },
+    procedures_detail: {
+      titre: "Procédures à mettre en œuvre",
+      contenu: "Les procédures définies d'un commun accord sont les suivantes :\n{{procedures_detail}}",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 4400 §11",
+    },
+    calendrier_procedures: {
+      titre: "Calendrier",
+      contenu: "Le calendrier des procédures est : {{calendrier_procedures}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 4400 §11",
+    },
+    diffusion_rapport: {
+      titre: "Limites de diffusion du rapport",
+      contenu: "La diffusion du rapport est limitée à : {{diffusion_rapport}}.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 4400 §11",
+    },
+    informations_client: {
+      titre: "Informations à communiquer par le client",
+      contenu: "Vous vous engagez à nous communiquer l'ensemble des informations nécessaires à la réalisation de notre mission, notamment : {{nature_informations_client}}.\n\nVous confirmez la fiabilité, l'exhaustivité et l'exactitude des informations fournies.",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 2400 §11 / NP 4410 §11",
+    },
+    referentiel_comptable: {
+      titre: "Référentiel comptable",
+      contenu: "",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 2300 §8",
+    },
+    forme_rapport: {
+      titre: "Forme du rapport",
+      contenu: "",
+      type: "fixed",
+      cnoec_obligatoire: true,
+      cnoec_reference: "NP 2300 §8",
+    },
+  };
+
+  const spec = specificSections[sectionId] || {};
+  return {
+    id: sectionId,
+    titre: spec.titre || sectionId,
+    contenu: spec.contenu || "",
+    type: (spec.type || "fixed") as "fixed" | "conditional",
+    editable: true,
+    cnoec_obligatoire: spec.cnoec_obligatoire || false,
+    cnoec_reference: spec.cnoec_reference,
+    cnoec_warning: spec.cnoec_obligatoire
+      ? `Section requise par ${spec.cnoec_reference || "le référentiel normatif"}`
+      : undefined,
+    ordre: 99,
+  };
+}
+
+export function buildSectionsForMissionType(missionTypeId: string): LMSection[] {
+  const config = getMissionTypeConfig(missionTypeId);
+
+  // 1. Start with GRIMY default sections as the base
+  const allSections = [...GRIMY_DEFAULT_SECTIONS];
+
+  // 2. Add specific sections required by this mission type if not already present
+  for (const sectionId of config.requiredSections) {
+    if (!allSections.find((s) => s.id === sectionId)) {
+      allSections.push(createSpecificSection(sectionId, config));
+    }
+  }
+  for (const sectionId of config.optionalSections) {
+    if (!allSections.find((s) => s.id === sectionId)) {
+      allSections.push(createSpecificSection(sectionId, config));
+    }
+  }
+
+  // 3. Mark hidden/required sections for this mission type
+  const result = allSections.map((section) => ({
+    ...section,
+    hidden: config.hiddenSections.includes(section.id),
+    cnoec_obligatoire: config.requiredSections.includes(section.id)
+      ? true
+      : section.cnoec_obligatoire,
+  }));
+
+  // 4. Inject mission-type-specific normative text
+  const missionSection = result.find((s) => s.id === "mission");
+  if (missionSection) missionSection.contenu = config.missionText;
+
+  const natureLimite = result.find((s) => s.id === "nature_limite");
+  if (natureLimite && config.natureLimiteText)
+    natureLimite.contenu = config.natureLimiteText;
+
+  const formeRapport = result.find((s) => s.id === "forme_rapport");
+  if (formeRapport)
+    formeRapport.contenu =
+      "À l'issue de notre mission, nous émettrons : " +
+      config.formeRapport +
+      ".";
+
+  const refComptable = result.find((s) => s.id === "referentiel_comptable");
+  if (refComptable)
+    refComptable.contenu =
+      "Les comptes seront présentés conformément au référentiel comptable applicable : " +
+      config.referentielApplicable +
+      ".";
+
+  // 5. Filter hidden and reorder
+  return result
+    .filter((s) => !(s as any).hidden)
+    .map((s, i) => ({ ...s, ordre: i + 1 }));
+}
+
+// ══════════════════════════════════════════════
 // CRUD Supabase
 // ══════════════════════════════════════════════
 
@@ -415,6 +616,7 @@ export async function createModele(modele: Partial<LMModele>): Promise<LMModele>
       cabinet_id: modele.cabinet_id,
       nom: modele.nom ?? "Modèle standard",
       description: modele.description,
+      mission_type: modele.mission_type ?? "presentation",
       sections: modele.sections ?? GRIMY_DEFAULT_SECTIONS,
       cgv_content: modele.cgv_content ?? GRIMY_DEFAULT_CGV,
       repartition_taches: modele.repartition_taches ?? GRIMY_DEFAULT_REPARTITION,
@@ -502,6 +704,7 @@ export async function initCabinetDefaultModele(cabinetId: string): Promise<LMMod
     cabinet_id: cabinetId,
     nom: "Modèle GRIMY standard",
     description: "Modèle conforme CNOEC — Guide « La lettre de mission, en pratique » (sept. 2022)",
+    mission_type: "presentation",
     sections: GRIMY_DEFAULT_SECTIONS,
     cgv_content: GRIMY_DEFAULT_CGV,
     repartition_taches: GRIMY_DEFAULT_REPARTITION,
@@ -514,12 +717,37 @@ export async function initCabinetDefaultModele(cabinetId: string): Promise<LMMod
 // Validation CNOEC
 // ══════════════════════════════════════════════
 
-export function validateCnoecCompliance(sections: LMSection[]): {
+export function validateCnoecCompliance(sections: LMSection[], missionType?: string): {
   valid: boolean;
   warnings: CnoecWarning[];
 } {
   const warnings: CnoecWarning[] = [];
 
+  // If mission type specified, validate against its required sections
+  if (missionType) {
+    const config = getMissionTypeConfig(missionType);
+    for (const reqId of config.requiredSections) {
+      const found = sections.find((s) => s.id === reqId);
+      if (!found) {
+        warnings.push({
+          sectionId: reqId,
+          reference: config.normeRef,
+          message: `Section « ${reqId} » requise par ${config.normeRef} pour une mission de type « ${config.shortLabel} ».`,
+          severity: "warning",
+        });
+      } else if (!found.contenu || found.contenu.trim().length === 0) {
+        warnings.push({
+          sectionId: reqId,
+          reference: config.normeRef,
+          message: `La section « ${found.titre} » est vide (requise par ${config.normeRef}).`,
+          severity: "warning",
+        });
+      }
+    }
+    return { valid: warnings.length === 0, warnings };
+  }
+
+  // Fallback: validate against GRIMY default obligatory sections
   const obligatoireSections = GRIMY_DEFAULT_SECTIONS.filter((s) => s.cnoec_obligatoire);
 
   for (const required of obligatoireSections) {

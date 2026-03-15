@@ -222,6 +222,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           repartition_snapshot: modele.repartition_taches,
           numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
           status: data.statut,
+          mission_type: (data as any).mission_type_id || modele.mission_type || "presentation",
         }, {
           nom: "Cabinet Expertise Comptable",
           adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
@@ -277,6 +278,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           repartition_snapshot: modele.repartition_taches,
           numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
           status: data.statut,
+          mission_type: (data as any).mission_type_id || modele.mission_type || "presentation",
         }, {
           nom: "Cabinet Expertise Comptable",
           adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",

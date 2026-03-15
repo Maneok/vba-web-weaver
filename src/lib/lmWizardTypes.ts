@@ -26,6 +26,7 @@ export interface LMWizardData {
   siren: string;
   forme_juridique: string;
   type_mission: string; // TENUE | SURVEILLANCE | REVISION
+  mission_type_id: string; // normative OEC mission type (presentation, examen_limite, etc.)
 
   // Client info (pre-filled)
   dirigeant: string;
@@ -129,6 +130,7 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   siren: "",
   forme_juridique: "",
   type_mission: "",
+  mission_type_id: "presentation",
   dirigeant: "",
   qualite_dirigeant: "Gerant",
   adresse: "",

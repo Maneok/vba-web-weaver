@@ -102,7 +102,7 @@ const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   // ── CORRECTION 10 : Variables CNOEC manquantes ──
   responsable_mission: (c) => c.associe ?? "",
   referentiel_comptable: () => "PCG (règlement ANC n°2014-03)",
-  forme_rapport: () => "Attestation de présentation des comptes",
+  forme_rapport: () => "Selon le type de mission",
   indice_revision: () => "Indice INSEE prix services comptables",
   delai_mise_en_demeure: () => "30 jours",
   code_postal: (c) => c.cp,
