@@ -38,8 +38,8 @@ export function ScoreGauge({ score }: { score: number }) {
     : "bg-red-500/10";
 
   return (
-    <div className="flex items-center gap-2.5" aria-label={`Score de risque : ${score} sur 120`}>
-      <div className={`w-16 h-1.5 rounded-full ${bgColor} overflow-hidden`} role="progressbar" aria-valuenow={score} aria-valuemin={0} aria-valuemax={120}>
+    <div className="flex items-center gap-2.5" aria-label={`Score de risque : ${score} sur 100`}>
+      <div className={`w-16 h-1.5 rounded-full ${bgColor} overflow-hidden`} role="progressbar" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100}>
         <div
           className={`h-full rounded-full ${color} transition-all duration-500 ease-out`}
           style={{ width: `${pct}%` }}

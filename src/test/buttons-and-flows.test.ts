@@ -87,7 +87,7 @@ describe("Risk scoring never crashes", () => {
       cash: "OUI", pression: "OUI", distanciel: "OUI",
     });
     const result = calculateRiskScore(c);
-    expect(result.scoreGlobal).toBeLessThanOrEqual(120);
+    expect(result.scoreGlobal).toBeLessThanOrEqual(100);
     expect(result.nivVigilance).toBe("RENFORCEE");
   });
 
@@ -650,7 +650,7 @@ describe("Edge cases that crash buttons", () => {
 
   it("analytics handle very large portfolio", () => {
     const large = Array.from({ length: 200 }, (_, i) =>
-      makeClient({ ref: `C${i}`, scoreGlobal: Math.random() * 120 })
+      makeClient({ ref: `C${i}`, scoreGlobal: Math.random() * 100 })
     );
     expect(() => calculatePortfolioStats(large)).not.toThrow();
     expect(() => analyzeScoreDistribution(large)).not.toThrow();

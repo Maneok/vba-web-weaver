@@ -56,11 +56,11 @@ describe("riskEngine - calculateRiskScore", () => {
     });
     expect(result.scoreActivite).toBe(80);
     expect(result.malus).toBe(40);
-    expect(result.scoreGlobal).toBe(120); // min(80 + 40, 120)
+    expect(result.scoreGlobal).toBe(100); // min(80 + 40, 100)
     expect(result.nivVigilance).toBe("RENFORCEE");
   });
 
-  it("should cap score at 120", () => {
+  it("should cap score at 100", () => {
     const result = calculateRiskScore({
       ...baseParams,
       ape: "92.00Z", // score 100
@@ -68,7 +68,7 @@ describe("riskEngine - calculateRiskScore", () => {
       pression: true,
       distanciel: true,
     });
-    expect(result.scoreGlobal).toBe(120);
+    expect(result.scoreGlobal).toBe(100);
   });
 
   it("should return SIMPLIFIEE for score <= 25", () => {

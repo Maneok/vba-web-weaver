@@ -249,7 +249,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
               <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0" />
               <p className="text-xs text-orange-300">
-                Client a <strong>vigilance renforcee</strong> (score {selectedClient.scoreGlobal}/120) — envisagez un complement d'honoraires
+                Client a <strong>vigilance renforcee</strong> (score {selectedClient.scoreGlobal}/100) — envisagez un complement d'honoraires
               </p>
             </div>
           )}

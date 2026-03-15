@@ -631,12 +631,12 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
                     <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
                     <circle cx="60" cy="60" r="50" fill="none" stroke={vigilanceColor} strokeWidth="10"
-                      strokeDasharray={`${(Math.min(client.scoreGlobal, 120) / 120) * 314} 314`}
+                      strokeDasharray={`${(Math.min(client.scoreGlobal, 100) / 100) * 314} 314`}
                       strokeLinecap="round" className="transition-all duration-1000 ease-out" />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center flex-col">
                     <span className="text-3xl font-bold text-white">{client.scoreGlobal}</span>
-                    <span className="text-[10px] text-slate-500">/120</span>
+                    <span className="text-[10px] text-slate-500">/100</span>
                   </div>
                 </div>
                 <div className="mt-3"><VigilanceBadge level={client.nivVigilance} /></div>

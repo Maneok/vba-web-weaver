@@ -442,7 +442,7 @@ export default function NouveauClientPage() {
 
   const bodaccMalus = screening.bodacc.data?.malus ?? 0;
   const totalMalus = risk.malus + extraMalus + bodaccMalus;
-  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus, 120);
+  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus, 100);
 
   // #51: Animate score on step 4 (placed after adjustedScore to avoid TDZ)
   useEffect(() => {
@@ -1347,7 +1347,7 @@ export default function NouveauClientPage() {
     // CORRECTION 7: Apply AML structural malus
     const amlMalus = amlSignals.reduce((sum, s) => sum + s.malus, 0);
     if (amlMalus > 0) {
-      newClient.scoreGlobal = Math.min(newClient.scoreGlobal + amlMalus, 120);
+      newClient.scoreGlobal = Math.min(newClient.scoreGlobal + amlMalus, 100);
       if (newClient.scoreGlobal >= 60) newClient.nivVigilance = "RENFORCEE";
       else if (newClient.scoreGlobal >= 25) newClient.nivVigilance = "STANDARD";
     }
@@ -2659,11 +2659,11 @@ export default function NouveauClientPage() {
             </div>
 
             {/* #43: Real-time risk level indicator */}
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 120`}>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 100`}>
               <BarChart3 className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400">Niveau de risque en temps reel :</span>
               <VigilanceBadge level={risk.nivVigilance} />
-              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={120}>
+              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={100}>
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     adjustedScore >= 60 ? "bg-red-500" : adjustedScore >= 25 ? "bg-amber-500" : "bg-emerald-500"
@@ -2889,7 +2889,7 @@ export default function NouveauClientPage() {
                         cx="60" cy="60" r="50" fill="none"
                         stroke={vigilanceColor}
                         strokeWidth="10"
-                        strokeDasharray={`${(Math.min(animatedScore, 120) / 120) * 314} 314`}
+                        strokeDasharray={`${(Math.min(animatedScore, 100) / 100) * 314} 314`}
                         strokeLinecap="round"
                         className="transition-all duration-300 ease-out"
                       />

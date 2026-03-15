@@ -52,7 +52,7 @@ export default function RiskRadarWidget({ clients, loading }: Props) {
           className="text-xs font-bold px-2 py-0.5 rounded-full"
           style={{ backgroundColor: `${vigilanceColor}20`, color: vigilanceColor }}
         >
-          {scoreMoyen}/120
+          {scoreMoyen}/100
         </div>
       </div>
       <p className="text-[11px] text-muted-foreground mb-2">Moyenne des 6 axes de scoring</p>

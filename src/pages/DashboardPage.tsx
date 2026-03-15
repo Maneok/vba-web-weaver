@@ -501,7 +501,7 @@ export default function DashboardPage() {
           Pilotage Cabinet Dynamique LCB-FT
         </h2>
         <p className="text-[11px] text-muted-foreground mt-1">
-          Score moyen : <span className="font-semibold" style={{ color: cockpitData.scoreMoyen <= 25 ? "#22c55e" : cockpitData.scoreMoyen <= 60 ? "#f59e0b" : "#ef4444" }}>{cockpitData.scoreMoyen}/120</span>
+          Score moyen : <span className="font-semibold" style={{ color: cockpitData.scoreMoyen <= 25 ? "#22c55e" : cockpitData.scoreMoyen <= 60 ? "#f59e0b" : "#ef4444" }}>{cockpitData.scoreMoyen}/100</span>
           {" · "}Taux KYC : <span className="font-semibold">{cockpitData.tauxKycComplet}%</span>
           {" · "}Taux formation : <span className="font-semibold">{cockpitData.tauxFormation}%</span>
         </p>
@@ -522,12 +522,12 @@ export default function DashboardPage() {
         <KPICard
           icon={TrendingUp}
           title="Score moyen"
-          value={`${cockpitData.scoreMoyen}/120`}
+          value={`${cockpitData.scoreMoyen}/100`}
           color={cockpitData.scoreMoyen <= 25 ? "#22c55e" : cockpitData.scoreMoyen <= 60 ? "#f59e0b" : "#ef4444"}
           onClick={() => navigate("/diagnostic")}
           loading={isLoading}
           subValue={cockpitData.scoreMoyen <= 25 ? "Simplifiée" : cockpitData.scoreMoyen <= 60 ? "Standard" : "Renforcée"}
-          ariaLabel={`Score moyen : ${cockpitData.scoreMoyen}/120`}
+          ariaLabel={`Score moyen : ${cockpitData.scoreMoyen}/100`}
         />
         <KPICard
           icon={Shield}

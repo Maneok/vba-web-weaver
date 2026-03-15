@@ -394,7 +394,7 @@ export function runDiagnostic360(
     categorie: "RISQUE GLOBAL",
     indicateur: "Score de risque moyen du portefeuille",
     statut: scoreMoyen <= THRESHOLD_SCORE_MOYEN_OK ? "OK" : scoreMoyen <= THRESHOLD_SCORE_MOYEN_WARN ? "ALERTE" : "CRITIQUE",
-    detail: `Score moyen: ${scoreMoyen}/120`,
+    detail: `Score moyen: ${scoreMoyen}/100`,
     recommandation: scoreMoyen > THRESHOLD_SCORE_MOYEN_OK
       ? "Le niveau de risque moyen est eleve. Renforcer les mesures de vigilance."
       : "Aucune action requise.",

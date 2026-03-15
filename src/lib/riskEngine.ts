@@ -376,8 +376,8 @@ export function calculateRiskScore(params: {
     scoreGlobal = Math.round(avg + malus);
   }
 
-  // Cap
-  scoreGlobal = Math.min(scoreGlobal, 120);
+  // Cap at 100 (maximum score)
+  scoreGlobal = Math.min(scoreGlobal, 100);
 
   let nivVigilance: VigilanceLevel;
   if (scoreGlobal <= RISK_THRESHOLDS.SIMPLIFIEE_MAX) nivVigilance = "SIMPLIFIEE";

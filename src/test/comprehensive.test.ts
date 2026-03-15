@@ -104,9 +104,9 @@ describe("riskEngine — calculateRiskScore", () => {
     expect(r.malus).toBe(110); // 40+30+40
   });
 
-  it("6. score capped at 120", () => {
+  it("6. score capped at 100", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "92.00Z", cash: true, pression: true, distanciel: true });
-    expect(r.scoreGlobal).toBe(120);
+    expect(r.scoreGlobal).toBe(100);
   });
 
   it("7. unknown APE defaults to 25", () => {
@@ -186,7 +186,7 @@ describe("riskEngine — vigilance levels", () => {
   it("20. maxCriterion >= 60 uses max + malus instead of avg", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "47.77Z", cash: true });
     expect(r.scoreActivite).toBe(80);
-    expect(r.scoreGlobal).toBe(120); // 80 + 40 = 120
+    expect(r.scoreGlobal).toBe(100); // 80 + 40 capped at 100
   });
 });
 
