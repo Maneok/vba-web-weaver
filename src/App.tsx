@@ -37,6 +37,7 @@ const PricingPage = lazy(() => import("@/pages/PricingPage"));
 const CheckoutSuccessPage = lazy(() => import("@/pages/CheckoutSuccessPage"));
 const AdminUsersPage = lazy(() => import("@/pages/AdminUsersPage"));
 const AuditTrailPage = lazy(() => import("@/pages/AuditTrailPage"));
+const SuperAdminPage = lazy(() => import("@/pages/SuperAdminPage"));
 const InvitePage = lazy(() => import("@/pages/InvitePage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -110,6 +111,7 @@ const App = () => (
                   <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
                   <Route path="admin/users" element={<ProtectedRoute requiredPermission="manage_users"><SafePage><AdminUsersPage /></SafePage></ProtectedRoute>} />
                   <Route path="audit" element={<ProtectedRoute requiredPermission="view_audit"><SafePage><AuditTrailPage /></SafePage></ProtectedRoute>} />
+                  <Route path="super-admin" element={<SafePage><SuperAdminPage /></SafePage>} />
                   <Route path="settings" element={<Navigate to="/parametres" replace />} />
                   <Route path="dashboard" element={<Navigate to="/" replace />} />
                 </Route>

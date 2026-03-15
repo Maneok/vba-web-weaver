@@ -31,6 +31,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: { label: string; 
   "/lettre-mission": { title: "Lettre de Mission", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Lettre de Mission" }] },
   "/aide": { title: "Aide", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Aide" }] },
   "/notifications": { title: "Notifications", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Notifications" }] },
+  "/super-admin": { title: "Super Admin", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Super Admin" }] },
 };
 
 /** Compute user initials safely for single-word or empty names */

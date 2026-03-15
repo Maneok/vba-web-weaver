@@ -15,6 +15,7 @@ import {
   LogOut,
   HelpCircle,
   ChevronLeft,
+  Shield,
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -250,6 +251,26 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
           {renderSection(CONFORMITE_NAV, "Conformite")}
           {renderSection(OUTILS_NAV, "Outils")}
+
+          {/* Super Admin link — visible only for super admins */}
+          {profile?.is_super_admin && (
+            <div>
+              {collapsed ? (
+                <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-slate-800/50" />
+              ) : (
+                <div role="separator" aria-hidden="true" className="mt-2 border-t border-slate-800/50" />
+              )}
+              {!collapsed && (
+                <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-500">
+                  Administration
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {renderNavItem({ to: "/super-admin", label: "Super Admin", icon: Shield, shortcut: "S" })}
+              </div>
+            </div>
+          )}
+
           {renderSection(CONFIG_NAV, "Configuration")}
         </nav>
 

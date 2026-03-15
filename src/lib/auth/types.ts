@@ -10,6 +10,7 @@ export interface UserProfile {
   role: UserRole;
   avatar_url: string | null;
   is_active: boolean;
+  is_super_admin: boolean;
   created_at: string;
   updated_at: string;
 }
