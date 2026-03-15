@@ -139,25 +139,25 @@ describe("DashboardCockpit", () => {
     expect(item.tagName).toBe("DIV");
   });
 
-  // 8. "Voir les N autres" button appears when more than 5 items
-  it('shows "Voir les N autres" button when more than 5 items', () => {
+  // 8. "Voir les N actions restantes" button appears when more than 3 items
+  it('shows "Voir les N actions restantes" button when more than 3 items', () => {
     const urgencies = Array.from({ length: 12 }, (_, i) =>
       makeUrgency({ title: `Item ${i}` })
     );
     renderCockpit(buildCockpit(urgencies));
-    expect(screen.getByText("Voir les 7 autres")).toBeInTheDocument();
-    // Only 5 visible items
-    expect(screen.queryByText("Item 5")).not.toBeInTheDocument();
+    expect(screen.getByText("Voir les 9 actions restantes")).toBeInTheDocument();
+    // Only 3 visible items
+    expect(screen.queryByText("Item 3")).not.toBeInTheDocument();
   });
 
-  // 9. Clicking "Voir les N autres" expands the list
+  // 9. Clicking expand button expands the list
   it("expands the list when clicking the expand button", () => {
     const urgencies = Array.from({ length: 10 }, (_, i) =>
       makeUrgency({ title: `Expand item ${i}` })
     );
     renderCockpit(buildCockpit(urgencies));
     expect(screen.queryByText("Expand item 9")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Voir les 5 autres"));
+    fireEvent.click(screen.getByText("Voir les 7 actions restantes"));
     expect(screen.getByText("Expand item 9")).toBeInTheDocument();
   });
 
@@ -167,7 +167,7 @@ describe("DashboardCockpit", () => {
       makeUrgency({ title: `Collapse item ${i}` })
     );
     renderCockpit(buildCockpit(urgencies));
-    fireEvent.click(screen.getByText("Voir les 5 autres"));
+    fireEvent.click(screen.getByText("Voir les 7 actions restantes"));
     expect(screen.getByText("Collapse item 9")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Réduire la liste"));
     expect(screen.queryByText("Collapse item 9")).not.toBeInTheDocument();
@@ -244,9 +244,9 @@ describe("DashboardCockpit", () => {
     expect(screen.getByText("Tous vos dossiers sont à jour")).toBeInTheDocument();
   });
 
-  // Additional: no expand button when exactly 5 items
-  it("does not show expand button when exactly 5 items", () => {
-    const urgencies = Array.from({ length: 5 }, (_, i) =>
+  // Additional: no expand button when exactly 3 items
+  it("does not show expand button when exactly 3 items", () => {
+    const urgencies = Array.from({ length: 3 }, (_, i) =>
       makeUrgency({ title: `Exact item ${i}` })
     );
     renderCockpit(buildCockpit(urgencies));

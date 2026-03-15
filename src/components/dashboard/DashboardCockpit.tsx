@@ -13,7 +13,7 @@ interface DashboardCockpitProps {
   isLoading: boolean;
 }
 
-const VISIBLE_DEFAULT = 5;
+const VISIBLE_DEFAULT = 3;
 
 const severityDot: Record<CockpitUrgency["severity"], string> = {
   critique: "bg-red-500 animate-pulse",
@@ -173,17 +173,18 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
       ) : (
         <>
           {/* Urgency list */}
-          <div className="space-y-0.5" role="list" aria-label="Liste des anomalies cockpit">
+          <div className="space-y-1" role="list" aria-label="Liste des anomalies cockpit">
             {visibleItems.map((u, i) => {
               const isClickable = !!u.ref;
               const Tag = isClickable ? "button" : "div";
+              const leftBorder = u.severity === "critique" ? "border-l-red-500" : u.severity === "warning" ? "border-l-orange-500" : "border-l-blue-500";
               return (
                 <Tag
                   key={`${u.type}-${u.ref ?? ""}-${i}`}
                   role="listitem"
-                  className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-lg border border-transparent transition-all duration-200 text-left ${
+                  className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-lg border border-transparent border-l-2 ${leftBorder} transition-all duration-200 text-left ${
                     isClickable
-                      ? "hover:bg-muted/50 hover:border-white/[0.06] cursor-pointer"
+                      ? "hover:bg-muted/50 hover:border-white/[0.06] hover:border-l-2 cursor-pointer"
                       : ""
                   }`}
                   {...(isClickable
@@ -222,7 +223,7 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
             >
               {expanded
                 ? "Réduire la liste"
-                : `Voir les ${hiddenCount} autre${hiddenCount > 1 ? "s" : ""}`}
+                : `Voir les ${hiddenCount} action${hiddenCount > 1 ? "s" : ""} restante${hiddenCount > 1 ? "s" : ""}`}
             </button>
           )}
         </>

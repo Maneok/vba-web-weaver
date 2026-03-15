@@ -67,12 +67,12 @@ export default function ComplianceRadar({ items, score, isLoading = false }: Com
       aria-label={`Radar de conformité LCB-FT : ${score}%`}
     >
       {/* Header with title and score */}
-      <div className="flex items-center justify-between mb-2">
+      <div className="flex items-center justify-between mb-1">
         <h3 className="font-semibold text-sm flex items-center gap-2">
           <Shield className="w-4 h-4 text-primary" aria-hidden="true" />
           Conformité LCB-FT
         </h3>
-        <span className={`text-2xl font-bold tabular-nums ${scoreColorClass(score)}`}>
+        <span className={`text-3xl font-bold tabular-nums ${scoreColorClass(score)}`}>
           {score}%
         </span>
       </div>
@@ -80,19 +80,21 @@ export default function ComplianceRadar({ items, score, isLoading = false }: Com
       {/* Radar chart */}
       <div className="min-h-[280px]">
         <ResponsiveContainer width="100%" height={280}>
-          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-            <PolarGrid stroke="hsl(215, 20%, 25%)" />
+          <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%">
+            <PolarGrid stroke="hsl(215, 20%, 25%)" strokeOpacity={0.6} />
             <PolarAngleAxis
               dataKey="subject"
               tick={({ x, y, textAnchor, payload }: any) => {
                 const item = radarData.find(d => d.subject === payload.value);
                 const val = item?.value ?? 0;
+                const met = item ? val >= item.target : false;
                 return (
                   <text
                     x={x}
                     y={y}
+                    dy={4}
                     textAnchor={textAnchor}
-                    fill="hsl(215, 20%, 60%)"
+                    fill={met ? "hsl(142, 71%, 45%)" : "hsl(215, 20%, 55%)"}
                     fontSize={11}
                   >
                     <tspan fontWeight={500}>{payload.value}</tspan>
@@ -107,7 +109,7 @@ export default function ComplianceRadar({ items, score, isLoading = false }: Com
               stroke="hsl(217, 91%, 60%)"
               strokeWidth={2}
               fill="hsl(217, 91%, 60%)"
-              fillOpacity={0.25}
+              fillOpacity={0.3}
               dot={{ r: 4, fill: "hsl(217, 91%, 60%)" }}
             />
             <Tooltip
@@ -131,11 +133,20 @@ export default function ComplianceRadar({ items, score, isLoading = false }: Com
         </ResponsiveContainer>
       </div>
 
-      {/* Summary below */}
-      <p className="text-sm text-muted-foreground text-center mt-1">
-        <span className="font-medium text-foreground">{objectifsAtteints}/{items.length}</span>{" "}
-        {objectifsAtteints > 1 ? "objectifs atteints" : "objectif atteint"}
-      </p>
+      {/* Summary with objective dots */}
+      <div className="flex items-center justify-center gap-1.5 mt-1">
+        {items.map((item, i) => (
+          <div
+            key={i}
+            className={`w-2 h-2 rounded-full ${item.value >= item.target ? "bg-emerald-500" : "bg-muted-foreground/30"}`}
+            title={`${SHORT_LABELS[item.label] || item.label} : ${item.value >= item.target ? "atteint" : "non atteint"}`}
+          />
+        ))}
+        <span className="text-xs text-muted-foreground ml-2">
+          <span className="font-medium text-foreground">{objectifsAtteints}/{items.length}</span>{" "}
+          objectifs
+        </span>
+      </div>
     </div>
   );
 }

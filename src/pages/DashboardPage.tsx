@@ -6,17 +6,34 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { analyzeCockpit } from "@/lib/cockpitEngine";
-import { Button } from "@/components/ui/button";
 import {
   RefreshCw, Loader2,
   Building2, UserCheck, CreditCard, MapPin, Hash, ShieldCheck,
-  Users, Shield, AlertTriangle, FileText,
+  Users, Shield, AlertTriangle, FileText, GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import OnboardingWizard, { isOnboardingComplete } from "@/components/OnboardingWizard";
-import { QuickActionsBar, QuickActionsFAB } from "@/components/dashboard/QuickActions";
+import { QuickActionsFAB } from "@/components/dashboard/QuickActions";
 import { KPICard } from "@/components/dashboard/KPICard";
 import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import StatusBanner from "@/components/dashboard/StatusBanner";
 import DashboardCockpit from "@/components/dashboard/DashboardCockpit";
 import DashboardSearch from "@/components/dashboard/DashboardSearch";
 import DashboardShortcutsHelp from "@/components/dashboard/DashboardShortcutsHelp";
@@ -42,10 +59,70 @@ const LazyVigilanceDonut = React.lazy(() =>
 function ChartSkeleton({ height = "h-[340px]" }: { height?: string }) {
   return (
     <div className={`bg-card rounded-2xl border border-border p-5 ${height} animate-pulse`}>
-      <div className="h-5 w-44 bg-muted rounded mb-4" />
+      <div className="h-4 w-44 bg-muted rounded mb-4" />
       <div className="h-full bg-muted/50 rounded-xl" />
     </div>
   );
+}
+
+// ── DnD Widget wrapper ───────────────────────────────────────
+function DashboardWidget({ id, children }: { id: string; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group/widget ${isDragging ? "z-50 opacity-75 scale-[1.02]" : ""}`}
+      {...attributes}
+    >
+      <button
+        {...listeners}
+        className="absolute -top-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/widget:opacity-50 hover:!opacity-100 focus:!opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10 bg-card border border-border rounded-full p-1 shadow-sm print:hidden"
+        aria-label="Déplacer ce widget"
+        tabIndex={-1}
+      >
+        <GripVertical className="w-3 h-3 text-muted-foreground" />
+      </button>
+      {children}
+    </div>
+  );
+}
+
+// ── Widget order persistence ─────────────────────────────────
+type WidgetKey = "cockpit" | "radar" | "chart" | "vigilance" | "activity" | "quality";
+const DEFAULT_ORDER: WidgetKey[] = ["cockpit", "radar", "chart", "vigilance", "activity", "quality"];
+const WIDGET_ORDER_KEY = "dashboard-widget-order-v2";
+
+function loadWidgetOrder(): WidgetKey[] {
+  try {
+    const stored = localStorage.getItem(WIDGET_ORDER_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        const valid = parsed.filter((k: string) => DEFAULT_ORDER.includes(k as WidgetKey)) as WidgetKey[];
+        const missing = DEFAULT_ORDER.filter(k => !valid.includes(k));
+        if (valid.length + missing.length === DEFAULT_ORDER.length) return [...valid, ...missing];
+      }
+    }
+  } catch { /* ignore */ }
+  return [...DEFAULT_ORDER];
+}
+
+function saveWidgetOrder(order: WidgetKey[]) {
+  try { localStorage.setItem(WIDGET_ORDER_KEY, JSON.stringify(order)); } catch { /* ignore */ }
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -70,6 +147,7 @@ export default function DashboardPage() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<string[]>([]);
   const [missionsData, setMissionsData] = useState<{ count: number; ca: number | null }>({ count: 0, ca: null });
+  const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(loadWidgetOrder);
   const reducedMotion = useReducedMotion();
   const [autoRefreshInterval] = useAutoRefreshInterval();
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -78,6 +156,25 @@ export default function DashboardPage() {
   refreshAllRef.current = refreshAll;
   const mountedRef = useRef(true);
   const lastManualRefresh = useRef(0);
+
+  // ── DnD sensors ─────────────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setWidgetOrder(prev => {
+        const oldIndex = prev.indexOf(active.id as WidgetKey);
+        const newIndex = prev.indexOf(over.id as WidgetKey);
+        const next = arrayMove(prev, oldIndex, newIndex);
+        saveWidgetOrder(next);
+        return next;
+      });
+    }
+  }
 
   // ── Handlers ────────────────────────────────────────────────
   const handleRefresh = useCallback(() => {
@@ -250,7 +347,7 @@ export default function DashboardPage() {
     ];
   }, [clients, collaborateurs]);
 
-  // ── Compliance score (single source of truth for KPI card + radar) ──
+  // ── Compliance score (single source of truth) ──────────────
   const complianceScore = useMemo(() =>
     Math.round(complianceItems.reduce((sum, item) => sum + item.value, 0) / complianceItems.length),
     [complianceItems]
@@ -262,11 +359,18 @@ export default function DashboardPage() {
     [clients, collaborateurs, alertes]
   );
 
-  // ── Alertes count (warnings + critiques from cockpit) ─────
-  const alertesCount = useMemo(() => {
+  // ── Alertes count (critical + warning from cockpit) ───────
+  const criticalCount = useMemo(() => {
     const urgencies = cockpitData.urgencies ?? [];
-    return urgencies.filter(u => u.severity === "critique" || u.severity === "warning").length;
+    return urgencies.filter(u => u.severity === "critique").length;
   }, [cockpitData]);
+
+  const warningCount = useMemo(() => {
+    const urgencies = cockpitData.urgencies ?? [];
+    return urgencies.filter(u => u.severity === "warning").length;
+  }, [cockpitData]);
+
+  const alertesCount = criticalCount + warningCount;
 
   // ── Monthly chart data ────────────────────────────────────
   const monthlyData = useMemo(() => {
@@ -318,28 +422,68 @@ export default function DashboardPage() {
   const showOnboarding = !isLoading && clients.length === 0 && !isOnboardingComplete();
   const printDate = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 
+  // ── Widget content map ────────────────────────────────────
+  const widgetContent: Record<WidgetKey, React.ReactNode> = {
+    cockpit: <DashboardCockpit cockpit={cockpitData} isLoading={isLoading} />,
+    radar: (
+      <React.Suspense fallback={<ChartSkeleton height="h-[380px]" />}>
+        <ComplianceRadar items={complianceItems} score={complianceScore} isLoading={isLoading} />
+      </React.Suspense>
+    ),
+    chart: (
+      <React.Suspense fallback={<ChartSkeleton />}>
+        <LazyMonthlyChart data={monthlyData} loading={isLoading} />
+      </React.Suspense>
+    ),
+    vigilance: (
+      <React.Suspense fallback={<ChartSkeleton />}>
+        <LazyVigilanceDonut
+          simplifiee={stats.simplifiee}
+          standard={stats.standard}
+          renforcee={stats.renforcee}
+          loading={isLoading}
+        />
+      </React.Suspense>
+    ),
+    activity: (
+      <div className="space-y-2">
+        <ActivityFeed logs={logs.slice(0, 3)} loading={isLoading} />
+        {!isLoading && logs.length > 0 && (
+          <div className="text-center">
+            <button
+              onClick={() => navigate("/audit-trail")}
+              className="text-xs text-primary hover:underline transition-colors"
+            >
+              Voir le journal complet
+            </button>
+          </div>
+        )}
+      </div>
+    ),
+    quality: <DashboardDataQuality categories={dataQualityCategories} isLoading={isLoading} />,
+  };
+
   return (
     <DashboardAccessibility announcements={announcements}>
     <div
-      className={`p-6 lg:p-8 max-w-[1600px] mx-auto ${reducedMotion ? "" : "animate-fade-in-up"} print:bg-white print:text-black print:p-4`}
+      className={`p-5 lg:p-8 max-w-[1400px] mx-auto ${reducedMotion ? "" : "animate-fade-in-up"} print:bg-white print:text-black print:p-4`}
       role="main"
       aria-label="Tableau de bord"
     >
       <DashboardPrintHeader cabinetName={cabinetName} userName={userName} date={printDate} />
       {showOnboarding && <OnboardingWizard />}
 
-      {/* ── TOP BAR ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8 pb-6 border-b border-white/[0.06] print:mb-4 print:border-0">
+      {/* ── TOP BAR (simplified: search + notifications + refresh) ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 print:mb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl font-bold tracking-tight">
             {greeting}, {userName}
           </h1>
-          <p className="text-sm text-muted-foreground capitalize mt-1">{formatDateLong()}</p>
+          <p className="text-xs text-muted-foreground capitalize mt-0.5">{formatDateLong()}</p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap print:hidden">
-          <DashboardSearch clients={clients} alertes={alertes} className="w-40 sm:w-56 md:w-64 lg:w-80" inputRef={searchInputRef} />
-          <QuickActionsBar />
+          <DashboardSearch clients={clients} alertes={alertes} className="w-40 sm:w-56 md:w-64" inputRef={searchInputRef} />
           <DashboardNotificationCenter
             notifications={notifications}
             onMarkAsRead={handleMarkNotificationAsRead}
@@ -350,22 +494,41 @@ export default function DashboardPage() {
             clients={clients}
             alertes={alertes}
             collaborateurs={collaborateurs}
-            stats={{ totalClients: stats.totalClients, avgScore: 0, tauxConformite: complianceScore, alertesEnCours: alertesCount, revuesEchues: 0, caPrevisionnel: 0, simplifiee: stats.simplifiee, standard: stats.standard, renforcee: stats.renforcee }}
+            stats={{ totalClients: stats.totalClients, avgScore: 0, tauxConformite: complianceScore, alertesEnCours: alertesCount, revuesEchues: 0, caPrevisionnel: 0 }}
             cockpitUrgencies={cockpitData.urgencies}
             complianceItems={complianceItems}
           />
+          <button
+            className="h-9 w-9 flex items-center justify-center rounded-lg border border-border hover:bg-muted/50 transition-colors disabled:opacity-50"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Rafraîchir (R)"
+            aria-label="Rafraîchir les données"
+          >
+            {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════
-          BANDE 1 — KPI Cards (4 cartes en ligne)
+          ZONE FIXE — Statut + KPIs
           ═══════════════════════════════════════════════════════ */}
+
+      {/* Bannière de statut émotionnelle */}
+      <div className="mb-5">
+        <StatusBanner
+          criticalCount={criticalCount}
+          warningCount={warningCount}
+          isLoading={isLoading}
+        />
+      </div>
+
+      {/* 4 KPI Cards */}
       <div
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-5 mb-6"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
         role="region"
-        aria-label="Indicateurs clés de performance"
+        aria-label="Indicateurs clés"
       >
-        {/* Carte 1 : Clients actifs */}
         <KPICard
           icon={Users}
           title="Clients actifs"
@@ -376,115 +539,59 @@ export default function DashboardPage() {
           subValue={stats.totalClients === 0 ? "Ajouter un client" : undefined}
           ariaLabel={`Clients actifs : ${stats.totalClients}`}
         />
-
-        {/* Carte 2 : Conformité globale */}
         <KPICard
           icon={Shield}
-          title="Conformité globale"
+          title="Conformité"
           value={`${complianceScore}%`}
           color={conformiteColor}
+          progress={complianceScore}
           onClick={() => navigate("/controle")}
           loading={isLoading}
           ariaLabel={`Conformité globale : ${complianceScore}%`}
         />
-
-        {/* Carte 3 : Alertes en cours */}
         <KPICard
           icon={AlertTriangle}
-          title="Alertes en cours"
-          value={alertesCount > 0 ? alertesCount : "Aucune alerte"}
+          title="Alertes"
+          value={alertesCount > 0 ? alertesCount : "Aucune"}
           color={alertesColor}
           onClick={() => navigate("/registre")}
           loading={isLoading}
-          ariaLabel={alertesCount > 0 ? `${alertesCount} alerte${alertesCount > 1 ? "s" : ""} en cours` : "Aucune alerte en cours"}
+          ariaLabel={alertesCount > 0 ? `${alertesCount} alerte${alertesCount > 1 ? "s" : ""}` : "Aucune alerte"}
         />
-
-        {/* Carte 4 : Missions actives */}
         <KPICard
           icon={FileText}
-          title="Missions actives"
+          title="Missions"
           value={missionsData.count}
-          color="#3b82f6"
+          color="#8b5cf6"
           onClick={() => navigate("/lettre-mission")}
           loading={isLoading}
           subValue={missionsSubValue}
-          ariaLabel={`${missionsData.count} mission${missionsData.count > 1 ? "s" : ""} active${missionsData.count > 1 ? "s" : ""}${caSubValue ? ` — ${caSubValue}` : ""}`}
+          ariaLabel={`${missionsData.count} mission${missionsData.count > 1 ? "s" : ""} active${missionsData.count > 1 ? "s" : ""}`}
         />
       </div>
 
       {/* ═══════════════════════════════════════════════════════
-          BANDE 2 — Cockpit LCB-FT + Radar conformité (55/45)
+          ZONE DnD — 6 widgets réorganisables (grille 2 colonnes)
           ═══════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 mb-6" role="region" aria-label="Cockpit et radar conformité">
-        {/* Colonne gauche — Cockpit (≈55%) */}
-        <div className="lg:col-span-7">
-          <DashboardCockpit cockpit={cockpitData} isLoading={isLoading} />
-        </div>
-
-        {/* Colonne droite — Radar conformité (≈45%) */}
-        <div className="lg:col-span-5">
-          <React.Suspense fallback={<ChartSkeleton height="h-[380px]" />}>
-            <ComplianceRadar
-              items={complianceItems}
-              score={complianceScore}
-              isLoading={isLoading}
-            />
-          </React.Suspense>
-        </div>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════
-          BANDE 3 — Graphiques (50/50)
-          ═══════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-6" role="region" aria-label="Graphiques de suivi">
-        <React.Suspense fallback={<ChartSkeleton />}>
-          <LazyMonthlyChart data={monthlyData} loading={isLoading} />
-        </React.Suspense>
-        <React.Suspense fallback={<ChartSkeleton />}>
-          <LazyVigilanceDonut
-            simplifiee={stats.simplifiee}
-            standard={stats.standard}
-            renforcee={stats.renforcee}
-            loading={isLoading}
-          />
-        </React.Suspense>
-      </div>
-
-      {/* ═══════════════════════════════════════════════════════
-          BANDE 4 — Détail (50/50)
-          ═══════════════════════════════════════════════════════ */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5 mb-6" role="region" aria-label="Activité et qualité des données">
-        {/* Colonne gauche — Activité récente (5 max) */}
-        <div className="space-y-2">
-          <ActivityFeed logs={logs.slice(0, 5)} loading={isLoading} />
-          {!isLoading && logs.length > 0 && (
-            <div className="text-center">
-              <button
-                onClick={() => navigate("/audit-trail")}
-                className="text-xs text-primary hover:underline transition-colors"
-              >
-                Voir tout le journal
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Colonne droite — Qualité des données */}
-        <DashboardDataQuality categories={dataQualityCategories} isLoading={isLoading} />
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={widgetOrder} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+            {widgetOrder.map(key => (
+              <DashboardWidget key={key} id={key}>
+                {widgetContent[key]}
+              </DashboardWidget>
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* ── Footer ────────────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-4 pb-6 border-t border-white/[0.04] print:hidden">
+      <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-3 pb-4 print:hidden">
         <DataFreshnessIndicator lastRefresh={lastRefresh} staleThresholdMinutes={5} />
-        <button
-          className="hover:text-foreground transition-colors disabled:opacity-50"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          title="Rafraîchir les données"
-          aria-label="Rafraîchir les données du tableau de bord"
-        >
-          {isRefreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-        </button>
       </div>
 
       <QuickActionsFAB />
