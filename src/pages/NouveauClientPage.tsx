@@ -3243,6 +3243,57 @@ export default function NouveauClientPage() {
                   </div>
                 );
               }
+              // Fallback: generate a Fiche Entreprise from enterprise-lookup data when INPI is unavailable
+              if (allExtraits.length === 0 && !isLoading && selectedEnterprise) {
+                const ent = selectedEnterprise;
+                const today = new Date().toLocaleDateString("fr-FR");
+                const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const dirigeantsHtml = (ent.dirigeants ?? []).map(d =>
+                  `<div class="field"><span class="label">${esc(d.qualite || "Dirigeant")}</span><span class="value">${esc(d.prenom || "")} ${esc(d.nom || "")}</span></div>`
+                ).join("\n");
+                const beHtml = (ent.beneficiaires_effectifs ?? []).map(b =>
+                  `<div class="field"><span class="label">${esc(b.prenom || "")} ${esc(b.nom || "")}</span><span class="value">${b.pourcentage_parts ?? "?"}% parts${b.nationalite ? " — " + esc(b.nationalite) : ""}</span></div>`
+                ).join("\n");
+                const ficheHtml = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>Fiche Entreprise — ${esc(ent.raison_sociale)} — ${ent.siren}</title>
+<style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:20px;color:#333}h1{text-align:center;color:#1a1a2e;border-bottom:2px solid #1a1a2e;padding-bottom:10px;font-size:22px}h2{color:#1a1a2e;margin-top:30px;font-size:16px;border-bottom:1px solid #ccc;padding-bottom:5px}.field{display:flex;padding:8px 0;border-bottom:1px solid #eee}.label{font-weight:bold;width:250px;color:#555;flex-shrink:0}.value{flex:1}.footer{margin-top:40px;font-size:12px;color:#999;text-align:center;border-top:1px solid #ddd;padding-top:10px}@media print{body{margin:20px}}</style></head><body>
+<h1>FICHE ENTREPRISE</h1>
+<p style="text-align:center;color:#666;">Source : Annuaire des Entreprises (INSEE/INPI) — ${today}</p>
+<h2>Identite</h2>
+<div class="field"><span class="label">Denomination</span><span class="value">${esc(ent.raison_sociale)}</span></div>
+<div class="field"><span class="label">SIREN</span><span class="value">${ent.siren}</span></div>
+<div class="field"><span class="label">SIRET (siege)</span><span class="value">${ent.siret || ""}</span></div>
+<div class="field"><span class="label">Forme juridique</span><span class="value">${esc(ent.forme_juridique || ent.forme_juridique_raw || "")}</span></div>
+<div class="field"><span class="label">Capital</span><span class="value">${ent.capital ? ent.capital.toLocaleString("fr-FR") + " EUR" : "Non renseigne"}</span></div>
+<div class="field"><span class="label">Date de creation</span><span class="value">${esc(ent.date_creation || "")}</span></div>
+<div class="field"><span class="label">Etat</span><span class="value">${ent.etat_administratif === "A" ? "Active" : ent.etat_administratif}</span></div>
+<h2>Siege social</h2>
+<div class="field"><span class="label">Adresse</span><span class="value">${esc(ent.adresse || "")}</span></div>
+<div class="field"><span class="label">Code postal</span><span class="value">${esc(ent.code_postal || "")}</span></div>
+<div class="field"><span class="label">Commune</span><span class="value">${esc(ent.ville || "")}</span></div>
+<h2>Activite</h2>
+<div class="field"><span class="label">Code APE</span><span class="value">${esc(ent.ape || "")}</span></div>
+<div class="field"><span class="label">Libelle activite</span><span class="value">${esc(ent.libelle_ape || "")}</span></div>
+<div class="field"><span class="label">Effectif</span><span class="value">${esc(ent.effectif || "")}</span></div>
+<div class="field"><span class="label">Etablissements</span><span class="value">${ent.nombre_etablissements || 0}</span></div>
+<h2>Dirigeants</h2>
+${dirigeantsHtml || '<div class="field"><span class="value" style="color:#999;">Aucun dirigeant declare</span></div>'}
+<h2>Beneficiaires effectifs</h2>
+${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun beneficiaire effectif declare</span></div>'}
+<div class="footer">Document genere automatiquement depuis les donnees publiques (INSEE/INPI)<br>Ce document n'a pas de valeur legale officielle — Equivalent informatif a un extrait Kbis</div>
+</body></html>`;
+                const blob = new Blob([ficheHtml], { type: "text/html; charset=utf-8" });
+                const ficheUrl = URL.createObjectURL(blob);
+                allExtraits.push({
+                  type: "kbis",
+                  label: `Fiche Entreprise (equivalent Kbis) — ${today}`,
+                  url: ficheUrl,
+                  source: "annuaire_entreprises",
+                  available: true,
+                  status: "auto",
+                  storedInSupabase: false,
+                });
+              }
               if (allExtraits.length === 0 && !isLoading) {
                 return (
                   <div className="p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
