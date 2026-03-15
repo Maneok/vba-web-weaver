@@ -81,6 +81,9 @@ export interface LMWizardData {
   started_at: string; // ISO timestamp when wizard opened
   duration_seconds: number; // computed on final export
 
+  // Modele integration
+  modele_id: string; // selected LM modele ID (empty = GRIMY default)
+
   // Meta
   cabinet_id: string;
   created_by: string;
@@ -166,6 +169,7 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   annexes: [],
   started_at: "",
   duration_seconds: 0,
+  modele_id: "",
   cabinet_id: "",
   created_by: "",
   wizard_step: 0,

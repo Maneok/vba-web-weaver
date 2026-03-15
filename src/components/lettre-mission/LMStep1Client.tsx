@@ -1,16 +1,22 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
+import type { LMModele } from "@/lib/lettreMissionModeles";
+import { getModeles, validateCnoecCompliance } from "@/lib/lettreMissionModeles";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Search, Plus, Building2, User, CheckCircle2, BookOpen, Eye, CheckSquare, X,
-  AlertTriangle, ShieldAlert, History,
+  AlertTriangle, ShieldAlert, History, FileText, ShieldCheck, Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -33,10 +39,37 @@ function vigilanceColor(niv: string) {
 
 export default function LMStep1Client({ data, onChange }: Props) {
   const { clients } = useAppState();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [previousLM, setPreviousLM] = useState<{ id: string; wizard_data: Record<string, unknown>; numero: string; statut: string } | null>(null);
   const [screeningStatus, setScreeningStatus] = useState<"ok" | "expired" | "missing" | null>(null);
+  const [modeles, setModeles] = useState<LMModele[]>([]);
+  const [modelesLoading, setModelesLoading] = useState(false);
+
+  // Load modeles when cabinet is available
+  useEffect(() => {
+    const cabinetId = profile?.cabinet_id;
+    if (!cabinetId) return;
+    let cancelled = false;
+    setModelesLoading(true);
+    getModeles(cabinetId)
+      .then((m) => {
+        if (!cancelled) {
+          setModeles(m);
+          // Auto-select default modele if none selected
+          if (!data.modele_id) {
+            const defaultModele = m.find((mod) => mod.is_default);
+            if (defaultModele) {
+              onChange({ modele_id: defaultModele.id });
+            }
+          }
+        }
+      })
+      .catch((err) => logger.warn("LM", "Failed to load modeles:", err))
+      .finally(() => { if (!cancelled) setModelesLoading(false); });
+    return () => { cancelled = true; };
+  }, [profile?.cabinet_id]);
 
   const filtered = useMemo(() => {
     if (!search || search.length < 2) return clients.slice(0, 15);
@@ -334,6 +367,69 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 );
               })}
             </div>
+          </div>
+
+          {/* Modele selection */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-slate-500" />
+              <p className="text-sm font-medium text-slate-300">Modèle de lettre</p>
+            </div>
+            {modelesLoading ? (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Chargement des modèles...
+              </div>
+            ) : modeles.length === 0 ? (
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                <p className="text-xs text-slate-500">Aucun modèle configuré — le modèle GRIMY par défaut sera utilisé.</p>
+              </div>
+            ) : (
+              <Select
+                value={data.modele_id || ""}
+                onValueChange={(val) => onChange({ modele_id: val })}
+              >
+                <SelectTrigger className="h-11 bg-white/[0.04] border-white/[0.08] text-white">
+                  <SelectValue placeholder="Choisir un modèle..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {modeles.map((m) => {
+                    const cnoec = validateCnoecCompliance(m.sections);
+                    return (
+                      <SelectItem key={m.id} value={m.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{m.nom}</span>
+                          {m.is_default && (
+                            <Badge className="text-[8px] px-1 py-0 bg-amber-500/10 text-amber-400 border-amber-500/20">Défaut</Badge>
+                          )}
+                          {cnoec.valid ? (
+                            <ShieldCheck className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                          ) : (
+                            <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            )}
+            {data.modele_id && modeles.length > 0 && (() => {
+              const selected = modeles.find((m) => m.id === data.modele_id);
+              if (!selected) return null;
+              const cnoec = validateCnoecCompliance(selected.sections);
+              return (
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="text-slate-600">
+                    {selected.sections.length} sections · Source: {selected.source === "grimy" ? "GRIMY" : selected.source === "import_docx" ? "Import DOCX" : "Copie"}
+                  </span>
+                  {cnoec.valid ? (
+                    <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-400">Conforme CNOEC</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400">{cnoec.warnings.length} alerte{cnoec.warnings.length > 1 ? "s" : ""}</Badge>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </>
       )}

@@ -4,6 +4,7 @@ import { LM_STATUTS, computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
 import type { Client, EtatDossier, MissionType, OuiNon, VigilanceLevel, EtatPilotage, StatutClient } from "@/lib/types";
 import { sanitizeWizardData } from "@/lib/lmValidation";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
+import { buildVariablesMap, resolveModeleSections } from "@/lib/lettreMissionEngine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -204,8 +205,37 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   }, []);
 
   const handlePDF = () => withLock("pdf", async () => {
-    const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
     const sanitized = sanitizeWizardData(data);
+
+    // If a modele is selected, use modele-based generation
+    if (data.modele_id) {
+      try {
+        const { getModeleById } = await import("@/lib/lettreMissionModeles");
+        const { generatePdfFromInstance } = await import("@/lib/lettreMissionPdf");
+        const modele = await getModeleById(data.modele_id);
+        const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
+        const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
+        const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
+        generatePdfFromInstance({
+          sections_snapshot: resolved,
+          cgv_snapshot: modele.cgv_content,
+          repartition_snapshot: modele.repartition_taches,
+          numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
+          status: data.statut,
+        }, {
+          nom: "Cabinet Expertise Comptable",
+          adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
+        }, { signatureExpert: data.signature_expert, signatureClient: data.signature_client });
+        toast.success("PDF genere depuis le modele");
+        return;
+      } catch (err) {
+        // Fallback to legacy
+        console.warn("Modele PDF failed, falling back to legacy:", err);
+      }
+    }
+
+    // Legacy generation
+    const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
     const client = buildClientForExport(sanitized);
     const lm = {
       numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
@@ -230,8 +260,36 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   });
 
   const handleDOCX = () => withLock("docx", async () => {
-    const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
     const sanitized = sanitizeWizardData(data);
+
+    // If a modele is selected, use modele-based generation
+    if (data.modele_id) {
+      try {
+        const { getModeleById } = await import("@/lib/lettreMissionModeles");
+        const { generateDocxFromInstance } = await import("@/lib/lettreMissionDocx");
+        const modele = await getModeleById(data.modele_id);
+        const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
+        const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
+        const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
+        await generateDocxFromInstance({
+          sections_snapshot: resolved,
+          cgv_snapshot: modele.cgv_content,
+          repartition_snapshot: modele.repartition_taches,
+          numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
+          status: data.statut,
+        }, {
+          nom: "Cabinet Expertise Comptable",
+          adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
+        });
+        toast.success("DOCX genere depuis le modele");
+        return;
+      } catch (err) {
+        console.warn("Modele DOCX failed, falling back to legacy:", err);
+      }
+    }
+
+    // Legacy generation
+    const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
     const client = buildClientForExport(sanitized);
     await renderNewLettreMissionDocx({
       sections: DEFAULT_TEMPLATE,
