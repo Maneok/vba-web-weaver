@@ -1608,14 +1608,14 @@ export default function NouveauClientPage() {
   const vigilanceColor = risk.nivVigilance === "SIMPLIFIEE" ? "#10b981" : risk.nivVigilance === "STANDARD" ? "#f59e0b" : "#ef4444";
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1200px] mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1200px] mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Nouveau Client</h1>
           <p className="text-sm text-slate-500 mt-0.5">Parcours d'entree en relation</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Idee 18: KYC progress bar */}
           <Popover>
             <PopoverTrigger asChild>
@@ -1746,7 +1746,7 @@ export default function NouveauClientPage() {
       )}
 
       {/* Step content */}
-      <div className={`glass-card p-6 transition-all duration-300 ${fieldsVisible ? "opacity-100 translate-y-0" : stepDirection === "right" ? "opacity-0 translate-x-4" : "opacity-0 -translate-x-4"}`} style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.15)" }}>
+      <div className={`glass-card p-4 sm:p-6 transition-all duration-300 ${fieldsVisible ? "opacity-100 translate-y-0" : stepDirection === "right" ? "opacity-0 translate-x-4" : "opacity-0 -translate-x-4"}`} style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.15)" }}>
         {/* STEP 0: SEARCH */}
         {step === 0 && (
           <div className="space-y-6" role="region" aria-label="Etape 1 : Recherche de l'entreprise">
@@ -2163,7 +2163,7 @@ export default function NouveauClientPage() {
                 <CollapsibleContent>
                   <div className="px-5 pb-5 pt-2">
                     {/* #27: 3-column grid for short fields */}
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div data-error={!!validationErrors.raisonSociale}>
                         <SourceField
                           label={isPersonnePhysique ? "Nom du dirigeant *" : "Raison Sociale *"}
@@ -2231,7 +2231,7 @@ export default function NouveauClientPage() {
                     </div>
 
                     {/* Dates row */}
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                       {/* #26: Date picker */}
                       <div>
                         <SourceField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" source={autoFields.has("dateCreation") ? "data.gouv" : undefined} autoFilled={autoFields.has("dateCreation")} />
@@ -2286,7 +2286,7 @@ export default function NouveauClientPage() {
                   <ChevronDown className={`w-4 h-4 text-cyan-400 transition-transform duration-200 ${collapsedSections["coordonnees"] ? "-rotate-90" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="px-5 pb-5 pt-2 grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="px-3 sm:px-5 pb-5 pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <SourceField label="Adresse *" value={form.adresse} onChange={v => { set("adresse", sanitizeInput(v)); setTouchedFields(prev => new Set(prev).add("adresse")); }} source={autoFields.has("adresse") ? (screening.inpi.data?.companyData ? "INPI" : "data.gouv") : undefined} required autoFilled={autoFields.has("adresse")} />
                     {/* #16: Postal code auto-format */}
                     <SourceField label="Code Postal *" value={form.cp} onChange={v => { set("cp", formatPostalCode(v)); setTouchedFields(prev => new Set(prev).add("cp")); }} source={autoFields.has("cp") ? "INPI" : undefined} required autoFilled={autoFields.has("cp")} />
@@ -2386,7 +2386,7 @@ export default function NouveauClientPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="px-5 pb-5 pt-2">
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <FormField label="Type de mission *" type="select" value={form.mission} options={MISSIONS} onChange={v => set("mission", v)} />
                       <FormField label="Frequence" type="select" value={form.frequence} options={FREQUENCES} onChange={v => set("frequence", v)} />
                       <div>
@@ -2420,7 +2420,7 @@ export default function NouveauClientPage() {
                   <ChevronDown className={`w-4 h-4 text-violet-400 transition-transform duration-200 ${collapsedSections["equipe"] ? "-rotate-90" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="px-5 pb-5 pt-2 grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="px-3 sm:px-5 pb-5 pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <FormField label="Comptable assigne *" type="select" value={form.comptable} options={COMPTABLES} onChange={v => set("comptable", v)} />
                     <FormField label="Associe signataire *" type="select" value={form.associe} options={ASSOCIES} onChange={v => set("associe", v)} />
                     <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
