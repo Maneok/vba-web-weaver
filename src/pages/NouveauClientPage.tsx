@@ -1292,13 +1292,14 @@ export default function NouveauClientPage() {
       ...(screening.documents.data?.documents ?? []),
     ];
     const findDocUrl = (types: string[]): string => {
-      // Prefer stored PDFs, then any available URL
+      // Prefer stored PDFs, then any available URL — exclude blob: URLs (ephemeral, not persistable)
+      const isValidUrl = (u: string) => u && !u.startsWith("blob:");
       const stored = allScreeningDocs.find(d =>
-        types.some(t => d.type.toUpperCase().includes(t)) && d.storedInSupabase && d.url
+        types.some(t => d.type.toUpperCase().includes(t)) && d.storedInSupabase && isValidUrl(d.url)
       );
       if (stored?.url) return stored.url;
       const linked = allScreeningDocs.find(d =>
-        types.some(t => d.type.toUpperCase().includes(t)) && d.url && (d.status === "auto" || d.status === "lien_direct")
+        types.some(t => d.type.toUpperCase().includes(t)) && isValidUrl(d.url) && (d.status === "auto" || d.status === "lien_direct")
       );
       return linked?.url || "";
     };
