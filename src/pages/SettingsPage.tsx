@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
 import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen } from "lucide-react";
@@ -11,12 +11,30 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
-const SubscriptionSettings = lazy(() => import("@/components/settings/SubscriptionSettings"));
-const RefMissionsTab = lazy(() => import("@/components/settings/RefMissionsTab"));
-const RefPaysTab = lazy(() => import("@/components/settings/RefPaysTab"));
-const RefTypesJuridiquesTab = lazy(() => import("@/components/settings/RefTypesJuridiquesTab"));
-const RefActivitesTab = lazy(() => import("@/components/settings/RefActivitesTab"));
-const RefQuestionsTab = lazy(() => import("@/components/settings/RefQuestionsTab"));
+/** Retry dynamic import up to 2 times with a reload on final failure (handles stale deployments) */
+function lazyRetry<T extends { default: React.ComponentType<unknown> }>(
+  factory: () => Promise<T>,
+): Promise<T> {
+  return factory().catch(() =>
+    new Promise<T>((resolve) => setTimeout(resolve, 500)).then(() =>
+      factory().catch(() => {
+        const key = "chunk-reload-" + window.location.pathname;
+        if (!sessionStorage.getItem(key)) {
+          sessionStorage.setItem(key, "1");
+          window.location.reload();
+        }
+        return factory();
+      })
+    )
+  );
+}
+
+const SubscriptionSettings = lazy(() => lazyRetry(() => import("@/components/settings/SubscriptionSettings")));
+const RefMissionsTab = lazy(() => lazyRetry(() => import("@/components/settings/RefMissionsTab")));
+const RefPaysTab = lazy(() => lazyRetry(() => import("@/components/settings/RefPaysTab")));
+const RefTypesJuridiquesTab = lazy(() => lazyRetry(() => import("@/components/settings/RefTypesJuridiquesTab")));
+const RefActivitesTab = lazy(() => lazyRetry(() => import("@/components/settings/RefActivitesTab")));
+const RefQuestionsTab = lazy(() => lazyRetry(() => import("@/components/settings/RefQuestionsTab")));
 
 /* ---------- types ---------- */
 

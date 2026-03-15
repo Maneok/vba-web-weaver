@@ -5,6 +5,7 @@ import { logger } from "@/lib/logger";
 interface PageErrorBoundaryState {
   hasError: boolean;
   errorMessage?: string;
+  isChunkError?: boolean;
 }
 
 export default class PageErrorBoundary extends React.Component<
@@ -17,11 +18,23 @@ export default class PageErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: Error): PageErrorBoundaryState {
-    return { hasError: true, errorMessage: error.message };
+    const msg = error.message || "";
+    const isChunkError = msg.includes("dynamically imported module") || msg.includes("Loading chunk") || msg.includes("Failed to fetch");
+    return { hasError: true, errorMessage: msg, isChunkError };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error("[PageError]", error, errorInfo);
+    // Auto-reload once on chunk load failure (stale deployment)
+    const msg = error.message || "";
+    const isChunkError = msg.includes("dynamically imported module") || msg.includes("Loading chunk") || msg.includes("Failed to fetch");
+    if (isChunkError) {
+      const key = "chunk-reload-" + window.location.pathname;
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+      }
+    }
   }
 
   render() {
