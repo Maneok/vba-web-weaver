@@ -1,16 +1,19 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { RefreshCw, FileSpreadsheet, ExternalLink } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 interface Payment {
   id: string;
   created_at: string;
-  cabinet_name: string;
   cabinet_id: string;
-  amount: number;
+  cabinet_nom: string;
+  amount_cents: number;
   status: string;
-  description: string;
+  description: string | null;
+  receipt_url: string | null;
+  plan: string | null;
 }
 
 const statusColors: Record<string, string> = {
@@ -30,35 +33,60 @@ const statusLabels: Record<string, string> = {
 export default function AdminPayments() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [statusFilter, setStatusFilter] = useState("all");
   const [cabinetFilter, setCabinetFilter] = useState("all");
 
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase.rpc("admin_list_payments", { p_limit: 100 });
-        if (error) throw error;
-        setPayments((data ?? []) as unknown as Payment[]);
-      } catch (err) {
-        console.error("[AdminPayments] Load error:", err);
-        toast.error("Erreur lors du chargement des paiements");
-      } finally {
-        setLoading(false);
-      }
+  const load = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true);
+    else setLoading(true);
+    try {
+      // Use v_billing_history if available, fallback to payment_history + cabinets
+      const { data: paymentData, error } = await supabase
+        .from("payment_history")
+        .select("id, created_at, cabinet_id, amount_cents, status, description, receipt_url, plan")
+        .order("created_at", { ascending: false })
+        .limit(200);
+      if (error) throw error;
+
+      // Get unique cabinet IDs to fetch names
+      const cabinetIds = [...new Set((paymentData ?? []).map((p) => p.cabinet_id))];
+      const { data: cabinets } = await supabase
+        .from("cabinets")
+        .select("id, nom")
+        .in("id", cabinetIds.length > 0 ? cabinetIds : ["none"]);
+
+      const cabinetMap = new Map((cabinets ?? []).map((c) => [c.id, c.nom]));
+
+      setPayments(
+        (paymentData ?? []).map((p) => ({
+          ...p,
+          cabinet_nom: cabinetMap.get(p.cabinet_id) ?? "Cabinet inconnu",
+        })) as Payment[]
+      );
+      if (showRefresh) toast.success("Paiements actualises");
+    } catch (err) {
+      console.error("[AdminPayments] Load error:", err);
+      toast.error("Erreur lors du chargement des paiements");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    load();
   }, []);
 
-  const cabinets = useMemo(() => {
-    const names = new Set(payments.map((p) => p.cabinet_name).filter(Boolean));
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const cabinetNames = useMemo(() => {
+    const names = new Set(payments.map((p) => p.cabinet_nom).filter(Boolean));
     return Array.from(names).sort();
   }, [payments]);
 
   const filtered = useMemo(() => {
     return payments.filter((p) => {
       if (statusFilter !== "all" && p.status !== statusFilter) return false;
-      if (cabinetFilter !== "all" && p.cabinet_name !== cabinetFilter) return false;
+      if (cabinetFilter !== "all" && p.cabinet_nom !== cabinetFilter) return false;
       return true;
     });
   }, [payments, statusFilter, cabinetFilter]);
@@ -66,8 +94,23 @@ export default function AdminPayments() {
   const total = useMemo(() => {
     return filtered
       .filter((p) => p.status === "succeeded")
-      .reduce((sum, p) => sum + (p.amount || 0), 0);
+      .reduce((sum, p) => sum + (p.amount_cents || 0), 0);
   }, [filtered]);
+
+  function exportCSV() {
+    const header = "Date,Cabinet,Montant,Statut,Description\n";
+    const rows = filtered.map((p) =>
+      `"${new Date(p.created_at).toLocaleDateString("fr-FR")}","${p.cabinet_nom}","${(p.amount_cents / 100).toFixed(2)}","${statusLabels[p.status] ?? p.status}","${p.description ?? ""}"`
+    ).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `paiements_export_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export CSV telecharge");
+  }
 
   if (loading) {
     return (
@@ -86,7 +129,7 @@ export default function AdminPayments() {
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <div className="flex gap-2">
           {[
             { value: "all", label: "Tous" },
@@ -113,10 +156,22 @@ export default function AdminPayments() {
           className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
         >
           <option value="all">Tous les cabinets</option>
-          {cabinets.map((c) => (
+          {cabinetNames.map((c) => (
             <option key={c} value={c}>{c}</option>
           ))}
         </select>
+        <div className="flex gap-2 ml-auto">
+          <button onClick={exportCSV} className="flex items-center gap-1.5 px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors">
+            <FileSpreadsheet className="h-3.5 w-3.5" /> CSV
+          </button>
+          <button
+            onClick={() => load(true)}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -130,6 +185,7 @@ export default function AdminPayments() {
                 <th className="px-4 py-3">Montant</th>
                 <th className="px-4 py-3">Statut</th>
                 <th className="px-4 py-3">Description</th>
+                <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody>
@@ -138,20 +194,27 @@ export default function AdminPayments() {
                   <td className="px-4 py-3 text-slate-400">
                     {new Date(p.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
                   </td>
-                  <td className="px-4 py-3 text-slate-200">{p.cabinet_name}</td>
+                  <td className="px-4 py-3 text-slate-200 font-medium">{p.cabinet_nom}</td>
                   <td className="px-4 py-3 text-slate-200 font-medium">
-                    {(p.amount / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} &euro;
+                    {(p.amount_cents / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} &euro;
                   </td>
                   <td className="px-4 py-3">
                     <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[p.status] ?? "bg-slate-500/20 text-slate-300"}`}>
                       {statusLabels[p.status] ?? p.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-400 truncate max-w-[250px]">{p.description || "-"}</td>
+                  <td className="px-4 py-3 text-slate-400 truncate max-w-[250px]">{p.description || p.plan || "-"}</td>
+                  <td className="px-4 py-3">
+                    {p.receipt_url && (
+                      <a href={p.receipt_url} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300" title="Voir le recu Stripe">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </a>
+                    )}
+                  </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Aucun paiement trouve</td></tr>
+                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-500">Aucun paiement trouve</td></tr>
               )}
             </tbody>
           </table>

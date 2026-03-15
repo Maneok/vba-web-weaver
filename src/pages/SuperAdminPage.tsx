@@ -40,14 +40,15 @@ export default function SuperAdminPage() {
     }
   }, [profile, navigate]);
 
-  // Fetch unpaid count for badge
+  // Fetch unpaid count for badge from real table
   useEffect(() => {
     async function fetchUnpaidCount() {
       try {
-        const { data } = await supabase.rpc("admin_list_unpaid");
-        if (data && Array.isArray(data)) {
-          setUnpaidCount(data.length);
-        }
+        const { count } = await supabase
+          .from("cabinet_subscriptions")
+          .select("cabinet_id", { count: "exact", head: true })
+          .in("status", ["past_due", "suspended"]);
+        setUnpaidCount(count ?? 0);
       } catch {
         // Silently ignore
       }

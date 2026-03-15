@@ -1,6 +1,6 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, MoreHorizontal, Download, Trash2, PauseCircle, PlayCircle, ArrowRightLeft, Clock, Tag, StickyNote } from "lucide-react";
+import { Search, MoreHorizontal, Download, Trash2, PauseCircle, PlayCircle, ArrowRightLeft, Clock, Tag, StickyNote, RefreshCw, ExternalLink, FileSpreadsheet } from "lucide-react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
@@ -8,28 +8,28 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
+// Matches v_admin_overview columns exactly
 interface Cabinet {
-  id: string;
-  name: string;
+  cabinet_id: string;
+  cabinet_nom: string;
   plan: string;
-  subscription_status: string;
-  active_users: number;
-  max_users: number;
-  total_clients: number;
+  sub_status: string;
+  trial_end: string | null;
+  max_seats: number;
   max_clients: number;
-  admin_email: string;
-  last_login: string | null;
-  trial_days_remaining: number | null;
+  seats_used: number;
+  clients_used: number;
+  audit_entries: number;
   created_at: string;
 }
 
+// Extended detail fetched from multiple tables
 interface CabinetDetail {
-  cabinet: Record<string, unknown>;
-  subscription: Record<string, unknown>;
-  users: Array<Record<string, unknown>>;
-  recent_audits: Array<Record<string, unknown>>;
-  payment_history: Array<Record<string, unknown>>;
-  notes: Array<Record<string, unknown>>;
+  cabinet: { id: string; nom: string; siren: string | null; created_at: string } | null;
+  subscription: Record<string, unknown> | null;
+  users: Array<{ id: string; email: string; full_name: string; role: string; is_active: boolean; last_login_at: string | null }>;
+  recentAudits: Array<{ action: string; created_at: string; user_email: string | null }>;
+  payments: Array<{ amount_cents: number; status: string; created_at: string; description: string | null }>;
 }
 
 const statusColors: Record<string, string> = {
@@ -37,6 +37,7 @@ const statusColors: Record<string, string> = {
   trialing: "bg-blue-500/20 text-blue-300",
   past_due: "bg-amber-500/20 text-amber-300",
   suspended: "bg-red-500/20 text-red-300",
+  canceled: "bg-slate-500/20 text-slate-300",
 };
 
 const statusLabels: Record<string, string> = {
@@ -44,6 +45,7 @@ const statusLabels: Record<string, string> = {
   trialing: "Trial",
   past_due: "Impaye",
   suspended: "Suspendu",
+  canceled: "Annule",
 };
 
 function formatRelative(dateStr: string | null): string {
@@ -60,9 +62,18 @@ function formatRelative(dateStr: string | null): string {
   return date.toLocaleDateString("fr-FR");
 }
 
+function trialDaysRemaining(trialEnd: string | null): number | null {
+  if (!trialEnd) return null;
+  const end = new Date(trialEnd);
+  const now = new Date();
+  const diff = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return diff > 0 ? diff : null;
+}
+
 export default function AdminCabinets() {
   const [cabinets, setCabinets] = useState<Cabinet[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedCabinet, setSelectedCabinet] = useState<Cabinet | null>(null);
@@ -84,35 +95,49 @@ export default function AdminCabinets() {
   const [couponDuration, setCouponDuration] = useState(1);
   const [purgeDialog, setPurgeDialog] = useState<string | null>(null);
   const [purgeConfirm, setPurgeConfirm] = useState("");
-  const [noteText, setNoteText] = useState("");
-  const [noteDialog, setNoteDialog] = useState(false);
 
-  useEffect(() => {
-    loadCabinets();
-  }, []);
-
-  async function loadCabinets() {
-    setLoading(true);
+  const loadCabinets = useCallback(async (showRefresh = false) => {
+    if (showRefresh) setRefreshing(true);
+    else setLoading(true);
     try {
-      const { data, error } = await supabase.from("v_admin_dashboard").select("*");
+      const { data, error } = await supabase.from("v_admin_overview").select("*").order("created_at", { ascending: false });
       if (error) throw error;
       setCabinets((data ?? []) as unknown as Cabinet[]);
+      if (showRefresh) toast.success("Liste actualisee");
     } catch (err) {
       console.error("[AdminCabinets] Load error:", err);
       toast.error("Erreur lors du chargement des cabinets");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
-  }
+  }, []);
+
+  useEffect(() => {
+    loadCabinets();
+  }, [loadCabinets]);
 
   async function openCabinetDetail(cab: Cabinet) {
     setSelectedCabinet(cab);
     setSheetOpen(true);
     setDetailLoading(true);
     try {
-      const { data, error } = await supabase.rpc("admin_cabinet_detail", { p_cabinet_id: cab.id });
-      if (error) throw error;
-      setCabinetDetail(data as unknown as CabinetDetail);
+      // Fetch detail from multiple real tables in parallel
+      const [cabinetRes, subRes, usersRes, auditsRes, paymentsRes] = await Promise.all([
+        supabase.from("cabinets").select("id, nom, siren, created_at").eq("id", cab.cabinet_id).single(),
+        supabase.from("cabinet_subscriptions").select("*").eq("cabinet_id", cab.cabinet_id).single(),
+        supabase.from("profiles").select("id, email, full_name, role, is_active, last_login_at").eq("cabinet_id", cab.cabinet_id),
+        supabase.from("audit_trail").select("action, created_at, user_email").eq("cabinet_id", cab.cabinet_id).order("created_at", { ascending: false }).limit(10),
+        supabase.from("payment_history").select("amount_cents, status, created_at, description").eq("cabinet_id", cab.cabinet_id).order("created_at", { ascending: false }).limit(10),
+      ]);
+
+      setCabinetDetail({
+        cabinet: cabinetRes.data as CabinetDetail["cabinet"],
+        subscription: subRes.data as Record<string, unknown> | null,
+        users: (usersRes.data ?? []) as CabinetDetail["users"],
+        recentAudits: (auditsRes.data ?? []) as CabinetDetail["recentAudits"],
+        payments: (paymentsRes.data ?? []) as CabinetDetail["payments"],
+      });
     } catch (err) {
       console.error("[AdminCabinets] Detail error:", err);
       toast.error("Erreur lors du chargement du detail");
@@ -123,7 +148,7 @@ export default function AdminCabinets() {
 
   async function handleSuspend(cabinetId: string) {
     try {
-      const { error } = await supabase.rpc("admin_suspend", { p_cabinet_id: cabinetId });
+      const { error } = await supabase.rpc("suspend_cabinet", { p_cabinet_id: cabinetId, p_reason: "Suspension manuelle par super-admin" });
       if (error) throw error;
       toast.success("Cabinet suspendu avec succes");
       setSuspendDialog(null);
@@ -135,7 +160,7 @@ export default function AdminCabinets() {
 
   async function handleReactivate(cabinetId: string, plan: string) {
     try {
-      const { error } = await supabase.rpc("admin_reactivate", { p_cabinet_id: cabinetId, p_plan: plan });
+      const { error } = await supabase.rpc("reactivate_cabinet", { p_cabinet_id: cabinetId, p_plan: plan, p_stripe_sub_id: null });
       if (error) throw error;
       toast.success("Cabinet reactive avec succes");
       setReactivateDialog(null);
@@ -147,7 +172,7 @@ export default function AdminCabinets() {
 
   async function handleChangePlan(cabinetId: string, plan: string) {
     try {
-      const { error } = await supabase.rpc("admin_change_plan", { p_cabinet_id: cabinetId, p_plan: plan });
+      const { error } = await supabase.rpc("change_plan", { p_cabinet_id: cabinetId, p_new_plan: plan, p_stripe_sub_id: null });
       if (error) throw error;
       toast.success("Plan modifie avec succes");
       setChangePlanDialog(null);
@@ -159,7 +184,14 @@ export default function AdminCabinets() {
 
   async function handleExtendTrial(cabinetId: string, days: number) {
     try {
-      const { error } = await supabase.rpc("admin_extend_trial", { p_cabinet_id: cabinetId, p_days: days });
+      // Extend trial by updating trial_end in cabinet_subscriptions
+      const { data: sub } = await supabase.from("cabinet_subscriptions").select("trial_end").eq("cabinet_id", cabinetId).single();
+      const currentEnd = sub?.trial_end ? new Date(sub.trial_end as string) : new Date();
+      currentEnd.setDate(currentEnd.getDate() + days);
+      const { error } = await supabase
+        .from("cabinet_subscriptions")
+        .update({ trial_end: currentEnd.toISOString(), status: "trialing" })
+        .eq("cabinet_id", cabinetId);
       if (error) throw error;
       toast.success(`Trial prolonge de ${days} jours`);
       setExtendTrialDialog(null);
@@ -171,11 +203,11 @@ export default function AdminCabinets() {
 
   async function handleApplyCoupon(cabinetId: string) {
     try {
-      const { error } = await supabase.rpc("admin_apply_coupon", {
+      const { error } = await supabase.rpc("apply_coupon", {
         p_cabinet_id: cabinetId,
         p_code: couponCode,
         p_percent: couponPercent,
-        p_duration_months: couponDuration,
+        p_months: couponDuration,
       });
       if (error) throw error;
       toast.success("Coupon applique avec succes");
@@ -186,18 +218,18 @@ export default function AdminCabinets() {
     }
   }
 
-  async function handleExport(cabinetId: string) {
+  async function handleExport(cabinetId: string, cabinetNom: string) {
     try {
-      const { data, error } = await supabase.rpc("admin_export_data", { p_cabinet_id: cabinetId });
+      const { data, error } = await supabase.rpc("export_cabinet_data", { p_cabinet_id: cabinetId });
       if (error) throw error;
       const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `cabinet_${cabinetId}_export.json`;
+      a.download = `${cabinetNom.replace(/\s+/g, "_")}_export_${new Date().toISOString().split("T")[0]}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Export telecharge");
+      toast.success(`Export de "${cabinetNom}" telecharge`);
     } catch (err) {
       toast.error("Erreur lors de l'export");
     }
@@ -205,7 +237,7 @@ export default function AdminCabinets() {
 
   async function handlePurge(cabinetId: string) {
     try {
-      const { error } = await supabase.rpc("admin_purge_cabinet", { p_cabinet_id: cabinetId });
+      const { error } = await supabase.rpc("purge_cabinet", { p_cabinet_id: cabinetId });
       if (error) throw error;
       toast.success("Cabinet purge avec succes");
       setPurgeDialog(null);
@@ -217,27 +249,25 @@ export default function AdminCabinets() {
     }
   }
 
-  async function handleAddNote(cabinetId: string) {
-    if (!noteText.trim()) return;
-    try {
-      const { error } = await supabase.rpc("admin_add_note", { p_cabinet_id: cabinetId, p_note: noteText });
-      if (error) throw error;
-      toast.success("Note ajoutee");
-      setNoteText("");
-      setNoteDialog(false);
-      // Refresh detail
-      if (selectedCabinet) openCabinetDetail(selectedCabinet);
-    } catch (err) {
-      toast.error("Erreur lors de l'ajout de la note");
-    }
+  function exportCSV() {
+    const header = "Nom,Plan,Statut,Users,Clients,Inscription\n";
+    const rows = filtered.map((c) =>
+      `"${c.cabinet_nom}","${c.plan}","${statusLabels[c.sub_status] ?? c.sub_status}",${c.seats_used}/${c.max_seats},${c.clients_used}/${c.max_clients},"${new Date(c.created_at).toLocaleDateString("fr-FR")}"`
+    ).join("\n");
+    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `cabinets_export_${new Date().toISOString().split("T")[0]}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success("Export CSV telecharge");
   }
 
   const filtered = useMemo(() => {
     return cabinets.filter((c) => {
-      const matchSearch = !search ||
-        c.name?.toLowerCase().includes(search.toLowerCase()) ||
-        c.admin_email?.toLowerCase().includes(search.toLowerCase());
-      const matchStatus = statusFilter === "all" || c.subscription_status === statusFilter;
+      const matchSearch = !search || c.cabinet_nom?.toLowerCase().includes(search.toLowerCase());
+      const matchStatus = statusFilter === "all" || c.sub_status === statusFilter;
       return matchSearch && matchStatus;
     });
   }, [cabinets, search, statusFilter]);
@@ -258,13 +288,13 @@ export default function AdminCabinets() {
 
   return (
     <div className="space-y-4">
-      {/* Search and Filters */}
+      {/* Search, Filters, Actions */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Rechercher par nom ou email..."
+            placeholder="Rechercher par nom de cabinet..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
@@ -291,7 +321,26 @@ export default function AdminCabinets() {
             </button>
           ))}
         </div>
+        <div className="flex gap-2">
+          <button
+            onClick={exportCSV}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors"
+            title="Exporter en CSV"
+          >
+            <FileSpreadsheet className="h-3.5 w-3.5" /> CSV
+          </button>
+          <button
+            onClick={() => loadCabinets(true)}
+            disabled={refreshing}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs bg-white/5 border border-white/10 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? "animate-spin" : ""}`} />
+          </button>
+        </div>
       </div>
+
+      {/* Results count */}
+      <p className="text-xs text-slate-500">{filtered.length} cabinet(s) sur {cabinets.length}</p>
 
       {/* Table */}
       <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
@@ -299,78 +348,79 @@ export default function AdminCabinets() {
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs text-slate-500 border-b border-white/10">
-                <th className="px-4 py-3">Nom</th>
+                <th className="px-4 py-3">Nom du cabinet</th>
                 <th className="px-4 py-3">Plan</th>
                 <th className="px-4 py-3">Statut</th>
                 <th className="px-4 py-3">Users</th>
                 <th className="px-4 py-3">Clients</th>
-                <th className="px-4 py-3">Admin</th>
-                <th className="px-4 py-3">Derniere connexion</th>
+                <th className="px-4 py-3">Inscription</th>
                 <th className="px-4 py-3">Trial</th>
                 <th className="px-4 py-3 w-10"></th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((cab) => (
-                <tr
-                  key={cab.id}
-                  className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors"
-                  onClick={() => openCabinetDetail(cab)}
-                >
-                  <td className="px-4 py-3 text-slate-200 font-medium">{cab.name}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300 capitalize">{cab.plan}</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[cab.subscription_status] ?? "bg-slate-500/20 text-slate-300"}`}>
-                      {statusLabels[cab.subscription_status] ?? cab.subscription_status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-slate-400">{cab.active_users}/{cab.max_users}</td>
-                  <td className="px-4 py-3 text-slate-400">{cab.total_clients}/{cab.max_clients}</td>
-                  <td className="px-4 py-3 text-slate-400 truncate max-w-[180px]">{cab.admin_email}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatRelative(cab.last_login)}</td>
-                  <td className="px-4 py-3 text-slate-500">
-                    {cab.trial_days_remaining != null && cab.trial_days_remaining > 0
-                      ? `${cab.trial_days_remaining}j`
-                      : "-"}
-                  </td>
-                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="p-1 rounded hover:bg-white/10 transition-colors">
-                          <MoreHorizontal className="h-4 w-4 text-slate-400" />
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setSuspendDialog(cab.id)}>
-                          <PauseCircle className="mr-2 h-4 w-4" /> Suspendre
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setReactivateDialog({ id: cab.id }); setReactivatePlan("solo"); }}>
-                          <PlayCircle className="mr-2 h-4 w-4" /> Reactiver
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setChangePlanDialog({ id: cab.id }); setNewPlan(cab.plan); }}>
-                          <ArrowRightLeft className="mr-2 h-4 w-4" /> Changer plan
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setExtendTrialDialog({ id: cab.id }); setTrialDays(14); }}>
-                          <Clock className="mr-2 h-4 w-4" /> Prolonger trial
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setCouponDialog({ id: cab.id }); setCouponCode(""); setCouponPercent(10); setCouponDuration(1); }}>
-                          <Tag className="mr-2 h-4 w-4" /> Appliquer coupon
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleExport(cab.id)}>
-                          <Download className="mr-2 h-4 w-4" /> Exporter donnees
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => { setPurgeDialog(cab.id); setPurgeConfirm(""); }} className="text-red-400">
-                          <Trash2 className="mr-2 h-4 w-4" /> Purger
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((cab) => {
+                const daysLeft = trialDaysRemaining(cab.trial_end);
+                return (
+                  <tr
+                    key={cab.cabinet_id}
+                    className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors"
+                    onClick={() => openCabinetDetail(cab)}
+                  >
+                    <td className="px-4 py-3 text-slate-200 font-medium">{cab.cabinet_nom || "Sans nom"}</td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300 capitalize">{cab.plan || "-"}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[cab.sub_status] ?? "bg-slate-500/20 text-slate-300"}`}>
+                        {statusLabels[cab.sub_status] ?? cab.sub_status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-slate-400">{cab.seats_used}/{cab.max_seats}</td>
+                    <td className="px-4 py-3 text-slate-400">{cab.clients_used}/{cab.max_clients}</td>
+                    <td className="px-4 py-3 text-slate-500">{formatRelative(cab.created_at)}</td>
+                    <td className="px-4 py-3 text-slate-500">
+                      {daysLeft != null ? (
+                        <span className={daysLeft <= 3 ? "text-amber-400 font-medium" : ""}>{daysLeft}j</span>
+                      ) : "-"}
+                    </td>
+                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="p-1 rounded hover:bg-white/10 transition-colors">
+                            <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setSuspendDialog(cab.cabinet_id)}>
+                            <PauseCircle className="mr-2 h-4 w-4" /> Suspendre
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setReactivateDialog({ id: cab.cabinet_id }); setReactivatePlan("solo"); }}>
+                            <PlayCircle className="mr-2 h-4 w-4" /> Reactiver
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setChangePlanDialog({ id: cab.cabinet_id }); setNewPlan(cab.plan || "solo"); }}>
+                            <ArrowRightLeft className="mr-2 h-4 w-4" /> Changer plan
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setExtendTrialDialog({ id: cab.cabinet_id }); setTrialDays(14); }}>
+                            <Clock className="mr-2 h-4 w-4" /> Prolonger trial
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setCouponDialog({ id: cab.cabinet_id }); setCouponCode(""); setCouponPercent(10); setCouponDuration(1); }}>
+                            <Tag className="mr-2 h-4 w-4" /> Appliquer coupon
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleExport(cab.cabinet_id, cab.cabinet_nom)}>
+                            <Download className="mr-2 h-4 w-4" /> Exporter donnees
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setPurgeDialog(cab.cabinet_id); setPurgeConfirm(""); }} className="text-red-400">
+                            <Trash2 className="mr-2 h-4 w-4" /> Purger
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </td>
+                  </tr>
+                );
+              })}
               {filtered.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-500">Aucun cabinet trouve</td></tr>
+                <tr><td colSpan={8} className="px-4 py-8 text-center text-slate-500">Aucun cabinet trouve</td></tr>
               )}
             </tbody>
           </table>
@@ -381,7 +431,7 @@ export default function AdminCabinets() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-slate-200">{selectedCabinet?.name}</SheetTitle>
+            <SheetTitle className="text-slate-200">{selectedCabinet?.cabinet_nom || "Cabinet"}</SheetTitle>
           </SheetHeader>
           {detailLoading ? (
             <div className="space-y-4 mt-6">
@@ -391,79 +441,98 @@ export default function AdminCabinets() {
             <div className="space-y-6 mt-6">
               {/* Cabinet Info */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase">Informations</h4>
-                {Object.entries(cabinetDetail.cabinet ?? {}).map(([key, val]) => (
-                  <div key={key} className="flex justify-between text-sm">
-                    <span className="text-slate-400">{key}</span>
-                    <span className="text-slate-200">{String(val ?? "-")}</span>
-                  </div>
-                ))}
+                <h4 className="text-xs font-semibold text-slate-400 uppercase">Informations du cabinet</h4>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Nom</span>
+                  <span className="text-slate-200 font-medium">{cabinetDetail.cabinet?.nom || "Sans nom"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">SIREN</span>
+                  <span className="text-slate-200">{cabinetDetail.cabinet?.siren || "Non renseigne"}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">ID</span>
+                  <span className="text-slate-300 text-xs font-mono">{cabinetDetail.cabinet?.id}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-400">Inscription</span>
+                  <span className="text-slate-200">{cabinetDetail.cabinet?.created_at ? new Date(cabinetDetail.cabinet.created_at).toLocaleDateString("fr-FR") : "-"}</span>
+                </div>
               </div>
 
               {/* Subscription */}
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase">Abonnement</h4>
-                {Object.entries(cabinetDetail.subscription ?? {}).map(([key, val]) => (
-                  <div key={key} className="flex justify-between text-sm">
-                    <span className="text-slate-400">{key}</span>
-                    <span className="text-slate-200">{String(val ?? "-")}</span>
-                  </div>
-                ))}
-              </div>
+              {cabinetDetail.subscription && (
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
+                  <h4 className="text-xs font-semibold text-slate-400 uppercase">Abonnement</h4>
+                  {(["plan", "status", "billing_cycle", "monthly_price_cents", "stripe_customer_id", "stripe_subscription_id", "trial_end", "max_seats", "max_clients"] as const).map((key) => {
+                    const val = cabinetDetail.subscription?.[key];
+                    if (val === null || val === undefined) return null;
+                    let displayVal = String(val);
+                    if (key === "monthly_price_cents") displayVal = `${(Number(val) / 100).toFixed(2)} \u20ac`;
+                    if (key === "trial_end" && val) displayVal = new Date(String(val)).toLocaleDateString("fr-FR");
+                    if (key === "stripe_customer_id" || key === "stripe_subscription_id") {
+                      return (
+                        <div key={key} className="flex justify-between text-sm items-center">
+                          <span className="text-slate-400">{key}</span>
+                          <span className="text-blue-400 text-xs font-mono truncate max-w-[200px]">{displayVal}</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={key} className="flex justify-between text-sm">
+                        <span className="text-slate-400">{key}</span>
+                        <span className="text-slate-200">{displayVal}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* Users */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase">Utilisateurs</h4>
-                {(cabinetDetail.users ?? []).map((u, i) => (
-                  <div key={i} className="flex justify-between text-sm border-b border-white/5 pb-1">
-                    <span className="text-slate-200">{String(u.full_name ?? u.email)}</span>
-                    <span className="text-slate-400">{String(u.role ?? "")}</span>
+                <h4 className="text-xs font-semibold text-slate-400 uppercase">Utilisateurs ({cabinetDetail.users.length})</h4>
+                {cabinetDetail.users.map((u) => (
+                  <div key={u.id} className="flex justify-between text-sm border-b border-white/5 pb-1">
+                    <div>
+                      <span className="text-slate-200">{u.full_name || u.email}</span>
+                      {u.full_name && <span className="text-slate-500 text-xs ml-2">{u.email}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] ${u.is_active ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"}`}>
+                        {u.is_active ? "Actif" : "Inactif"}
+                      </span>
+                      <span className="text-slate-400 text-xs">{u.role}</span>
+                    </div>
                   </div>
                 ))}
-                {(cabinetDetail.users ?? []).length === 0 && <p className="text-sm text-slate-500">Aucun utilisateur</p>}
+                {cabinetDetail.users.length === 0 && <p className="text-sm text-slate-500">Aucun utilisateur</p>}
               </div>
 
               {/* Recent Audits */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
                 <h4 className="text-xs font-semibold text-slate-400 uppercase">Derniers audits</h4>
-                {(cabinetDetail.recent_audits ?? []).slice(0, 5).map((a, i) => (
-                  <div key={i} className="text-sm text-slate-300">
-                    {String(a.action)} — <span className="text-slate-500">{formatRelative(String(a.created_at ?? ""))}</span>
+                {cabinetDetail.recentAudits.slice(0, 5).map((a, i) => (
+                  <div key={i} className="text-sm text-slate-300 flex justify-between">
+                    <span>{a.action} {a.user_email ? `(${a.user_email})` : ""}</span>
+                    <span className="text-slate-500 text-xs">{formatRelative(a.created_at)}</span>
                   </div>
                 ))}
-                {(cabinetDetail.recent_audits ?? []).length === 0 && <p className="text-sm text-slate-500">Aucun audit</p>}
+                {cabinetDetail.recentAudits.length === 0 && <p className="text-sm text-slate-500">Aucun audit</p>}
               </div>
 
               {/* Payment History */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
                 <h4 className="text-xs font-semibold text-slate-400 uppercase">Historique paiements</h4>
-                {(cabinetDetail.payment_history ?? []).slice(0, 5).map((p, i) => (
+                {cabinetDetail.payments.slice(0, 5).map((p, i) => (
                   <div key={i} className="flex justify-between text-sm">
-                    <span className="text-slate-300">{((Number(p.amount) || 0) / 100).toFixed(2)} &euro;</span>
-                    <span className="text-slate-500">{formatRelative(String(p.created_at ?? ""))}</span>
+                    <div>
+                      <span className="text-slate-300">{(p.amount_cents / 100).toFixed(2)} &euro;</span>
+                      <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${p.status === "succeeded" ? "bg-emerald-500/20 text-emerald-300" : "bg-red-500/20 text-red-300"}`}>{p.status}</span>
+                    </div>
+                    <span className="text-slate-500 text-xs">{formatRelative(p.created_at)}</span>
                   </div>
                 ))}
-                {(cabinetDetail.payment_history ?? []).length === 0 && <p className="text-sm text-slate-500">Aucun paiement</p>}
-              </div>
-
-              {/* Notes */}
-              <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase">Notes internes</h4>
-                  <button
-                    onClick={() => setNoteDialog(true)}
-                    className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
-                  >
-                    <StickyNote className="h-3 w-3" /> Ajouter
-                  </button>
-                </div>
-                {(cabinetDetail.notes ?? []).map((n, i) => (
-                  <div key={i} className="text-sm border-b border-white/5 pb-2">
-                    <p className="text-slate-300">{String(n.note)}</p>
-                    <p className="text-xs text-slate-500 mt-1">{formatRelative(String(n.created_at ?? ""))}</p>
-                  </div>
-                ))}
-                {(cabinetDetail.notes ?? []).length === 0 && <p className="text-sm text-slate-500">Aucune note</p>}
+                {cabinetDetail.payments.length === 0 && <p className="text-sm text-slate-500">Aucun paiement</p>}
               </div>
             </div>
           ) : null}
@@ -491,26 +560,18 @@ export default function AdminCabinets() {
       {/* Reactivate Dialog */}
       <Dialog open={!!reactivateDialog} onOpenChange={() => setReactivateDialog(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reactiver le cabinet</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Reactiver le cabinet</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <label className="text-sm text-slate-300">Choisir le plan :</label>
-            <select
-              value={reactivatePlan}
-              onChange={(e) => setReactivatePlan(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
-            >
-              <option value="solo">Solo</option>
+            <select value={reactivatePlan} onChange={(e) => setReactivatePlan(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200">
+              <option value="essentiel">Essentiel</option>
+              <option value="pro">Pro</option>
               <option value="cabinet">Cabinet</option>
-              <option value="enterprise">Enterprise</option>
             </select>
           </div>
           <DialogFooter>
             <button onClick={() => setReactivateDialog(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button onClick={() => reactivateDialog && handleReactivate(reactivateDialog.id, reactivatePlan)} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg">
-              Reactiver
-            </button>
+            <button onClick={() => reactivateDialog && handleReactivate(reactivateDialog.id, reactivatePlan)} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg">Reactiver</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -518,26 +579,18 @@ export default function AdminCabinets() {
       {/* Change Plan Dialog */}
       <Dialog open={!!changePlanDialog} onOpenChange={() => setChangePlanDialog(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Changer le plan</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Changer le plan</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <label className="text-sm text-slate-300">Nouveau plan :</label>
-            <select
-              value={newPlan}
-              onChange={(e) => setNewPlan(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
-            >
-              <option value="solo">Solo</option>
+            <select value={newPlan} onChange={(e) => setNewPlan(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200">
+              <option value="essentiel">Essentiel</option>
+              <option value="pro">Pro</option>
               <option value="cabinet">Cabinet</option>
-              <option value="enterprise">Enterprise</option>
             </select>
           </div>
           <DialogFooter>
             <button onClick={() => setChangePlanDialog(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button onClick={() => changePlanDialog && handleChangePlan(changePlanDialog.id, newPlan)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-              Appliquer
-            </button>
+            <button onClick={() => changePlanDialog && handleChangePlan(changePlanDialog.id, newPlan)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Appliquer</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -545,25 +598,14 @@ export default function AdminCabinets() {
       {/* Extend Trial Dialog */}
       <Dialog open={!!extendTrialDialog} onOpenChange={() => setExtendTrialDialog(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Prolonger le trial</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Prolonger le trial</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <label className="text-sm text-slate-300">Nombre de jours :</label>
-            <input
-              type="number"
-              min={1}
-              max={365}
-              value={trialDays}
-              onChange={(e) => setTrialDays(parseInt(e.target.value) || 14)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
-            />
+            <input type="number" min={1} max={365} value={trialDays} onChange={(e) => setTrialDays(parseInt(e.target.value) || 14)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200" />
           </div>
           <DialogFooter>
             <button onClick={() => setExtendTrialDialog(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button onClick={() => extendTrialDialog && handleExtendTrial(extendTrialDialog.id, trialDays)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-              Prolonger
-            </button>
+            <button onClick={() => extendTrialDialog && handleExtendTrial(extendTrialDialog.id, trialDays)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Prolonger</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -571,48 +613,24 @@ export default function AdminCabinets() {
       {/* Coupon Dialog */}
       <Dialog open={!!couponDialog} onOpenChange={() => setCouponDialog(null)}>
         <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Appliquer un coupon</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle>Appliquer un coupon</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <div>
               <label className="text-sm text-slate-300">Code coupon :</label>
-              <input
-                type="text"
-                value={couponCode}
-                onChange={(e) => setCouponCode(e.target.value)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
-                placeholder="PROMO2026"
-              />
+              <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" placeholder="PROMO2026" />
             </div>
             <div>
               <label className="text-sm text-slate-300">Pourcentage de reduction :</label>
-              <input
-                type="number"
-                min={1}
-                max={100}
-                value={couponPercent}
-                onChange={(e) => setCouponPercent(parseInt(e.target.value) || 10)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
-              />
+              <input type="number" min={1} max={100} value={couponPercent} onChange={(e) => setCouponPercent(parseInt(e.target.value) || 10)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" />
             </div>
             <div>
               <label className="text-sm text-slate-300">Duree (mois) :</label>
-              <input
-                type="number"
-                min={1}
-                max={24}
-                value={couponDuration}
-                onChange={(e) => setCouponDuration(parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
-              />
+              <input type="number" min={1} max={24} value={couponDuration} onChange={(e) => setCouponDuration(parseInt(e.target.value) || 1)} className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1" />
             </div>
           </div>
           <DialogFooter>
             <button onClick={() => setCouponDialog(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button onClick={() => couponDialog && handleApplyCoupon(couponDialog.id)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
-              Appliquer
-            </button>
+            <button onClick={() => couponDialog && handleApplyCoupon(couponDialog.id)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">Appliquer</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -623,55 +641,16 @@ export default function AdminCabinets() {
           <AlertDialogHeader>
             <AlertDialogTitle className="text-red-400">Purger le cabinet</AlertDialogTitle>
             <AlertDialogDescription>
-              Cette action est IRREVERSIBLE. Toutes les donnees du cabinet seront definitivement supprimees.
-              Tapez "PURGER" pour confirmer.
+              Cette action est IRREVERSIBLE. Toutes les donnees du cabinet seront definitivement supprimees. Tapez "PURGER" pour confirmer.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <input
-            type="text"
-            value={purgeConfirm}
-            onChange={(e) => setPurgeConfirm(e.target.value)}
-            placeholder='Tapez "PURGER"'
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
-          />
+          <input type="text" value={purgeConfirm} onChange={(e) => setPurgeConfirm(e.target.value)} placeholder='Tapez "PURGER"' className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200" />
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPurgeConfirm("")}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => purgeDialog && handlePurge(purgeDialog)}
-              disabled={purgeConfirm !== "PURGER"}
-              className="bg-red-600 hover:bg-red-700 disabled:opacity-50"
-            >
-              Purger definitivement
-            </AlertDialogAction>
+            <AlertDialogAction onClick={() => purgeDialog && handlePurge(purgeDialog)} disabled={purgeConfirm !== "PURGER"} className="bg-red-600 hover:bg-red-700 disabled:opacity-50">Purger definitivement</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Add Note Dialog */}
-      <Dialog open={noteDialog} onOpenChange={setNoteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Ajouter une note</DialogTitle>
-          </DialogHeader>
-          <textarea
-            value={noteText}
-            onChange={(e) => setNoteText(e.target.value)}
-            rows={4}
-            placeholder="Votre note..."
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 resize-none"
-          />
-          <DialogFooter>
-            <button onClick={() => setNoteDialog(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button
-              onClick={() => selectedCabinet && handleAddNote(selectedCabinet.id)}
-              disabled={!noteText.trim()}
-              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
-            >
-              Ajouter
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
