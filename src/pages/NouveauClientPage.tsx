@@ -3221,8 +3221,9 @@ export default function NouveauClientPage() {
             {/* SECTION 1: Extrait RNE / Kbis — affiché en premier car c'est le doc le plus important */}
             {(() => {
               // FIX P4-24+46: Deduplicate KBIS/RBE extraits from both sources
+              // FIX: Show docs with URL OR storedInSupabase (not just stored)
               const extraitInpi = (screening.inpi.data?.documents ?? []).filter(d =>
-                (d.type?.toLowerCase() === "kbis") && d.storedInSupabase
+                (d.type?.toLowerCase() === "kbis") && (d.storedInSupabase || d.url)
               );
               const extraitPappers = (screening.documents.data?.documents ?? []).filter(d =>
                 (d.type?.toLowerCase() === "kbis" || d.type?.toLowerCase() === "extrait rbe") && d.url
@@ -3845,9 +3846,9 @@ export default function NouveauClientPage() {
         )}
       </div>
 
-      {/* #74: Floating save draft button */}
+      {/* #74: Floating save draft button — positioned top-right to avoid blocking navigation */}
       {step > 0 && hasUnsavedChanges && (
-        <div className="fixed bottom-6 right-6 z-40">
+        <div className="fixed top-20 right-6 z-40">
           <Button
             variant="outline"
             size="sm"
