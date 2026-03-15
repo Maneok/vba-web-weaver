@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
 const SubscriptionSettings = lazy(() => import("@/components/settings/SubscriptionSettings"));
+const RefMissionsTab = lazy(() => import("@/components/settings/RefMissionsTab"));
+const RefPaysTab = lazy(() => import("@/components/settings/RefPaysTab"));
+const RefTypesJuridiquesTab = lazy(() => import("@/components/settings/RefTypesJuridiquesTab"));
+const RefActivitesTab = lazy(() => import("@/components/settings/RefActivitesTab"));
+const RefQuestionsTab = lazy(() => import("@/components/settings/RefQuestionsTab"));
 
 /* ---------- types ---------- */
 
@@ -488,6 +493,26 @@ export default function SettingsPage() {
             <span className="hidden sm:inline">LCB-FT</span>
             {dirtyLcbft && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
+          <TabsTrigger value="missions" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <Target className="w-4 h-4" />
+            <span className="hidden sm:inline">Missions</span>
+          </TabsTrigger>
+          <TabsTrigger value="pays" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <Globe className="w-4 h-4" />
+            <span className="hidden sm:inline">Pays</span>
+          </TabsTrigger>
+          <TabsTrigger value="types-juridiques" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <Scale className="w-4 h-4" />
+            <span className="hidden sm:inline">Types Juridiques</span>
+          </TabsTrigger>
+          <TabsTrigger value="activites" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <Building2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Activites</span>
+          </TabsTrigger>
+          <TabsTrigger value="questions" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <HelpCircle className="w-4 h-4" />
+            <span className="hidden sm:inline">Questions</span>
+          </TabsTrigger>
           <TabsTrigger value="abonnement" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
             <CreditCard className="w-4 h-4" />
             <span className="hidden sm:inline">Abonnement</span>
@@ -767,6 +792,27 @@ export default function SettingsPage() {
             </div>
           </div>
         </TabsContent>
+
+        {/* ===== REFERENTIELS TABS ===== */}
+        {["missions", "pays", "types-juridiques", "activites", "questions"].map((tab) => (
+          <TabsContent key={tab} value={tab}>
+            <Suspense
+              fallback={
+                <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
+                  <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
+                  <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
+                  <div className="h-64 w-full bg-white/5 rounded animate-pulse" />
+                </div>
+              }
+            >
+              {tab === "missions" && <RefMissionsTab />}
+              {tab === "pays" && <RefPaysTab />}
+              {tab === "types-juridiques" && <RefTypesJuridiquesTab />}
+              {tab === "activites" && <RefActivitesTab />}
+              {tab === "questions" && <RefQuestionsTab />}
+            </Suspense>
+          </TabsContent>
+        ))}
 
         {/* ===== ABONNEMENT TAB ===== */}
         <TabsContent value="abonnement">
