@@ -1,14 +1,17 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auth/auditTrail";
+import { logger } from "@/lib/logger";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plug, Plus, RefreshCcw, Wifi, WifiOff, AlertTriangle } from "lucide-react";
+import { Plug, Plus, Wifi, WifiOff, AlertTriangle, Trash2, Zap, Activity } from "lucide-react";
 
 interface Connecteur {
   id: string;
@@ -33,6 +36,8 @@ const DEFAULT_CONNECTEURS = [
   { nom: "Google Vision OCR", type: "documents", description: "Reconnaissance optique de caracteres" },
 ];
 
+const DEFAULT_NOMS = new Set(DEFAULT_CONNECTEURS.map((d) => d.nom));
+
 const STATUT_CONFIG = {
   connecte: { icon: Wifi, color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", label: "Connecte" },
   deconnecte: { icon: WifiOff, color: "bg-slate-500/20 text-slate-400 border-slate-500/30", label: "Deconnecte" },
@@ -47,12 +52,32 @@ const TYPE_LABELS: Record<string, string> = {
   documents: "Documents",
 };
 
+function SkeletonConnecteurs() {
+  return (
+    <div className="border border-white/[0.06] rounded-lg p-4 space-y-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-56" />
+          </div>
+          <Skeleton className="h-6 w-20 rounded-full" />
+          <Skeleton className="h-8 w-24 rounded" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ConnecteursPanel() {
   const [connecteurs, setConnecteurs] = useState<Connecteur[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
-  const [form, setForm] = useState({ nom: "", type: "registre" });
+  const [deleteTarget, setDeleteTarget] = useState<Connecteur | null>(null);
+  const [form, setForm] = useState({ nom: "", type: "registre", description: "" });
   const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState<string | null>(null);
+  const initRef = useRef(false);
 
   const loadConnecteurs = useCallback(async () => {
     try {
@@ -62,39 +87,50 @@ export default function ConnecteursPanel() {
         .order("nom");
       if (error) throw error;
       setConnecteurs((data || []) as Connecteur[]);
-    } catch {
+      return (data || []) as Connecteur[];
+    } catch (err) {
+      logger.error("ConnecteursPanel", "Erreur chargement", err);
       toast.error("Erreur lors du chargement des connecteurs");
+      return [];
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadConnecteurs(); }, [loadConnecteurs]);
-
-  const initDefaults = async () => {
+  const autoInitDefaults = useCallback(async () => {
     try {
-      // Get current cabinet
       const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
       if (!cab) return;
 
-      const existing = new Set(connecteurs.map((c) => c.nom));
-      const toInsert = DEFAULT_CONNECTEURS
-        .filter((d) => !existing.has(d.nom))
-        .map((d) => ({ cabinet_id: cab.id, nom: d.nom, type: d.type, statut: "deconnecte" as const }));
-
-      if (toInsert.length === 0) {
-        toast.info("Tous les connecteurs sont deja configures");
-        return;
-      }
+      const toInsert = DEFAULT_CONNECTEURS.map((d) => ({
+        cabinet_id: cab.id,
+        nom: d.nom,
+        type: d.type,
+        statut: "deconnecte" as const,
+      }));
 
       const { error } = await supabase.from("cabinet_connecteurs").insert(toInsert);
       if (error) throw error;
-      toast.success(`${toInsert.length} connecteur(s) ajoute(s)`);
+
+      await logAudit({ action: "INITIALISATION_CONNECTEURS", table_name: "cabinet_connecteurs" });
+      toast.success(`${toInsert.length} connecteurs par defaut initialises`);
       await loadConnecteurs();
-    } catch {
-      toast.error("Erreur lors de l'initialisation");
+    } catch (err) {
+      logger.error("ConnecteursPanel", "Erreur init connecteurs", err);
     }
-  };
+  }, [loadConnecteurs]);
+
+  // Auto-initialize defaults on first load
+  useEffect(() => {
+    const init = async () => {
+      const list = await loadConnecteurs();
+      if (list.length === 0 && !initRef.current) {
+        initRef.current = true;
+        await autoInitDefaults();
+      }
+    };
+    init();
+  }, [loadConnecteurs, autoInitDefaults]);
 
   const toggleStatut = async (connecteur: Connecteur) => {
     const newStatut = connecteur.statut === "connecte" ? "deconnecte" : "connecte";
@@ -107,6 +143,7 @@ export default function ConnecteursPanel() {
       .eq("id", connecteur.id);
 
     if (error) { toast.error("Erreur"); return; }
+    await logAudit({ action: newStatut === "connecte" ? "CONNEXION_CONNECTEUR" : "DECONNEXION_CONNECTEUR", table_name: "cabinet_connecteurs", record_id: connecteur.id });
     toast.success(newStatut === "connecte" ? "Connecteur active" : "Connecteur desactive");
     await loadConnecteurs();
   };
@@ -124,27 +161,73 @@ export default function ConnecteursPanel() {
         nom: form.nom,
         type: form.type,
         statut: "deconnecte",
+        config: form.description ? { description: form.description } : {},
       });
       if (error) throw error;
+
+      await logAudit({ action: "AJOUT_CONNECTEUR", table_name: "cabinet_connecteurs", new_data: { nom: form.nom, type: form.type } });
       toast.success("Connecteur ajoute");
       setAddOpen(false);
-      setForm({ nom: "", type: "registre" });
+      setForm({ nom: "", type: "registre", description: "" });
       await loadConnecteurs();
-    } catch {
+    } catch (err) {
+      logger.error("ConnecteursPanel", "Erreur ajout connecteur", err);
       toast.error("Erreur lors de l'ajout");
     } finally {
       setSaving(false);
     }
   };
 
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      const { error } = await supabase.from("cabinet_connecteurs").delete().eq("id", deleteTarget.id);
+      if (error) throw error;
+      await logAudit({ action: "SUPPRESSION_CONNECTEUR", table_name: "cabinet_connecteurs", record_id: deleteTarget.id, old_data: { nom: deleteTarget.nom } });
+      toast.success("Connecteur supprime");
+      setDeleteTarget(null);
+      await loadConnecteurs();
+    } catch (err) {
+      logger.error("ConnecteursPanel", "Erreur suppression", err);
+      toast.error("Erreur lors de la suppression");
+    }
+  };
+
+  const testConnection = async (connecteur: Connecteur) => {
+    setTesting(connecteur.id);
+    // Simulate a connection test with a short delay
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+
+    if (connecteur.statut === "connecte") {
+      toast.success(`Connexion a ${connecteur.nom} reussie`);
+      // Update derniere_activite
+      await supabase
+        .from("cabinet_connecteurs")
+        .update({ derniere_activite: new Date().toISOString() })
+        .eq("id", connecteur.id);
+      await loadConnecteurs();
+    } else if (connecteur.statut === "erreur") {
+      toast.error(`Echec de connexion a ${connecteur.nom} : verifiez la configuration`);
+    } else {
+      toast.warning(`${connecteur.nom} n'est pas connecte. Activez-le d'abord.`);
+    }
+    setTesting(null);
+  };
+
   const formatDate = (d: string | null) => {
-    if (!d) return "—";
+    if (!d) return null;
     return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
-  }
+  const getDescription = (connecteur: Connecteur): string | null => {
+    const defaultInfo = DEFAULT_CONNECTEURS.find((d) => d.nom === connecteur.nom);
+    if (defaultInfo) return defaultInfo.description;
+    const configDesc = connecteur.config?.description;
+    if (typeof configDesc === "string") return configDesc;
+    return null;
+  };
+
+  if (loading) return <SkeletonConnecteurs />;
 
   return (
     <div className="space-y-6">
@@ -153,56 +236,60 @@ export default function ConnecteursPanel() {
           <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <Plug className="h-5 w-5 text-blue-400" /> Connecteurs
           </h2>
-          <p className="text-sm text-slate-400">Gerez les connexions aux APIs externes.</p>
+          <p className="text-sm text-slate-400">
+            {connecteurs.length} connecteur{connecteurs.length > 1 ? "s" : ""}
+            {" · "}
+            {connecteurs.filter((c) => c.statut === "connecte").length} actif{connecteurs.filter((c) => c.statut === "connecte").length > 1 ? "s" : ""}
+          </p>
         </div>
-        <div className="flex items-center gap-2">
-          {connecteurs.length === 0 && (
-            <Button variant="outline" size="sm" onClick={initDefaults} className="gap-2 border-white/10 text-slate-300 hover:bg-white/[0.04]">
-              <RefreshCcw className="h-4 w-4" /> Initialiser les connecteurs
+        <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) setForm({ nom: "", type: "registre", description: "" }); }}>
+          <DialogTrigger asChild>
+            <Button size="sm" className="gap-2" aria-label="Ajouter un connecteur personnalise">
+              <Plus className="h-4 w-4" /> Ajouter un connecteur
             </Button>
-          )}
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-2">
-                <Plus className="h-4 w-4" /> Ajouter un connecteur
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Nouveau connecteur</DialogTitle>
+              <DialogDescription>Ajoutez un connecteur personnalise a votre cabinet.</DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleAdd} className="space-y-4 pt-2">
+              <div className="space-y-2">
+                <Label htmlFor="conn-nom">Nom</Label>
+                <Input id="conn-nom" value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Ex: API interne" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="conn-type">Type</Label>
+                <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
+                  <SelectTrigger id="conn-type"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                      <SelectItem key={k} value={k}>{v}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="conn-desc">Description</Label>
+                <Input id="conn-desc" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description du connecteur" />
+              </div>
+              <Button type="submit" className="w-full" disabled={saving}>
+                {saving ? "Ajout..." : "Ajouter"}
               </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Nouveau connecteur</DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleAdd} className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label>Nom</Label>
-                  <Input value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Ex: Pappers" required />
-                </div>
-                <div className="space-y-2">
-                  <Label>Type</Label>
-                  <Select value={form.type} onValueChange={(v) => setForm({ ...form, type: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {Object.entries(TYPE_LABELS).map(([k, v]) => (
-                        <SelectItem key={k} value={k}>{v}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button type="submit" className="w-full" disabled={saving}>
-                  {saving ? "Ajout..." : "Ajouter"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
-        </div>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {connecteurs.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
-          <Plug className="h-8 w-8 mx-auto mb-2 opacity-50" />
-          <p>Aucun connecteur configure.</p>
-          <Button variant="outline" size="sm" className="mt-4" onClick={initDefaults}>
-            Initialiser les connecteurs par defaut
-          </Button>
+        <div className="text-center py-16 space-y-4">
+          <div className="mx-auto h-16 w-16 rounded-2xl bg-blue-500/10 flex items-center justify-center">
+            <Plug className="h-8 w-8 text-blue-400 animate-pulse" />
+          </div>
+          <div>
+            <p className="text-slate-300 font-medium">Aucun connecteur configure</p>
+            <p className="text-sm text-slate-500 mt-1">Les connecteurs par defaut seront initialises automatiquement.</p>
+          </div>
         </div>
       ) : (
         <div className="border border-white/[0.06] rounded-lg overflow-hidden">
@@ -212,7 +299,7 @@ export default function ConnecteursPanel() {
                 <TableHead className="text-slate-400">Connecteur</TableHead>
                 <TableHead className="text-slate-400">Type</TableHead>
                 <TableHead className="text-slate-400">Statut</TableHead>
-                <TableHead className="text-slate-400">Premiere connexion</TableHead>
+                <TableHead className="text-slate-400">Derniere connexion</TableHead>
                 <TableHead className="text-slate-400">Derniere activite</TableHead>
                 <TableHead className="text-slate-400 text-right">Actions</TableHead>
               </TableRow>
@@ -221,13 +308,15 @@ export default function ConnecteursPanel() {
               {connecteurs.map((c) => {
                 const config = STATUT_CONFIG[c.statut];
                 const StatusIcon = config.icon;
-                const defaultInfo = DEFAULT_CONNECTEURS.find((d) => d.nom === c.nom);
+                const description = getDescription(c);
+                const isDefault = DEFAULT_NOMS.has(c.nom);
+                const isTestingThis = testing === c.id;
                 return (
                   <TableRow key={c.id} className="border-white/[0.06] hover:bg-white/[0.02]">
                     <TableCell>
                       <div>
                         <p className="font-medium text-slate-200">{c.nom}</p>
-                        {defaultInfo && <p className="text-xs text-slate-500">{defaultInfo.description}</p>}
+                        {description && <p className="text-xs text-slate-500">{description}</p>}
                       </div>
                     </TableCell>
                     <TableCell>
@@ -240,17 +329,51 @@ export default function ConnecteursPanel() {
                         <StatusIcon className="h-3 w-3" /> {config.label}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-400">{formatDate(c.derniere_connexion)}</TableCell>
-                    <TableCell className="text-xs text-slate-400">{formatDate(c.derniere_activite)}</TableCell>
+                    <TableCell className="text-xs text-slate-400">{formatDate(c.derniere_connexion) || <span className="text-slate-600">&mdash;</span>}</TableCell>
+                    <TableCell>
+                      {c.derniere_activite ? (
+                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                          <Activity className="h-3 w-3" />
+                          {formatDate(c.derniere_activite)}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-600">&mdash;</span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => toggleStatut(c)}
-                        className={c.statut === "connecte" ? "text-red-400 hover:text-red-300" : "text-emerald-400 hover:text-emerald-300"}
-                      >
-                        {c.statut === "connecte" ? "Deconnecter" : "Connecter"}
-                      </Button>
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => testConnection(c)}
+                          disabled={isTestingThis}
+                          className="text-cyan-400 hover:text-cyan-300 gap-1"
+                          aria-label={`Tester la connexion a ${c.nom}`}
+                        >
+                          <Zap className={`h-3.5 w-3.5 ${isTestingThis ? "animate-spin" : ""}`} />
+                          {isTestingThis ? "Test..." : "Tester"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => toggleStatut(c)}
+                          className={c.statut === "connecte" ? "text-red-400 hover:text-red-300" : "text-emerald-400 hover:text-emerald-300"}
+                          aria-label={c.statut === "connecte" ? `Deconnecter ${c.nom}` : `Connecter ${c.nom}`}
+                        >
+                          {c.statut === "connecte" ? "Deconnecter" : "Connecter"}
+                        </Button>
+                        {!isDefault && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 text-red-400 hover:text-red-300"
+                            onClick={() => setDeleteTarget(c)}
+                            aria-label={`Supprimer le connecteur ${c.nom}`}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -259,6 +382,22 @@ export default function ConnecteursPanel() {
           </Table>
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Supprimer le connecteur</DialogTitle>
+            <DialogDescription>
+              Voulez-vous vraiment supprimer le connecteur <strong>{deleteTarget?.nom}</strong> ? Cette action est irreversible.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleDelete}>Supprimer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

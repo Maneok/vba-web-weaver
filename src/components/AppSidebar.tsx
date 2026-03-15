@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -16,13 +16,9 @@ import {
   HelpCircle,
   ChevronLeft,
   Shield,
-  Sparkles,
-  CheckSquare,
-  RefreshCw,
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
 import {
   Tooltip,
   TooltipContent,
@@ -42,12 +38,6 @@ type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; shortc
 const PRINCIPAL_NAV: NavItem[] = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "D" },
   { to: "/bdd", label: "Base Clients", icon: Users, shortcut: "B" },
-];
-
-const A_TRAITER_NAV: NavItem[] = [
-  { to: "/bdd?filtre=prospects", label: "Prospects", icon: Sparkles, shortcut: "1" },
-  { to: "/bdd?filtre=validations", label: "Validations", icon: CheckSquare, shortcut: "2" },
-  { to: "/bdd?filtre=maintiens", label: "Maintiens", icon: RefreshCw, shortcut: "3" },
 ];
 
 const CONFORMITE_NAV: NavItem[] = [
@@ -74,30 +64,6 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Workflow counts from Supabase, refreshed every 60s
-  const [workflowCounts, setWorkflowCounts] = useState<Record<string, number>>({});
-
-  const fetchWorkflowCounts = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("workflow_status");
-      if (error || !data) return;
-      const counts: Record<string, number> = {};
-      data.forEach((row: { workflow_status: string | null }) => {
-        const s = row.workflow_status || "PROSPECT";
-        counts[s] = (counts[s] || 0) + 1;
-      });
-      setWorkflowCounts(counts);
-    } catch { /* silent */ }
-  }, []);
-
-  useEffect(() => {
-    fetchWorkflowCounts();
-    const interval = setInterval(fetchWorkflowCounts, 60_000);
-    return () => clearInterval(interval);
-  }, [fetchWorkflowCounts]);
-
   // Close sidebar on mobile when navigating
   useEffect(() => {
     const isMobile = window.innerWidth < 1024;
@@ -115,95 +81,14 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const alertesEnCours = useMemo(() => alertes.filter((a) => a.statut === "EN COURS").length, [alertes]);
   const retardCount = useMemo(() => clients.filter((c) => c.etatPilotage === "RETARD").length, [clients]);
 
-  const prospectCount = workflowCounts["PROSPECT"] || 0;
-  const validationCount = workflowCounts["DEMANDE_VALIDATION"] || 0;
-  const maintienCount = workflowCounts["MAINTIEN"] || 0;
-
   const badges: Record<string, { count: number; color: string }> = {
     "/": { count: retardCount, color: "bg-amber-400" },
     "/bdd": { count: clients.length, color: "bg-blue-400" },
-    "/bdd?filtre=prospects": { count: prospectCount, color: "bg-blue-400" },
-    "/bdd?filtre=validations": { count: validationCount, color: "bg-purple-400" },
-    "/bdd?filtre=maintiens": { count: maintienCount, color: "bg-indigo-400" },
     "/registre": { count: alertesEnCours, color: "bg-red-400" },
   };
 
   const cabinetName = profile?.full_name?.split(" ").pop() || "LCB-FT";
 
-  const isNavActive = (to: string) => {
-    if (to.includes("?")) {
-      const [path, query] = to.split("?");
-      return location.pathname === path && location.search === `?${query}`;
-    }
-    return location.pathname === to;
-  };
-
-  const renderNavItem = (item: NavItem) => {
-    const Icon = item.icon;
-    const badge = badges[item.to];
-    const hasBadge = badge && badge.count > 0;
-    const active = isNavActive(item.to);
-
-    const handleClick = (e: React.MouseEvent) => {
-      e.preventDefault();
-      if (item.to.includes("?")) {
-        navigate(item.to);
-      } else {
-        navigate(item.to);
-      }
-    };
-
-    const link = (
-      <a
-        key={item.to}
-        href={item.to}
-        onClick={handleClick}
-        aria-label={collapsed ? item.label : undefined}
-        aria-current={active ? "page" : undefined}
-        className={`group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-          active
-            ? "bg-blue-500/15 text-blue-200 border-l-[3px] border-blue-400 pl-[9px]"
-            : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
-        }`}
-      >
-        <Icon className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
-        {!collapsed && (
-          <>
-            <span className="truncate animate-fade-in-up">{item.label}</span>
-            {hasBadge && (
-              <span className="ml-auto rounded-full bg-blue-500/20 px-2 py-0.5 text-[11px] font-medium text-blue-200">
-                {badge.count}
-              </span>
-            )}
-            <span className="ml-auto text-[10px] text-slate-600 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-              {hasBadge ? "" : `Alt+${item.shortcut}`}
-            </span>
-          </>
-        )}
-        {collapsed && hasBadge && (
-          <span className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full ${badge.color} ring-2 ring-slate-950`} />
-        )}
-      </a>
-    );
-
-    if (collapsed) {
-      return (
-        <Tooltip key={item.to} delayDuration={200}>
-          <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
-            {item.label}
-            {hasBadge && (
-              <span className="ml-2 text-xs opacity-70">({badge.count})</span>
-            )}
-          </TooltipContent>
-        </Tooltip>
-      );
-    }
-
-    return link;
-  };
-
-  // For items without query params, still use NavLink for proper active state
   const renderNavLinkItem = (item: NavItem) => {
     const Icon = item.icon;
     const badge = badges[item.to];
@@ -215,7 +100,6 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         to={item.to}
         end={item.to === "/"}
         aria-label={collapsed ? item.label : undefined}
-        aria-current={location.pathname === item.to || (item.to === "/" && location.pathname === "/") ? "page" : undefined}
         className={({ isActive }) =>
           `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
             isActive
@@ -261,7 +145,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     return link;
   };
 
-  const renderSection = (items: NavItem[], label: string, isFirst = false, useQueryNav = false) => (
+  const renderSection = (items: NavItem[], label: string, isFirst = false) => (
     <div>
       {!isFirst && collapsed && (
         <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-slate-800/50" />
@@ -275,7 +159,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </p>
       )}
       <div className="space-y-0.5">
-        {items.map((item) => useQueryNav ? renderNavItem(item) : renderNavLinkItem(item))}
+        {items.map((item) => renderNavLinkItem(item))}
       </div>
     </div>
   );
@@ -349,7 +233,6 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             )}
           </div>
 
-          {renderSection(A_TRAITER_NAV, "A traiter", false, true)}
           {renderSection(CONFORMITE_NAV, "Conformite")}
           {renderSection(OUTILS_NAV, "Outils")}
 

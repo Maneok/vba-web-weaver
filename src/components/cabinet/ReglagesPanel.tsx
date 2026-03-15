@@ -1,10 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auth/auditTrail";
+import { logger } from "@/lib/logger";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Settings2, Eye, CheckSquare, RefreshCcw, FileWarning, Globe } from "lucide-react";
+import { Settings2, Eye, CheckSquare, RefreshCcw, FileWarning, Globe, Bell, RotateCcw } from "lucide-react";
 
 interface Reglages {
   id: string;
@@ -20,12 +25,17 @@ interface Reglages {
   documents_expires_manquants: boolean;
   mises_a_jour_externes: boolean;
   delai_suspension_jours: number;
+  // Notification settings
+  email_alertes_critiques: boolean;
+  email_resume_hebdo: boolean;
+  email_expiration_documents: boolean;
 }
 
 interface ToggleConfig {
   key: keyof Reglages;
   label: string;
   description: string;
+  critical?: boolean;
 }
 
 const SECTIONS: { title: string; icon: React.ReactNode; toggles: ToggleConfig[] }[] = [
@@ -33,8 +43,8 @@ const SECTIONS: { title: string; icon: React.ReactNode; toggles: ToggleConfig[] 
     title: "Affectations & Visibilite",
     icon: <Eye className="h-4 w-4 text-blue-400" />,
     toggles: [
-      { key: "restreindre_visibilite_affectations", label: "Restreindre la visibilite aux affectations", description: "Les collaborateurs ne voient que les dossiers qui leur sont affectes" },
-      { key: "restreindre_visibilite_cabinet", label: "Restreindre la visibilite au cabinet", description: "Les collaborateurs ne voient que les dossiers de leur cabinet (en multi-cabinet)" },
+      { key: "restreindre_visibilite_affectations", label: "Restreindre la visibilite aux affectations", description: "Les collaborateurs ne voient que les dossiers qui leur sont affectes", critical: true },
+      { key: "restreindre_visibilite_cabinet", label: "Restreindre la visibilite au cabinet", description: "Les collaborateurs ne voient que les dossiers de leur cabinet (en multi-cabinet)", critical: true },
       { key: "restreindre_validation_responsables", label: "Restreindre la validation aux responsables", description: "Seuls les responsables de dossier peuvent valider les fiches" },
       { key: "limiter_exports_auteur", label: "Limiter les exports a l'auteur", description: "Seul l'auteur d'un document peut l'exporter" },
     ],
@@ -66,14 +76,70 @@ const SECTIONS: { title: string; icon: React.ReactNode; toggles: ToggleConfig[] 
     title: "Mises a jour externes",
     icon: <Globe className="h-4 w-4 text-purple-400" />,
     toggles: [
-      { key: "mises_a_jour_externes", label: "Mises a jour automatiques via APIs", description: "Actualise automatiquement les donnees via INPI, Pappers, sanctions et autres connecteurs" },
+      { key: "mises_a_jour_externes", label: "Mises a jour automatiques via APIs", description: "Actualise automatiquement les donnees via INPI, Pappers, sanctions et autres connecteurs", critical: true },
+    ],
+  },
+  {
+    title: "Notifications",
+    icon: <Bell className="h-4 w-4 text-cyan-400" />,
+    toggles: [
+      { key: "email_alertes_critiques", label: "Alertes critiques par email", description: "Envoie un email pour chaque alerte de niveau critique (sanctions, gel d'avoirs, etc.)" },
+      { key: "email_resume_hebdo", label: "Resume hebdomadaire par email", description: "Envoie un email de synthese chaque lundi avec le resume des dossiers en cours et les actions a realiser" },
+      { key: "email_expiration_documents", label: "Alerte expiration documents", description: "Envoie un email quand un document KYC est sur le point d'expirer (30 jours avant)" },
     ],
   },
 ];
 
+const DEFAULT_REGLAGES = {
+  restreindre_visibilite_affectations: false,
+  restreindre_visibilite_cabinet: true,
+  restreindre_validation_responsables: false,
+  limiter_exports_auteur: false,
+  limiter_notifications_affectes: true,
+  bloquer_demandes_validation_incompletes: true,
+  bloquer_validations_incompletes: false,
+  generation_auto_maintiens: true,
+  documents_expires_manquants: true,
+  mises_a_jour_externes: true,
+  delai_suspension_jours: 180,
+  email_alertes_critiques: true,
+  email_resume_hebdo: true,
+  email_expiration_documents: true,
+};
+
+function SkeletonSettings() {
+  return (
+    <div className="space-y-8">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="space-y-3">
+          <Skeleton className="h-4 w-32" />
+          {Array.from({ length: 2 }).map((_, j) => (
+            <div key={j} className="flex items-center justify-between py-3 px-4">
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-72" />
+              </div>
+              <Skeleton className="h-6 w-10 rounded-full" />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function ReglagesPanel() {
   const [reglages, setReglages] = useState<Reglages | null>(null);
   const [loading, setLoading] = useState(true);
+  const [confirmToggle, setConfirmToggle] = useState<{ key: keyof Reglages; value: boolean; label: string } | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [resetting, setResetting] = useState(false);
+
+  // Debounce timer for delai_suspension_jours
+  const delaiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [localDelai, setLocalDelai] = useState<number>(180);
+
+  useEffect(() => { return () => { if (delaiTimerRef.current) clearTimeout(delaiTimerRef.current); }; }, []);
 
   const loadReglages = useCallback(async () => {
     try {
@@ -81,19 +147,56 @@ export default function ReglagesPanel() {
         .from("cabinet_reglages")
         .select("*")
         .limit(1)
-        .single();
+        .maybeSingle();
+
       if (error) throw error;
-      setReglages(data as Reglages);
-    } catch {
+
+      if (!data) {
+        // Auto-create default reglages
+        await createDefaults();
+        return;
+      }
+
+      const reg = data as Reglages;
+      setReglages(reg);
+      setLocalDelai(reg.delai_suspension_jours);
+    } catch (err) {
+      logger.error("ReglagesPanel", "Erreur chargement reglages", err);
       toast.error("Erreur lors du chargement des reglages");
     } finally {
       setLoading(false);
     }
   }, []);
 
+  const createDefaults = async () => {
+    try {
+      const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
+      if (!cab) { setLoading(false); return; }
+
+      const { data: newReg, error } = await supabase
+        .from("cabinet_reglages")
+        .insert({ cabinet_id: cab.id, ...DEFAULT_REGLAGES })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await logAudit({ action: "INITIALISATION_REGLAGES", table_name: "cabinet_reglages" });
+      toast.success("Reglages initialises avec les valeurs par defaut");
+      const reg = newReg as Reglages;
+      setReglages(reg);
+      setLocalDelai(reg.delai_suspension_jours);
+    } catch (err) {
+      logger.error("ReglagesPanel", "Erreur creation reglages", err);
+      toast.error("Erreur lors de l'initialisation des reglages");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => { loadReglages(); }, [loadReglages]);
 
-  const updateToggle = async (key: keyof Reglages, value: boolean) => {
+  const doUpdateToggle = async (key: keyof Reglages, value: boolean) => {
     if (!reglages) return;
     const prev = reglages[key];
     setReglages({ ...reglages, [key]: value });
@@ -111,42 +214,98 @@ export default function ReglagesPanel() {
     toast.success("Reglage mis a jour");
   };
 
-  const updateDelai = async (value: number) => {
-    if (!reglages) return;
-    setReglages({ ...reglages, delai_suspension_jours: value });
-
-    const { error } = await supabase
-      .from("cabinet_reglages")
-      .update({ delai_suspension_jours: value })
-      .eq("id", reglages.id);
-
-    if (error) {
-      toast.error("Erreur lors de la mise a jour");
-      return;
+  const updateToggle = (key: keyof Reglages, value: boolean, label: string, critical?: boolean) => {
+    if (critical) {
+      setConfirmToggle({ key, value, label });
+    } else {
+      doUpdateToggle(key, value);
     }
-    toast.success("Delai mis a jour");
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
-  }
+  const confirmCriticalToggle = async () => {
+    if (!confirmToggle) return;
+    await doUpdateToggle(confirmToggle.key, confirmToggle.value);
+    setConfirmToggle(null);
+  };
+
+  const handleDelaiChange = (rawValue: string) => {
+    const v = parseInt(rawValue);
+    if (isNaN(v)) return;
+    const clamped = Math.max(30, Math.min(365, v));
+    setLocalDelai(clamped);
+
+    if (delaiTimerRef.current) clearTimeout(delaiTimerRef.current);
+    delaiTimerRef.current = setTimeout(async () => {
+      if (!reglages) return;
+      setReglages({ ...reglages, delai_suspension_jours: clamped });
+
+      const { error } = await supabase
+        .from("cabinet_reglages")
+        .update({ delai_suspension_jours: clamped })
+        .eq("id", reglages.id);
+
+      if (error) {
+        toast.error("Erreur lors de la mise a jour du delai");
+        return;
+      }
+      toast.success("Delai mis a jour");
+    }, 500);
+  };
+
+  const handleReset = async () => {
+    if (!reglages) return;
+    setResetting(true);
+    try {
+      const { error } = await supabase
+        .from("cabinet_reglages")
+        .update(DEFAULT_REGLAGES)
+        .eq("id", reglages.id);
+
+      if (error) throw error;
+
+      await logAudit({ action: "REINITIALISATION_REGLAGES", table_name: "cabinet_reglages", record_id: reglages.id });
+      setReglages({ ...reglages, ...DEFAULT_REGLAGES });
+      setLocalDelai(DEFAULT_REGLAGES.delai_suspension_jours);
+      toast.success("Reglages reinitialises aux valeurs par defaut");
+      setResetOpen(false);
+    } catch (err) {
+      logger.error("ReglagesPanel", "Erreur reinitialisation", err);
+      toast.error("Erreur lors de la reinitialisation");
+    } finally {
+      setResetting(false);
+    }
+  };
+
+  if (loading) return <SkeletonSettings />;
 
   if (!reglages) {
     return (
       <div className="text-center py-12 text-slate-500">
         <Settings2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-        <p>Aucun reglage configure pour ce cabinet.</p>
+        <p>Impossible de charger les reglages.</p>
+        <Button variant="outline" size="sm" className="mt-4" onClick={loadReglages}>Reessayer</Button>
       </div>
     );
   }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-          <Settings2 className="h-5 w-5 text-blue-400" /> Reglages du cabinet
-        </h2>
-        <p className="text-sm text-slate-400">Configurez le comportement de votre cabinet. Les modifications sont appliquees immediatement.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+            <Settings2 className="h-5 w-5 text-blue-400" /> Reglages du cabinet
+          </h2>
+          <p className="text-sm text-slate-400">Configurez le comportement de votre cabinet. Les modifications sont appliquees immediatement.</p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setResetOpen(true)}
+          className="gap-2 border-white/10 text-slate-300 hover:bg-white/[0.04]"
+          aria-label="Reinitialiser les reglages"
+        >
+          <RotateCcw className="h-4 w-4" /> Reinitialiser
+        </Button>
       </div>
 
       {SECTIONS.map((section) => (
@@ -155,21 +314,32 @@ export default function ReglagesPanel() {
             {section.icon} {section.title}
           </h3>
           <div className="space-y-1">
-            {section.toggles.map((toggle) => (
-              <div
-                key={toggle.key}
-                className="flex items-center justify-between py-4 px-4 rounded-lg hover:bg-white/[0.02] transition-colors border border-transparent hover:border-white/[0.04]"
-              >
-                <div className="space-y-0.5 flex-1 mr-4">
-                  <Label className="text-sm font-medium text-slate-200 cursor-pointer">{toggle.label}</Label>
-                  <p className="text-xs text-slate-500">{toggle.description}</p>
+            {section.toggles.map((toggle) => {
+              // Skip toggles that don't exist in DB (notification fields may not exist yet)
+              const value = reglages[toggle.key];
+              if (typeof value !== "boolean") return null;
+              return (
+                <div
+                  key={toggle.key}
+                  className={`flex items-center justify-between py-4 px-4 rounded-lg hover:bg-white/[0.02] transition-colors border border-transparent hover:border-white/[0.04] ${toggle.critical ? "ring-1 ring-amber-500/10" : ""}`}
+                >
+                  <div className="space-y-0.5 flex-1 mr-4">
+                    <Label className="text-sm font-medium text-slate-200 cursor-pointer flex items-center gap-2">
+                      {toggle.label}
+                      {toggle.critical && (
+                        <span className="text-[10px] text-amber-400 font-normal bg-amber-500/10 px-1.5 py-0.5 rounded">critique</span>
+                      )}
+                    </Label>
+                    <p className="text-xs text-slate-500">{toggle.description}</p>
+                  </div>
+                  <Switch
+                    checked={value}
+                    onCheckedChange={(checked) => updateToggle(toggle.key, checked, toggle.label, toggle.critical)}
+                    aria-label={toggle.label}
+                  />
                 </div>
-                <Switch
-                  checked={reglages[toggle.key] as boolean}
-                  onCheckedChange={(checked) => updateToggle(toggle.key, checked)}
-                />
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
@@ -180,24 +350,57 @@ export default function ReglagesPanel() {
         <div className="flex items-center justify-between py-4 px-4 rounded-lg hover:bg-white/[0.02] transition-colors">
           <div className="space-y-0.5 flex-1 mr-4">
             <Label className="text-sm font-medium text-slate-200">Delai de suspension automatique</Label>
-            <p className="text-xs text-slate-500">Nombre de jours d'inactivite avant suspension automatique d'un dossier</p>
+            <p className="text-xs text-slate-500">Nombre de jours d'inactivite avant suspension automatique d'un dossier (30-365)</p>
           </div>
           <div className="flex items-center gap-2">
             <Input
               type="number"
               min={30}
               max={365}
-              value={reglages.delai_suspension_jours}
-              onChange={(e) => {
-                const v = parseInt(e.target.value);
-                if (!isNaN(v) && v >= 30 && v <= 365) updateDelai(v);
-              }}
+              value={localDelai}
+              onChange={(e) => handleDelaiChange(e.target.value)}
               className="w-20 bg-white/[0.03] border-white/[0.08] text-center"
+              aria-label="Delai de suspension en jours"
             />
             <span className="text-sm text-slate-500">jours</span>
           </div>
         </div>
       </div>
+
+      {/* Confirm critical toggle */}
+      <Dialog open={!!confirmToggle} onOpenChange={(open) => { if (!open) setConfirmToggle(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Modification d'un reglage critique</DialogTitle>
+            <DialogDescription>
+              Vous etes sur le point de {confirmToggle?.value ? "activer" : "desactiver"} le reglage "<strong>{confirmToggle?.label}</strong>".
+              Ce reglage a un impact important sur le fonctionnement du cabinet. Voulez-vous continuer ?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setConfirmToggle(null)}>Annuler</Button>
+            <Button onClick={confirmCriticalToggle}>Confirmer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset confirmation */}
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reinitialiser les reglages</DialogTitle>
+            <DialogDescription>
+              Voulez-vous reinitialiser tous les reglages aux valeurs par defaut ? Les personnalisations actuelles seront perdues.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setResetOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={handleReset} disabled={resetting}>
+              {resetting ? "Reinitialisation..." : "Reinitialiser"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

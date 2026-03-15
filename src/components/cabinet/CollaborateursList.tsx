@@ -2,11 +2,15 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { logAudit } from "@/lib/auth/auditTrail";
+import { logger } from "@/lib/logger";
+import { useDebounce } from "@/hooks/useDebounce";
+import { COMPETENCE_LEVELS } from "@/lib/constants";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -15,9 +19,10 @@ import { toast } from "sonner";
 import {
   UserPlus, Search, Download, ChevronUp, ChevronDown,
   UserX, UserCheck, MailPlus, Trash2, MoreHorizontal, ChevronLeft, ChevronRight,
+  Users, UserMinus,
 } from "lucide-react";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
 type CabinetRole = "ADMIN" | "SUPERVISEUR" | "COLLABORATEUR" | "CONTROLEUR" | "SECRETAIRE" | "STAGIAIRE";
@@ -58,6 +63,8 @@ const AVATAR_COLORS = [
   "bg-cyan-500/30 text-cyan-300",
 ];
 
+type CompetenceValue = "JUNIOR" | "CONFIRME" | "SENIOR" | "EXPERT";
+
 interface Membre {
   id: string;
   cabinet_id: string;
@@ -65,10 +72,12 @@ interface Membre {
   role: CabinetRole;
   is_active: boolean;
   date_ajout: string;
-  // joined from profiles
   email?: string;
   full_name?: string;
   updated_at?: string;
+  // Joined from collaborateurs
+  competence?: CompetenceValue;
+  derniere_formation?: string | null;
 }
 
 interface CabinetOption {
@@ -78,12 +87,49 @@ interface CabinetOption {
 
 const PAGE_SIZE = 15;
 
+function getFormationBadge(date: string | null | undefined): { label: string; className: string } {
+  if (!date) return { label: "Non renseignee", className: "bg-slate-500/20 text-slate-400 border-slate-500/30" };
+  const d = new Date(date);
+  const now = new Date();
+  const diffMs = now.getTime() - d.getTime();
+  const diffDays = diffMs / (1000 * 60 * 60 * 24);
+  if (diffDays <= 365) return { label: "A jour", className: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" };
+  if (diffDays <= 730) return { label: "A renouveler", className: "bg-amber-500/20 text-amber-300 border-amber-500/30" };
+  return { label: "Expiree", className: "bg-red-500/20 text-red-300 border-red-500/30" };
+}
+
+function escapeCSVField(value: string): string {
+  if (value.includes('"') || value.includes(",") || value.includes("\n") || value.includes("\r")) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return `"${value}"`;
+}
+
+function SkeletonRows() {
+  return (
+    <div className="border border-white/[0.06] rounded-lg p-4 space-y-4">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4">
+          <Skeleton className="h-9 w-9 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48" />
+          </div>
+          <Skeleton className="h-6 w-24 rounded-full" />
+          <Skeleton className="h-6 w-16 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function CollaborateursList() {
   const { profile } = useAuth();
   const [membres, setMembres] = useState<Membre[]>([]);
   const [cabinets, setCabinets] = useState<CabinetOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 300);
   const [filterRole, setFilterRole] = useState<string>("all");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [sortCol, setSortCol] = useState<string>("full_name");
@@ -122,15 +168,35 @@ export default function CollaborateursList() {
       const profileMap: Record<string, { email: string; full_name: string; updated_at: string }> = {};
       profiles?.forEach((p) => { profileMap[p.id] = p; });
 
+      // Load collaborateurs data for competence + formation
+      const emails = profiles?.map((p) => p.email).filter(Boolean) || [];
+      const collabMap: Record<string, { niveau_competence?: string; derniere_formation?: string }> = {};
+      if (emails.length > 0) {
+        const { data: collabs } = await supabase
+          .from("collaborateurs")
+          .select("email, niveau_competence, derniere_formation")
+          .in("email", emails);
+        collabs?.forEach((c) => {
+          if (c.email) collabMap[c.email] = c;
+        });
+      }
+
       setMembres(
-        (memData || []).map((m: Membre) => ({
-          ...m,
-          email: profileMap[m.user_id]?.email || "",
-          full_name: profileMap[m.user_id]?.full_name || "",
-          updated_at: profileMap[m.user_id]?.updated_at || "",
-        }))
+        (memData || []).map((m: Membre) => {
+          const prof = profileMap[m.user_id];
+          const collab = prof?.email ? collabMap[prof.email] : undefined;
+          return {
+            ...m,
+            email: prof?.email || "",
+            full_name: prof?.full_name || "",
+            updated_at: prof?.updated_at || "",
+            competence: (collab?.niveau_competence as CompetenceValue) || undefined,
+            derniere_formation: collab?.derniere_formation || null,
+          };
+        })
       );
-    } catch {
+    } catch (err) {
+      logger.error("CollaborateursList", "Erreur chargement", err);
       toast.error("Erreur lors du chargement des collaborateurs");
     } finally {
       setLoading(false);
@@ -139,11 +205,14 @@ export default function CollaborateursList() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
+  // Reset page when search changes
+  useEffect(() => { setPage(0); }, [debouncedSearch]);
+
   // Filtering + sorting
   const filtered = useMemo(() => {
     let list = [...membres];
-    if (search) {
-      const q = search.toLowerCase();
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
       list = list.filter((m) => m.full_name?.toLowerCase().includes(q) || m.email?.toLowerCase().includes(q));
     }
     if (filterRole !== "all") list = list.filter((m) => m.role === filterRole);
@@ -156,10 +225,13 @@ export default function CollaborateursList() {
       return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va);
     });
     return list;
-  }, [membres, search, filterRole, filterStatus, sortCol, sortDir]);
+  }, [membres, debouncedSearch, filterRole, filterStatus, sortCol, sortDir]);
 
   const paginated = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page]);
   const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+
+  const activeCount = useMemo(() => membres.filter((m) => m.is_active).length, [membres]);
+  const inactiveCount = useMemo(() => membres.filter((m) => !m.is_active).length, [membres]);
 
   const roleCounts = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -204,31 +276,33 @@ export default function CollaborateursList() {
     setInviting(true);
     try {
       const targetCabinet = inviteForm.cabinet_id || cabinets[0]?.id || profile.cabinet_id;
-      const { error } = await supabase.auth.signUp({
-        email: inviteForm.email,
-        password: crypto.randomUUID() + "Aa1!",
-        options: {
-          data: {
-            full_name: inviteForm.nom,
-            cabinet_id: targetCabinet,
-            role: inviteForm.role,
-          },
-          emailRedirectTo: `${window.location.origin}/auth?invited=true`,
+
+      // Use the invite-user edge function instead of supabase.auth.signUp
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke("invite-user", {
+        body: {
+          email: inviteForm.email.trim(),
+          fullName: inviteForm.nom.trim(),
+          role: inviteForm.role,
+          cabinet_id: targetCabinet,
         },
       });
-      if (error) throw error;
 
-      await logAudit({
-        action: "INVITATION_UTILISATEUR",
-        table_name: "cabinet_membres",
-        new_data: { email: inviteForm.email, role: inviteForm.role },
-      });
+      if (res.error) {
+        throw new Error(res.error.message || "Erreur lors de l'invitation");
+      }
+
+      const resData = res.data as { error?: string; message?: string };
+      if (resData?.error) {
+        throw new Error(resData.error);
+      }
 
       toast.success(`Invitation envoyee a ${inviteForm.email}`);
       setInviteOpen(false);
       setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
       inviteTimerRef.current = setTimeout(() => loadData(), 3000);
     } catch (err: unknown) {
+      logger.error("CollaborateursList", "Erreur invitation", err);
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'invitation");
     } finally {
       setInviting(false);
@@ -236,6 +310,10 @@ export default function CollaborateursList() {
   };
 
   const updateRole = async (membre: Membre, newRole: CabinetRole) => {
+    if (membre.user_id === profile?.id) {
+      toast.error("Vous ne pouvez pas modifier votre propre role");
+      return;
+    }
     const { error } = await supabase
       .from("cabinet_membres")
       .update({ role: newRole })
@@ -298,12 +376,24 @@ export default function CollaborateursList() {
   };
 
   const exportCSV = () => {
-    const header = "Nom,Email,Role,Statut,Cabinet,Date ajout\n";
+    const header = "Nom,Email,Role,Statut,Cabinet,Competence,Formation,Date ajout\n";
     const rows = filtered.map((m) => {
       const cab = cabinets.find((c) => c.id === m.cabinet_id);
-      return `"${m.full_name}","${m.email}","${m.role}","${m.is_active ? "Actif" : "Inactif"}","${cab?.nom || ""}","${new Date(m.date_ajout).toLocaleDateString("fr-FR")}"`;
+      const compLevel = COMPETENCE_LEVELS.find((l) => l.value === m.competence);
+      const formBadge = getFormationBadge(m.derniere_formation);
+      return [
+        escapeCSVField(m.full_name || ""),
+        escapeCSVField(m.email || ""),
+        escapeCSVField(ROLE_LABELS[m.role] || m.role),
+        escapeCSVField(m.is_active ? "Actif" : "Inactif"),
+        escapeCSVField(cab?.nom || ""),
+        escapeCSVField(compLevel?.label || "Non defini"),
+        escapeCSVField(formBadge.label),
+        escapeCSVField(new Date(m.date_ajout).toLocaleDateString("fr-FR")),
+      ].join(",");
     }).join("\n");
-    const blob = new Blob([header + rows], { type: "text/csv;charset=utf-8;" });
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + header + rows], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -313,9 +403,7 @@ export default function CollaborateursList() {
     toast.success("Export CSV telecharge");
   };
 
-  if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="h-6 w-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" /></div>;
-  }
+  if (loading) return <SkeletonRows />;
 
   return (
     <div className="space-y-6">
@@ -324,39 +412,53 @@ export default function CollaborateursList() {
         <div>
           <h2 className="text-lg font-semibold text-slate-100">Collaborateurs</h2>
           <p className="text-sm text-slate-400">
-            {membres.length} membre{membres.length > 1 ? "s" : ""} ·{" "}
-            {Object.entries(roleCounts).map(([role, count]) => (
-              <span key={role} className="mr-2">{count} {role.toLowerCase()}{count > 1 ? "s" : ""}</span>
-            ))}
+            {membres.length} membre{membres.length > 1 ? "s" : ""}
+            <span className="mx-1.5 text-slate-600">|</span>
+            <span className="text-emerald-400">{activeCount} actif{activeCount > 1 ? "s" : ""}</span>
+            {inactiveCount > 0 && (
+              <>
+                <span className="mx-1"> · </span>
+                <span className="text-red-400">{inactiveCount} inactif{inactiveCount > 1 ? "s" : ""}</span>
+              </>
+            )}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2 border-white/10 text-slate-300 hover:bg-white/[0.04]">
+          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2 border-white/10 text-slate-300 hover:bg-white/[0.04]" aria-label="Exporter la liste en CSV">
             <Download className="h-4 w-4" /> Export CSV
           </Button>
-          <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+          <Dialog
+            open={inviteOpen}
+            onOpenChange={(open) => {
+              setInviteOpen(open);
+              if (!open) setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+            }}
+          >
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2">
+              <Button size="sm" className="gap-2" aria-label="Inviter un nouveau collaborateur">
                 <UserPlus className="h-4 w-4" /> Ajouter un collaborateur
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Inviter un collaborateur</DialogTitle>
+                <DialogDescription>
+                  Un email d'invitation sera envoye au collaborateur pour rejoindre le cabinet.
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleInvite} className="space-y-4 pt-2">
                 <div className="space-y-2">
-                  <Label>Nom complet</Label>
-                  <Input value={inviteForm.nom} onChange={(e) => setInviteForm({ ...inviteForm, nom: e.target.value })} placeholder="Jean Dupont" required />
+                  <Label htmlFor="invite-nom">Nom complet</Label>
+                  <Input id="invite-nom" value={inviteForm.nom} onChange={(e) => setInviteForm({ ...inviteForm, nom: e.target.value })} placeholder="Jean Dupont" required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Email</Label>
-                  <Input type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} placeholder="jean@cabinet.fr" required />
+                  <Label htmlFor="invite-email">Email</Label>
+                  <Input id="invite-email" type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} placeholder="jean@cabinet.fr" required />
                 </div>
                 <div className="space-y-2">
-                  <Label>Role</Label>
+                  <Label htmlFor="invite-role">Role</Label>
                   <Select value={inviteForm.role} onValueChange={(v) => setInviteForm({ ...inviteForm, role: v as CabinetRole })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="invite-role"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {(Object.keys(ROLE_LABELS) as CabinetRole[]).map((role) => (
                         <SelectItem key={role} value={role}>{ROLE_LABELS[role]}</SelectItem>
@@ -366,9 +468,9 @@ export default function CollaborateursList() {
                 </div>
                 {cabinets.length > 1 && (
                   <div className="space-y-2">
-                    <Label>Cabinet</Label>
+                    <Label htmlFor="invite-cabinet">Cabinet</Label>
                     <Select value={inviteForm.cabinet_id || cabinets[0]?.id} onValueChange={(v) => setInviteForm({ ...inviteForm, cabinet_id: v })}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger id="invite-cabinet"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {cabinets.map((c) => (
                           <SelectItem key={c.id} value={c.id}>{c.nom}</SelectItem>
@@ -392,13 +494,14 @@ export default function CollaborateursList() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
           <Input
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher par nom ou email..."
             className="pl-9 bg-white/[0.03] border-white/[0.08]"
+            aria-label="Rechercher un collaborateur"
           />
         </div>
         <Select value={filterRole} onValueChange={(v) => { setFilterRole(v); setPage(0); }}>
-          <SelectTrigger className="w-[160px] bg-white/[0.03] border-white/[0.08]">
+          <SelectTrigger className="w-[160px] bg-white/[0.03] border-white/[0.08]" aria-label="Filtrer par role">
             <SelectValue placeholder="Tous les roles" />
           </SelectTrigger>
           <SelectContent>
@@ -409,7 +512,7 @@ export default function CollaborateursList() {
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(0); }}>
-          <SelectTrigger className="w-[140px] bg-white/[0.03] border-white/[0.08]">
+          <SelectTrigger className="w-[140px] bg-white/[0.03] border-white/[0.08]" aria-label="Filtrer par statut">
             <SelectValue placeholder="Tous" />
           </SelectTrigger>
           <SelectContent>
@@ -422,16 +525,16 @@ export default function CollaborateursList() {
         {/* Bulk actions */}
         {selected.size > 0 && (
           <div className="flex items-center gap-2 ml-auto">
-            <span className="text-sm text-slate-400">{selected.size} selectionne(s)</span>
+            <span className="text-sm text-slate-400">{selected.size} selectionne(s) (page courante)</span>
             <Select value={bulkAction} onValueChange={setBulkAction}>
-              <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.08]">
+              <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.08]" aria-label="Action en masse">
                 <SelectValue placeholder="Action en masse" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="activate">Activer</SelectItem>
                 <SelectItem value="deactivate">Desactiver</SelectItem>
                 {(Object.keys(ROLE_LABELS) as CabinetRole[]).map((role) => (
-                  <SelectItem key={role} value={role}>Role → {ROLE_LABELS[role]}</SelectItem>
+                  <SelectItem key={role} value={role}>Role &rarr; {ROLE_LABELS[role]}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -449,6 +552,7 @@ export default function CollaborateursList() {
                 <Checkbox
                   checked={paginated.length > 0 && selected.size === paginated.length}
                   onCheckedChange={toggleSelectAll}
+                  aria-label="Selectionner tous les collaborateurs de cette page"
                 />
               </TableHead>
               <TableHead className="text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("full_name")}>
@@ -457,6 +561,8 @@ export default function CollaborateursList() {
               <TableHead className="text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("role")}>
                 Role <SortIcon col="role" />
               </TableHead>
+              <TableHead className="text-slate-400">Competence</TableHead>
+              <TableHead className="text-slate-400">Formation</TableHead>
               <TableHead className="text-slate-400">Cabinet</TableHead>
               <TableHead className="text-slate-400">Statut</TableHead>
               <TableHead className="text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("date_ajout")}>
@@ -468,8 +574,9 @@ export default function CollaborateursList() {
           <TableBody>
             {paginated.length === 0 && (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-slate-500">
-                  Aucun collaborateur trouve.
+                <TableCell colSpan={9} className="text-center py-12 text-slate-500">
+                  <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p>Aucun collaborateur trouve.</p>
                 </TableCell>
               </TableRow>
             )}
@@ -477,10 +584,12 @@ export default function CollaborateursList() {
               const cab = cabinets.find((c) => c.id === m.cabinet_id);
               const online = isOnline(m.updated_at);
               const isSelf = m.user_id === profile?.id;
+              const compLevel = COMPETENCE_LEVELS.find((l) => l.value === m.competence);
+              const formBadge = getFormationBadge(m.derniere_formation);
               return (
                 <TableRow key={m.id} className={`border-white/[0.06] hover:bg-white/[0.02] ${!m.is_active ? "opacity-50" : ""}`}>
                   <TableCell>
-                    <Checkbox checked={selected.has(m.id)} onCheckedChange={() => toggleSelect(m.id)} />
+                    <Checkbox checked={selected.has(m.id)} onCheckedChange={() => toggleSelect(m.id)} aria-label={`Selectionner ${m.full_name || m.email}`} />
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -489,11 +598,14 @@ export default function CollaborateursList() {
                           {getInitials(m.full_name || m.email || "?")}
                         </div>
                         {online && (
-                          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 border-2 border-slate-950" />
+                          <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-emerald-400 border-2 border-slate-950" title="En ligne" />
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-slate-200 text-sm">{m.full_name || "—"}</p>
+                        <p className="font-medium text-slate-200 text-sm">
+                          {m.full_name || <span className="text-slate-500">&mdash;</span>}
+                          {isSelf && <span className="text-xs text-slate-500 ml-1.5">(vous)</span>}
+                        </p>
                         <p className="text-xs text-slate-500">{m.email}</p>
                       </div>
                     </div>
@@ -504,11 +616,11 @@ export default function CollaborateursList() {
                         <TooltipTrigger>
                           <Badge className={ROLE_COLORS[m.role]}>{ROLE_LABELS[m.role]}</Badge>
                         </TooltipTrigger>
-                        <TooltipContent>{ROLE_DESCRIPTIONS[m.role]}</TooltipContent>
+                        <TooltipContent>Vous ne pouvez pas modifier votre propre role</TooltipContent>
                       </Tooltip>
                     ) : (
                       <Select value={m.role} onValueChange={(v) => updateRole(m, v as CabinetRole)}>
-                        <SelectTrigger className="w-[160px] h-8 bg-transparent border-white/[0.08]">
+                        <SelectTrigger className="w-[160px] h-8 bg-transparent border-white/[0.08]" aria-label={`Changer le role de ${m.full_name}`}>
                           <Badge className={ROLE_COLORS[m.role]}>{ROLE_LABELS[m.role]}</Badge>
                         </SelectTrigger>
                         <SelectContent>
@@ -524,7 +636,26 @@ export default function CollaborateursList() {
                       </Select>
                     )}
                   </TableCell>
-                  <TableCell className="text-sm text-slate-400">{cab?.nom || "—"}</TableCell>
+                  <TableCell>
+                    {compLevel ? (
+                      <Badge className={compLevel.color}>{compLevel.label}</Badge>
+                    ) : (
+                      <span className="text-xs text-slate-600">&mdash;</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Badge className={formBadge.className}>{formBadge.label}</Badge>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {m.derniere_formation
+                          ? `Derniere formation : ${new Date(m.derniere_formation).toLocaleDateString("fr-FR")}`
+                          : "Aucune date de formation renseignee"}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell className="text-sm text-slate-400">{cab?.nom || <span className="text-slate-600">&mdash;</span>}</TableCell>
                   <TableCell>
                     {m.is_active ? (
                       <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Actif</Badge>
@@ -539,7 +670,7 @@ export default function CollaborateursList() {
                     {!isSelf && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label={`Actions pour ${m.full_name || m.email}`}>
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -579,11 +710,11 @@ export default function CollaborateursList() {
         <div className="flex items-center justify-between text-sm text-slate-400">
           <span>{filtered.length} resultat{filtered.length > 1 ? "s" : ""}</span>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)}>
+            <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Page precedente">
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span>Page {page + 1} / {totalPages}</span>
-            <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)}>
+            <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(page + 1)} aria-label="Page suivante">
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>

@@ -4,8 +4,6 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { clientsService } from "@/lib/supabaseService";
-import { supabase } from "@/integrations/supabase/client";
-import { logAudit } from "@/lib/auth/auditTrail";
 import { mapDbClient } from "@/lib/dbMappers";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES } from "@/lib/riskEngine";
 import { useScoringData } from "@/hooks/useScoringData";
@@ -41,7 +39,6 @@ import {
   Phone, Mail, AlertTriangle, CheckCircle2, Clock, FileText, Shield,
   ClipboardCheck, ScrollText, Upload, Trash2, Plus, ChevronRight,
   ExternalLink, Loader2, Newspaper, Globe, Users, Archive, TrendingUp,
-  Send, XCircle, RefreshCw,
 } from "lucide-react";
 
 const DILIGENCES_MAP: Record<string, { label: string; items: string[] }> = {
@@ -154,52 +151,6 @@ function ClientDetailContent({ client }: { client: Client }) {
   const [tab, setTab] = useState("informations");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [workflowStatus, setWorkflowStatus] = useState("PROSPECT");
-  const [workflowLoading, setWorkflowLoading] = useState(false);
-  const [workflowMeta, setWorkflowMeta] = useState<{ demande_validation_par?: string; demande_validation_date?: string; valideur?: string; date_validation?: string; motif_refus?: string; date_prochain_maintien?: string }>({});
-
-  // Load workflow status from DB
-  useEffect(() => {
-    const loadWorkflow = async () => {
-      const { data } = await supabase
-        .from("clients")
-        .select("workflow_status, demande_validation_par, demande_validation_date, valideur, date_validation, motif_refus, date_prochain_maintien")
-        .eq("ref", client.ref)
-        .single();
-      if (data) {
-        setWorkflowStatus(data.workflow_status || "PROSPECT");
-        setWorkflowMeta({
-          demande_validation_par: data.demande_validation_par,
-          demande_validation_date: data.demande_validation_date,
-          valideur: data.valideur,
-          date_validation: data.date_validation,
-          motif_refus: data.motif_refus,
-          date_prochain_maintien: data.date_prochain_maintien,
-        });
-      }
-    };
-    loadWorkflow();
-  }, [client.ref]);
-
-  const changeWorkflowStatus = async (newStatus: string, extra?: Record<string, unknown>) => {
-    setWorkflowLoading(true);
-    try {
-      const { error } = await supabase
-        .from("clients")
-        .update({ workflow_status: newStatus, ...extra })
-        .eq("ref", client.ref);
-      if (error) throw error;
-      await logAudit({ action: "WORKFLOW_CHANGE", table_name: "clients", record_id: client.ref, new_data: { workflow_status: newStatus } });
-      setWorkflowStatus(newStatus);
-      if (extra) setWorkflowMeta((prev) => ({ ...prev, ...extra }));
-      toast.success(`Statut : ${newStatus.replace(/_/g, " ").toLowerCase()}`);
-    } catch {
-      toast.error("Erreur lors du changement de statut");
-    } finally {
-      setWorkflowLoading(false);
-    }
-  };
-
   // Sync editForm when client data changes (e.g. from external updates)
   useEffect(() => {
     if (!editing) {
@@ -401,93 +352,6 @@ function ClientDetailContent({ client }: { client: Client }) {
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <ScoreGauge score={client.scoreGlobal} />
           <VigilanceBadge level={client.nivVigilance} />
-        </div>
-      </div>
-
-      {/* Workflow banner */}
-      <div className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02] flex flex-wrap items-center gap-4">
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 uppercase tracking-wider">Statut</span>
-          <Badge className={`text-xs ${
-            workflowStatus === "PROSPECT" ? "bg-blue-500/20 text-blue-300 border-blue-500/30" :
-            workflowStatus === "A_TRAITER" ? "bg-amber-500/20 text-amber-300 border-amber-500/30" :
-            workflowStatus === "EN_COURS" ? "bg-cyan-500/20 text-cyan-300 border-cyan-500/30" :
-            workflowStatus === "DEMANDE_VALIDATION" ? "bg-purple-500/20 text-purple-300 border-purple-500/30" :
-            workflowStatus === "VALIDE" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30" :
-            workflowStatus === "REFUSE" ? "bg-red-500/20 text-red-300 border-red-500/30" :
-            workflowStatus === "MAINTIEN" ? "bg-indigo-500/20 text-indigo-300 border-indigo-500/30" :
-            "bg-slate-500/20 text-slate-400 border-slate-500/30"
-          }`}>
-            {workflowStatus.replace(/_/g, " ")}
-          </Badge>
-        </div>
-
-        {/* Workflow meta info */}
-        {workflowStatus === "DEMANDE_VALIDATION" && workflowMeta.demande_validation_date && (
-          <span className="text-xs text-slate-500">
-            Demande le {new Date(workflowMeta.demande_validation_date).toLocaleDateString("fr-FR")}
-          </span>
-        )}
-        {workflowStatus === "VALIDE" && workflowMeta.date_validation && (
-          <span className="text-xs text-emerald-400">
-            Valide le {new Date(workflowMeta.date_validation).toLocaleDateString("fr-FR")}
-          </span>
-        )}
-        {workflowStatus === "REFUSE" && workflowMeta.date_validation && (
-          <span className="text-xs text-red-400">
-            Refuse le {new Date(workflowMeta.date_validation).toLocaleDateString("fr-FR")}
-          </span>
-        )}
-        {workflowStatus === "MAINTIEN" && workflowMeta.date_prochain_maintien && (
-          <span className="text-xs text-indigo-400 flex items-center gap-1">
-            <RefreshCw className="w-3 h-3" /> Cloture le {workflowMeta.date_prochain_maintien}
-          </span>
-        )}
-
-        {/* Workflow action buttons */}
-        <div className="flex items-center gap-2 ml-auto">
-          {(workflowStatus === "PROSPECT" || workflowStatus === "A_TRAITER" || workflowStatus === "EN_COURS") && (
-            <Button
-              size="sm"
-              className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-xs"
-              disabled={workflowLoading}
-              onClick={() => changeWorkflowStatus("DEMANDE_VALIDATION", { demande_validation_par: profile?.id, demande_validation_date: new Date().toISOString() })}
-            >
-              <Send className="w-3.5 h-3.5" /> Soumettre a validation
-            </Button>
-          )}
-          {workflowStatus === "DEMANDE_VALIDATION" && (
-            <>
-              <Button
-                size="sm"
-                className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-xs"
-                disabled={workflowLoading}
-                onClick={() => changeWorkflowStatus("VALIDE", { valideur: profile?.id, date_validation: new Date().toISOString() })}
-              >
-                <CheckCircle2 className="w-3.5 h-3.5" /> Valider
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="gap-1.5 text-red-400 border-red-500/30 hover:bg-red-500/10 text-xs"
-                disabled={workflowLoading}
-                onClick={() => changeWorkflowStatus("REFUSE", { valideur: profile?.id, date_validation: new Date().toISOString() })}
-              >
-                <XCircle className="w-3.5 h-3.5" /> Refuser
-              </Button>
-            </>
-          )}
-          {workflowStatus === "REFUSE" && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5 text-blue-400 border-blue-500/30 hover:bg-blue-500/10 text-xs"
-              disabled={workflowLoading}
-              onClick={() => changeWorkflowStatus("A_TRAITER")}
-            >
-              Remettre a traiter
-            </Button>
-          )}
         </div>
       </div>
 
