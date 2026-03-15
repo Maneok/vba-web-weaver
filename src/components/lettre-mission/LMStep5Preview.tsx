@@ -171,15 +171,15 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
         <span className="text-white font-mono font-medium">{numero}</span>
       </div>
 
-      {/* Preview */}
-      <div className="relative">
+      {/* Preview — constrained height with internal scroll */}
+      <div className="relative max-h-[55vh] overflow-y-auto rounded-lg border border-white/[0.06]">
         {previewContent}
 
         {/* Mobile: fullscreen button */}
         {isMobile && (
           <button
             onClick={() => setFullscreen(true)}
-            className="absolute bottom-4 right-4 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600/90 backdrop-blur text-white text-xs font-medium shadow-lg"
+            className="sticky bottom-4 float-right mr-4 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600/90 backdrop-blur text-white text-xs font-medium shadow-lg z-10"
           >
             <Maximize2 className="w-3.5 h-3.5" /> Plein ecran
           </button>

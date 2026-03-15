@@ -508,6 +508,7 @@ export default function LettreMissionPage() {
       const { data: authData } = await supabase.auth.getUser();
       if (!authData?.user) return;
       const payload = {
+        data: currentData,
         wizard_data: currentData,
         wizard_step: currentStep,
         updated_at: new Date().toISOString(),
@@ -528,6 +529,7 @@ export default function LettreMissionPage() {
             type_mission: currentData.type_mission,
             statut: "brouillon",
             status: "brouillon",
+            data: currentData,
             wizard_data: currentData,
             wizard_step: currentStep,
             numero: incrementCounter(),
@@ -641,6 +643,7 @@ export default function LettreMissionPage() {
       type_mission: sanitized.type_mission,
       statut: effectiveStatut,
       status: effectiveStatut,
+      data: sanitized,
       wizard_data: sanitized,
       wizard_step: step,
       numero: sanitized.numero_lettre || incrementCounter(),
@@ -653,7 +656,7 @@ export default function LettreMissionPage() {
         toast.error("Impossible de sauvegarder : profil non initialise. Reconnectez-vous.");
         return;
       }
-      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, user_id: authData?.user?.id, cabinet_id: profile.cabinet_id }).select("id").maybeSingle();
+      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, data: sanitized, user_id: authData?.user?.id, cabinet_id: profile.cabinet_id }).select("id").maybeSingle();
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }
