@@ -1,13 +1,17 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2 } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
@@ -185,6 +189,64 @@ function InfoTip({ text }: { text: string }) {
   );
 }
 
+/* ---------- Cabinet tab helpers ---------- */
+
+const CABINET_FIELDS: (keyof CabinetInfo)[] = ["nom", "adresse", "cp", "ville", "siret", "numeroOEC", "email", "telephone", "associe_principal", "couleurPrimaire", "couleurSecondaire", "police"];
+
+function computeCabinetCompletion(c: CabinetInfo): number {
+  const filled = CABINET_FIELDS.filter((k) => {
+    const v = c[k];
+    return typeof v === "string" && v.trim().length > 0;
+  }).length;
+  return Math.round((filled / CABINET_FIELDS.length) * 100);
+}
+
+function formatSiretInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 14);
+  if (digits.length <= 3) return digits;
+  if (digits.length <= 6) return digits.slice(0, 3) + " " + digits.slice(3);
+  if (digits.length <= 9) return digits.slice(0, 3) + " " + digits.slice(3, 6) + " " + digits.slice(6);
+  return digits.slice(0, 3) + " " + digits.slice(3, 6) + " " + digits.slice(6, 9) + " " + digits.slice(9);
+}
+
+function formatPhoneInput(raw: string): string {
+  const digits = raw.replace(/\D/g, "").slice(0, 10);
+  const parts: string[] = [];
+  for (let i = 0; i < digits.length; i += 2) parts.push(digits.slice(i, i + 2));
+  return parts.join(" ");
+}
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return "";
+  const diff = Date.now() - new Date(iso).getTime();
+  if (diff < 0) return "a l'instant";
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "a l'instant";
+  if (mins < 60) return `il y a ${mins} minute${mins > 1 ? "s" : ""}`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `il y a ${hours} heure${hours > 1 ? "s" : ""}`;
+  const days = Math.floor(hours / 24);
+  return `il y a ${days} jour${days > 1 ? "s" : ""}`;
+}
+
+const COLOR_PRESETS = [
+  { label: "Bleu", value: "#3b82f6" },
+  { label: "Violet", value: "#8b5cf6" },
+  { label: "Emeraude", value: "#10b981" },
+  { label: "Ambre", value: "#f59e0b" },
+  { label: "Rose", value: "#f43f5e" },
+  { label: "Cyan", value: "#06b6d4" },
+  { label: "Orange", value: "#f97316" },
+  { label: "Ardoise", value: "#64748b" },
+];
+
+const FONT_OPTIONS = ["Inter", "Roboto", "Times New Roman", "Arial", "Open Sans"];
+
+function getInitials(name: string): string {
+  if (!name) return "CB";
+  return name.split(/\s+/).map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase() || "CB";
+}
+
 /* ---------- Gestion Cabinet sub-tabs ---------- */
 
 const CABINET_SUB_TABS = [
@@ -340,6 +402,15 @@ export default function SettingsPage() {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
+  // Cabinet section collapse states
+  const [identiteOpen, setIdentiteOpen] = useState(true);
+  const [coordonneesOpen, setCoordonneesOpen] = useState(true);
+  const [apparenceOpen, setApparenceOpen] = useState(true);
+  // Cabinet sync state
+  const [cabinetSynced, setCabinetSynced] = useState<boolean | null>(null); // null = unknown, true = synced, false = pending
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [wasAutoPopulated, setWasAutoPopulated] = useState(false);
+
   // Dirty state helpers
   const dirtyCabinet = useMemo(() => JSON.stringify(cabinet) !== JSON.stringify(savedCabinetSnapshot), [cabinet, savedCabinetSnapshot]);
   const dirtyScoring = useMemo(() => JSON.stringify(scoring) !== JSON.stringify(savedScoringSnapshot), [scoring, savedScoringSnapshot]);
@@ -419,6 +490,7 @@ export default function SettingsPage() {
 
           setCabinet(autoFilled);
           setSavedCabinetSnapshot(autoFilled);
+          setWasAutoPopulated(true);
 
           // Auto-save so it persists
           await supabase.from("parametres").upsert(
@@ -463,6 +535,31 @@ export default function SettingsPage() {
         const t = setTimeout(() => { setSavedCabinet(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
         savedTimersRef.current.push(t);
         toast.success("Informations cabinet enregistrees");
+
+        // Sync to cabinets table (principal cabinet)
+        try {
+          const { data: cabRow } = await supabase.from("cabinets").select("id").limit(1).maybeSingle();
+          if (cabRow?.id) {
+            const { error: syncErr } = await supabase.from("cabinets").update({
+              nom: cabinet.nom,
+              ville: cabinet.ville,
+              siret: cabinet.siret,
+              numero_oec: cabinet.numeroOEC,
+              email: cabinet.email,
+              telephone: cabinet.telephone,
+              couleur_primaire: cabinet.couleurPrimaire,
+            }).eq("id", cabRow.id);
+            if (syncErr) {
+              logger.error("Settings", "Erreur sync cabinets:", syncErr);
+              setCabinetSynced(false);
+            } else {
+              setCabinetSynced(true);
+            }
+          }
+        } catch (syncErr) {
+          logger.error("Settings", "Erreur sync cabinets:", syncErr);
+          setCabinetSynced(false);
+        }
       }
     } catch (err) {
       logger.error("Settings", "Erreur sauvegarde cabinet:", err);
@@ -681,103 +778,444 @@ export default function SettingsPage() {
 
         {/* ===== CABINET TAB ===== */}
         <TabsContent value="cabinet">
-          <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <h2 className="text-lg font-semibold text-slate-100 flex items-center">
-                  Informations du cabinet
-                  <InfoTip text="Ces informations apparaissent sur vos documents officiels et rapports de conformite LCB-FT." />
-                </h2>
-                <p className="text-sm text-slate-400 mt-1">Coordonnees et identite du cabinet comptable.</p>
+          <div className="space-y-4">
+            {/* Dirty warning banner */}
+            {dirtyCabinet && (
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-sm">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                Modifications non enregistrees. Pensez a sauvegarder vos changements.
               </div>
-              {lastSavedCabinet && (
-                <span className="text-xs text-slate-500 whitespace-nowrap">Sauvegarde : {formatTimestamp(lastSavedCabinet)}</span>
-              )}
-            </div>
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="cab-nom">Nom du cabinet <span className="text-red-400">*</span></Label>
-                <Input id="cab-nom" value={cabinet.nom} onChange={(e) => updateCabinet("nom", e.target.value)} placeholder="Cabinet Dupont & Associes" className={`focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${cabinetErrors.nom ? "border-red-500" : ""}`} />
-                {cabinetErrors.nom && <p className="text-xs text-red-400">{cabinetErrors.nom}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cab-associe">Associe principal</Label>
-                <Input id="cab-associe" value={cabinet.associe_principal} onChange={(e) => updateCabinet("associe_principal", e.target.value)} placeholder="Jean Dupont" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
-              </div>
-            </div>
+            {/* Main card with gradient header */}
+            <div className="glass-card border border-white/10 rounded-xl overflow-hidden">
+              {/* Gradient header */}
+              <div className="px-6 py-5 bg-gradient-to-r from-white/[0.04] to-white/[0.01] border-b border-white/10">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {/* Avatar circle */}
+                    <div
+                      className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg"
+                      style={{ backgroundColor: cabinet.couleurPrimaire }}
+                    >
+                      {getInitials(cabinet.nom)}
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-slate-100">
+                        {cabinet.nom || "Mon cabinet"}
+                      </h2>
+                      <div className="flex items-center gap-2 mt-1 flex-wrap">
+                        {wasAutoPopulated && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-blue-500/15 text-blue-400 border-blue-500/20">
+                            Pre-rempli depuis l'inscription
+                          </Badge>
+                        )}
+                        {cabinetSynced === true && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-green-500/15 text-green-400 border-green-500/20 gap-1">
+                            <Check className="w-3 h-3" /> Synchronise
+                          </Badge>
+                        )}
+                        {cabinetSynced === false && (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-500/15 text-amber-400 border-amber-500/20 gap-1">
+                            <AlertTriangle className="w-3 h-3" /> Sync en attente
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  {lastSavedCabinet && (
+                    <div className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap shrink-0">
+                      <Clock className="w-3.5 h-3.5" />
+                      {relativeTime(lastSavedCabinet)}
+                    </div>
+                  )}
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cab-adresse">Adresse</Label>
-              <Input id="cab-adresse" value={cabinet.adresse} onChange={(e) => updateCabinet("adresse", e.target.value)} placeholder="12 rue de la Paix" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
-            </div>
+                {/* Progress bar */}
+                <div className="mt-4 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-slate-400">
+                    <span>Completion du profil</span>
+                    <span className="font-medium">{computeCabinetCompletion(cabinet)}%</span>
+                  </div>
+                  <Progress value={computeCabinetCompletion(cabinet)} className="h-1.5" />
+                </div>
+              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="cab-cp">Code postal</Label>
-                <Input id="cab-cp" value={cabinet.cp} onChange={(e) => updateCabinet("cp", e.target.value)} placeholder="75001" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cab-ville">Ville</Label>
-                <Input id="cab-ville" value={cabinet.ville} onChange={(e) => updateCabinet("ville", e.target.value)} placeholder="Paris" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
-              </div>
-            </div>
+              <div className="p-6 space-y-5">
+                {/* ---- Section 1: Identite ---- */}
+                <Collapsible open={identiteOpen} onOpenChange={setIdentiteOpen}>
+                  <div className="rounded-lg border border-white/10 overflow-hidden">
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-1 h-6 rounded-full bg-blue-500" />
+                          <Building2 className="w-4 h-4 text-blue-400" />
+                          <span className="text-sm font-semibold text-slate-200">Identite</span>
+                        </div>
+                        {identiteOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 pt-3 border-l-2 border-blue-500/30 ml-4 space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Nom */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-nom" className="text-xs flex items-center gap-1">
+                              Nom du cabinet <span className="text-red-400">*</span>
+                              <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span className="text-red-400 cursor-help">*</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Champ obligatoire</TooltipContent></Tooltip></TooltipProvider>
+                            </Label>
+                            <div className="relative">
+                              <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Input
+                                id="cab-nom"
+                                value={cabinet.nom}
+                                onChange={(e) => updateCabinet("nom", e.target.value)}
+                                placeholder="Cabinet Dupont & Associes"
+                                maxLength={100}
+                                className={`pl-8 transition-colors ${cabinetErrors.nom ? "border-red-500 focus:border-red-500 focus:ring-red-500/30" : cabinet.nom.trim() ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                            <div className="flex justify-between">
+                              {cabinetErrors.nom ? <p className="text-[10px] text-red-400">{cabinetErrors.nom}</p> : <span />}
+                              <span className="text-[10px] text-slate-600">{cabinet.nom.length}/100</span>
+                            </div>
+                          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="cab-siret">SIRET <InfoTip text="Le SIRET doit contenir exactement 14 chiffres. Les espaces sont ignores." /></Label>
-                <Input id="cab-siret" value={cabinet.siret} onChange={(e) => updateCabinet("siret", e.target.value)} placeholder="123 456 789 00012" className={`focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${cabinetErrors.siret ? "border-red-500" : ""}`} />
-                {cabinetErrors.siret && <p className="text-xs text-red-400">{cabinetErrors.siret}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cab-oec">Numero OEC</Label>
-                <Input id="cab-oec" value={cabinet.numeroOEC} onChange={(e) => updateCabinet("numeroOEC", e.target.value)} placeholder="OEC-2024-XXXX" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
-              </div>
-            </div>
+                          {/* Associe principal */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-associe" className="text-xs">Associe principal</Label>
+                            <div className="relative">
+                              <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Input
+                                id="cab-associe"
+                                value={cabinet.associe_principal}
+                                onChange={(e) => updateCabinet("associe_principal", e.target.value)}
+                                placeholder="Jean Dupont"
+                                maxLength={80}
+                                className={`pl-8 transition-colors ${cabinet.associe_principal.trim() ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                            <div className="flex justify-end">
+                              <span className="text-[10px] text-slate-600">{cabinet.associe_principal.length}/80</span>
+                            </div>
+                          </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="cab-email">Email</Label>
-                <Input id="cab-email" type="email" value={cabinet.email} onChange={(e) => updateCabinet("email", e.target.value)} placeholder="contact@cabinet.fr" className={`focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 ${cabinetErrors.email ? "border-red-500" : ""}`} />
-                {cabinetErrors.email && <p className="text-xs text-red-400">{cabinetErrors.email}</p>}
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="cab-tel">Telephone</Label>
-                <Input id="cab-tel" value={cabinet.telephone} onChange={(e) => updateCabinet("telephone", e.target.value)} placeholder="01 23 45 67 89" className="focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500" />
-              </div>
-            </div>
+                          {/* SIRET */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-siret" className="text-xs flex items-center gap-1">
+                              SIRET
+                              <InfoTip text="Le SIRET doit contenir exactement 14 chiffres. Les espaces sont ignores." />
+                            </Label>
+                            <div className="relative">
+                              <Fingerprint className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Input
+                                id="cab-siret"
+                                value={formatSiretInput(cabinet.siret)}
+                                onChange={(e) => updateCabinet("siret", e.target.value.replace(/\D/g, "").slice(0, 14))}
+                                placeholder="123 456 789 00012"
+                                className={`pl-8 font-mono transition-colors ${cabinetErrors.siret ? "border-red-500 focus:border-red-500 focus:ring-red-500/30" : cabinet.siret.replace(/\s/g, "").length === 14 ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                            {cabinetErrors.siret && <p className="text-[10px] text-red-400">{cabinetErrors.siret}</p>}
+                          </div>
+                        </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="cab-couleur">Couleur primaire</Label>
-              <div className="flex items-center gap-3">
-                <input
-                  id="cab-couleur"
-                  type="color"
-                  value={cabinet.couleurPrimaire}
-                  onChange={(e) => updateCabinet("couleurPrimaire", e.target.value)}
-                  className="w-10 h-10 rounded border border-white/10 bg-transparent cursor-pointer"
-                />
-                <div className="w-8 h-8 rounded-md border border-white/10" style={{ backgroundColor: cabinet.couleurPrimaire }} />
-                <span className="text-sm text-slate-400 font-mono">{cabinet.couleurPrimaire}</span>
-              </div>
-            </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Numero OEC */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-oec" className="text-xs">Numero OEC</Label>
+                            <div className="relative">
+                              <Award className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Input
+                                id="cab-oec"
+                                value={cabinet.numeroOEC}
+                                onChange={(e) => updateCabinet("numeroOEC", e.target.value)}
+                                placeholder="OEC-2024-XXXX"
+                                className={`pl-8 transition-colors ${cabinet.numeroOEC.trim() ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
 
-            <div className="flex items-center justify-between pt-2">
-              <Button variant="ghost" size="sm" onClick={resetCabinet} aria-label="Reinitialiser les informations du cabinet" className="gap-2 text-slate-400 hover:text-slate-200">
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reinitialiser
-              </Button>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-500 hidden sm:inline">Ctrl+S pour sauvegarder</span>
-                <Button
-                  onClick={saveCabinet}
-                  disabled={savingCabinet}
-                  aria-label="Enregistrer les informations du cabinet"
-                  className={`gap-2 transition-colors duration-300 ${savedCabinet ? "bg-green-600 hover:bg-green-600" : ""}`}
-                >
-                  {savingCabinet ? <Loader2 className="w-4 h-4 animate-spin" /> : savedCabinet ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-                  {savedCabinet ? "Enregistre !" : "Enregistrer"}
-                </Button>
+                {/* ---- Section 2: Coordonnees ---- */}
+                <Collapsible open={coordonneesOpen} onOpenChange={setCoordonneesOpen}>
+                  <div className="rounded-lg border border-white/10 overflow-hidden">
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-1 h-6 rounded-full bg-emerald-500" />
+                          <MapPin className="w-4 h-4 text-emerald-400" />
+                          <span className="text-sm font-semibold text-slate-200">Coordonnees</span>
+                        </div>
+                        {coordonneesOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 pt-3 border-l-2 border-emerald-500/30 ml-4 space-y-4">
+                        {/* Adresse */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="cab-adresse" className="text-xs">Adresse</Label>
+                          <div className="relative">
+                            <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                            <Input
+                              id="cab-adresse"
+                              value={cabinet.adresse}
+                              onChange={(e) => updateCabinet("adresse", e.target.value)}
+                              placeholder="12 rue de la Paix"
+                              maxLength={120}
+                              className={`pl-8 transition-colors ${cabinet.adresse.trim() ? "border-green-500/40" : ""}`}
+                            />
+                          </div>
+                          <div className="flex justify-end">
+                            <span className="text-[10px] text-slate-600">{cabinet.adresse.length}/120</span>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {/* Code postal */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-cp" className="text-xs">Code postal</Label>
+                            <div className="relative">
+                              <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Input
+                                id="cab-cp"
+                                value={cabinet.cp}
+                                onChange={(e) => {
+                                  const v = e.target.value.replace(/\D/g, "").slice(0, 5);
+                                  updateCabinet("cp", v);
+                                }}
+                                placeholder="75001"
+                                maxLength={5}
+                                inputMode="numeric"
+                                className={`pl-8 font-mono transition-colors ${cabinet.cp.length === 5 ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Ville */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-ville" className="text-xs">Ville</Label>
+                            <div className="relative">
+                              <Building className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Input
+                                id="cab-ville"
+                                value={cabinet.ville}
+                                onChange={(e) => updateCabinet("ville", e.target.value)}
+                                placeholder="Paris"
+                                className={`pl-8 transition-colors ${cabinet.ville.trim() ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Email */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-email" className="text-xs">Email</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Input
+                                id="cab-email"
+                                type="email"
+                                value={cabinet.email}
+                                onChange={(e) => updateCabinet("email", e.target.value)}
+                                placeholder="contact@cabinet.fr"
+                                className={`pl-8 transition-colors ${cabinetErrors.email ? "border-red-500 focus:border-red-500 focus:ring-red-500/30" : cabinet.email && validateEmail(cabinet.email) ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                            {cabinetErrors.email && <p className="text-[10px] text-red-400">{cabinetErrors.email}</p>}
+                          </div>
+
+                          {/* Telephone */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-tel" className="text-xs">Telephone</Label>
+                            <div className="relative">
+                              <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Input
+                                id="cab-tel"
+                                value={formatPhoneInput(cabinet.telephone)}
+                                onChange={(e) => updateCabinet("telephone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                                placeholder="01 23 45 67 89"
+                                inputMode="tel"
+                                className={`pl-8 font-mono transition-colors ${cabinet.telephone.replace(/\D/g, "").length === 10 ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+
+                {/* ---- Section 3: Apparence ---- */}
+                <Collapsible open={apparenceOpen} onOpenChange={setApparenceOpen}>
+                  <div className="rounded-lg border border-white/10 overflow-hidden">
+                    <CollapsibleTrigger asChild>
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-1 h-6 rounded-full bg-violet-500" />
+                          <Palette className="w-4 h-4 text-violet-400" />
+                          <span className="text-sm font-semibold text-slate-200">Apparence</span>
+                        </div>
+                        {apparenceOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                      </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <div className="px-4 pb-4 pt-3 border-l-2 border-violet-500/30 ml-4 space-y-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Colors + Font */}
+                          <div className="space-y-5">
+                            {/* Couleur primaire */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Couleur primaire</Label>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {COLOR_PRESETS.map((c) => (
+                                  <button
+                                    key={c.value}
+                                    type="button"
+                                    title={c.label}
+                                    onClick={() => updateCabinet("couleurPrimaire", c.value)}
+                                    className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-110 ${cabinet.couleurPrimaire === c.value ? "border-white ring-2 ring-white/30 scale-110" : "border-white/20"}`}
+                                    style={{ backgroundColor: c.value }}
+                                  />
+                                ))}
+                                <input
+                                  type="color"
+                                  value={cabinet.couleurPrimaire}
+                                  onChange={(e) => updateCabinet("couleurPrimaire", e.target.value)}
+                                  className="w-7 h-7 rounded-full border border-white/20 bg-transparent cursor-pointer"
+                                  title="Couleur personnalisee"
+                                />
+                                <span className="text-xs text-slate-500 font-mono ml-1">{cabinet.couleurPrimaire}</span>
+                              </div>
+                            </div>
+
+                            {/* Couleur secondaire */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Couleur secondaire</Label>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {COLOR_PRESETS.map((c) => (
+                                  <button
+                                    key={c.value}
+                                    type="button"
+                                    title={c.label}
+                                    onClick={() => updateCabinet("couleurSecondaire", c.value)}
+                                    className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-110 ${cabinet.couleurSecondaire === c.value ? "border-white ring-2 ring-white/30 scale-110" : "border-white/20"}`}
+                                    style={{ backgroundColor: c.value }}
+                                  />
+                                ))}
+                                <input
+                                  type="color"
+                                  value={cabinet.couleurSecondaire}
+                                  onChange={(e) => updateCabinet("couleurSecondaire", e.target.value)}
+                                  className="w-7 h-7 rounded-full border border-white/20 bg-transparent cursor-pointer"
+                                  title="Couleur personnalisee"
+                                />
+                                <span className="text-xs text-slate-500 font-mono ml-1">{cabinet.couleurSecondaire}</span>
+                              </div>
+                            </div>
+
+                            {/* Police */}
+                            <div className="space-y-2">
+                              <Label className="text-xs">Police de caracteres</Label>
+                              <Select value={cabinet.police} onValueChange={(v) => updateCabinet("police", v)}>
+                                <SelectTrigger className="w-full">
+                                  <SelectValue placeholder="Choisir une police" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {FONT_OPTIONS.map((f) => (
+                                    <SelectItem key={f} value={f}>
+                                      <span style={{ fontFamily: f }}>{f}</span>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+
+                          {/* Live preview */}
+                          <div className="space-y-2">
+                            <Label className="text-xs">Apercu en-tete</Label>
+                            <div className="rounded-lg border border-white/10 bg-white overflow-hidden shadow-lg" style={{ fontFamily: cabinet.police }}>
+                              {/* Colored header bar */}
+                              <div className="h-2.5" style={{ background: `linear-gradient(to right, ${cabinet.couleurPrimaire}, ${cabinet.couleurSecondaire})` }} />
+                              <div className="p-4 space-y-2">
+                                <div className="flex items-center gap-3">
+                                  <div
+                                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                                    style={{ backgroundColor: cabinet.couleurPrimaire }}
+                                  >
+                                    {getInitials(cabinet.nom)}
+                                  </div>
+                                  <div>
+                                    <p className="text-sm font-bold text-gray-900">{cabinet.nom || "Nom du cabinet"}</p>
+                                    {cabinet.adresse && <p className="text-[10px] text-gray-500">{cabinet.adresse}</p>}
+                                    <p className="text-[10px] text-gray-500">{[cabinet.cp, cabinet.ville].filter(Boolean).join(" ") || "Ville"}</p>
+                                  </div>
+                                </div>
+                                <div className="border-t border-gray-100 pt-2 space-y-0.5">
+                                  {cabinet.telephone && (
+                                    <p className="text-[10px] text-gray-600 flex items-center gap-1">
+                                      <Phone className="w-2.5 h-2.5" /> {formatPhoneInput(cabinet.telephone)}
+                                    </p>
+                                  )}
+                                  {cabinet.email && (
+                                    <p className="text-[10px] text-gray-600 flex items-center gap-1">
+                                      <Mail className="w-2.5 h-2.5" /> {cabinet.email}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CollapsibleContent>
+                  </div>
+                </Collapsible>
+              </div>
+
+              {/* Sticky save bar */}
+              <div className="sticky bottom-0 z-10 px-6 py-3 border-t border-white/10 bg-slate-900/80 backdrop-blur-lg flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {showResetConfirm ? (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-slate-400">Reinitialiser les valeurs ?</span>
+                      <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => { resetCabinet(); setShowResetConfirm(false); }}>
+                        Confirmer
+                      </Button>
+                      <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowResetConfirm(false)}>
+                        Annuler
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button variant="ghost" size="sm" onClick={() => setShowResetConfirm(true)} aria-label="Reinitialiser les informations du cabinet" className="gap-2 text-slate-400 hover:text-slate-200 h-8">
+                      <RotateCcw className="w-3.5 h-3.5" />
+                      Reinitialiser
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {lastSavedCabinet && (
+                    <span className="text-[10px] text-slate-500 hidden sm:inline">
+                      {relativeTime(lastSavedCabinet)}
+                    </span>
+                  )}
+                  <span className="text-xs text-slate-500 hidden sm:inline">Ctrl+S</span>
+                  <Button
+                    onClick={saveCabinet}
+                    disabled={savingCabinet}
+                    aria-label="Enregistrer les informations du cabinet"
+                    className={`gap-2 transition-all duration-300 ${savedCabinet ? "bg-green-600 hover:bg-green-600" : ""}`}
+                  >
+                    {savingCabinet ? <Loader2 className="w-4 h-4 animate-spin" /> : savedCabinet ? <Check className="w-4 h-4 animate-in zoom-in duration-200" /> : <Save className="w-4 h-4" />}
+                    {savedCabinet ? "Enregistre !" : "Enregistrer"}
+                  </Button>
+                </div>
               </div>
             </div>
           </div>
