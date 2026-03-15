@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Sidebar layout offset — driven by JS via --sidebar-offset CSS var */
+:root {
+  --sidebar-offset: 72px; /* default: collapsed */
+}
+.app-content-offset {
+  /* mobile: no left padding — sidebar overlays content */
+}
+@media (min-width: 1024px) {
+  .app-content-offset {
+    padding-left: var(--sidebar-offset);
+    transition: padding-left 300ms ease;
+  }
+}
+
 @layer base {
   :root {
     --background: 222 47% 11%;
