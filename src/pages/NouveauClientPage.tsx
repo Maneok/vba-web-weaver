@@ -687,6 +687,7 @@ export default function NouveauClientPage() {
                 dateNaissance,
                 nationalite,
                 pourcentage: b.pourcentageParts || 0,
+                pourcentageVotes: b.pourcentageVotes || 0,
               };
             });
 
@@ -2127,7 +2128,34 @@ export default function NouveauClientPage() {
                   <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{form.dirigeant || selectedResult.dirigeant || "—"}</p></div>
                   <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
                   <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation ? formatDateFR(selectedResult.date_creation) : "—"}</p></div>
+                  {selectedEnterprise?.site_web && (
+                    <div><span className="text-slate-500">Site web</span><p className="mt-0.5"><a href={selectedEnterprise.site_web.startsWith("http") ? selectedEnterprise.site_web : `https://${selectedEnterprise.site_web}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-xs flex items-center gap-1">{selectedEnterprise.site_web} <ExternalLink className="w-3 h-3" /></a></p></div>
+                  )}
+                  {selectedEnterprise?.nombre_etablissements != null && selectedEnterprise.nombre_etablissements > 1 && (
+                    <div><span className="text-slate-500">Etablissements</span><p className="text-slate-200 mt-0.5">{selectedEnterprise.nombre_etablissements} etablissement(s)</p></div>
+                  )}
                 </div>
+                {/* Etat administratif warning */}
+                {selectedEnterprise?.etat_administratif && selectedEnterprise.etat_administratif !== "A" && selectedEnterprise.etat_administratif !== "ACTIVE" && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span className="text-xs text-red-400 font-semibold">Entreprise fermee ou radiee (etat: {selectedEnterprise.etat_administratif})</span>
+                  </div>
+                )}
+                {/* Dirigeants with qualite */}
+                {selectedEnterprise?.dirigeants && selectedEnterprise.dirigeants.length > 1 && (
+                  <div className="mt-3 pt-3 border-t border-emerald-500/10">
+                    <span className="text-[10px] text-slate-500 uppercase">Dirigeants ({selectedEnterprise.dirigeants.length})</span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {selectedEnterprise.dirigeants.slice(0, 6).map((d, i) => (
+                        <span key={`dir-${i}`} className="text-[11px] text-slate-300 bg-white/[0.04] px-2 py-1 rounded">
+                          {d.prenom} {d.nom}{d.qualite ? ` — ${d.qualite}` : ""}
+                        </span>
+                      ))}
+                      {selectedEnterprise.dirigeants.length > 6 && <span className="text-[10px] text-slate-500 self-center">+{selectedEnterprise.dirigeants.length - 6}</span>}
+                    </div>
+                  </div>
+                )}
                 {dataSource !== "pappers" && (
                   <div className="mt-3 pt-3 border-t border-emerald-500/10 flex items-center gap-2 text-xs">
                     <Info className="w-3.5 h-3.5 text-amber-400" />
@@ -3538,6 +3566,56 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </div>
             )}
 
+            {/* Fallback: enterprise-lookup finances when INPI financials unavailable */}
+            {(!screening.inpi.data?.financials || screening.inpi.data.financials.length === 0) && selectedEnterprise?.finances && selectedEnterprise.finances.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-slate-400" />
+                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
+                  <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{selectedEnterprise.finances.length} exercice(s)</Badge>
+                  <Badge className="text-[9px] bg-amber-500/15 text-amber-400 border-0">Annuaire Entreprises</Badge>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-white/[0.03]">
+                          <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
+                          {selectedEnterprise.finances.map((f, i) => (
+                            <th key={f.annee || `efin-${i}`} className="text-right py-2.5 px-3 text-slate-400 font-medium">{f.annee || `Exercice ${i + 1}`}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { label: "Chiffre d'affaires", key: "ca" as const },
+                          { label: "Resultat net", key: "resultat" as const },
+                          { label: "Effectif", key: "effectif" as const },
+                        ].map(row => {
+                          const hasData = selectedEnterprise.finances!.some(f => f[row.key] != null);
+                          if (!hasData) return null;
+                          return (
+                            <tr key={row.key} className="border-t border-white/[0.04] hover:bg-white/[0.03]">
+                              <td className="py-2 px-3 text-slate-400">{row.label}</td>
+                              {selectedEnterprise.finances!.map((f, i) => {
+                                const val = f[row.key];
+                                const isNeg = typeof val === "number" && val < 0;
+                                return (
+                                  <td key={f.annee || `efin-${i}`} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
+                                    {val != null ? (row.key === "effectif" ? val : `${typeof val === "number" ? val.toLocaleString("fr-FR") : val} \u20AC`) : "—"}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* FIX 40: Improved INPI Historique Timeline */}
             {inpiHistorique.length > 0 && (
               <Collapsible defaultOpen={recentDirigeantChange}>
@@ -3589,6 +3667,34 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   {inpiHistorique.length > 10 && (
                     <p className="text-[10px] text-slate-500 text-center mt-2">+ {inpiHistorique.length - 10} evenement(s) anterieurs</p>
                   )}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Etablissements INPI */}
+            {screening.inpi.data?.companyData?.etablissements && screening.inpi.data.companyData.etablissements.length > 1 && (
+              <Collapsible>
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-slate-400" />
+                    <h3 className="text-xs font-semibold text-slate-300">Etablissements</h3>
+                    <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.companyData.etablissements.length}</Badge>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-1.5">
+                  {screening.inpi.data.companyData.etablissements.map((e, i) => (
+                    <div key={e.siret || `etab-${i}`} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {e.estSiege && <Badge className="text-[8px] bg-blue-500/20 text-blue-400 border-0 shrink-0">Siege</Badge>}
+                        <span className="text-slate-300 truncate">{[e.adresse, e.codePostal, e.commune].filter(Boolean).join(", ")}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {e.activite && <span className="text-[10px] text-slate-500 truncate max-w-[120px]">{e.activite}</span>}
+                        <span className="text-slate-600 font-mono">{e.siret}</span>
+                      </div>
+                    </div>
+                  ))}
                 </CollapsibleContent>
               </Collapsible>
             )}
