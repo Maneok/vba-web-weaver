@@ -445,7 +445,7 @@ export default function LettreMissionPage() {
       const { data: drafts } = await supabase
         .from("lettres_mission")
         .select("id, wizard_data, wizard_step, created_at")
-        .eq("statut", "brouillon")
+        .or("statut.eq.brouillon,status.eq.brouillon")
         .order("updated_at", { ascending: false })
         .limit(1);
       if (cancelled) return;
@@ -485,7 +485,7 @@ export default function LettreMissionPage() {
         .from("lettres_mission")
         .select("id")
         .eq("client_ref", data.client_id)
-        .neq("statut", "archivee")
+        .not("statut", "eq", "archivee")
         .then(({ data: existing }) => {
           if (existing && existing.length > 0) {
             toast.warning("Ce client a deja une lettre de mission active");
@@ -495,29 +495,41 @@ export default function LettreMissionPage() {
     }
   }, [data.client_id]);
 
-  // ── Auto-save debounce 2s ──
+  // ── Auto-save debounce 5s (silent — no toast) ──
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
-  const saveToSupabase = useCallback(async () => {
-    if (!data.client_id) return;
+  const lmIdRef = useRef(lmId);
+  lmIdRef.current = lmId;
+  const profileCabinetRef = useRef(profile?.cabinet_id);
+  profileCabinetRef.current = profile?.cabinet_id;
+
+  const saveToSupabase = useCallback(async (currentData: LMWizardData, currentStep: number) => {
+    if (!currentData.client_id) return;
     try {
       const { data: authData } = await supabase.auth.getUser();
       if (!authData?.user) return;
-      const payload = { wizard_data: data, wizard_step: step, updated_at: new Date().toISOString() };
-      if (lmId) {
-        const { error: updErr } = await supabase.from("lettres_mission").update(payload).eq("id", lmId);
+      const payload = {
+        wizard_data: currentData,
+        wizard_step: currentStep,
+        updated_at: new Date().toISOString(),
+      };
+      if (lmIdRef.current) {
+        const { error: updErr } = await supabase.from("lettres_mission").update(payload).eq("id", lmIdRef.current);
         if (updErr) throw updErr;
       } else {
+        const cabId = profileCabinetRef.current;
+        if (!cabId) return;
         const { data: ins } = await supabase
           .from("lettres_mission")
           .insert({
             user_id: authData.user.id,
-            cabinet_id: profile?.cabinet_id,
-            client_ref: data.client_ref,
-            raison_sociale: data.raison_sociale,
-            type_mission: data.type_mission,
+            cabinet_id: cabId,
+            client_ref: currentData.client_ref,
+            raison_sociale: currentData.raison_sociale,
+            type_mission: currentData.type_mission,
             statut: "brouillon",
-            wizard_data: data,
-            wizard_step: step,
+            status: "brouillon",
+            wizard_data: currentData,
+            wizard_step: currentStep,
             numero: incrementCounter(),
           })
           .select("id")
@@ -525,17 +537,16 @@ export default function LettreMissionPage() {
         if (ins) setLmId(ins.id);
       }
       setLastSaved(new Date());
-      toast.success("Sauvegarde", { duration: 1500 });
     } catch (e) {
       logger.warn("LM", "Auto-save failed:", e);
     }
-  }, [data, step, lmId, profile?.cabinet_id]);
+  }, []);
 
-  // Trigger auto-save on data change (debounced 2s)
+  // Trigger auto-save on data change (debounced 5s, silent)
   useEffect(() => {
     if (!data.client_id) return;
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(saveToSupabase, 2000);
+    saveTimer.current = setTimeout(() => saveToSupabase(data, step), 5000);
     return () => clearTimeout(saveTimer.current);
   }, [data, step, saveToSupabase]);
 
@@ -554,13 +565,13 @@ export default function LettreMissionPage() {
             client_ref: r.client_ref || "",
             raison_sociale: r.raison_sociale || r.wizard_data?.raison_sociale || "—",
             type_mission: r.type_mission || r.wizard_data?.type_mission || "—",
-            statut: r.statut || "brouillon",
+            statut: r.statut || r.status || "brouillon",
             created_at: r.created_at,
             updated_at: r.updated_at,
-            wizard_data: r.wizard_data || {},
-            duration_seconds: r.wizard_data?.duration_seconds || 0,
-            honoraires_ht: r.wizard_data?.honoraires_ht || 0,
-            missions_count: r.wizard_data?.missions_selected?.filter((m: any) => m.selected)?.length || 0,
+            wizard_data: r.wizard_data || r.data || {},
+            duration_seconds: r.wizard_data?.duration_seconds || r.data?.duration_seconds || 0,
+            honoraires_ht: r.wizard_data?.honoraires_ht || r.data?.honoraires_ht || 0,
+            missions_count: (r.wizard_data?.missions_selected || r.data?.missions_selected)?.filter((m: any) => m.selected)?.length || 0,
           }))
         );
       }
@@ -623,12 +634,15 @@ export default function LettreMissionPage() {
 
     const sanitized = sanitizeWizardData(finalData);
     const { data: authData } = await supabase.auth.getUser();
+    const effectiveStatut = sanitized.statut || "brouillon";
     const payload = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,
       type_mission: sanitized.type_mission,
-      statut: sanitized.statut,
+      statut: effectiveStatut,
+      status: effectiveStatut,
       wizard_data: sanitized,
+      wizard_step: step,
       numero: sanitized.numero_lettre || incrementCounter(),
     };
     if (lmId) {
@@ -643,6 +657,7 @@ export default function LettreMissionPage() {
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }
+    toast.success("Lettre de mission sauvegardée !");
     setData(finalData);
     logAudit({
       action: "LETTRE_MISSION_SAVE",
@@ -701,7 +716,7 @@ export default function LettreMissionPage() {
   // G) Archive
   const handleArchive = async (letter: SavedLetter) => {
     try {
-      const { error } = await supabase.from("lettres_mission").update({ statut: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
+      const { error } = await supabase.from("lettres_mission").update({ statut: "archivee", status: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
       if (error) throw error;
       toast.success("Lettre archivee");
       await loadSavedLetters();

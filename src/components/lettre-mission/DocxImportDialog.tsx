@@ -23,6 +23,7 @@ import {
   parseDocxToHtml,
   mapHtmlToSections,
   detectMissingSections,
+  autoFillFromGrimy,
   ALL_SECTION_IDS,
 } from "@/lib/lettreMissionDocxImport";
 import type { ParsedDocxResult } from "@/lib/lettreMissionDocxImport";
@@ -41,6 +42,7 @@ import {
   CheckCircle2,
   Loader2,
   Plus,
+  Sparkles,
 } from "lucide-react";
 
 interface DocxImportDialogProps {
@@ -255,7 +257,7 @@ export default function DocxImportDialog({
             <div className="flex items-center gap-3">
               <Progress value={parsed.confidence} className="flex-1 h-2" />
               <span className="text-sm font-medium whitespace-nowrap">
-                {recognizedCount}/{Object.keys(ALL_SECTION_IDS).length} sections
+                {recognizedCount}/{ALL_SECTION_IDS.length} sections
                 reconnues — {parsed.confidence}%
               </span>
             </div>
@@ -272,17 +274,30 @@ export default function DocxImportDialog({
                     <span>{w}</span>
                   </div>
                 ))}
-                {missingCount > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {missingCount > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={addMissingSections}
+                    >
+                      <Plus className="h-3 w-3 mr-1" />
+                      Ajouter {missingCount} section(s) manquante(s)
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
-                    className="mt-2"
-                    onClick={addMissingSections}
+                    onClick={() => {
+                      const filled = autoFillFromGrimy(sections);
+                      setSections(filled);
+                      toast.success("Sections complétées depuis le modèle GRIMY.");
+                    }}
                   >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Ajouter {missingCount} section(s) manquante(s) depuis GRIMY
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    Auto-compléter depuis GRIMY
                   </Button>
-                )}
+                </div>
               </div>
             )}
 
@@ -326,9 +341,9 @@ export default function DocxImportDialog({
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
-                          {ALL_SECTION_IDS.map((sid) => (
-                            <SelectItem key={sid} value={sid}>
-                              {sid}
+                          {GRIMY_DEFAULT_SECTIONS.map((gs) => (
+                            <SelectItem key={gs.id} value={gs.id}>
+                              {gs.titre} {gs.cnoec_obligatoire ? "★" : ""}
                             </SelectItem>
                           ))}
                           <SelectItem value={section.id.startsWith("custom_") ? section.id : `custom_${idx + 1}`}>

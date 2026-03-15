@@ -15,39 +15,298 @@ export interface ParsedDocxResult {
 }
 
 // ══════════════════════════════════════════════
-// Mots-clés de détection des sections
+// ALL section IDs — derived from GRIMY defaults
+// ══════════════════════════════════════════════
+
+export const ALL_SECTION_IDS = GRIMY_DEFAULT_SECTIONS.map((s) => s.id);
+
+// ══════════════════════════════════════════════
+// Accent-insensitive normalisation
+// ══════════════════════════════════════════════
+
+function normalizeText(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+// ══════════════════════════════════════════════
+// Mots-clés de détection — 22 sections GRIMY
 // ══════════════════════════════════════════════
 
 const SECTION_KEYWORDS: Record<string, string[]> = {
-  introduction: ["lettre de mission", "présentation des comptes"],
-  entite: ["votre entité", "votre entreprise", "caractéristiques"],
-  lcbft: [
-    "lutte contre le blanchiment",
-    "lcb-ft",
-    "lcb",
-    "vigilance",
-    "blanchiment",
+  destinataire: [
+    "destinataire",
+    "a l'attention de",
+    "mandataire social",
+    "adresse du client",
+    "coordonnees du client",
+    "identification du client",
+    "monsieur le gerant",
+    "madame la gerante",
+    "cher client",
   ],
-  mission: ["notre mission", "mission que vous", "code de déontologie"],
-  duree: ["durée de la mission", "durée"],
+  introduction: [
+    "lettre de mission",
+    "presentation des comptes",
+    "confiance que vous nous avez",
+    "article 151",
+    "code de deontologie",
+    "contrat entre les parties",
+    "conditions generales d'intervention",
+    "objet de la mission",
+    "preambule",
+  ],
+  entite: [
+    "votre entite",
+    "votre entreprise",
+    "votre societe",
+    "caracteristiques de l'entite",
+    "identification de l'entite",
+    "raison sociale",
+    "forme juridique",
+    "numero siren",
+    "immatriculation rcs",
+    "siege social",
+  ],
+  organisation: [
+    "organisation et transmission",
+    "transmission des documents",
+    "periodicite",
+    "documents comptables",
+    "delai de transmission",
+    "outil de transmission",
+    "conservation lcb",
+    "duree de conservation",
+    "modalites de transmission",
+  ],
+  mission: [
+    "notre mission",
+    "mission que vous",
+    "code de deontologie",
+    "np 2300",
+    "norme professionnelle",
+    "attestation de presentation",
+    "coherence et vraisemblance",
+    "referentiel normatif",
+    "plan comptable general",
+    "obligation de cooperation",
+  ],
+  responsable_mission: [
+    "responsable de la mission",
+    "responsable de mission",
+    "expert-comptable inscrit",
+    "expert comptable inscrit",
+    "tableau de l'ordre",
+    "concours personnel",
+    "garantit la bonne realisation",
+    "signataire de la mission",
+  ],
+  duree: [
+    "duree de la mission",
+    "duree de notre mission",
+    "prendra effet",
+    "date de signature",
+    "exercice comptable",
+    "tacitement reconduite",
+    "reconduction tacite",
+    "exercices futurs",
+    "date de cloture",
+  ],
   nature_limite: [
     "nature et limite",
     "nature de la mission",
+    "limite de la mission",
     "obligation de moyens",
+    "par sondages",
+    "actes illegaux",
+    "irregularites",
+    "verification des ecritures",
+    "controle exhaustif",
   ],
-  mission_sociale: ["mission sociale", "bulletins de salaire", "paie"],
-  mission_juridique: ["mission juridique", "secrétariat juridique"],
-  mission_controle_fiscal: ["contrôle fiscal", "assistance au contrôle"],
-  honoraires: ["honoraires", "rémunération", "facturation"],
-  modalites: ["modalités relationnelles", "modalités"],
-  repartition: ["répartition des travaux", "répartition des tâches"],
-  cgv: ["conditions générales", "cgv", "conditions d'intervention"],
-  mandat_sepa: ["mandat de prélèvement", "sepa"],
-  mandat_fiscal: ["mandat fiscal", "autorisation de transmission"],
-  signature: ["signature", "l'expert-comptable", "le client"],
+  lcbft: [
+    "lutte contre le blanchiment",
+    "lcb-ft",
+    "lcb ft",
+    "lcbft",
+    "blanchiment de capitaux",
+    "financement du terrorisme",
+    "vigilance",
+    "obligations de vigilance",
+    "declaration de soupcon",
+    "tracfin",
+    "l.561",
+    "art. l.561",
+  ],
+  missions_complementaires_intro: [
+    "missions complementaires",
+    "prestations complementaires",
+    "en complement",
+    "prestations suivantes",
+    "missions accessoires",
+    "missions additionnelles",
+    "vous avez souhaite",
+  ],
+  mission_sociale: [
+    "mission sociale",
+    "bulletins de salaire",
+    "bulletins de paie",
+    "paie",
+    "declarations sociales",
+    "dsn",
+    "journal des salaires",
+    "gestion de la paie",
+    "charges sociales",
+    "traitement de la paie",
+  ],
+  mission_juridique: [
+    "mission juridique",
+    "secretariat juridique",
+    "approbation des comptes",
+    "assemblee generale",
+    "proces-verbaux",
+    "actes juridiques",
+    "formalites juridiques",
+    "greffe",
+    "statuts",
+  ],
+  mission_controle_fiscal: [
+    "controle fiscal",
+    "assistance au controle",
+    "verification fiscale",
+    "examen de comptabilite",
+    "garantie controle fiscal",
+    "risque fiscal",
+    "mutualiser le risque",
+    "procedure de controle",
+  ],
+  clause_resolutoire: [
+    "clause resolutoire",
+    "resolution de plein droit",
+    "inexecution",
+    "mise en demeure",
+    "article 1225",
+    "resiliation pour manquement",
+    "infructueuse pendant",
+    "trente jours",
+  ],
+  mandat_fiscal: [
+    "mandat fiscal",
+    "mandat pour agir",
+    "autorisation de transmission",
+    "teletransmission",
+    "declarations fiscales",
+    "jedeclare",
+    "je declare",
+    "services des impots",
+    "administration fiscale",
+    "mandat aupres des administrations",
+  ],
+  modalites: [
+    "modalites relationnelles",
+    "modalites d'execution",
+    "relations contractuelles",
+    "cadre relationnel",
+    "conditions relationnelles",
+    "repartition des obligations",
+    "termes de cette lettre",
+  ],
+  honoraires: [
+    "honoraires",
+    "remuneration",
+    "facturation",
+    "tarification",
+    "montant des honoraires",
+    "revision des honoraires",
+    "indice des prix",
+    "conditions financieres",
+    "budget previsionnel",
+    "echeancier",
+  ],
+  signature: [
+    "signature",
+    "l'expert-comptable",
+    "l'expert comptable",
+    "le client",
+    "fait a",
+    "bon pour accord",
+    "lu et approuve",
+    "retourner un exemplaire",
+    "paraphe",
+    "sentiments devoues",
+  ],
+  annexe_repartition: [
+    "repartition des travaux",
+    "repartition des taches",
+    "tableau de repartition",
+    "annexe repartition",
+    "obligations respectives",
+    "incombe au cabinet",
+    "incombe au client",
+    "qui fait quoi",
+  ],
+  annexe_travail_dissimule: [
+    "travail dissimule",
+    "attestation travail",
+    "l.8222",
+    "d.8222",
+    "r.8222",
+    "atteste sur l'honneur",
+    "emploi regulier",
+    "salaries etrangers",
+    "code du travail",
+  ],
+  annexe_sepa: [
+    "mandat de prelevement",
+    "sepa",
+    "prelevement sepa",
+    "mandat sepa",
+    "iban",
+    "debit de votre compte",
+    "autorisation de prelevement",
+    "coordonnees bancaires",
+    "formulaire de mandat",
+  ],
+  annexe_liasse: [
+    "liasse fiscale",
+    "autorisation de transmission",
+    "transmission de liasse",
+    "jedeclare",
+    "je declare",
+    "teletransmission liasse",
+    "annexe liasse",
+    "portail jedeclare",
+  ],
 };
 
-// IDs des sections CNOEC obligatoires (from GRIMY_DEFAULT_SECTIONS)
+// CGV detection keywords (separate from section matching)
+const CGV_KEYWORDS = [
+  "conditions generales",
+  "conditions d'intervention",
+  "conditions particulieres",
+  "cgv",
+  "conditions generales d'intervention",
+  "conditions generales de vente",
+  "domaine d'application",
+  "clause de responsabilite",
+];
+
+// Repartition table detection keywords
+const REPARTITION_TABLE_KEYWORDS = [
+  "cabinet",
+  "client",
+  "periodicite",
+  "frequence",
+  "saisie",
+  "lettrage",
+  "rapprochement",
+  "tva",
+  "bilan",
+  "liasse",
+];
+
+// IDs des sections CNOEC obligatoires
 const CNOEC_OBLIGATOIRE_IDS = new Set(
   GRIMY_DEFAULT_SECTIONS.filter((s) => s.cnoec_obligatoire).map((s) => s.id)
 );
@@ -73,8 +332,8 @@ export async function mapHtmlToSections(
   const doc = parser.parseFromString(html, "text/html");
   const elements = Array.from(doc.body.children);
 
-  const rawBlocks: { title: string; content: string[] }[] = [];
-  let currentBlock: { title: string; content: string[] } | null = null;
+  const rawBlocks: { title: string; content: string[]; rawHtml: string[] }[] = [];
+  let currentBlock: { title: string; content: string[]; rawHtml: string[] } | null = null;
 
   for (const el of elements) {
     const isHeading =
@@ -84,14 +343,17 @@ export async function mapHtmlToSections(
     if (!text) continue;
 
     if (isHeading && text.length < 200) {
-      // New section detected
       if (currentBlock) rawBlocks.push(currentBlock);
-      currentBlock = { title: text, content: [] };
+      currentBlock = { title: text, content: [], rawHtml: [] };
     } else if (currentBlock) {
       currentBlock.content.push(cleanHtmlToText(el.outerHTML));
+      currentBlock.rawHtml.push(el.outerHTML);
     } else {
-      // Content before any heading — start an implicit block
-      currentBlock = { title: "", content: [cleanHtmlToText(el.outerHTML)] };
+      currentBlock = {
+        title: "",
+        content: [cleanHtmlToText(el.outerHTML)],
+        rawHtml: [el.outerHTML],
+      };
     }
   }
   if (currentBlock) rawBlocks.push(currentBlock);
@@ -103,24 +365,37 @@ export async function mapHtmlToSections(
   const warnings: string[] = [];
   let recognizedCount = 0;
   let customCounter = 0;
+  const usedSectionIds = new Set<string>();
 
   for (let i = 0; i < rawBlocks.length; i++) {
     const block = rawBlocks[i];
     const contenu = block.content.join("\n\n").trim();
-    const matchedId = matchSectionId(block.title, contenu);
 
-    if (matchedId === "cgv") {
+    // CGV detection (check before section matching)
+    if (isCgvBlock(block.title, contenu)) {
       detectedCgv = `${block.title}\n\n${contenu}`;
       recognizedCount++;
       continue;
     }
 
-    if (matchedId) {
+    // Repartition table detection
+    const isRepartitionTable = detectRepartitionTable(block.rawHtml.join(""));
+
+    const matchedId = matchSectionId(block.title, contenu, usedSectionIds);
+
+    // Override with repartition if table detected
+    const finalId =
+      isRepartitionTable && !usedSectionIds.has("annexe_repartition")
+        ? "annexe_repartition"
+        : matchedId;
+
+    if (finalId) {
+      usedSectionIds.add(finalId);
       recognizedCount++;
-      const grimyRef = GRIMY_DEFAULT_SECTIONS.find((s) => s.id === matchedId);
+      const grimyRef = GRIMY_DEFAULT_SECTIONS.find((s) => s.id === finalId);
       sections.push({
-        id: matchedId,
-        titre: block.title || grimyRef?.titre || matchedId,
+        id: finalId,
+        titre: block.title || grimyRef?.titre || finalId,
         contenu: contenu || grimyRef?.contenu || "",
         type: grimyRef?.type ?? "fixed",
         condition: grimyRef?.condition,
@@ -141,7 +416,7 @@ export async function mapHtmlToSections(
         cnoec_obligatoire: false,
         ordre: sections.length + 1,
       });
-      if (contenu) unmappedContent.push(contenu.slice(0, 200));
+      if (contenu) unmappedContent.push(contenu.slice(0, 300));
     }
   }
 
@@ -156,8 +431,12 @@ export async function mapHtmlToSections(
     }
   }
 
-  const totalKnown = Object.keys(SECTION_KEYWORDS).length;
-  const confidence = Math.round((recognizedCount / totalKnown) * 100);
+  // Confidence = ratio of detected CNOEC obligatory sections
+  const cnoecTotal = CNOEC_OBLIGATOIRE_IDS.size;
+  const cnoecFound = [...CNOEC_OBLIGATOIRE_IDS].filter((id) =>
+    parsedIds.has(id)
+  ).length;
+  const confidence = cnoecTotal > 0 ? Math.round((cnoecFound / cnoecTotal) * 100) : 0;
 
   return { sections, unmappedContent, detectedCgv, confidence, warnings };
 }
@@ -168,14 +447,23 @@ export async function mapHtmlToSections(
 
 export function cleanHtmlToText(html: string): string {
   let text = html;
+  // Table rows → structured lines
+  text = text.replace(/<tr[^>]*>(.*?)<\/tr>/gis, (_, row) => {
+    const cells = row.match(/<t[dh][^>]*>(.*?)<\/t[dh]>/gis) ?? [];
+    const cellTexts = cells.map((c: string) => c.replace(/<[^>]+>/g, "").trim());
+    return cellTexts.join(" | ") + "\n";
+  });
+  // Remove remaining table tags
+  text = text.replace(/<\/?(?:table|thead|tbody|tfoot)[^>]*>/gi, "\n");
   // Block-level breaks
   text = text.replace(/<br\s*\/?>/gi, "\n");
   text = text.replace(/<\/p>/gi, "\n");
   text = text.replace(/<\/div>/gi, "\n");
-  text = text.replace(/<\/tr>/gi, "\n");
-  // List items
-  text = text.replace(/<li[^>]*>/gi, "\n— ");
+  // List items → bullet
+  text = text.replace(/<li[^>]*>/gi, "\n▪ ");
   text = text.replace(/<\/li>/gi, "");
+  // Ordered list markers
+  text = text.replace(/<\/?[ou]l[^>]*>/gi, "\n");
   // Strip all remaining tags
   text = text.replace(/<[^>]+>/g, "");
   // Decode HTML entities
@@ -184,7 +472,15 @@ export function cleanHtmlToText(html: string): string {
   text = text.replace(/&gt;/g, ">");
   text = text.replace(/&quot;/g, '"');
   text = text.replace(/&#39;/g, "'");
+  text = text.replace(/&rsquo;/g, "'");
+  text = text.replace(/&lsquo;/g, "'");
+  text = text.replace(/&rdquo;/g, "\u201D");
+  text = text.replace(/&ldquo;/g, "\u201C");
+  text = text.replace(/&ndash;/g, "\u2013");
+  text = text.replace(/&mdash;/g, "\u2014");
+  text = text.replace(/&hellip;/g, "\u2026");
   text = text.replace(/&nbsp;/g, " ");
+  text = text.replace(/&#\d+;/g, "");
   // Normalize whitespace
   text = text.replace(/[ \t]+/g, " ");
   text = text.replace(/\n{3,}/g, "\n\n");
@@ -201,6 +497,31 @@ export function detectMissingSections(parsed: ParsedDocxResult): string[] {
 }
 
 // ══════════════════════════════════════════════
+// E) Auto-fill empty sections from GRIMY defaults
+// ══════════════════════════════════════════════
+
+export function autoFillFromGrimy(sections: LMSection[]): LMSection[] {
+  const existingIds = new Set(sections.map((s) => s.id));
+  const result = [...sections];
+
+  for (const defaultSection of GRIMY_DEFAULT_SECTIONS) {
+    if (!existingIds.has(defaultSection.id)) {
+      result.push({ ...defaultSection, ordre: result.length + 1 });
+    }
+  }
+
+  // Also fill empty content for existing sections
+  return result.map((section) => {
+    if (section.contenu && section.contenu.trim().length > 0) return section;
+    const ref = GRIMY_DEFAULT_SECTIONS.find((s) => s.id === section.id);
+    if (ref) {
+      return { ...section, contenu: ref.contenu };
+    }
+    return section;
+  });
+}
+
+// ══════════════════════════════════════════════
 // Helpers internes
 // ══════════════════════════════════════════════
 
@@ -208,29 +529,79 @@ function isBoldParagraph(el: HTMLElement): boolean {
   if (el.tagName !== "P") return false;
   const strong = el.querySelector("strong, b");
   if (!strong) return false;
-  // Consider it a heading if the bold text is >80% of the paragraph
   const boldLen = (strong.textContent ?? "").trim().length;
   const totalLen = (el.textContent ?? "").trim().length;
   return totalLen > 0 && totalLen < 200 && boldLen / totalLen > 0.8;
 }
 
+/**
+ * Détecte si un bloc correspond aux CGV
+ */
+function isCgvBlock(title: string, content: string): boolean {
+  const normalizedTitle = normalizeText(title);
+  const normalizedContent = normalizeText(content.slice(0, 600));
+  const combined = normalizedTitle + " " + normalizedContent;
+
+  let score = 0;
+  for (const kw of CGV_KEYWORDS) {
+    const kwNorm = normalizeText(kw);
+    if (normalizedTitle.includes(kwNorm)) {
+      score += 10;
+    } else if (combined.includes(kwNorm)) {
+      score += 2;
+    }
+  }
+
+  // Also detect by structure: numbered articles typical of CGV
+  const articlePattern = /\b\d+\.\s+(domaine|definition|resiliation|suspension|obligation|honoraire|responsabilite|donnees|differend|conservation)/;
+  if (articlePattern.test(normalizeText(content.slice(0, 1500)))) {
+    score += 5;
+  }
+
+  return score >= 10;
+}
+
+/**
+ * Détecte si le HTML contient un tableau de répartition des tâches
+ */
+function detectRepartitionTable(html: string): boolean {
+  if (!/<table/i.test(html)) return false;
+  const normalized = normalizeText(html);
+  let hits = 0;
+  for (const kw of REPARTITION_TABLE_KEYWORDS) {
+    if (normalized.includes(normalizeText(kw))) hits++;
+  }
+  // Need at least 3 repartition-related keywords in a table
+  return hits >= 3;
+}
+
+/**
+ * Match a block to a known section ID using accent-insensitive keyword scoring.
+ * Prevents duplicate assignments via usedIds set.
+ * Thresholds: >= 1 for title match, >= 2 for content-only match.
+ */
 function matchSectionId(
   title: string,
-  content: string
+  content: string,
+  usedIds: Set<string>
 ): string | null {
-  const searchText = (title + " " + content.slice(0, 300)).toLowerCase();
+  const normalizedTitle = normalizeText(title);
+  // Search window: title + first 600 chars of content
+  const searchText = normalizedTitle + " " + normalizeText(content.slice(0, 600));
 
-  // Score each section by keyword matches, prefer title matches
   let bestId: string | null = null;
   let bestScore = 0;
 
   for (const [sectionId, keywords] of Object.entries(SECTION_KEYWORDS)) {
+    // Skip already-assigned sections
+    if (usedIds.has(sectionId)) continue;
+
     let score = 0;
     for (const kw of keywords) {
-      const kwLower = kw.toLowerCase();
-      if (title.toLowerCase().includes(kwLower)) {
+      const kwNorm = normalizeText(kw);
+      if (normalizedTitle.includes(kwNorm)) {
         score += 10; // Strong match in title
-      } else if (searchText.includes(kwLower)) {
+      } else if (searchText.includes(kwNorm)) {
         score += 1; // Weak match in content
       }
     }
@@ -240,12 +611,9 @@ function matchSectionId(
     }
   }
 
-  // Require at least a title match (score >= 10) or multiple content matches
-  return bestScore >= 2 ? bestId : null;
+  // Threshold: title match (>= 10 means at least 1 keyword in title)
+  // or at least 2 content-only keyword matches
+  if (bestScore >= 10) return bestId; // title match
+  if (bestScore >= 2) return bestId;  // content-only matches
+  return null;
 }
-
-// ══════════════════════════════════════════════
-// Export des constantes utiles pour le composant
-// ══════════════════════════════════════════════
-
-export const ALL_SECTION_IDS = Object.keys(SECTION_KEYWORDS);
