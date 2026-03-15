@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -35,6 +35,14 @@ const RefPaysTab = lazy(() => lazyRetry(() => import("@/components/settings/RefP
 const RefTypesJuridiquesTab = lazy(() => lazyRetry(() => import("@/components/settings/RefTypesJuridiquesTab")));
 const RefActivitesTab = lazy(() => lazyRetry(() => import("@/components/settings/RefActivitesTab")));
 const RefQuestionsTab = lazy(() => lazyRetry(() => import("@/components/settings/RefQuestionsTab")));
+
+// Cabinet management sub-components
+const CabinetsList = lazy(() => lazyRetry(() => import("@/components/cabinet/CabinetsList")));
+const CollaborateursList = lazy(() => lazyRetry(() => import("@/components/cabinet/CollaborateursList")));
+const RolesMatrix = lazy(() => lazyRetry(() => import("@/components/cabinet/RolesMatrix")));
+const ReglagesPanel = lazy(() => lazyRetry(() => import("@/components/cabinet/ReglagesPanel")));
+const ConnecteursPanel = lazy(() => lazyRetry(() => import("@/components/cabinet/ConnecteursPanel")));
+const ApiKeysPanel = lazy(() => lazyRetry(() => import("@/components/cabinet/ApiKeysPanel")));
 
 /* ---------- types ---------- */
 
@@ -174,6 +182,62 @@ function InfoTip({ text }: { text: string }) {
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
+  );
+}
+
+/* ---------- Gestion Cabinet sub-tabs ---------- */
+
+const CABINET_SUB_TABS = [
+  { value: "cabinets", label: "Cabinets", icon: Building2 },
+  { value: "collaborateurs", label: "Collaborateurs", icon: Users },
+  { value: "roles", label: "Roles", icon: ShieldCheck },
+  { value: "reglages", label: "Reglages", icon: Settings2 },
+  { value: "connecteurs", label: "Connecteurs", icon: Plug },
+  { value: "cles-api", label: "Cles API", icon: Key },
+] as const;
+
+function CabinetSubTabs() {
+  const [subTab, setSubTab] = useState("cabinets");
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+          <Building2 className="w-5 h-5" />
+          Gestion du Cabinet
+        </h2>
+        <p className="text-sm text-slate-400 mt-1">Cabinets, collaborateurs, roles, reglages, connecteurs et cles API.</p>
+      </div>
+      <Tabs value={subTab} onValueChange={setSubTab}>
+        <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1">
+          {CABINET_SUB_TABS.map(({ value, label, icon: Icon }) => (
+            <TabsTrigger key={value} value={value} className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+              <Icon className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">{label}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+        {CABINET_SUB_TABS.map(({ value }) => (
+          <TabsContent key={value} value={value}>
+            <Suspense
+              fallback={
+                <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
+                  <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
+                  <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
+                  <div className="h-64 w-full bg-white/5 rounded animate-pulse" />
+                </div>
+              }
+            >
+              {value === "cabinets" && <CabinetsList />}
+              {value === "collaborateurs" && <CollaborateursList />}
+              {value === "roles" && <RolesMatrix />}
+              {value === "reglages" && <ReglagesPanel />}
+              {value === "connecteurs" && <ConnecteursPanel />}
+              {value === "cles-api" && <ApiKeysPanel />}
+            </Suspense>
+          </TabsContent>
+        ))}
+      </Tabs>
+    </div>
   );
 }
 
@@ -569,6 +633,10 @@ export default function SettingsPage() {
             <BookOpen className="w-4 h-4" />
             <span className="hidden sm:inline">Referentiels</span>
           </TabsTrigger>
+          <TabsTrigger value="gestion-cabinet" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <Building2 className="w-4 h-4" />
+            <span className="hidden sm:inline">Gestion Cabinet</span>
+          </TabsTrigger>
           <TabsTrigger value="abonnement" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
             <CreditCard className="w-4 h-4" />
             <span className="hidden sm:inline">Abonnement</span>
@@ -852,6 +920,11 @@ export default function SettingsPage() {
         {/* ===== REFERENTIELS TAB (nested sub-tabs) ===== */}
         <TabsContent value="referentiels">
           <RefSubTabs />
+        </TabsContent>
+
+        {/* ===== GESTION CABINET TAB (nested sub-tabs) ===== */}
+        <TabsContent value="gestion-cabinet">
+          <CabinetSubTabs />
         </TabsContent>
 
         {/* ===== ABONNEMENT TAB ===== */}

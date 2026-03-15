@@ -16,7 +16,6 @@ import {
   HelpCircle,
   ChevronLeft,
   Shield,
-  Building2,
   Sparkles,
   CheckSquare,
   RefreshCw,
@@ -65,7 +64,6 @@ const OUTILS_NAV: NavItem[] = [
 ];
 
 const SYSTEME_NAV: NavItem[] = [
-  { to: "/gestion-cabinet", label: "Gestion Cabinet", icon: Building2, shortcut: "C" },
   { to: "/parametres", label: "Parametres", icon: Settings, shortcut: "P" },
   { to: "/aide", label: "Aide", icon: HelpCircle, shortcut: "?" },
 ];

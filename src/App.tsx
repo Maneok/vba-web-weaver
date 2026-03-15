@@ -54,7 +54,6 @@ const SuspendedPage = lazy(() => lazyRetry(() => import("@/pages/SuspendedPage")
 const PricingPage = lazy(() => lazyRetry(() => import("@/pages/PricingPage")));
 const CheckoutSuccessPage = lazy(() => lazyRetry(() => import("@/pages/CheckoutSuccessPage")));
 const AdminUsersPage = lazy(() => lazyRetry(() => import("@/pages/AdminUsersPage")));
-const CabinetManagementPage = lazy(() => lazyRetry(() => import("@/pages/CabinetManagementPage")));
 const AuditTrailPage = lazy(() => lazyRetry(() => import("@/pages/AuditTrailPage")));
 const SuperAdminPage = lazy(() => lazyRetry(() => import("@/pages/SuperAdminPage")));
 const InvitePage = lazy(() => import("@/pages/InvitePage"));
@@ -128,7 +127,7 @@ const App = () => (
                   <Route path="parametres" element={<SafePage><SettingsPage /></SafePage>} />
                   <Route path="notifications" element={<SafePage><NotificationsPage /></SafePage>} />
                   <Route path="aide" element={<SafePage><HelpPage /></SafePage>} />
-                  <Route path="gestion-cabinet" element={<ProtectedRoute requiredPermission="manage_users"><SafePage><CabinetManagementPage /></SafePage></ProtectedRoute>} />
+                  <Route path="gestion-cabinet" element={<Navigate to="/parametres" replace />} />
                   <Route path="admin/users" element={<ProtectedRoute requiredPermission="manage_users"><SafePage><AdminUsersPage /></SafePage></ProtectedRoute>} />
                   <Route path="audit" element={<ProtectedRoute requiredPermission="view_audit"><SafePage><AuditTrailPage /></SafePage></ProtectedRoute>} />
                   <Route path="super-admin" element={<SafePage><SuperAdminPage /></SafePage>} />
