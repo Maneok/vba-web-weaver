@@ -314,7 +314,7 @@ export default function CollaborateursList() {
         throw new Error(res.error.message || "Erreur lors de l'invitation");
       }
 
-      const resData = res.data as { error?: string; message?: string };
+      const resData = res.data as { error?: string; message?: string; emailSent?: boolean; inviteLink?: string | null };
       if (resData?.error) {
         throw new Error(resData.error);
       }
@@ -348,7 +348,23 @@ export default function CollaborateursList() {
         }
       }
 
-      toast.success(`Invitation envoyee a ${trimmedEmail}`);
+      // If email was not sent (SMTP not configured), copy invite link to clipboard
+      if (!resData.emailSent && resData.inviteLink) {
+        try {
+          await navigator.clipboard.writeText(resData.inviteLink);
+          toast.success(`Compte cree pour ${trimmedEmail}. Le lien d'invitation a ete copie dans le presse-papier.`, { duration: 8000 });
+        } catch {
+          // Clipboard failed, show link in toast
+          toast.success(
+            `Compte cree pour ${trimmedEmail}. Partagez ce lien : ${resData.inviteLink}`,
+            { duration: 15000 }
+          );
+        }
+      } else if (!resData.emailSent) {
+        toast.success(`Compte cree pour ${trimmedEmail}. L'email n'a pas pu etre envoye. Le collaborateur peut utiliser "Mot de passe oublie" pour se connecter.`, { duration: 8000 });
+      } else {
+        toast.success(`Invitation envoyee a ${trimmedEmail}`);
+      }
       setInviteOpen(false);
       setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
       // Refresh both cabinet members and AppContext collaborateurs

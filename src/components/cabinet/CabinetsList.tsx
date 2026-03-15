@@ -103,12 +103,20 @@ export default function CabinetsList() {
         membre_count: counts[c.id] || 0,
       })) as Cabinet[];
 
-      // Auto-create a default principal cabinet if none exist
+      // Auto-create a default principal cabinet if none exist, using profile data
       if (list.length === 0 && profile) {
         try {
+          // Try to get cabinet name from user metadata (set during signup)
+          const { data: { user } } = await supabase.auth.getUser();
+          const cabinetName = user?.user_metadata?.cabinet_name || profile.full_name?.split(" ").pop() || "Cabinet Principal";
           const { data: newCab, error: insertErr } = await supabase
             .from("cabinets")
-            .insert({ nom: "Cabinet Principal", is_principal: true, couleur_primaire: "#3b82f6" })
+            .insert({
+              nom: `Cabinet ${cabinetName}`,
+              is_principal: true,
+              couleur_primaire: "#3b82f6",
+              email: profile.email || null,
+            })
             .select()
             .single();
           if (insertErr) throw insertErr;

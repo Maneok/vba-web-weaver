@@ -115,16 +115,31 @@ serve(async (req) => {
       });
     }
 
-    // Send password reset email so user can set their own password
-    // Use resetPasswordForEmail which actually sends the email (unlike generateLink)
+    // Generate a password reset link for the invited user
     const siteUrl = Deno.env.get("SITE_URL") || "https://grimy.app";
+    let inviteLink: string | null = null;
+    let emailSent = false;
+
+    // Try resetPasswordForEmail first (sends email if SMTP is configured)
     const { error: resetError } = await adminClient.auth.resetPasswordForEmail(email, {
       redirectTo: `${siteUrl}/auth?reset=true`,
     });
 
     if (resetError) {
       console.error("Password reset email error:", resetError);
-      // Non-blocking — user was still created, admin can resend manually
+      // Fallback: generate link manually (doesn't send email but gives a usable link)
+      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+        type: "recovery",
+        email,
+        options: {
+          redirectTo: `${siteUrl}/auth?reset=true`,
+        },
+      });
+      if (!linkError && linkData?.properties?.action_link) {
+        inviteLink = linkData.properties.action_link;
+      }
+    } else {
+      emailSent = true;
     }
 
     // Log the invitation in audit trail
@@ -141,8 +156,12 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Utilisateur ${email} invite avec succes. Un email de reinitialisation de mot de passe a ete envoye.`,
+        message: emailSent
+          ? `Utilisateur ${email} invite avec succes. Un email de reinitialisation a ete envoye.`
+          : `Utilisateur ${email} cree avec succes. Partagez le lien d'invitation manuellement.`,
         userId: newUser.user?.id,
+        emailSent,
+        inviteLink,
       }),
       {
         status: 200,

@@ -368,9 +368,12 @@ export default function SettingsPage() {
           return;
         }
 
+        let hasCabinetInfo = false;
+
         if (data) {
           for (const row of data) {
             if (row.cle === "cabinet_info" && row.valeur) {
+              hasCabinetInfo = true;
               const merged = { ...DEFAULT_CABINET, ...(row.valeur as Partial<CabinetInfo>) };
               setCabinet(merged);
               setSavedCabinetSnapshot(merged);
@@ -389,6 +392,39 @@ export default function SettingsPage() {
               if (row.updated_at) setLastSavedLcbft(row.updated_at);
             }
           }
+        }
+
+        // Auto-populate cabinet info from profile + cabinets table if never saved
+        if (!hasCabinetInfo) {
+          const [profileRes, cabRes] = await Promise.all([
+            supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle(),
+            supabase.from("cabinets").select("nom, ville, siret, numero_oec, email, telephone, couleur_primaire").limit(1).maybeSingle(),
+          ]);
+          if (cancelled) return;
+
+          const autoFilled: CabinetInfo = { ...DEFAULT_CABINET };
+          if (profileRes.data) {
+            autoFilled.associe_principal = profileRes.data.full_name || "";
+            if (!autoFilled.email) autoFilled.email = profileRes.data.email || "";
+          }
+          if (cabRes.data) {
+            autoFilled.nom = cabRes.data.nom || autoFilled.nom;
+            autoFilled.ville = cabRes.data.ville || autoFilled.ville;
+            autoFilled.siret = cabRes.data.siret || autoFilled.siret;
+            autoFilled.numeroOEC = cabRes.data.numero_oec || autoFilled.numeroOEC;
+            if (cabRes.data.email) autoFilled.email = cabRes.data.email;
+            autoFilled.telephone = cabRes.data.telephone || autoFilled.telephone;
+            if (cabRes.data.couleur_primaire) autoFilled.couleurPrimaire = cabRes.data.couleur_primaire;
+          }
+
+          setCabinet(autoFilled);
+          setSavedCabinetSnapshot(autoFilled);
+
+          // Auto-save so it persists
+          await supabase.from("parametres").upsert(
+            { user_id: user.id, cle: "cabinet_info", valeur: autoFilled as unknown as Record<string, unknown>, updated_at: new Date().toISOString() },
+            { onConflict: "user_id,cle" }
+          );
         }
       } catch (err) {
         logger.error("Settings", "Error loading parametres:", err);
