@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 import { analyzeCockpit } from "@/lib/cockpitEngine";
 import {
   RefreshCw, Loader2, Users, Shield, AlertTriangle, FileText, GripVertical,
+  TrendingUp, BarChart3, Bell,
 } from "lucide-react";
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
@@ -35,9 +36,7 @@ import { useReducedMotion, useAutoRefreshInterval } from "@/components/dashboard
 
 // ── Lazy-loaded chart widgets ────────────────────────────────
 const LazyRiskRadar = React.lazy(() => import("@/components/dashboard/RiskRadarWidget"));
-const LazyVigilanceDonut = React.lazy(() =>
-  import("@/components/dashboard/VigilanceDonut").then(m => ({ default: m.VigilanceDonut }))
-);
+const LazyExpositionDonut = React.lazy(() => import("@/components/dashboard/ExpositionDonut"));
 const LazyRiskValues = React.lazy(() => import("@/components/dashboard/RiskValuesChart"));
 const LazyRevenue = React.lazy(() => import("@/components/dashboard/RevenueChart"));
 const LazyTopTypes = React.lazy(() => import("@/components/dashboard/TopClientTypes"));
@@ -78,7 +77,7 @@ function DashboardWidget({ id, children }: { id: string; children: React.ReactNo
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group/widget ${isDragging ? "z-50 opacity-75 scale-[1.02]" : ""}`}
+      className={`relative group/widget transition-all duration-200 ${isDragging ? "z-50 opacity-75 scale-[1.02]" : "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/5"}`}
       {...attributes}
     >
       <button
@@ -95,11 +94,13 @@ function DashboardWidget({ id, children }: { id: string; children: React.ReactNo
 }
 
 // ── Band section header ──────────────────────────────────────
-function BandHeader({ label, color }: { label: string; color: string }) {
+function BandHeader({ label, color, icon: Icon }: { label: string; color: string; icon: React.ElementType }) {
   return (
-    <div className="col-span-full flex items-center gap-3 mt-4 mb-1 print:mt-2">
-      <div className={`w-1 h-8 rounded-full ${color}`} />
-      <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</h2>
+    <div className="col-span-full flex items-center gap-3 mt-6 mb-2 print:mt-3">
+      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${color}`}>
+        <Icon className="w-3.5 h-3.5 text-white" />
+        <span className="text-[11px] font-bold uppercase tracking-wider text-white">{label}</span>
+      </div>
       <div className="flex-1 h-px bg-border" />
     </div>
   );
@@ -344,7 +345,7 @@ export default function DashboardPage() {
       if (!col.derniereFormation) return false;
       try { const d = new Date(col.derniereFormation); if (isNaN(d.getTime())) return false; return (now.getTime() - d.getTime()) / (86400000 * 365) < 1; } catch { return false; }
     }).length;
-    const withBE = actifs.filter(c => c.beneficiaireEffectif).length;
+    const withBE = actifs.filter(c => c.be?.trim()).length;
     const withAddr = actifs.filter(c => c.adresse).length;
     return [
       { label: "Identification clients", value: Math.round((withScreening / total) * 100), target: 90 },
@@ -394,7 +395,7 @@ export default function DashboardPage() {
   const widgetContent: Record<WidgetKey, React.ReactNode> = {
     riskRadar: <LazyRiskRadar clients={clients} loading={isLoading} />,
     vigilance: (
-      <LazyVigilanceDonut
+      <LazyExpositionDonut
         simplifiee={stats.simplifiee}
         standard={stats.standard}
         renforcee={stats.renforcee}
@@ -415,13 +416,14 @@ export default function DashboardPage() {
     band: 1 | 2 | 3,
     label: string,
     color: string,
+    icon: React.ElementType,
     order: WidgetKey[],
     setter: React.Dispatch<React.SetStateAction<WidgetKey[]>>,
     startIndex: number,
   ) {
     return (
       <>
-        <BandHeader label={label} color={color} />
+        <BandHeader label={label} color={color} icon={icon} />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeDragHandler(band, setter)}>
           <SortableContext items={order} strategy={rectSortingStrategy}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -476,13 +478,14 @@ export default function DashboardPage() {
             complianceItems={complianceItems}
           />
           <button
-            className="h-9 w-9 flex items-center justify-center rounded-lg border border-border hover:bg-muted/50 transition-colors disabled:opacity-50"
+            className="h-9 flex items-center gap-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors disabled:opacity-50 print:hidden"
             onClick={handleRefresh}
             disabled={isRefreshing}
             title="Rafraîchir (R)"
             aria-label="Rafraîchir les données"
           >
-            {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+            {isRefreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
+            <span className="hidden sm:inline">Actualiser</span>
           </button>
         </div>
       </div>
@@ -493,14 +496,19 @@ export default function DashboardPage() {
       </div>
 
       {/* ── TITLE ── */}
-      <div className="text-center mb-6">
-        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground/80">
+      <div className="text-center mb-6 py-3 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/10">
+        <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-foreground">
           Pilotage Cabinet Dynamique LCB-FT
         </h2>
+        <p className="text-[11px] text-muted-foreground mt-1">
+          Score moyen : <span className="font-semibold" style={{ color: cockpitData.scoreMoyen <= 25 ? "#22c55e" : cockpitData.scoreMoyen <= 60 ? "#f59e0b" : "#ef4444" }}>{cockpitData.scoreMoyen}/120</span>
+          {" · "}Taux KYC : <span className="font-semibold">{cockpitData.tauxKycComplet}%</span>
+          {" · "}Taux formation : <span className="font-semibold">{cockpitData.tauxFormation}%</span>
+        </p>
       </div>
 
-      {/* ── 4 KPI Cards ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6" role="region" aria-label="Indicateurs clés">
+      {/* ── 5 KPI Cards ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-6" role="region" aria-label="Indicateurs clés">
         <KPICard
           icon={Users}
           title="Clients actifs"
@@ -510,6 +518,16 @@ export default function DashboardPage() {
           loading={isLoading}
           subValue={stats.totalClients === 0 ? "Ajouter un client" : undefined}
           ariaLabel={`Clients actifs : ${stats.totalClients}`}
+        />
+        <KPICard
+          icon={TrendingUp}
+          title="Score moyen"
+          value={`${cockpitData.scoreMoyen}/120`}
+          color={cockpitData.scoreMoyen <= 25 ? "#22c55e" : cockpitData.scoreMoyen <= 60 ? "#f59e0b" : "#ef4444"}
+          onClick={() => navigate("/diagnostic")}
+          loading={isLoading}
+          subValue={cockpitData.scoreMoyen <= 25 ? "Simplifiée" : cockpitData.scoreMoyen <= 60 ? "Standard" : "Renforcée"}
+          ariaLabel={`Score moyen : ${cockpitData.scoreMoyen}/120`}
         />
         <KPICard
           icon={Shield}
@@ -537,7 +555,7 @@ export default function DashboardPage() {
           color="#8b5cf6"
           onClick={() => navigate("/lettre-mission")}
           loading={isLoading}
-          subValue={missionsData.count === 0 ? "Créer une lettre de mission" : caSubValue}
+          subValue={missionsData.count === 0 ? "Créer une mission" : caSubValue}
           ariaLabel={`${missionsData.count} mission${missionsData.count > 1 ? "s" : ""}`}
         />
       </div>
@@ -547,13 +565,13 @@ export default function DashboardPage() {
           ═══════════════════════════════════════════════════════ */}
 
       {/* BANDE 1 — RISQUE LCB-FT */}
-      {renderBand(1, "Risque LCB-FT", "bg-blue-500", band1Order, setBand1Order, 0)}
+      {renderBand(1, "Risque LCB-FT", "bg-blue-600", Shield, band1Order, setBand1Order, 0)}
 
       {/* BANDE 2 — PILOTAGE CABINET */}
-      {renderBand(2, "Pilotage Cabinet", "bg-amber-500", band2Order, setBand2Order, 3)}
+      {renderBand(2, "Pilotage Cabinet", "bg-amber-600", BarChart3, band2Order, setBand2Order, 3)}
 
       {/* BANDE 3 — ALERTES CABINET */}
-      {renderBand(3, "Alertes Cabinet", "bg-red-500", band3Order, setBand3Order, 6)}
+      {renderBand(3, "Alertes Cabinet", "bg-red-600", Bell, band3Order, setBand3Order, 6)}
 
       {/* ── Footer ── */}
       <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-6 pb-4 print:hidden">

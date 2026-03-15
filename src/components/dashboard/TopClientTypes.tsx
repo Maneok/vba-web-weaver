@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import type { Client } from "@/lib/types";
 
@@ -32,14 +32,19 @@ export default function TopClientTypes({ clients, loading }: Props) {
     );
   }
 
+  const total = data.reduce((s, d) => s + d.count, 0);
+
   return (
     <div className="bg-card rounded-2xl border border-border p-5 h-[320px]">
-      <h3 className="text-sm font-semibold text-foreground mb-1">
-        Top 5 — Typologie de la clientèle
-      </h3>
+      <div className="flex items-start justify-between mb-1">
+        <h3 className="text-sm font-semibold text-foreground">
+          Top 5 — Typologie de la clientèle
+        </h3>
+        <span className="text-xs text-muted-foreground tabular-nums">{total} clients</span>
+      </div>
       <p className="text-[11px] text-muted-foreground mb-3">Par forme juridique</p>
       <ResponsiveContainer width="100%" height={230}>
-        <BarChart data={data} layout="vertical" margin={{ left: 5, right: 20, top: 5, bottom: 5 }}>
+        <BarChart data={data} layout="vertical" margin={{ left: 5, right: 35, top: 5, bottom: 5 }}>
           <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
           <YAxis
             type="category"
@@ -53,13 +58,22 @@ export default function TopClientTypes({ clients, loading }: Props) {
               border: "1px solid hsl(var(--border))",
               borderRadius: 8,
               fontSize: 12,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}
-            formatter={(value: number) => [`${value} dossier${value > 1 ? "s" : ""}`, "Nombre"]}
+            formatter={(value: number) => [
+              `${value} dossier${value > 1 ? "s" : ""} (${Math.round((value / total) * 100)}%)`,
+              "Nombre",
+            ]}
           />
-          <Bar dataKey="count" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={1000}>
+          <Bar dataKey="count" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={1000} barSize={20}>
             {data.map((_, i) => (
               <Cell key={i} fill={COLORS[i % COLORS.length]} />
             ))}
+            <LabelList
+              dataKey="count"
+              position="right"
+              style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>

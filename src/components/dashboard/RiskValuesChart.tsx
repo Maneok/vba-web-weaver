@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList,
 } from "recharts";
 import type { Client } from "@/lib/types";
 
@@ -19,16 +19,20 @@ const COLORS: Record<string, string> = {
 };
 
 export default function RiskValuesChart({ clients, loading }: Props) {
-  const data = useMemo(() => {
+  const { data, totalActifs } = useMemo(() => {
     const actifs = clients.filter(c => c.statut !== "INACTIF");
-    return [
+    const n = actifs.length || 1;
+    const items = [
       { name: "Cash", count: actifs.filter(c => c.cash === "OUI").length },
       { name: "PPE", count: actifs.filter(c => c.ppe === "OUI").length },
       { name: "Pays risque", count: actifs.filter(c => c.paysRisque === "OUI").length },
       { name: "Atypique", count: actifs.filter(c => c.atypique === "OUI").length },
       { name: "Distanciel", count: actifs.filter(c => c.distanciel === "OUI").length },
       { name: "Pression", count: actifs.filter(c => c.pression === "OUI").length },
-    ].sort((a, b) => b.count - a.count);
+    ]
+      .sort((a, b) => b.count - a.count)
+      .map(d => ({ ...d, pct: Math.round((d.count / n) * 100) }));
+    return { data: items, totalActifs: actifs.length };
   }, [clients]);
 
   if (loading) {
@@ -40,24 +44,29 @@ export default function RiskValuesChart({ clients, loading }: Props) {
     );
   }
 
-  const total = data.reduce((s, d) => s + d.count, 0);
+  const totalFacteurs = data.reduce((s, d) => s + d.count, 0);
 
   return (
     <div className="bg-card rounded-2xl border border-border p-5 h-[320px]">
-      <h3 className="text-sm font-semibold text-foreground mb-1">
-        LCB-FT : Cartographie des valeurs à risque
-      </h3>
+      <div className="flex items-start justify-between mb-1">
+        <h3 className="text-sm font-semibold text-foreground">
+          LCB-FT : Cartographie des valeurs à risque
+        </h3>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {totalFacteurs} signal{totalFacteurs > 1 ? "aux" : ""}
+        </span>
+      </div>
       <p className="text-[11px] text-muted-foreground mb-3">
-        {total} facteur{total > 1 ? "s" : ""} de risque détecté{total > 1 ? "s" : ""}
+        Sur {totalActifs} client{totalActifs > 1 ? "s" : ""} actif{totalActifs > 1 ? "s" : ""}
       </p>
       <ResponsiveContainer width="100%" height={230}>
-        <BarChart data={data} layout="vertical" margin={{ left: 10, right: 20, top: 5, bottom: 5 }}>
-          <XAxis type="number" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
+        <BarChart data={data} layout="vertical" margin={{ left: 10, right: 40, top: 5, bottom: 5 }}>
+          <XAxis type="number" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} allowDecimals={false} />
           <YAxis
             type="category"
             dataKey="name"
-            width={80}
-            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+            width={75}
+            tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))", fontWeight: 500 }}
           />
           <Tooltip
             contentStyle={{
@@ -65,13 +74,22 @@ export default function RiskValuesChart({ clients, loading }: Props) {
               border: "1px solid hsl(var(--border))",
               borderRadius: 8,
               fontSize: 12,
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
             }}
-            formatter={(value: number) => [`${value} client${value > 1 ? "s" : ""}`, "Nombre"]}
+            formatter={(value: number, _: string, entry: any) => [
+              `${value} client${value > 1 ? "s" : ""} (${entry.payload.pct}%)`,
+              "Nombre",
+            ]}
           />
-          <Bar dataKey="count" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={1000}>
+          <Bar dataKey="count" radius={[0, 6, 6, 0]} isAnimationActive animationDuration={1000} barSize={18}>
             {data.map((entry) => (
               <Cell key={entry.name} fill={COLORS[entry.name] || "#64748b"} />
             ))}
+            <LabelList
+              dataKey="count"
+              position="right"
+              style={{ fontSize: 11, fontWeight: 600, fill: "hsl(var(--foreground))" }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>
