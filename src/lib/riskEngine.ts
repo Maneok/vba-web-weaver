@@ -1,5 +1,93 @@
 import type { VigilanceLevel } from "./types";
 import { RISK_THRESHOLDS } from "./constants";
+import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
+
+// ====== SCORING DATA TYPES ======
+export interface PaysRisqueData {
+  score_risque: number;
+  est_gafi_noir: boolean;
+  est_gafi_gris: boolean;
+  est_offshore: boolean;
+}
+
+export interface ScoringData {
+  missions: Map<string, number>;
+  typesJuridiques: Map<string, number>;
+  pays: Map<string, PaysRisqueData>;
+  activites: Map<string, number>;
+}
+
+// ====== SCORING DATA CACHE (TTL 5 min) ======
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let scoringCache: { data: ScoringData; cabinetId: string; timestamp: number } | null = null;
+
+export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
+  if (
+    scoringCache &&
+    scoringCache.cabinetId === cabinetId &&
+    Date.now() - scoringCache.timestamp < CACHE_TTL_MS
+  ) {
+    return scoringCache.data;
+  }
+
+  try {
+    const [missionsRes, typesRes, paysRes, activitesRes] = await Promise.all([
+      supabase.from("ref_missions").select("code, score_risque").eq("cabinet_id", cabinetId),
+      supabase.from("ref_types_juridiques").select("code, score_risque").eq("cabinet_id", cabinetId),
+      supabase.from("ref_pays").select("code, score_risque, est_gafi_noir, est_gafi_gris, est_offshore").eq("cabinet_id", cabinetId),
+      supabase.from("ref_activites").select("code, score_risque").eq("cabinet_id", cabinetId),
+    ]);
+
+    const missions = new Map<string, number>();
+    if (missionsRes.data) {
+      for (const row of missionsRes.data) {
+        missions.set(row.code, row.score_risque);
+      }
+    }
+
+    const typesJuridiques = new Map<string, number>();
+    if (typesRes.data) {
+      for (const row of typesRes.data) {
+        typesJuridiques.set(row.code, row.score_risque);
+      }
+    }
+
+    const pays = new Map<string, PaysRisqueData>();
+    if (paysRes.data) {
+      for (const row of paysRes.data) {
+        pays.set(row.code, {
+          score_risque: row.score_risque,
+          est_gafi_noir: row.est_gafi_noir ?? false,
+          est_gafi_gris: row.est_gafi_gris ?? false,
+          est_offshore: row.est_offshore ?? false,
+        });
+      }
+    }
+
+    const activites = new Map<string, number>();
+    if (activitesRes.data) {
+      for (const row of activitesRes.data) {
+        activites.set(row.code, row.score_risque);
+      }
+    }
+
+    const data: ScoringData = { missions, typesJuridiques, pays, activites };
+
+    scoringCache = { data, cabinetId, timestamp: Date.now() };
+    logger.info("RiskEngine", `Scoring data loaded for cabinet ${cabinetId}`);
+
+    return data;
+  } catch (error) {
+    logger.error("RiskEngine", "Failed to load scoring data from Supabase, using hardcoded fallback", error);
+    throw error;
+  }
+}
+
+// Exported for testing — allows invalidating the cache
+export function clearScoringCache(): void {
+  scoringCache = null;
+}
 
 // ====== CASH-INTENSIVE APE CODES (Idée 4) ======
 export const APE_CASH: string[] = [
@@ -96,9 +184,17 @@ export const PAYS_RISQUE_SET = new Set(PAYS_RISQUE);
 export const APE_CASH_SET = new Set(APE_CASH);
 
 // ====== STRUCTURE SCORING ======
-function scoreStructure(forme: string): number {
+function scoreStructure(forme: string, scoringData?: ScoringData): number {
   if (!forme || typeof forme !== "string") return 20; // default fallback
   const f = forme.toUpperCase().trim();
+
+  // If DB scoring data available, look up by code
+  if (scoringData && scoringData.typesJuridiques.size > 0) {
+    const dbScore = scoringData.typesJuridiques.get(f);
+    if (dbScore !== undefined) return dbScore;
+  }
+
+  // Hardcoded fallback
   if (["ENTREPRISE INDIVIDUELLE", "SNC", "ARTISAN"].some(k => f.includes(k))) return 0;
   if (f.includes("EARL")) return 0;
   if (f.includes("SARL") || f.includes("EURL")) return 20;
@@ -138,10 +234,32 @@ function scoreMaturite(
   return 80; // Dormant shell — old company, reprise, no employees
 }
 
+// ====== COUNTRY SCORE FROM DB OR FALLBACK ======
+function computeScorePays(
+  paysRisque: boolean,
+  pays: string | undefined,
+  scoringData?: ScoringData
+): number {
+  // If DB scoring data is available and a country code is provided, use it
+  if (scoringData && scoringData.pays.size > 0 && pays) {
+    const upper = pays.toUpperCase().trim();
+    const paysData = scoringData.pays.get(upper);
+    if (paysData) {
+      if (paysData.est_gafi_noir) return 100;
+      if (paysData.est_gafi_gris) return 70;
+      if (paysData.est_offshore) return 50;
+      return paysData.score_risque;
+    }
+  }
+  // Hardcoded fallback: simple boolean
+  return paysRisque ? 100 : 0;
+}
+
 // ====== MAIN RISK CALCULATION ======
 export function calculateRiskScore(params: {
   ape: string;
   paysRisque: boolean;
+  pays?: string;
   mission: string;
   dateCreation: string;
   dateReprise: string;
@@ -152,7 +270,7 @@ export function calculateRiskScore(params: {
   distanciel: boolean;
   cash: boolean;
   pression: boolean;
-}): {
+}, scoringData?: ScoringData): {
   scoreActivite: number;
   scorePays: number;
   scoreMission: number;
@@ -162,13 +280,31 @@ export function calculateRiskScore(params: {
   scoreGlobal: number;
   nivVigilance: VigilanceLevel;
 } {
+  // Helper: resolve activity score from DB or hardcoded
+  const resolveApe = (ape: string): number => {
+    if (scoringData && scoringData.activites.size > 0) {
+      const dbScore = scoringData.activites.get(ape);
+      if (dbScore !== undefined) return dbScore;
+    }
+    return APE_SCORES[ape] ?? 25;
+  };
+
+  // Helper: resolve mission score from DB or hardcoded
+  const resolveMission = (mission: string): number => {
+    if (scoringData && scoringData.missions.size > 0) {
+      const dbScore = scoringData.missions.get(mission);
+      if (dbScore !== undefined) return dbScore;
+    }
+    return MISSION_SCORES[mission] ?? 25;
+  };
+
   // PPE or Atypique = forced 100, but still compute malus for audit trail
   if (params.ppe || params.atypique) {
-    const sa = APE_SCORES[params.ape] ?? 25;
-    const sp = params.paysRisque ? 100 : 0;
-    const sm = MISSION_SCORES[params.mission] ?? 25;
+    const sa = resolveApe(params.ape);
+    const sp = computeScorePays(params.paysRisque, params.pays, scoringData);
+    const sm = resolveMission(params.mission);
     const smat = scoreMaturite(params.dateCreation, params.dateReprise, params.effectif, params.forme);
-    const ss = scoreStructure(params.forme);
+    const ss = scoreStructure(params.forme, scoringData);
     let mal = 0;
     if (params.cash) mal += 40;
     if (params.pression) mal += 40;
@@ -180,11 +316,11 @@ export function calculateRiskScore(params: {
     };
   }
 
-  const scoreAct = APE_SCORES[params.ape] ?? 25;
-  const scorePays = params.paysRisque ? 100 : 0;
-  const scoreMis = MISSION_SCORES[params.mission] ?? 25;
+  const scoreAct = resolveApe(params.ape);
+  const scorePays = computeScorePays(params.paysRisque, params.pays, scoringData);
+  const scoreMis = resolveMission(params.mission);
   const scoreMat = scoreMaturite(params.dateCreation, params.dateReprise, params.effectif, params.forme);
-  const scoreStr = scoreStructure(params.forme);
+  const scoreStr = scoreStructure(params.forme, scoringData);
 
   // Malus
   let malus = 0;
