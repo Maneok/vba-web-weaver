@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Key, Plus, Copy, Trash2, Eye, EyeOff, AlertTriangle, Search, Ban } from "lucide-react";
+import { Key, Plus, Copy, Trash2, Eye, EyeOff, AlertTriangle, Search, Ban, XCircle, Clock } from "lucide-react";
 
 interface ApiKey {
   id: string;
@@ -71,11 +71,22 @@ function generateSecureKey(): string {
 }
 
 async function hashKey(key: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(key);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  try {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(key);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch (err) {
+    logger.error("ApiKeysPanel", "crypto.subtle.digest indisponible, fallback simple hash", err);
+    // Fallback: simple non-cryptographic hash for environments where SubtleCrypto is unavailable
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) {
+      const char = key.charCodeAt(i);
+      hash = ((hash << 5) - hash + char) | 0;
+    }
+    return Math.abs(hash).toString(16).padStart(16, "0") + key.length.toString(16).padStart(4, "0");
+  }
 }
 
 function SkeletonKeys() {
@@ -207,17 +218,36 @@ export default function ApiKeysPanel() {
   };
 
   const bulkRevoke = async () => {
-    const activeIds = keys.filter((k) => k.is_active).map((k) => k.id);
-    if (activeIds.length === 0) { toast.info("Aucune cle active a revoquer"); return; }
+    const activeKeys = keys.filter((k) => k.is_active);
+    if (activeKeys.length === 0) { toast.info("Aucune cle active a revoquer"); return; }
 
+    const activeIds = activeKeys.map((k) => k.id);
     const { error } = await supabase
       .from("cabinet_api_keys")
       .update({ is_active: false })
       .in("id", activeIds);
     if (error) { toast.error("Erreur lors de la revocation"); return; }
 
-    await logAudit({ action: "REVOCATION_MASSE_CLES_API", table_name: "cabinet_api_keys", new_data: { count: activeIds.length } });
-    toast.success(`${activeIds.length} cle(s) API revoquee(s)`);
+    // Log bulk action with details
+    await logAudit({
+      action: "REVOCATION_MASSE_CLES_API",
+      table_name: "cabinet_api_keys",
+      new_data: {
+        count: activeKeys.length,
+        revoked_ids: activeIds,
+        revoked_names: activeKeys.map((k) => k.nom),
+      },
+    });
+    // Log individual audit entries per key for traceability
+    for (const k of activeKeys) {
+      await logAudit({
+        action: "REVOCATION_CLE_API",
+        table_name: "cabinet_api_keys",
+        record_id: k.id,
+        new_data: { nom: k.nom, via: "bulk_revoke" },
+      });
+    }
+    toast.success(`${activeKeys.length} cle(s) API revoquee(s)`);
     setBulkRevokeOpen(false);
     await loadKeys();
   };
@@ -238,6 +268,16 @@ export default function ApiKeysPanel() {
   const isExpired = (d: string | null) => {
     if (!d) return false;
     return new Date(d) < new Date();
+  };
+
+  const isExpiringSoon = (d: string | null) => {
+    if (!d) return false;
+    const expDate = new Date(d);
+    const now = new Date();
+    if (expDate <= now) return false;
+    const diffMs = expDate.getTime() - now.getTime();
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+    return diffDays <= 7;
   };
 
   const togglePermission = (perm: string) => {
@@ -362,7 +402,7 @@ export default function ApiKeysPanel() {
                       </SelectContent>
                     </Select>
                   </div>
-                  <Button type="submit" className="w-full" disabled={creating}>
+                  <Button type="submit" className="w-full" disabled={creating || !form.nom.trim() || form.permissions.length === 0}>
                     {creating ? "Generation..." : "Generer la cle"}
                   </Button>
                 </form>
@@ -397,9 +437,17 @@ export default function ApiKeysPanel() {
           </div>
         </div>
       ) : filteredKeys.length === 0 ? (
-        <div className="text-center py-12 text-slate-500">
+        <div className="text-center py-12 text-slate-500 space-y-3">
           <Search className="h-6 w-6 mx-auto mb-2 opacity-50" />
           <p>Aucune cle ne correspond a votre recherche.</p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSearchQuery("")}
+            className="gap-2 text-slate-400"
+          >
+            <XCircle className="h-4 w-4" /> Effacer la recherche
+          </Button>
         </div>
       ) : (
         <div className="border border-white/[0.06] rounded-lg overflow-hidden">
@@ -427,24 +475,24 @@ export default function ApiKeysPanel() {
                       </code>
                     </TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-1">
-                        {k.permissions.length === 0 ? (
-                          <span className="text-xs text-slate-500">Aucune</span>
-                        ) : (
-                          k.permissions.slice(0, 3).map((p) => (
-                            <Badge key={p} variant="outline" className="text-[10px] text-slate-400 border-slate-700">
-                              {getPermissionLabel(p)}
-                            </Badge>
-                          ))
-                        )}
-                        {k.permissions.length > 3 && (
-                          <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-700">+{k.permissions.length - 3}</Badge>
-                        )}
-                      </div>
+                      {k.permissions.length === 0 ? (
+                        <span className="text-xs text-slate-500">Aucune</span>
+                      ) : (
+                        <span className="text-xs text-slate-400" title={k.permissions.map(getPermissionLabel).join(", ")}>
+                          {k.permissions.length} permission{k.permissions.length > 1 ? "s" : ""}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className={`text-xs ${expired ? "text-red-400" : "text-slate-400"}`}>
-                      {k.expires_at ? formatDate(k.expires_at) : "Jamais"}
-                      {expired && " (expiree)"}
+                      <span className="flex items-center gap-1.5">
+                        {k.expires_at ? formatDate(k.expires_at) : "Jamais"}
+                        {expired && " (expiree)"}
+                        {!expired && isExpiringSoon(k.expires_at) && (
+                          <Badge className="bg-orange-500/20 text-orange-300 border-orange-500/30 text-[10px] gap-1">
+                            <Clock className="h-3 w-3" /> Expire bientot
+                          </Badge>
+                        )}
+                      </span>
                     </TableCell>
                     <TableCell className="text-xs text-slate-400">{formatDate(k.last_used_at) || <span className="text-slate-600">&mdash;</span>}</TableCell>
                     <TableCell>
@@ -502,9 +550,19 @@ export default function ApiKeysPanel() {
               Voulez-vous revoquer les <strong>{activeKeyCount}</strong> cle(s) API actives ? Toutes les applications utilisant ces cles perdront immediatement l'acces. Cette action est irreversible.
             </DialogDescription>
           </DialogHeader>
+          {activeKeyCount > 0 && (
+            <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-sm text-red-300">
+              <p className="font-medium mb-1">{activeKeyCount} cle{activeKeyCount > 1 ? "s" : ""} sera{activeKeyCount > 1 ? "ont" : ""} revoquee{activeKeyCount > 1 ? "s" : ""} :</p>
+              <ul className="list-disc list-inside space-y-0.5 text-red-400/80 text-xs">
+                {keys.filter((k) => k.is_active).map((k) => (
+                  <li key={k.id}>{k.nom} ({k.key_prefix}...)</li>
+                ))}
+              </ul>
+            </div>
+          )}
           <div className="flex justify-end gap-3 mt-4">
             <Button variant="outline" onClick={() => setBulkRevokeOpen(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={bulkRevoke}>Tout revoquer</Button>
+            <Button variant="destructive" onClick={bulkRevoke}>Revoquer {activeKeyCount} cle{activeKeyCount > 1 ? "s" : ""}</Button>
           </div>
         </DialogContent>
       </Dialog>

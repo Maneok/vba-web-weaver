@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
@@ -90,6 +90,8 @@ const SECTIONS: { title: string; icon: React.ReactNode; toggles: ToggleConfig[] 
   },
 ];
 
+const ALL_TOGGLE_KEYS = SECTIONS.flatMap((s) => s.toggles.map((t) => t.key));
+
 const DEFAULT_REGLAGES = {
   restreindre_visibilite_affectations: false,
   restreindre_visibilite_cabinet: true,
@@ -131,6 +133,7 @@ function SkeletonSettings() {
 export default function ReglagesPanel() {
   const [reglages, setReglages] = useState<Reglages | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updating, setUpdating] = useState(false);
   const [confirmToggle, setConfirmToggle] = useState<{ key: keyof Reglages; value: boolean; label: string } | null>(null);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -139,9 +142,13 @@ export default function ReglagesPanel() {
   const delaiTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [localDelai, setLocalDelai] = useState<number>(180);
 
+  // #3 - StrictMode guard to prevent double creation of defaults
+  const initRef = useRef(false);
+
   useEffect(() => { return () => { if (delaiTimerRef.current) clearTimeout(delaiTimerRef.current); }; }, []);
 
   const loadReglages = useCallback(async () => {
+    setLoading(true);
     try {
       const { data, error } = await supabase
         .from("cabinet_reglages")
@@ -152,7 +159,9 @@ export default function ReglagesPanel() {
       if (error) throw error;
 
       if (!data) {
-        // Auto-create default reglages
+        // Auto-create default reglages (with StrictMode guard)
+        if (initRef.current) { setLoading(false); return; }
+        initRef.current = true;
         await createDefaults();
         return;
       }
@@ -196,8 +205,10 @@ export default function ReglagesPanel() {
 
   useEffect(() => { loadReglages(); }, [loadReglages]);
 
+  // #1 - Audit trail logging for toggle changes
   const doUpdateToggle = async (key: keyof Reglages, value: boolean) => {
     if (!reglages) return;
+    setUpdating(true);
     const prev = reglages[key];
     setReglages({ ...reglages, [key]: value });
 
@@ -209,9 +220,20 @@ export default function ReglagesPanel() {
     if (error) {
       setReglages({ ...reglages, [key]: prev });
       toast.error("Erreur lors de la mise a jour");
+      setUpdating(false);
       return;
     }
+
+    await logAudit({
+      action: "MODIFICATION_REGLAGE",
+      table_name: "cabinet_reglages",
+      record_id: reglages.id,
+      old_values: { [key]: prev },
+      new_values: { [key]: value },
+    });
+
     toast.success("Reglage mis a jour");
+    setUpdating(false);
   };
 
   const updateToggle = (key: keyof Reglages, value: boolean, label: string, critical?: boolean) => {
@@ -228,10 +250,16 @@ export default function ReglagesPanel() {
     setConfirmToggle(null);
   };
 
+  // #2 - Toast warning when delai is clamped
   const handleDelaiChange = (rawValue: string) => {
     const v = parseInt(rawValue);
     if (isNaN(v)) return;
     const clamped = Math.max(30, Math.min(365, v));
+
+    if (v !== clamped) {
+      toast.warning(`Valeur ajustee a ${clamped} jours (limites : 30-365)`);
+    }
+
     setLocalDelai(clamped);
 
     if (delaiTimerRef.current) clearTimeout(delaiTimerRef.current);
@@ -276,14 +304,43 @@ export default function ReglagesPanel() {
     }
   };
 
+  // #7 - Count of active/total toggles
+  const toggleCounts = useMemo(() => {
+    if (!reglages) return { active: 0, total: 0 };
+    let active = 0;
+    let total = 0;
+    for (const key of ALL_TOGGLE_KEYS) {
+      const val = reglages[key];
+      if (typeof val === "boolean") {
+        total++;
+        if (val) active++;
+      }
+    }
+    return { active, total };
+  }, [reglages]);
+
+  // #6 - Check if delai value differs from saved value
+  const delaiUnsaved = reglages ? localDelai !== reglages.delai_suspension_jours : false;
+
   if (loading) return <SkeletonSettings />;
 
+  // #4 - Retry button in empty state calls loadReglages
   if (!reglages) {
     return (
       <div className="text-center py-12 text-slate-500">
         <Settings2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p>Impossible de charger les reglages.</p>
-        <Button variant="outline" size="sm" className="mt-4" onClick={loadReglages}>Reessayer</Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="mt-4"
+          onClick={() => {
+            initRef.current = false;
+            loadReglages();
+          }}
+        >
+          Reessayer
+        </Button>
       </div>
     );
   }
@@ -294,6 +351,10 @@ export default function ReglagesPanel() {
         <div>
           <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-blue-400" /> Reglages du cabinet
+            {/* #7 - Toggle count summary */}
+            <span className="text-xs font-normal text-slate-500 ml-2">
+              {toggleCounts.active}/{toggleCounts.total} actifs
+            </span>
           </h2>
           <p className="text-sm text-slate-400">Configurez le comportement de votre cabinet. Les modifications sont appliquees immediatement.</p>
         </div>
@@ -332,9 +393,11 @@ export default function ReglagesPanel() {
                     </Label>
                     <p className="text-xs text-slate-500">{toggle.description}</p>
                   </div>
+                  {/* #5 - Disable switch while updating */}
                   <Switch
                     checked={value}
                     onCheckedChange={(checked) => updateToggle(toggle.key, checked, toggle.label, toggle.critical)}
+                    disabled={updating}
                     aria-label={toggle.label}
                   />
                 </div>
@@ -363,6 +426,12 @@ export default function ReglagesPanel() {
               aria-label="Delai de suspension en jours"
             />
             <span className="text-sm text-slate-500">jours</span>
+            {/* #6 - Visual indicator for unsaved delai */}
+            {delaiUnsaved && (
+              <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded whitespace-nowrap">
+                non sauvegarde
+              </span>
+            )}
           </div>
         </div>
       </div>

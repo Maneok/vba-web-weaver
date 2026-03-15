@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ShieldCheck, Info, RotateCcw } from "lucide-react";
+import { ShieldCheck, Info, RotateCcw, CheckCircle2, XCircle } from "lucide-react";
 
 type Permission = "VISIONNER" | "TRAVAILLER" | "AFFECTER" | "VALIDER" | "SUPPRIMER" | "EXPORTER" | "PARAMETRER" | "INVITER";
 type Role = "ADMIN" | "SUPERVISEUR" | "COLLABORATEUR" | "CONTROLEUR" | "SECRETAIRE" | "STAGIAIRE";
@@ -100,6 +100,10 @@ export default function RolesMatrix() {
   const [expertMode, setExpertMode] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [noCabinet, setNoCabinet] = useState(false);
+
+  // #1 — Prevent double seeding in StrictMode
+  const initRef = useRef(false);
 
   const loadPermissions = useCallback(async () => {
     try {
@@ -111,8 +115,10 @@ export default function RolesMatrix() {
 
       const list = (data || []) as RolePermission[];
 
-      // Auto-seed if empty
+      // Auto-seed if empty (guard against StrictMode double-call)
       if (list.length === 0) {
+        if (initRef.current) return;
+        initRef.current = true;
         await seedDefaults();
         return;
       }
@@ -129,7 +135,13 @@ export default function RolesMatrix() {
   const seedDefaults = async () => {
     try {
       const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
-      if (!cab) { setLoading(false); return; }
+      // #2 — Show error message when no cabinet exists
+      if (!cab) {
+        setNoCabinet(true);
+        setLoading(false);
+        toast.error("Aucun cabinet trouve. Veuillez d'abord creer votre cabinet.");
+        return;
+      }
 
       const rows: { cabinet_id: string; role: string; permission: string; granted: boolean }[] = [];
       for (const role of ALL_ROLES) {
@@ -202,6 +214,19 @@ export default function RolesMatrix() {
       const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
       if (!cab) throw new Error("Cabinet non trouve");
 
+      // Count changes before reset
+      let changedCount = 0;
+      for (const role of ALL_ROLES) {
+        if (role === "ADMIN") continue;
+        for (const perm of ALL_PERMISSIONS) {
+          const current = permissions.find((p) => p.role === role && p.permission === perm);
+          const defaultGranted = DEFAULT_GRANTS[role].includes(perm);
+          if (current && current.granted !== defaultGranted) {
+            changedCount++;
+          }
+        }
+      }
+
       // Delete existing
       await supabase.from("cabinet_roles").delete().eq("cabinet_id", cab.id);
 
@@ -226,7 +251,12 @@ export default function RolesMatrix() {
       const { data: fresh } = await supabase.from("cabinet_roles").select("*").order("role");
       setPermissions((fresh || []) as RolePermission[]);
 
-      toast.success("Permissions reinitialisees aux valeurs par defaut");
+      // #6 — Show toast with count of changed permissions
+      if (changedCount > 0) {
+        toast.success(`Permissions reinitialisees : ${changedCount} permission${changedCount > 1 ? "s" : ""} modifiee${changedCount > 1 ? "s" : ""}`);
+      } else {
+        toast.success("Permissions reinitialisees (aucune modification necessaire)");
+      }
       setResetOpen(false);
     } catch (err) {
       logger.error("RolesMatrix", "Erreur reinitialisation", err);
@@ -234,6 +264,44 @@ export default function RolesMatrix() {
     } finally {
       setResetting(false);
     }
+  };
+
+  // #7 — Tout accorder / Tout retirer for a given role
+  const setAllPermissions = async (role: Role, granted: boolean) => {
+    if (role === "ADMIN") return;
+
+    const rolePerms = permissions.filter((p) => p.role === role);
+    const toUpdate = rolePerms.filter((p) => p.granted !== granted);
+    if (toUpdate.length === 0) {
+      toast.info(`Aucune modification necessaire pour ${ROLE_LABELS[role]}`);
+      return;
+    }
+
+    // Optimistic update
+    setPermissions((prev) =>
+      prev.map((p) => p.role === role ? { ...p, granted } : p)
+    );
+
+    const ids = toUpdate.map((p) => p.id);
+    const { error } = await supabase
+      .from("cabinet_roles")
+      .update({ granted })
+      .in("id", ids);
+
+    if (error) {
+      // Rollback
+      setPermissions((prev) =>
+        prev.map((p) => {
+          const original = toUpdate.find((u) => u.id === p.id);
+          return original ? { ...p, granted: original.granted } : p;
+        })
+      );
+      toast.error("Erreur lors de la mise a jour groupee");
+      return;
+    }
+
+    const action = granted ? "accordees" : "retirees";
+    toast.success(`${toUpdate.length} permission${toUpdate.length > 1 ? "s" : ""} ${action} pour ${ROLE_LABELS[role]}`);
   };
 
   // Count granted permissions per role
@@ -252,6 +320,19 @@ export default function RolesMatrix() {
   const visiblePermissions = expertMode ? ALL_PERMISSIONS : BASIC_PERMISSIONS;
 
   if (loading) return <SkeletonMatrix />;
+
+  // #2 — Display error when no cabinet exists
+  if (noCabinet) {
+    return (
+      <div className="border border-white/[0.06] rounded-lg p-8 text-center space-y-3">
+        <ShieldCheck className="h-10 w-10 text-slate-500 mx-auto" />
+        <h3 className="text-lg font-semibold text-slate-200">Aucun cabinet configure</h3>
+        <p className="text-sm text-slate-400">
+          La matrice des permissions necessite un cabinet. Veuillez d'abord creer votre cabinet dans les parametres.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -281,7 +362,7 @@ export default function RolesMatrix() {
 
       <div className="border border-white/[0.06] rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full" role="grid">
             <thead>
               <tr className="border-b border-white/[0.06] bg-white/[0.02]">
                 <th className="text-left px-4 py-3 text-sm font-medium text-slate-400 min-w-[180px]">Permission</th>
@@ -292,6 +373,35 @@ export default function RolesMatrix() {
                       <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700 px-1.5">
                         {grantedCounts[role]}/{ALL_PERMISSIONS.length}
                       </Badge>
+                      {/* #7 — Tout accorder / Tout retirer buttons per role (except ADMIN) */}
+                      {role !== "ADMIN" && (
+                        <div className="flex items-center gap-1 mt-1">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => setAllPermissions(role, true)}
+                                className="p-0.5 rounded hover:bg-emerald-500/20 transition-colors"
+                                aria-label={`Tout accorder pour ${ROLE_LABELS[role]}`}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400/60 hover:text-emerald-400" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Tout accorder</TooltipContent>
+                          </Tooltip>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={() => setAllPermissions(role, false)}
+                                className="p-0.5 rounded hover:bg-red-500/20 transition-colors"
+                                aria-label={`Tout retirer pour ${ROLE_LABELS[role]}`}
+                              >
+                                <XCircle className="h-3.5 w-3.5 text-red-400/60 hover:text-red-400" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="bottom">Tout retirer</TooltipContent>
+                          </Tooltip>
+                        </div>
+                      )}
                     </div>
                   </th>
                 ))}
@@ -304,6 +414,16 @@ export default function RolesMatrix() {
                   <tr
                     key={perm}
                     className={`border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors ${isExpert ? "bg-purple-500/[0.03]" : ""}`}
+                    // #3 — Keyboard support for row-level checkbox toggle
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        // Find the first non-admin focused context — use the currently focused cell
+                        // Row-level keyboard: toggle all non-admin roles is not intuitive,
+                        // so we rely on individual checkbox keyboard support below
+                      }
+                    }}
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
@@ -326,12 +446,29 @@ export default function RolesMatrix() {
                       const isAdmin = role === "ADMIN";
                       return (
                         <td key={role} className="px-4 py-3 text-center">
-                          <div className="flex justify-center">
+                          <div
+                            className="flex justify-center"
+                            // #3 — Keyboard support: Enter/Space toggles the checkbox
+                            tabIndex={0}
+                            role="checkbox"
+                            aria-checked={granted}
+                            // #4 — aria-disabled for ADMIN checkboxes
+                            aria-disabled={isAdmin}
+                            aria-label={`${PERMISSION_LABELS[perm]} pour ${ROLE_LABELS[role]}`}
+                            onKeyDown={(e) => {
+                              if ((e.key === "Enter" || e.key === " ") && !isAdmin) {
+                                e.preventDefault();
+                                togglePermission(role, perm);
+                              }
+                            }}
+                          >
                             <Checkbox
                               checked={granted}
                               onCheckedChange={() => togglePermission(role, perm)}
                               disabled={isAdmin}
                               aria-label={`${PERMISSION_LABELS[perm]} pour ${ROLE_LABELS[role]}`}
+                              // #4 — aria-disabled for ADMIN checkboxes
+                              aria-disabled={isAdmin || undefined}
                               className={
                                 isAdmin
                                   ? "border-blue-500/50 bg-blue-500/20 data-[state=checked]:bg-blue-500/30 data-[state=checked]:border-blue-400 opacity-70 cursor-not-allowed"
@@ -376,8 +513,8 @@ export default function RolesMatrix() {
         </div>
       </div>
 
-      {/* Reset confirmation */}
-      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+      {/* Reset confirmation — #5: loading state on confirm button */}
+      <Dialog open={resetOpen} onOpenChange={(open) => { if (!resetting) setResetOpen(open); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reinitialiser les permissions</DialogTitle>
@@ -386,9 +523,9 @@ export default function RolesMatrix() {
             </DialogDescription>
           </DialogHeader>
           <div className="flex justify-end gap-3 mt-4">
-            <Button variant="outline" onClick={() => setResetOpen(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setResetOpen(false)} disabled={resetting}>Annuler</Button>
             <Button variant="destructive" onClick={handleReset} disabled={resetting}>
-              {resetting ? "Reinitialisation..." : "Reinitialiser"}
+              {resetting ? "Reinitialisation..." : "Confirmer la reinitialisation"}
             </Button>
           </div>
         </DialogContent>

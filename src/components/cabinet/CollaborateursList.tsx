@@ -153,9 +153,28 @@ export default function CollaborateursList() {
   const [inviting, setInviting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Membre | null>(null);
   const [bulkAction, setBulkAction] = useState<string>("");
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
   const inviteTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const timeoutRefs = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
 
-  useEffect(() => { return () => { if (inviteTimerRef.current) clearTimeout(inviteTimerRef.current); }; }, []);
+  // Helper to track timeouts for cleanup
+  const trackedTimeout = useCallback((fn: () => void, ms: number) => {
+    const id = setTimeout(() => {
+      timeoutRefs.current.delete(id);
+      fn();
+    }, ms);
+    timeoutRefs.current.add(id);
+    return id;
+  }, []);
+
+  // Cleanup all timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (inviteTimerRef.current) clearTimeout(inviteTimerRef.current);
+      timeoutRefs.current.forEach((id) => clearTimeout(id));
+      timeoutRefs.current.clear();
+    };
+  }, []);
 
   const loadData = useCallback(async () => {
     try {
@@ -281,14 +300,30 @@ export default function CollaborateursList() {
     e.preventDefault();
     if (!profile) return;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    const trimmedEmail = inviteForm.email.trim();
+    const trimmedEmail = inviteForm.email.trim().toLowerCase();
     const trimmedName = inviteForm.nom.trim();
     if (!emailRegex.test(trimmedEmail)) {
       toast.error("Adresse email invalide");
       return;
     }
+    // #6: Name validation - min 2 chars, max 100 chars
     if (trimmedName.length < 2) {
       toast.error("Le nom doit contenir au moins 2 caracteres");
+      return;
+    }
+    if (trimmedName.length > 100) {
+      toast.error("Le nom ne doit pas depasser 100 caracteres");
+      return;
+    }
+    // #7: Prevent inviting yourself
+    if (profile.email && trimmedEmail === profile.email.toLowerCase()) {
+      toast.error("Vous ne pouvez pas vous inviter vous-meme");
+      return;
+    }
+    // #8: Prevent duplicate invites
+    const existingMembre = membres.find((m) => m.email?.toLowerCase() === trimmedEmail);
+    if (existingMembre) {
+      toast.error("Ce collaborateur est deja membre du cabinet");
       return;
     }
     setInviting(true);
@@ -367,8 +402,14 @@ export default function CollaborateursList() {
       }
       setInviteOpen(false);
       setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+      // #1: Clear inviteTimerRef before setting a new one
+      if (inviteTimerRef.current) {
+        clearTimeout(inviteTimerRef.current);
+        inviteTimerRef.current = null;
+      }
       // Refresh both cabinet members and AppContext collaborateurs
       inviteTimerRef.current = setTimeout(async () => {
+        inviteTimerRef.current = null;
         await loadData();
         await refreshAll();
       }, 3000);
@@ -380,37 +421,97 @@ export default function CollaborateursList() {
     }
   };
 
+  // #11: Optimistic update for role change + #3: sync to collaborateurs table
   const updateRole = async (membre: Membre, newRole: CabinetRole) => {
     if (membre.user_id === profile?.id) {
       toast.error("Vous ne pouvez pas modifier votre propre role");
       return;
     }
+    const previousRole = membre.role;
+    // Optimistic update
+    setMembres((prev) => prev.map((m) => m.id === membre.id ? { ...m, role: newRole } : m));
+
     const { error } = await supabase
       .from("cabinet_membres")
       .update({ role: newRole })
       .eq("id", membre.id);
-    if (error) { toast.error("Erreur lors du changement de role"); return; }
-    await logAudit({ action: "CHANGEMENT_ROLE", table_name: "cabinet_membres", record_id: membre.id, old_data: { role: membre.role }, new_data: { role: newRole } });
+    if (error) {
+      // Rollback on error
+      setMembres((prev) => prev.map((m) => m.id === membre.id ? { ...m, role: previousRole } : m));
+      toast.error("Erreur lors du changement de role");
+      return;
+    }
+
+    // #3: Sync role change to collaborateurs table
+    if (membre.email) {
+      const newFonction = ROLE_TO_FONCTION[newRole] || "COLLABORATEUR";
+      const { error: collabError } = await supabase
+        .from("collaborateurs")
+        .update({ fonction: newFonction })
+        .eq("email", membre.email)
+        .eq("cabinet_id", membre.cabinet_id);
+      if (collabError) {
+        logger.warn("CollaborateursList", "Sync collaborateurs fonction failed", collabError);
+      }
+    }
+
+    await logAudit({ action: "CHANGEMENT_ROLE", table_name: "cabinet_membres", record_id: membre.id, old_data: { role: previousRole }, new_data: { role: newRole } });
     toast.success("Role mis a jour");
-    await loadData();
   };
 
+  // #10: Optimistic update for toggleActive + #4: sync to collaborateurs table
   const toggleActive = async (membre: Membre) => {
     const newStatus = !membre.is_active;
+    const previousStatus = membre.is_active;
+    // Optimistic update
+    setMembres((prev) => prev.map((m) => m.id === membre.id ? { ...m, is_active: newStatus } : m));
+
     const { error } = await supabase
       .from("cabinet_membres")
       .update({ is_active: newStatus })
       .eq("id", membre.id);
-    if (error) { toast.error("Erreur"); return; }
+    if (error) {
+      // Rollback on error
+      setMembres((prev) => prev.map((m) => m.id === membre.id ? { ...m, is_active: previousStatus } : m));
+      toast.error("Erreur");
+      return;
+    }
+
+    // #4: Sync active status to collaborateurs table
+    if (membre.email) {
+      const newStatut = newStatus ? "ACTIF" : "INACTIF";
+      const { error: collabError } = await supabase
+        .from("collaborateurs")
+        .update({ statut_formation: newStatut })
+        .eq("email", membre.email)
+        .eq("cabinet_id", membre.cabinet_id);
+      if (collabError) {
+        logger.warn("CollaborateursList", "Sync collaborateurs active status failed", collabError);
+      }
+    }
+
     await logAudit({ action: newStatus ? "ACTIVATION_MEMBRE" : "DESACTIVATION_MEMBRE", table_name: "cabinet_membres", record_id: membre.id });
     toast.success(newStatus ? "Collaborateur active" : "Collaborateur desactive");
-    await loadData();
   };
 
+  // #5: Delete membre also deletes corresponding collaborateurs record
   const deleteMembre = async () => {
     if (!deleteTarget) return;
     const { error } = await supabase.from("cabinet_membres").delete().eq("id", deleteTarget.id);
     if (error) { toast.error("Erreur lors de la suppression"); return; }
+
+    // Also delete the corresponding collaborateurs record
+    if (deleteTarget.email) {
+      const { error: collabError } = await supabase
+        .from("collaborateurs")
+        .delete()
+        .eq("email", deleteTarget.email)
+        .eq("cabinet_id", deleteTarget.cabinet_id);
+      if (collabError) {
+        logger.warn("CollaborateursList", "Sync delete collaborateurs failed", collabError);
+      }
+    }
+
     await logAudit({ action: "SUPPRESSION_MEMBRE", table_name: "cabinet_membres", record_id: deleteTarget.id });
     toast.success("Collaborateur supprime");
     setDeleteTarget(null);
@@ -428,7 +529,14 @@ export default function CollaborateursList() {
     else setSelected(new Set(paginated.map((m) => m.id)));
   };
 
-  const handleBulkAction = async () => {
+  // #12: Bulk action now goes through confirmation dialog
+  const requestBulkAction = () => {
+    if (!bulkAction || selected.size === 0) return;
+    setBulkConfirmOpen(true);
+  };
+
+  const executeBulkAction = async () => {
+    setBulkConfirmOpen(false);
     if (!bulkAction || selected.size === 0) return;
     const ids = Array.from(selected);
     if (bulkAction === "deactivate") {
@@ -444,6 +552,13 @@ export default function CollaborateursList() {
     setSelected(new Set());
     setBulkAction("");
     await loadData();
+  };
+
+  const getBulkActionLabel = () => {
+    if (bulkAction === "deactivate") return "desactiver";
+    if (bulkAction === "activate") return "activer";
+    if (Object.keys(ROLE_LABELS).includes(bulkAction)) return `changer le role en ${ROLE_LABELS[bulkAction as CabinetRole]}`;
+    return bulkAction;
   };
 
   const exportCSV = () => {
@@ -478,6 +593,11 @@ export default function CollaborateursList() {
 
   return (
     <div className="space-y-6">
+      {/* #9: aria-live region for bulk action count */}
+      <div aria-live="polite" className="sr-only">
+        {selected.size > 0 ? `${selected.size} collaborateur${selected.size > 1 ? "s" : ""} selectionne${selected.size > 1 ? "s" : ""}` : ""}
+      </div>
+
       {/* Header + Stats */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
@@ -502,7 +622,14 @@ export default function CollaborateursList() {
             open={inviteOpen}
             onOpenChange={(open) => {
               setInviteOpen(open);
-              if (!open) setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+              if (!open) {
+                setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+                // #1: Clear inviteTimerRef on dialog close
+                if (inviteTimerRef.current) {
+                  clearTimeout(inviteTimerRef.current);
+                  inviteTimerRef.current = null;
+                }
+              }
             }}
           >
             <DialogTrigger asChild>
@@ -520,7 +647,7 @@ export default function CollaborateursList() {
               <form onSubmit={handleInvite} className="space-y-4 pt-2">
                 <div className="space-y-2">
                   <Label htmlFor="invite-nom">Nom complet</Label>
-                  <Input id="invite-nom" value={inviteForm.nom} onChange={(e) => setInviteForm({ ...inviteForm, nom: e.target.value })} placeholder="Jean Dupont" required />
+                  <Input id="invite-nom" value={inviteForm.nom} onChange={(e) => setInviteForm({ ...inviteForm, nom: e.target.value })} placeholder="Jean Dupont" required minLength={2} maxLength={100} />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="invite-email">Email</Label>
@@ -609,7 +736,7 @@ export default function CollaborateursList() {
                 ))}
               </SelectContent>
             </Select>
-            <Button size="sm" onClick={handleBulkAction} disabled={!bulkAction}>Appliquer</Button>
+            <Button size="sm" onClick={requestBulkAction} disabled={!bulkAction}>Appliquer</Button>
           </div>
         )}
       </div>
@@ -804,6 +931,22 @@ export default function CollaborateursList() {
           <div className="flex justify-end gap-3 mt-4">
             <Button variant="outline" onClick={() => setDeleteTarget(null)}>Annuler</Button>
             <Button variant="destructive" onClick={deleteMembre}>Supprimer</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* #12: Bulk action confirmation dialog */}
+      <Dialog open={bulkConfirmOpen} onOpenChange={(open) => { if (!open) setBulkConfirmOpen(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirmer l'action en masse</DialogTitle>
+            <DialogDescription>
+              Voulez-vous vraiment <strong>{getBulkActionLabel()}</strong> {selected.size} collaborateur{selected.size > 1 ? "s" : ""} ? Cette action sera appliquee immediatement.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <Button variant="outline" onClick={() => setBulkConfirmOpen(false)}>Annuler</Button>
+            <Button variant="destructive" onClick={executeBulkAction}>Confirmer</Button>
           </div>
         </DialogContent>
       </Dialog>
