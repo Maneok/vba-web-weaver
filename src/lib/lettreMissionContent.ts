@@ -85,6 +85,52 @@ export const LETTRE_MISSION_TEMPLATE = {
       "Cette autorisation est donnee pour la duree de la mission et sera renouvelee tacitement " +
       "chaque annee sauf denonciation ecrite par le client au moins 3 mois avant la date de cloture de l'exercice.",
   },
+  // ── CORRECTION 1-5 : Contenu normatif CNOEC de la section "mission" ──
+  mission: {
+    titre: "Nature et étendue de la mission",
+    referenceNormative:
+      "La mission que vous envisagez de nous confier sera effectuée dans le respect des dispositions du Code de déontologie des professionnels de l'expertise comptable (décret n°2012-432 du 30 mars 2012), de la Norme Professionnelle de Maîtrise de la Qualité (NPMQ), et de la norme professionnelle applicable à la mission de présentation des comptes (NP 2300). Nos travaux seront réalisés conformément au référentiel normatif du Conseil Supérieur de l'Ordre des Experts-Comptables.",
+    responsableMission:
+      "Le responsable de la mission est {{responsable_mission}}, expert-comptable inscrit au tableau de l'Ordre, qui apportera personnellement son concours à la mission et en garantira la bonne réalisation au nom de notre structure d'exercice.",
+    referentielComptable:
+      "Les comptes annuels seront présentés conformément au référentiel comptable applicable, à savoir le Plan Comptable Général (PCG) tel que défini par le règlement ANC n°2014-03 modifié, et aux dispositions du Code de commerce relatives à la comptabilité des commerçants.",
+    formeRapport:
+      "À l'issue de notre mission, nous émettrons une attestation de présentation des comptes, document dans lequel nous exprimerons notre opinion sur la cohérence et la vraisemblance des comptes annuels de votre entité.",
+    responsabiliteClient:
+      "Vous restez responsable à l'égard des tiers de l'exhaustivité, de la fiabilité et de l'exactitude des informations comptables et financières concourant à la présentation des comptes, ainsi que des procédures de contrôle interne concourant à l'élaboration de ces comptes. Cela implique notamment le respect des règles applicables à la tenue d'une comptabilité en France et du référentiel comptable applicable à votre secteur d'activité.",
+  },
+  // ── CORRECTION 6 : Clause résolutoire (art. 1225 Code civil, CNOEC Titre III §7) ──
+  clauseResolutoire: {
+    id: "clause_resolutoire",
+    titre: "Clause résolutoire",
+    contenu:
+      "Conformément aux dispositions de l'article 1225 du Code civil, en cas d'inexécution par le client de l'une des obligations suivantes : (i) transmission des documents comptables dans les délais convenus, (ii) paiement des honoraires à leur échéance, (iii) fourniture des informations d'identification requises au titre de la LCB-FT, la présente lettre de mission pourra être résolue de plein droit, après mise en demeure restée infructueuse pendant un délai de trente (30) jours, sans préjudice des honoraires dus pour les travaux déjà effectués.",
+    obligatoire: false,
+    type: "conditional" as const,
+    condition: "clause_resolutoire",
+  },
+  // ── CORRECTION 7 : Mandat fiscal et social (CNOEC Titre II §2.1 note) ──
+  mandatFiscal: {
+    id: "mandat_fiscal",
+    titre: "Mandat pour agir auprès des administrations",
+    contenu:
+      "Le client mandate expressément le cabinet pour accomplir en son nom et pour son compte les formalités et démarches suivantes auprès de l'administration fiscale et des organismes de sécurité sociale :\n\n" +
+      "— Télétransmission des déclarations fiscales périodiques et annuelles (TVA, IS/IR, CVAE, CFE, liasses fiscales) ;\n" +
+      "— Télétransmission des déclarations sociales (DSN et déclarations connexes) ;\n" +
+      "— Relations courantes avec les services des impôts des entreprises (SIE) et les organismes sociaux.\n\n" +
+      "Ce mandat est donné pour la durée de la mission. Il peut être révoqué à tout moment par lettre recommandée avec accusé de réception. Le cabinet conserve les mandats signés conformément à l'article 151 du Code de déontologie.",
+    obligatoire: false,
+    type: "conditional" as const,
+    condition: "mandat_fiscal",
+  },
+  // ── CORRECTION 8-9 : Honoraires — exclusion succès + indexation licite ──
+  honoraires: {
+    titre: "Honoraires",
+    exclusionSucces:
+      "Conformément à l'article 24 de l'ordonnance du 19 septembre 1945 modifié par la loi PACTE, les missions relevant de la prérogative d'exercice exclusive (tenue de comptabilité, révision comptable, présentation des comptes) ou participant à l'établissement de l'assiette fiscale ou sociale du client ne peuvent donner lieu à des honoraires complémentaires de succès.",
+    indexation:
+      "Les honoraires prévus au présent contrat seront révisables annuellement à la date anniversaire de la lettre de mission, selon l'évolution de l'indice des prix hors taxes relatifs aux services comptables publié par l'INSEE (référence : Indice des prix de production des services aux entreprises — Services comptables). La formule de révision est : Honoraires révisés = Honoraires d'origine × (dernier indice publié / indice de référence à la date de signature). À défaut de publication de cet indice, les honoraires seront révisés avec un minimum forfaitaire de 3 % par an.",
+  },
   conditionsGenerales: {
     titre: "Conditions generales",
     sections: [

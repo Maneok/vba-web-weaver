@@ -99,6 +99,12 @@ const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   beneficiaires_effectifs: (c) => c.be ?? "",
   date_fin: (c) => c.dateFin ?? "",
   type_personne: (c) => c.typePersonne ?? "",
+  // ── CORRECTION 10 : Variables CNOEC manquantes ──
+  responsable_mission: (c) => c.associe ?? "",
+  referentiel_comptable: () => "PCG (règlement ANC n°2014-03)",
+  forme_rapport: () => "Attestation de présentation des comptes",
+  indice_revision: () => "Indice INSEE prix services comptables",
+  delai_mise_en_demeure: () => "30 jours",
   code_postal: (c) => c.cp,
   adresse_complete: (c) => `${c.adresse}, ${c.cp} ${c.ville}`,
   honoraires_ttc: (c) => ((c.honoraires ?? 0) * 1.2).toLocaleString("fr-FR"),
@@ -287,6 +293,11 @@ export function getAvailableVariables(): Array<{
     honoraires_juridique: "Honoraires juridique formatés",
     telephone: "Téléphone client",
     email: "Email client",
+    responsable_mission: "Nom de l'EC responsable de la mission",
+    referentiel_comptable: "Référentiel comptable applicable (défaut: PCG ANC n°2014-03)",
+    forme_rapport: "Forme du rapport émis (défaut: Attestation de présentation des comptes)",
+    indice_revision: "Indice de révision des honoraires (défaut: INSEE services comptables)",
+    delai_mise_en_demeure: "Délai de mise en demeure (défaut: 30 jours)",
   };
 
   for (const key of Object.keys(CLIENT_VARIABLE_MAP)) {
