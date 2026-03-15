@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { refPaysService, type RefPays } from "@/lib/referentielsService";
+import { clearScoringCache } from "@/lib/riskEngine";
 import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef, type FilterDef, type ExtraStatDef } from "./RefTableBase";
 import { Badge } from "@/components/ui/badge";
 
@@ -140,6 +141,7 @@ export default function RefPaysTab() {
       extraStats={computeExtraStats}
       searchAllFields={["code", "libelle", "libelle_nationalite", "description"]}
       transformForEdit={reconstructFlagsGroup}
+      onDataChanged={clearScoringCache}
     />
   );
 }

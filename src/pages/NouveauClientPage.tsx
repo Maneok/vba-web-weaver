@@ -6,6 +6,7 @@ import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { clientsService } from "@/lib/supabaseService";
 import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, PAYS_RISQUE_SET, APE_CASH, APE_CASH_SET, MISSION_FREQUENCE, normalizeAddress, isRiskCountry } from "@/lib/riskEngine";
+import { useScoringData } from "@/hooks/useScoringData";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
@@ -100,6 +101,8 @@ export default function NouveauClientPage() {
   const navigate = useNavigate();
   const { clients, addClient, refreshClients, isOnline } = useAppState();
   const [step, setStep] = useState(0);
+  // #24 - Load scoring data from DB for accurate risk calculation
+  const { scoringData } = useScoringData();
 
   useDocumentTitle("Nouveau Client");
 
@@ -418,7 +421,7 @@ export default function NouveauClientPage() {
     pression: questions.find(q => q.id === "pression")?.value === "OUI",
   }), [questions]);
 
-  // Compute risk score
+  // Compute risk score — #25 pass scoringData from DB for dynamic scoring
   const risk = useMemo(() => calculateRiskScore({
     ape: form.ape,
     paysRisque: riskFlags.paysRisque,
@@ -428,7 +431,7 @@ export default function NouveauClientPage() {
     effectif: form.effectif,
     forme: form.forme,
     ...riskFlags,
-  }), [form.ape, form.mission, form.dateCreation, form.dateReprise, form.effectif, form.forme, riskFlags]);
+  }, scoringData ?? undefined), [form.ape, form.mission, form.dateCreation, form.dateReprise, form.effectif, form.forme, riskFlags, scoringData]);
 
   // Extra malus from questionnaire (beyond basic 6)
   const extraMalus = useMemo(() => {

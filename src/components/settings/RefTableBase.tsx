@@ -89,6 +89,8 @@ type Props<T extends { id: string }> = {
   searchAllFields?: string[];
   /** Transform item before populating the edit form (e.g. reconstruct computed fields) */
   transformForEdit?: (item: Record<string, unknown>) => Record<string, unknown>;
+  /** #21 - Callback fired after any data mutation (create/update/delete/bulk) for cache invalidation */
+  onDataChanged?: () => void;
 };
 
 const PAGE_SIZES = [10, 20, 50, 100];
@@ -179,7 +181,7 @@ function ActionTooltip({ label, children }: { label: string; children: React.Rea
 export default function RefTableBase<T extends { id: string }>({
   title, description, service, columns, fields, defaultValues,
   storageKey, extraFilters, extraStats, hasScore = true, searchAllFields,
-  transformForEdit,
+  transformForEdit, onDataChanged,
 }: Props<T>) {
   // 1. Inject global animation style once
   useEffect(() => { injectGlobalStyle(); }, []);
@@ -465,7 +467,7 @@ export default function RefTableBase<T extends { id: string }>({
     return Object.keys(errors).length === 0;
   }
 
-  // 28. Save
+  // 28. Save — #21 call onDataChanged after successful mutation
   async function handleSave() {
     if (!validateForm()) {
       toast.error("Veuillez corriger les erreurs");
@@ -475,11 +477,11 @@ export default function RefTableBase<T extends { id: string }>({
     try {
       if (editItem) {
         const result = await service.update(editItem.id, form);
-        if (result) { toast.success("Element mis a jour"); await load(); }
+        if (result) { toast.success("Element mis a jour"); await load(); onDataChanged?.(); }
         else { toast.error("Erreur lors de la mise a jour"); }
       } else {
         const result = await service.create(form as Partial<T>);
-        if (result) { toast.success("Element cree"); await load(); }
+        if (result) { toast.success("Element cree"); await load(); onDataChanged?.(); }
         else { toast.error("Erreur lors de la creation"); }
       }
       setDialogOpen(false);
@@ -500,6 +502,7 @@ export default function RefTableBase<T extends { id: string }>({
       setDeleteConfirm(null);
       setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; });
       await load();
+      onDataChanged?.(); // #21 - invalidate scoring cache
       if (item) {
         if (undoRef.current) clearTimeout(undoRef.current.timer);
         toast.success("Element supprime", {
@@ -509,7 +512,7 @@ export default function RefTableBase<T extends { id: string }>({
               const rec = { ...(item as Record<string, unknown>) };
               delete rec.id; delete rec.created_at; delete rec.updated_at;
               const restored = await service.create(rec as Partial<T>);
-              if (restored) { toast.success("Suppression annulee"); await load(); }
+              if (restored) { toast.success("Suppression annulee"); await load(); onDataChanged?.(); }
             },
           },
           duration: 5000,
@@ -522,7 +525,7 @@ export default function RefTableBase<T extends { id: string }>({
     }
   }
 
-  // 30. Bulk delete (with proper Dialog)
+  // 30. Bulk delete (with proper Dialog) — #21 invalidate cache
   async function handleBulkDelete() {
     if (selected.size === 0) return;
     setBulkProcessing(true);
@@ -536,11 +539,12 @@ export default function RefTableBase<T extends { id: string }>({
     setBulkDeleteOpen(false);
     setBulkProcessing(false);
     await load();
+    onDataChanged?.();
     if (fail > 0) toast.warning(`${ok} supprime(s), ${fail} erreur(s)`);
     else toast.success(`${ok} element(s) supprime(s)`);
   }
 
-  // 31. Bulk risk change
+  // 31. Bulk risk change — #21 invalidate cache
   async function handleBulkRiskChange() {
     if (selected.size === 0) return;
     setBulkProcessing(true);
@@ -554,6 +558,7 @@ export default function RefTableBase<T extends { id: string }>({
     setBulkProcessing(false);
     setSelected(new Set());
     await load();
+    onDataChanged?.();
     toast.success(`Risque mis a jour pour ${ok} element(s)`);
   }
 

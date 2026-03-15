@@ -1,37 +1,79 @@
 import { useMemo } from "react";
 import { refMissionsService, type RefMission } from "@/lib/referentielsService";
+import { clearScoringCache } from "@/lib/riskEngine";
 import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
+import { Badge } from "@/components/ui/badge";
 
+// #22 - Add type_mission and niveau_risque columns
 const columns: ColumnDef<RefMission>[] = [
-  { key: "code", label: "Type", width: "100px", minWidth: "80px" },
-  { key: "libelle", label: "Libelle", minWidth: "150px" },
-  { key: "description", label: "Description", minWidth: "120px" },
-  { key: "score", label: "Niveau de risque", width: "140px", render: (item) => <RiskBadge score={item.score} /> },
+  { key: "code", label: "Code", width: "130px" },
+  {
+    key: "type_mission",
+    label: "Type",
+    width: "180px",
+    render: (item) => {
+      const val = item.type_mission;
+      if (!val) return <span className="text-slate-600">\u2014</span>;
+      return <Badge variant="outline" className="text-xs border-slate-500/30 text-slate-400 whitespace-nowrap">{val}</Badge>;
+    },
+  },
+  { key: "libelle", label: "Libelle" },
+  { key: "description", label: "Description" },
+  {
+    key: "niveau_risque",
+    label: "Niveau",
+    width: "100px",
+    render: (item) => {
+      const niv = item.niveau_risque;
+      if (!niv) return null;
+      const color = niv === "Faible" ? "text-emerald-400 border-emerald-500/30"
+        : niv === "Moyen" ? "text-amber-400 border-amber-500/30"
+        : "text-red-400 border-red-500/30";
+      return <Badge variant="outline" className={`text-xs ${color}`}>{niv}</Badge>;
+    },
+  },
+  { key: "score", label: "Score", width: "100px", render: (item) => <RiskBadge score={item.score} /> },
   { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
 
+// #23 - Add type_mission field to the form
 const fields: FieldDef[] = [
-  { key: "code", label: "Type", required: true, placeholder: "Ex: AUDIT" },
-  { key: "libelle", label: "Libelle", required: true, placeholder: "Ex: Audit annuel" },
+  { key: "code", label: "Code", required: true, placeholder: "Ex: AUDIT_PE" },
+  { key: "libelle", label: "Libelle", required: true, placeholder: "Ex: Audit PE" },
+  {
+    key: "type_mission",
+    label: "Type de mission",
+    type: "select",
+    options: [
+      { value: "Mission d'assurance sur les comptes complets historiques", label: "Assurance comptes historiques" },
+      { value: "Autres missions d'assurance", label: "Autres missions d'assurance" },
+      { value: "Missions legales", label: "Missions legales" },
+      { value: "Autres prestations", label: "Autres prestations" },
+      { value: "Missions sans assurance", label: "Missions sans assurance" },
+      { value: "Commissaire au compte", label: "Commissaire au compte" },
+    ],
+    placeholder: "Selectionner le type",
+  },
   { key: "description", label: "Description", type: "textarea", placeholder: "Description de la mission...", maxLength: 500 },
   { key: "score", label: "Score de risque (0-100)", type: "slider", min: 0, max: 100 },
 ];
 
-const defaultValues: Partial<RefMission> = { libelle: "", code: "", score: 0 };
+const defaultValues: Partial<RefMission> = { libelle: "", code: "", score: 0, type_mission: "" };
 
 export default function RefMissionsTab() {
   const service = useMemo(() => refMissionsService, []);
   return (
     <RefTableBase<RefMission>
       title="Referentiel Missions"
-      description="Gestion des types de missions et leur niveau de risque associe."
+      description="Gestion des types de missions et leur niveau de risque associe. Les modifications impactent le calcul de risque des clients."
       service={service}
       columns={columns}
       fields={fields}
       defaultValues={defaultValues}
       storageKey="ref_missions"
       hasScore
-      searchAllFields={["code", "libelle", "description"]}
+      searchAllFields={["code", "libelle", "description", "type_mission"]}
+      onDataChanged={clearScoringCache}
     />
   );
 }

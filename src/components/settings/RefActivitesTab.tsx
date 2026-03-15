@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { refActivitesService, type RefActivite } from "@/lib/referentielsService";
+import { clearScoringCache } from "@/lib/riskEngine";
 import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
 
 const columns: ColumnDef<RefActivite>[] = [
@@ -32,6 +33,7 @@ export default function RefActivitesTab() {
       storageKey="ref_activites"
       hasScore
       searchAllFields={["code", "libelle", "description"]}
+      onDataChanged={clearScoringCache}
     />
   );
 }

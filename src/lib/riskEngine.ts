@@ -22,6 +22,11 @@ export interface ScoringData {
 const CACHE_TTL_MS = 5 * 60 * 1000;
 let scoringCache: { data: ScoringData; cabinetId: string; timestamp: number } | null = null;
 
+// #14 - Normalize key for flexible matching (CODE_LIKE_THIS → CODE LIKE THIS)
+function normalizeKey(s: string): string {
+  return s.toUpperCase().replace(/_/g, " ").replace(/\s+/g, " ").trim();
+}
+
 export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
   if (
     scoringCache &&
@@ -32,50 +37,68 @@ export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
   }
 
   try {
+    // #15 - Load libelle alongside code for fuzzy matching
     const [missionsRes, typesRes, paysRes, activitesRes] = await Promise.all([
-      supabase.from("ref_missions").select("code, score").eq("cabinet_id", cabinetId),
-      supabase.from("ref_types_juridiques").select("code, score").eq("cabinet_id", cabinetId),
-      supabase.from("ref_pays").select("code, score, est_gafi_noir, est_gafi_gris, est_offshore").eq("cabinet_id", cabinetId),
-      supabase.from("ref_activites").select("code, score").eq("cabinet_id", cabinetId),
+      supabase.from("ref_missions").select("code, libelle, score").eq("cabinet_id", cabinetId),
+      supabase.from("ref_types_juridiques").select("code, libelle, score").eq("cabinet_id", cabinetId),
+      supabase.from("ref_pays").select("code, libelle, libelle_nationalite, score, est_gafi_noir, est_gafi_gris, est_offshore").eq("cabinet_id", cabinetId),
+      supabase.from("ref_activites").select("code, libelle, score").eq("cabinet_id", cabinetId),
     ]);
 
     const missions = new Map<string, number>();
     if (missionsRes.data) {
       for (const row of missionsRes.data) {
-        missions.set(row.code, row.score);
+        const r = row as Record<string, unknown>;
+        const score = (r.score as number) ?? 25;
+        // #16 - Index by code, normalized code (spaces), and libelle (upper)
+        if (r.code) missions.set(r.code as string, score);
+        if (r.code) missions.set(normalizeKey(r.code as string), score);
+        if (r.libelle) missions.set((r.libelle as string).toUpperCase().trim(), score);
       }
     }
 
     const typesJuridiques = new Map<string, number>();
     if (typesRes.data) {
       for (const row of typesRes.data) {
-        typesJuridiques.set(row.code, row.score);
+        const r = row as Record<string, unknown>;
+        const score = (r.score as number) ?? 20;
+        typesJuridiques.set(r.code as string, score);
+        if (r.code) typesJuridiques.set(normalizeKey(r.code as string), score);
+        if (r.libelle) typesJuridiques.set((r.libelle as string).toUpperCase().trim(), score);
       }
     }
 
     const pays = new Map<string, PaysRisqueData>();
     if (paysRes.data) {
       for (const row of paysRes.data) {
-        pays.set(row.code, {
-          score: row.score,
-          est_gafi_noir: row.est_gafi_noir ?? false,
-          est_gafi_gris: row.est_gafi_gris ?? false,
-          est_offshore: row.est_offshore ?? false,
-        });
+        const r = row as Record<string, unknown>;
+        const paysData: PaysRisqueData = {
+          score: (r.score as number) ?? 0,
+          est_gafi_noir: (r.est_gafi_noir as boolean) ?? false,
+          est_gafi_gris: (r.est_gafi_gris as boolean) ?? false,
+          est_offshore: (r.est_offshore as boolean) ?? false,
+        };
+        // #17 - Index by code, libelle, and nationality for broad matching
+        if (r.code) pays.set(r.code as string, paysData);
+        if (r.libelle) pays.set((r.libelle as string).toUpperCase().trim(), paysData);
+        if (r.libelle_nationalite) pays.set((r.libelle_nationalite as string).toUpperCase().trim(), paysData);
       }
     }
 
     const activites = new Map<string, number>();
     if (activitesRes.data) {
       for (const row of activitesRes.data) {
-        activites.set(row.code, row.score);
+        const r = row as Record<string, unknown>;
+        const score = (r.score as number) ?? 25;
+        if (r.code) activites.set(r.code as string, score);
+        if (r.libelle) activites.set((r.libelle as string).toUpperCase().trim(), score);
       }
     }
 
     const data: ScoringData = { missions, typesJuridiques, pays, activites };
 
     scoringCache = { data, cabinetId, timestamp: Date.now() };
-    logger.info("RiskEngine", `Scoring data loaded for cabinet ${cabinetId}`);
+    logger.info("RiskEngine", `Scoring data loaded for cabinet ${cabinetId} (${missions.size} missions, ${typesJuridiques.size} types, ${pays.size} pays, ${activites.size} activites)`);
 
     return data;
   } catch (error) {
@@ -280,20 +303,29 @@ export function calculateRiskScore(params: {
   scoreGlobal: number;
   nivVigilance: VigilanceLevel;
 } {
-  // Helper: resolve activity score from DB or hardcoded
+  // #19 - Resolve activity score with flexible DB lookup + hardcoded fallback
   const resolveApe = (ape: string): number => {
     if (scoringData && scoringData.activites.size > 0) {
       const dbScore = scoringData.activites.get(ape);
       if (dbScore !== undefined) return dbScore;
+      // Try uppercase
+      const upper = scoringData.activites.get(ape.toUpperCase().trim());
+      if (upper !== undefined) return upper;
     }
     return APE_SCORES[ape] ?? 25;
   };
 
-  // Helper: resolve mission score from DB or hardcoded
+  // #20 - Resolve mission score with flexible DB lookup + hardcoded fallback
   const resolveMission = (mission: string): number => {
     if (scoringData && scoringData.missions.size > 0) {
       const dbScore = scoringData.missions.get(mission);
       if (dbScore !== undefined) return dbScore;
+      // Try uppercase for libelle match
+      const upper = scoringData.missions.get(mission.toUpperCase().trim());
+      if (upper !== undefined) return upper;
+      // Try normalized key (underscores → spaces)
+      const normalized = scoringData.missions.get(normalizeKey(mission));
+      if (normalized !== undefined) return normalized;
     }
     return MISSION_SCORES[mission] ?? 25;
   };
@@ -397,3 +429,19 @@ export function isRiskCountry(nationality: string): boolean {
   return false;
 }
 
+// #18 - Recalculate risk for a client with all computed fields
+export function recalculateClientRisk(client: {
+  ape: string; paysRisque: boolean; pays?: string; mission: string;
+  dateCreation: string; dateReprise: string; effectif: string; forme: string;
+  ppe: boolean; atypique: boolean; distanciel: boolean; cash: boolean; pression: boolean;
+}, scoringData?: ScoringData) {
+  const risk = calculateRiskScore(client, scoringData);
+  const now = new Date().toISOString().split("T")[0];
+  const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
+  return {
+    ...risk,
+    dateDerniereRevue: now,
+    dateButoir,
+    etatPilotage: getPilotageStatus(dateButoir),
+  };
+}

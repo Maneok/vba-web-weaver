@@ -137,7 +137,7 @@ CREATE TRIGGER auto_fill_cabinet_id_ref_types_juridiques
 -- 5. Données de seed (cabinet_id = NULL → template)
 -- ─────────────────────────────────────────────
 
--- 5a. ref_missions — 31 missions KANTA
+-- 5a. ref_missions — 55 missions KANTA
 INSERT INTO public.ref_missions (cabinet_id, code, libelle, type_mission, niveau_risque, score, is_default) VALUES
   (NULL, 'PRESENTATION_COMPTES_ANNUELS',         'Présentation des comptes annuels',                              'Mission d''assurance sur les comptes complets historiques', 'Moyen', 25,  true),
   (NULL, 'EXAMEN_LIMITE_COMPTES_ANNUELS',         'Examen limité des comptes annuels',                             'Mission d''assurance sur les comptes complets historiques', 'Moyen', 25,  true),
@@ -170,7 +170,32 @@ INSERT INTO public.ref_missions (cabinet_id, code, libelle, type_mission, niveau
   (NULL, 'DOMICILIATION',                         'Domiciliation',                                                 'Autres prestations',                                        'Élevé', 80,  true),
   (NULL, 'MISSION_JURIDIQUE',                     'Mission juridique',                                             'Missions sans assurance',                                   'Moyen', 25,  true),
   (NULL, 'AUDIT_LEGAL',                           'Audit Legal',                                                   'Commissaire au compte',                                     'Moyen', 30,  true),
-  (NULL, 'SERVICE_AUTRE_CERTIFICATION',           'Service autre que la certification des comptes',                'Commissaire au compte',                                     'Élevé', 60,  true);
+  (NULL, 'SERVICE_AUTRE_CERTIFICATION',           'Service autre que la certification des comptes',                'Commissaire au compte',                                     'Élevé', 60,  true),
+  -- 24 missions supplementaires
+  (NULL, 'REPORTING',                            'Reporting',                                                     'Autres prestations',                                        'Faible', 10, true),
+  (NULL, 'COMPILATION_COMPTES',                  'Compilation des comptes',                                       'Autres missions d''assurance',                              'Moyen', 25,  true),
+  (NULL, 'INFO_PROCEDURES_CONVENUES',            'Informations sur des procedures convenues',                     'Autres missions d''assurance',                              'Moyen', 30,  true),
+  (NULL, 'TRANSFORMATION_SOCIETES',              'Transformation de societes',                                    'Missions legales',                                          'Moyen', 35,  true),
+  (NULL, 'OPERATIONS_DIVIDENDES',                'Operations sur dividendes',                                     'Missions legales',                                          'Moyen', 30,  true),
+  (NULL, 'ATTESTATIONS_LEGALES',                 'Attestations legales',                                          'Commissaire au compte',                                     'Moyen', 30,  true),
+  (NULL, 'PROSPECTUS',                           'Prospectus',                                                    'Commissaire au compte',                                     'Moyen', 40,  true),
+  (NULL, 'REGIMES_ACCES_CAPITAL',                'Regimes d''acces au capital',                                   'Commissaire au compte',                                     'Moyen', 35,  true),
+  (NULL, 'EMISSION_ACTIONS_PREFERENCE',          'Emission d''actions de preference',                             'Commissaire au compte',                                     'Moyen', 40,  true),
+  (NULL, 'EMISSION_VALEURS_MOBILIERES',          'Emission de valeurs mobilieres',                                'Commissaire au compte',                                     'Moyen', 40,  true),
+  (NULL, 'REDUCTIONS_CAPITAL',                   'Reductions de capital',                                         'Commissaire au compte',                                     'Moyen', 35,  true),
+  (NULL, 'CONSEIL_GESTION_ACTIFS',               'Conseil en gestion d''actifs',                                  'Autres prestations',                                        'Moyen', 40,  true),
+  (NULL, 'CONSEIL_FUSIONS_ACQUISITIONS',         'Conseil en fusions et acquisitions',                            'Autres prestations',                                        'Moyen', 45,  true),
+  (NULL, 'CONSEIL_GESTION_PROJETS_IMMO',         'Conseil en gestion de projets immobiliers',                     'Autres prestations',                                        'Moyen', 40,  true),
+  (NULL, 'CONSEIL_FUSIONS_ACQUISITIONS_VENTE',   'Conseil en fusions et acquisitions cote vente',                 'Autres prestations',                                        'Moyen', 45,  true),
+  (NULL, 'AUDIT_PA',                             'Audit PA',                                                      'Mission d''assurance sur les comptes complets historiques',  'Élevé', 65,  true),
+  (NULL, 'LIBERATION_AUGMENTATION_CAPITAL',      'Liberation d''augmentation de capital',                         'Commissaire au compte',                                     'Élevé', 65,  true),
+  (NULL, 'AUTRES_INTERVENTIONS_CAPITAL',         'Autres interventions sur le capital',                           'Commissaire au compte',                                     'Élevé', 60,  true),
+  (NULL, 'PREVENTION_TRAITEMENT_DIFFICULTES',    'Prevention et traitement des difficultes',                      'Missions legales',                                          'Élevé', 70,  true),
+  (NULL, 'AUGMENTATION_CAPITAL_SUPPRESSION_DPS', 'Augmentation de capital avec suppression du DPS',               'Commissaire au compte',                                     'Élevé', 65,  true),
+  (NULL, 'DECLARATIONS_FISCALES_BNC',            'Declarations fiscales BNC',                                     'Autres prestations',                                        'Élevé', 60,  true),
+  (NULL, 'ASSISTANCE_DECLARATIONS_FISCALES',     'Assistance aux declarations fiscales',                          'Autres prestations',                                        'Élevé', 60,  true),
+  (NULL, 'ASSISTANCE_DECLARATIONS_TVA',          'Assistance aux declarations TVA',                               'Autres prestations',                                        'Élevé', 60,  true),
+  (NULL, 'RESTRUCTURATION_DOR',                  'Restructuration DOR',                                           'Autres prestations',                                        'Élevé', 70,  true);
 
 -- 5b. ref_types_juridiques — 17 types KANTA
 INSERT INTO public.ref_types_juridiques (cabinet_id, code, libelle, type_client, niveau_risque, score, is_default) VALUES

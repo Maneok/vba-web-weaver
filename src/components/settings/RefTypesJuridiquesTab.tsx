@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { refTypesJuridiquesService, type RefTypeJuridique } from "@/lib/referentielsService";
+import { clearScoringCache } from "@/lib/riskEngine";
 import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
 import { Badge } from "@/components/ui/badge";
 
@@ -59,6 +60,7 @@ export default function RefTypesJuridiquesTab() {
       storageKey="ref_types_juridiques"
       hasScore
       searchAllFields={["code", "libelle", "type_client"]}
+      onDataChanged={clearScoringCache}
     />
   );
 }

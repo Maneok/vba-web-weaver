@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { clientsService } from "@/lib/supabaseService";
 import { mapDbClient } from "@/lib/dbMappers";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES } from "@/lib/riskEngine";
+import { useScoringData } from "@/hooks/useScoringData";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
 import {
@@ -73,6 +74,8 @@ export default function ClientDetailPage() {
   const [fallbackClient, setFallbackClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  // #26 - Load scoring data from DB for accurate risk recalculation
+  const { scoringData } = useScoringData();
 
   // Validate ref format (alphanumeric + hyphens, max 50 chars)
   const isValidRef = ref && /^[a-zA-Z0-9_-]{1,50}$/.test(ref);
@@ -300,6 +303,7 @@ function ClientDetailContent({ client }: { client: Client }) {
   const handleSave = () => {
     setSaving(true);
     try {
+      // #27 - Pass scoringData from DB for accurate risk calculation
       const risk = calculateRiskScore({
         ape: editForm.ape, paysRisque: editForm.paysRisque === "OUI",
         mission: editForm.mission, dateCreation: editForm.dateCreation,
@@ -307,7 +311,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         forme: editForm.forme, ppe: editForm.ppe === "OUI",
         atypique: editForm.atypique === "OUI", distanciel: editForm.distanciel === "OUI",
         cash: editForm.cash === "OUI", pression: editForm.pression === "OUI",
-      });
+      }, scoringData ?? undefined);
       const now = new Date().toISOString().split("T")[0];
       const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
       updateClient(client.ref, {

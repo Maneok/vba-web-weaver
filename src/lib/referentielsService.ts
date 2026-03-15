@@ -89,19 +89,14 @@ export interface RefQuestion {
 }
 
 // ===== FIELD MAPPING =====
-// #10 - Fix score ↔ score_risque field name mismatch (ROOT BUG)
-// #11 - Map est_gafi_noir → gafi_noir for consistency
+// #10 - DB uses `score` (not `score_risque`) — no score mapping needed
+// #11 - Map est_gafi_noir → gafi_noir for frontend consistency
 // #12 - Auto-compute niveau_risque from score
 
 /** Map DB column names → frontend field names */
 function mapFromDb(row: Record<string, unknown>): Record<string, unknown> {
   const mapped = { ...row };
-  // score_risque → score
-  if ("score_risque" in mapped) {
-    mapped.score = mapped.score_risque;
-    delete mapped.score_risque;
-  }
-  // est_gafi_noir → gafi_noir (etc.)
+  // est_gafi_noir → gafi_noir (etc.) for cleaner frontend usage
   if ("est_gafi_noir" in mapped) {
     mapped.gafi_noir = mapped.est_gafi_noir;
     delete mapped.est_gafi_noir;
@@ -132,14 +127,9 @@ function mapFromDb(row: Record<string, unknown>): Record<string, unknown> {
 /** Map frontend field names → DB column names + auto-compute niveau_risque */
 function mapToDb(updates: Record<string, unknown>): Record<string, unknown> {
   const mapped = { ...updates };
-  // score → score_risque
-  if ("score" in mapped) {
-    mapped.score_risque = mapped.score;
-    delete mapped.score;
-  }
   // #12 - Auto-compute niveau_risque when score changes
-  if (typeof mapped.score_risque === "number") {
-    const s = mapped.score_risque as number;
+  if (typeof mapped.score === "number") {
+    const s = mapped.score as number;
     mapped.niveau_risque = s <= 25 ? "Faible" : s <= 60 ? "Moyen" : "\u00c9lev\u00e9";
   }
   // gafi_noir → est_gafi_noir (etc.)
