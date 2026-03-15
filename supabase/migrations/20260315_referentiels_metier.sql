@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS public.ref_missions (
   description text,
   niveau_risque text NOT NULL DEFAULT 'Moyen'
     CHECK (niveau_risque IN ('Faible', 'Moyen', 'Élevé')),
-  score_risque integer NOT NULL DEFAULT 25
-    CHECK (score_risque BETWEEN 0 AND 100),
+  score integer NOT NULL DEFAULT 25
+    CHECK (score BETWEEN 0 AND 100),
   parametres_pilotes boolean NOT NULL DEFAULT true,
   is_default boolean NOT NULL DEFAULT false,
   created_at timestamptz DEFAULT now(),
@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS public.ref_types_juridiques (
   description text,
   niveau_risque text NOT NULL DEFAULT 'Moyen'
     CHECK (niveau_risque IN ('Faible', 'Moyen', 'Élevé')),
-  score_risque integer NOT NULL DEFAULT 20
-    CHECK (score_risque BETWEEN 0 AND 100),
+  score integer NOT NULL DEFAULT 20
+    CHECK (score BETWEEN 0 AND 100),
   parametres_pilotes boolean NOT NULL DEFAULT true,
   is_default boolean NOT NULL DEFAULT false,
   created_at timestamptz DEFAULT now(),
@@ -138,7 +138,7 @@ CREATE TRIGGER auto_fill_cabinet_id_ref_types_juridiques
 -- ─────────────────────────────────────────────
 
 -- 5a. ref_missions — 31 missions KANTA
-INSERT INTO public.ref_missions (cabinet_id, code, libelle, type_mission, niveau_risque, score_risque, is_default) VALUES
+INSERT INTO public.ref_missions (cabinet_id, code, libelle, type_mission, niveau_risque, score, is_default) VALUES
   (NULL, 'PRESENTATION_COMPTES_ANNUELS',         'Présentation des comptes annuels',                              'Mission d''assurance sur les comptes complets historiques', 'Moyen', 25,  true),
   (NULL, 'EXAMEN_LIMITE_COMPTES_ANNUELS',         'Examen limité des comptes annuels',                             'Mission d''assurance sur les comptes complets historiques', 'Moyen', 25,  true),
   (NULL, 'AUDIT_ETATS_FINANCIERS',                'Audit des états financiers',                                    'Mission d''assurance sur les comptes complets historiques', 'Moyen', 30,  true),
@@ -173,7 +173,7 @@ INSERT INTO public.ref_missions (cabinet_id, code, libelle, type_mission, niveau
   (NULL, 'SERVICE_AUTRE_CERTIFICATION',           'Service autre que la certification des comptes',                'Commissaire au compte',                                     'Élevé', 60,  true);
 
 -- 5b. ref_types_juridiques — 17 types KANTA
-INSERT INTO public.ref_types_juridiques (cabinet_id, code, libelle, type_client, niveau_risque, score_risque, is_default) VALUES
+INSERT INTO public.ref_types_juridiques (cabinet_id, code, libelle, type_client, niveau_risque, score, is_default) VALUES
   (NULL, 'SARL',   'Société à responsabilité limitée',                          'Personne morale',    'Moyen', 20,  true),
   (NULL, 'EURL',   'Entreprise unipersonnelle à responsabilité limitée',        'Personne morale',    'Moyen', 20,  true),
   (NULL, 'SAS',    'Société par actions simplifiée',                            'Personne morale',    'Moyen', 40,  true),

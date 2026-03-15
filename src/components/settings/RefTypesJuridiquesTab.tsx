@@ -4,12 +4,12 @@ import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } f
 import { Badge } from "@/components/ui/badge";
 
 const columns: ColumnDef<RefTypeJuridique>[] = [
-  { key: "code", label: "Code", width: "80px" },
-  { key: "libelle", label: "Libelle" },
+  { key: "code", label: "Code", width: "80px", minWidth: "60px" },
+  { key: "libelle", label: "Libelle", minWidth: "150px" },
   {
     key: "type_client",
     label: "Type client",
-    width: "150px",
+    width: "160px",
     render: (item) => {
       const val = (item as unknown as Record<string, unknown>).type_client as string;
       if (!val) return <span className="text-slate-600">—</span>;
@@ -22,6 +22,7 @@ const columns: ColumnDef<RefTypeJuridique>[] = [
         </Badge>
       );
     },
+    exportFn: (item) => (item as unknown as Record<string, unknown>).type_client as string || "",
   },
   { key: "score", label: "Risque", width: "120px", render: (item) => <RiskBadge score={item.score} /> },
   { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },

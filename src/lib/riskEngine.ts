@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 
 // ====== SCORING DATA TYPES ======
 export interface PaysRisqueData {
-  score_risque: number;
+  score: number;
   est_gafi_noir: boolean;
   est_gafi_gris: boolean;
   est_offshore: boolean;
@@ -33,23 +33,23 @@ export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
 
   try {
     const [missionsRes, typesRes, paysRes, activitesRes] = await Promise.all([
-      supabase.from("ref_missions").select("code, score_risque").eq("cabinet_id", cabinetId),
-      supabase.from("ref_types_juridiques").select("code, score_risque").eq("cabinet_id", cabinetId),
-      supabase.from("ref_pays").select("code, score_risque, est_gafi_noir, est_gafi_gris, est_offshore").eq("cabinet_id", cabinetId),
-      supabase.from("ref_activites").select("code, score_risque").eq("cabinet_id", cabinetId),
+      supabase.from("ref_missions").select("code, score").eq("cabinet_id", cabinetId),
+      supabase.from("ref_types_juridiques").select("code, score").eq("cabinet_id", cabinetId),
+      supabase.from("ref_pays").select("code, score, est_gafi_noir, est_gafi_gris, est_offshore").eq("cabinet_id", cabinetId),
+      supabase.from("ref_activites").select("code, score").eq("cabinet_id", cabinetId),
     ]);
 
     const missions = new Map<string, number>();
     if (missionsRes.data) {
       for (const row of missionsRes.data) {
-        missions.set(row.code, row.score_risque);
+        missions.set(row.code, row.score);
       }
     }
 
     const typesJuridiques = new Map<string, number>();
     if (typesRes.data) {
       for (const row of typesRes.data) {
-        typesJuridiques.set(row.code, row.score_risque);
+        typesJuridiques.set(row.code, row.score);
       }
     }
 
@@ -57,7 +57,7 @@ export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
     if (paysRes.data) {
       for (const row of paysRes.data) {
         pays.set(row.code, {
-          score_risque: row.score_risque,
+          score: row.score,
           est_gafi_noir: row.est_gafi_noir ?? false,
           est_gafi_gris: row.est_gafi_gris ?? false,
           est_offshore: row.est_offshore ?? false,
@@ -68,7 +68,7 @@ export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
     const activites = new Map<string, number>();
     if (activitesRes.data) {
       for (const row of activitesRes.data) {
-        activites.set(row.code, row.score_risque);
+        activites.set(row.code, row.score);
       }
     }
 
@@ -248,7 +248,7 @@ function computeScorePays(
       if (paysData.est_gafi_noir) return 100;
       if (paysData.est_gafi_gris) return 70;
       if (paysData.est_offshore) return 50;
-      return paysData.score_risque;
+      return paysData.score;
     }
   }
   // Hardcoded fallback: simple boolean

@@ -3,9 +3,9 @@ import { refActivitesService, type RefActivite } from "@/lib/referentielsService
 import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
 
 const columns: ColumnDef<RefActivite>[] = [
-  { key: "code", label: "Code", width: "80px" },
-  { key: "libelle", label: "Libelle" },
-  { key: "description", label: "Description" },
+  { key: "code", label: "Code", width: "80px", minWidth: "60px" },
+  { key: "libelle", label: "Libelle", minWidth: "150px" },
+  { key: "description", label: "Description", minWidth: "120px" },
   { key: "score", label: "Risque", width: "120px", render: (item) => <RiskBadge score={item.score} /> },
   { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
@@ -13,7 +13,7 @@ const columns: ColumnDef<RefActivite>[] = [
 const fields: FieldDef[] = [
   { key: "code", label: "Code APE/NAF", required: true, placeholder: "Ex: 6920Z" },
   { key: "libelle", label: "Libelle", required: true, placeholder: "Ex: Activites comptables" },
-  { key: "description", label: "Description (categorie risque)", type: "textarea", placeholder: "Description de la categorie de risque..." },
+  { key: "description", label: "Description (categorie risque)", type: "textarea", placeholder: "Description de la categorie de risque...", maxLength: 500 },
   { key: "score", label: "Score de risque (0-100)", type: "slider", min: 0, max: 100 },
 ];
 

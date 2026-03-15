@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS public.ref_pays (
   libelle_nationalite text,
   description text,
   niveau_risque text NOT NULL DEFAULT 'Moyen' CHECK (niveau_risque IN ('Faible', 'Moyen', 'Élevé')),
-  score_risque integer NOT NULL DEFAULT 0 CHECK (score_risque BETWEEN 0 AND 100),
+  score integer NOT NULL DEFAULT 0 CHECK (score BETWEEN 0 AND 100),
   est_gafi_noir boolean DEFAULT false,
   est_gafi_gris boolean DEFAULT false,
   est_offshore boolean DEFAULT false,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS public.ref_activites (
   libelle text NOT NULL,
   description text,
   niveau_risque text NOT NULL DEFAULT 'Moyen' CHECK (niveau_risque IN ('Faible', 'Moyen', 'Élevé')),
-  score_risque integer NOT NULL DEFAULT 25 CHECK (score_risque BETWEEN 0 AND 100),
+  score integer NOT NULL DEFAULT 25 CHECK (score BETWEEN 0 AND 100),
   parametres_pilotes boolean DEFAULT true,
   is_default boolean DEFAULT false,
   created_at timestamptz DEFAULT now()
@@ -204,10 +204,10 @@ CREATE POLICY "Suppression ref_questions : propre cabinet"
 --   "offshore" ou "extraterritoriale" → est_offshore=true
 --   "sanctions" ou "embargos" → est_sanctionne=true
 --   "non coopératifs" → est_non_cooperatif=true
---   Niveau "Élevé" → score_risque=100
---   Niveau "Moyen" → score_risque=0
+--   Niveau "Élevé" → score=100
+--   Niveau "Moyen" → score=0
 
-INSERT INTO public.ref_pays (cabinet_id, code, libelle, libelle_nationalite, description, niveau_risque, score_risque, est_gafi_noir, est_gafi_gris, est_offshore, est_sanctionne, est_non_cooperatif, is_default) VALUES
+INSERT INTO public.ref_pays (cabinet_id, code, libelle, libelle_nationalite, description, niveau_risque, score, est_gafi_noir, est_gafi_gris, est_offshore, est_sanctionne, est_non_cooperatif, is_default) VALUES
 -- GAFI Liste noire (appel à action) — Élevé, score 100
 (NULL, 'KP', 'Corée du Nord', 'Nord-Coréenne', 'Liste noire GAFI — appel à action renforcée, sanctions internationales, embargos ONU/UE', 'Élevé', 100, true, false, false, true, false, true),
 (NULL, 'IR', 'Iran', 'Iranienne', 'Liste noire GAFI — appel à action, sanctions UE/ONU, embargos', 'Élevé', 100, true, false, false, true, false, true),
@@ -480,10 +480,10 @@ ON CONFLICT DO NOTHING;
 -- ============================================================================
 -- Règles de classification risque :
 --   "espèces", "bijouterie", "BTP", "immobilier", "véhicules d'occasion",
---   "E-commerce", "téléphonie" → score_risque=60-80, niveau=Élevé
---   Autres → score_risque=25, niveau=Moyen
+--   "E-commerce", "téléphonie" → score=60-80, niveau=Élevé
+--   Autres → score=25, niveau=Moyen
 
-INSERT INTO public.ref_activites (cabinet_id, code, libelle, description, niveau_risque, score_risque, is_default) VALUES
+INSERT INTO public.ref_activites (cabinet_id, code, libelle, description, niveau_risque, score, is_default) VALUES
 -- ========================
 -- Section A : Agriculture, sylviculture et pêche
 -- ========================
@@ -877,7 +877,7 @@ INSERT INTO public.ref_activites (cabinet_id, code, libelle, description, niveau
 (NULL, '43.99E', 'Location avec opérateur de matériel de construction', 'Risque BTP', 'Élevé', 60, true)
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.ref_activites (cabinet_id, code, libelle, description, niveau_risque, score_risque, is_default) VALUES
+INSERT INTO public.ref_activites (cabinet_id, code, libelle, description, niveau_risque, score, is_default) VALUES
 -- ========================
 -- Section G : Commerce ; réparation d'automobiles et de motocycles
 -- ========================
@@ -1085,7 +1085,7 @@ INSERT INTO public.ref_activites (cabinet_id, code, libelle, description, niveau
 (NULL, '63.99Z', 'Autres services d''information n.c.a.', NULL, 'Moyen', 25, true)
 ON CONFLICT DO NOTHING;
 
-INSERT INTO public.ref_activites (cabinet_id, code, libelle, description, niveau_risque, score_risque, is_default) VALUES
+INSERT INTO public.ref_activites (cabinet_id, code, libelle, description, niveau_risque, score, is_default) VALUES
 -- ========================
 -- Section K : Activités financières et d'assurance
 -- ========================
@@ -1447,7 +1447,7 @@ INSERT INTO public.ref_questions (cabinet_id, libelle, categories, description, 
 ON CONFLICT DO NOTHING;
 
 -- Pays supplémentaires pour compléter la liste
-INSERT INTO public.ref_pays (cabinet_id, code, libelle, libelle_nationalite, description, niveau_risque, score_risque, est_gafi_noir, est_gafi_gris, est_offshore, est_sanctionne, est_non_cooperatif, is_default) VALUES
+INSERT INTO public.ref_pays (cabinet_id, code, libelle, libelle_nationalite, description, niveau_risque, score, est_gafi_noir, est_gafi_gris, est_offshore, est_sanctionne, est_non_cooperatif, is_default) VALUES
 (NULL, 'TW', 'Taïwan', 'Taïwanaise', NULL, 'Moyen', 0, false, false, false, false, false, true),
 (NULL, 'XK', 'Kosovo', 'Kosovare', NULL, 'Moyen', 0, false, false, false, false, false, true),
 (NULL, 'MO', 'Macao', 'Macanaise', NULL, 'Moyen', 0, false, false, false, false, false, true),
