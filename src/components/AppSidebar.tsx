@@ -16,6 +16,7 @@ import {
   HelpCircle,
   ChevronLeft,
   Shield,
+  Building2,
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -55,6 +56,7 @@ const OUTILS_NAV: NavItem[] = [
 
 const CONFIG_NAV: NavItem[] = [
   { to: "/parametres", label: "Parametres", icon: Settings, shortcut: "P" },
+  { to: "/gestion-cabinet", label: "Gestion Cabinet", icon: Building2, shortcut: "C" },
   { to: "/aide", label: "Aide", icon: HelpCircle, shortcut: "?" },
 ];
 
