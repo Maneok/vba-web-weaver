@@ -3,7 +3,7 @@
 -- Référentiels métier : pays, activités APE, questions KANTA
 -- =============================================
 
-BEGIN;
+-- NOTE: Do not use explicit BEGIN/COMMIT — Supabase migration runner wraps in its own transaction.
 
 -- ============================================================================
 -- 1. Table ref_pays
@@ -194,8 +194,6 @@ CREATE POLICY "Suppression ref_questions : propre cabinet"
     cabinet_id IS NOT NULL
     AND cabinet_id = (SELECT p.cabinet_id FROM public.profiles p WHERE p.id = auth.uid())
   );
-
-COMMIT;
 
 -- ============================================================================
 -- 5. Seed data : ref_pays (260+ pays)
