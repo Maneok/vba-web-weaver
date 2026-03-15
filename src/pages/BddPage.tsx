@@ -14,10 +14,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap, RefreshCw } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap, RefreshCw, Send, CheckCircle2, XCircle, Sparkles } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
+import { supabase } from "@/integrations/supabase/client";
+import { logAudit } from "@/lib/auth/auditTrail";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
+
+const WORKFLOW_COLORS: Record<string, string> = {
+  PROSPECT: "bg-blue-500/20 text-blue-300 border-blue-500/30",
+  A_TRAITER: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+  EN_COURS: "bg-cyan-500/20 text-cyan-300 border-cyan-500/30",
+  DEMANDE_VALIDATION: "bg-purple-500/20 text-purple-300 border-purple-500/30",
+  VALIDE: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+  REFUSE: "bg-red-500/20 text-red-300 border-red-500/30",
+  MAINTIEN: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
+  ARCHIVE: "bg-slate-500/20 text-slate-400 border-slate-500/30",
+};
+
+const WORKFLOW_LABELS: Record<string, string> = {
+  PROSPECT: "Prospect",
+  A_TRAITER: "A traiter",
+  EN_COURS: "En cours",
+  DEMANDE_VALIDATION: "En validation",
+  VALIDE: "Valide",
+  REFUSE: "Refuse",
+  MAINTIEN: "Maintien",
+  ARCHIVE: "Archive",
+};
 
 const PAGE_SIZE = 25;
 
@@ -53,6 +77,7 @@ export default function BddPage() {
   const [filterVigilance, setFilterVigilance] = useState<string>(searchParams.get("vigilance") || "all");
   const [filterPilotage, setFilterPilotage] = useState<string>(searchParams.get("pilotage") || "all");
   const [filterEtat, setFilterEtat] = useState<string>(searchParams.get("etat") || "all");
+  const [filterWorkflow, setFilterWorkflow] = useState<string>(searchParams.get("workflow") || "all");
   const [sortKey, setSortKey] = useState<SortKey>("raisonSociale");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(0);
@@ -63,6 +88,46 @@ export default function BddPage() {
 
   useDocumentTitle("Base Clients");
 
+  // Workflow counts from Supabase
+  const [workflowCounts, setWorkflowCounts] = useState<Record<string, number>>({});
+  useEffect(() => {
+    const fetchCounts = async () => {
+      const { data } = await supabase.from("clients").select("workflow_status");
+      if (!data) return;
+      const counts: Record<string, number> = {};
+      data.forEach((row: { workflow_status: string | null }) => {
+        const s = row.workflow_status || "PROSPECT";
+        counts[s] = (counts[s] || 0) + 1;
+      });
+      setWorkflowCounts(counts);
+    };
+    fetchCounts();
+  }, [clients]);
+
+  // Handle ?filtre= query param from sidebar
+  useEffect(() => {
+    const filtre = searchParams.get("filtre");
+    if (filtre === "prospects") setFilterWorkflow("PROSPECT");
+    else if (filtre === "validations") setFilterWorkflow("DEMANDE_VALIDATION");
+    else if (filtre === "maintiens") setFilterWorkflow("MAINTIEN");
+    else if (!filtre) setFilterWorkflow(searchParams.get("workflow") || "all");
+  }, [searchParams]);
+
+  const updateWorkflowStatus = async (clientRef: string, newStatus: string, extra?: Record<string, unknown>) => {
+    try {
+      const { error } = await supabase
+        .from("clients")
+        .update({ workflow_status: newStatus, ...extra })
+        .eq("ref", clientRef);
+      if (error) throw error;
+      await logAudit({ action: "WORKFLOW_CHANGE", table_name: "clients", record_id: clientRef, new_data: { workflow_status: newStatus, ...extra } });
+      toast.success(`Statut mis a jour : ${WORKFLOW_LABELS[newStatus] || newStatus}`);
+      refreshClients();
+    } catch {
+      toast.error("Erreur lors du changement de statut");
+    }
+  };
+
   // 7. Sync filter state to URL
   useEffect(() => {
     const params: Record<string, string> = {};
@@ -70,8 +135,12 @@ export default function BddPage() {
     if (filterVigilance !== "all") params.vigilance = filterVigilance;
     if (filterPilotage !== "all") params.pilotage = filterPilotage;
     if (filterEtat !== "all") params.etat = filterEtat;
+    if (filterWorkflow !== "all") params.workflow = filterWorkflow;
+    // Preserve filtre param if present
+    const filtre = searchParams.get("filtre");
+    if (filtre) params.filtre = filtre;
     setSearchParams(params, { replace: true });
-  }, [search, filterVigilance, filterPilotage, filterEtat, setSearchParams]);
+  }, [search, filterVigilance, filterPilotage, filterEtat, filterWorkflow, setSearchParams]);
 
   // 5. Active filter count
   const activeFilterCount = useMemo(() => {
@@ -80,8 +149,9 @@ export default function BddPage() {
     if (filterVigilance !== "all") count++;
     if (filterPilotage !== "all") count++;
     if (filterEtat !== "all") count++;
+    if (filterWorkflow !== "all") count++;
     return count;
-  }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
+  }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat, filterWorkflow]);
 
   // 2. Clear all filters
   const clearFilters = useCallback(() => {
@@ -89,7 +159,10 @@ export default function BddPage() {
     setFilterVigilance("all");
     setFilterPilotage("all");
     setFilterEtat("all");
-  }, []);
+    setFilterWorkflow("all");
+    // Clear filtre param
+    setSearchParams({}, { replace: true });
+  }, [setSearchParams]);
 
   // 10. Keyboard shortcut: press 'n' to navigate to /nouveau-client
   useEffect(() => {
@@ -159,7 +232,7 @@ export default function BddPage() {
   };
 
   // Reset to page 0 and clear selectAllPages when filters change
-  useEffect(() => { setPage(0); setSelectAllPages(false); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
+  useEffect(() => { setPage(0); setSelectAllPages(false); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat, filterWorkflow]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.toLowerCase();
@@ -176,7 +249,9 @@ export default function BddPage() {
         (filterEtat === "ACTIF" && c.etat === "VALIDE") ||
         (filterEtat === "PROSPECT" && c.etat === "PROSPECT") ||
         (filterEtat === "ARCHIVE" && c.etat === "ARCHIVE");
-      return matchSearch && matchVig && matchPil && matchEtat;
+      const clientWorkflow = (c as Client & { workflow_status?: string }).workflow_status || "PROSPECT";
+      const matchWorkflow = filterWorkflow === "all" || clientWorkflow === filterWorkflow;
+      return matchSearch && matchVig && matchPil && matchEtat && matchWorkflow;
     });
 
     result.sort((a, b) => {
@@ -273,6 +348,30 @@ export default function BddPage() {
             <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Nouveau client</span>
           </Button>
         </div>
+      </div>
+
+      {/* Workflow counters */}
+      <div className="flex gap-2 flex-wrap animate-fade-in-up">
+        {[
+          { key: "PROSPECT", label: "Prospects", icon: Sparkles, color: "text-blue-400" },
+          { key: "DEMANDE_VALIDATION", label: "En validation", icon: Send, color: "text-purple-400" },
+          { key: "VALIDE", label: "Valides", icon: CheckCircle2, color: "text-emerald-400" },
+          { key: "MAINTIEN", label: "Maintiens", icon: RefreshCw, color: "text-indigo-400" },
+        ].map(({ key, label, icon: Icon, color }) => (
+          <button
+            key={key}
+            onClick={() => { setFilterWorkflow(filterWorkflow === key ? "all" : key); }}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border transition-all text-xs ${
+              filterWorkflow === key
+                ? "bg-blue-500/15 border-blue-500/30 text-blue-200"
+                : "bg-white/[0.02] border-white/[0.06] text-slate-400 hover:bg-white/[0.04]"
+            }`}
+          >
+            <Icon className={`h-3.5 w-3.5 ${color}`} />
+            <span className="font-medium">{workflowCounts[key] || 0}</span>
+            <span className="hidden sm:inline">{label}</span>
+          </button>
+        ))}
       </div>
 
       {/* Filters */}
@@ -583,6 +682,7 @@ export default function BddPage() {
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Workflow</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="button" tabIndex={0} aria-label="Trier par Butoir">
                   <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
@@ -621,6 +721,12 @@ export default function BddPage() {
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
                   <TableCell className="text-center">
                     {(() => {
+                      const ws = (client as Client & { workflow_status?: string }).workflow_status || "PROSPECT";
+                      return <Badge className={`text-[10px] ${WORKFLOW_COLORS[ws] || WORKFLOW_COLORS.PROSPECT}`}>{WORKFLOW_LABELS[ws] || ws}</Badge>;
+                    })()}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    {(() => {
                       const s = computeKycPercent(client);
                       const color = s >= 75 ? "text-emerald-400" : s >= 50 ? "text-amber-400" : "text-red-400";
                       return <span className={`text-xs font-mono font-semibold ${color}`}>{s}%</span>;
@@ -644,10 +750,33 @@ export default function BddPage() {
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}>
                           <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
                         </DropdownMenuItem>
+                        {(() => {
+                          const ws = (client as Client & { workflow_status?: string }).workflow_status || "PROSPECT";
+                          return (
+                            <>
+                              {(ws === "PROSPECT" || ws === "A_TRAITER" || ws === "EN_COURS") && (
+                                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateWorkflowStatus(client.ref, "DEMANDE_VALIDATION", { demande_validation_par: profile?.id, demande_validation_date: new Date().toISOString() }); }}>
+                                  <Send className="w-3.5 h-3.5 mr-2" /> Demander validation
+                                </DropdownMenuItem>
+                              )}
+                              {ws === "DEMANDE_VALIDATION" && (
+                                <>
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateWorkflowStatus(client.ref, "VALIDE", { valideur: profile?.id, date_validation: new Date().toISOString() }); }}>
+                                    <CheckCircle2 className="w-3.5 h-3.5 mr-2 text-emerald-400" /> Valider
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); updateWorkflowStatus(client.ref, "REFUSE", { valideur: profile?.id, date_validation: new Date().toISOString() }); }}>
+                                    <XCircle className="w-3.5 h-3.5 mr-2 text-red-400" /> Refuser
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                            </>
+                          );
+                        })()}
                         <DropdownMenuItem onClick={(e) => {
                           e.stopPropagation();
                           const prevEtat = client.etat;
                           updateClient(client.ref, { etat: "ARCHIVE" });
+                          updateWorkflowStatus(client.ref, "ARCHIVE");
                           toast.success("Client archive", {
                             action: {
                               label: "Annuler",
@@ -673,7 +802,7 @@ export default function BddPage() {
               {/* 3. Better empty state */}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={12} className="text-center py-16">
+                  <TableCell colSpan={13} className="text-center py-16">
                     <div className="flex flex-col items-center gap-3">
                       <DatabaseZap className="w-10 h-10 text-slate-600" />
                       <p className="text-sm text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>

@@ -1286,6 +1286,26 @@ export default function NouveauClientPage() {
 
     const etat = decision === "REFUSER" ? "REFUSE" : decision === "ACCEPTER_RESERVE" ? "EN COURS" : "VALIDE";
 
+    // Extract document URLs from screening data for client record persistence
+    const allScreeningDocs = [
+      ...(screening.inpi.data?.documents ?? []),
+      ...(screening.documents.data?.documents ?? []),
+    ];
+    const findDocUrl = (types: string[]): string => {
+      // Prefer stored PDFs, then any available URL
+      const stored = allScreeningDocs.find(d =>
+        types.some(t => d.type.toUpperCase().includes(t)) && d.storedInSupabase && d.url
+      );
+      if (stored?.url) return stored.url;
+      const linked = allScreeningDocs.find(d =>
+        types.some(t => d.type.toUpperCase().includes(t)) && d.url && (d.status === "auto" || d.status === "lien_direct")
+      );
+      return linked?.url || "";
+    };
+    const resolvedLienKbis = findDocUrl(["KBIS", "EXTRAIT"]);
+    const resolvedLienStatuts = findDocUrl(["STATUT"]);
+    const resolvedLienCni = findDocUrl(["CNI", "IDENTITE", "PASSEPORT"]);
+
     const newClient: Client = {
       ref,
       etat: etat as Client["etat"],
@@ -1330,6 +1350,9 @@ export default function NouveauClientPage() {
       statut: "ACTIF",
       be: beStr,
       dateFin: form.dateFin || undefined,
+      lienKbis: resolvedLienKbis || undefined,
+      lienStatuts: resolvedLienStatuts || undefined,
+      lienCni: resolvedLienCni || undefined,
       // CORRECTION 3: Store provenance
       dataProvenance: dataProvenance.length > 0 ? dataProvenance : undefined,
       // CORRECTION 6: RGPD flag
@@ -1374,8 +1397,9 @@ export default function NouveauClientPage() {
       }
     }
 
-    // FIX 14: Upload manual documents to Supabase storage
+    // FIX 14: Upload manual documents to Supabase storage + update client liens
     const manualDocs = documents.filter(d => d.file);
+    const docLinkUpdates: Record<string, string> = {};
     if (manualDocs.length > 0) {
       const cleanSirenForStorage = form.siren?.replace(/\s/g, "") || ref;
       for (const doc of manualDocs) {
@@ -1394,10 +1418,30 @@ export default function NouveauClientPage() {
             logger.error(`[Submit] Upload failed for ${doc.name}:`, uploadErr.message);
           } else {
             logger.debug(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
+            // Generate signed URL for the uploaded document
+            const { data: signedData } = await supabase.storage
+              .from("kyc-documents")
+              .createSignedUrl(storagePath, 365 * 24 * 60 * 60); // 1 year
+            const signedUrl = signedData?.signedUrl;
+            if (signedUrl) {
+              const typeUp = doc.type.toUpperCase();
+              if (typeUp.includes("KBIS") || typeUp.includes("EXTRAIT")) docLinkUpdates.lien_kbis = signedUrl;
+              else if (typeUp.includes("STATUT")) docLinkUpdates.lien_statuts = signedUrl;
+              else if (typeUp.includes("CNI") || typeUp.includes("IDENTITE") || typeUp.includes("PASSEPORT")) docLinkUpdates.lien_cni = signedUrl;
+            }
           }
         } catch (err: unknown) {
           logger.error(`[Submit] Upload error for ${doc.name}:`, err);
         }
+      }
+    }
+
+    // Update client record with manual upload URLs (overrides pending-upload placeholders)
+    if (Object.keys(docLinkUpdates).length > 0) {
+      try {
+        await clientsService.updateByRef(ref, docLinkUpdates);
+      } catch {
+        logger.warn("Submit", "Failed to update document links after upload");
       }
     }
 
@@ -1928,7 +1972,7 @@ export default function NouveauClientPage() {
                   {searchResults.map((r) => (
                     <button
                       key={r.siren}
-                      onClick={() => selectPappersResult(r)}
+                      onClick={() => selectPappersResult(r, screening.enterprise.data ?? undefined)}
                       className={`w-full text-left p-3 rounded-lg border transition-all duration-200 hover:scale-[1.005] ${
                         selectedResult?.siren === r.siren
                           ? "border-blue-500/50 bg-blue-500/10 shadow-md shadow-blue-500/5"
@@ -4031,7 +4075,7 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
     setGeoLoading(true);
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: controller.signal })
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: controller.signal, headers: { "User-Agent": "GRIMY-LCB-Compliance/1.0" } })
       .then(r => r.json())
       .then((data: Array<{ lat: string; lon: string }>) => {
         if (data.length > 0) {
