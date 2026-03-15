@@ -303,7 +303,7 @@ export default function GouvernancePage() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full" aria-label="Sections de la gouvernance LCB-FT">
-          <TabsList className="w-full grid grid-cols-5 h-auto">
+          <TabsList className="w-full grid grid-cols-3 sm:grid-cols-5 h-auto">
             <TabsTrigger value="organisation" className="gap-1.5 text-xs sm:text-sm py-2">
               <Users className="w-4 h-4 hidden sm:block" />
               Organisation
@@ -523,19 +523,19 @@ export default function GouvernancePage() {
               <DialogDescription>Renseignez les informations du nouveau collaborateur</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderFormField("Nom *", newCollab.nom, v => setNewCollab(p => ({ ...p, nom: v })), { placeholder: "Nom complet" })}
                 {renderFormField("Email", newCollab.email, v => setNewCollab(p => ({ ...p, email: v })), { placeholder: "email@cabinet.fr" })}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderFormField("Fonction", newCollab.fonction, v => setNewCollab(p => ({ ...p, fonction: v })), { type: "select", options: FONCTION_OPTIONS })}
                 {renderFormField("Niveau", newCollab.niveau_competence, v => setNewCollab(p => ({ ...p, niveau_competence: v })), { type: "select", options: COMPETENCE_LEVELS })}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderFormField("Telephone", newCollab.telephone, v => setNewCollab(p => ({ ...p, telephone: v })), { placeholder: "06..." })}
                 {renderFormField("Suppleant", newCollab.suppleant, v => setNewCollab(p => ({ ...p, suppleant: v })), { placeholder: "Nom du suppleant" })}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderFormField("Derniere formation", newCollab.derniereFormation, v => setNewCollab(p => ({ ...p, derniereFormation: v })), { type: "date" })}
                 {renderFormField("Signature manuel", newCollab.dateSignatureManuel, v => setNewCollab(p => ({ ...p, dateSignatureManuel: v })), { type: "date" })}
               </div>
@@ -571,19 +571,19 @@ export default function GouvernancePage() {
               <DialogDescription>Modifiez les informations de {editingCollab?.nom}</DialogDescription>
             </DialogHeader>
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderFormField("Nom *", editForm.nom, v => setEditForm(p => ({ ...p, nom: v })))}
                 {renderFormField("Email", editForm.email, v => setEditForm(p => ({ ...p, email: v })))}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderFormField("Fonction", editForm.fonction, v => setEditForm(p => ({ ...p, fonction: v })), { type: "select", options: FONCTION_OPTIONS })}
                 {renderFormField("Niveau", editForm.niveau_competence, v => setEditForm(p => ({ ...p, niveau_competence: v })), { type: "select", options: COMPETENCE_LEVELS })}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderFormField("Telephone", editForm.telephone, v => setEditForm(p => ({ ...p, telephone: v })))}
                 {renderFormField("Suppleant", editForm.suppleant, v => setEditForm(p => ({ ...p, suppleant: v })))}
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {renderFormField("Derniere formation", editForm.derniereFormation, v => setEditForm(p => ({ ...p, derniereFormation: v })), { type: "date" })}
                 {renderFormField("Signature manuel", editForm.dateSignatureManuel, v => setEditForm(p => ({ ...p, dateSignatureManuel: v })), { type: "date" })}
               </div>
