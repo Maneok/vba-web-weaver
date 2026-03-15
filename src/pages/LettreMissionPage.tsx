@@ -38,8 +38,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ChevronLeft, ChevronRight, FileText, History, Plus,
   Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
-  FileDown, Search, Clock, AlertTriangle, Filter,
+  FileDown, Search, Clock, AlertTriangle, Filter, Settings2,
 } from "lucide-react";
+import ModeleListPage from "@/components/lettre-mission/ModeleListPage";
 
 // ─────────────────────────────────────────
 // G) Advanced history with filters, duplicate, archive
@@ -841,6 +842,9 @@ export default function LettreMissionPage() {
               <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="modeles" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+            <Settings2 className="w-3.5 h-3.5" /> {isMobile ? "Modèles" : "Gérer les modèles"}
+          </TabsTrigger>
         </TabsList>
 
         {/* ─── WIZARD TAB ─── */}
@@ -973,6 +977,20 @@ export default function LettreMissionPage() {
               onDownloadPdf={handleDownloadPdf}
             />
           </div>
+        </TabsContent>
+
+        {/* ─── MODELES TAB ─── */}
+        <TabsContent value="modeles" className="mt-4">
+          {profile?.cabinet_id ? (
+            <ModeleListPage
+              cabinetId={profile.cabinet_id}
+              onBack={() => setActiveTab("wizard")}
+            />
+          ) : (
+            <div className="text-center py-20 text-slate-500 text-sm">
+              Profil non initialisé. Reconnectez-vous.
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
