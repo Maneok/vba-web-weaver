@@ -1,18 +1,46 @@
 import { useMemo } from "react";
 import { refTypesJuridiquesService, type RefTypeJuridique } from "@/lib/referentielsService";
 import RefTableBase, { RiskBadge, PiloteBadge, type ColumnDef, type FieldDef } from "./RefTableBase";
+import { Badge } from "@/components/ui/badge";
 
 const columns: ColumnDef<RefTypeJuridique>[] = [
-  { key: "code", label: "Code" },
+  { key: "code", label: "Code", width: "80px" },
   { key: "libelle", label: "Libelle" },
-  { key: "score", label: "Risque", render: (item) => <RiskBadge score={item.score} /> },
-  { key: "is_default", label: "Pilotes", render: (item) => <PiloteBadge value={item.is_default} /> },
+  {
+    key: "type_client",
+    label: "Type client",
+    width: "150px",
+    render: (item) => {
+      const val = (item as unknown as Record<string, unknown>).type_client as string;
+      if (!val) return <span className="text-slate-600">—</span>;
+      return (
+        <Badge variant="outline" className={val === "Personne morale"
+          ? "border-cyan-500/30 text-cyan-400 text-xs"
+          : "border-pink-500/30 text-pink-400 text-xs"
+        }>
+          {val}
+        </Badge>
+      );
+    },
+  },
+  { key: "score", label: "Risque", width: "120px", render: (item) => <RiskBadge score={item.score} /> },
+  { key: "is_default", label: "Pilotes", width: "80px", render: (item) => <PiloteBadge value={item.is_default} /> },
 ];
 
 const fields: FieldDef[] = [
   { key: "code", label: "Code", required: true, placeholder: "Ex: SARL" },
   { key: "libelle", label: "Libelle", required: true, placeholder: "Ex: Societe a responsabilite limitee" },
-  { key: "score", label: "Score de risque (0-100)", type: "number", placeholder: "0" },
+  {
+    key: "type_client",
+    label: "Type client",
+    type: "select",
+    options: [
+      { value: "Personne morale", label: "Personne morale" },
+      { value: "Personne physique", label: "Personne physique" },
+    ],
+    placeholder: "Selectionner le type",
+  },
+  { key: "score", label: "Score de risque (0-100)", type: "slider", min: 0, max: 100 },
 ];
 
 const defaultValues: Partial<RefTypeJuridique> = { code: "", libelle: "", score: 0 };
@@ -27,6 +55,9 @@ export default function RefTypesJuridiquesTab() {
       columns={columns}
       fields={fields}
       defaultValues={defaultValues}
+      storageKey="ref_types_juridiques"
+      hasScore
+      searchAllFields={["code", "libelle", "type_client"]}
     />
   );
 }
