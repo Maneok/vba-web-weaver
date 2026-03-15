@@ -73,8 +73,8 @@ describe("DashboardCockpit", () => {
   // 2. Empty state
   it('shows "Aucune anomalie detectee" and "Conformite OK" when urgencies is empty', () => {
     renderCockpit(buildCockpit([]));
-    expect(screen.getByText("Aucune anomalie détectée")).toBeInTheDocument();
-    expect(screen.getByText("Conformité OK")).toBeInTheDocument();
+    expect(screen.getByText("Tous vos dossiers sont à jour")).toBeInTheDocument();
+    expect(screen.getByText("Aucune action requise")).toBeInTheDocument();
   });
 
   // 3. Displays urgency items
@@ -139,25 +139,25 @@ describe("DashboardCockpit", () => {
     expect(item.tagName).toBe("DIV");
   });
 
-  // 8. "Voir les N autres" button appears when more than 8 items
-  it('shows "Voir les N autres" button when more than 8 items', () => {
+  // 8. "Voir les N actions restantes" button appears when more than 3 items
+  it('shows "Voir les N actions restantes" button when more than 3 items', () => {
     const urgencies = Array.from({ length: 12 }, (_, i) =>
       makeUrgency({ title: `Item ${i}` })
     );
     renderCockpit(buildCockpit(urgencies));
-    expect(screen.getByText("Voir les 4 autres")).toBeInTheDocument();
-    // Only 8 visible items
-    expect(screen.queryByText("Item 8")).not.toBeInTheDocument();
+    expect(screen.getByText("Voir les 9 actions restantes")).toBeInTheDocument();
+    // Only 3 visible items
+    expect(screen.queryByText("Item 3")).not.toBeInTheDocument();
   });
 
-  // 9. Clicking "Voir les N autres" expands the list
+  // 9. Clicking expand button expands the list
   it("expands the list when clicking the expand button", () => {
     const urgencies = Array.from({ length: 10 }, (_, i) =>
       makeUrgency({ title: `Expand item ${i}` })
     );
     renderCockpit(buildCockpit(urgencies));
     expect(screen.queryByText("Expand item 9")).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText("Voir les 2 autres"));
+    fireEvent.click(screen.getByText("Voir les 7 actions restantes"));
     expect(screen.getByText("Expand item 9")).toBeInTheDocument();
   });
 
@@ -167,7 +167,7 @@ describe("DashboardCockpit", () => {
       makeUrgency({ title: `Collapse item ${i}` })
     );
     renderCockpit(buildCockpit(urgencies));
-    fireEvent.click(screen.getByText("Voir les 2 autres"));
+    fireEvent.click(screen.getByText("Voir les 7 actions restantes"));
     expect(screen.getByText("Collapse item 9")).toBeInTheDocument();
     fireEvent.click(screen.getByText("Réduire la liste"));
     expect(screen.queryByText("Collapse item 9")).not.toBeInTheDocument();
@@ -191,16 +191,16 @@ describe("DashboardCockpit", () => {
     expect(screen.getByText("3 critiques")).toBeInTheDocument();
   });
 
-  // 12. Shows "Cockpit LCB-FT" heading
-  it('shows "Cockpit LCB-FT" heading', () => {
+  // 12. Shows "Actions requises" heading
+  it('shows "Actions requises" heading', () => {
     renderCockpit(buildCockpit());
-    expect(screen.getByText("Cockpit LCB-FT")).toBeInTheDocument();
+    expect(screen.getByText("Actions requises")).toBeInTheDocument();
   });
 
   // 13. Correct aria-labels
   it("has correct aria-labels on the main container", () => {
     renderCockpit(buildCockpit());
-    expect(screen.getByLabelText("Cockpit LCB-FT")).toBeInTheDocument();
+    expect(screen.getByLabelText("Actions requises")).toBeInTheDocument();
   });
 
   it('has "Liste des anomalies cockpit" aria-label on the urgency list', () => {
@@ -233,20 +233,20 @@ describe("DashboardCockpit", () => {
     // Force urgencies to undefined to simulate bad data
     (cockpit as any).urgencies = undefined;
     renderCockpit(cockpit);
-    expect(screen.getByText("Aucune anomalie détectée")).toBeInTheDocument();
-    expect(screen.getByText("Conformité OK")).toBeInTheDocument();
+    expect(screen.getByText("Tous vos dossiers sont à jour")).toBeInTheDocument();
+    expect(screen.getByText("Aucune action requise")).toBeInTheDocument();
   });
 
   it("handles urgencies being null gracefully", () => {
     const cockpit = buildCockpit();
     (cockpit as any).urgencies = null;
     renderCockpit(cockpit);
-    expect(screen.getByText("Aucune anomalie détectée")).toBeInTheDocument();
+    expect(screen.getByText("Tous vos dossiers sont à jour")).toBeInTheDocument();
   });
 
-  // Additional: no expand button when exactly 8 items
-  it("does not show expand button when exactly 8 items", () => {
-    const urgencies = Array.from({ length: 8 }, (_, i) =>
+  // Additional: no expand button when exactly 3 items
+  it("does not show expand button when exactly 3 items", () => {
+    const urgencies = Array.from({ length: 3 }, (_, i) =>
       makeUrgency({ title: `Exact item ${i}` })
     );
     renderCockpit(buildCockpit(urgencies));

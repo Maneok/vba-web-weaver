@@ -62,7 +62,7 @@ describe("DashboardDataQuality", () => {
     const { container } = render(
       <DashboardDataQuality categories={categories} isLoading={false} />
     );
-    const greenBar = container.querySelector('[class*="from-emerald-500"]');
+    const greenBar = container.querySelector('[class*="bg-emerald-500"]');
     expect(greenBar).toBeInTheDocument();
   });
 
@@ -71,17 +71,14 @@ describe("DashboardDataQuality", () => {
     const { container } = render(
       <DashboardDataQuality categories={categories} isLoading={false} />
     );
-    const redBar = container.querySelector('[class*="from-red-500"]');
+    const redBar = container.querySelector('[class*="bg-red-500"]');
     expect(redBar).toBeInTheDocument();
   });
 
-  it("affiche le texte 'X champs renseignés sur Y'", () => {
-    const categories = [
-      makeCategory({ total: 10, filled: 7 }),
-      makeCategory({ label: "Autre", total: 5, filled: 3 }),
-    ];
+  it("affiche 'Complet' quand une catégorie est à 100%", () => {
+    const categories = [makeCategory({ total: 10, filled: 10 })];
     render(<DashboardDataQuality categories={categories} isLoading={false} />);
-    expect(screen.getByText("10 champs renseignés sur 15")).toBeInTheDocument();
+    expect(screen.getByText("Complet")).toBeInTheDocument();
   });
 
   it("affiche les barres de progression avec le rôle progressbar", () => {
@@ -93,12 +90,12 @@ describe("DashboardDataQuality", () => {
     expect(progressbars.length).toBe(1);
   });
 
-  it("utilise la couleur orange pour un taux entre 50% et 79%", () => {
+  it("utilise la couleur ambre pour un taux entre 50% et 79%", () => {
     const categories = [makeCategory({ total: 10, filled: 6 })]; // 60%
     const { container } = render(
       <DashboardDataQuality categories={categories} isLoading={false} />
     );
-    const orangeBar = container.querySelector('[class*="from-orange-500"]');
-    expect(orangeBar).toBeInTheDocument();
+    const amberBar = container.querySelector('[class*="bg-amber-500"]');
+    expect(amberBar).toBeInTheDocument();
   });
 });

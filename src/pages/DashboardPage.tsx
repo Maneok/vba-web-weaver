@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef, type ReactNode } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
@@ -6,21 +6,16 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { analyzeCockpit } from "@/lib/cockpitEngine";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
+  RefreshCw, Loader2,
+  Building2, UserCheck, CreditCard, MapPin, Hash, ShieldCheck,
+  Users, Shield, AlertTriangle, FileText, GripVertical,
+} from "lucide-react";
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
   PointerSensor,
+  KeyboardSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -29,36 +24,106 @@ import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
+  rectSortingStrategy,
+  useSortable,
 } from "@dnd-kit/sortable";
-import {
-  RefreshCw, Settings, Loader2, Eye, EyeOff, GripVertical, RotateCcw,
-  Building2, UserCheck, CreditCard, MapPin, Hash, ShieldCheck,
-} from "lucide-react";
+import { CSS } from "@dnd-kit/utilities";
 
 import OnboardingWizard, { isOnboardingComplete } from "@/components/OnboardingWizard";
-import { QuickActionsBar, QuickActionsFAB } from "@/components/dashboard/QuickActions";
-import { DashboardKPICards } from "@/components/dashboard/DashboardKPICards";
-import { DashboardChart } from "@/components/dashboard/DashboardChart";
-import { DashboardAlerts } from "@/components/dashboard/DashboardAlerts";
-import { DashboardActivity } from "@/components/dashboard/DashboardActivity";
-import { DashboardVigilance } from "@/components/dashboard/DashboardVigilance";
-import { SortableWidget } from "@/components/dashboard/SortableWidget";
-import { type Deadline } from "@/components/dashboard/UpcomingDeadlines";
+import { QuickActionsFAB } from "@/components/dashboard/QuickActions";
+import { KPICard } from "@/components/dashboard/KPICard";
+import { ActivityFeed } from "@/components/dashboard/ActivityFeed";
+import StatusBanner from "@/components/dashboard/StatusBanner";
 import DashboardCockpit from "@/components/dashboard/DashboardCockpit";
 import DashboardSearch from "@/components/dashboard/DashboardSearch";
 import DashboardShortcutsHelp from "@/components/dashboard/DashboardShortcutsHelp";
-import DashboardStaff from "@/components/dashboard/DashboardStaff";
 import DashboardExport from "@/components/dashboard/DashboardExport";
-import DashboardGoals from "@/components/dashboard/DashboardGoals";
 import DashboardDataQuality from "@/components/dashboard/DashboardDataQuality";
 import DashboardAccessibility from "@/components/dashboard/DashboardAccessibility";
 import DashboardPrintHeader from "@/components/dashboard/DashboardPrintHeader";
 import DashboardPrintFooter from "@/components/dashboard/DashboardPrintFooter";
 import DataFreshnessIndicator from "@/components/dashboard/DataFreshnessIndicator";
 import DashboardNotificationCenter from "@/components/dashboard/DashboardNotificationCenter";
-import RiskDistributionMini from "@/components/dashboard/RiskDistributionMini";
 import { useReducedMotion, useAutoRefreshInterval } from "@/components/dashboard/DashboardReducedMotion";
+
+// ── Lazy-loaded recharts components (TDZ prevention) ─────────
+const ComplianceRadar = React.lazy(() => import("@/components/dashboard/ComplianceRadar"));
+const LazyMonthlyChart = React.lazy(() =>
+  import("@/components/dashboard/MonthlyChart").then(m => ({ default: m.MonthlyChart }))
+);
+const LazyVigilanceDonut = React.lazy(() =>
+  import("@/components/dashboard/VigilanceDonut").then(m => ({ default: m.VigilanceDonut }))
+);
+
+// ── Skeleton fallback for lazy charts ────────────────────────
+function ChartSkeleton({ height = "h-[340px]" }: { height?: string }) {
+  return (
+    <div className={`bg-card rounded-2xl border border-border p-5 ${height} animate-pulse`}>
+      <div className="h-4 w-44 bg-muted rounded mb-4" />
+      <div className="h-full bg-muted/50 rounded-xl" />
+    </div>
+  );
+}
+
+// ── DnD Widget wrapper ───────────────────────────────────────
+function DashboardWidget({ id, children }: { id: string; children: React.ReactNode }) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`relative group/widget ${isDragging ? "z-50 opacity-75 scale-[1.02]" : ""}`}
+      {...attributes}
+    >
+      <button
+        {...listeners}
+        className="absolute -top-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/widget:opacity-50 hover:!opacity-100 focus:!opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10 bg-card border border-border rounded-full p-1 shadow-sm print:hidden"
+        aria-label="Déplacer ce widget"
+        tabIndex={-1}
+      >
+        <GripVertical className="w-3 h-3 text-muted-foreground" />
+      </button>
+      {children}
+    </div>
+  );
+}
+
+// ── Widget order persistence ─────────────────────────────────
+type WidgetKey = "cockpit" | "radar" | "chart" | "vigilance" | "activity" | "quality";
+const DEFAULT_ORDER: WidgetKey[] = ["cockpit", "radar", "chart", "vigilance", "activity", "quality"];
+const WIDGET_ORDER_KEY = "dashboard-widget-order-v2";
+
+function loadWidgetOrder(): WidgetKey[] {
+  try {
+    const stored = localStorage.getItem(WIDGET_ORDER_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        const valid = parsed.filter((k: string) => DEFAULT_ORDER.includes(k as WidgetKey)) as WidgetKey[];
+        const missing = DEFAULT_ORDER.filter(k => !valid.includes(k));
+        if (valid.length + missing.length === DEFAULT_ORDER.length) return [...valid, ...missing];
+      }
+    }
+  } catch { /* ignore */ }
+  return [...DEFAULT_ORDER];
+}
+
+function saveWidgetOrder(order: WidgetKey[]) {
+  try { localStorage.setItem(WIDGET_ORDER_KEY, JSON.stringify(order)); } catch { /* ignore */ }
+}
 
 // ── Helpers ──────────────────────────────────────────────────
 function formatDateLong(): string {
@@ -70,94 +135,6 @@ function formatDateLong(): string {
   });
 }
 
-function generateSparkline(current: number): { v: number }[] {
-  const base = Math.max(1, current - 5);
-  return Array.from({ length: 7 }, (_, i) => ({ v: Math.max(0, base + Math.round((current - base) * (i / 6))) }));
-}
-
-// ── Widget keys & persistence ────────────────────────────────
-type WidgetKey = "kpi" | "cockpit" | "graphique" | "alertes" | "activite" | "repartition" | "equipe" | "objectifs" | "qualite";
-
-const DEFAULT_ORDER: WidgetKey[] = ["kpi", "cockpit", "graphique", "alertes", "activite", "repartition", "equipe", "objectifs", "qualite"];
-const STORAGE_KEY_VIS = "dashboard-widgets";
-const STORAGE_KEY_ORDER = "dashboard-widget-order";
-
-interface WidgetVisibility {
-  kpi: boolean;
-  cockpit: boolean;
-  graphique: boolean;
-  alertes: boolean;
-  activite: boolean;
-  repartition: boolean;
-  equipe: boolean;
-  objectifs: boolean;
-  qualite: boolean;
-}
-
-const DEFAULT_WIDGETS: WidgetVisibility = {
-  kpi: true,
-  cockpit: true,
-  graphique: true,
-  alertes: true,
-  activite: true,
-  repartition: true,
-  equipe: true,
-  objectifs: true,
-  qualite: true,
-};
-
-function loadVisibility(): WidgetVisibility {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_VIS);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      const result: WidgetVisibility = { ...DEFAULT_WIDGETS };
-      for (const key of Object.keys(DEFAULT_WIDGETS) as WidgetKey[]) {
-        if (typeof parsed[key] === "boolean") result[key] = parsed[key];
-      }
-      return result;
-    }
-  } catch { /* ignore */ }
-  return { ...DEFAULT_WIDGETS };
-}
-
-function saveVisibility(v: WidgetVisibility) {
-  try { localStorage.setItem(STORAGE_KEY_VIS, JSON.stringify(v)); } catch { /* ignore */ }
-}
-
-function loadOrder(): WidgetKey[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_ORDER);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        // Keep valid keys from stored order, then append any missing new keys
-        const validStored = parsed.filter((k: string) => DEFAULT_ORDER.includes(k as WidgetKey)) as WidgetKey[];
-        const missing = DEFAULT_ORDER.filter(k => !validStored.includes(k));
-        const result = [...validStored, ...missing];
-        if (result.length === DEFAULT_ORDER.length) return result;
-      }
-    }
-  } catch { /* ignore */ }
-  return [...DEFAULT_ORDER];
-}
-
-function saveOrder(order: WidgetKey[]) {
-  try { localStorage.setItem(STORAGE_KEY_ORDER, JSON.stringify(order)); } catch { /* ignore */ }
-}
-
-const WIDGET_META: Record<WidgetKey, { label: string; description: string }> = {
-  kpi: { label: "Indicateurs KPI", description: "Clients, score, conformité, alertes, revues, CA" },
-  cockpit: { label: "Cockpit LCB-FT", description: "Anomalies et urgences de conformité détectées" },
-  graphique: { label: "Graphiques de suivi", description: "Évolution mensuelle et répartition vigilance" },
-  alertes: { label: "Alertes et échéances", description: "Alertes récentes et prochaines échéances" },
-  activite: { label: "Fil d'activité", description: "Dernières actions effectuées" },
-  repartition: { label: "Jauges de conformité", description: "Indicateurs de conformité détaillés" },
-  equipe: { label: "Équipe & formations", description: "Collaborateurs et état des formations LCB-FT" },
-  objectifs: { label: "Objectifs de conformité", description: "Suivi des cibles et progression" },
-  qualite: { label: "Qualité des données", description: "Taux de remplissage des champs clés" },
-};
-
 // ── Main Dashboard ──────────────────────────────────────────
 export default function DashboardPage() {
   const { clients, alertes, logs, collaborateurs, isLoading, refreshAll } = useAppState();
@@ -167,13 +144,12 @@ export default function DashboardPage() {
   const [lastRefresh, setLastRefresh] = useState(new Date());
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notifications, setNotifications] = useState<{ id: string; titre: string; message: string; type: "systeme" | "conformite" | "revue" | "alerte"; lue: boolean; created_at: string }[]>([]);
-  const [widgets, setWidgets] = useState<WidgetVisibility>(loadVisibility);
-  const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(loadOrder);
-  const [dragMode, setDragMode] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const [announcements, setAnnouncements] = useState<string[]>([]);
+  const [missionsData, setMissionsData] = useState<{ count: number; ca: number | null }>({ count: 0, ca: null });
+  const [widgetOrder, setWidgetOrder] = useState<WidgetKey[]>(loadWidgetOrder);
   const reducedMotion = useReducedMotion();
-  const [autoRefreshInterval, setAutoRefreshInterval] = useAutoRefreshInterval();
+  const [autoRefreshInterval] = useAutoRefreshInterval();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const refreshTimer = useRef<ReturnType<typeof setInterval>>();
   const refreshAllRef = useRef(refreshAll);
@@ -181,7 +157,26 @@ export default function DashboardPage() {
   const mountedRef = useRef(true);
   const lastManualRefresh = useRef(0);
 
-  // ── Handlers declared before any useEffect to prevent TDZ in production builds ──
+  // ── DnD sensors ─────────────────────────────────────────────
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      setWidgetOrder(prev => {
+        const oldIndex = prev.indexOf(active.id as WidgetKey);
+        const newIndex = prev.indexOf(over.id as WidgetKey);
+        const next = arrayMove(prev, oldIndex, newIndex);
+        saveWidgetOrder(next);
+        return next;
+      });
+    }
+  }
+
+  // ── Handlers ────────────────────────────────────────────────
   const handleRefresh = useCallback(() => {
     const now = Date.now();
     if (now - lastManualRefresh.current < 3000) return;
@@ -215,57 +210,12 @@ export default function DashboardPage() {
 
   useDocumentTitle("Dashboard");
 
-  // ── DnD sensors ─────────────────────────────────────────────
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
-
-  function handleDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setWidgetOrder(prev => {
-        const oldIndex = prev.indexOf(active.id as WidgetKey);
-        const newIndex = prev.indexOf(over.id as WidgetKey);
-        const next = arrayMove(prev, oldIndex, newIndex);
-        saveOrder(next);
-        return next;
-      });
-    }
-  }
-
-  function resetOrder() {
-    setWidgetOrder([...DEFAULT_ORDER]);
-    saveOrder([...DEFAULT_ORDER]);
-  }
-
-  const isDefaultOrder = widgetOrder.every((k, i) => k === DEFAULT_ORDER[i]);
-
-  const toggleWidget = (key: WidgetKey) => {
-    setWidgets(prev => {
-      const next = { ...prev, [key]: !prev[key] };
-      saveVisibility(next);
-      return next;
-    });
-  };
-
-  const setAllWidgets = (visible: boolean) => {
-    const next: WidgetVisibility = { kpi: visible, cockpit: visible, graphique: visible, alertes: visible, activite: visible, repartition: visible, equipe: visible, objectifs: visible, qualite: visible };
-    setWidgets(next);
-    saveVisibility(next);
-  };
-
-  const hiddenCount = Object.values(widgets).filter(v => !v).length;
-  const allVisible = hiddenCount === 0;
-  const allHidden = hiddenCount === DEFAULT_ORDER.length;
-
   // ── Keyboard shortcuts ────────────────────────────────────
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       const tag = (e.target as HTMLElement)?.tagName;
       const inInput = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
 
-      // Ctrl/Cmd shortcuts work even in inputs
       if (e.ctrlKey || e.metaKey) {
         switch (e.key) {
           case "n": e.preventDefault(); navigate("/nouveau-client"); break;
@@ -274,34 +224,20 @@ export default function DashboardPage() {
         return;
       }
 
-      // Single-key shortcuts only outside inputs
       if (inInput) return;
 
       switch (e.key) {
         case "?": e.preventDefault(); setShortcutsOpen(true); break;
         case "/": e.preventDefault(); searchInputRef.current?.focus(); break;
         case "r": case "R": e.preventDefault(); handleRefresh(); break;
-        case "d": case "D": e.preventDefault(); setDragMode(v => !v); break;
         case "p": case "P": e.preventDefault(); window.print(); break;
-        default: {
-          const num = parseInt(e.key, 10);
-          if (num >= 1 && num <= 9) {
-            const visKeys = widgetOrder.filter(k => widgets[k]);
-            if (num <= visKeys.length) {
-              e.preventDefault();
-              const el = document.getElementById(`widget-${visKeys[num - 1]}`);
-              el?.scrollIntoView({ behavior: "smooth", block: "start" });
-              el?.focus();
-            }
-          }
-        }
       }
     }
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
-  }, [navigate, handleRefresh, widgetOrder, widgets]);
+  }, [navigate, handleRefresh]);
 
-  // ── Auto-refresh with configurable interval ──────────────
+  // ── Auto-refresh ──────────────────────────────────────────
   useEffect(() => {
     mountedRef.current = true;
     const doRefresh = () => {
@@ -355,89 +291,37 @@ export default function DashboardPage() {
     return () => { cancelled = true; };
   }, [user, lastRefresh]);
 
+  // ── Load missions data (lettres de mission) ───────────────
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data, error } = await (supabase as any)
+          .from("lettres_mission")
+          .select("id, statut, honoraires_annuels")
+          .neq("statut", "brouillon");
+        if (cancelled || error) return;
+        const missions = data || [];
+        const ca = missions.reduce((s: number, m: any) => s + (Number(m.honoraires_annuels) || 0), 0);
+        setMissionsData({ count: missions.length, ca: ca > 0 ? ca : null });
+      } catch {
+        // Table or column might not exist — fail silently
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [lastRefresh]);
+
   // ── Computed stats ────────────────────────────────────────
   const stats = useMemo(() => {
     const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
     const totalClients = actifs.length;
-    const avgScore = totalClients > 0
-      ? Math.round(actifs.reduce((s, c) => s + (c.scoreGlobal || 0), 0) / totalClients) : 0;
     const simplifiee = clients.filter(c => c.nivVigilance === "SIMPLIFIEE").length;
     const standard = clients.filter(c => c.nivVigilance === "STANDARD").length;
     const renforcee = clients.filter(c => c.nivVigilance === "RENFORCEE").length;
-    const alertesEnCours = alertes.filter(a => {
-      const s = (a.statut || "").toUpperCase();
-      return !s.includes("CLOS") && !s.includes("FERME") && !s.includes("RESOLU");
-    }).length;
-    const now = new Date();
-    const revuesEchues = clients.filter(c => {
-      if (!c.dateButoir) return false;
-      try { const d = new Date(c.dateButoir); return !isNaN(d.getTime()) && d < now; } catch { return false; }
-    }).length;
-    const caPrevisionnel = actifs.reduce((s, c) => s + (c.honoraires || 0), 0);
-    const withKyc = actifs.filter(c => c.lienCni && c.siren && c.dirigeant && c.adresse).length;
-    const tauxConformite = totalClients > 0 ? Math.round((withKyc / totalClients) * 100) : 0;
-    return { totalClients, avgScore, simplifiee, standard, renforcee, alertesEnCours, revuesEchues, caPrevisionnel, tauxConformite };
-  }, [clients, alertes]);
-
-  const sparklines = useMemo(() => ({
-    totalClients: generateSparkline(stats.totalClients),
-    avgScore: generateSparkline(stats.avgScore),
-    tauxConformite: generateSparkline(stats.tauxConformite),
-    alertesEnCours: generateSparkline(stats.alertesEnCours),
-    revuesEchues: generateSparkline(stats.revuesEchues),
-    caPrevisionnel: generateSparkline(stats.caPrevisionnel / 1000),
-  }), [stats]);
-
-  const monthlyData = useMemo(() => {
-    const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
-    const now = new Date();
-    const result = [];
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const beforeDate = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-      const filtered = clients.filter(c => {
-        if (!c.dateCreationLigne) return true;
-        try { const cd = new Date(c.dateCreationLigne); return !isNaN(cd.getTime()) && cd <= beforeDate; } catch { return true; }
-      });
-      result.push({
-        month: months[d.getMonth()],
-        simplifiee: filtered.filter(c => c.nivVigilance === "SIMPLIFIEE").length,
-        standard: filtered.filter(c => c.nivVigilance === "STANDARD").length,
-        renforcee: filtered.filter(c => c.nivVigilance === "RENFORCEE").length,
-      });
-    }
-    return result;
+    return { totalClients, simplifiee, standard, renforcee };
   }, [clients]);
 
-  const deadlines = useMemo<Deadline[]>(() => {
-    const now = new Date();
-    const items: Deadline[] = [];
-    clients.forEach(c => {
-      if (!c.dateButoir) return;
-      try {
-        const d = new Date(c.dateButoir);
-        if (isNaN(d.getTime())) return;
-        if ((d.getTime() - now.getTime()) / 86400000 < 60) {
-          items.push({ id: `revue-${c.ref}`, title: `Revue ${c.raisonSociale || c.ref}`, date: c.dateButoir, type: "revue", clientRef: c.ref });
-        }
-      } catch { /* skip */ }
-    });
-    collaborateurs.forEach(col => {
-      if (!col.derniereFormation) return;
-      try {
-        const lastF = new Date(col.derniereFormation);
-        if (isNaN(lastF.getTime())) return;
-        const nextF = new Date(lastF);
-        nextF.setFullYear(nextF.getFullYear() + 1);
-        if ((nextF.getTime() - now.getTime()) / 86400000 < 60) {
-          items.push({ id: `formation-${col.nom}`, title: `Formation ${col.nom}`, date: nextF.toISOString().split("T")[0], type: "formation" });
-        }
-      } catch { /* skip */ }
-    });
-    items.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    return items.slice(0, 8);
-  }, [clients, collaborateurs]);
-
+  // ── Compliance items (7 axes) ─────────────────────────────
   const complianceItems = useMemo(() => {
     const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
     const total = actifs.length || 1;
@@ -463,26 +347,54 @@ export default function DashboardPage() {
     ];
   }, [clients, collaborateurs]);
 
+  // ── Compliance score (single source of truth) ──────────────
+  const complianceScore = useMemo(() =>
+    Math.round(complianceItems.reduce((sum, item) => sum + item.value, 0) / complianceItems.length),
+    [complianceItems]
+  );
+
   // ── Cockpit analysis ─────────────────────────────────────
   const cockpitData = useMemo(
     () => analyzeCockpit(clients, collaborateurs, alertes),
     [clients, collaborateurs, alertes]
   );
 
-  // ── Goals computation ────────────────────────────────────
-  const goalsData = useMemo(() => {
-    return complianceItems
-      .filter(item => item.target != null && item.target > 0)
-      .map((item, i) => ({
-        id: `goal-${i}`,
-        label: item.label,
-        current: item.value,
-        target: item.target!,
-        description: item.description || "",
-      }));
-  }, [complianceItems]);
+  // ── Alertes count (critical + warning from cockpit) ───────
+  const criticalCount = useMemo(() => {
+    const urgencies = cockpitData.urgencies ?? [];
+    return urgencies.filter(u => u.severity === "critique").length;
+  }, [cockpitData]);
 
-  // ── Data quality computation ────────────────────────────
+  const warningCount = useMemo(() => {
+    const urgencies = cockpitData.urgencies ?? [];
+    return urgencies.filter(u => u.severity === "warning").length;
+  }, [cockpitData]);
+
+  const alertesCount = criticalCount + warningCount;
+
+  // ── Monthly chart data ────────────────────────────────────
+  const monthlyData = useMemo(() => {
+    const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+    const now = new Date();
+    const result = [];
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const beforeDate = new Date(d.getFullYear(), d.getMonth() + 1, 0);
+      const filtered = clients.filter(c => {
+        if (!c.dateCreationLigne) return true;
+        try { const cd = new Date(c.dateCreationLigne); return !isNaN(cd.getTime()) && cd <= beforeDate; } catch { return true; }
+      });
+      result.push({
+        month: months[d.getMonth()],
+        simplifiee: filtered.filter(c => c.nivVigilance === "SIMPLIFIEE").length,
+        standard: filtered.filter(c => c.nivVigilance === "STANDARD").length,
+        renforcee: filtered.filter(c => c.nivVigilance === "RENFORCEE").length,
+      });
+    }
+    return result;
+  }, [clients]);
+
+  // ── Data quality categories ───────────────────────────────
   const dataQualityCategories = useMemo(() => {
     const actifs = clients.filter(c => c.statut === "ACTIF" || c.etat === "VALIDE" || c.etat === "EN COURS");
     const total = actifs.length;
@@ -497,271 +409,193 @@ export default function DashboardPage() {
     ];
   }, [clients]);
 
+  // ── KPI card helpers ──────────────────────────────────────
+  const conformiteColor = complianceScore >= 70 ? "#22c55e" : complianceScore >= 40 ? "#f59e0b" : "#ef4444";
+  const alertesColor = alertesCount > 0 ? "#ef4444" : "#22c55e";
+  const caSubValue = missionsData.ca != null
+    ? `${(missionsData.ca / 1000).toFixed(1).replace(/\.0$/, "")}k€/an`
+    : undefined;
+  const missionsSubValue = missionsData.count === 0 ? "Créer une lettre de mission" : caSubValue;
+
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
   const cabinetName = profile?.cabinet_id ? "Cabinet" : "GRIMY";
-
   const showOnboarding = !isLoading && clients.length === 0 && !isOnboardingComplete();
+  const printDate = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 
-  // ── Widget renderer ───────────────────────────────────────
-  const widgetContent: Record<WidgetKey, ReactNode> = {
-    kpi: (
-      <>
-        <DashboardKPICards stats={stats} sparklines={sparklines} isLoading={isLoading} />
-        {!isLoading && stats.totalClients > 0 && (
-          <div className="mt-3 px-1">
-            <RiskDistributionMini simplifiee={stats.simplifiee} standard={stats.standard} renforcee={stats.renforcee} />
+  // ── Widget content map ────────────────────────────────────
+  const widgetContent: Record<WidgetKey, React.ReactNode> = {
+    cockpit: <DashboardCockpit cockpit={cockpitData} isLoading={isLoading} />,
+    radar: (
+      <React.Suspense fallback={<ChartSkeleton height="h-[380px]" />}>
+        <ComplianceRadar items={complianceItems} score={complianceScore} isLoading={isLoading} />
+      </React.Suspense>
+    ),
+    chart: (
+      <React.Suspense fallback={<ChartSkeleton />}>
+        <LazyMonthlyChart data={monthlyData} loading={isLoading} />
+      </React.Suspense>
+    ),
+    vigilance: (
+      <React.Suspense fallback={<ChartSkeleton />}>
+        <LazyVigilanceDonut
+          simplifiee={stats.simplifiee}
+          standard={stats.standard}
+          renforcee={stats.renforcee}
+          loading={isLoading}
+        />
+      </React.Suspense>
+    ),
+    activity: (
+      <div className="space-y-2">
+        <ActivityFeed logs={logs.slice(0, 3)} loading={isLoading} />
+        {!isLoading && logs.length > 0 && (
+          <div className="text-center">
+            <button
+              onClick={() => navigate("/audit-trail")}
+              className="text-xs text-primary hover:underline transition-colors"
+            >
+              Voir le journal complet
+            </button>
           </div>
         )}
-      </>
+      </div>
     ),
-    cockpit: <DashboardCockpit cockpit={cockpitData} isLoading={isLoading} />,
-    graphique: (
-      <DashboardChart
-        monthlyData={monthlyData}
-        simplifiee={stats.simplifiee}
-        standard={stats.standard}
-        renforcee={stats.renforcee}
-        isLoading={isLoading}
-      />
-    ),
-    alertes: <DashboardAlerts alertes={alertes} deadlines={deadlines} isLoading={isLoading} />,
-    activite: <DashboardActivity logs={logs} isLoading={isLoading} />,
-    repartition: <DashboardVigilance complianceItems={complianceItems} isLoading={isLoading} />,
-    equipe: <DashboardStaff collaborateurs={collaborateurs} isLoading={isLoading} />,
-    objectifs: <DashboardGoals goals={goalsData} isLoading={isLoading} />,
-    qualite: <DashboardDataQuality categories={dataQualityCategories} isLoading={isLoading} />,
+    quality: <DashboardDataQuality categories={dataQualityCategories} isLoading={isLoading} />,
   };
-
-  // Filter to visible widgets only
-  const visibleWidgets = widgetOrder.filter(k => widgets[k]);
-
-  const printDate = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
 
   return (
     <DashboardAccessibility announcements={announcements}>
-    <div className={`p-6 lg:p-8 max-w-[1600px] mx-auto ${reducedMotion ? "" : "animate-fade-in-up"} print:bg-white print:text-black print:p-4`} role="main" aria-label="Tableau de bord">
+    <div
+      className={`p-5 lg:p-8 max-w-[1400px] mx-auto ${reducedMotion ? "" : "animate-fade-in-up"} print:bg-white print:text-black print:p-4`}
+      role="main"
+      aria-label="Tableau de bord"
+    >
       <DashboardPrintHeader cabinetName={cabinetName} userName={userName} date={printDate} />
       {showOnboarding && <OnboardingWizard />}
 
-      {/* ── TOP BAR ────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-8 pb-6 border-b border-white/[0.06] print:mb-4 print:border-0">
+      {/* ── TOP BAR (simplified: search + notifications + refresh) ── */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-6 print:mb-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
+          <h1 className="text-xl font-bold tracking-tight">
             {greeting}, {userName}
           </h1>
-          <p className="text-sm text-muted-foreground capitalize mt-1">{formatDateLong()}</p>
+          <p className="text-xs text-muted-foreground capitalize mt-0.5">{formatDateLong()}</p>
         </div>
 
         <div className="flex items-center gap-2 flex-wrap print:hidden">
-          <DashboardSearch clients={clients} alertes={alertes} className="w-40 sm:w-56 md:w-64 lg:w-80" inputRef={searchInputRef} />
-          <QuickActionsBar />
-
-          {/* Notification center */}
+          <DashboardSearch clients={clients} alertes={alertes} className="w-40 sm:w-56 md:w-64" inputRef={searchInputRef} />
           <DashboardNotificationCenter
             notifications={notifications}
             onMarkAsRead={handleMarkNotificationAsRead}
             onMarkAllAsRead={handleMarkAllNotificationsAsRead}
             isLoading={isLoading}
           />
-
-          {/* Export */}
-          <DashboardExport clients={clients} alertes={alertes} collaborateurs={collaborateurs} stats={stats} cockpitUrgencies={cockpitData.urgencies} complianceItems={complianceItems} />
-
-          {/* Drag mode toggle */}
-          <Button
-            size="sm"
-            variant={dragMode ? "default" : "ghost"}
-            className="h-9 w-9 p-0"
-            onClick={() => setDragMode(!dragMode)}
-            title={dragMode ? "Quitter le mode réorganisation" : "Réorganiser les widgets"}
-            aria-label={dragMode ? "Quitter le mode réorganisation" : "Réorganiser les widgets"}
-            aria-pressed={dragMode}
+          <DashboardExport
+            clients={clients}
+            alertes={alertes}
+            collaborateurs={collaborateurs}
+            stats={{ totalClients: stats.totalClients, avgScore: 0, tauxConformite: complianceScore, alertesEnCours: alertesCount, revuesEchues: 0, caPrevisionnel: 0 }}
+            cockpitUrgencies={cockpitData.urgencies}
+            complianceItems={complianceItems}
+          />
+          <button
+            className="h-9 w-9 flex items-center justify-center rounded-lg border border-border hover:bg-muted/50 transition-colors disabled:opacity-50"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            title="Rafraîchir (R)"
+            aria-label="Rafraîchir les données"
           >
-            <GripVertical className="w-4 h-4" />
-          </Button>
-
-          {/* Personnaliser */}
-          <Dialog>
-            <DialogTrigger asChild>
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-9 gap-1.5 px-2.5"
-                title="Personnaliser le tableau de bord"
-                aria-label="Personnaliser le tableau de bord"
-              >
-                <Settings className="w-4 h-4" />
-                <span className="hidden sm:inline text-xs">Personnaliser</span>
-                {hiddenCount > 0 && (
-                  <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
-                    {hiddenCount}
-                  </span>
-                )}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle>Personnaliser le tableau de bord</DialogTitle>
-                <DialogDescription>
-                  Choisissez les widgets à afficher. Utilisez le bouton <GripVertical className="w-3.5 h-3.5 inline-block align-text-bottom" /> pour réorganiser.
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-3 py-2">
-                {widgetOrder.map((key) => {
-                  const meta = WIDGET_META[key];
-                  return (
-                    <div
-                      key={key}
-                      className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer"
-                      onClick={() => toggleWidget(key)}
-                    >
-                      <Checkbox
-                        id={`widget-${key}`}
-                        checked={widgets[key]}
-                        onCheckedChange={() => toggleWidget(key)}
-                        className="mt-0.5"
-                        aria-describedby={`widget-desc-${key}`}
-                      />
-                      <div className="flex-1">
-                        <label htmlFor={`widget-${key}`} className="text-sm font-medium cursor-pointer select-none block">
-                          {meta.label}
-                        </label>
-                        <span id={`widget-desc-${key}`} className="text-xs text-muted-foreground">
-                          {meta.description}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              <div className="flex gap-2 pt-2 border-t border-border">
-                <Button size="sm" variant="outline" className="flex-1 text-xs gap-1.5" onClick={() => setAllWidgets(true)} disabled={allVisible}>
-                  <Eye className="w-3.5 h-3.5" /> Tout afficher
-                </Button>
-                <Button size="sm" variant="outline" className="flex-1 text-xs gap-1.5" onClick={() => setAllWidgets(false)} disabled={allHidden}>
-                  <EyeOff className="w-3.5 h-3.5" /> Tout masquer
-                </Button>
-              </div>
-              {/* Auto-refresh interval */}
-              <div className="pt-2 border-t border-border">
-                <label className="text-xs font-medium text-muted-foreground mb-2 block">
-                  <RefreshCw className="w-3.5 h-3.5 inline-block mr-1 align-text-bottom" />
-                  Actualisation automatique
-                </label>
-                <div className="flex gap-1.5 flex-wrap">
-                  {([
-                    { value: 0, label: "Désactivée" },
-                    { value: 30000, label: "30s" },
-                    { value: 60000, label: "1 min" },
-                    { value: 120000, label: "2 min" },
-                    { value: 300000, label: "5 min" },
-                  ] as const).map(opt => (
-                    <button
-                      key={opt.value}
-                      onClick={() => setAutoRefreshInterval(opt.value)}
-                      className={`text-[10px] px-2 py-1 rounded-full border transition-colors ${
-                        autoRefreshInterval === opt.value
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-transparent text-muted-foreground border-border hover:border-primary/50"
-                      }`}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {!isDefaultOrder && (
-                <Button size="sm" variant="ghost" className="w-full text-xs gap-1.5 mt-1" onClick={resetOrder}>
-                  <RotateCcw className="w-3.5 h-3.5" /> Réinitialiser l'ordre
-                </Button>
-              )}
-            </DialogContent>
-          </Dialog>
+            {isRefreshing ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+          </button>
         </div>
       </div>
 
-      {/* ── Drag mode banner ──────────────────────────────── */}
-      {dragMode && (
-        <div className="mb-4 flex items-center justify-between gap-3 px-4 py-2.5 rounded-xl bg-primary/10 border border-primary/20 print:hidden">
-          <p className="text-xs text-primary font-medium flex items-center gap-2">
-            <GripVertical className="w-4 h-4" />
-            Mode réorganisation — Glissez les widgets pour les déplacer
-          </p>
-          <div className="flex gap-2">
-            {!isDefaultOrder && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1" onClick={resetOrder}>
-                <RotateCcw className="w-3 h-3" /> Réinitialiser
-              </Button>
-            )}
-            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setDragMode(false)}>
-              Terminé
-            </Button>
-          </div>
-        </div>
-      )}
+      {/* ═══════════════════════════════════════════════════════
+          ZONE FIXE — Statut + KPIs
+          ═══════════════════════════════════════════════════════ */}
 
-      {/* ── Hidden widgets notice ─────────────────────────── */}
-      {hiddenCount > 0 && !isLoading && !dragMode && (
-        <div className="mb-4 text-center print:hidden">
-          <p className="text-xs text-muted-foreground">
-            {hiddenCount} widget{hiddenCount > 1 ? "s" : ""} masqué{hiddenCount > 1 ? "s" : ""} —{" "}
-            <button className="text-primary hover:underline" onClick={() => setAllWidgets(true)}>
-              tout afficher
-            </button>
-          </p>
-        </div>
-      )}
+      {/* Bannière de statut émotionnelle */}
+      <div className="mb-5">
+        <StatusBanner
+          criticalCount={criticalCount}
+          warningCount={warningCount}
+          isLoading={isLoading}
+        />
+      </div>
 
-      {/* ── All hidden state ──────────────────────────────── */}
-      {allHidden && !isLoading && (
-        <div className="text-center py-16 print:hidden">
-          <EyeOff className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
-          <p className="text-muted-foreground mb-2">Tous les widgets sont masqués</p>
-          <Button size="sm" variant="outline" onClick={() => setAllWidgets(true)}>
-            <Eye className="w-4 h-4 mr-2" /> Tout afficher
-          </Button>
-        </div>
-      )}
+      {/* 4 KPI Cards */}
+      <div
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"
+        role="region"
+        aria-label="Indicateurs clés"
+      >
+        <KPICard
+          icon={Users}
+          title="Clients actifs"
+          value={stats.totalClients}
+          color="#3b82f6"
+          onClick={() => navigate(stats.totalClients === 0 ? "/nouveau-client" : "/bdd")}
+          loading={isLoading}
+          subValue={stats.totalClients === 0 ? "Ajouter un client" : undefined}
+          ariaLabel={`Clients actifs : ${stats.totalClients}`}
+        />
+        <KPICard
+          icon={Shield}
+          title="Conformité"
+          value={`${complianceScore}%`}
+          color={conformiteColor}
+          progress={complianceScore}
+          onClick={() => navigate("/controle")}
+          loading={isLoading}
+          ariaLabel={`Conformité globale : ${complianceScore}%`}
+        />
+        <KPICard
+          icon={AlertTriangle}
+          title="Alertes"
+          value={alertesCount > 0 ? alertesCount : "Aucune"}
+          color={alertesColor}
+          onClick={() => navigate("/registre")}
+          loading={isLoading}
+          ariaLabel={alertesCount > 0 ? `${alertesCount} alerte${alertesCount > 1 ? "s" : ""}` : "Aucune alerte"}
+        />
+        <KPICard
+          icon={FileText}
+          title="Missions"
+          value={missionsData.count}
+          color="#8b5cf6"
+          onClick={() => navigate("/lettre-mission")}
+          loading={isLoading}
+          subValue={missionsSubValue}
+          ariaLabel={`${missionsData.count} mission${missionsData.count > 1 ? "s" : ""} active${missionsData.count > 1 ? "s" : ""}`}
+        />
+      </div>
 
-      {/* ── WIDGETS (sortable) ────────────────────────────── */}
-      {!allHidden && (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext items={visibleWidgets} strategy={verticalListSortingStrategy}>
-            {visibleWidgets.map((key) => (
-              <SortableWidget
-                key={key}
-                id={key}
-                label={WIDGET_META[key].label}
-                dragEnabled={dragMode}
-              >
+      {/* ═══════════════════════════════════════════════════════
+          ZONE DnD — 6 widgets réorganisables (grille 2 colonnes)
+          ═══════════════════════════════════════════════════════ */}
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={widgetOrder} strategy={rectSortingStrategy}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mb-6">
+            {widgetOrder.map(key => (
+              <DashboardWidget key={key} id={key}>
                 {widgetContent[key]}
-              </SortableWidget>
+              </DashboardWidget>
             ))}
-          </SortableContext>
-        </DndContext>
-      )}
+          </div>
+        </SortableContext>
+      </DndContext>
 
       {/* ── Footer ────────────────────────────────────────── */}
-      <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-4 pb-6 border-t border-white/[0.04] print:hidden">
+      <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-3 pb-4 print:hidden">
         <DataFreshnessIndicator lastRefresh={lastRefresh} staleThresholdMinutes={5} />
-        <button
-          className="hover:text-foreground transition-colors disabled:opacity-50"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          title="Rafraîchir les données"
-          aria-label="Rafraîchir les données du tableau de bord"
-        >
-          {isRefreshing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
-        </button>
       </div>
 
       <QuickActionsFAB />
       <DashboardShortcutsHelp open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
-
       <DashboardPrintFooter cabinetName={cabinetName} />
 
       <style>{`
