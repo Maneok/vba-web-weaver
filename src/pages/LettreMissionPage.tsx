@@ -43,6 +43,10 @@ import {
 } from "lucide-react";
 import ModeleListPage from "@/components/lettre-mission/ModeleListPage";
 import LMRevueEspace from "@/components/lettre-mission/LMRevueEspace";
+import LMStatusBadge from "@/components/lettre-mission/LMStatusBadge";
+import LMStatusActions from "@/components/lettre-mission/LMStatusActions";
+import LMAlertesList from "@/components/lettre-mission/LMAlertesList";
+import { runAllChecks } from "@/lib/lettreMissionWorkflow";
 import AvenantDialog from "@/components/lettre-mission/AvenantDialog";
 import type { LMInstance } from "@/lib/lettreMissionEngine";
 import { getAvenants, type LMAvenant } from "@/lib/lettreMissionAvenants";
@@ -214,9 +218,7 @@ function LetterHistory({
 
             {/* Statut */}
             <div className="hidden sm:block">
-              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>
-                {letter.statut}
-              </Badge>
+              <LMStatusBadge status={letter.statut} />
             </div>
 
             {/* H) Duration */}
@@ -267,7 +269,7 @@ function LetterHistory({
 
             {/* Mobile actions */}
             <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
-              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>{letter.statut}</Badge>
+              <LMStatusBadge status={letter.statut} />
               <div className="flex-1" />
               {(letter.statut === "signee" || letter.statut === "envoyee") && (
                 <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
@@ -404,6 +406,17 @@ export default function LettreMissionPage() {
   const touchStartX = useRef<number | null>(null);
 
   const canWrite = hasPermission("write_clients");
+
+  // ── Run LM alertes checks on mount ──
+  const alertesCheckedRef = useRef(false);
+  useEffect(() => {
+    if (profile?.cabinet_id && !alertesCheckedRef.current) {
+      alertesCheckedRef.current = true;
+      runAllChecks(profile.cabinet_id).catch((e) =>
+        logger.warn("LM", "Alertes check failed:", e)
+      );
+    }
+  }, [profile?.cabinet_id]);
 
   // ── H) Time tracking ──
   useEffect(() => {
@@ -985,6 +998,9 @@ export default function LettreMissionPage() {
               <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="alertes" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+            <AlertTriangle className="w-3.5 h-3.5" /> Alertes
+          </TabsTrigger>
           <TabsTrigger value="revue" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
             <ClipboardCheck className="w-3.5 h-3.5" /> Revue
           </TabsTrigger>
@@ -1126,6 +1142,25 @@ export default function LettreMissionPage() {
               onCreateAvenant={handleCreateAvenant}
               avenantsByLetter={avenantsByLetter}
             />
+          </div>
+        </TabsContent>
+
+        {/* ─── ALERTES TAB ─── */}
+        <TabsContent value="alertes" className="mt-4">
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
+            {profile?.cabinet_id ? (
+              <LMAlertesList
+                cabinetId={profile.cabinet_id}
+                onNavigateToLM={(instanceId) => {
+                  const letter = savedLetters.find((l) => l.id === instanceId);
+                  if (letter) handleEditLetter(letter);
+                }}
+              />
+            ) : (
+              <div className="text-center py-20 text-slate-500 text-sm">
+                Profil non initialise. Reconnectez-vous.
+              </div>
+            )}
           </div>
         </TabsContent>
 
