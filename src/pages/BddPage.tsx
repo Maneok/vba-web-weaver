@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap, RefreshCw } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, FileText, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap, RefreshCw } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
@@ -535,6 +535,9 @@ export default function BddPage() {
                     <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch { toast.error("Erreur PDF"); } }}>
                       <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/lettre-mission/${client.ref}`); }}>
+                      <FileText className="w-3.5 h-3.5 mr-2" /> Lettre de mission
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
@@ -647,6 +650,9 @@ export default function BddPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}>
                           <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/lettre-mission/${client.ref}`); }}>
+                          <FileText className="w-3.5 h-3.5 mr-2" /> Lettre de mission
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => {
                           e.stopPropagation();

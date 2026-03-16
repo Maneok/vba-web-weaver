@@ -38,9 +38,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ChevronLeft, ChevronRight, FileText, History, Plus,
   Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
-  FileDown, Search, Clock, AlertTriangle, Filter, Settings2,
+  FileDown, Search, Clock, AlertTriangle, Filter, Settings2, ClipboardCheck,
+  FilePlus2,
 } from "lucide-react";
 import ModeleListPage from "@/components/lettre-mission/ModeleListPage";
+import LMRevueEspace from "@/components/lettre-mission/LMRevueEspace";
+import AvenantDialog from "@/components/lettre-mission/AvenantDialog";
+import type { LMInstance } from "@/lib/lettreMissionEngine";
+import { getAvenants, type LMAvenant } from "@/lib/lettreMissionAvenants";
 
 // ─────────────────────────────────────────
 // G) Advanced history with filters, duplicate, archive
@@ -52,6 +57,8 @@ function LetterHistory({
   onDuplicate,
   onArchive,
   onDownloadPdf,
+  onCreateAvenant,
+  avenantsByLetter,
 }: {
   letters: SavedLetter[];
   loading: boolean;
@@ -59,6 +66,8 @@ function LetterHistory({
   onDuplicate: (letter: SavedLetter) => void;
   onArchive: (letter: SavedLetter) => void;
   onDownloadPdf: (letter: SavedLetter) => void;
+  onCreateAvenant: (letter: SavedLetter) => void;
+  avenantsByLetter: Record<string, LMAvenant[]>;
 }) {
   const [searchQ, setSearchQ] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
@@ -245,16 +254,58 @@ function LetterHistory({
               >
                 <Archive className="w-3.5 h-3.5" />
               </button>
+              {(letter.statut === "signee" || letter.statut === "envoyee") && (
+                <button
+                  onClick={() => onCreateAvenant(letter)}
+                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-cyan-400 transition-colors"
+                  title="Créer un avenant"
+                >
+                  <FilePlus2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Mobile actions */}
             <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
               <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>{letter.statut}</Badge>
               <div className="flex-1" />
+              {(letter.statut === "signee" || letter.statut === "envoyee") && (
+                <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
+              )}
               <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
               <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
               <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
             </div>
+
+            {/* Avenants list */}
+            {avenantsByLetter[letter.id] && avenantsByLetter[letter.id].length > 0 && (
+              <div className="col-span-full mt-2 pt-2 border-t border-white/[0.04] space-y-1">
+                <p className="text-[10px] text-slate-600 uppercase tracking-wider mb-1">
+                  {avenantsByLetter[letter.id].length} avenant{avenantsByLetter[letter.id].length > 1 ? "s" : ""}
+                </p>
+                {avenantsByLetter[letter.id].map((av) => (
+                  <div
+                    key={av.id}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.01] border border-white/[0.04]"
+                  >
+                    <FilePlus2 className="w-3 h-3 text-cyan-400/60 shrink-0" />
+                    <span className="text-xs font-mono text-cyan-400/80">{av.numero}</span>
+                    <span className="text-xs text-slate-400 truncate flex-1">{av.objet}</span>
+                    <Badge variant="outline" className={`text-[9px] ${
+                      av.status === "signee" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                      av.status === "envoyee" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                      av.status === "archivee" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
+                      "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                    }`}>
+                      {av.status}
+                    </Badge>
+                    <span className="text-[10px] text-slate-600">
+                      {new Date(av.created_at).toLocaleDateString("fr-FR")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -343,6 +394,11 @@ export default function LettreMissionPage() {
   // History
   const [savedLetters, setSavedLetters] = useState<SavedLetter[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
+
+  // Avenants
+  const [avenantsByLetter, setAvenantsByLetter] = useState<Record<string, LMAvenant[]>>({});
+  const [avenantDialogOpen, setAvenantDialogOpen] = useState(false);
+  const [avenantTargetInstance, setAvenantTargetInstance] = useState<LMInstance | null>(null);
 
   // Swipe
   const touchStartX = useRef<number | null>(null);
@@ -577,6 +633,67 @@ export default function LettreMissionPage() {
       logger.warn("LM", "Failed to load letters:", e);
     }
     setHistoryLoading(false);
+  };
+
+  const loadAvenants = async (letterIds: string[]) => {
+    if (letterIds.length === 0) return;
+    try {
+      const { data: rows } = await supabase
+        .from("lm_avenants")
+        .select("*")
+        .in("instance_id", letterIds)
+        .order("created_at", { ascending: true });
+      if (rows) {
+        const grouped: Record<string, LMAvenant[]> = {};
+        for (const r of rows) {
+          const key = (r as any).instance_id;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(r as unknown as LMAvenant);
+        }
+        setAvenantsByLetter(grouped);
+      }
+    } catch (e) {
+      logger.warn("LM", "Failed to load avenants:", e);
+    }
+  };
+
+  // Load avenants when letters change
+  useEffect(() => {
+    const signedOrSent = savedLetters
+      .filter((l) => l.statut === "signee" || l.statut === "envoyee")
+      .map((l) => l.id);
+    loadAvenants(signedOrSent);
+  }, [savedLetters]);
+
+  const handleCreateAvenant = (letter: SavedLetter) => {
+    const instance: LMInstance = {
+      id: letter.id,
+      cabinet_id: profile?.cabinet_id || "",
+      modele_id: "",
+      client_ref: letter.client_ref,
+      numero: letter.numero,
+      status: letter.statut as LMInstance["status"],
+      sections_snapshot: [],
+      cgv_snapshot: "",
+      repartition_snapshot: [],
+      variables_resolved: {
+        raison_sociale: letter.raison_sociale,
+        honoraires: String(letter.wizard_data?.honoraires_ht ?? letter.honoraires_ht ?? "0"),
+      },
+      wizard_data: letter.wizard_data as Record<string, unknown>,
+      created_at: letter.created_at,
+      updated_at: letter.updated_at,
+    };
+    setAvenantTargetInstance(instance);
+    setAvenantDialogOpen(true);
+  };
+
+  const handleAvenantCreated = async (avenant: LMAvenant) => {
+    // Reload avenants
+    const signedOrSent = savedLetters
+      .filter((l) => l.statut === "signee" || l.statut === "envoyee")
+      .map((l) => l.id);
+    await loadAvenants(signedOrSent);
   };
 
   // ── Handlers ──
@@ -868,6 +985,9 @@ export default function LettreMissionPage() {
               <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger value="revue" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+            <ClipboardCheck className="w-3.5 h-3.5" /> Revue
+          </TabsTrigger>
           <TabsTrigger value="modeles" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
             <Settings2 className="w-3.5 h-3.5" /> {isMobile ? "Modèles" : "Gérer les modèles"}
           </TabsTrigger>
@@ -1003,7 +1123,16 @@ export default function LettreMissionPage() {
               onDuplicate={handleDuplicate}
               onArchive={handleArchive}
               onDownloadPdf={handleDownloadPdf}
+              onCreateAvenant={handleCreateAvenant}
+              avenantsByLetter={avenantsByLetter}
             />
+          </div>
+        </TabsContent>
+
+        {/* ─── REVUE TAB ─── */}
+        <TabsContent value="revue" className="mt-4">
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
+            <LMRevueEspace />
           </div>
         </TabsContent>
 
@@ -1021,6 +1150,16 @@ export default function LettreMissionPage() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Avenant Dialog */}
+      {avenantTargetInstance && (
+        <AvenantDialog
+          open={avenantDialogOpen}
+          onOpenChange={setAvenantDialogOpen}
+          instance={avenantTargetInstance}
+          onCreated={handleAvenantCreated}
+        />
+      )}
     </div>
   );
 }

@@ -277,12 +277,43 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
 
-          {/* A) Vigilance renforcee */}
-          {selectedClient && selectedClient.scoreGlobal > 60 && (
+          {/* A) Alerte risque eleve — NPLAB */}
+          {selectedClient && selectedClient.scoreGlobal >= 70 && (
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
+              <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-red-300">
+                  Attention — Ce client presente un risque eleve (score {selectedClient.scoreGlobal}/100)
+                </p>
+                <p className="text-xs text-red-400/80">
+                  Conformement a la NPLAB, des mesures de vigilance renforcee doivent etre appliquees. Assurez-vous que :
+                </p>
+                <ul className="text-xs text-red-400/70 space-y-0.5 list-disc list-inside">
+                  <li>L'identite du beneficiaire effectif a ete verifiee</li>
+                  <li>Les documents KYC sont a jour</li>
+                  <li>L'analyse de risque a ete validee par un associe</li>
+                  <li>La decision d'acceptation de mission est documentee</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* A) Alerte risque moyen */}
+          {selectedClient && selectedClient.scoreGlobal >= 50 && selectedClient.scoreGlobal < 70 && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+              <p className="text-xs text-amber-300">
+                Ce client presente un risque moyen (score {selectedClient.scoreGlobal}/100). Revue des diligences de vigilance recommandee.
+              </p>
+            </div>
+          )}
+
+          {/* A) Vigilance renforcee — complement honoraires */}
+          {selectedClient && selectedClient.scoreGlobal >= 60 && selectedClient.scoreGlobal < 70 && (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
               <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0" />
               <p className="text-xs text-orange-300">
-                Client a <strong>vigilance renforcee</strong> (score {selectedClient.scoreGlobal}/100) — envisagez un complement d'honoraires
+                Client a <strong>vigilance renforcee</strong> — envisagez un complement d'honoraires
               </p>
             </div>
           )}
