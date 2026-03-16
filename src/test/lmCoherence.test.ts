@@ -80,14 +80,13 @@ describe("Step 2 — Missions validation", () => {
     expect(errors).toHaveLength(0);
   });
 
-  it("06: rejects tenue + surveillance combo", () => {
+  it("06: rejects missions with missing section_id", () => {
     const errors = validateStep2({
       missions_selected: [
-        { section_id: "tenue", selected: true },
-        { section_id: "surveillance", selected: true },
+        { selected: true },
       ],
     });
-    expect(errors.some((e) => e.message.includes("incompatibles"))).toBe(true);
+    expect(errors.some((e) => e.message.includes("section_id"))).toBe(true);
   });
 
   it("07: ignores unselected missions for incompatibility check", () => {

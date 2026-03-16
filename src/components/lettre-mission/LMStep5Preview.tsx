@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
 import { buildClientFromWizardData } from "@/lib/lmUtils";
@@ -19,6 +20,7 @@ interface Props {
 
 
 export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }: Props) {
+  const { profile } = useAuth();
   const [fullscreen, setFullscreen] = useState(false);
 
   const client = useMemo(() => buildClientFromWizardData(data), [data]);
@@ -39,16 +41,11 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
     frequence: (data.frequence_facturation || "MENSUEL") as "MENSUEL" | "TRIMESTRIEL" | "ANNUEL",
   };
 
-  const cabinet = {
-    nom: "Cabinet Expertise Comptable",
-    adresse: "",
-    cp: "",
-    ville: "",
-    siret: "",
-    numeroOEC: "",
-    email: "",
-    telephone: "",
-  };
+  // Cabinet info from profile
+  const cabinet = useMemo(() => ({
+    nom: profile?.full_name ? `Cabinet ${profile.full_name}` : "Cabinet Expertise Comptable",
+    adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: profile?.email || "", telephone: "",
+  }), [profile?.full_name, profile?.email]);
 
   const numero = data.numero_lettre || `LM-${new Date().getFullYear()}-XXX`;
 
@@ -84,7 +81,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
   // Fullscreen modal for mobile
   if (fullscreen) {
     return (
-      <div className="fixed inset-0 z-[100] bg-background overflow-auto">
+      <div className="fixed inset-0 z-[100] bg-background overflow-auto overscroll-contain">
         <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-background/95 backdrop-blur-lg border-b border-white/[0.06]">
           <p className="text-sm font-medium text-white">{numero}</p>
           <Button variant="ghost" size="sm" onClick={() => setFullscreen(false)} className="text-slate-400">

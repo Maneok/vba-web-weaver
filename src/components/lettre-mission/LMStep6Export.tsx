@@ -290,9 +290,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   const handleSave = async () => {
     try {
       await onSave();
-      toast.success("Lettre sauvegardee");
     } catch {
-      toast.error("Erreur lors de la sauvegarde");
+      // onSave already shows error toasts
     }
   };
 
