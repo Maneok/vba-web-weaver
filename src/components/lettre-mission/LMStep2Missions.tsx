@@ -48,7 +48,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
   const allMissions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
 
   // Filter missions based on mission type config
-  const mtId = (data as any).mission_type_id || "presentation";
+  const mtId = data.mission_type_id || "presentation";
   const mtConfig = useMemo(() => getMissionTypeConfig(mtId), [mtId]);
 
   // Visibility rules per section based on mission type

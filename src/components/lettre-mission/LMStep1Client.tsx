@@ -369,19 +369,19 @@ export default function LMStep1Client({ data, onChange }: Props) {
           <div className="space-y-3">
             <p className="text-sm font-medium text-slate-300">Type de mission (référentiel normatif OEC)</p>
             <MissionTypeSelector
-              value={(data as any).mission_type_id || "presentation"}
+              value={data.mission_type_id || "presentation"}
               onValueChange={(val) => {
                 const config = getMissionTypeConfig(val);
                 onChange({
                   type_mission: config.shortLabel,
                   mission_type_id: val,
-                } as any);
+                });
               }}
             />
           </div>
 
           {/* Mode comptable — only for mission de présentation (NP 2300) */}
-          {((data as any).mission_type_id || 'presentation') === 'presentation' && (
+          {(data.mission_type_id || 'presentation') === 'presentation' && (
             <div className="space-y-3">
               <p className="text-sm font-medium text-slate-300">Mode comptable</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -420,12 +420,12 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
           {/* Mission-type specific parameters */}
           <MissionSpecificFields
-            missionType={(data as any).mission_type_id || "presentation"}
+            missionType={data.mission_type_id || "presentation"}
             values={Object.fromEntries(
-              getMissionTypeConfig((data as any).mission_type_id || "presentation")
+              getMissionTypeConfig(data.mission_type_id || "presentation")
                 .specificVariables.map((sv) => [sv.key, String((data as any)[sv.key] || "")])
             )}
-            onChange={(key, value) => onChange({ [key]: value } as any)}
+            onChange={(key, value) => onChange({ [key]: value } as Partial<LMWizardData>)}
           />
 
           {/* Modele selection */}

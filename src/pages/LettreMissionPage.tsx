@@ -34,12 +34,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ChevronLeft, ChevronRight, FileText, History, Plus,
   Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
-  FileDown, Search, Clock, AlertTriangle, Filter, Settings2, ClipboardCheck,
-  FilePlus2,
+  FileDown, Search, Clock, AlertTriangle, Filter, Settings2,
+  FilePlus2, Send, Link, Check,
 } from "lucide-react";
 import ModeleListPage from "@/components/lettre-mission/ModeleListPage";
 import LMStatusBadge from "@/components/lettre-mission/LMStatusBadge";
@@ -76,6 +80,35 @@ function LetterHistory({
   const [searchQ, setSearchQ] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
   const [filterPeriode, setFilterPeriode] = useState("all");
+
+  // Signature state
+  const [signTarget, setSignTarget] = useState<SavedLetter | null>(null);
+  const [signEmail, setSignEmail] = useState("");
+  const [signClientNom, setSignClientNom] = useState("");
+  const [signLoading, setSignLoading] = useState(false);
+  const [signUrl, setSignUrl] = useState("");
+
+  const handleSendForSignature = async () => {
+    if (!signTarget || !signEmail.trim()) return;
+    setSignLoading(true);
+    try {
+      const result = await sendForSignature(signTarget.id, signEmail.trim(), signClientNom.trim() || signTarget.raison_sociale);
+      setSignUrl(result.signatureUrl);
+      toast.success("Lien de signature genere");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la generation du lien");
+    } finally {
+      setSignLoading(false);
+    }
+  };
+
+  const openSignDialog = (letter: SavedLetter) => {
+    setSignTarget(letter);
+    setSignEmail(letter.wizard_data?.email || "");
+    setSignClientNom(letter.wizard_data?.dirigeant || letter.raison_sociale || "");
+    setSignUrl("");
+    setSignLoading(false);
+  };
 
   const filtered = useMemo(() => {
     let result = [...letters];
@@ -256,6 +289,20 @@ function LetterHistory({
               >
                 <Archive className="w-3.5 h-3.5" />
               </button>
+              {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
+                <button
+                  onClick={() => openSignDialog(letter)}
+                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
+                  title="Envoyer pour signature"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {letter.statut === "envoyee" && (
+                <Badge variant="outline" className="text-[8px] border-blue-500/20 text-blue-400 px-1.5">
+                  <Clock className="w-2.5 h-2.5 mr-0.5" /> Signature
+                </Badge>
+              )}
               {(letter.statut === "signee" || letter.statut === "envoyee") && (
                 <button
                   onClick={() => onCreateAvenant(letter)}
@@ -271,6 +318,9 @@ function LetterHistory({
             <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
               <LMStatusBadge status={letter.statut} />
               <div className="flex-1" />
+              {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
+                <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-500"><Send className="w-3.5 h-3.5" /></button>
+              )}
               {(letter.statut === "signee" || letter.statut === "envoyee") && (
                 <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
               )}
@@ -315,6 +365,86 @@ function LetterHistory({
       {filtered.length === 0 && letters.length > 0 && (
         <div className="text-center py-10 text-slate-500 text-sm">Aucun resultat pour ces filtres</div>
       )}
+
+      {/* Signature dialog */}
+      <Dialog open={!!signTarget} onOpenChange={(open) => !open && setSignTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Envoyer pour signature</DialogTitle>
+            <DialogDescription>
+              {signTarget?.raison_sociale} — {signTarget?.numero}
+            </DialogDescription>
+          </DialogHeader>
+          {signUrl ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <p className="text-sm text-emerald-300">Lien de signature genere</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Lien a envoyer au client</Label>
+                <div className="flex gap-2">
+                  <Input value={signUrl} readOnly className="bg-white/[0.04] border-white/[0.08] text-xs font-mono" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 gap-1 border-white/[0.06]"
+                    onClick={() => {
+                      navigator.clipboard.writeText(signUrl);
+                      toast.success("Lien copie dans le presse-papiers");
+                    }}
+                  >
+                    <Link className="w-3 h-3" /> Copier
+                  </Button>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Le client pourra consulter la lettre de mission et la signer electroniquement via ce lien.
+              </p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-white/[0.06]">
+                  Fermer
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Email du client *</Label>
+                <Input
+                  type="email"
+                  value={signEmail}
+                  onChange={(e) => setSignEmail(e.target.value)}
+                  placeholder="client@example.com"
+                  className="bg-white/[0.04] border-white/[0.08]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Nom du signataire</Label>
+                <Input
+                  value={signClientNom}
+                  onChange={(e) => setSignClientNom(e.target.value)}
+                  placeholder="Nom du client"
+                  className="bg-white/[0.04] border-white/[0.08]"
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-white/[0.06]">
+                  Annuler
+                </Button>
+                <Button
+                  onClick={handleSendForSignature}
+                  disabled={signLoading || !signEmail.trim()}
+                  className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+                >
+                  {signLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Generer le lien
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -860,23 +990,10 @@ export default function LettreMissionPage() {
     try {
       const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
       const wd = letter.wizard_data;
-      const client = {
-        ref: wd.client_ref, raisonSociale: wd.raison_sociale, forme: wd.forme_juridique,
-        siren: wd.siren, dirigeant: wd.dirigeant, adresse: wd.adresse, cp: wd.cp, ville: wd.ville,
-        capital: Number(wd.capital) || 0, ape: wd.ape, mail: wd.email, tel: wd.telephone,
-        iban: wd.iban, bic: wd.bic, etat: "EN_COURS", comptable: "", mission: wd.type_mission,
-        domaine: "", effectif: "", dateCreation: "", dateReprise: "",
-        honoraires: wd.honoraires_ht, reprise: 0, juridique: 0, frequence: wd.frequence_facturation,
-        associe: wd.associe_signataire, superviseur: wd.chef_mission,
-        ppe: "NON", paysRisque: "NON", atypique: "NON", distanciel: "NON", cash: "NON", pression: "NON",
-        scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
-        malus: 0, scoreGlobal: 0, nivVigilance: "STANDARD",
-        dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
-        etatPilotage: "A JOUR", dateExpCni: "", statut: "ACTIF", be: "",
-      };
+      const client = buildClientFromWizardData(wd as LMWizardData);
       await renderLettreMissionPdf({
         numero: letter.numero, date: new Date().toLocaleDateString("fr-FR"),
-        client: client as Client,
+        client,
         cabinet: cabinetInfo,
         options: {
           genre: "M" as const,
@@ -1000,9 +1117,6 @@ export default function LettreMissionPage() {
           </TabsTrigger>
           <TabsTrigger value="alertes" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
             <AlertTriangle className="w-3.5 h-3.5" /> Alertes
-          </TabsTrigger>
-          <TabsTrigger value="revue" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
-            <ClipboardCheck className="w-3.5 h-3.5" /> Revue
           </TabsTrigger>
           <TabsTrigger value="modeles" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
             <Settings2 className="w-3.5 h-3.5" /> {isMobile ? "Modèles" : "Gérer les modèles"}
@@ -1161,13 +1275,6 @@ export default function LettreMissionPage() {
                 Profil non initialise. Reconnectez-vous.
               </div>
             )}
-          </div>
-        </TabsContent>
-
-        {/* ─── REVUE TAB ─── */}
-        <TabsContent value="revue" className="mt-4">
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
-            <LMRevueEspace />
           </div>
         </TabsContent>
 

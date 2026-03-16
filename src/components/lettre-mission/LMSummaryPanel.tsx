@@ -52,7 +52,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
             </div>
           </div>
           {(() => {
-            const mtConfig = getMissionTypeConfig((data as any).mission_type_id || "presentation");
+            const mtConfig = getMissionTypeConfig(data.mission_type_id || "presentation");
             return (
               <div className="space-y-1.5 mt-1">
                 <div className="flex flex-wrap gap-1.5">
@@ -62,7 +62,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
                   <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">
                     {mtConfig.normeRef}
                   </Badge>
-                  {data.type_mission && ((data as any).mission_type_id || 'presentation') === 'presentation' && (
+                  {data.type_mission && (data.mission_type_id || 'presentation') === 'presentation' && (
                     <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
                       {data.type_mission}
                     </Badge>

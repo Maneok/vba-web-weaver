@@ -192,7 +192,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           repartition_snapshot: modele.repartition_taches,
           numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
           status: data.statut,
-          mission_type: (data as any).mission_type_id || modele.mission_type || "presentation",
+          mission_type: data.mission_type_id || modele.mission_type || "presentation",
         }, cabinetInfo, { signatureExpert: data.signature_expert, signatureClient: data.signature_client });
         toast.success("PDF genere depuis le modele");
         return;
@@ -242,7 +242,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           repartition_snapshot: modele.repartition_taches,
           numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
           status: data.statut,
-          mission_type: (data as any).mission_type_id || modele.mission_type || "presentation",
+          mission_type: data.mission_type_id || modele.mission_type || "presentation",
         }, cabinetInfo);
         toast.success("DOCX genere depuis le modele");
         return;
