@@ -358,7 +358,7 @@ export async function renderToDocx(lettreMission: LettreMission): Promise<void> 
 }
 
 // ──────────────────────────────────────────────
-// LM Instance type (mirrors lm_instances table)
+// LM Instance type (mirrors lettres_mission table)
 // ──────────────────────────────────────────────
 
 export interface LMInstance {
@@ -378,7 +378,7 @@ export interface LMInstance {
 }
 
 // ──────────────────────────────────────────────
-// Numérotation Supabase (lm_instances)
+// Numérotation Supabase (lettres_mission)
 // ──────────────────────────────────────────────
 
 export async function getNextLmNumero(cabinetId: string): Promise<string> {
