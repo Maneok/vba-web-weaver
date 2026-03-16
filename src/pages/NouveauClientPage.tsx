@@ -3716,10 +3716,26 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
             {/* SECTION 2: Checklist documentaire dynamique (Idee 30) */}
             {(() => {
               // FIX 29: Deduplicate documents from both sources before checklist matching
+              // Include enterprise-based fallback "Fiche Entreprise" as virtual KBIS if no real one exists
+              const inpiDocs = screening.inpi.data?.documents ?? [];
+              const fetchDocs = screening.documents.data?.documents ?? [];
+              const hasRealKbis = [...inpiDocs, ...fetchDocs].some(d =>
+                d.type?.toUpperCase().includes("KBIS") && (d.storedInSupabase || (d.status === "auto" && d.url))
+              );
+              const fallbackKbis = (!hasRealKbis && selectedEnterprise) ? [{
+                type: "kbis",
+                label: "Fiche Entreprise (equivalent Kbis)",
+                url: "#fallback",
+                source: "annuaire_entreprises",
+                available: true,
+                status: "auto" as const,
+                storedInSupabase: false,
+              }] : [];
               const rawDocs = [
                 // FIX P4-12: Prefer INPI docs first (higher quality), then documents-fetch
-                ...(screening.inpi.data?.documents ?? []),
-                ...(screening.documents.data?.documents ?? []),
+                ...inpiDocs,
+                ...fetchDocs,
+                ...fallbackKbis,
               ];
               const seenKeys = new Set<string>();
               const allDocs = rawDocs.filter(d => {
@@ -3743,9 +3759,9 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
 
               const results = vigilanceDocChecklist.map(c => ({
                 ...c,
-                hasPdf: hasStoredPdf(c.types),
+                hasPdf: hasAvailableDoc(c.types),
                 hasUpload: hasUpload(c.types),
-                found: hasStoredPdf(c.types) || hasUpload(c.types),
+                found: hasAvailableDoc(c.types) || hasUpload(c.types),
                 manual: ["CNI", "RIB", "Justificatif", "Organigramme"].includes(c.key),
               }));
               const foundCount = results.filter(r => r.found).length;
@@ -3775,7 +3791,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                       }`}>
                         {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5" /> : <X className="w-4 h-4 text-red-400 mx-auto mb-0.5" />}
                         <p className={`text-[11px] font-medium leading-tight ${item.found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
-                        {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">PDF INPI</p>}
+                        {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere</p>}
                         {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
                         {!item.found && item.manual && <p className="text-[8px] text-red-400 mt-0.5">Manuel requis</p>}
                         {!item.found && !item.manual && <p className="text-[8px] text-red-400 mt-0.5">Manquant</p>}
