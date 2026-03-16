@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import MissionTypeSelector from "@/components/lettre-mission/MissionTypeSelector";
+import MissionSpecificFields from "@/components/lettre-mission/MissionSpecificFields";
 import { buildSectionsForMissionType } from "@/lib/lettreMissionModeles";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { vigilanceColor } from "@/lib/lmUtils";
@@ -379,8 +380,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
             />
           </div>
 
-          {/* Mode comptable — only for assurance_comptes mission types */}
-          {['presentation', 'examen_limite', 'audit_contractuel'].includes((data as any).mission_type_id || 'presentation') && (
+          {/* Mode comptable — only for mission de présentation (NP 2300) */}
+          {((data as any).mission_type_id || 'presentation') === 'presentation' && (
             <div className="space-y-3">
               <p className="text-sm font-medium text-slate-300">Mode comptable</p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -417,46 +418,15 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
 
-          {/* Mission-type specific parameters — for types with specificVariables */}
-          {(() => {
-            const mtId = (data as any).mission_type_id || 'presentation';
-            const config = getMissionTypeConfig(mtId);
-            if (config.specificVariables.length === 0) return null;
-            return (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <Info className="w-4 h-4 text-blue-400" />
-                  <p className="text-sm font-medium text-slate-300">Parametres specifiques — {config.shortLabel}</p>
-                </div>
-                <p className="text-[11px] text-slate-500">
-                  Ces informations seront injectees dans le corps de la lettre de mission ({config.normeRef}).
-                </p>
-                <div className="space-y-3">
-                  {config.specificVariables.map((sv) => (
-                    <div key={sv.key} className="space-y-1.5">
-                      <label className="text-xs text-slate-400">{sv.label}</label>
-                      {sv.placeholder.length > 80 ? (
-                        <Textarea
-                          value={String((data as any)[sv.key] || "")}
-                          onChange={(e) => onChange({ [sv.key]: e.target.value } as any)}
-                          placeholder={sv.placeholder}
-                          rows={3}
-                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600 text-sm resize-none"
-                        />
-                      ) : (
-                        <Input
-                          value={String((data as any)[sv.key] || "")}
-                          onChange={(e) => onChange({ [sv.key]: e.target.value } as any)}
-                          placeholder={sv.placeholder}
-                          className="h-10 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600 text-sm"
-                        />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })()}
+          {/* Mission-type specific parameters */}
+          <MissionSpecificFields
+            missionType={(data as any).mission_type_id || "presentation"}
+            values={Object.fromEntries(
+              getMissionTypeConfig((data as any).mission_type_id || "presentation")
+                .specificVariables.map((sv) => [sv.key, String((data as any)[sv.key] || "")])
+            )}
+            onChange={(key, value) => onChange({ [key]: value } as any)}
+          />
 
           {/* Modele selection */}
           <div className="space-y-3">
