@@ -7,6 +7,23 @@ const KNOWN_IBAN_COUNTRIES = new Set([
   "RO","RS","SA","SC","SE","SI","SK","SM","ST","SV","TL","TN","TR","UA","VA","VG","XK",
 ]);
 
+// OPT: Hoist FR bank map to module level (avoid re-creation per call)
+const FR_BANKS = new Map([
+  ["30004", "BNP Paribas"], ["30006", "BNP Paribas"], ["10011", "BNP Paribas"],
+  ["30003", "Société Générale"], ["30056", "HSBC"],
+  ["14508", "Crédit Mutuel"], ["10278", "Crédit Mutuel"],
+  ["17569", "Crédit Agricole"], ["17206", "Crédit Agricole"], ["15589", "Crédit Agricole"],
+  ["20041", "La Banque Postale"], ["30002", "LCL"],
+  ["10057", "Caisse d'Épargne"], ["12506", "Caisse d'Épargne"],
+  ["30027", "CIC"], ["10096", "CIC"], ["30066", "CIC"],
+]);
+
+// OPT: Hoist IBAN length map to module level
+const IBAN_LENGTHS = new Map<string, number>([
+  ["FR", 27], ["DE", 22], ["ES", 24], ["IT", 27], ["BE", 16],
+  ["LU", 20], ["CH", 21], ["GB", 22], ["NL", 18], ["PT", 25], ["AT", 20], ["IE", 22],
+]);
+
 export function validateIBAN(iban: string): { valid: boolean; bankName?: string; error?: string } {
   if (!iban || typeof iban !== "string") return { valid: false, error: "IBAN requis" };
   const trimmed = iban.trim();
@@ -19,10 +36,7 @@ export function validateIBAN(iban: string): { valid: boolean; bankName?: string;
   const countryCode = clean.slice(0, 2);
   if (!KNOWN_IBAN_COUNTRIES.has(countryCode)) return { valid: false, error: `Code pays IBAN inconnu: ${countryCode}` };
   // Country-specific length checks
-  const IBAN_LENGTHS: Record<string, number> = {
-    FR: 27, DE: 22, ES: 24, IT: 27, BE: 16, LU: 20, CH: 21, GB: 22, NL: 18, PT: 25, AT: 20, IE: 22,
-  };
-  const expectedLen = IBAN_LENGTHS[countryCode];
+  const expectedLen = IBAN_LENGTHS.get(countryCode);
   if (expectedLen && clean.length !== expectedLen) {
     return { valid: false, error: `IBAN ${countryCode} = ${expectedLen} caractères (reçu ${clean.length})` };
   }
@@ -40,24 +54,5 @@ export function validateIBAN(iban: string): { valid: boolean; bankName?: string;
   // Nom de la banque depuis le code établissement (FR only)
   if (!clean.startsWith("FR")) return { valid: true };
   const codeEtab = clean.slice(4, 9);
-  const BANKS: Record<string, string> = {
-    "30004": "BNP Paribas",
-    "30006": "BNP Paribas",
-    "10011": "BNP Paribas",
-    "30003": "Société Générale",
-    "30056": "HSBC",
-    "14508": "Crédit Mutuel",
-    "10278": "Crédit Mutuel",
-    "17569": "Crédit Agricole",
-    "17206": "Crédit Agricole",
-    "20041": "La Banque Postale",
-    "30002": "LCL",
-    "10057": "Caisse d'Épargne",
-    "12506": "Caisse d'Épargne",
-    "30027": "CIC",
-    "10096": "CIC",
-    "15589": "Crédit Agricole",
-    "30066": "CIC",
-  };
-  return { valid: true, bankName: BANKS[codeEtab] || "Banque inconnue" };
+  return { valid: true, bankName: FR_BANKS.get(codeEtab) || "Banque inconnue" };
 }

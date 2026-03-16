@@ -152,6 +152,9 @@ export default function BddPage() {
     }
   };
 
+  // OPT: Aria-sort helper for WCAG 2.1 compliance
+  const ariaSort = (col: SortKey) => sortKey === col ? (sortDir === "asc" ? "ascending" as const : "descending" as const) : undefined;
+
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortKey !== column) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
     return sortDir === "asc"
@@ -571,21 +574,21 @@ export default function BddPage() {
                   />
                 </TableHead>
                 <TableHead className="w-[90px] text-slate-500 text-[11px] uppercase tracking-wider">Ref</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("raisonSociale"); } }} role="button" tabIndex={0} aria-label="Trier par Raison Sociale">
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("raisonSociale"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Raison Sociale" aria-sort={ariaSort("raisonSociale")}>
                   <div className="flex items-center gap-1.5">Raison Sociale <SortIcon column="raisonSociale" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Forme</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("comptable"); } }} role="button" tabIndex={0} aria-label="Trier par Comptable">
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("comptable"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Comptable" aria-sort={ariaSort("comptable")}>
                   <div className="flex items-center gap-1.5">Comptable <SortIcon column="comptable" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Mission</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("scoreGlobal"); } }} role="button" tabIndex={0} aria-label="Trier par Score">
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("scoreGlobal"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Score" aria-sort={ariaSort("scoreGlobal")}>
                   <div className="flex items-center gap-1.5 justify-center">Score <SortIcon column="scoreGlobal" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="button" tabIndex={0} aria-label="Trier par Butoir">
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Butoir" aria-sort={ariaSort("dateButoir")}>
                   <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
                 </TableHead>
                 <TableHead className="w-[80px]"></TableHead>

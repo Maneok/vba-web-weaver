@@ -17,21 +17,14 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
   useEffect(() => {
     // P6-81: Skip simulation for single node (no edges to display)
-    if (!svgRef.current || !nodes || nodes.length === 0) {
-      // Clean up SVG when nodes become empty
-      if (svgRef.current) d3.select(svgRef.current).selectAll("*").remove();
-      return;
-    }
-    if (nodes.length === 1 && (!edges || edges.length === 0)) {
-      // Clean up SVG from previous render with more nodes
-      d3.select(svgRef.current).selectAll("*").remove();
-      return;
-    }
+    if (!svgRef.current) return;
+    const svg = d3.select(svgRef.current);
+    // OPT: Single cleanup point — always clear before redraw or early return
+    svg.selectAll("*").remove();
+    if (!nodes || nodes.length === 0) return;
+    if (nodes.length === 1 && (!edges || edges.length === 0)) return;
     const nodeIds = new Set(nodes.map(n => n.id));
     const safeEdges = (edges ?? []).filter(e => e.source && e.target && nodeIds.has(e.source) && nodeIds.has(e.target));
-
-    const svg = d3.select(svgRef.current);
-    svg.selectAll("*").remove();
 
     const g = svg.append("g");
 

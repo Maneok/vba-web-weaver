@@ -142,21 +142,22 @@ export function calculateDateButoir(nivVigilance: VigilanceLevel): string {
 }
 
 // ====== ADDRESS NORMALIZATION (Idée 17) ======
+// OPT: Pre-compile regex patterns at module level for reuse across calls
+const ADDR_PUNCTUATION = /[,;.]/g;
+const ADDR_WHITESPACE = /\s+/g;
+const ADDR_REPLACEMENTS: [RegExp, string][] = [
+  [/\bAVENUE\b/g, "AV"], [/\bBOULEVARD\b/g, "BD"], [/\bROUTE\b/g, "RTE"],
+  [/\bPLACE\b/g, "PL"], [/\bIMPASSE\b/g, "IMP"], [/\bALLEE\b/g, "ALL"],
+  [/\bCHEMIN\b/g, "CH"],
+];
+
 export function normalizeAddress(addr: string): string {
   if (!addr || typeof addr !== "string") return "";
-  return addr
-    .toUpperCase()
-    .replace(/[,;.]/g, " ")
-    .replace(/\bAVENUE\b/g, "AV")
-    .replace(/\bBOULEVARD\b/g, "BD")
-    .replace(/\bROUTE\b/g, "RTE")
-    .replace(/\bPLACE\b/g, "PL")
-    .replace(/\bIMPASSE\b/g, "IMP")
-    .replace(/\bALLEE\b/g, "ALL")
-    .replace(/\bCHEMIN\b/g, "CH")
-    .replace(/\bRUE\b/g, "RUE")
-    .replace(/\s+/g, " ")
-    .trim();
+  let result = addr.toUpperCase().replace(ADDR_PUNCTUATION, " ");
+  for (const [pattern, replacement] of ADDR_REPLACEMENTS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result.replace(ADDR_WHITESPACE, " ").trim();
 }
 
 // ====== MISSION SCORING ======

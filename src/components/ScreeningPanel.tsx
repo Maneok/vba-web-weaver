@@ -232,7 +232,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
 
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2" role="region" aria-label="Panneau de screening automatique">
         <Shield className="w-4 h-4 text-blue-400" />
         <h3 className="text-sm font-semibold text-slate-300">Screening automatique</h3>
         {anyLoading && (

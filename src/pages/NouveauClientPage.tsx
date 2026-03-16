@@ -1091,14 +1091,15 @@ export default function NouveauClientPage() {
       const isAssocieUnique = forme.includes("SASU") || forme.includes("EURL") || forme.includes("INDIVIDUEL") || forme.includes("EI");
 
       if (isAssocieUnique) {
-        // Associe unique → dirigeant = BE a 100%
-        const dir = entData?.dirigeant || result.dirigeant || "";
-        const names = dir.split(" ");
+        // Associe unique → dirigeant = BE a 100%. Prefer structured data over string split
+        const dirStruct = entData?.dirigeants?.[0];
+        const dirStr = entData?.dirigeant || result.dirigeant || "";
+        const names = dirStr.split(" ");
         setBeneficiaires([{
-          nom: names[0] || "",
-          prenom: names.slice(1).join(" ") || "",
-          dateNaissance: "",
-          nationalite: "Francaise",
+          nom: dirStruct?.nom || names[0] || "",
+          prenom: dirStruct?.prenom || names.slice(1).join(" ") || "",
+          dateNaissance: dirStruct?.date_naissance || "",
+          nationalite: dirStruct?.nationalite || "Francaise",
           pourcentage: 100,
           pourcentageVotes: 100,
         }]);

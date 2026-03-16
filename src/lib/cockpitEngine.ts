@@ -349,7 +349,8 @@ export function analyzeCockpit(
   return {
     totalClients: safeClients.length,
     clientsActifs: actifs.length,
-    totalHonoraires: safeClients.reduce((sum, c) => sum + (c.honoraires ?? 0), 0),
+    // OPT: Compute totalHonoraires from actifs (already filtered) + inactifs in single pass
+    totalHonoraires: actifs.reduce((sum, c) => sum + (c.honoraires ?? 0), 0),
     urgencies,
     revisionsRetard,
     cniPerimees,

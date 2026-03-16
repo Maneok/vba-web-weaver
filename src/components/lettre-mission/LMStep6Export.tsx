@@ -1,7 +1,8 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { LM_STATUTS, computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
 import { buildClientFromWizardData } from "@/lib/lmUtils";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { sanitizeWizardData } from "@/lib/lmValidation";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
 import { buildVariablesMap, resolveModeleSections } from "@/lib/lettreMissionEngine";
@@ -26,35 +27,43 @@ interface Props {
 function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
+  const initializedRef = useRef(false);
 
+  // Initialize canvas once + restore signature when value changes externally
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#e2e8f0";
+    // Set canvas size only on first render
+    if (!initializedRef.current) {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * 2;
+      canvas.height = rect.height * 2;
+      ctx.scale(2, 2);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#e2e8f0";
+      initializedRef.current = true;
+    }
 
-    // Restore existing signature
-    if (value) {
+    // Restore existing signature (on mount or when value changes externally)
+    if (value && !isDrawing.current) {
+      const rect = canvas.getBoundingClientRect();
       const img = new Image();
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        const c = canvas.getContext("2d");
+        if (c) c.drawImage(img, 0, 0, rect.width, rect.height);
       };
       img.src = value;
     }
-  }, []);
+  }, [value]);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     if ("touches" in e) {
       return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
@@ -130,19 +139,26 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
 }
 
 export default function LMStep6Export({ data, onChange, onSave, onReset }: Props) {
+  const { profile } = useAuth();
   const [showSignature, setShowSignature] = useState(false);
   const [emailTo, setEmailTo] = useState(data.email || "");
   const [showEmail, setShowEmail] = useState(false);
   const lockRef = useRef(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
+  // Cabinet info from profile (avoids hardcoding)
+  const cabinetInfo = useMemo(() => ({
+    nom: profile?.full_name ? `Cabinet ${profile.full_name}` : "Cabinet Expertise Comptable",
+    adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: profile?.email || "", telephone: "",
+  }), [profile?.full_name, profile?.email]);
+
   // E) Compute annexes
-  const annexes = computeAnnexes(data);
+  const annexes = useMemo(() => computeAnnexes(data), [data]);
   useEffect(() => {
     if (JSON.stringify(data.annexes) !== JSON.stringify(annexes)) {
       onChange({ annexes });
     }
-  }, [annexes.join(",")]);
+  }, [annexes, data.annexes, onChange]);
 
   const withLock = useCallback(async (key: string, fn: () => Promise<void>) => {
     if (lockRef.current) return;
@@ -154,7 +170,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       toast.error(e?.message || "Erreur lors de la generation");
     } finally {
       setGenerating(null);
-      setTimeout(() => { lockRef.current = false; }, 3000);
+      lockRef.current = false;
     }
   }, []);
 
@@ -177,10 +193,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
           status: data.statut,
           mission_type: (data as any).mission_type_id || modele.mission_type || "presentation",
-        }, {
-          nom: "Cabinet Expertise Comptable",
-          adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
-        }, { signatureExpert: data.signature_expert, signatureClient: data.signature_client });
+        }, cabinetInfo, { signatureExpert: data.signature_expert, signatureClient: data.signature_client });
         toast.success("PDF genere depuis le modele");
         return;
       } catch (err) {
@@ -196,10 +209,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
       date: new Date().toLocaleDateString("fr-FR"),
       client,
-      cabinet: {
-        nom: "Cabinet Expertise Comptable",
-        adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
-      },
+      cabinet: cabinetInfo,
       options: {
         genre: "M" as const,
         missionSociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
@@ -233,10 +243,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
           status: data.statut,
           mission_type: (data as any).mission_type_id || modele.mission_type || "presentation",
-        }, {
-          nom: "Cabinet Expertise Comptable",
-          adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
-        });
+        }, cabinetInfo);
         toast.success("DOCX genere depuis le modele");
         return;
       } catch (err) {
@@ -262,10 +269,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         juridique: 0,
         frequence: (data.frequence_facturation || "MENSUEL") as "MENSUEL" | "TRIMESTRIEL" | "ANNUEL",
       },
-      cabinet: {
-        nom: "Cabinet Expertise Comptable",
-        adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
-      },
+      cabinet: cabinetInfo,
       variables: {},
       status: data.statut,
       signatureExpert: data.signature_expert,
