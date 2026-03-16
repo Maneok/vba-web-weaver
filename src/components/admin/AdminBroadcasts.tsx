@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Megaphone, Plus, Send } from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
@@ -144,6 +144,7 @@ export default function AdminBroadcasts() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Nouvelle annonce</DialogTitle>
+            <DialogDescription>Redigez une annonce a diffuser aux cabinets.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>

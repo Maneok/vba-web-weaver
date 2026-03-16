@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -206,6 +207,11 @@ export default function DocxImportDialog({
             {step === "mapping" && "Vérification du mapping"}
             {step === "confirm" && "Confirmer l'import"}
           </DialogTitle>
+          <DialogDescription>
+            {step === "upload" && "Selectionnez un fichier .docx pour importer un modele de lettre de mission."}
+            {step === "mapping" && "Verifiez la correspondance des sections detectees avec le referentiel GRIMY."}
+            {step === "confirm" && "Confirmez les parametres du modele avant de finaliser l'import."}
+          </DialogDescription>
         </DialogHeader>
 
         {/* ── STEP 1: Upload ── */}

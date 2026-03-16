@@ -40,6 +40,12 @@ export function validateStep3(data: Record<string, unknown>): ValidationError[] 
   if (!data.associe_signataire) errors.push({ field: "associe_signataire", message: "Associe signataire requis" });
   if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(data.email)))
     errors.push({ field: "email", message: "Email invalide" });
+  if (data.telephone && !/^[\d\s+()-]{10,20}$/.test(String(data.telephone)))
+    errors.push({ field: "telephone", message: "Telephone invalide" });
+  if (data.date_debut) {
+    const dateDebut = new Date(String(data.date_debut));
+    if (isNaN(dateDebut.getTime())) errors.push({ field: "date_debut", message: "Date de debut invalide" });
+  }
   return errors;
 }
 
@@ -60,6 +66,8 @@ export function validateStep4(data: Record<string, unknown>): ValidationError[] 
         errors.push({ field: "iban", message: "Format IBAN invalide" });
       } else if (iban.toUpperCase().startsWith("FR") && iban.length !== 27) {
         errors.push({ field: "iban", message: "IBAN francais invalide (27 car. commencant par FR)" });
+      } else if (iban.length < 15 || iban.length > 34) {
+        errors.push({ field: "iban", message: "IBAN invalide (entre 15 et 34 caracteres)" });
       } else {
         // Modulo 97 checksum
         const clean = iban.toUpperCase();

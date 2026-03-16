@@ -1,15 +1,16 @@
+import React from "react";
 import type { VigilanceLevel, EtatPilotage } from "@/lib/types";
 
-export function VigilanceBadge({ level }: { level: VigilanceLevel }) {
+export const VigilanceBadge = React.memo(function VigilanceBadge({ level }: { level: VigilanceLevel }) {
   const config = {
     SIMPLIFIEE: { cls: "risk-badge-low", label: "Simplifiee" },
     STANDARD: { cls: "risk-badge-medium", label: "Standard" },
     RENFORCEE: { cls: "risk-badge-high", label: "Renforcee" },
   }[level] ?? { cls: "risk-badge-medium", label: level };
   return <span className={config.cls} aria-label={`Niveau de vigilance : ${config.label}`}>{config.label}</span>;
-}
+});
 
-export function PilotageBadge({ status }: { status: EtatPilotage | string }) {
+export const PilotageBadge = React.memo(function PilotageBadge({ status }: { status: EtatPilotage | string }) {
   const dotCls = {
     "A JOUR": "status-dot-valid",
     "RETARD": "status-dot-late",
@@ -22,9 +23,9 @@ export function PilotageBadge({ status }: { status: EtatPilotage | string }) {
       {status}
     </span>
   );
-}
+});
 
-export function ScoreGauge({ score }: { score: number }) {
+export const ScoreGauge = React.memo(function ScoreGauge({ score }: { score: number }) {
   const pct = Math.min(score, 100);
   const color = score <= 25
     ? "bg-emerald-500"
@@ -48,4 +49,4 @@ export function ScoreGauge({ score }: { score: number }) {
       <span className="text-xs font-mono font-semibold text-slate-300">{score}</span>
     </div>
   );
-}
+});

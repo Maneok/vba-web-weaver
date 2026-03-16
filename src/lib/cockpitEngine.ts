@@ -46,6 +46,8 @@ export function analyzeCockpit(
   const now = new Date();
   const nowMs = now.getTime();
   const urgencies: CockpitUrgency[] = [];
+  // OPT: Pre-filter actifs once, reuse for stats
+  const actifs = safeClients.filter(c => c.statut !== "INACTIF");
 
   // 1. Revisions en retard
   const revisionsRetard: CockpitUrgency[] = [];
@@ -329,8 +331,7 @@ export function analyzeCockpit(
   const severityOrder = { critique: 0, warning: 1, info: 2 };
   urgencies.sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3));
 
-  // OPT-41: Reuse the actifs list built during iteration instead of re-filtering
-  const actifs = safeClients.filter(c => c.statut !== "INACTIF");
+  // OPT-41: actifs already computed at top of function
   const formesOk = safeCollaborateurs.filter(c => (c.statutFormation ?? "").includes("A JOUR")).length;
   const tauxFormation = safeCollaborateurs.length > 0 ? Math.round((formesOk / safeCollaborateurs.length) * 100) : 0;
 

@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import MissionTypeSelector from "@/components/lettre-mission/MissionTypeSelector";
 import { buildSectionsForMissionType } from "@/lib/lettreMissionModeles";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
+import { vigilanceColor } from "@/lib/lmUtils";
 
 interface Props {
   data: LMWizardData;
@@ -33,12 +34,6 @@ const TYPES_MISSION = [
   { value: "SURVEILLANCE", label: "Surveillance", description: "Surveillance et conseil", icon: Eye },
   { value: "REVISION", label: "Revision", description: "Revision des comptes", icon: CheckSquare },
 ];
-
-function vigilanceColor(niv: string) {
-  if (niv === "SIMPLIFIEE") return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-  if (niv === "STANDARD") return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-  return "bg-red-500/20 text-red-400 border-red-500/30";
-}
 
 export default function LMStep1Client({ data, onChange }: Props) {
   const { clients } = useAppState();
@@ -209,6 +204,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
               <button
                 key={c.ref}
                 onClick={() => selectClient(c)}
+                aria-label={`Selectionner ${c.raisonSociale}`}
                 className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
@@ -246,7 +242,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
         <>
           {/* I) Screening banners */}
           {screeningStatus === "missing" && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
               <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-red-300">Dossier LCB-FT manquant</p>
@@ -263,7 +259,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
           {screeningStatus === "expired" && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-300">Dossier LCB-FT perime</p>

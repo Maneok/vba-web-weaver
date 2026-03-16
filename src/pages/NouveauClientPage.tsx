@@ -198,6 +198,8 @@ export default function NouveauClientPage() {
   // Screening timeout (30s) — show prominent skip button
   const [screeningTimedOut, setScreeningTimedOut] = useState(false);
   const screeningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // OPT: Dedup guard to prevent duplicate screening launches on rapid clicks
+  const lastScreenedSirenRef = useRef<string | null>(null);
 
   // #11: Collapsible sections state for step 1
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
@@ -558,11 +560,14 @@ export default function NouveauClientPage() {
 
   // Launch parallel screening checks
   const launchScreening = (enterprise: EnterpriseResult) => {
+    // OPT: Dedup — skip if same SIREN already screened
+    const siren = enterprise.siren;
+    if (lastScreenedSirenRef.current === siren.replace(/\s/g, "")) return;
+    lastScreenedSirenRef.current = siren.replace(/\s/g, "");
     // Start 30s timeout for screening
     setScreeningTimedOut(false);
     if (screeningTimeoutRef.current) clearTimeout(screeningTimeoutRef.current);
     screeningTimeoutRef.current = setTimeout(() => setScreeningTimedOut(true), 30000);
-    const siren = enterprise.siren;
     const dirigeants = enterprise.dirigeants ?? [];
     const raisonSociale = enterprise.raison_sociale;
     const ville = enterprise.ville;
@@ -800,9 +805,9 @@ export default function NouveauClientPage() {
     return val.replace(/[<>{}]/g, "").trim();
   }, []);
 
-  // #22: Smooth scroll to first error
+  // #22: Smooth scroll to first error — with fallback to aria-invalid inputs
   const scrollToFirstError = useCallback(() => {
-    const firstError = document.querySelector("[data-error='true']");
+    const firstError = document.querySelector("[data-error='true'], [aria-invalid='true'], .border-red-500");
     if (firstError) firstError.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
 
@@ -1173,9 +1178,17 @@ export default function NouveauClientPage() {
   // OPT-6: Move constants outside render, wrap handlers in useCallback
   const ALLOWED_EXTENSIONS = useMemo(() => new Set([".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".doc", ".docx", ".xls", ".xlsx"]), []);
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+  const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50 MB aggregate limit
 
   const handleFileUpload = useCallback((files: FileList | null) => {
     if (!files) return;
+    // OPT: Check aggregate upload size limit
+    const currentTotal = documents.reduce((sum, d) => sum + (d.file?.size ?? 0), 0);
+    const newTotal = currentTotal + Array.from(files).reduce((sum, f) => sum + f.size, 0);
+    if (newTotal > MAX_TOTAL_SIZE) {
+      toast.error(`Taille totale des fichiers trop elevee (${Math.round(newTotal / 1024 / 1024)} Mo / max 50 Mo)`);
+      return;
+    }
     // FIX 50: Extended type detection with more keywords
     const typeMap: Record<string, string> = {
       kbis: "KBIS", extrait: "KBIS", statuts: "Statuts", statut: "Statuts",
@@ -2736,7 +2749,7 @@ export default function NouveauClientPage() {
               <BarChart3 className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400">Niveau de risque en temps reel :</span>
               <VigilanceBadge level={risk.nivVigilance} />
-              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={100}>
+              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={120}>
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     adjustedScore >= 60 ? "bg-red-500" : adjustedScore >= 25 ? "bg-amber-500" : "bg-emerald-500"

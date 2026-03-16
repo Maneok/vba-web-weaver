@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
 import { Switch } from "@/components/ui/switch";
@@ -131,6 +132,7 @@ function SkeletonSettings() {
 }
 
 export default function ReglagesPanel() {
+  const { profile } = useAuth();
   const [reglages, setReglages] = useState<Reglages | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
@@ -179,7 +181,7 @@ export default function ReglagesPanel() {
 
   const createDefaults = async () => {
     try {
-      const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
+      const { data: cab } = await supabase.from("cabinets").select("id").eq("id", profile?.cabinet_id).single();
       if (!cab) { setLoading(false); return; }
 
       const { data: newReg, error } = await supabase

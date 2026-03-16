@@ -1308,7 +1308,7 @@ export default function ControlePage() {
             {/* Breakdown cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Risk factor distribution */}
-              <div className="glass-card p-5">
+              <div className="glass-card border border-white/10 rounded-xl p-5">
                 <h4 className="text-xs font-medium text-slate-400 mb-3">Facteurs de risque les plus frequents</h4>
                 {(() => {
                   const factors = [
@@ -1337,7 +1337,7 @@ export default function ControlePage() {
               </div>
 
               {/* Vigilance distribution */}
-              <div className="glass-card p-5">
+              <div className="glass-card border border-white/10 rounded-xl p-5">
                 <h4 className="text-xs font-medium text-slate-400 mb-3">Repartition par vigilance</h4>
                 {(() => {
                   const levels = [
@@ -1368,7 +1368,7 @@ export default function ControlePage() {
               </div>
 
               {/* Score distribution */}
-              <div className="glass-card p-5">
+              <div className="glass-card border border-white/10 rounded-xl p-5">
                 <h4 className="text-xs font-medium text-slate-400 mb-3">Distribution des scores</h4>
                 {(() => {
                   const ranges = [
@@ -1395,7 +1395,7 @@ export default function ControlePage() {
               </div>
 
               {/* Incidents summary */}
-              <div className="glass-card p-5">
+              <div className="glass-card border border-white/10 rounded-xl p-5">
                 <h4 className="text-xs font-medium text-slate-400 mb-3">Resume des incidents</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -1424,7 +1424,7 @@ export default function ControlePage() {
 
         {/* ── Tab: Couverture ── */}
         {activeTab === "couverture" && (
-          <div className="animate-fade-in-up glass-card overflow-hidden">
+          <div className="animate-fade-in-up glass-card border border-white/10 rounded-xl overflow-hidden">
             <div className="px-6 py-4 border-b border-white/[0.06] flex items-center gap-2">
               <Target className="w-4 h-4 text-blue-400" />
               <h3 className="text-sm font-semibold text-slate-300">Couverture des controles</h3>

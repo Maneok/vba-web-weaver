@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -95,6 +96,7 @@ function SkeletonMatrix() {
 }
 
 export default function RolesMatrix() {
+  const { profile } = useAuth();
   const [permissions, setPermissions] = useState<RolePermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [expertMode, setExpertMode] = useState(false);
@@ -134,7 +136,7 @@ export default function RolesMatrix() {
 
   const seedDefaults = async () => {
     try {
-      const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
+      const { data: cab } = await supabase.from("cabinets").select("id").eq("id", profile?.cabinet_id).single();
       // #2 — Show error message when no cabinet exists
       if (!cab) {
         setNoCabinet(true);
@@ -211,7 +213,7 @@ export default function RolesMatrix() {
     setResetting(true);
     try {
       // Get cabinet id
-      const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
+      const { data: cab } = await supabase.from("cabinets").select("id").eq("id", profile?.cabinet_id).single();
       if (!cab) throw new Error("Cabinet non trouve");
 
       // Count changes before reset

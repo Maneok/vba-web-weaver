@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -70,6 +71,7 @@ function SkeletonConnecteurs() {
 }
 
 export default function ConnecteursPanel() {
+  const { profile } = useAuth();
   const [connecteurs, setConnecteurs] = useState<Connecteur[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
@@ -108,7 +110,7 @@ export default function ConnecteursPanel() {
 
   const autoInitDefaults = useCallback(async () => {
     try {
-      const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
+      const { data: cab } = await supabase.from("cabinets").select("id").eq("id", profile?.cabinet_id).single();
       if (!cab) return;
 
       const toInsert = DEFAULT_CONNECTEURS.map((d) => ({
@@ -210,7 +212,7 @@ export default function ConnecteursPanel() {
     if (!form.nom.trim()) return;
     setSaving(true);
     try {
-      const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
+      const { data: cab } = await supabase.from("cabinets").select("id").eq("id", profile?.cabinet_id).single();
       if (!cab) throw new Error("Cabinet non trouve");
 
       const { error } = await supabase.from("cabinet_connecteurs").insert({

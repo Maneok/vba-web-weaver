@@ -68,13 +68,13 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
     return () => { cancelled = true; };
   }, [profile?.id, skipOnboardingCheck]);
 
-  // Safety timeout — 10s max spinner (AuthContext safety is 8s, this is a fallback)
+  // Safety timeout — 5s max spinner (reduced from 10s for snappier UX)
   useEffect(() => {
     if (!loading) {
       setTimedOut(false);
       return;
     }
-    const timer = setTimeout(() => setTimedOut(true), 10000);
+    const timer = setTimeout(() => setTimedOut(true), 5000);
     return () => clearTimeout(timer);
   }, [loading]);
 

@@ -6,6 +6,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -362,6 +363,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Supprimer le modèle</DialogTitle>
+            <DialogDescription>Cette action est definitive et ne peut pas etre annulee.</DialogDescription>
           </DialogHeader>
           <p className="text-sm text-slate-400">
             Êtes-vous sûr de vouloir supprimer le modèle « {deleteTarget?.nom} » ? Cette action est irréversible.

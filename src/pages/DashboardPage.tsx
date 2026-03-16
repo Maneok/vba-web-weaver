@@ -210,14 +210,18 @@ export default function DashboardPage() {
 
   const handleMarkNotificationAsRead = useCallback((id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, lue: true } : n));
-    supabase.from("notifications").update({ lue: true }).eq("id", id).then(() => {});
+    supabase.from("notifications").update({ lue: true }).eq("id", id).then(({ error }) => {
+      if (error) logger.warn("Dashboard", "Erreur marquage notification lue:", error.message);
+    });
   }, []);
 
   const handleMarkAllNotificationsAsRead = useCallback(() => {
     const unreadIds = notifications.filter(n => !n.lue).map(n => n.id);
     setNotifications(prev => prev.map(n => ({ ...n, lue: true })));
     if (unreadIds.length > 0) {
-      supabase.from("notifications").update({ lue: true }).in("id", unreadIds).then(() => {});
+      supabase.from("notifications").update({ lue: true }).in("id", unreadIds).then(({ error }) => {
+        if (error) logger.warn("Dashboard", "Erreur marquage notifications lues:", error.message);
+      });
     }
   }, [notifications]);
 

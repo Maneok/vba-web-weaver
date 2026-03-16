@@ -17,6 +17,7 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -765,6 +766,7 @@ export default function ModeleEditor({ modele, onSave, onCancel }: ModeleEditorP
         <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
           <DialogHeader>
             <DialogTitle>Aperçu du modèle</DialogTitle>
+            <DialogDescription>Visualisez le contenu genere par le modele avant enregistrement.</DialogDescription>
           </DialogHeader>
           <ScrollArea className="flex-1 min-h-0">
             <pre className="text-xs text-slate-300 whitespace-pre-wrap font-mono p-4 leading-relaxed">

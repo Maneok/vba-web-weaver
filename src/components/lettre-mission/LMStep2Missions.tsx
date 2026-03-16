@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData, MissionSelection } from "@/lib/lmWizardTypes";
 import { DEFAULT_MISSIONS, applyFormConditionals } from "@/lib/lmDefaults";
@@ -126,7 +126,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     onChange({ missions_selected: updated });
   };
 
-  const totalSelected = missions.filter((m) => m.selected).length;
+  const totalSelected = useMemo(() => missions.filter((m) => m.selected).length, [missions]);
 
   // Check for tenue+surveillance conflict
   const hasTenue = missions.some((m) => m.section_id === "comptabilite" && m.selected);
@@ -137,7 +137,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     <div className="space-y-6">
       {/* A) Incompatibility warning */}
       {hasConflict && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake" role="alert">
           <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
           <p className="text-xs text-red-300">
             <strong>Missions incompatibles :</strong> La tenue comptable et la mission de surveillance ne peuvent pas etre combinees.
@@ -164,6 +164,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 type="button"
                 onClick={() => toggleSection(mission.section_id)}
                 disabled={isLocked}
+                aria-label={`${mission.selected ? "Desactiver" : "Activer"} ${mission.label}`}
                 className={`w-full flex items-center gap-3 p-4 text-left min-h-[56px] ${
                   isLocked ? "cursor-default" : "cursor-pointer active:bg-white/[0.02]"
                 }`}

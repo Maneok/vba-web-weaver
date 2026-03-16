@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -107,6 +108,7 @@ function SkeletonKeys() {
 }
 
 export default function ApiKeysPanel() {
+  const { profile } = useAuth();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
@@ -166,7 +168,7 @@ export default function ApiKeysPanel() {
     }
     setCreating(true);
     try {
-      const { data: cab } = await supabase.from("cabinets").select("id").limit(1).single();
+      const { data: cab } = await supabase.from("cabinets").select("id").eq("id", profile?.cabinet_id).single();
       if (!cab) throw new Error("Cabinet non trouve");
 
       const rawKey = generateSecureKey();

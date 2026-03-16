@@ -479,7 +479,7 @@ export default function SettingsPage() {
         if (!hasCabinetInfo) {
           const [profileRes, cabRes] = await Promise.all([
             supabase.from("profiles").select("full_name, email").eq("id", user.id).maybeSingle(),
-            supabase.from("cabinets").select("nom, ville, siret, numero_oec, email, telephone, couleur_primaire").limit(1).maybeSingle(),
+            supabase.from("cabinets").select("nom, ville, siret, numero_oec, email, telephone, couleur_primaire").eq("id", userCabinetId).maybeSingle(),
           ]);
           if (cancelled) return;
 
@@ -548,7 +548,7 @@ export default function SettingsPage() {
 
         // Sync to cabinets table (principal cabinet)
         try {
-          const { data: cabRow } = await supabase.from("cabinets").select("id").limit(1).maybeSingle();
+          const { data: cabRow } = await supabase.from("cabinets").select("id").eq("id", cabinetId).maybeSingle();
           if (cabRow?.id) {
             const { error: syncErr } = await supabase.from("cabinets").update({
               nom: cabinet.nom,

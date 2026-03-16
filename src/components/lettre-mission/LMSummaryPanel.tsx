@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
+import { formatEur } from "@/lib/lmUtils";
 import { Badge } from "@/components/ui/badge";
 import { Building2, CheckCircle2 } from "lucide-react";
 
@@ -7,20 +9,10 @@ interface Props {
   compact?: boolean;
 }
 
-function formatEur(n: number): string {
-  return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(n);
-}
-
-function vigilanceColor(niv: string) {
-  if (niv === "SIMPLIFIEE") return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-  if (niv === "STANDARD") return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-  return "bg-red-500/20 text-red-400 border-red-500/30";
-}
-
 /** Compact mobile summary band */
 function CompactSummary({ data }: { data: LMWizardData }) {
-  const missionCount = data.missions_selected.filter((m) => m.selected).length;
-  const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
+  const missionCount = useMemo(() => data.missions_selected.filter((m) => m.selected).length, [data.missions_selected]);
+  const tva = useMemo(() => Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100, [data.honoraires_ht, data.taux_tva]);
   const ttc = data.honoraires_ht + tva;
 
   return (
@@ -37,9 +29,9 @@ function CompactSummary({ data }: { data: LMWizardData }) {
 
 /** Full desktop summary panel */
 function FullSummary({ data }: { data: LMWizardData }) {
-  const tva = Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100;
+  const tva = useMemo(() => Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100, [data.honoraires_ht, data.taux_tva]);
   const ttc = data.honoraires_ht + tva;
-  const missions = data.missions_selected.filter((m) => m.selected);
+  const missions = useMemo(() => data.missions_selected.filter((m) => m.selected), [data.missions_selected]);
 
   return (
     <div className="sticky top-20 space-y-5">

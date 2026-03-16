@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { LM_STATUTS, computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
-import type { Client, EtatDossier, MissionType, OuiNon, VigilanceLevel, EtatPilotage, StatutClient } from "@/lib/types";
+import { buildClientFromWizardData } from "@/lib/lmUtils";
 import { sanitizeWizardData } from "@/lib/lmValidation";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
 import { buildVariablesMap, resolveModeleSections } from "@/lib/lettreMissionEngine";
@@ -20,52 +20,6 @@ interface Props {
   onChange: (updates: Partial<LMWizardData>) => void;
   onSave: () => Promise<void>;
   onReset: () => void;
-}
-
-function buildClientForExport(data: LMWizardData): Client {
-  return {
-    ref: data.client_ref,
-    raisonSociale: data.raison_sociale,
-    forme: data.forme_juridique,
-    siren: data.siren,
-    dirigeant: data.dirigeant,
-    adresse: data.adresse,
-    cp: data.cp,
-    ville: data.ville,
-    capital: Number(data.capital) || 0,
-    ape: data.ape,
-    mail: data.email,
-    tel: data.telephone,
-    iban: data.iban,
-    bic: data.bic,
-    etat: "EN COURS" as EtatDossier,
-    comptable: "",
-    mission: "TENUE COMPTABLE" as MissionType,
-    domaine: "",
-    effectif: "",
-    dateCreation: "",
-    dateReprise: "",
-    honoraires: data.honoraires_ht,
-    reprise: 0,
-    juridique: 0,
-    frequence: data.frequence_facturation,
-    associe: data.associe_signataire,
-    superviseur: data.chef_mission,
-    ppe: "NON" as OuiNon,
-    paysRisque: "NON" as OuiNon,
-    atypique: "NON" as OuiNon,
-    distanciel: "NON" as OuiNon,
-    cash: "NON" as OuiNon,
-    pression: "NON" as OuiNon,
-    scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
-    malus: 0, scoreGlobal: 0,
-    nivVigilance: "STANDARD" as VigilanceLevel,
-    dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
-    etatPilotage: "A JOUR" as EtatPilotage,
-    dateExpCni: "",
-    statut: "ACTIF" as StatutClient,
-    be: "",
-  };
 }
 
 // ── D) Tactile signature canvas ──
@@ -237,7 +191,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
     // Legacy generation
     const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
-    const client = buildClientForExport(sanitized);
+    const client = buildClientFromWizardData(sanitized);
     const lm = {
       numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
       date: new Date().toLocaleDateString("fr-FR"),
@@ -292,7 +246,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
     // Legacy generation
     const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
-    const client = buildClientForExport(sanitized);
+    const client = buildClientFromWizardData(sanitized);
     await renderNewLettreMissionDocx({
       sections: DEFAULT_TEMPLATE,
       client,
@@ -365,6 +319,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           onClick={handlePDF}
           disabled={!!generating}
+          aria-label="Telecharger en PDF"
           className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-50"
         >
           {generating === "pdf" ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
@@ -374,6 +329,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           onClick={handleDOCX}
           disabled={!!generating}
+          aria-label="Telecharger en DOCX"
           className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-50"
         >
           {generating === "docx" ? <Loader2 className="w-6 h-6 text-purple-400 animate-spin" /> : <FileText className="w-6 h-6 text-purple-400" />}

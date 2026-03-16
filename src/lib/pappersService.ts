@@ -134,6 +134,12 @@ async function fallbackRechercheEntreprises(mode: SearchMode, query: string, sig
       return { results: [], error: "Aucun resultat trouve.", source: "datagouv" };
     }
 
+    // OPT: Validate content-type before parsing JSON
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("json")) {
+      logger.warn("Pappers", `Unexpected content-type: ${ct}`);
+      return { results: [], error: "Reponse non-JSON.", source: "datagouv" };
+    }
     const data = await res.json();
     // OPT-22: Validate response format before processing
     if (!data || typeof data !== "object") {

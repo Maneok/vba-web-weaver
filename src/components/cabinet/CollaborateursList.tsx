@@ -540,13 +540,28 @@ export default function CollaborateursList() {
     if (!bulkAction || selected.size === 0) return;
     const ids = Array.from(selected);
     if (bulkAction === "deactivate") {
-      await supabase.from("cabinet_membres").update({ is_active: false }).in("id", ids);
+      const { error } = await supabase.from("cabinet_membres").update({ is_active: false }).in("id", ids);
+      if (error) {
+        toast.error("Erreur lors de l'operation groupee");
+        logger.error("CollaborateursList", "Bulk deactivate error", error);
+        return;
+      }
       toast.success(`${ids.length} collaborateur(s) desactive(s)`);
     } else if (bulkAction === "activate") {
-      await supabase.from("cabinet_membres").update({ is_active: true }).in("id", ids);
+      const { error } = await supabase.from("cabinet_membres").update({ is_active: true }).in("id", ids);
+      if (error) {
+        toast.error("Erreur lors de l'operation groupee");
+        logger.error("CollaborateursList", "Bulk activate error", error);
+        return;
+      }
       toast.success(`${ids.length} collaborateur(s) active(s)`);
     } else if (Object.keys(ROLE_LABELS).includes(bulkAction)) {
-      await supabase.from("cabinet_membres").update({ role: bulkAction }).in("id", ids);
+      const { error } = await supabase.from("cabinet_membres").update({ role: bulkAction }).in("id", ids);
+      if (error) {
+        toast.error("Erreur lors de l'operation groupee");
+        logger.error("CollaborateursList", "Bulk role change error", error);
+        return;
+      }
       toast.success(`Role mis a jour pour ${ids.length} collaborateur(s)`);
     }
     setSelected(new Set());

@@ -62,8 +62,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // OPT-49: Cache user email for local log entries
       userEmailRef.current = session.user?.email || "Utilisateur";
 
-      // Authenticated: load from Supabase
-      const [dbClients, dbCollabs, dbAlertes, dbLogs] = await Promise.all([
+      // Authenticated: load from Supabase — use allSettled for partial failure resilience
+      const [rClients, rCollabs, rAlertes, rLogs] = await Promise.allSettled([
         clientsService.getAll(),
         collaborateursService.getAll(),
         registreService.getAll(),
@@ -72,10 +72,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       // Authenticated: always use Supabase data (even if 0 rows — new cabinet)
       setIsOnline(true);
-      setClients(dbClients.map((r: Record<string, unknown>) => mapDbClient(r)));
-      setCollaborateurs(dbCollabs.map((r: Record<string, unknown>) => mapDbCollaborateur(r)));
-      setAlertes(dbAlertes.map((r: Record<string, unknown>) => mapDbAlerte(r)));
-      setLogs(dbLogs.map((r: Record<string, unknown>) => mapDbLog(r)));
+      if (rClients.status === "fulfilled") setClients(rClients.value.map((r: Record<string, unknown>) => mapDbClient(r)));
+      else logger.error("[AppContext] Clients load failed:", rClients.reason);
+      if (rCollabs.status === "fulfilled") setCollaborateurs(rCollabs.value.map((r: Record<string, unknown>) => mapDbCollaborateur(r)));
+      else logger.error("[AppContext] Collaborateurs load failed:", rCollabs.reason);
+      if (rAlertes.status === "fulfilled") setAlertes(rAlertes.value.map((r: Record<string, unknown>) => mapDbAlerte(r)));
+      else logger.error("[AppContext] Alertes load failed:", rAlertes.reason);
+      if (rLogs.status === "fulfilled") setLogs(rLogs.value.map((r: Record<string, unknown>) => mapDbLog(r)));
+      else logger.error("[AppContext] Logs load failed:", rLogs.reason);
+      // Notify user if any service failed
+      const failures = [rClients, rCollabs, rAlertes, rLogs].filter(r => r.status === "rejected");
+      if (failures.length > 0) toast.warning(`${failures.length} service(s) indisponible(s) — donnees partielles`);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       logger.error("[AppContext] Echec du chargement depuis Supabase, basculement sur les donnees locales:", message);

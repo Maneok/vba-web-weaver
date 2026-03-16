@@ -320,6 +320,12 @@ export default function LettreMissionPage() {
 
   useDocumentTitle("Lettre de Mission");
 
+  // Cabinet info from profile (avoids hardcoding)
+  const cabinetInfo = useMemo(() => ({
+    nom: profile?.full_name ? `Cabinet ${profile.full_name}` : "Cabinet Expertise Comptable",
+    adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: profile?.email || "", telephone: "",
+  }), [profile?.full_name, profile?.email]);
+
   // ── Wizard state (all hooks must be declared before any early return) ──
   const [step, setStep] = useState(0);
   const [data, setData] = useState<LMWizardData>({ ...INITIAL_LM_WIZARD_DATA });
@@ -341,17 +347,7 @@ export default function LettreMissionPage() {
   // Swipe
   const touchStartX = useRef<number | null>(null);
 
-  // ── Permission check (after all hooks) ──
-  if (!hasPermission("write_clients")) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
-        <ShieldAlert className="w-12 h-12 text-red-400" />
-        <p className="text-white font-medium">Acces refuse</p>
-        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
-        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
-      </div>
-    );
-  }
+  const canWrite = hasPermission("write_clients");
 
   // ── H) Time tracking ──
   useEffect(() => {
@@ -751,7 +747,7 @@ export default function LettreMissionPage() {
       await renderLettreMissionPdf({
         numero: letter.numero, date: new Date().toLocaleDateString("fr-FR"),
         client: client as Client,
-        cabinet: { nom: "Cabinet Expertise Comptable", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" },
+        cabinet: cabinetInfo,
         options: {
           genre: "M" as const,
           missionSociale: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "social" && m.selected),
@@ -781,10 +777,11 @@ export default function LettreMissionPage() {
     const h = (e: KeyboardEvent) => {
       if (activeTab !== "wizard") return;
       if (e.key === "Escape" && step > 0) { e.preventDefault(); setStep(step - 1); }
+      if (e.key === "Enter" && e.ctrlKey && step < LM_TOTAL_STEPS - 1) { e.preventDefault(); handleNext(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [step, activeTab]);
+  }, [step, activeTab, handleNext]);
 
   // H) Elapsed time display
   const elapsed = data.started_at
@@ -805,6 +802,17 @@ export default function LettreMissionPage() {
   };
 
   const nextDisabled = !isStepValid(step);
+
+  if (!canWrite) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
+        <ShieldAlert className="w-12 h-12 text-red-400" />
+        <p className="text-white font-medium">Acces refuse</p>
+        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
+        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4 sm:space-y-6 animate-fade-in-up">
@@ -966,6 +974,8 @@ export default function LettreMissionPage() {
                 Etape {step + 1} / {LM_TOTAL_STEPS}
                 <span className="ml-2 text-[9px] text-slate-600">
                   <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> prec.
+                  {" · "}
+                  <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Ctrl+⏎</kbd> suiv.
                 </span>
               </span>
               {step < LM_TOTAL_STEPS - 1 ? (
