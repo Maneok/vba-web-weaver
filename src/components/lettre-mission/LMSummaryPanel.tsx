@@ -3,7 +3,7 @@ import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { formatEur } from "@/lib/lmUtils";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CheckCircle2 } from "lucide-react";
+import { Building2, CheckCircle2, XCircle, BookOpen } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -54,18 +54,31 @@ function FullSummary({ data }: { data: LMWizardData }) {
           {(() => {
             const mtConfig = getMissionTypeConfig((data as any).mission_type_id || "presentation");
             return (
-              <div className="flex flex-wrap gap-1.5 mt-1">
-                <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">
-                  {mtConfig.shortLabel}
-                </Badge>
-                <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">
-                  {mtConfig.normeRef}
-                </Badge>
-                {data.type_mission && ['presentation', 'examen_limite', 'audit_contractuel'].includes((data as any).mission_type_id || 'presentation') && (
-                  <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
-                    {data.type_mission}
+              <div className="space-y-1.5 mt-1">
+                <div className="flex flex-wrap gap-1.5">
+                  <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">
+                    {mtConfig.shortLabel}
                   </Badge>
-                )}
+                  <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">
+                    {mtConfig.normeRef}
+                  </Badge>
+                  {data.type_mission && ((data as any).mission_type_id || 'presentation') === 'presentation' && (
+                    <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
+                      {data.type_mission}
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {mtConfig.honorairesSuccesAutorises ? (
+                    <Badge className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 gap-0.5">
+                      <CheckCircle2 className="w-2.5 h-2.5" /> Succès autorisés
+                    </Badge>
+                  ) : (
+                    <Badge className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 gap-0.5">
+                      <XCircle className="w-2.5 h-2.5" /> Succès interdits
+                    </Badge>
+                  )}
+                </div>
               </div>
             );
           })()}

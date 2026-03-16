@@ -48,28 +48,37 @@ export default function LMStep2Missions({ data, onChange }: Props) {
   const allMissions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
 
   // Filter missions based on mission type config
-  const mtConfig = useMemo(() => getMissionTypeConfig((data as any).mission_type_id || "presentation"), [(data as any).mission_type_id]);
+  const mtId = (data as any).mission_type_id || "presentation";
+  const mtConfig = useMemo(() => getMissionTypeConfig(mtId), [mtId]);
 
-  // Map section_ids to mission config sections (comptabilite matches most mission sections)
-  const sectionToMissionSection: Record<string, string> = {
-    comptabilite: "referentiel_comptable",
-    fiscal: "mission_controle_fiscal",
-    social: "mission_sociale",
-    juridique: "mission_juridique",
-  };
-
+  // Visibility rules per section based on mission type
   const missions = useMemo(() => {
     return allMissions.filter((m) => {
-      // LCB-FT, travail_dissimule, conseil are always visible
-      if (["lcbft", "travail_dissimule", "conseil"].includes(m.section_id)) return true;
-      // Check if this section is hidden in the mission type config
-      const mappedSection = sectionToMissionSection[m.section_id];
-      if (mappedSection && mtConfig.hiddenSections.includes(mappedSection)) return false;
+      // LCB-FT + travail_dissimule → always visible (mandatory)
+      if (m.section_id === "lcbft" || m.section_id === "travail_dissimule") return true;
+      // Conseil → always visible (optional)
+      if (m.section_id === "conseil") return true;
+      // Comptabilité → ONLY for présentation (NP 2300)
+      if (m.section_id === "comptabilite") return mtId === "presentation";
+      // Fiscal → visible if not in hiddenSections
+      if (m.section_id === "fiscal") return !mtConfig.hiddenSections.includes("mission_controle_fiscal");
+      // Social → visible if optionalSections includes 'mission_sociale'
+      if (m.section_id === "social") return mtConfig.optionalSections.includes("mission_sociale");
+      // Juridique → visible if optionalSections includes 'mission_juridique'
+      if (m.section_id === "juridique") return mtConfig.optionalSections.includes("mission_juridique");
       return true;
     });
-  }, [allMissions, mtConfig.hiddenSections]);
+  }, [allMissions, mtId, mtConfig.hiddenSections, mtConfig.optionalSections]);
 
   const hiddenCount = allMissions.length - missions.length;
+
+  // Check if mission type has no complementary services
+  const hasNoComplementary = useMemo(() => {
+    const complementary = missions.filter(
+      (m) => !["lcbft", "travail_dissimule"].includes(m.section_id) && !m.locked
+    );
+    return complementary.length === 0;
+  }, [missions]);
 
   // A) Conditional logic toasts — show once
   useEffect(() => {
@@ -174,7 +183,18 @@ export default function LMStep2Missions({ data, onChange }: Props) {
       {hiddenCount > 0 && (
         <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-500/5 border border-white/[0.06] text-xs text-slate-500">
           <EyeOff className="w-3.5 h-3.5 shrink-0" />
-          {hiddenCount} section{hiddenCount > 1 ? "s masquees" : " masquee"} (non applicable pour {mtConfig.shortLabel})
+          {hiddenCount} section{hiddenCount > 1 ? "s masquées" : " masquée"} (non applicable pour {mtConfig.shortLabel})
+        </div>
+      )}
+
+      {/* No complementary services message */}
+      {hasNoComplementary && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 text-xs text-blue-300/80">
+          <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+          <p>
+            Cette mission ({mtConfig.shortLabel}) ne comporte pas de prestations complémentaires standard.
+            Les obligations LCB-FT s'appliquent.
+          </p>
         </div>
       )}
 
