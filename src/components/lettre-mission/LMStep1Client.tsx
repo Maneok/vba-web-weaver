@@ -9,6 +9,7 @@ import type { Client } from "@/lib/types";
 import type { LMModele } from "@/lib/lettreMissionModeles";
 import { getModeles, validateCnoecCompliance } from "@/lib/lettreMissionModeles";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -16,7 +17,7 @@ import {
 } from "@/components/ui/select";
 import {
   Search, Plus, Building2, User, CheckCircle2, BookOpen, Eye, CheckSquare, X,
-  AlertTriangle, ShieldAlert, History, FileText, ShieldCheck, Loader2,
+  AlertTriangle, ShieldAlert, History, FileText, ShieldCheck, Loader2, Info,
 } from "lucide-react";
 import { toast } from "sonner";
 import MissionTypeSelector from "@/components/lettre-mission/MissionTypeSelector";
@@ -347,41 +348,84 @@ export default function LMStep1Client({ data, onChange }: Props) {
             />
           </div>
 
-          {/* Legacy type mission — comptable */}
-          <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-300">Mode comptable</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {TYPES_MISSION.map(({ value, label, description, icon: Icon }) => {
-                const active = data.type_mission === value;
-                return (
-                  <button
-                    key={value}
-                    onClick={() => onChange({ type_mission: value })}
-                    className={`relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all duration-200 text-center ${
-                      active
-                        ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10"
-                        : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
-                      active ? "bg-blue-500/20" : "bg-white/[0.04]"
-                    }`}>
-                      <Icon className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-400"}`} />
-                    </div>
-                    <div>
-                      <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{label}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
-                    </div>
-                    {active && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle2 className="w-4 h-4 text-blue-400" />
+          {/* Mode comptable — only for assurance_comptes mission types */}
+          {['presentation', 'examen_limite', 'audit_contractuel'].includes((data as any).mission_type_id || 'presentation') && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-300">Mode comptable</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {TYPES_MISSION.map(({ value, label, description, icon: Icon }) => {
+                  const active = data.type_mission === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => onChange({ type_mission: value })}
+                      className={`relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all duration-200 text-center ${
+                        active
+                          ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10"
+                          : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]"
+                      }`}
+                    >
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
+                        active ? "bg-blue-500/20" : "bg-white/[0.04]"
+                      }`}>
+                        <Icon className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-400"}`} />
                       </div>
-                    )}
-                  </button>
-                );
-              })}
+                      <div>
+                        <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{label}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
+                      </div>
+                      {active && (
+                        <div className="absolute top-2 right-2">
+                          <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* Mission-type specific parameters — for types with specificVariables */}
+          {(() => {
+            const mtId = (data as any).mission_type_id || 'presentation';
+            const config = getMissionTypeConfig(mtId);
+            if (config.specificVariables.length === 0) return null;
+            return (
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Info className="w-4 h-4 text-blue-400" />
+                  <p className="text-sm font-medium text-slate-300">Parametres specifiques — {config.shortLabel}</p>
+                </div>
+                <p className="text-[11px] text-slate-500">
+                  Ces informations seront injectees dans le corps de la lettre de mission ({config.normeRef}).
+                </p>
+                <div className="space-y-3">
+                  {config.specificVariables.map((sv) => (
+                    <div key={sv.key} className="space-y-1.5">
+                      <label className="text-xs text-slate-400">{sv.label}</label>
+                      {sv.placeholder.length > 80 ? (
+                        <Textarea
+                          value={String((data as any)[sv.key] || "")}
+                          onChange={(e) => onChange({ [sv.key]: e.target.value } as any)}
+                          placeholder={sv.placeholder}
+                          rows={3}
+                          className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600 text-sm resize-none"
+                        />
+                      ) : (
+                        <Input
+                          value={String((data as any)[sv.key] || "")}
+                          onChange={(e) => onChange({ [sv.key]: e.target.value } as any)}
+                          placeholder={sv.placeholder}
+                          className="h-10 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600 text-sm"
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Modele selection */}
           <div className="space-y-3">

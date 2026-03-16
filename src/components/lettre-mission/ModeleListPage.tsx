@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Dialog,
   DialogContent,
@@ -24,6 +25,7 @@ import {
   GRIMY_DEFAULT_REPARTITION,
 } from "@/lib/lettreMissionModeles";
 import type { LMModele } from "@/lib/lettreMissionModeles";
+import { MISSION_CATEGORIES } from "@/lib/lettreMissionTypes";
 import DocxImportDialog from "./DocxImportDialog";
 import ModeleEditor from "./ModeleEditor";
 import { toast } from "sonner";
@@ -42,6 +44,133 @@ import {
   ArrowLeft,
 } from "lucide-react";
 
+/** Reusable modele card grid */
+function ModeleGrid({
+  modeles,
+  sourceLabel,
+  sourceColor,
+  onEdit,
+  onDuplicate,
+  onSetDefault,
+  onDelete,
+}: {
+  modeles: LMModele[];
+  sourceLabel: (s: string) => string;
+  sourceColor: (s: string) => string;
+  onEdit: (m: LMModele) => void;
+  onDuplicate: (m: LMModele) => void;
+  onSetDefault: (m: LMModele) => void;
+  onDelete: (m: LMModele) => void;
+}) {
+  if (modeles.length === 0) {
+    return (
+      <div className="text-center py-10 text-sm text-slate-500">
+        Aucun modele dans cette categorie
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      {modeles.map((m) => {
+        const cnoec = validateCnoecCompliance(m.sections);
+        const activeSections = m.sections.length;
+        const totalPossible = GRIMY_DEFAULT_SECTIONS.length;
+
+        return (
+          <Card
+            key={m.id}
+            className="bg-white/[0.02] border-white/[0.06] p-4 space-y-3 hover:border-white/[0.12] transition-colors"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-white truncate">{m.nom}</p>
+                {m.description && (
+                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{m.description}</p>
+                )}
+              </div>
+              {m.is_default && (
+                <Badge className="shrink-0 bg-amber-500/10 text-amber-400 border-amber-500/20 text-[9px]">
+                  <Star className="h-2.5 w-2.5 mr-0.5" /> Par défaut
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex flex-wrap gap-1.5">
+              <Badge variant="outline" className={`text-[9px] ${sourceColor(m.source)}`}>
+                {sourceLabel(m.source)}
+              </Badge>
+              {cnoec.valid ? (
+                <Badge variant="outline" className="text-[9px] border-green-500/30 text-green-400">
+                  <ShieldCheck className="h-2.5 w-2.5 mr-0.5" /> Conforme CNOEC
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="text-[9px] border-orange-500/30 text-orange-400">
+                  <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> {cnoec.warnings.length} alerte{cnoec.warnings.length > 1 ? "s" : ""}
+                </Badge>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4 text-[10px] text-slate-500">
+              <span>{activeSections}/{totalPossible} sections</span>
+              <span>
+                Modifié le{" "}
+                {new Date(m.updated_at).toLocaleDateString("fr-FR", {
+                  day: "2-digit",
+                  month: "short",
+                  year: "numeric",
+                })}
+              </span>
+            </div>
+
+            <Separator className="bg-white/[0.06]" />
+
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs text-slate-400 hover:text-blue-400"
+                onClick={() => onEdit(m)}
+              >
+                <Edit3 className="h-3 w-3" /> Éditer
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-xs text-slate-400 hover:text-emerald-400"
+                onClick={() => onDuplicate(m)}
+              >
+                <Copy className="h-3 w-3" /> Dupliquer
+              </Button>
+              {!m.is_default && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-xs text-slate-400 hover:text-amber-400"
+                  onClick={() => onSetDefault(m)}
+                >
+                  <Star className="h-3 w-3" /> Défaut
+                </Button>
+              )}
+              <div className="flex-1" />
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-xs text-slate-500 hover:text-red-400 disabled:opacity-30"
+                disabled={m.is_default}
+                onClick={() => onDelete(m)}
+                title={m.is_default ? "Le modèle par défaut ne peut pas être supprimé" : "Supprimer"}
+              >
+                <Trash2 className="h-3 w-3" />
+              </Button>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
 interface ModeleListPageProps {
   cabinetId: string;
   onBack: () => void;
@@ -54,6 +183,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
   const [editingModele, setEditingModele] = useState<LMModele | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LMModele | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [activeTab, setActiveTab] = useState("all");
 
   const loadModeles = useCallback(async () => {
     setLoading(true);
@@ -246,108 +376,56 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
           </div>
         </div>
       ) : (
-        /* Modeles grid */
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {modeles.map((m) => {
-            const cnoec = validateCnoecCompliance(m.sections);
-            const activeSections = m.sections.length;
-            const totalPossible = GRIMY_DEFAULT_SECTIONS.length;
+        /* Modeles grid with category tabs */
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="bg-white/[0.03] border border-white/[0.06] mb-4">
+            <TabsTrigger value="all" className="text-xs">
+              Tous ({modeles.length})
+            </TabsTrigger>
+            {MISSION_CATEGORIES.map((cat) => (
+              <TabsTrigger key={cat.category} value={cat.category} className="text-xs">
+                {cat.category === "assurance_comptes" ? "Comptes historiques" :
+                 cat.category === "autres_assurance" ? "Autres assurance" :
+                 cat.category === "sans_assurance" ? "Sans assurance" :
+                 "Activités"}
+              </TabsTrigger>
+            ))}
+          </TabsList>
 
-            return (
-              <Card
-                key={m.id}
-                className="bg-white/[0.02] border-white/[0.06] p-4 space-y-3 hover:border-white/[0.12] transition-colors"
-              >
-                {/* Top row */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-white truncate">{m.nom}</p>
-                    {m.description && (
-                      <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{m.description}</p>
-                    )}
-                  </div>
-                  {m.is_default && (
-                    <Badge className="shrink-0 bg-amber-500/10 text-amber-400 border-amber-500/20 text-[9px]">
-                      <Star className="h-2.5 w-2.5 mr-0.5" /> Par défaut
-                    </Badge>
-                  )}
-                </div>
+          <TabsContent value="all">
+            <ModeleGrid
+              modeles={modeles}
+              sourceLabel={sourceLabel}
+              sourceColor={sourceColor}
+              onEdit={setEditingModele}
+              onDuplicate={handleDuplicate}
+              onSetDefault={handleSetDefault}
+              onDelete={setDeleteTarget}
+            />
+          </TabsContent>
 
-                {/* Badges */}
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge variant="outline" className={`text-[9px] ${sourceColor(m.source)}`}>
-                    {sourceLabel(m.source)}
-                  </Badge>
-                  {cnoec.valid ? (
-                    <Badge variant="outline" className="text-[9px] border-green-500/30 text-green-400">
-                      <ShieldCheck className="h-2.5 w-2.5 mr-0.5" /> Conforme CNOEC
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[9px] border-orange-500/30 text-orange-400">
-                      <AlertTriangle className="h-2.5 w-2.5 mr-0.5" /> {cnoec.warnings.length} alerte{cnoec.warnings.length > 1 ? "s" : ""}
-                    </Badge>
-                  )}
-                </div>
-
-                {/* Stats */}
-                <div className="flex items-center gap-4 text-[10px] text-slate-500">
-                  <span>{activeSections}/{totalPossible} sections</span>
-                  <span>
-                    Modifié le{" "}
-                    {new Date(m.updated_at).toLocaleDateString("fr-FR", {
-                      day: "2-digit",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                </div>
-
-                <Separator className="bg-white/[0.06]" />
-
-                {/* Actions */}
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1 text-xs text-slate-400 hover:text-blue-400"
-                    onClick={() => setEditingModele(m)}
-                  >
-                    <Edit3 className="h-3 w-3" /> Éditer
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 gap-1 text-xs text-slate-400 hover:text-emerald-400"
-                    onClick={() => handleDuplicate(m)}
-                  >
-                    <Copy className="h-3 w-3" /> Dupliquer
-                  </Button>
-                  {!m.is_default && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 gap-1 text-xs text-slate-400 hover:text-amber-400"
-                      onClick={() => handleSetDefault(m)}
-                    >
-                      <Star className="h-3 w-3" /> Défaut
-                    </Button>
-                  )}
-                  <div className="flex-1" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-7 text-xs text-slate-500 hover:text-red-400 disabled:opacity-30"
-                    disabled={m.is_default}
-                    onClick={() => setDeleteTarget(m)}
-                    title={m.is_default ? "Le modèle par défaut ne peut pas être supprimé" : "Supprimer"}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
+          {MISSION_CATEGORIES.map((cat) => (
+            <TabsContent key={cat.category} value={cat.category}>
+              <div className="mb-3">
+                <p className="text-xs text-slate-500">{cat.label}</p>
+              </div>
+              <ModeleGrid
+                modeles={modeles.filter((m) => {
+                  // Filter by matching mission_type_id in modele metadata, or show all if no metadata
+                  const missionType = (m as any).mission_type_id;
+                  if (!missionType) return true; // Show untagged modeles in all tabs
+                  return cat.missions.includes(missionType);
+                })}
+                sourceLabel={sourceLabel}
+                sourceColor={sourceColor}
+                onEdit={setEditingModele}
+                onDuplicate={handleDuplicate}
+                onSetDefault={handleSetDefault}
+                onDelete={setDeleteTarget}
+              />
+            </TabsContent>
+          ))}
+        </Tabs>
       )}
 
       {/* Import dialog */}

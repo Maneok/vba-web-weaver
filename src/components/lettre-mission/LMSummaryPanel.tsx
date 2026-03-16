@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { formatEur } from "@/lib/lmUtils";
 import { Badge } from "@/components/ui/badge";
 import { Building2, CheckCircle2 } from "lucide-react";
@@ -50,11 +51,24 @@ function FullSummary({ data }: { data: LMWizardData }) {
               <p className="text-[10px] text-slate-500">{data.siren || "—"} · {data.forme_juridique || "—"}</p>
             </div>
           </div>
-          {data.type_mission && (
-            <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">
-              {data.type_mission}
-            </Badge>
-          )}
+          {(() => {
+            const mtConfig = getMissionTypeConfig((data as any).mission_type_id || "presentation");
+            return (
+              <div className="flex flex-wrap gap-1.5 mt-1">
+                <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">
+                  {mtConfig.shortLabel}
+                </Badge>
+                <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">
+                  {mtConfig.normeRef}
+                </Badge>
+                {data.type_mission && ['presentation', 'examen_limite', 'audit_contractuel'].includes((data as any).mission_type_id || 'presentation') && (
+                  <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
+                    {data.type_mission}
+                  </Badge>
+                )}
+              </div>
+            );
+          })()}
         </div>
       ) : (
         <div className="text-xs text-slate-600 italic">Aucun client selectionne</div>

@@ -2,12 +2,13 @@ import { useEffect, useRef, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData, MissionSelection } from "@/lib/lmWizardTypes";
 import { DEFAULT_MISSIONS, applyFormConditionals } from "@/lib/lmDefaults";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
   Calculator, Landmark, Users, Scale, ShieldCheck, FileWarning, Lightbulb,
-  Lock, ChevronDown, AlertTriangle,
+  Lock, ChevronDown, AlertTriangle, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,7 +45,31 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     }
   }, [data.missions_selected.length, data.forme_juridique, client?.effectif, onChange]);
 
-  const missions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
+  const allMissions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
+
+  // Filter missions based on mission type config
+  const mtConfig = useMemo(() => getMissionTypeConfig((data as any).mission_type_id || "presentation"), [(data as any).mission_type_id]);
+
+  // Map section_ids to mission config sections (comptabilite matches most mission sections)
+  const sectionToMissionSection: Record<string, string> = {
+    comptabilite: "referentiel_comptable",
+    fiscal: "mission_controle_fiscal",
+    social: "mission_sociale",
+    juridique: "mission_juridique",
+  };
+
+  const missions = useMemo(() => {
+    return allMissions.filter((m) => {
+      // LCB-FT, travail_dissimule, conseil are always visible
+      if (["lcbft", "travail_dissimule", "conseil"].includes(m.section_id)) return true;
+      // Check if this section is hidden in the mission type config
+      const mappedSection = sectionToMissionSection[m.section_id];
+      if (mappedSection && mtConfig.hiddenSections.includes(mappedSection)) return false;
+      return true;
+    });
+  }, [allMissions, mtConfig.hiddenSections]);
+
+  const hiddenCount = allMissions.length - missions.length;
 
   // A) Conditional logic toasts — show once
   useEffect(() => {
@@ -95,7 +120,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
   }, [missions.length, client?.effectif, data.forme_juridique, missions, onChange]);
 
   const toggleSection = (sectionId: string) => {
-    const m = missions.find((x) => x.section_id === sectionId);
+    const m = allMissions.find((x) => x.section_id === sectionId);
     if (!m || m.locked) return;
 
     // A) Check tenue/surveillance incompatibility
@@ -106,7 +131,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
       }
     }
 
-    const updated = missions.map((x) =>
+    const updated = allMissions.map((x) =>
       x.section_id === sectionId
         ? { ...x, selected: !x.selected, sous_options: x.sous_options.map((s) => ({ ...s, selected: !x.selected })) }
         : x
@@ -115,10 +140,10 @@ export default function LMStep2Missions({ data, onChange }: Props) {
   };
 
   const toggleSub = (sectionId: string, optId: string) => {
-    const m = missions.find((x) => x.section_id === sectionId);
+    const m = allMissions.find((x) => x.section_id === sectionId);
     if (!m || m.locked) return;
 
-    const updated = missions.map((x) =>
+    const updated = allMissions.map((x) =>
       x.section_id === sectionId
         ? { ...x, sous_options: x.sous_options.map((s) => s.id === optId ? { ...s, selected: !s.selected } : s) }
         : x
@@ -129,7 +154,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
   const totalSelected = useMemo(() => missions.filter((m) => m.selected).length, [missions]);
 
   // Check for tenue+surveillance conflict
-  const hasTenue = missions.some((m) => m.section_id === "comptabilite" && m.selected);
+  const hasTenue = allMissions.some((m) => m.section_id === "comptabilite" && m.selected);
   const isSurveillance = data.type_mission === "SURVEILLANCE";
   const hasConflict = hasTenue && isSurveillance;
 
@@ -142,6 +167,14 @@ export default function LMStep2Missions({ data, onChange }: Props) {
           <p className="text-xs text-red-300">
             <strong>Missions incompatibles :</strong> La tenue comptable et la mission de surveillance ne peuvent pas etre combinees.
           </p>
+        </div>
+      )}
+
+      {/* Hidden sections info */}
+      {hiddenCount > 0 && (
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-500/5 border border-white/[0.06] text-xs text-slate-500">
+          <EyeOff className="w-3.5 h-3.5 shrink-0" />
+          {hiddenCount} section{hiddenCount > 1 ? "s masquees" : " masquee"} (non applicable pour {mtConfig.shortLabel})
         </div>
       )}
 
