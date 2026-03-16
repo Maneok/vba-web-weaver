@@ -121,6 +121,7 @@ export const LM_STATUTS = [
   { value: "envoyee", label: "Envoyee", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
   { value: "signee", label: "Signee", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
   { value: "archivee", label: "Archivee", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+  { value: "resiliee", label: "Resiliee", color: "bg-red-500/10 text-red-400 border-red-500/20" },
 ] as const;
 
 export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
