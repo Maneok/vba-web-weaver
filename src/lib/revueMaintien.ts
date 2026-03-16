@@ -24,7 +24,7 @@ export interface RevueMaintien {
   completed_at: string | null;
   created_at: string;
   updated_at: string;
-  // Joined fields
+  // Joined fields from clients table
   client_nom?: string;
   client_ref?: string;
   client_score?: number;
@@ -50,9 +50,10 @@ export interface RevueStats {
 // ─── CRUD ────────────────────────────────────────────────────────────
 
 export async function getRevues(cabinetId: string, filters?: RevueFilters): Promise<RevueMaintien[]> {
+  // clients columns: raison_sociale, ref, score_global, niv_vigilance
   let query = supabase
     .from('revue_maintien')
-    .select('*, clients(nom, ref_client, score_risque, vigilance)')
+    .select('*, clients(raison_sociale, ref, score_global, niv_vigilance)')
     .eq('cabinet_id', cabinetId)
     .order('date_echeance', { ascending: true });
 
@@ -71,10 +72,10 @@ export async function getRevues(cabinetId: string, filters?: RevueFilters): Prom
 
   return (data || []).map((row: any) => ({
     ...row,
-    client_nom: row.clients?.nom,
-    client_ref: row.clients?.ref_client,
-    client_score: row.clients?.score_risque,
-    client_vigilance: row.clients?.vigilance,
+    client_nom: row.clients?.raison_sociale,
+    client_ref: row.clients?.ref,
+    client_score: row.clients?.score_global != null ? Number(row.clients.score_global) : null,
+    client_vigilance: row.clients?.niv_vigilance,
     clients: undefined,
   })).filter((r: RevueMaintien) => {
     if (filters?.search) {
@@ -94,16 +95,16 @@ export async function getRevues(cabinetId: string, filters?: RevueFilters): Prom
 export async function getRevueById(id: string): Promise<RevueMaintien> {
   const { data, error } = await supabase
     .from('revue_maintien')
-    .select('*, clients(nom, ref_client, score_risque, vigilance)')
+    .select('*, clients(raison_sociale, ref, score_global, niv_vigilance)')
     .eq('id', id)
     .single();
   if (error) throw error;
   return {
     ...data,
-    client_nom: (data as any).clients?.nom,
-    client_ref: (data as any).clients?.ref_client,
-    client_score: (data as any).clients?.score_risque,
-    client_vigilance: (data as any).clients?.vigilance,
+    client_nom: (data as any).clients?.raison_sociale,
+    client_ref: (data as any).clients?.ref,
+    client_score: (data as any).clients?.score_global != null ? Number((data as any).clients.score_global) : null,
+    client_vigilance: (data as any).clients?.niv_vigilance,
   } as RevueMaintien;
 }
 
@@ -163,17 +164,17 @@ export async function completeRevue(
 // ─── Génération automatique ──────────────────────────────────────────
 
 export async function generatePendingRevues(cabinetId: string): Promise<number> {
-  // Fetch all clients for this cabinet
+  // clients columns: id (uuid), score_global (numeric), niv_vigilance (text), date_exp_cni (text)
   const { data: clients, error: cErr } = await supabase
     .from('clients')
-    .select('id, score_risque, vigilance, date_kyc_expiration')
+    .select('id, score_global, niv_vigilance, date_exp_cni')
     .eq('cabinet_id', cabinetId);
   if (cErr) throw cErr;
 
   // Fetch existing pending revues
   const { data: existing, error: eErr } = await supabase
     .from('revue_maintien')
-    .select('client_id, type, created_at, status')
+    .select('client_id, type, status')
     .eq('cabinet_id', cabinetId)
     .in('status', ['a_faire', 'en_cours']);
   if (eErr) throw eErr;
@@ -181,7 +182,7 @@ export async function generatePendingRevues(cabinetId: string): Promise<number> 
   // Fetch last completed revue per client
   const { data: completed, error: coErr } = await supabase
     .from('revue_maintien')
-    .select('client_id, completed_at, score_risque_avant')
+    .select('client_id, completed_at')
     .eq('cabinet_id', cabinetId)
     .eq('status', 'completee')
     .order('completed_at', { ascending: false });
@@ -199,7 +200,8 @@ export async function generatePendingRevues(cabinetId: string): Promise<number> 
   const revuesToCreate: Partial<RevueMaintien>[] = [];
 
   for (const client of clients || []) {
-    const score = client.score_risque ?? 0;
+    const score = Number(client.score_global) || 0;
+    const vigilance = client.niv_vigilance || null;
 
     // 1. Risque élevé sans revue pending
     if (score >= 70 && !pendingSet.has(`${client.id}:risque_eleve`)) {
@@ -211,7 +213,7 @@ export async function generatePendingRevues(cabinetId: string): Promise<number> 
         type: 'risque_eleve',
         status: 'a_faire',
         score_risque_avant: score,
-        vigilance_avant: client.vigilance || null,
+        vigilance_avant: vigilance,
         date_echeance: echeance.toISOString().split('T')[0],
       });
     }
@@ -232,15 +234,15 @@ export async function generatePendingRevues(cabinetId: string): Promise<number> 
         type: 'annuelle',
         status: 'a_faire',
         score_risque_avant: score,
-        vigilance_avant: client.vigilance || null,
+        vigilance_avant: vigilance,
         date_echeance: echeance.toISOString().split('T')[0],
       });
     }
 
-    // 3. KYC expiré
-    if (client.date_kyc_expiration) {
-      const kycDate = new Date(client.date_kyc_expiration);
-      if (kycDate <= now && !pendingSet.has(`${client.id}:kyc_expiration`)) {
+    // 3. KYC expiré (date_exp_cni is text format)
+    if (client.date_exp_cni) {
+      const kycDate = new Date(client.date_exp_cni);
+      if (!isNaN(kycDate.getTime()) && kycDate <= now && !pendingSet.has(`${client.id}:kyc_expiration`)) {
         const echeance = new Date(now);
         echeance.setDate(echeance.getDate() + 15);
         revuesToCreate.push({
@@ -249,7 +251,7 @@ export async function generatePendingRevues(cabinetId: string): Promise<number> 
           type: 'kyc_expiration',
           status: 'a_faire',
           score_risque_avant: score,
-          vigilance_avant: client.vigilance || null,
+          vigilance_avant: vigilance,
           date_echeance: echeance.toISOString().split('T')[0],
         });
       }

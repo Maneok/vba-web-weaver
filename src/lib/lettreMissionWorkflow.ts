@@ -441,13 +441,14 @@ export async function checkRiskAlertes(cabinetId: string): Promise<RiskAlerte[]>
 
     for (const c of clients) {
       const ref = c.ref || c.reference || "";
+      const clientId = c.id; // uuid réel pour FK lm_alertes.client_id
       const nom = c.raison_sociale || "";
       const score = c.score_global ?? 0;
       const hasActiveLM = activeClientRefs.has(ref);
       const derniereRevue = c.date_derniere_revue;
 
       // a) Risque élevé (score >= 70)
-      if (score >= 70 && !existingSet.has(`${ref}::risque_eleve`)) {
+      if (score >= 70 && !existingSet.has(`${clientId}::risque_eleve`)) {
         const alerte: RiskAlerte = {
           type: "risque_eleve",
           severity: "critical",
@@ -460,7 +461,7 @@ export async function checkRiskAlertes(cabinetId: string): Promise<RiskAlerte[]>
         if (hasActiveLM) {
           await createAlerte({
             cabinet_id: cabinetId,
-            client_id: ref,
+            client_id: clientId,
             type: "risque_eleve",
             message: alerte.message,
             severity: "critical",
@@ -469,7 +470,7 @@ export async function checkRiskAlertes(cabinetId: string): Promise<RiskAlerte[]>
       }
 
       // b) Risque moyen (50-69) → revue recommandée
-      if (score >= 50 && score < 70 && !existingSet.has(`${ref}::revue_annuelle`)) {
+      if (score >= 50 && score < 70 && !existingSet.has(`${clientId}::revue_annuelle`)) {
         const alerte: RiskAlerte = {
           type: "risque_moyen",
           severity: "warning",
@@ -482,7 +483,7 @@ export async function checkRiskAlertes(cabinetId: string): Promise<RiskAlerte[]>
         if (hasActiveLM) {
           await createAlerte({
             cabinet_id: cabinetId,
-            client_id: ref,
+            client_id: clientId,
             type: "revue_annuelle",
             message: alerte.message,
             severity: "warning",
@@ -491,7 +492,7 @@ export async function checkRiskAlertes(cabinetId: string): Promise<RiskAlerte[]>
       }
 
       // c) Expiration KYC
-      if (derniereRevue && !existingSet.has(`${ref}::expiration_kyc`)) {
+      if (derniereRevue && !existingSet.has(`${clientId}::expiration_kyc`)) {
         const revueDate = new Date(derniereRevue);
         if (!isNaN(revueDate.getTime())) {
           const diffYears = (now.getTime() - revueDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000);
@@ -531,7 +532,7 @@ export async function checkRiskAlertes(cabinetId: string): Promise<RiskAlerte[]>
             if (hasActiveLM) {
               await createAlerte({
                 cabinet_id: cabinetId,
-                client_id: ref,
+                client_id: clientId,
                 type: "expiration_kyc",
                 message: kycAlerte.message,
                 severity: kycAlerte.severity,
