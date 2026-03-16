@@ -714,6 +714,30 @@ export async function initCabinetDefaultModele(cabinetId: string): Promise<LMMod
 }
 
 // ══════════════════════════════════════════════
+// Créer un modèle par défaut pour un type de mission donné
+// ══════════════════════════════════════════════
+
+export async function createDefaultModeleForType(
+  cabinetId: string,
+  missionType: string
+): Promise<LMModele> {
+  const config = getMissionTypeConfig(missionType);
+  const sections = buildSectionsForMissionType(missionType);
+
+  return createModele({
+    cabinet_id: cabinetId,
+    nom: `Modèle ${config.shortLabel}`,
+    description: `Modèle conforme ${config.normeRef} — ${config.label}`,
+    mission_type: missionType,
+    sections,
+    cgv_content: GRIMY_DEFAULT_CGV,
+    repartition_taches: GRIMY_DEFAULT_REPARTITION,
+    is_default: false,
+    source: "grimy",
+  });
+}
+
+// ══════════════════════════════════════════════
 // Validation CNOEC
 // ══════════════════════════════════════════════
 

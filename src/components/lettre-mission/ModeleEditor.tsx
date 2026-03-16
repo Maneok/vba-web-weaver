@@ -28,6 +28,7 @@ import {
   GRIMY_DEFAULT_REPARTITION,
 } from "@/lib/lettreMissionModeles";
 import type { LMModele, LMSection, CnoecWarning } from "@/lib/lettreMissionModeles";
+import { MISSION_TYPES } from "@/lib/lettreMissionTypes";
 import {
   Save,
   X,
@@ -346,8 +347,27 @@ export default function ModeleEditor({ modele, onSave, onCancel }: ModeleEditorP
     return { total: obligatoire.length, covered: present.length };
   }, [sections, hiddenIds]);
 
+  const missionTypeConfig = modele.mission_type
+    ? (MISSION_TYPES as Record<string, any>)[modele.mission_type]
+    : null;
+
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* ── Mission type badge ── */}
+      {missionTypeConfig && (
+        <div className="border-b border-white/[0.06] bg-white/[0.02] px-4 py-2 flex items-center gap-2">
+          <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-400">
+            {missionTypeConfig.shortLabel}
+          </Badge>
+          <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 font-mono">
+            {missionTypeConfig.normeRef}
+          </Badge>
+          <span className="text-[10px] text-slate-500">
+            {missionTypeConfig.label}
+          </span>
+        </div>
+      )}
+
       {/* ── CNOEC banner ── */}
       {cnoecResult.warnings.length > 0 ? (
         <div className="border-b border-orange-500/20 bg-orange-500/5 px-4 py-2">

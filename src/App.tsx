@@ -56,6 +56,7 @@ const CheckoutSuccessPage = lazy(() => lazyRetry(() => import("@/pages/CheckoutS
 const AdminUsersPage = lazy(() => lazyRetry(() => import("@/pages/AdminUsersPage")));
 const AuditTrailPage = lazy(() => lazyRetry(() => import("@/pages/AuditTrailPage")));
 const SuperAdminPage = lazy(() => lazyRetry(() => import("@/pages/SuperAdminPage")));
+const RevueMaintienPage = lazy(() => lazyRetry(() => import("@/pages/RevueMaintienPage")));
 const SignerPage = lazy(() => lazyRetry(() => import("@/pages/SignerPage")));
 const InvitePage = lazy(() => import("@/pages/InvitePage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
@@ -125,6 +126,7 @@ const App = () => (
                   <Route path="ged" element={<SafePage><GedPage /></SafePage>} />
                   <Route path="lettre-mission" element={<SafePage><LettreMissionPage /></SafePage>} />
                   <Route path="lettre-mission/:ref" element={<SafePage><LettreMissionPage /></SafePage>} />
+                  <Route path="revue-maintien" element={<SafePage><RevueMaintienPage /></SafePage>} />
                   <Route path="diagnostic" element={<SafePage><DiagnosticPage /></SafePage>} />
                   <Route path="parametres" element={<SafePage><SettingsPage /></SafePage>} />
                   <Route path="notifications" element={<SafePage><NotificationsPage /></SafePage>} />
