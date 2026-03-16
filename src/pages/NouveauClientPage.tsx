@@ -3730,10 +3730,12 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 seenKeys.add(key);
                 return true;
               });
-              // FIX P4-10: needsAuth docs are NOT accessible — don't count them as stored
-              const hasStoredPdf = (types: string[]) => allDocs.some(d =>
+              // Accept docs that are stored in Supabase, have auto status with a URL, or lien_direct
+              // FIX P4-10: needsAuth docs are NOT accessible — exclude them
+              const hasAvailableDoc = (types: string[]) => allDocs.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t)) &&
-                d.storedInSupabase === true
+                !d.needsAuth &&
+                (d.storedInSupabase === true || (d.status === "auto" && d.url) || d.status === "lien_direct")
               );
               const hasUpload = (types: string[]) => documents.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t))

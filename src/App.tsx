@@ -56,6 +56,7 @@ const CheckoutSuccessPage = lazy(() => lazyRetry(() => import("@/pages/CheckoutS
 const AdminUsersPage = lazy(() => lazyRetry(() => import("@/pages/AdminUsersPage")));
 const AuditTrailPage = lazy(() => lazyRetry(() => import("@/pages/AuditTrailPage")));
 const SuperAdminPage = lazy(() => lazyRetry(() => import("@/pages/SuperAdminPage")));
+const SignerPage = lazy(() => lazyRetry(() => import("@/pages/SignerPage")));
 const InvitePage = lazy(() => import("@/pages/InvitePage"));
 const NotFound = lazy(() => import("@/pages/NotFound"));
 
@@ -107,6 +108,7 @@ const App = () => (
                 <Route path="/mentions-legales" element={<SafePage><MentionsLegalesPage /></SafePage>} />
                 <Route path="/cgv" element={<SafePage><CGVPage /></SafePage>} />
                 <Route path="/confidentialite" element={<SafePage><PolitiqueConfidentialitePage /></SafePage>} />
+                <Route path="/signer" element={<SafePage><SignerPage /></SafePage>} />
                 <Route path="/invite/:token" element={<SafePage><InvitePage /></SafePage>} />
                 <Route path="/pricing" element={<SafePage><PricingPage /></SafePage>} />
                 <Route path="/checkout-success" element={<ProtectedRoute><SafePage><CheckoutSuccessPage /></SafePage></ProtectedRoute>} />
