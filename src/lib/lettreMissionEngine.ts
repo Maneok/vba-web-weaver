@@ -386,7 +386,7 @@ export async function getNextLmNumero(cabinetId: string): Promise<string> {
   const prefix = `LM-${year}-`;
 
   const { data } = await supabase
-    .from("lm_instances")
+    .from("lettres_mission")
     .select("numero")
     .eq("cabinet_id", cabinetId)
     .like("numero", `${prefix}%`)
@@ -581,7 +581,7 @@ export async function generateFromModele(
 
   // Insert instance
   const { data: instance, error } = await supabase
-    .from("lm_instances")
+    .from("lettres_mission")
     .insert({
       cabinet_id: cabinetId,
       modele_id: modele.id === "grimy-fallback" ? null : modele.id,

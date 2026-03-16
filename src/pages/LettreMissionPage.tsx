@@ -42,14 +42,14 @@ import {
   FilePlus2,
 } from "lucide-react";
 import ModeleListPage from "@/components/lettre-mission/ModeleListPage";
-import LMRevueEspace from "@/components/lettre-mission/LMRevueEspace";
 import LMStatusBadge from "@/components/lettre-mission/LMStatusBadge";
-import LMStatusActions from "@/components/lettre-mission/LMStatusActions";
 import LMAlertesList from "@/components/lettre-mission/LMAlertesList";
 import { runAllChecks } from "@/lib/lettreMissionWorkflow";
 import AvenantDialog from "@/components/lettre-mission/AvenantDialog";
 import type { LMInstance } from "@/lib/lettreMissionEngine";
 import { getAvenants, type LMAvenant } from "@/lib/lettreMissionAvenants";
+import { sendForSignature, getSignatureTokens } from "@/lib/lettreMissionSignature";
+import { buildClientFromWizardData } from "@/lib/lmUtils";
 
 // ─────────────────────────────────────────
 // G) Advanced history with filters, duplicate, archive
