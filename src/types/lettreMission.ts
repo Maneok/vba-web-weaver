@@ -93,6 +93,7 @@ export interface LettreMissionOptions {
   periodicite: string;
   outilComptable: string;
   controleFiscalOptions: string[];
+  missionTypeId?: string;
 }
 
 export interface LettreMissionBloc {

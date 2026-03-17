@@ -23,7 +23,6 @@ Deno.serve(async (req) => {
     }
 
     const allMatches: any[] = [];
-    const _diagLogs: any[] = [];
     let checked = 0;
 
     for (const person of persons.slice(0, 10)) {
@@ -34,17 +33,23 @@ Deno.serve(async (req) => {
       if (!fullName || fullName.length < 2) continue;
       checked++;
 
-      // P6-54: Rename to matchBody to avoid shadowing outer `body`
-      const matchBody: Record<string, unknown> = {
-        schema: "Person",
-        properties: { name: [fullName] },
-      };
+      const queryProps: Record<string, unknown> = { name: [fullName] };
       if (person.dateNaissance) {
-        matchBody.properties = { ...(matchBody.properties as Record<string, unknown>), birthDate: [person.dateNaissance] };
+        queryProps.birthDate = [person.dateNaissance];
       }
       if (person.nationalite) {
-        matchBody.properties = { ...(matchBody.properties as Record<string, unknown>), nationality: [person.nationalite] };
+        queryProps.nationality = [person.nationalite];
       }
+
+      // OpenSanctions /match/default expects { queries: { "<key>": { schema, properties } } }
+      const matchBody = {
+        queries: {
+          q: {
+            schema: "Person",
+            properties: queryProps,
+          },
+        },
+      };
 
       try {
         const res = await fetch("https://api.opensanctions.org/match/default", {
@@ -54,14 +59,15 @@ Deno.serve(async (req) => {
           signal: AbortSignal.timeout(10000),
         });
 
-        if (!res.ok) { const errText = await res.text().catch(() => ""); console.error("[SANCTIONS_DIAG] API error:", res.status, errText); _diagLogs.push({ error: true, http_status: res.status, body: errText.slice(0, 500) }); continue; }
+        if (!res.ok) continue;
 
         let data: any;
         try { data = await res.json(); } catch { continue; }
-        const _diagEntry = { http_status: res.status, response_keys: Object.keys(data), responses_default: data.responses?.default?.length, results: data.results?.length, full_sample: JSON.stringify(data).slice(0, 500) };
-        console.error("[SANCTIONS_DIAG]", JSON.stringify(_diagEntry));
-        _diagLogs.push(_diagEntry);
-        const responses = data.responses?.default ?? data.results ?? [];
+
+        // Response: { responses: { "q": { status, results: [...] } } }
+        const responseValues = data.responses ? Object.values(data.responses) : [];
+        const firstResponse = responseValues[0] as any;
+        const responses = firstResponse?.results ?? data.results ?? [];
 
         for (const result of responses) {
           const matchScore = result.score ?? 0;
@@ -107,8 +113,12 @@ Deno.serve(async (req) => {
         // Invalid SIREN format — skip company check
       } else try {
         const companyBody = {
-          schema: "Company",
-          properties: { registrationNumber: [cleanSiren] },
+          queries: {
+            q: {
+              schema: "Company",
+              properties: { registrationNumber: [cleanSiren] },
+            },
+          },
         };
         const res = await fetch("https://api.opensanctions.org/match/default", {
           method: "POST",
@@ -119,7 +129,9 @@ Deno.serve(async (req) => {
         if (res.ok) {
           let data: any;
           try { data = await res.json(); } catch { data = {}; }
-          const responses = data.responses?.default ?? data.results ?? [];
+          const responseValues = data.responses ? Object.values(data.responses) : [];
+          const firstResponse = responseValues[0] as any;
+          const responses = firstResponse?.results ?? data.results ?? [];
           for (const result of responses) {
             if ((result.score ?? 0) >= 0.5) {
               allMatches.push({

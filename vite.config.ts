@@ -33,8 +33,11 @@ export default defineConfig(({ mode }) => ({
             if (id.includes("@supabase/supabase-js")) {
               return "supabase";
             }
-            if (id.includes("jspdf") || id.includes("docx") || id.includes("file-saver")) {
-              return "generation";
+            if (id.includes("jspdf")) {
+              return "pdf-gen";
+            }
+            if (id.includes("docx") || id.includes("file-saver")) {
+              return "docx-gen";
             }
             if (id.includes("@radix-ui")) {
               return "radix-ui";

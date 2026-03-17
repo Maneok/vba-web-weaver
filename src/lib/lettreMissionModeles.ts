@@ -625,7 +625,7 @@ export function buildSectionsForMissionType(missionTypeId: string): LMSection[] 
 
   // 5. Filter hidden and reorder
   return result
-    .filter((s) => !(s as any).hidden)
+    .filter((s) => !s.hidden)
     .map((s, i) => ({ ...s, ordre: i + 1 }));
 }
 

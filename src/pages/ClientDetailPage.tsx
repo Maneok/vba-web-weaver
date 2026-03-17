@@ -43,7 +43,7 @@ import {
   ClipboardCheck, ScrollText, Upload, Trash2, Plus, ChevronRight,
   ExternalLink, Loader2, Newspaper, Globe, Users, Archive, TrendingUp,
   Eye, Download, RefreshCw, Search, Filter, FolderOpen, HardDrive,
-  ShieldCheck, AlertCircle, FileWarning, Link2, Paperclip, ScanLine,
+  ShieldCheck, ShieldAlert, AlertCircle, FileWarning, Link2, Paperclip, ScanLine,
   Inbox, UploadCloud, FileCheck, FileClock, FileX, Info,
 } from "lucide-react";
 
@@ -274,6 +274,47 @@ function ClientDetailContent({ client }: { client: Client }) {
     [logs, client.ref]
   );
 
+  // ── OPT 46-50: LM + Revue + Avenants data for fiche client ──
+  const [clientLM, setClientLM] = useState<any | null>(null);
+  const [clientRevues, setClientRevues] = useState<RevueMaintien[]>([]);
+  const [clientAvenants, setClientAvenants] = useState<any[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadClientLMData() {
+      try {
+        // Fetch active LM for this client
+        const { data: lmData } = await supabase
+          .from("lettres_mission")
+          .select("id, numero, mission_type, status, signed_at, created_at")
+          .eq("client_id", (client as any).id)
+          .in("status", ["brouillon", "envoyee", "signee"])
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (!cancelled && lmData?.length) setClientLM(lmData[0]);
+
+        // Fetch revues
+        if ((client as any).id) {
+          const revues = await getRevuesByClient((client as any).id);
+          if (!cancelled) setClientRevues(revues);
+        }
+
+        // Fetch avenants
+        const { data: avData } = await supabase
+          .from("lm_avenants")
+          .select("id, numero, objet, date_effet, status")
+          .eq("client_id", (client as any).id)
+          .order("created_at", { ascending: false })
+          .limit(5);
+        if (!cancelled && avData) setClientAvenants(avData);
+      } catch {
+        // Silently fail — tables may not exist yet
+      }
+    }
+    loadClientLMData();
+    return () => { cancelled = true; };
+  }, [(client as any).id]);
+
   const maluses = [
     client.ppe === "OUI" && "PPE",
     client.atypique === "OUI" && "Montage atypique",
@@ -382,6 +423,15 @@ function ClientDetailContent({ client }: { client: Client }) {
         )}
       </div>
 
+      {/* OPT-49: Bandeau risque élevé */}
+      {client.scoreGlobal >= 70 && (
+        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30 flex items-center gap-2">
+          <ShieldAlert className="w-5 h-5 text-red-400 shrink-0" />
+          <span className="text-sm font-medium text-red-300">Client à risque élevé — Vigilance renforcée requise</span>
+          <Badge className="ml-auto bg-red-500/20 text-red-400 border-0">Score : {client.scoreGlobal}</Badge>
+        </div>
+      )}
+
       {/* Malus flags */}
       {maluses.length > 0 && (
         <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/20 flex flex-wrap gap-2 items-center">
@@ -405,6 +455,7 @@ function ClientDetailContent({ client }: { client: Client }) {
           <TabsTrigger value="compliance" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Compliance</TabsTrigger>
           <TabsTrigger value="historique_legal" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Hist. Legal</TabsTrigger>
           <TabsTrigger value="historique" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Audit</TabsTrigger>
+          <TabsTrigger value="mission_lm" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Mission</TabsTrigger>
         </TabsList>
 
         {/* TAB: Informations */}

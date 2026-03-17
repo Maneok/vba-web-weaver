@@ -198,7 +198,7 @@ export default function ModeleEditor({
   const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => {
     const ids = new Set<string>();
     modele.sections.forEach((s) => {
-      if ((s as any).hidden) ids.add(s.id);
+      if (s.hidden) ids.add(s.id);
     });
     return ids;
   });
@@ -452,7 +452,7 @@ export default function ModeleEditor({
       }));
       await onSave({
         ...modele,
-        sections: allSections as any,
+        sections: allSections,
         cgv_content: cgvContent,
         repartition_taches: repartition,
       });
@@ -478,7 +478,7 @@ export default function ModeleEditor({
     if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     autoSaveTimer.current = setTimeout(() => {
       handleSave();
-    }, 5000);
+    }, 3000);
     return () => {
       if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
     };

@@ -292,7 +292,7 @@ class LMPdfBuilder {
     this.y += 12;
 
     // OPT-26: Titre dynamique, OPT-27: badge norme
-    const mtConf = getMissionTypeConfig((this.options as any)?.missionTypeId || "presentation");
+    const mtConf = getMissionTypeConfig(this.options?.missionTypeId || "presentation");
     this.ensureSpace(20);
     this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
     this.doc.rect(MARGIN_L, this.y - 1, CONTENT_W, 10, "F");
@@ -720,7 +720,7 @@ class LMPdfBuilder {
     this.y += 8;
 
     // OPT-33: Mention honoraires de succès
-    const mtConfHono = getMissionTypeConfig((this.options as any)?.missionTypeId || "presentation");
+    const mtConfHono = getMissionTypeConfig(this.options?.missionTypeId || "presentation");
     if (!mtConfHono.honorairesSuccesAutorises) {
       this.setSmall();
       this.doc.setFont("helvetica", "italic");
@@ -1143,7 +1143,7 @@ class LMPdfBuilder {
   // ──────────────────────────────────────────────
   private addFooters(): void {
     const totalPages = this.doc.getNumberOfPages();
-    const mtConf = getMissionTypeConfig((this.options as any)?.missionTypeId || "presentation");
+    const mtConf = getMissionTypeConfig(this.options?.missionTypeId || "presentation");
     for (let i = 1; i <= totalPages; i++) {
       this.doc.setPage(i);
       // OPT-29: Footer

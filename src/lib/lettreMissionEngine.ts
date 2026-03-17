@@ -340,9 +340,12 @@ export function generateFromClient(
  */
 export function renderToPdf(lettreMission: LettreMission): void {
   try {
+    const t0 = performance.now();
     const doc = renderLettreMissionPdf(lettreMission);
+    const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
     const filename = `LDM_${lettreMission?.numero ?? "draft"}_${(lettreMission?.client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.pdf`;
     doc.save(filename);
+    toast.success(`PDF généré en ${elapsed}s`);
   } catch (err: unknown) {
     logger.error("PDF", "renderToPdf error", err);
     toast.error("Erreur lors de la génération du PDF. Veuillez réessayer.");
@@ -416,7 +419,7 @@ export function resolveModeleSections(
   return sections
     .filter((s) => {
       // Filter hidden sections
-      if ((s as any).hidden) return false;
+      if (s.hidden) return false;
       // Filter conditional sections based on missions
       if (s.type === "conditional" && s.condition && missionsSelected) {
         const condMap: Record<string, string> = {
@@ -516,6 +519,10 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     nom_cabinet: "",
     cabinet_nom: "",
     ville_cabinet: "",
+    // CGV variables (assurance & tribunal)
+    assureur_nom: String(d.assureur_nom ?? ""),
+    assureur_adresse: String(d.assureur_adresse ?? ""),
+    ville_tribunal: String(d.ville_tribunal ?? ""),
   };
 
   // Inject mission-type specific variables from wizard data
@@ -586,6 +593,7 @@ export async function generateFromModele(
       cabinet_id: cabinetId,
       modele_id: modele.id === "grimy-fallback" ? null : modele.id,
       client_ref: String(wizardData.client_ref ?? ""),
+      client_id: String(wizardData.client_id ?? ""),
       numero,
       status: "brouillon",
       mission_type: missionTypeId,

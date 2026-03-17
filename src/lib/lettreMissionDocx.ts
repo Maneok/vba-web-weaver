@@ -208,8 +208,8 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
 
   children.push(
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: getMissionTypeConfig((lm?.options as any)?.missionTypeId || "presentation").label.toUpperCase(), bold: true, size: 22, color: NAVY })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: `Norme applicable : ${getMissionTypeConfig((lm?.options as any)?.missionTypeId || "presentation").normeRef}`, size: 18, color: "888888" })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: getMissionTypeConfig(lm?.options?.missionTypeId || "presentation").label.toUpperCase(), bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: `Norme applicable : ${getMissionTypeConfig(lm?.options?.missionTypeId || "presentation").normeRef}`, size: 18, color: "888888" })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.ville}, le ${lm.date}  |  Réf. ${lm.numero}`, size: 18, color: "888888" })] }),
   );
 
