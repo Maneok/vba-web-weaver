@@ -29,13 +29,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScoreGauge, VigilanceBadge, PilotageBadge } from "@/components/RiskBadges";
-import OcrUploader from "@/components/OcrUploader";
-import type { OcrCniResult, OcrRibResult, OcrKbisResult } from "@/components/OcrUploader";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
-  ResponsiveContainer, Tooltip, LineChart, Line, XAxis, YAxis, CartesianGrid,
+  ResponsiveContainer, Tooltip as RechartsTooltip, LineChart, Line, XAxis, YAxis, CartesianGrid,
   BarChart, Bar,
 } from "recharts";
 import {
@@ -626,7 +623,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <PolarAngleAxis dataKey="subject" tick={{ fill: "#94a3b8", fontSize: 11 }} />
                   <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
                   <Radar name="Score" dataKey="score" stroke={vigilanceColor} fill={vigilanceColor} fillOpacity={0.15} strokeWidth={2} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -691,7 +688,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" />
                   <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
                   <YAxis domain={[0, 120]} tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} />
+                  <RechartsTooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} />
                   <Line type="monotone" dataKey="score" stroke={vigilanceColor} strokeWidth={2} dot={{ r: 4, fill: vigilanceColor }} />
                 </LineChart>
               </ResponsiveContainer>
@@ -772,7 +769,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                         <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" />
                         <XAxis dataKey="date" tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`} />
-                        <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} formatter={(v: number) => `${v.toLocaleString("fr-FR")} EUR`} />
+                        <RechartsTooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} formatter={(v: number) => `${v.toLocaleString("fr-FR")} EUR`} />
                         <Bar dataKey="ca" name="CA" fill="#3b82f6" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="resultat" name="Resultat" fill="#22c55e" radius={[4, 4, 0, 0]} />
                       </BarChart>
@@ -1685,50 +1682,19 @@ function DocumentsTab({
       </div>
 
       {/* ═══ OCR SECTION ═══ */}
-      {/* #49 — Collapsible OCR section for each missing document */}
       {kycDocs.some(d => !d.linked) && (
         <div className="glass-card p-5">
-          <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-2 mb-3">
             <ScanLine className="w-4 h-4 text-indigo-400" />
             <h4 className="text-xs font-semibold text-slate-300">Extraction OCR intelligente</h4>
             <Badge className="text-[9px] bg-indigo-500/15 text-indigo-400 border-0">IA</Badge>
           </div>
-          <p className="text-xs text-slate-500 mb-4">
-            Deposez un document ci-dessus puis utilisez l'OCR pour extraire automatiquement les informations (SIREN, IBAN, identite...)
+          <p className="text-xs text-slate-500 mb-3">
+            Utilisez l'OCR pour extraire automatiquement les informations de vos documents (SIREN, IBAN, identite...)
           </p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(["kbis", "cni", "rib"] as const).map((mode) => (
-              <OcrUploader
-                key={mode}
-                mode={mode}
-                compact
-                clientSiren={client.siren}
-                onExtracted={(data, m) => {
-                  if (m === "kbis") {
-                    const kbis = data as OcrKbisResult;
-                    if (kbis.siren) {
-                      updateClient(client.ref, { lienKbis: `ocr://kbis-${Date.now()}` });
-                      toast.success("KBIS extrait par OCR");
-                    }
-                  } else if (m === "cni") {
-                    const cni = data as OcrCniResult;
-                    if (cni.nom) {
-                      const updates: Partial<Client> = { lienCni: `ocr://cni-${Date.now()}` };
-                      if (cni.dateExpiration) updates.dateExpCni = cni.dateExpiration;
-                      updateClient(client.ref, updates);
-                      toast.success("CNI extraite par OCR");
-                    }
-                  } else if (m === "rib") {
-                    const rib = data as OcrRibResult;
-                    if (rib.iban) {
-                      updateClient(client.ref, { iban: rib.iban, bic: rib.bic || client.bic });
-                      toast.success("RIB extrait par OCR — IBAN mis a jour");
-                    }
-                  }
-                }}
-              />
-            ))}
-          </div>
+          <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate("/ged")}>
+            <ScanLine className="w-3.5 h-3.5" /> Ouvrir la GED pour l'OCR
+          </Button>
         </div>
       )}
 
