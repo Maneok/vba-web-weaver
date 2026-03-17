@@ -517,7 +517,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       setEditingModele(m);
       await loadModeles();
     } catch {
-      toast.error("Erreur lors de la creation du modele.");
+      toast.error("Impossible de créer le modèle. Réessayez.");
     } finally {
       setCreating(false);
     }
@@ -530,7 +530,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       toast.success("Modele duplique.");
       await loadModeles();
     } catch {
-      toast.error("Erreur lors de la duplication.");
+      toast.error("Impossible de dupliquer le modèle. Réessayez.");
     } finally {
       setActionLoading(null);
     }
@@ -543,7 +543,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       toast.success(`« ${m.nom} » defini comme modele par defaut.`);
       await loadModeles();
     } catch {
-      toast.error("Erreur lors de la mise a jour.");
+      toast.error("Impossible de mettre à jour le modèle par défaut.");
     } finally {
       setActionLoading(null);
     }
@@ -571,7 +571,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       setDeleteTarget(null);
       await loadModeles();
     } catch {
-      toast.error("Erreur lors de la suppression.");
+      toast.error("Impossible de supprimer le modèle. Réessayez.");
     } finally {
       setDeleting(false);
     }
@@ -589,7 +589,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       setEditingModele(null);
       await loadModeles();
     } catch {
-      toast.error("Erreur lors de la sauvegarde.");
+      toast.error("Impossible de sauvegarder les modifications.");
     }
   };
 
@@ -1040,7 +1040,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="border-white/[0.06]">
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="border-white/[0.06]" autoFocus>
               Annuler
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>

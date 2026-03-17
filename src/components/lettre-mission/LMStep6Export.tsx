@@ -343,6 +343,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
         <button
           onClick={() => setShowEmail(!showEmail)}
+          aria-label="Envoyer par email"
           className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-200"
         >
           <Send className="w-6 h-6 text-emerald-400" />
@@ -364,7 +365,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
               placeholder="client@exemple.fr"
             />
           </div>
-          <Button onClick={handleEmail} className="bg-emerald-600 hover:bg-emerald-700 gap-1.5">
+          <Button onClick={handleEmail} className="bg-emerald-600 hover:bg-emerald-700 gap-1.5" aria-label="Envoyer l'email">
             <Send className="w-3.5 h-3.5" /> Envoyer
           </Button>
         </div>
@@ -431,6 +432,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
               <Label className="text-slate-400 text-xs">Date de signature</Label>
               <Input
                 type="date"
+                lang="fr"
                 value={data.date_signature}
                 onChange={(e) => onChange({ date_signature: e.target.value })}
                 className="bg-white/[0.04] border-white/[0.08] text-white w-48"
@@ -460,10 +462,10 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
       {/* ── Save + Reset ── */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700 h-11 gap-2">
+        <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700 h-11 gap-2" aria-label="Sauvegarder la lettre de mission">
           <CheckCircle2 className="w-4 h-4" /> Sauvegarder
         </Button>
-        <Button variant="outline" onClick={onReset} className="gap-2 border-white/[0.06] text-slate-400 hover:text-white">
+        <Button variant="outline" onClick={onReset} className="gap-2 border-white/[0.06] text-slate-400 hover:text-white" aria-label="Commencer une nouvelle lettre de mission">
           <RotateCcw className="w-4 h-4" /> Nouvelle lettre
         </Button>
       </div>

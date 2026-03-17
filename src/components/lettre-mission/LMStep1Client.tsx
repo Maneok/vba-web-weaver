@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -236,6 +237,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             variant="outline"
             className="w-full gap-2 border-dashed border-white/[0.08] text-slate-400 hover:text-blue-400 hover:bg-blue-500/5 hover:border-blue-500/20 h-11"
             onClick={() => navigate("/nouveau-client")}
+            aria-label="Creer un nouveau client"
           >
             <Plus className="w-4 h-4" /> Creer un nouveau client
           </Button>
@@ -323,6 +325,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
           <div className="relative p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
             <button
               onClick={clearClient}
+              aria-label="Deselectionner le client"
               className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors"
             >
               <X className="w-3.5 h-3.5 text-slate-400" />
@@ -470,8 +473,9 @@ export default function LMStep1Client({ data, onChange }: Props) {
               <p className="text-sm font-medium text-slate-300">Modèle de lettre</p>
             </div>
             {modelesLoading ? (
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Chargement des modèles...
+              <div className="space-y-2">
+                <Skeleton className="h-11 w-full bg-white/[0.06] rounded-lg" />
+                <Skeleton className="h-4 w-48 bg-white/[0.04]" />
               </div>
             ) : modeles.length === 0 ? (
               <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">

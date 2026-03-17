@@ -251,14 +251,17 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Taux horaire complémentaire ── */}
       <div className="space-y-1.5">
-        <Label className="text-slate-400 text-xs">Taux horaire complementaire (EUR/h HT)</Label>
-        <Input
-          inputMode="decimal"
-          value={data.taux_horaire_complementaire || ""}
-          onChange={(e) => onChange({ taux_horaire_complementaire: Number(e.target.value) || 0 })}
-          className={`${inputCls} w-32`}
-          placeholder="150"
-        />
+        <Label className="text-slate-400 text-xs">Taux horaire complementaire</Label>
+        <div className="relative w-40">
+          <Input
+            inputMode="decimal"
+            value={data.taux_horaire_complementaire || ""}
+            onChange={(e) => onChange({ taux_horaire_complementaire: Number(e.target.value) || 0 })}
+            className={`${inputCls} pr-16`}
+            placeholder="150"
+          />
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">€ HT/h</span>
+        </div>
         <p className="text-[10px] text-slate-600">Pour toute prestation hors perimetre</p>
       </div>
 

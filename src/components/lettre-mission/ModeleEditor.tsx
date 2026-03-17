@@ -764,7 +764,7 @@ export default function ModeleEditor({
             </div>
 
             <ScrollArea className="flex-1">
-              <div className="p-2 space-y-0.5">
+              <div className="p-2 space-y-0.5" role="listbox" aria-label="Liste des sections">
                 {/* OPT-20/21: Grouped sections with accordion */}
                 {groupedFilteredIndices.map((group) => {
                   const isCollapsed = collapsedGroups.has(group.label);
@@ -796,12 +796,16 @@ export default function ModeleEditor({
                         return (
                           <div key={section.id}>
                             <div
+                              role="option"
+                              aria-selected={isSelected}
+                              tabIndex={0}
                               draggable
                               onDragStart={() => handleDragStart(idx)}
                               onDragOver={(e) => handleDragOver(e, idx)}
                               onDrop={() => handleDrop(idx)}
                               onDragEnd={() => setDragOverIdx(null)}
                               onClick={() => { setSelectedIdx(idx); setEditorTab("sections"); }}
+                              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setSelectedIdx(idx); setEditorTab("sections"); } }}
                               className={`flex items-center gap-1 p-1.5 rounded-lg cursor-pointer transition-colors group ${
                                 isSelected
                                   ? "bg-blue-500/15 border-l-2 border-l-blue-500 border border-blue-500/30"
@@ -1391,7 +1395,7 @@ export default function ModeleEditor({
             <DialogDescription>Vous avez des modifications non sauvegardees. Quitter quand meme ?</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowLeaveDialog(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowLeaveDialog(false)} autoFocus>Annuler</Button>
             <Button variant="destructive" onClick={() => { setShowLeaveDialog(false); onCancel(); }}>Quitter</Button>
           </DialogFooter>
         </DialogContent>
@@ -1440,7 +1444,7 @@ export default function ModeleEditor({
             <DialogDescription>Remettre le texte par defaut ? Vos modifications seront perdues.</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowResetDialog(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowResetDialog(false)} autoFocus>Annuler</Button>
             <Button variant="destructive" onClick={() => { setShowResetDialog(false); resetSectionToGrimy(); }}>Reinitialiser</Button>
           </DialogFooter>
         </DialogContent>
@@ -1454,7 +1458,7 @@ export default function ModeleEditor({
             <DialogDescription>Cette action est irreversible. Le modele "{modele.nom}" sera definitivement supprime.</DialogDescription>
           </DialogHeader>
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>Annuler</Button>
+            <Button variant="outline" onClick={() => setShowDeleteDialog(false)} autoFocus>Annuler</Button>
             <Button variant="destructive" onClick={() => { setShowDeleteDialog(false); onDelete?.(modele); }}>Supprimer</Button>
           </DialogFooter>
         </DialogContent>

@@ -126,6 +126,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 <Label className="text-slate-400 text-xs">Date de cloture</Label>
                 <Input
                   type="date"
+                  lang="fr"
                   value={data.date_cloture}
                   onChange={(e) => onChange({ date_cloture: e.target.value })}
                   className={`${inputCls} w-48`}
@@ -207,6 +208,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
           <Label className="text-slate-400 text-xs">Date de debut</Label>
           <Input
             type="date"
+            lang="fr"
             value={data.date_debut}
             onChange={(e) => onChange({ date_debut: e.target.value })}
             className={`${inputCls} w-48`}
