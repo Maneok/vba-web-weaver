@@ -53,6 +53,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
           </div>
           {(() => {
             const mtConfig = getMissionTypeConfig(data.mission_type_id || "presentation");
+            const mtId = data.mission_type_id || "presentation";
             return (
               <div className="space-y-1.5 mt-1">
                 <div className="flex flex-wrap gap-1.5">
@@ -62,20 +63,20 @@ function FullSummary({ data }: { data: LMWizardData }) {
                   <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">
                     {mtConfig.normeRef}
                   </Badge>
-                  {data.type_mission && (data.mission_type_id || 'presentation') === 'presentation' && (
+                  {data.type_mission && (mtId === 'presentation' || mtId === 'compilation') && ['TENUE', 'SURVEILLANCE', 'REVISION'].includes(data.type_mission) && (
                     <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
-                      {data.type_mission}
+                      Mode : {data.type_mission}
                     </Badge>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {mtConfig.honorairesSuccesAutorises ? (
                     <Badge className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 gap-0.5">
-                      <CheckCircle2 className="w-2.5 h-2.5" /> Succès autorisés
+                      <CheckCircle2 className="w-2.5 h-2.5" /> Succes autorises
                     </Badge>
                   ) : (
                     <Badge className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 gap-0.5">
-                      <XCircle className="w-2.5 h-2.5" /> Succès interdits
+                      <XCircle className="w-2.5 h-2.5" /> Succes interdits
                     </Badge>
                   )}
                 </div>

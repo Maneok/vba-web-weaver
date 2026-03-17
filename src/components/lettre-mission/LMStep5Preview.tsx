@@ -5,11 +5,12 @@ import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
 import { buildClientFromWizardData } from "@/lib/lmUtils";
 import { computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
 import LettreMissionA4Preview from "@/components/lettre-mission/LettreMissionA4Preview";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit3, Maximize2, X, Paperclip, FileText } from "lucide-react";
+import { Edit3, Maximize2, X, Paperclip, FileText, BookOpen, CheckCircle2, XCircle } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -25,6 +26,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
 
   const client = useMemo(() => buildClientFromWizardData(data), [data]);
   const annexes = useMemo(() => computeAnnexes(data), [data]);
+  const mtConfig = useMemo(() => getMissionTypeConfig(data.mission_type_id || "presentation"), [data.mission_type_id]);
 
   const missions = {
     sociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
@@ -108,6 +110,40 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
             <Edit3 className="w-3 h-3" /> {b.label}
           </button>
         ))}
+      </div>
+
+      {/* OPT-14/15/17/18: Mission type info panel */}
+      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <BookOpen className="w-4 h-4 text-blue-400" />
+            <span className="text-sm font-semibold text-white">{mtConfig.label}</span>
+          </div>
+          <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">
+            {mtConfig.normeRef}
+          </Badge>
+        </div>
+        <div className="grid grid-cols-2 gap-2 text-[11px]">
+          <div>
+            <span className="text-slate-500">Referentiel : </span>
+            <span className="text-slate-300">{mtConfig.referentielApplicable}</span>
+          </div>
+          <div>
+            <span className="text-slate-500">Forme du rapport : </span>
+            <span className="text-slate-300">{mtConfig.formeRapport}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-2">
+          {mtConfig.honorairesSuccesAutorises ? (
+            <Badge className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 gap-0.5">
+              <CheckCircle2 className="w-2.5 h-2.5" /> Honoraires de succes autorises
+            </Badge>
+          ) : (
+            <Badge className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 gap-0.5">
+              <XCircle className="w-2.5 h-2.5" /> Honoraires de succes interdits
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Numero */}

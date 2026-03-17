@@ -1,15 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { QUALITES_DIRIGEANT, DUREES } from "@/lib/lmDefaults";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ChevronDown } from "lucide-react";
+import { CheckCircle2, ChevronDown, FileText, XCircle, Info } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -24,6 +25,9 @@ export default function LMStep3Details({ data, onChange }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const referentLcb = collaborateurs.find((c) => c.referentLcb);
+
+  // OPT-9/10: Mission type config
+  const mtConfig = useMemo(() => getMissionTypeConfig(data.mission_type_id || "presentation"), [data.mission_type_id]);
 
   // Auto pre-fill associe and referent LCB on first render only
   useEffect(() => {
@@ -248,6 +252,47 @@ export default function LMStep3Details({ data, onChange }: Props) {
             <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px]">LCB</Badge>
             <span className="text-xs text-slate-400">Referent : {data.referent_lcb}</span>
           </div>
+        )}
+      </div>
+
+      {/* ── OPT-9: Mission description & nature/limites ── */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <FileText className="w-4 h-4 text-blue-400" />
+          <p className="text-sm font-medium text-slate-300">Cadre de la mission — {mtConfig.shortLabel}</p>
+        </div>
+
+        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-[9px] border-blue-500/30 text-blue-400">{mtConfig.normeRef}</Badge>
+            <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">{mtConfig.formeRapport}</Badge>
+          </div>
+          <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-4">{mtConfig.missionText.split('\n')[0]}</p>
+        </div>
+
+        {mtConfig.natureLimiteText && (
+          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-1.5">
+            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Nature et limites de la mission</p>
+            <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-3">{mtConfig.natureLimiteText.split('\n')[0]}</p>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] text-slate-500">Forme du rapport :</span>
+          <span className="text-[11px] text-slate-300">{mtConfig.formeRapport}</span>
+        </div>
+      </div>
+
+      {/* ── OPT-10: Honoraires de succès ── */}
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.06]">
+        {mtConfig.honorairesSuccesAutorises ? (
+          <Badge className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 gap-1">
+            <CheckCircle2 className="w-3 h-3" /> Honoraires de succes autorises
+          </Badge>
+        ) : (
+          <Badge className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 gap-1">
+            <XCircle className="w-3 h-3" /> Honoraires de succes interdits (art. 24 ord. 1945)
+          </Badge>
         )}
       </div>
 

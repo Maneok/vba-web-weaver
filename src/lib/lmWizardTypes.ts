@@ -58,6 +58,14 @@ export interface LMWizardData {
   clause_rgpd: boolean;
   clauses_supplementaires: string;
 
+  // Mission-specific variables (dynamic per mission type)
+  specific_variables: Record<string, string>;
+
+  // Honoraires de succès (OPT-11)
+  honoraires_succes_prevu: boolean;
+  honoraires_succes_conditions: string;
+  honoraires_succes_montant: string;
+
   // Step 4 — Honoraires
   honoraires_ht: number;
   taux_tva: number;
@@ -143,6 +151,10 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   email: "",
   telephone: "",
   date_cloture: "",
+  specific_variables: {},
+  honoraires_succes_prevu: false,
+  honoraires_succes_conditions: "",
+  honoraires_succes_montant: "",
   missions_selected: [],
   duree: "1",
   date_debut: new Date().toISOString().slice(0, 10),

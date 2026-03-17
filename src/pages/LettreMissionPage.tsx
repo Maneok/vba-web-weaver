@@ -40,7 +40,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
-  ChevronLeft, ChevronRight, FileText, History, Plus,
+  ChevronLeft, ChevronRight, FileText, FolderOpen, Plus,
   Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
   FileDown, Search, Clock, AlertTriangle, Filter, Settings2,
   FilePlus2, Send, Link, Check,
@@ -52,6 +52,7 @@ import { runAllChecks } from "@/lib/lettreMissionWorkflow";
 import AvenantDialog from "@/components/lettre-mission/AvenantDialog";
 import type { LMInstance } from "@/lib/lettreMissionEngine";
 import { getAvenants, type LMAvenant } from "@/lib/lettreMissionAvenants";
+import { MISSION_TYPES } from "@/lib/lettreMissionTypes";
 import { sendForSignature, getSignatureTokens } from "@/lib/lettreMissionSignature";
 import { buildClientFromWizardData } from "@/lib/lmUtils";
 

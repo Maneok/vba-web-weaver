@@ -51,24 +51,36 @@ export default function LMStep2Missions({ data, onChange }: Props) {
   const mtId = data.mission_type_id || "presentation";
   const mtConfig = useMemo(() => getMissionTypeConfig(mtId), [mtId]);
 
+  // OPT-8: Audit-specific obligatory sections
+  const auditSections: MissionSelection[] = useMemo(() => {
+    if (mtId !== "audit_contractuel") return [];
+    return [
+      { section_id: "equipe_audit", label: "Equipe d'audit", description: "Composition et responsabilites — ISA 210 §10", icon: "users", selected: true, locked: true, sous_options: [{ id: "equipe_composition", label: "Composition de l'equipe", selected: true }] },
+      { section_id: "declarations_ecrites", label: "Declarations ecrites", description: "Engagement du client — ISA 580", icon: "file-warning", selected: true, locked: true, sous_options: [{ id: "isa580", label: "Declarations conformes ISA 580", selected: true }] },
+      { section_id: "planning_intervention", label: "Planning d'intervention", description: "Calendrier des phases d'audit — ISA 210 §10", icon: "calculator", selected: true, locked: true, sous_options: [{ id: "planning", label: "Planning interimaire et final", selected: true }] },
+    ];
+  }, [mtId]);
+
   // Visibility rules per section based on mission type
   const missions = useMemo(() => {
-    return allMissions.filter((m) => {
+    const filtered = allMissions.filter((m) => {
       // LCB-FT + travail_dissimule → always visible (mandatory)
       if (m.section_id === "lcbft" || m.section_id === "travail_dissimule") return true;
       // Conseil → always visible (optional)
       if (m.section_id === "conseil") return true;
-      // Comptabilité → ONLY for présentation (NP 2300)
-      if (m.section_id === "comptabilite") return mtId === "presentation";
-      // Fiscal → visible if not in hiddenSections
-      if (m.section_id === "fiscal") return !mtConfig.hiddenSections.includes("mission_controle_fiscal");
+      // Comptabilité → ONLY for présentation and compilation
+      if (m.section_id === "comptabilite") return mtId === "presentation" || mtId === "compilation";
+      // Fiscal → visible for presentation, examen_limite, compilation, autre_prestation
+      if (m.section_id === "fiscal") return ["presentation", "examen_limite", "compilation", "autre_prestation"].includes(mtId);
       // Social → visible if optionalSections includes 'mission_sociale'
       if (m.section_id === "social") return mtConfig.optionalSections.includes("mission_sociale");
       // Juridique → visible if optionalSections includes 'mission_juridique'
       if (m.section_id === "juridique") return mtConfig.optionalSections.includes("mission_juridique");
       return true;
     });
-  }, [allMissions, mtId, mtConfig.hiddenSections, mtConfig.optionalSections]);
+    // Append audit-specific sections
+    return [...filtered, ...auditSections];
+  }, [allMissions, mtId, mtConfig.optionalSections, auditSections]);
 
   const hiddenCount = allMissions.length - missions.length;
 

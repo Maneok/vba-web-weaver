@@ -99,7 +99,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
       .from("lettres_mission")
       .select("id, wizard_data, numero, statut")
       .eq("client_ref", data.client_id)
-      .eq("statut", "signee")
+      .in("statut", ["signee", "envoyee"])
       .order("updated_at", { ascending: false })
       .limit(1)
       .then(({ data: rows }) => {
@@ -351,39 +351,74 @@ export default function LMStep1Client({ data, onChange }: Props) {
             )}
           </div>
 
-          {/* B) Import previous LM */}
+          {/* OPT-5: Active LM warning + avenant suggestion */}
           {previousLM && (
-            <button
-              onClick={importPreviousLM}
-              className="w-full flex items-center gap-3 p-3 rounded-xl border border-blue-500/15 bg-blue-500/5 hover:bg-blue-500/10 transition-colors text-left"
-            >
-              <History className="w-5 h-5 text-blue-400 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-blue-300">Reprendre les parametres de la LM precedente</p>
-                <p className="text-[10px] text-blue-400/60 mt-0.5">{previousLM.numero} — Signee</p>
+            <div className="space-y-2">
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
+                <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-300">Ce client a deja une lettre de mission active</p>
+                  <p className="text-[10px] text-amber-400/70 mt-0.5">
+                    {previousLM.numero} — {previousLM.statut === "signee" ? "Signee" : "Envoyee"}. Souhaitez-vous creer un avenant plutot qu'une nouvelle LM ?
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 text-xs border-amber-500/20 text-amber-400 hover:bg-amber-500/10 gap-1"
+                    onClick={() => navigate("/lettre-mission")}
+                  >
+                    <FileText className="w-3 h-3" /> Creer un avenant
+                  </Button>
+                </div>
               </div>
-            </button>
+              <button
+                onClick={importPreviousLM}
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-blue-500/15 bg-blue-500/5 hover:bg-blue-500/10 transition-colors text-left"
+              >
+                <History className="w-5 h-5 text-blue-400 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-blue-300">Reprendre les parametres de la LM precedente</p>
+                  <p className="text-[10px] text-blue-400/60 mt-0.5">{previousLM.numero} — {previousLM.statut === "signee" ? "Signee" : "Envoyee"}</p>
+                </div>
+              </button>
+            </div>
           )}
 
-          {/* Type mission selection — normative OEC types */}
+          {/* OPT-1: Type mission selection — normative OEC types */}
           <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-300">Type de mission (référentiel normatif OEC)</p>
+            <div>
+              <p className="text-sm font-medium text-slate-300">Type de mission (referentiel normatif OEC)</p>
+              <p className="text-[11px] text-slate-500 mt-0.5">Determine le cadre normatif, la forme du rapport et les obligations deontologiques applicables.</p>
+            </div>
             <MissionTypeSelector
               value={data.mission_type_id || "presentation"}
               onValueChange={(val) => {
                 const config = getMissionTypeConfig(val);
-                onChange({
-                  type_mission: config.shortLabel,
+                const updates: Partial<LMWizardData> = {
                   mission_type_id: val,
-                });
+                };
+                // Reset mode comptable for non-applicable types
+                if (val !== 'presentation' && val !== 'compilation') {
+                  updates.type_mission = config.shortLabel;
+                } else if (!data.type_mission || !['TENUE', 'SURVEILLANCE', 'REVISION'].includes(data.type_mission)) {
+                  updates.type_mission = 'TENUE';
+                }
+                // Reset specific variables when type changes
+                updates.specific_variables = {};
+                onChange(updates);
               }}
             />
           </div>
 
-          {/* Mode comptable — only for mission de présentation (NP 2300) */}
-          {(data.mission_type_id || 'presentation') === 'presentation' && (
+          {/* OPT-2: Mode comptable — only for presentation and compilation */}
+          {((data.mission_type_id || 'presentation') === 'presentation' || data.mission_type_id === 'compilation') && (
             <div className="space-y-3">
-              <p className="text-sm font-medium text-slate-300">Mode comptable</p>
+              <div>
+                <p className="text-sm font-medium text-slate-300">Mode d'intervention comptable</p>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Le mode d'intervention definit comment le cabinet intervient sur la comptabilite en amont de la mission de {(data.mission_type_id || 'presentation') === 'presentation' ? 'presentation (NP 2300 §A1)' : 'compilation (NP 4410)'}.
+                </p>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {TYPES_MISSION.map(({ value, label, description, icon: Icon }) => {
                   const active = data.type_mission === value;
@@ -418,14 +453,14 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
 
-          {/* Mission-type specific parameters */}
+          {/* OPT-3: Mission-type specific parameters */}
           <MissionSpecificFields
             missionType={data.mission_type_id || "presentation"}
-            values={Object.fromEntries(
-              getMissionTypeConfig(data.mission_type_id || "presentation")
-                .specificVariables.map((sv) => [sv.key, String((data as any)[sv.key] || "")])
-            )}
-            onChange={(key, value) => onChange({ [key]: value } as Partial<LMWizardData>)}
+            values={data.specific_variables || {}}
+            onChange={(key, value) => {
+              const updated = { ...(data.specific_variables || {}), [key]: value };
+              onChange({ specific_variables: updated });
+            }}
           />
 
           {/* Modele selection */}

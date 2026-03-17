@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Info, AlertTriangle, AlertOctagon, CheckCircle2, Loader2,
-  ExternalLink, Filter, RefreshCw,
+  ExternalLink, Filter, RefreshCw, ChevronDown, ChevronUp,
 } from "lucide-react";
 import {
   getAlertes, resolveAlerte, runAllChecks,
@@ -17,22 +17,26 @@ import { logger } from "@/lib/logger";
 interface LMAlertesListProps {
   cabinetId: string;
   limit?: number;
+  compact?: boolean;
   showResolved?: boolean;
   onNavigateToLM?: (instanceId: string) => void;
 }
 
 const SEVERITY_CONFIG = {
-  info: { icon: Info, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20" },
-  warning: { icon: AlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20" },
-  critical: { icon: AlertOctagon, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20" },
+  info: { icon: Info, color: "text-blue-400", bg: "bg-blue-500/10 border-blue-500/20", bannerBg: "bg-blue-500/10 border-blue-500/20" },
+  warning: { icon: AlertTriangle, color: "text-amber-400", bg: "bg-amber-500/10 border-amber-500/20", bannerBg: "bg-amber-500/10 border-amber-500/20" },
+  critical: { icon: AlertOctagon, color: "text-red-400", bg: "bg-red-500/10 border-red-500/20", bannerBg: "bg-red-500/10 border-red-500/20" },
 };
 
-export default function LMAlertesList({ cabinetId, limit, showResolved = false, onNavigateToLM }: LMAlertesListProps) {
+const SEVERITY_ORDER: Record<string, number> = { critical: 0, warning: 1, info: 2 };
+
+export default function LMAlertesList({ cabinetId, limit, compact = false, showResolved = false, onNavigateToLM }: LMAlertesListProps) {
   const [alertes, setAlertes] = useState<LMAlerte[]>([]);
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [filterType, setFilterType] = useState<string>("all");
   const [filterSeverity, setFilterSeverity] = useState<string>("all");
+  const [expanded, setExpanded] = useState(false);
 
   const loadAlertes = useCallback(async () => {
     if (!cabinetId) return;
@@ -44,6 +48,8 @@ export default function LMAlertesList({ cabinetId, limit, showResolved = false, 
         severity: filterSeverity !== "all" ? filterSeverity : undefined,
         limit: limit,
       });
+      // Sort: critical first, then warning, then info
+      data.sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 9) - (SEVERITY_ORDER[b.severity] ?? 9));
       setAlertes(data);
     } catch (e) {
       logger.error("LM_ALERTES", "Failed to load alertes:", e);
@@ -83,6 +89,77 @@ export default function LMAlertesList({ cabinetId, limit, showResolved = false, 
     }
   };
 
+  // ── COMPACT MODE (bandeau in "Mes lettres") ──
+  if (compact) {
+    if (loading || alertes.length === 0) return null;
+
+    const criticalCount = alertes.filter((a) => a.severity === "critical").length;
+    const warningCount = alertes.filter((a) => a.severity === "warning").length;
+    const hasCritical = criticalCount > 0;
+    const bannerColor = hasCritical
+      ? "bg-red-500/10 border-red-500/20"
+      : "bg-amber-500/10 border-amber-500/20";
+    const textColor = hasCritical ? "text-red-300" : "text-amber-300";
+    const BannerIcon = hasCritical ? AlertOctagon : AlertTriangle;
+
+    // Build summary string
+    const parts: string[] = [];
+    if (criticalCount > 0) parts.push(`${criticalCount} critique${criticalCount > 1 ? "s" : ""}`);
+    if (warningCount > 0) parts.push(`${warningCount} avertissement${warningCount > 1 ? "s" : ""}`);
+    const infoCount = alertes.length - criticalCount - warningCount;
+    if (infoCount > 0) parts.push(`${infoCount} info${infoCount > 1 ? "s" : ""}`);
+
+    return (
+      <div className={`rounded-xl border ${bannerColor} overflow-hidden`}>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="w-full flex items-center gap-3 p-3 text-left hover:bg-white/[0.02] transition-colors"
+        >
+          <BannerIcon className={`w-4 h-4 ${hasCritical ? "text-red-400" : "text-amber-400"} shrink-0`} />
+          <div className="flex-1 min-w-0">
+            <span className={`text-sm font-medium ${textColor}`}>
+              {alertes.length} alerte{alertes.length > 1 ? "s" : ""} en cours
+            </span>
+            <span className="text-xs text-slate-500 ml-2">{parts.join(", ")}</span>
+          </div>
+          {expanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+        </button>
+
+        {expanded && (
+          <div className="border-t border-white/[0.06] p-2 space-y-1.5">
+            {alertes.map((alerte) => {
+              const sev = SEVERITY_CONFIG[alerte.severity] || SEVERITY_CONFIG.warning;
+              const SevIcon = sev.icon;
+              return (
+                <div key={alerte.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.02]">
+                  <SevIcon className={`w-3.5 h-3.5 ${sev.color} shrink-0`} />
+                  <span className="text-xs text-slate-300 flex-1 min-w-0 truncate">{alerte.message}</span>
+                  {onNavigateToLM && alerte.instance_id && (
+                    <button
+                      onClick={() => onNavigateToLM(alerte.instance_id!)}
+                      className="p-1 text-slate-500 hover:text-blue-400"
+                      title="Voir la lettre"
+                    >
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleResolve(alerte.id)}
+                    className="p-1 text-slate-500 hover:text-emerald-400"
+                    title="Marquer comme traite"
+                  >
+                    <CheckCircle2 className="w-3 h-3" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // ── FULL MODE ──
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">

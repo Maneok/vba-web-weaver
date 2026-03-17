@@ -1,10 +1,13 @@
 import { useState, useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { FREQUENCES, MODES_PAIEMENT } from "@/lib/lmDefaults";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { DollarSign, CreditCard, FileText, ArrowRight } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
+import { DollarSign, CreditCard, FileText, ArrowRight, Trophy, Calculator } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -32,6 +35,7 @@ const PAIEMENT_ICONS: Record<string, React.ReactNode> = {
 
 export default function LMStep4Honoraires({ data, onChange }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const mtConfig = useMemo(() => getMissionTypeConfig(data.mission_type_id || "presentation"), [data.mission_type_id]);
 
   const tva = useMemo(() => Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100, [data.honoraires_ht, data.taux_tva]);
   const ttc = useMemo(() => Math.round((data.honoraires_ht + tva) * 100) / 100, [data.honoraires_ht, tva]);
@@ -257,6 +261,56 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
         />
         <p className="text-[10px] text-slate-600">Pour toute prestation hors perimetre</p>
       </div>
+
+      {/* ── OPT-11: Honoraires de succès ── */}
+      {mtConfig.honorairesSuccesAutorises && (
+        <div className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+          <div className="flex items-center gap-2">
+            <Trophy className="w-4 h-4 text-amber-400" />
+            <p className="text-sm font-medium text-slate-300">Honoraires complementaires de succes</p>
+          </div>
+          <label className="flex items-center gap-3 cursor-pointer">
+            <Checkbox
+              checked={data.honoraires_succes_prevu || false}
+              onCheckedChange={(v) => onChange({ honoraires_succes_prevu: !!v })}
+            />
+            <span className="text-sm text-slate-300">Prevoir des honoraires de succes</span>
+          </label>
+          {data.honoraires_succes_prevu && (
+            <div className="space-y-3 ml-7">
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs">Conditions de declenchement</Label>
+                <Input
+                  value={data.honoraires_succes_conditions || ""}
+                  onChange={(e) => onChange({ honoraires_succes_conditions: e.target.value })}
+                  className={inputCls}
+                  placeholder="Ex : obtention du financement, signature du bail..."
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-slate-400 text-xs">Montant ou pourcentage</Label>
+                <Input
+                  value={data.honoraires_succes_montant || ""}
+                  onChange={(e) => onChange({ honoraires_succes_montant: e.target.value })}
+                  className={`${inputCls} w-48`}
+                  placeholder="Ex : 2 000 € HT ou 5% du montant"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── OPT-12: Récapitulatif total ── */}
+      {data.honoraires_ht > 0 && (
+        <div className="flex items-center justify-between p-4 rounded-xl bg-blue-500/5 border border-blue-500/15">
+          <div className="flex items-center gap-2">
+            <Calculator className="w-4 h-4 text-blue-400" />
+            <span className="text-sm text-slate-300">Total honoraires annuels estimes</span>
+          </div>
+          <span className="text-lg font-bold text-white">{formatEur(data.honoraires_ht)} HT</span>
+        </div>
+      )}
     </div>
   );
 }
