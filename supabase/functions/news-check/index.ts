@@ -20,21 +20,23 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use Google Custom Search API (NewsAPI free tier doesn't work server-side)
-    const googleKey = Deno.env.get("GOOGLE_API_KEY");
-    const cseId = Deno.env.get("GOOGLE_CSE_ID");
-
-    if (!googleKey || !cseId) {
+    const newsApiKey = Deno.env.get("NEWS_API_KEY");
+    if (!newsApiKey) {
       return new Response(JSON.stringify({
         articles: [],
         alertes: [],
         hasNegativeNews: false,
         status: "unavailable",
-        error: "Cle API Google ou CSE ID non configure",
+        error: "NEWS_API_KEY non configurée",
       }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // NewsAPI free plan allows up to ~1 month back
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1);
+    const fromDate = oneMonthAgo.toISOString().slice(0, 10);
 
     const queries = [raison_sociale];
     if (dirigeant && dirigeant.length > 3) queries.push(dirigeant);
@@ -44,33 +46,36 @@ Deno.serve(async (req) => {
 
     for (const q of queries) {
       try {
-        const searchQuery = `${q} actualites fraude blanchiment`;
-        const url = `https://www.googleapis.com/customsearch/v1?key=${googleKey}&cx=${cseId}&q=${encodeURIComponent(searchQuery)}&num=5&dateRestrict=y1`;
-        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        const params = new URLSearchParams({
+          q,
+          language: "fr",
+          sortBy: "relevancy",
+          pageSize: "10",
+          from: fromDate,
+        });
+        const url = `https://newsapi.org/v2/everything?${params}`;
+        const res = await fetch(url, {
+          headers: { "X-Api-Key": newsApiKey },
+          signal: AbortSignal.timeout(8000),
+        });
 
         if (!res.ok) continue;
 
-        // P6-35: Guard against non-JSON response
-        const resContentType = res.headers.get("content-type") || "";
-        if (!resContentType.includes("application/json")) {
-          console.warn(`[news-check] Non-JSON response from Google CSE: ${resContentType}`);
-          continue;
-        }
         let data: any;
         try { data = await res.json(); } catch { data = {}; }
-        const items = data.items ?? [];
+        const items = data.articles ?? [];
 
         for (const item of items) {
-          const text = `${item.title ?? ""} ${item.snippet ?? ""}`.toLowerCase();
+          const text = `${item.title ?? ""} ${item.description ?? ""}`.toLowerCase();
           const matchedKeywords = ALERT_KEYWORDS.filter(kw => text.includes(kw));
           const hasAlert = matchedKeywords.length > 0;
 
           const parsed = {
             title: item.title ?? "",
-            description: (item.snippet ?? "").slice(0, 200),
-            source: item.displayLink ?? "",
-            url: item.link ?? "",
-            publishedAt: item.pagemap?.metatags?.[0]?.["article:published_time"] ?? "",
+            description: (item.description ?? "").slice(0, 200),
+            source: item.source?.name ?? "",
+            url: item.url ?? "",
+            publishedAt: item.publishedAt ?? "",
             hasAlertKeyword: hasAlert,
             matchedKeywords,
           };
