@@ -3,10 +3,29 @@
  * Replaces duplicate implementations scattered across the codebase.
  */
 
+// D1: Handle more formats: "YYYY-MM" (no day), "DD/MM/YYYY", ISO timestamps
 export function formatDateFR(dateStr: string | null | undefined): string {
   if (!dateStr) return "\u2014";
   try {
-    const d = new Date(dateStr);
+    const trimmed = dateStr.trim();
+
+    // Handle "YYYY-MM" format (no day) → "février 2025"
+    if (/^\d{4}-\d{2}$/.test(trimmed)) {
+      const [y, m] = trimmed.split("-").map(Number);
+      const d = new Date(y, m - 1, 1);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+    }
+
+    // Handle "DD/MM/YYYY" format
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(trimmed)) {
+      const [day, month, year] = trimmed.split("/").map(Number);
+      const d = new Date(year, month - 1, day);
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+    }
+
+    const d = new Date(trimmed);
     if (isNaN(d.getTime())) return dateStr;
     return d.toLocaleDateString("fr-FR", {
       day: "2-digit",
@@ -149,4 +168,20 @@ export function getQuarter(dateStr: string): number {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return 0;
   return Math.floor(d.getMonth() / 3) + 1;
+}
+
+// D2: Relative date formatting in French
+export function formatDateRelative(dateStr: string): string {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return "";
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+  if (diffDays < 0) return `dans ${Math.abs(diffDays)} jour(s)`;
+  if (diffDays === 0) return "Aujourd'hui";
+  if (diffDays === 1) return "Hier";
+  if (diffDays < 30) return `Il y a ${diffDays} jour(s)`;
+  if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`;
+  return `Il y a ${Math.floor(diffDays / 365)} an(s)`;
 }

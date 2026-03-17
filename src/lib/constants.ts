@@ -158,6 +158,27 @@ export const VIGILANCE_COLORS = {
   RENFORCEE: "bg-red-500/15 text-red-400 border-red-500/20",
 } as const;
 
+// C1: Documents required by vigilance level
+export const DOCS_REQUIRED = {
+  ALL: ["KBIS", "STATUTS", "CNI", "RIB"],
+  STANDARD: [],
+  RENFORCEE: [],
+} as const;
+
+// C2: LCB question categories
+export const QUESTION_CATEGORIES = {
+  IDENTITE: ["ppe", "paysRisque"],
+  COMPORTEMENT: ["distanciel", "cash", "pression"],
+  STRUCTURE: ["atypique", "changeJuridiques", "structureComplexe", "capitalInconnus"],
+  GEOGRAPHIE: ["filialesEtrangeres", "transactionsPays", "fournisseursPays", "mouvementsCash"],
+} as const;
+
+// C3: Chart colors
+export const CHART_COLORS = [
+  "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6",
+  "#06b6d4", "#ec4899", "#14b8a6", "#f97316", "#6366f1",
+];
+
 // Audit trail action types
 export const AUDIT_ACTION_TYPES = [
   "CONNEXION",
