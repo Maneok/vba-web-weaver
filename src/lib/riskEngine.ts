@@ -2,6 +2,7 @@ import type { VigilanceLevel } from "./types";
 import { RISK_THRESHOLDS } from "./constants";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import type { ScreeningState } from "./kycService";
 
 // ====== SCORING DATA TYPES ======
 export interface PaysRisqueData {
@@ -365,6 +366,16 @@ export function calculateRiskScore(params: {
   if (params.pression) malus += 40;
   if (params.distanciel) malus += 30;
 
+  // B1: Récence malus — company age (complements scoreMaturite)
+  if (params.dateCreation) {
+    const created = new Date(params.dateCreation);
+    if (!isNaN(created.getTime())) {
+      const ageMonths = (new Date().getFullYear() - created.getFullYear()) * 12 + (new Date().getMonth() - created.getMonth());
+      if (ageMonths < 6) malus += 20;
+      else if (ageMonths < 24) malus += 10;
+    }
+  }
+
   // Average of 5 criteria
   const avg = (scoreAct + scorePays + scoreMis + scoreMat + scoreStr) / 5;
 
@@ -432,6 +443,28 @@ export function isRiskCountry(nationality: string): boolean {
     if (upper.includes(p)) return true;
   }
   return false;
+}
+
+// ====== B3: Vigilance thresholds as exportable constant ======
+export const VIGILANCE_THRESHOLDS = {
+  SIMPLIFIEE: { max: 30, label: "Simplifiée", color: "emerald" },
+  STANDARD: { max: 60, label: "Standard", color: "amber" },
+  RENFORCEE: { max: 100, label: "Renforcée", color: "red" },
+} as const;
+
+// ====== B2: Screening malus ======
+export function computeScreeningMalus(screening: ScreeningState): number {
+  let malus = 0;
+  // Sanctions matches
+  if (screening.sanctions?.data?.hasCriticalMatch) malus += 100;
+  // Gel d'avoirs — check via BODACC result or dedicated field
+  // News check — negative articles
+  if (screening.news?.data?.hasNegativeNews) malus += 30;
+  // BODACC — procédures collectives
+  if (screening.bodacc?.data?.hasProcedureCollective) malus += 50;
+  // BODACC malus from edge function
+  if (screening.bodacc?.data?.malus) malus += screening.bodacc.data.malus;
+  return malus;
 }
 
 // #18 - Recalculate risk for a client with all computed fields

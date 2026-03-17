@@ -238,7 +238,7 @@ export default function HelpPage() {
             <button
               key={id}
               onClick={() => scrollTo(id)}
-              className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors ${
+              className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none ${
                 activeSection === id
                   ? "bg-blue-500/15 text-blue-200"
                   : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
@@ -300,7 +300,7 @@ export default function HelpPage() {
               {QUICK_START.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Card key={item.step} className="bg-white/[0.02] border-white/[0.06] p-4">
+                  <Card key={item.step} className="bg-white/[0.02] border-white/[0.06] p-4 hover:border-white/[0.10] transition-colors">
                     <div className="flex gap-4">
                       <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-blue-500/10 text-blue-400 shrink-0">
                         <Icon className="h-5 w-5" />

@@ -513,7 +513,8 @@ export default function BddPage() {
                   <span className="font-mono text-[10px] text-slate-500">{client.ref}</span>
                   <VigilanceBadge level={client.nivVigilance} />
                 </div>
-                <p className="font-medium text-sm text-slate-200 truncate">{client.raisonSociale}</p>
+                {/* OPT-21: Title tooltip on truncated mobile card */}
+                <p className="font-medium text-sm text-slate-200 truncate" title={client.raisonSociale}>{client.raisonSociale}</p>
                 <p className="text-xs text-slate-500 mt-0.5">{client.forme} · {client.mission}</p>
                 <div className="flex items-center gap-3 mt-2">
                   <PilotageBadge status={client.etatPilotage} />
@@ -619,9 +620,10 @@ export default function BddPage() {
                     />
                   </TableCell>
                   <TableCell className="font-mono text-[11px] text-slate-500">{client.ref}</TableCell>
-                  <TableCell className="font-medium text-sm text-slate-200">{client.raisonSociale}</TableCell>
+                  {/* OPT-20: Title tooltip on truncated cells */}
+                  <TableCell className="font-medium text-sm text-slate-200 max-w-[200px]"><span className="truncate block" title={client.raisonSociale}>{client.raisonSociale}</span></TableCell>
                   <TableCell className="text-xs text-slate-400">{client.forme}</TableCell>
-                  <TableCell className="text-xs text-slate-400">{client.comptable}</TableCell>
+                  <TableCell className="text-xs text-slate-400" title={client.comptable}>{client.comptable}</TableCell>
                   <TableCell className="text-xs text-slate-400">{client.mission}</TableCell>
                   <TableCell><ScoreGauge score={client.scoreGlobal} /></TableCell>
                   <TableCell className="text-center"><VigilanceBadge level={client.nivVigilance} /></TableCell>

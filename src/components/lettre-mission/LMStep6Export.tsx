@@ -325,7 +325,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           onClick={handlePDF}
           disabled={!!generating}
           aria-label="Telecharger en PDF"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-50"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-45 hover:shadow-lg hover:shadow-blue-500/5"
         >
           {generating === "pdf" ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
           <span className="text-sm font-medium text-slate-300">Telecharger PDF</span>
@@ -335,7 +335,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           onClick={handleDOCX}
           disabled={!!generating}
           aria-label="Telecharger en DOCX"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-50"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-45 hover:shadow-lg hover:shadow-purple-500/5"
         >
           {generating === "docx" ? <Loader2 className="w-6 h-6 text-purple-400 animate-spin" /> : <FileText className="w-6 h-6 text-purple-400" />}
           <span className="text-sm font-medium text-slate-300">Telecharger DOCX</span>
@@ -344,7 +344,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           onClick={() => setShowEmail(!showEmail)}
           aria-label="Envoyer par email"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-200"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/5"
         >
           <Send className="w-6 h-6 text-emerald-400" />
           <span className="text-sm font-medium text-slate-300">Envoyer par email</span>

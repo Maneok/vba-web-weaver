@@ -64,13 +64,13 @@ export default class PageErrorBoundary extends React.Component<
           <div className="flex items-center gap-3">
             <button
               onClick={() => this.setState({ hasError: false, errorMessage: undefined })}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors"
+              className="px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
             >
               Reessayer
             </button>
             <button
               onClick={() => window.location.href = "/"}
-              className="px-4 py-2 bg-white/5 text-slate-300 rounded-md text-sm hover:bg-white/10 transition-colors"
+              className="px-5 py-2.5 bg-white/[0.06] text-slate-300 rounded-lg text-sm font-medium hover:bg-white/[0.1] transition-colors border border-white/[0.08]"
             >
               Retour au dashboard
             </button>

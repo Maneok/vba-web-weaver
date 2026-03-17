@@ -151,27 +151,34 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
     const isOffline = typeof navigator !== "undefined" && !navigator.onLine;
 
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-4">
-        {isOffline ? (
-          <WifiOff className="w-8 h-8 text-muted-foreground" />
-        ) : null}
-        <p className="text-muted-foreground">
-          {isOffline
-            ? "Pas de connexion internet."
-            : "Impossible de charger le profil."}
-        </p>
-        <div className="flex gap-2">
+      <div className="flex flex-col items-center justify-center min-h-screen bg-background gap-5" role="alert">
+        <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+          {isOffline ? (
+            <WifiOff className="w-8 h-8 text-amber-400" />
+          ) : (
+            <RefreshCw className="w-8 h-8 text-muted-foreground" />
+          )}
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-base font-medium text-white">
+            {isOffline ? "Pas de connexion internet" : "Impossible de charger le profil"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {isOffline ? "Verifiez votre connexion et reessayez." : "Le serveur ne repond pas."}
+          </p>
+        </div>
+        <div className="flex gap-3">
           <button
             onClick={handleRetry}
             disabled={retrying}
-            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 disabled:opacity-50"
+            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 disabled:opacity-45 transition-colors shadow-lg shadow-primary/20"
           >
             <RefreshCw className={`w-4 h-4 ${retrying ? "animate-spin" : ""}`} />
             Reessayer
           </button>
           <button
             onClick={() => signOut()}
-            className="flex items-center gap-2 px-4 py-2 bg-muted text-muted-foreground rounded-md text-sm hover:bg-muted/80"
+            className="flex items-center gap-2 px-5 py-2.5 bg-white/[0.06] text-slate-300 rounded-lg text-sm font-medium hover:bg-white/[0.1] transition-colors border border-white/[0.08]"
           >
             <LogOut className="w-4 h-4" />
             Se deconnecter
@@ -189,12 +196,15 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
   if (!profile.is_active) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-3" role="alert">
+        <div className="text-center space-y-4" role="alert">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto">
+            <LogOut className="w-8 h-8 text-red-400" />
+          </div>
           <p className="text-lg font-semibold text-destructive">Compte desactive</p>
-          <p className="text-sm text-muted-foreground">Contactez votre administrateur. Deconnexion automatique...</p>
+          <p className="text-sm text-muted-foreground max-w-xs">Contactez votre administrateur. Deconnexion automatique...</p>
           <button
             onClick={() => signOut()}
-            className="px-4 py-2 text-sm rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
+            className="px-5 py-2.5 text-sm font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Se deconnecter
           </button>
@@ -206,9 +216,12 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
   if (requiredPermission && !hasPermission(requiredPermission)) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-background">
-        <div className="text-center space-y-2" role="alert">
+        <div className="text-center space-y-4" role="alert">
+          <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto">
+            <Loader2 className="w-8 h-8 text-red-400" />
+          </div>
           <p className="text-lg font-semibold text-destructive">Acces refuse</p>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground max-w-xs">
             Vous n'avez pas les droits necessaires pour acceder a cette page.
           </p>
         </div>

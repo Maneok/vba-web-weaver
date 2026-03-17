@@ -218,7 +218,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                     : <Building2 className="w-4 h-4 text-blue-400" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{c.raisonSociale}</p>
+                  <p className="text-sm font-medium text-white truncate" title={c.raisonSociale}>{c.raisonSociale}</p>
                   <p className="text-xs text-slate-500">{c.siren} · {c.forme}</p>
                 </div>
                 <Badge variant="outline" className={`text-[10px] shrink-0 ${vigilanceColor(c.nivVigilance)}`}>

@@ -143,14 +143,14 @@ export default function AuthPage() {
       <div className="w-full max-w-md space-y-6">
         {/* Logo */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/20">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-105 transition-all duration-300">
             <Shield className="w-7 h-7 text-white" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">GRIMY</h1>
           <p className="text-sm text-slate-400">Conformité LAB pour professionnels assujettis</p>
         </div>
 
-        <Card className="border-white/[0.08] bg-white/[0.03] backdrop-blur-xl shadow-2xl">
+        <Card className="border-white/[0.08] bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg text-slate-100">Bienvenue</CardTitle>
             <CardDescription className="text-slate-400">

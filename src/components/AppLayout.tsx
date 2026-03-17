@@ -243,12 +243,14 @@ export default function AppLayout() {
                   <span className="flex items-center justify-center w-full h-full rounded-full bg-slate-900 text-[11px] font-bold text-white">
                     {userInitials}
                   </span>
-                  {/* Connection status indicator */}
+                  {/* OPT-18: Connection status — aria-label + pulsing dot for live */}
                   <span
                     className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${
-                      isOnline && session ? "bg-emerald-400" : "bg-red-400"
+                      isOnline && session ? "bg-emerald-400 status-dot-live" : "bg-red-400"
                     }`}
                     title={isOnline && session ? "Connecte" : "Hors ligne"}
+                    aria-label={isOnline && session ? "Statut : connecte" : "Statut : hors ligne"}
+                    role="status"
                   />
                 </button>
               </DropdownMenuTrigger>

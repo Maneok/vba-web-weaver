@@ -40,7 +40,7 @@ import {
   GRIMY_DEFAULT_REPARTITION,
 } from "@/lib/lettreMissionModeles";
 import type { LMModele } from "@/lib/lettreMissionModeles";
-import { MISSION_TYPES, MISSION_CATEGORIES, getMissionTypeConfig } from "@/lib/lettreMissionTypes";
+import { MISSION_TYPES, MISSION_CATEGORIES, getMissionTypeConfig, getCategoryColorClasses, getMissionCategory } from "@/lib/lettreMissionTypes";
 import type { MissionCategory, MissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { supabase } from "@/integrations/supabase/client";
 import DocxImportDialog from "./DocxImportDialog";
@@ -163,11 +163,15 @@ function ModeleCard({
 
       {/* Badges row */}
       <div className="flex flex-wrap gap-1.5">
-        {mtConfig && (
-          <Badge variant="outline" className="text-[9px] border-indigo-500/30 text-indigo-400">
-            <BookOpen className="h-2.5 w-2.5 mr-0.5" /> {mtConfig.shortLabel}
-          </Badge>
-        )}
+        {mtConfig && (() => {
+          const cat = getMissionCategory(m.mission_type || "");
+          const catColors = cat ? getCategoryColorClasses(cat) : null;
+          return (
+            <Badge variant="outline" className={`text-[9px] ${catColors ? catColors.badge : "border-indigo-500/30 text-indigo-400"}`}>
+              <BookOpen className="h-2.5 w-2.5 mr-0.5" /> {mtConfig.shortLabel}
+            </Badge>
+          );
+        })()}
         {mtConfig && (
           <Badge variant="outline" className="text-[8px] border-slate-500/30 text-slate-400 font-mono">
             {mtConfig.normeRef}

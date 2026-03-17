@@ -230,8 +230,8 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 onClick={() => toggleSection(mission.section_id)}
                 disabled={isLocked}
                 aria-label={`${mission.selected ? "Desactiver" : "Activer"} ${mission.label}`}
-                className={`w-full flex items-center gap-3 p-4 text-left min-h-[56px] ${
-                  isLocked ? "cursor-default" : "cursor-pointer active:bg-white/[0.02]"
+                className={`w-full flex items-center gap-3 p-4 text-left min-h-[56px] rounded-xl transition-colors ${
+                  isLocked ? "cursor-default" : "cursor-pointer active:bg-white/[0.02] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
                 }`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${

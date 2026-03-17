@@ -717,9 +717,9 @@ export default function GedPage() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
-        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
+        className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all focus-visible:ring-2 focus-visible:ring-blue-400/50 focus-visible:border-blue-400 ${
           dragOver
-            ? "border-blue-500 bg-blue-500/10"
+            ? "border-blue-500 bg-blue-500/10 scale-[1.01] shadow-lg shadow-blue-500/10"
             : "border-white/10 hover:border-blue-500/40 hover:bg-white/[0.02]"
         }`}
       >
@@ -815,7 +815,7 @@ export default function GedPage() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getFileIcon(doc.name)}
-                        <span className="font-medium text-sm text-slate-200 truncate max-w-[200px]">{doc.name}</span>
+                        <span className="font-medium text-sm text-slate-200 truncate max-w-[200px]" title={doc.name}>{doc.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>

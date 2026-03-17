@@ -62,7 +62,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
         <button
           type="button"
           onClick={() => setShowClientInfo(!showClientInfo)}
-          className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors"
+          className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 rounded-t-xl"
         >
           <div className="flex items-center gap-3">
             <p className="text-sm font-medium text-slate-300">Informations client</p>
@@ -303,7 +303,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
         <button
           type="button"
           onClick={() => setShowClauses(!showClauses)}
-          className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors"
+          className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 rounded-t-xl"
         >
           <p className="text-sm font-medium text-slate-300">Clauses obligatoires</p>
           <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showClauses ? "rotate-180" : ""}`} />

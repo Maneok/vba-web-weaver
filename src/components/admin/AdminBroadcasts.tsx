@@ -186,7 +186,7 @@ export default function AdminBroadcasts() {
             <button
               onClick={handleSend}
               disabled={sending || !title.trim() || !message.trim()}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-45 transition-colors"
             >
               <Send className="h-3.5 w-3.5" /> {sending ? "Envoi..." : "Envoyer"}
             </button>

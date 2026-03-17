@@ -253,7 +253,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
               </div>
               <div className="flex items-center gap-2">
                 {row.timeMs != null && !row.loading && (
-                  <span className="text-[8px] text-slate-700 font-mono">{(row.timeMs / 1000).toFixed(1)}s</span>
+                  <span className="text-[10px] text-slate-600 font-mono">{(row.timeMs / 1000).toFixed(1)}s</span>
                 )}
                 {row.detail && !row.loading && (
                   <span className="text-[10px] text-slate-500">{row.detail}</span>

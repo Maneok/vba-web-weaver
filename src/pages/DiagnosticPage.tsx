@@ -16,7 +16,8 @@ import { RadialBarChart, RadialBar, PolarAngleAxis } from "recharts";
 // ---------------------------------------------------------------------------
 function CircularGauge({ value, label, sublabel }: { value: number; label: string; sublabel?: string }) {
   const clamped = Math.max(0, Math.min(100, value));
-  const color = clamped >= 80 ? "#22c55e" : clamped >= 50 ? "#f59e0b" : "#ef4444";
+  /* OPT-27: Use CSS variable-compatible colors for dark theme consistency */
+  const color = clamped >= 80 ? "hsl(142, 71%, 45%)" : clamped >= 50 ? "hsl(38, 92%, 50%)" : "hsl(0, 84%, 60%)";
 
   const data = [{ value: clamped, fill: color }];
 

@@ -32,11 +32,18 @@ export const ScoreGauge = React.memo(function ScoreGauge({ score }: { score: num
     : score < 60
     ? "bg-amber-500"
     : "bg-red-500";
+  /* OPT-16: Better contrast — 15% opacity instead of 10% */
   const bgColor = score <= 25
-    ? "bg-emerald-500/10"
+    ? "bg-emerald-500/15"
     : score < 60
-    ? "bg-amber-500/10"
-    : "bg-red-500/10";
+    ? "bg-amber-500/15"
+    : "bg-red-500/15";
+  /* OPT-17: Score text color matches gauge color for coherence */
+  const textColor = score <= 25
+    ? "text-emerald-400"
+    : score < 60
+    ? "text-amber-400"
+    : "text-red-400";
 
   return (
     <div className="flex items-center gap-2.5" aria-label={`Score de risque : ${score} sur 100`}>
@@ -46,7 +53,7 @@ export const ScoreGauge = React.memo(function ScoreGauge({ score }: { score: num
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-xs font-mono font-semibold text-slate-300">{score}</span>
+      <span className={`text-xs font-mono font-semibold ${textColor}`}>{score}</span>
     </div>
   );
 });

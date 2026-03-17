@@ -1,6 +1,31 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 
+// ====== APE LABELS (20 most common for accounting firms) ======
+
+export const APE_LABELS: Record<string, string> = {
+  "69.20Z": "Activités comptables",
+  "68.20B": "Location de terrains et d'autres biens immobiliers",
+  "68.20A": "Location de logements",
+  "68.10Z": "Activités des marchands de biens immobiliers",
+  "56.10A": "Restauration traditionnelle",
+  "47.11F": "Hypermarchés",
+  "43.21A": "Travaux d'installation électrique",
+  "41.20A": "Construction de maisons individuelles",
+  "46.90Z": "Commerce de gros non spécialisé",
+  "62.01Z": "Programmation informatique",
+  "70.22Z": "Conseil de gestion",
+  "86.21Z": "Activité des médecins généralistes",
+  "86.23Z": "Pratique dentaire",
+  "47.73Z": "Commerce de détail de produits pharmaceutiques",
+  "96.02A": "Coiffure",
+  "55.10Z": "Hôtels et hébergement similaire",
+  "10.71A": "Fabrication industrielle de pain",
+  "45.11Z": "Commerce de voitures et véhicules légers",
+  "49.41A": "Transports routiers de fret interurbains",
+  "81.21Z": "Nettoyage courant des bâtiments",
+};
+
 // ====== FORME JURIDIQUE MAPPING (Probleme 5) ======
 
 export const FORMES_JURIDIQUES: Record<string, string> = {
@@ -381,6 +406,17 @@ export function detectAmlSignals(
     });
   }
 
+  // A3: Capital = 0 for non-EI
+  const isEI = forme.includes("INDIVIDUEL") || forme.includes("MICRO") || forme.includes("AUTO");
+  if (capital === 0 && !isEI && forme.length > 0) {
+    signals.push({
+      type: "capital_zero",
+      message: "Capital social non renseigne ou nul pour une societe — verifier les statuts",
+      severity: "orange",
+      malus: 10,
+    });
+  }
+
   // Capital < 1000 EUR for SAS/SARL
   if (capital > 0 && capital < 1000 && (forme.includes("SAS") || forme.includes("SARL") || forme.includes("EURL"))) {
     signals.push({
@@ -404,18 +440,25 @@ export function detectAmlSignals(
     });
   }
 
-  // Creation < 12 months
+  // A3: Creation < 6 months (yellow) or < 12 months (orange)
   if (dateCreation) {
     const created = new Date(dateCreation);
     if (!isNaN(created.getTime())) {
       const now = new Date();
       let diffMonths = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
       if (now.getDate() < created.getDate()) diffMonths--;
-      if (diffMonths < 12 && diffMonths >= 0) {
+      if (diffMonths < 6 && diffMonths >= 0) {
+        signals.push({
+          type: "societe_tres_recente",
+          message: `Societe creee il y a ${diffMonths} mois (< 6 mois) — vigilance renforcee recommandee`,
+          severity: "orange",
+          malus: 20,
+        });
+      } else if (diffMonths < 12 && diffMonths >= 0) {
         signals.push({
           type: "societe_recente",
           message: `Societe creee il y a ${diffMonths} mois (< 1 an) — maturite tres faible`,
-          severity: "orange",
+          severity: "info",
           malus: 10,
         });
       }
@@ -430,6 +473,40 @@ export function detectAmlSignals(
       severity: "orange",
       malus: 15,
     });
+  }
+
+  // A3: Dirigeant rotation — more than 3 changes in history
+  if (inpiData?.historique) {
+    const twoYearsAgo = new Date();
+    twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
+    const dirChanges = inpiData.historique.filter(ev => {
+      const evDate = new Date(ev.date);
+      return !isNaN(evDate.getTime()) && evDate >= twoYearsAgo &&
+        (ev.type.toLowerCase().includes("dirigeant") || ev.type.toLowerCase().includes("gerant") ||
+         ev.description.toLowerCase().includes("dirigeant") || ev.description.toLowerCase().includes("gerant"));
+    });
+    if (dirChanges.length > 3) {
+      signals.push({
+        type: "rotation_dirigeants",
+        message: `${dirChanges.length} changements de dirigeant en 2 ans — rotation anormale`,
+        severity: "orange",
+        malus: 15,
+      });
+    }
+  }
+
+  // A3: Address = domiciliation (from INPI address or enterprise address)
+  const adresse = (inpiData?.adresse?.voie ?? enterpriseData?.adresse ?? "").toUpperCase();
+  if (/DOMICILI|BOITE POSTALE|BP \d|C\/O /.test(adresse)) {
+    // Only add if not already caught by domiciliataire check above
+    if (!inpiData?.domiciliataire) {
+      signals.push({
+        type: "siege_domicilie",
+        message: "Siege social domicilie — verifier l'existence d'un local professionnel",
+        severity: "info",
+        malus: 5,
+      });
+    }
   }
 
   // CORRECTION 6: Non diffusible INSEE
@@ -633,7 +710,7 @@ async function enterpriseFallback(mode: string, query: string): Promise<{ result
       code_postal: (siege.code_postal as string) ?? "",
       ville: ((siege.libelle_commune as string) ?? "").toUpperCase(),
       ape: (siege.activite_principale as string) ?? (r.activite_principale as string) ?? "",
-      libelle_ape: (siege.libelle_activite_principale as string) ?? "",
+      libelle_ape: (siege.libelle_activite_principale as string) || APE_LABELS[(siege.activite_principale as string) ?? (r.activite_principale as string) ?? ""] || "",
       capital: (r.capital as number) ?? 0,
       capital_source: ((r.capital as number) ?? 0) > 0 ? "data.gouv" : "",
       date_creation: (r.date_creation as string) ?? "",
@@ -811,7 +888,10 @@ export function pickPrincipalDirigeant(dirigeants: Dirigeant[]): string {
     return (aIdx === -1 ? 999 : aIdx) - (bIdx === -1 ? 999 : bIdx);
   });
   const best = sorted[0];
-  return `${(best.nom || "").toUpperCase()} ${best.prenom || ""}`.trim();
+  // A2: Return "PRENOM NOM" for consistency (not "NOM PRENOM")
+  const prenom = (best.prenom || "").trim();
+  const nom = (best.nom || "").toUpperCase().trim();
+  return prenom ? `${prenom} ${nom}`.trim() : nom;
 }
 
 // ====== #19: Date formatting helper ======
@@ -841,19 +921,44 @@ export function computeKycCompleteness(
     }) ||
     (uploadedDocs ?? []).some(d => d.type.toUpperCase().includes(typePattern.toUpperCase()));
 
-  const fields: Array<{ label: string; ok: boolean }> = [
-    { label: "SIREN", ok: !!enterprise?.siren },
-    { label: "Raison sociale", ok: !!enterprise?.raison_sociale },
-    { label: "Adresse", ok: !!enterprise?.adresse },
-    { label: "Forme juridique", ok: !!enterprise?.forme_juridique },
-    { label: "Capital", ok: (enterprise?.capital ?? 0) > 0 },
-    { label: "Dirigeant", ok: !!enterprise?.dirigeant },
-    { label: "KBIS", ok: hasDocType("KBIS") },
-    { label: "Statuts", ok: hasDocType("STATUT") },
-    { label: "CNI", ok: hasDocType("CNI") },
-    { label: "RIB", ok: hasDocType("RIB") },
+  // A4: Weighted scoring — total 105 points, normalized to 100%
+  const fields: Array<{ label: string; ok: boolean; weight: number }> = [
+    { label: "Raison sociale", ok: !!enterprise?.raison_sociale, weight: 10 },
+    { label: "SIREN", ok: !!enterprise?.siren, weight: 10 },
+    { label: "Forme juridique", ok: !!enterprise?.forme_juridique, weight: 5 },
+    { label: "Adresse", ok: !!enterprise?.adresse && !!enterprise?.ville, weight: 10 },
+    { label: "Capital", ok: (enterprise?.capital ?? 0) > 0, weight: 5 },
+    { label: "Dirigeant", ok: !!enterprise?.dirigeant, weight: 10 },
+    { label: "BE identifies", ok: (enterprise?.beneficiaires_effectifs?.length ?? 0) > 0, weight: 15 },
+    { label: "KBIS", ok: hasDocType("KBIS"), weight: 10 },
+    { label: "Statuts", ok: hasDocType("STATUT"), weight: 10 },
+    { label: "CNI", ok: hasDocType("CNI"), weight: 10 },
+    { label: "RIB", ok: hasDocType("RIB"), weight: 10 },
   ];
-  const ok = fields.filter(f => f.ok).length;
+  const totalWeight = fields.reduce((sum, f) => sum + f.weight, 0);
+  const earnedWeight = fields.filter(f => f.ok).reduce((sum, f) => sum + f.weight, 0);
   const missing = fields.filter(f => !f.ok).map(f => f.label);
-  return { percent: Math.round((ok / fields.length) * 100), missing };
+  return { percent: Math.round((earnedWeight / totalWeight) * 100), missing };
+}
+
+// ====== A5: Format capital ======
+
+export function formatCapital(capital: number): string {
+  if (!capital || capital === 0) return "Non renseigné";
+  return capital.toLocaleString("fr-FR") + " €";
+}
+
+// ====== A6: Company age ======
+
+export function getCompanyAge(dateCreation: string): string {
+  if (!dateCreation) return "";
+  const created = new Date(dateCreation);
+  if (isNaN(created.getTime())) return "";
+  const now = new Date();
+  const months = (now.getFullYear() - created.getFullYear()) * 12 + (now.getMonth() - created.getMonth());
+  if (months < 1) return "Créée ce mois-ci";
+  if (months < 12) return `Créée il y a ${months} mois`;
+  const years = Math.floor(months / 12);
+  const remainMonths = months % 12;
+  return remainMonths > 0 ? `${years} an(s) et ${remainMonths} mois` : `${years} an(s)`;
 }

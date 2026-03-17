@@ -262,12 +262,13 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
         {/* User info + logout + version */}
         <div className="border-t border-white/[0.06] p-3">
+          {/* OPT-19: Title tooltip on truncated user info */}
           {profile && !collapsed && (
             <div className="mb-2 px-3">
-              <p className="text-sm font-medium text-slate-200 truncate">
+              <p className="text-sm font-medium text-slate-200 truncate" title={profile.full_name || undefined}>
                 {profile.full_name}
               </p>
-              <p className="text-xs text-slate-500 truncate">{profile.email}</p>
+              <p className="text-xs text-slate-500 truncate" title={profile.email || undefined}>{profile.email}</p>
             </div>
           )}
 

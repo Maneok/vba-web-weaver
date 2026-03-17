@@ -227,7 +227,10 @@ export default function ClauseLibrary({ open, onOpenChange, onAddClause }: Claus
             {filtered.map((clause) => (
               <div
                 key={clause.id}
-                className="border rounded-lg p-3 hover:bg-accent/50 cursor-pointer transition-colors group"
+                className="border rounded-lg p-3 hover:bg-accent/50 cursor-pointer transition-colors group focus-within:ring-2 focus-within:ring-blue-400"
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onAddClause(clause); onOpenChange(false); } }}
                 onClick={() => {
                   onAddClause(clause);
                   onOpenChange(false);

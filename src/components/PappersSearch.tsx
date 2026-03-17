@@ -193,7 +193,7 @@ export default function PappersSearch({ onSelect }: Props) {
               <button
                 key={r.siren || i}
                 onClick={() => handleSelect(r)}
-                className={`w-full text-left p-2 rounded-md border text-sm transition-colors hover:bg-accent ${
+                className={`w-full text-left p-2 rounded-md border text-sm transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none ${
                   selectedSiren === r.siren
                     ? "border-blue-500 bg-blue-50 dark:bg-blue-950/30"
                     : "border-border"

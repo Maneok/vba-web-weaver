@@ -477,7 +477,7 @@ export default function DashboardPage() {
       {/* ── TOP BAR ── */}
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 print:mb-4">
         <div className="min-w-0">
-          <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate">{greeting}, {userName}</h1>
+          <h1 className="text-lg sm:text-xl font-bold tracking-tight truncate" title={`${greeting}, ${userName}`}>{greeting}, {userName}</h1>
           <p className="text-xs text-muted-foreground capitalize mt-0.5">{dateStr}</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 print:hidden">
@@ -489,7 +489,7 @@ export default function DashboardPage() {
             cockpitUrgencies={cockpitData.urgencies} complianceItems={complianceItems}
           />
           <button
-            className="h-8 flex items-center gap-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors disabled:opacity-50"
+            className="h-8 flex items-center gap-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-all disabled:opacity-45 hover:shadow-md hover:shadow-emerald-500/15 active:scale-95"
             onClick={handleRefresh}
             disabled={isRefreshing}
             title="Rafraîchir (R)"

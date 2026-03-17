@@ -330,8 +330,12 @@ export default function AuditTrailPage() {
                     </TableCell>
                     <TableCell className="text-xs font-mono text-slate-500">{entry.table_name || "—"}</TableCell>
                     <TableCell className="text-xs font-mono text-slate-500">{entry.record_id?.slice(0, 8) || "—"}</TableCell>
+                    {/* OPT-25: Title tooltip on truncated JSON data */}
                     <TableCell className="text-xs max-w-[250px]">
-                      <span className="block truncate text-slate-500">
+                      <span
+                        className="block truncate text-slate-500 cursor-help"
+                        title={entry.new_data ? JSON.stringify(entry.new_data, null, 2) : undefined}
+                      >
                         {entry.new_data ? JSON.stringify(entry.new_data).slice(0, 80) : "—"}
                         {entry.new_data && JSON.stringify(entry.new_data).length > 80 ? "..." : ""}
                       </span>

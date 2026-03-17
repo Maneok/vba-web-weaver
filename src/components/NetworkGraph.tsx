@@ -194,10 +194,17 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   // P6-44: Remove onNodeClick from deps to avoid re-render loops (ref-stable via useRef in parent)
   }, [nodes, edges, width, height]);
 
+  /* OPT-23: Empty state with icon */
   if (nodes.length === 0 || (nodes.length === 1 && (!edges || edges.length === 0))) {
     return (
-      <div className="flex items-center justify-center h-[400px] text-slate-500 text-sm">
-        Aucune donnee de reseau disponible
+      <div className="flex flex-col items-center justify-center h-[400px] gap-3">
+        <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center">
+          <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0-6a3 3 0 100-6 3 3 0 000 6zm-6.5 3.5l3-3m7 0l3 3M12 3v3m0 12v3" />
+          </svg>
+        </div>
+        <p className="text-slate-500 text-sm">Aucune donnee de reseau disponible</p>
+        <p className="text-slate-600 text-xs">Les relations entre entites apparaitront ici.</p>
       </div>
     );
   }

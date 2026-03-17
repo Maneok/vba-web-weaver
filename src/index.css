@@ -2,9 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Sidebar layout offset — driven by JS via --sidebar-offset CSS var */
+/* OPT-1: Duration design tokens */
 :root {
   --sidebar-offset: 72px; /* default: collapsed */
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 400ms;
+  --z-dropdown: 10;
+  --z-sticky: 20;
+  --z-overlay: 30;
+  --z-modal: 40;
+  --z-toast: 50;
 }
 .app-content-offset {
   /* mobile: no left padding — sidebar overlays content */
@@ -140,10 +148,10 @@
   .status-dot-late { @apply bg-red-400 animate-pulse-risk; }
   .status-dot-soon { @apply bg-orange-400; }
 
-  /* Glass card effect */
+  /* OPT-2: Glass card effect — unified duration tokens */
   .glass-card {
     @apply bg-card/80 backdrop-blur-xl border border-white/[0.06] rounded-xl shadow-xl shadow-black/20;
-    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    transition: border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
   }
   .glass-card:hover {
     @apply border-white/[0.12];
@@ -170,9 +178,9 @@
     max-width: 1400px;
   }
 
-  /* Card lift effect on hover */
+  /* OPT-3: Card lift — unified duration */
   .card-hover-lift {
-    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+    transition: transform var(--duration-normal) ease, box-shadow var(--duration-normal) ease, border-color var(--duration-normal) ease;
   }
   .card-hover-lift:hover {
     transform: translateY(-2px);
@@ -235,7 +243,7 @@
   animation: page-fade-in 0.25s ease-out forwards;
 }
 
-/* Skeleton shimmer */
+/* OPT-4: Skeleton shimmer — will-change for GPU compositing */
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }
@@ -243,7 +251,8 @@
 .skeleton-shimmer {
   background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%);
   background-size: 200% 100%;
-  animation: shimmer 2s ease-in-out infinite;
+  animation: shimmer 1.8s ease-in-out infinite;
+  will-change: background-position;
 }
 
 /* Progress bar */
@@ -255,10 +264,18 @@
   animation: progress-indeterminate 1.5s ease-in-out infinite;
 }
 
-/* Focus ring improvements — rounded to match the element's own border-radius */
+/* OPT-5: Focus ring — rounded with border-radius inherit */
 *:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(217 91% 60% / 0.5);
+  border-radius: inherit;
+}
+
+/* OPT-6: Disabled state — clear visual hierarchy */
+button:disabled, [role="button"][aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 /* Better selection color */
@@ -284,9 +301,9 @@ html {
   text-rendering: optimizeLegibility;
 }
 
-/* Table row hover transition */
+/* OPT-7: Table row hover transition — use token */
 tr {
-  transition: background-color 150ms ease, box-shadow 150ms ease;
+  transition: background-color var(--duration-fast) ease, box-shadow var(--duration-fast) ease;
 }
 
 /* Table header sticky */
@@ -299,9 +316,29 @@ tbody tr:nth-child(even) {
   background-color: rgba(255, 255, 255, 0.01);
 }
 
-/* Toast position fix */
+/* OPT-8: Toast — position + dark theme alignment */
 [data-sonner-toaster] {
   --offset: 16px !important;
+}
+[data-sonner-toast] {
+  --normal-bg: hsl(217 33% 17%) !important;
+  --normal-border: hsl(217 33% 22%) !important;
+  --normal-text: hsl(213 31% 91%) !important;
+}
+[data-sonner-toast][data-type="success"] {
+  --success-bg: hsl(142 71% 45% / 0.12) !important;
+  --success-border: hsl(142 71% 45% / 0.25) !important;
+  --success-text: hsl(142 71% 65%) !important;
+}
+[data-sonner-toast][data-type="error"] {
+  --error-bg: hsl(0 84% 60% / 0.12) !important;
+  --error-border: hsl(0 84% 60% / 0.25) !important;
+  --error-text: hsl(0 84% 72%) !important;
+}
+[data-sonner-toast][data-type="warning"] {
+  --warning-bg: hsl(38 92% 50% / 0.12) !important;
+  --warning-border: hsl(38 92% 50% / 0.25) !important;
+  --warning-text: hsl(38 92% 65%) !important;
 }
 
 /* Respect reduced-motion preference */
@@ -404,9 +441,9 @@ tbody tr:nth-child(even) {
 .animate-stagger-in > *:nth-child(7) { animation-delay: 300ms; }
 .animate-stagger-in > *:nth-child(8) { animation-delay: 350ms; }
 
-/* Subtle glow on interactive cards */
+/* OPT-9: Interactive cards — unified durations + active state */
 .interactive-card {
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: transform var(--duration-fast) ease, box-shadow var(--duration-normal) ease, border-color var(--duration-normal) ease;
 }
 .interactive-card:hover {
   transform: translateY(-1px);
@@ -415,6 +452,7 @@ tbody tr:nth-child(even) {
 }
 .interactive-card:active {
   transform: translateY(0);
+  transition-duration: 50ms;
 }
 
 /* Better scrollbar on hover */
@@ -430,6 +468,103 @@ tbody tr:nth-child(even) {
 @media (min-width: 1024px) {
   .text-responsive-xl { font-size: 1.5rem; }
   .text-responsive-2xl { font-size: 1.75rem; }
+}
+
+/* OPT-10: Truncated text — show full text on hover via title (tooltip) */
+.truncate-tooltip {
+  @apply truncate;
+}
+.truncate-tooltip:hover {
+  overflow: visible;
+  text-overflow: clip;
+  position: relative;
+  z-index: 2;
+}
+
+/* OPT-11: Step fade-in for wizard transitions */
+@keyframes step-fade-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-step-in {
+  animation: step-fade-in var(--duration-fast) ease-out;
+}
+
+/* OPT-12: Subtle pulsing dot for live status indicators */
+@keyframes status-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.status-dot-live {
+  animation: status-pulse 2s ease-in-out infinite;
+}
+
+/* OPT-13: Better input base styling layer */
+@layer components {
+  .input-grimy {
+    @apply bg-white/[0.04] border border-white/[0.08] rounded-lg text-white placeholder:text-slate-500 transition-colors;
+  }
+  .input-grimy:focus-within {
+    @apply border-blue-500/50 ring-1 ring-blue-500/20;
+  }
+}
+
+/* OPT-14: Badge semantic hierarchy */
+@layer components {
+  .badge-meta {
+    @apply bg-white/[0.04] border-0 text-slate-500 text-[10px] px-1.5 py-0.5 rounded-md;
+  }
+  .badge-info {
+    @apply bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded-md;
+  }
+  .badge-success {
+    @apply bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-md;
+  }
+  .badge-warning {
+    @apply bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] px-2 py-0.5 rounded-md;
+  }
+  .badge-danger {
+    @apply bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded-md;
+  }
+}
+
+/* OPT-47: Custom text selection color for brand consistency */
+::selection {
+  background: hsl(217, 91%, 60%, 0.25);
+  color: inherit;
+}
+
+/* OPT-48: Smooth scroll for anchor navigation */
+html {
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* OPT-49: Better scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(215, 20%, 30%);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(215, 20%, 40%);
+}
+
+/* OPT-50: Reduced-motion global preference */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Print styles */

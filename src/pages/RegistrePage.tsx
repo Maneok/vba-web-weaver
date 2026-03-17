@@ -207,7 +207,7 @@ export default function RegistrePage() {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 animate-fade-in-up" style={{ animationDelay: "60ms" }}>
-        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.03] cursor-default" role="region" aria-label={`Total alertes : ${totalAlertes}`}>
+        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.02] cursor-default focus-visible:ring-2 focus-visible:ring-blue-400" role="region" aria-label={`Total alertes : ${totalAlertes}`}>
           <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
             <BookOpen className="w-5 h-5 text-blue-400" />
           </div>
@@ -216,7 +216,7 @@ export default function RegistrePage() {
             <p className="text-[11px] text-slate-500">Total alertes</p>
           </div>
         </div>
-        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.03] cursor-default" role="region" aria-label={`Alertes en cours : ${enCours}`}>
+        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.02] cursor-default focus-visible:ring-2 focus-visible:ring-blue-400" role="region" aria-label={`Alertes en cours : ${enCours}`}>
           <div className="w-10 h-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
             <AlertTriangle className="w-5 h-5 text-orange-400" />
           </div>
@@ -225,7 +225,7 @@ export default function RegistrePage() {
             <p className="text-[11px] text-slate-500">En cours</p>
           </div>
         </div>
-        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.03] cursor-default" role="region" aria-label={`Declarations TRACFIN : ${tracfinCount}`}>
+        <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.02] cursor-default focus-visible:ring-2 focus-visible:ring-blue-400" role="region" aria-label={`Declarations TRACFIN : ${tracfinCount}`}>
           <div className="w-10 h-10 rounded-lg bg-red-500/10 flex items-center justify-center">
             <FileWarning className="w-5 h-5 text-red-400" />
           </div>

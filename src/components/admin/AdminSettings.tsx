@@ -180,7 +180,7 @@ export default function AdminSettings() {
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-45 transition-colors"
           >
             <Save className="h-3.5 w-3.5" /> {saving ? "Sauvegarde..." : "Sauvegarder"}
           </button>
@@ -287,7 +287,7 @@ export default function AdminSettings() {
             <button
               onClick={handleAddSuperAdmin}
               disabled={!newAdminEmail.trim()}
-              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-50"
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-45"
             >
               Ajouter
             </button>
@@ -358,7 +358,7 @@ export default function AdminSettings() {
             <button
               onClick={handleCreateCabinet}
               disabled={!newCabinetName.trim()}
-              className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-50"
+              className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-45"
             >
               Creer
             </button>

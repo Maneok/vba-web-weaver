@@ -47,7 +47,8 @@ export default function LMStatusBadge({ status, size = "sm", showTooltip, dateLa
     >
       {icon}
       {info.label}
-      {overdue && <span className="w-1.5 h-1.5 rounded-full bg-red-400 ml-0.5" />}
+      {/* OPT-26: Larger overdue indicator for visibility */}
+      {overdue && <span className="w-2 h-2 rounded-full bg-red-400 ml-0.5 animate-pulse" />}
     </Badge>
   );
 

@@ -403,6 +403,7 @@ export default function GouvernancePage() {
                       ) : filtered.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                            <Users className="w-6 h-6 mx-auto mb-2 opacity-40" />
                             Aucun collaborateur trouve
                           </TableCell>
                         </TableRow>

@@ -231,7 +231,8 @@ function useScrollProgress() {
 function LogoOEC() {
   return (
     <div className="flex flex-col items-center gap-1.5 group" title="Ordre des Experts-Comptables">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 transition-colors">
+      {/* OPT-28: Coordinated hover — scale + bg + shadow */}
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-500/10 group-hover:bg-blue-500/20 group-hover:shadow-lg group-hover:shadow-blue-500/10 transition-all duration-200 group-hover:scale-105">
         <svg viewBox="0 0 40 40" className="h-7 w-7" fill="none">
           <circle cx="20" cy="20" r="18" stroke="#3B82F6" strokeWidth="1.5" opacity="0.6" />
           <path d="M20 6 L20 34 M12 10 Q20 18 28 10 M12 30 Q20 22 28 30" stroke="#3B82F6" strokeWidth="1.8" strokeLinecap="round" />
@@ -246,7 +247,7 @@ function LogoOEC() {
 function LogoCNCC() {
   return (
     <div className="flex flex-col items-center gap-1.5 group" title="Compagnie Nationale des Commissaires aux Comptes">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/20 transition-colors">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 group-hover:bg-indigo-500/20 group-hover:shadow-lg group-hover:shadow-indigo-500/10 transition-all duration-200 group-hover:scale-105">
         <Scale className="h-6 w-6 text-indigo-400" />
       </div>
       <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">CNCC</span>
@@ -257,7 +258,7 @@ function LogoCNCC() {
 function LogoCSN() {
   return (
     <div className="flex flex-col items-center gap-1.5 group" title="Conseil Supérieur du Notariat">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/10 group-hover:bg-amber-500/20 group-hover:shadow-lg group-hover:shadow-amber-500/10 transition-all duration-200 group-hover:scale-105">
         <Gavel className="h-6 w-6 text-amber-400" />
       </div>
       <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">CSN</span>
@@ -268,7 +269,7 @@ function LogoCSN() {
 function LogoCNB() {
   return (
     <div className="flex flex-col items-center gap-1.5 group" title="Conseil National des Barreaux">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 group-hover:bg-purple-500/20 transition-colors">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-500/10 group-hover:bg-purple-500/20 group-hover:shadow-lg group-hover:shadow-purple-500/10 transition-all duration-200 group-hover:scale-105">
         <Landmark className="h-6 w-6 text-purple-400" />
       </div>
       <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">CNB</span>
@@ -279,7 +280,7 @@ function LogoCNB() {
 function LogoTRACFIN() {
   return (
     <div className="flex flex-col items-center gap-1.5 group" title="TRACFIN — Cellule de renseignement financier">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 group-hover:bg-red-500/20 transition-colors">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10 group-hover:bg-red-500/20 group-hover:shadow-lg group-hover:shadow-red-500/10 transition-all duration-200 group-hover:scale-105">
         <Shield className="h-6 w-6 text-red-400" />
       </div>
       <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">TRACFIN</span>
@@ -290,7 +291,7 @@ function LogoTRACFIN() {
 function LogoDGCCRF() {
   return (
     <div className="flex flex-col items-center gap-1.5 group" title="DGCCRF — Direction générale de la concurrence">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 group-hover:bg-emerald-500/20 group-hover:shadow-lg group-hover:shadow-emerald-500/10 transition-all duration-200 group-hover:scale-105">
         <Building2 className="h-6 w-6 text-emerald-400" />
       </div>
       <span className="text-[9px] font-medium tracking-wide text-[--l-text-5] group-hover:text-[--l-text-3] transition-colors">DGCCRF</span>
@@ -739,7 +740,7 @@ function InteractiveDemo() {
           <button
             onClick={run}
             disabled={stage === "running"}
-            className="rounded-lg bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-colors btn-press"
+            className="rounded-lg bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 disabled:opacity-45 px-4 py-2.5 text-sm font-medium text-white transition-colors btn-press"
           >
             {stage === "idle" ? "Lancer" : stage === "running" ? "En cours..." : "Relancer"}
           </button>

@@ -1,5 +1,6 @@
 import React from "react";
 import { logger } from "@/lib/logger";
+import { AlertOctagon } from "lucide-react";
 
 interface AppErrorBoundaryState {
   hasError: boolean;
@@ -28,9 +29,13 @@ export default class AppErrorBoundary extends React.Component<
       // OPT-27: role="alert" for screen reader announcement
       return (
         <div className="min-h-screen flex items-center justify-center bg-background p-6" role="alert">
-          <div className="max-w-xl text-center space-y-3">
+          <div className="max-w-xl text-center space-y-4">
+            {/* OPT-15: Error icon for visual hierarchy */}
+            <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto">
+              <AlertOctagon className="w-8 h-8 text-red-400" />
+            </div>
             <h1 className="text-2xl font-semibold text-white">Erreur d&apos;affichage</h1>
-            <p className="text-slate-300">
+            <p className="text-slate-400 text-sm">
               Une erreur inattendue est survenue. Veuillez recharger la page avec Ctrl+Maj+R (ou Cmd+Maj+R sur Mac).
             </p>
             {this.state.errorMessage ? (
@@ -45,7 +50,7 @@ export default class AppErrorBoundary extends React.Component<
             ) : null}
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm hover:bg-primary/90 transition-colors"
+              className="mt-4 px-5 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors shadow-lg shadow-primary/20"
             >
               Recharger la page
             </button>

@@ -132,10 +132,10 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
               <button
                 key={rate}
                 onClick={() => onChange({ taux_tva: rate })}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                className={`px-3.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   active
-                    ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                    : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12]"
+                    ? "border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm shadow-blue-500/10"
+                    : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
                 }`}
               >
                 {rate === 0 ? "Exonere" : `${rate}%`}
@@ -236,10 +236,10 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
               <button
                 key={d}
                 onClick={() => onChange({ echeance_jours: d })}
-                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                className={`px-3.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   active
-                    ? "border-blue-500 bg-blue-500/10 text-blue-300"
-                    : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12]"
+                    ? "border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm shadow-blue-500/10"
+                    : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
                 }`}
               >
                 {d}j

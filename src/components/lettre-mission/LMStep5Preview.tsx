@@ -82,8 +82,9 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
 
   // Fullscreen modal for mobile
   if (fullscreen) {
+    // OPT-22: Fullscreen modal with entrance animation
     return (
-      <div className="fixed inset-0 z-[100] bg-background overflow-auto overscroll-contain">
+      <div className="fixed inset-0 z-[100] bg-background overflow-auto overscroll-contain animate-step-in">
         <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-background/95 backdrop-blur-lg border-b border-white/[0.06]">
           <p className="text-sm font-medium text-white">{numero}</p>
           <Button variant="ghost" size="sm" onClick={() => setFullscreen(false)} className="text-slate-400">
