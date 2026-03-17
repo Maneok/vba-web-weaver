@@ -1,3 +1,7 @@
+// ──────────────────────────────────────────────
+// Avenants aux Lettres de Mission
+// OPT 36-42: structured content, signature integration, getAvenantsForLettre, counter
+// ──────────────────────────────────────────────
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import type { LMInstance } from "@/lib/lettreMissionEngine";
@@ -24,6 +28,9 @@ export interface LMAvenant {
   docx_storage_path?: string;
   signed_at?: string;
   signed_by?: string;
+  signature_token_id?: string;
+  responsable_ancien?: string;
+  responsable_nouveau?: string;
   created_at: string;
   updated_at: string;
   created_by?: string;
@@ -41,6 +48,14 @@ export interface AvenantModifications {
   missionsRetirees?: string[];
   sectionsModifiees?: SectionModifiee[];
   autresModifications?: string;
+  changementResponsable?: { ancien: string; nouveau: string };
+}
+
+// OPT-38: Structured content block for richer generation
+export interface AvenantArticle {
+  numero: number;
+  titre: string;
+  contenu: string;
 }
 
 // ──────────────────────────────────────────────
@@ -59,6 +74,20 @@ export async function getAvenants(instanceId: string): Promise<LMAvenant[]> {
     throw error;
   }
   return (data ?? []) as unknown as LMAvenant[];
+}
+
+// OPT-40: Alias for getAvenants with count
+export async function getAvenantsForLettre(instanceId: string): Promise<{
+  avenants: LMAvenant[];
+  count: number;
+  lastAvenant?: LMAvenant;
+}> {
+  const avenants = await getAvenants(instanceId);
+  return {
+    avenants,
+    count: avenants.length,
+    lastAvenant: avenants.length > 0 ? avenants[avenants.length - 1] : undefined,
+  };
 }
 
 export async function createAvenant(payload: Partial<LMAvenant>): Promise<LMAvenant> {
@@ -129,9 +158,104 @@ export async function getNextAvenantNumero(cabinetId: string): Promise<string> {
   return `${prefix}001`;
 }
 
+// OPT-42: Counter verification — nombre d'avenants pour une instance
+export async function getAvenantCount(instanceId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("lm_avenants")
+    .select("*", { count: "exact", head: true })
+    .eq("instance_id", instanceId);
+
+  if (error) {
+    logger.error("AVENANT", "getAvenantCount error", error);
+    return 0;
+  }
+  return count || 0;
+}
+
 // ──────────────────────────────────────────────
-// Génération du contenu textuel de l'avenant
+// OPT-39: Signature integration for avenants
 // ──────────────────────────────────────────────
+
+export async function markAvenantSigned(
+  avenantId: string,
+  signedBy: string,
+  signatureTokenId?: string
+): Promise<LMAvenant> {
+  return updateAvenant(avenantId, {
+    status: "signee",
+    signed_at: new Date().toISOString(),
+    signed_by: signedBy,
+    signature_token_id: signatureTokenId,
+  });
+}
+
+export async function markAvenantSent(avenantId: string): Promise<LMAvenant> {
+  return updateAvenant(avenantId, { status: "envoyee" });
+}
+
+// ──────────────────────────────────────────────
+// OPT-36/37/38: Structured content generation
+// ──────────────────────────────────────────────
+
+export function generateAvenantArticles(
+  originalInstance: LMInstance,
+  modifications: AvenantModifications
+): AvenantArticle[] {
+  const articles: AvenantArticle[] = [];
+  let num = 1;
+
+  if (modifications.honorairesChange) {
+    articles.push({
+      numero: num++,
+      titre: "Modification des honoraires",
+      contenu: `Les honoraires annuels sont modifies comme suit :\n  \u2022 Ancien montant : ${modifications.honorairesChange.ancien} \u20AC HT\n  \u2022 Nouveau montant : ${modifications.honorairesChange.nouveau} \u20AC HT`,
+    });
+  }
+
+  if (modifications.missionsAjoutees && modifications.missionsAjoutees.length > 0) {
+    articles.push({
+      numero: num++,
+      titre: "Mission(s) complementaire(s) ajoutee(s)",
+      contenu: `Les missions suivantes sont ajoutees au perimetre de notre intervention :\n${modifications.missionsAjoutees.map((m) => `  \u2022 ${m}`).join("\n")}`,
+    });
+  }
+
+  if (modifications.missionsRetirees && modifications.missionsRetirees.length > 0) {
+    articles.push({
+      numero: num++,
+      titre: "Mission(s) retiree(s)",
+      contenu: `Les missions suivantes sont retirees du perimetre de notre intervention :\n${modifications.missionsRetirees.map((m) => `  \u2022 ${m}`).join("\n")}`,
+    });
+  }
+
+  if (modifications.changementResponsable) {
+    articles.push({
+      numero: num++,
+      titre: "Changement de responsable de dossier",
+      contenu: `Le responsable de dossier est modifie comme suit :\n  \u2022 Ancien responsable : ${modifications.changementResponsable.ancien}\n  \u2022 Nouveau responsable : ${modifications.changementResponsable.nouveau}`,
+    });
+  }
+
+  if (modifications.sectionsModifiees && modifications.sectionsModifiees.length > 0) {
+    for (const section of modifications.sectionsModifiees) {
+      articles.push({
+        numero: num++,
+        titre: `Modification de la section \u00AB ${section.sectionId} \u00BB`,
+        contenu: `Ancienne redaction :\n${section.ancienContenu}\n\nNouvelle redaction :\n${section.nouveauContenu}`,
+      });
+    }
+  }
+
+  if (modifications.autresModifications) {
+    articles.push({
+      numero: num++,
+      titre: "Autres modifications",
+      contenu: modifications.autresModifications,
+    });
+  }
+
+  return articles;
+}
 
 export function generateAvenantContent(
   originalInstance: LMInstance,
@@ -152,7 +276,7 @@ export function generateAvenantContent(
   const lines: string[] = [];
 
   // En-tête
-  lines.push(`AVENANT À LA LETTRE DE MISSION N° ${originalInstance.numero}`);
+  lines.push(`AVENANT \u00C0 LA LETTRE DE MISSION N\u00B0 ${originalInstance.numero}`);
   lines.push("");
   lines.push(`Client : ${clientName}`);
   lines.push(`Date : ${dateJour}`);
@@ -160,76 +284,31 @@ export function generateAvenantContent(
 
   // Clause de référence
   lines.push(
-    `Le présent document constitue un avenant à notre lettre de mission n° ${originalInstance.numero} établie le ${dateLmOrigine}. ` +
-    `Les dispositions de la lettre de mission initiale non modifiées par le présent avenant restent en vigueur.`
+    `Le pr\u00E9sent document constitue un avenant \u00E0 notre lettre de mission n\u00B0 ${originalInstance.numero} \u00E9tablie le ${dateLmOrigine}. ` +
+    `Les dispositions de la lettre de mission initiale non modifi\u00E9es par le pr\u00E9sent avenant restent en vigueur.`
   );
   lines.push("");
 
-  // Modifications des honoraires
-  if (modifications.honorairesChange) {
-    lines.push("ARTICLE — Modification des honoraires");
+  // OPT-38: Use structured articles
+  const articles = generateAvenantArticles(originalInstance, modifications);
+  for (const article of articles) {
+    lines.push(`ARTICLE ${article.numero} \u2014 ${article.titre}`);
     lines.push("");
-    lines.push("Les honoraires annuels sont modifiés comme suit :");
-    lines.push(`  • Ancien montant : ${modifications.honorairesChange.ancien} € HT`);
-    lines.push(`  • Nouveau montant : ${modifications.honorairesChange.nouveau} € HT`);
-    lines.push("");
-  }
-
-  // Missions ajoutées
-  if (modifications.missionsAjoutees && modifications.missionsAjoutees.length > 0) {
-    lines.push("ARTICLE — Mission(s) complémentaire(s) ajoutée(s)");
-    lines.push("");
-    lines.push("Les missions suivantes sont ajoutées au périmètre de notre intervention :");
-    for (const m of modifications.missionsAjoutees) {
-      lines.push(`  • ${m}`);
-    }
-    lines.push("");
-  }
-
-  // Missions retirées
-  if (modifications.missionsRetirees && modifications.missionsRetirees.length > 0) {
-    lines.push("ARTICLE — Mission(s) retirée(s)");
-    lines.push("");
-    lines.push("Les missions suivantes sont retirées du périmètre de notre intervention :");
-    for (const m of modifications.missionsRetirees) {
-      lines.push(`  • ${m}`);
-    }
-    lines.push("");
-  }
-
-  // Sections modifiées
-  if (modifications.sectionsModifiees && modifications.sectionsModifiees.length > 0) {
-    for (const section of modifications.sectionsModifiees) {
-      lines.push(`ARTICLE — Modification de la section « ${section.sectionId} »`);
-      lines.push("");
-      lines.push("Ancienne rédaction :");
-      lines.push(section.ancienContenu);
-      lines.push("");
-      lines.push("Nouvelle rédaction :");
-      lines.push(section.nouveauContenu);
-      lines.push("");
-    }
-  }
-
-  // Autres modifications
-  if (modifications.autresModifications) {
-    lines.push("ARTICLE — Autres modifications");
-    lines.push("");
-    lines.push(modifications.autresModifications);
+    lines.push(article.contenu);
     lines.push("");
   }
 
   // Clause de maintien
-  lines.push("─".repeat(40));
+  lines.push("\u2500".repeat(40));
   lines.push("");
   lines.push(
-    "Toutes les autres dispositions de la lettre de mission initiale et de ses éventuels avenants antérieurs, " +
-    "non modifiées par le présent avenant, demeurent pleinement en vigueur."
+    "Toutes les autres dispositions de la lettre de mission initiale et de ses \u00E9ventuels avenants ant\u00E9rieurs, " +
+    "non modifi\u00E9es par le pr\u00E9sent avenant, demeurent pleinement en vigueur."
   );
   lines.push("");
 
   // Signatures
-  lines.push(`Fait à ______________, le ${dateJour}`);
+  lines.push(`Fait \u00E0 ______________, le ${dateJour}`);
   lines.push("");
   lines.push("Pour le cabinet :                          Pour le client :");
   lines.push("");

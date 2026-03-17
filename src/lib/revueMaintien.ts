@@ -31,6 +31,18 @@ export interface RevueMaintien {
   client_vigilance?: string;
 }
 
+export type RevueStatus = 'a_faire' | 'en_cours' | 'completee' | 'reportee';
+
+export type RevueType = 'annuelle' | 'risque_eleve' | 'kyc_expiration' | 'changement_situation' | 'controle_qualite';
+
+export const REVUE_TYPE_LABELS: Record<RevueType, { label: string; color: string; description: string }> = {
+  annuelle: { label: 'Revue annuelle', color: 'blue', description: 'Maintien de mission' },
+  risque_eleve: { label: 'Risque élevé', color: 'red', description: 'Vigilance renforcée requise' },
+  kyc_expiration: { label: 'KYC expiré', color: 'orange', description: "Documents d'identification à renouveler" },
+  changement_situation: { label: 'Changement situation', color: 'purple', description: 'Événement nécessitant réévaluation' },
+  controle_qualite: { label: 'Contrôle qualité', color: 'slate', description: 'Préparation contrôle CROEC' },
+};
+
 export interface RevueFilters {
   status?: string;
   type?: string;
@@ -144,21 +156,53 @@ export async function completeRevue(
     needs_validation?: boolean;
   }
 ): Promise<RevueMaintien> {
-  const userId = (await supabase.auth.getUser()).data.user?.id;
-  return updateRevue(id, {
-    score_risque_apres: payload.score_apres,
-    vigilance_apres: payload.vigilance_apres,
-    maintien_confirme: payload.maintien,
-    observations: payload.observations,
-    decision: payload.decision as RevueMaintien['decision'],
-    decision_motif: payload.decision_motif || null,
-    kyc_verifie: payload.kyc_verifie,
-    be_verifie: payload.be_verifie,
-    documents_a_jour: payload.documents_a_jour,
-    status: payload.needs_validation ? 'en_cours' : 'completee',
-    complete_par: userId || null,
-    completed_at: payload.needs_validation ? null : new Date().toISOString(),
-  });
+  try {
+    const userId = (await supabase.auth.getUser()).data.user?.id;
+    const revue = await updateRevue(id, {
+      score_risque_apres: payload.score_apres,
+      vigilance_apres: payload.vigilance_apres,
+      maintien_confirme: payload.maintien,
+      observations: payload.observations,
+      decision: payload.decision as RevueMaintien['decision'],
+      decision_motif: payload.decision_motif || null,
+      kyc_verifie: payload.kyc_verifie,
+      be_verifie: payload.be_verifie,
+      documents_a_jour: payload.documents_a_jour,
+      status: payload.needs_validation ? 'en_cours' : 'completee',
+      complete_par: userId || null,
+      completed_at: payload.needs_validation ? null : new Date().toISOString(),
+    });
+
+    // Fetch full revue to get client_id and before-values
+    const full = await getRevueById(id);
+
+    // Update client score/vigilance if changed
+    const clientUpdates: Record<string, any> = {};
+    if (full.score_risque_avant != null && payload.score_apres !== full.score_risque_avant) {
+      clientUpdates.score_global = payload.score_apres;
+    }
+    if (full.vigilance_avant && payload.vigilance_apres !== full.vigilance_avant) {
+      clientUpdates.niv_vigilance = payload.vigilance_apres;
+    }
+    if (Object.keys(clientUpdates).length > 0) {
+      await supabase
+        .from('clients')
+        .update(clientUpdates)
+        .eq('id', full.client_id);
+    }
+
+    // Resolve related pending alertes for this client
+    await supabase
+      .from('lm_alertes')
+      .update({ is_resolved: true, updated_at: new Date().toISOString() })
+      .eq('client_id', full.client_id)
+      .eq('is_resolved', false)
+      .in('type', ['revue_annuelle', 'risque_eleve', 'expiration_kyc']);
+
+    return revue;
+  } catch (error) {
+    throw error;
+  }
 }
 
 // ─── Génération automatique ──────────────────────────────────────────
@@ -288,4 +332,60 @@ export async function getRevueStats(cabinetId: string): Promise<RevueStats> {
     en_retard: rows.filter(r => r.status === 'a_faire' && r.date_echeance < now.toISOString().split('T')[0]).length,
     completees_ce_mois: rows.filter(r => r.status === 'completee' && r.completed_at && r.completed_at >= startOfMonth).length,
   };
+}
+
+// ─── Par client ─────────────────────────────────────────────────────
+
+export async function getRevuesByClient(clientId: string): Promise<RevueMaintien[]> {
+  try {
+    const { data, error } = await supabase
+      .from('revue_maintien')
+      .select('*, clients(raison_sociale, ref, score_global, niv_vigilance)')
+      .eq('client_id', clientId)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    return (data || []).map((row: any) => ({
+      ...row,
+      client_nom: row.clients?.raison_sociale,
+      client_ref: row.clients?.ref,
+      client_score: row.clients?.score_global != null ? Number(row.clients.score_global) : null,
+      client_vigilance: row.clients?.niv_vigilance,
+      clients: undefined,
+    }));
+  } catch (error) {
+    throw error;
+  }
+}
+
+// ─── Transitions de statut ──────────────────────────────────────────
+
+export async function markRevueEnCours(revueId: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('revue_maintien')
+      .update({ status: 'en_cours', updated_at: new Date().toISOString() })
+      .eq('id', revueId)
+      .eq('status', 'a_faire');
+    if (error) throw error;
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function reporterRevue(revueId: string, newDate: string, motif: string): Promise<void> {
+  try {
+    const { error } = await supabase
+      .from('revue_maintien')
+      .update({
+        status: 'reportee',
+        date_echeance: newDate,
+        observations: `[Report] ${motif}`,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', revueId);
+    if (error) throw error;
+  } catch (error) {
+    throw error;
+  }
 }

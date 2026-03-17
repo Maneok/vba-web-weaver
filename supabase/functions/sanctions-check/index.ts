@@ -23,6 +23,7 @@ Deno.serve(async (req) => {
     }
 
     const allMatches: any[] = [];
+    const _diagLogs: any[] = [];
     let checked = 0;
 
     for (const person of persons.slice(0, 10)) {
@@ -53,10 +54,13 @@ Deno.serve(async (req) => {
           signal: AbortSignal.timeout(10000),
         });
 
-        if (!res.ok) continue;
+        if (!res.ok) { const errText = await res.text().catch(() => ""); console.error("[SANCTIONS_DIAG] API error:", res.status, errText); _diagLogs.push({ error: true, http_status: res.status, body: errText.slice(0, 500) }); continue; }
 
         let data: any;
         try { data = await res.json(); } catch { continue; }
+        const _diagEntry = { http_status: res.status, response_keys: Object.keys(data), responses_default: data.responses?.default?.length, results: data.results?.length, full_sample: JSON.stringify(data).slice(0, 500) };
+        console.error("[SANCTIONS_DIAG]", JSON.stringify(_diagEntry));
+        _diagLogs.push(_diagEntry);
         const responses = data.responses?.default ?? data.results ?? [];
 
         for (const result of responses) {
@@ -146,6 +150,7 @@ Deno.serve(async (req) => {
       hasCriticalMatch,
       hasPPE,
       status: allMatches.length > 0 ? (hasCriticalMatch ? "ALERTE" : "ATTENTION") : "ok",
+      _diag: _diagLogs,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

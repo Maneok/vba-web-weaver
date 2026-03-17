@@ -14,6 +14,8 @@ import {
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult,
 } from "@/lib/kycService";
 import { logger } from "@/lib/logger";
+import { supabase } from "@/integrations/supabase/client";
+import { getRevuesByClient, type RevueMaintien, REVUE_TYPE_LABELS } from "@/lib/revueMaintien";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
 import type { Client, OuiNon, EtatPilotage } from "@/lib/types";

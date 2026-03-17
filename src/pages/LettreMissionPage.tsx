@@ -67,6 +67,8 @@ const MISSION_TYPE_OPTIONS = Object.values(MISSION_TYPES).map((m) => ({
 // ─────────────────────────────────────────
 // G) "Mes lettres" with filters, status pills, search, alertes bandeau
 // ─────────────────────────────────────────
+const PAGE_SIZE = 20;
+
 function LetterHistory({
   letters,
   loading,
@@ -91,6 +93,9 @@ function LetterHistory({
   const [searchQ, setSearchQ] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [sortBy, setSortBy] = useState<"date" | "client" | "statut">("date");
+  const [sortAsc, setSortAsc] = useState(false);
+  const [page, setPage] = useState(0);
 
   // Signature state
   const [signTarget, setSignTarget] = useState<SavedLetter | null>(null);
@@ -131,6 +136,13 @@ function LetterHistory({
     return counts;
   }, [letters]);
 
+  // Total honoraires
+  const totalHonoraires = useMemo(() => {
+    return letters
+      .filter((l) => l.statut === "signee" || l.statut === "envoyee")
+      .reduce((sum, l) => sum + (l.honoraires_ht || 0), 0);
+  }, [letters]);
+
   const filtered = useMemo(() => {
     let result = [...letters];
 
@@ -142,8 +154,9 @@ function LetterHistory({
     // Filter by mission type
     if (filterType !== "all") {
       result = result.filter((l) => {
-        const tm = (l.type_mission || "").toLowerCase();
-        return tm === filterType.toLowerCase() || tm.includes(filterType.toLowerCase());
+        const wd = l.wizard_data;
+        const missionTypeId = wd?.mission_type_id || l.type_mission || "";
+        return missionTypeId === filterType || (l.type_mission || "").toLowerCase() === filterType.toLowerCase();
       });
     }
 
@@ -158,22 +171,48 @@ function LetterHistory({
       );
     }
 
+    // Sort
+    result.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "date") cmp = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+      else if (sortBy === "client") cmp = a.raison_sociale.localeCompare(b.raison_sociale);
+      else if (sortBy === "statut") cmp = (a.statut || "").localeCompare(b.statut || "");
+      return sortAsc ? cmp : -cmp;
+    });
+
     return result;
-  }, [letters, filterStatut, filterType, searchQ]);
+  }, [letters, filterStatut, filterType, searchQ, sortBy, sortAsc]);
+
+  // Pagination
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const paged = useMemo(() => filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE), [filtered, page]);
+
+  // Reset page when filters change
+  useEffect(() => { setPage(0); }, [filterStatut, filterType, searchQ]);
 
   // Get mission shortLabel for a type_mission string
-  const getMissionLabel = (typeMission: string) => {
+  const getMissionLabel = (letter: SavedLetter) => {
+    const missionTypeId = letter.wizard_data?.mission_type_id || letter.type_mission || "";
     const entry = Object.values(MISSION_TYPES).find(
-      (m) => m.id === typeMission || m.shortLabel === typeMission || m.label === typeMission
+      (m) => m.id === missionTypeId || m.shortLabel === missionTypeId || m.label === missionTypeId
     );
-    return entry ? entry.shortLabel : typeMission;
+    return entry ? entry.shortLabel : letter.type_mission;
   };
 
-  const getMissionNorme = (typeMission: string) => {
+  const getMissionNorme = (letter: SavedLetter) => {
+    const missionTypeId = letter.wizard_data?.mission_type_id || letter.type_mission || "";
     const entry = Object.values(MISSION_TYPES).find(
-      (m) => m.id === typeMission || m.shortLabel === typeMission || m.label === typeMission
+      (m) => m.id === missionTypeId || m.shortLabel === missionTypeId || m.label === missionTypeId
     );
     return entry?.normeRef || "";
+  };
+
+  const formatEurCompact = (n: number) =>
+    new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+
+  const toggleSort = (col: "date" | "client" | "statut") => {
+    if (sortBy === col) setSortAsc(!sortAsc);
+    else { setSortBy(col); setSortAsc(false); }
   };
 
   if (loading) {
@@ -187,10 +226,21 @@ function LetterHistory({
 
   if (letters.length === 0) {
     return (
-      <div className="text-center py-20">
-        <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-        <p className="text-slate-400 text-sm">Aucune lettre de mission</p>
-        <p className="text-slate-500 text-xs mt-1">Creez votre premiere lettre</p>
+      <div className="text-center py-20 space-y-4">
+        <div className="w-16 h-16 rounded-2xl bg-blue-500/10 flex items-center justify-center mx-auto">
+          <FileText className="w-8 h-8 text-blue-400" />
+        </div>
+        <div>
+          <p className="text-white font-medium">Aucune lettre de mission</p>
+          <p className="text-slate-500 text-sm mt-1">Commencez par creer votre premiere lettre dans l'onglet "Nouvelle lettre"</p>
+        </div>
+        <div className="flex items-center justify-center gap-3 text-[10px] text-slate-600">
+          <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> ~5 min par lettre</span>
+          <span className="w-px h-3 bg-white/[0.06]" />
+          <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> PDF + DOCX</span>
+          <span className="w-px h-3 bg-white/[0.06]" />
+          <span className="flex items-center gap-1"><Send className="w-3 h-3" /> Signature electronique</span>
+        </div>
       </div>
     );
   }
@@ -207,7 +257,7 @@ function LetterHistory({
 
   return (
     <div className="space-y-4">
-      {/* OPT-32: Compact alertes bandeau */}
+      {/* Compact alertes bandeau */}
       {cabinetId && (
         <LMAlertesList
           cabinetId={cabinetId}
@@ -219,7 +269,7 @@ function LetterHistory({
         />
       )}
 
-      {/* OPT-28: Status filter pills */}
+      {/* Status filter pills */}
       <div className="flex flex-wrap gap-1.5">
         {STATUS_PILLS.map((pill) => {
           const count = statusCounts[pill.value] || 0;
@@ -244,7 +294,7 @@ function LetterHistory({
         })}
       </div>
 
-      {/* OPT-29/30: Type filter + Search */}
+      {/* Type filter + Search */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
@@ -269,28 +319,43 @@ function LetterHistory({
         </Select>
       </div>
 
-      {/* Results count */}
-      <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
+      {/* Results count + total honoraires */}
+      <div className="flex items-center justify-between">
+        <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
+        {totalHonoraires > 0 && (
+          <p className="text-[10px] text-slate-500">
+            Total honoraires actifs : <span className="text-white font-medium">{formatEurCompact(totalHonoraires)}</span> HT
+          </p>
+        )}
+      </div>
 
-      {/* OPT-31: Table header (desktop) */}
-      <div className="hidden sm:grid grid-cols-[1fr_110px_140px_90px_90px_50px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
-        <span>Client</span>
+      {/* Table header (desktop) — sortable */}
+      <div className="hidden sm:grid grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
+        <button onClick={() => toggleSort("client")} className="text-left hover:text-slate-400 transition-colors">
+          Client {sortBy === "client" ? (sortAsc ? "↑" : "↓") : ""}
+        </button>
         <span>Numero</span>
         <span>Type de mission</span>
-        <span>Date</span>
-        <span>Statut</span>
+        <span>Honoraires</span>
+        <button onClick={() => toggleSort("date")} className="text-left hover:text-slate-400 transition-colors">
+          Date {sortBy === "date" ? (sortAsc ? "↑" : "↓") : ""}
+        </button>
+        <button onClick={() => toggleSort("statut")} className="text-left hover:text-slate-400 transition-colors">
+          Statut {sortBy === "statut" ? (sortAsc ? "↑" : "↓") : ""}
+        </button>
         <span>Av.</span>
         <span className="text-right">Actions</span>
       </div>
 
       {/* Rows */}
       <div className="space-y-1.5">
-        {filtered.map((letter) => {
+        {paged.map((letter) => {
           const avenantCount = avenantsByLetter[letter.id]?.length || 0;
+          const modeComptable = letter.wizard_data?.type_mission;
           return (
           <div
             key={letter.id}
-            className="group sm:grid sm:grid-cols-[1fr_110px_140px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+            className="group sm:grid sm:grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
           >
             {/* Client */}
             <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
@@ -308,27 +373,35 @@ function LetterHistory({
             {/* Numero */}
             <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{letter.numero}</span>
 
-            {/* Type de mission — OPT-31: badge with shortLabel + norme */}
+            {/* Type de mission + mode comptable */}
             <div className="hidden sm:block">
               <Badge variant="outline" className="text-[9px] bg-white/[0.04] border-white/[0.08] text-slate-300 gap-1">
-                {getMissionLabel(letter.type_mission)}
+                {getMissionLabel(letter)}
               </Badge>
-              {getMissionNorme(letter.type_mission) && (
-                <span className="block text-[9px] text-slate-600 mt-0.5 truncate">{getMissionNorme(letter.type_mission)}</span>
+              {modeComptable && ["TENUE", "SURVEILLANCE", "REVISION"].includes(modeComptable) && (
+                <span className="block text-[9px] text-emerald-500/70 mt-0.5">{modeComptable}</span>
+              )}
+              {getMissionNorme(letter) && !modeComptable && (
+                <span className="block text-[9px] text-slate-600 mt-0.5 truncate">{getMissionNorme(letter)}</span>
               )}
             </div>
 
-            {/* Date de creation */}
+            {/* Honoraires HT */}
+            <span className="hidden sm:block text-[10px] text-slate-400 font-mono">
+              {letter.honoraires_ht ? formatEurCompact(letter.honoraires_ht) : "—"}
+            </span>
+
+            {/* Date */}
             <span className="hidden sm:block text-[10px] text-slate-500">
-              {new Date(letter.created_at).toLocaleDateString("fr-FR")}
+              {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
             </span>
 
             {/* Statut */}
             <div className="hidden sm:block">
-              <LMStatusBadge status={letter.statut} />
+              <LMStatusBadge status={letter.statut} showTooltip />
             </div>
 
-            {/* Avenants count — OPT-31 */}
+            {/* Avenants count */}
             <div className="hidden sm:block">
               {avenantCount > 0 && (
                 <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
@@ -395,6 +468,9 @@ function LetterHistory({
                   {avenantCount} av.
                 </Badge>
               )}
+              {letter.honoraires_ht > 0 && (
+                <span className="text-[9px] text-slate-500 font-mono">{formatEurCompact(letter.honoraires_ht)}</span>
+              )}
               <div className="flex-1" />
               {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
                 <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-500"><Send className="w-3.5 h-3.5" /></button>
@@ -441,8 +517,60 @@ function LetterHistory({
         })}
       </div>
 
+      {/* Empty filter state */}
       {filtered.length === 0 && letters.length > 0 && (
-        <div className="text-center py-10 text-slate-500 text-sm">Aucun resultat pour ces filtres</div>
+        <div className="text-center py-10 space-y-2">
+          <Search className="w-8 h-8 text-slate-600 mx-auto" />
+          <p className="text-slate-400 text-sm">Aucun resultat pour ces filtres</p>
+          <button
+            onClick={() => { setSearchQ(""); setFilterStatut("all"); setFilterType("all"); }}
+            className="text-xs text-blue-400 hover:underline"
+          >
+            Reinitialiser les filtres
+          </button>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-[10px] text-slate-600">
+            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page === 0}
+              onClick={() => setPage(page - 1)}
+              className="h-7 w-7 p-0 border-white/[0.06]"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </Button>
+            {Array.from({ length: totalPages }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => setPage(i)}
+                className={`w-7 h-7 rounded text-xs transition-colors ${
+                  i === page
+                    ? "bg-blue-500/20 text-blue-300"
+                    : "text-slate-500 hover:bg-white/[0.04]"
+                }`}
+              >
+                {i + 1}
+              </button>
+            )).slice(Math.max(0, page - 2), page + 3)}
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={page >= totalPages - 1}
+              onClick={() => setPage(page + 1)}
+              className="h-7 w-7 p-0 border-white/[0.06]"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* Signature dialog */}

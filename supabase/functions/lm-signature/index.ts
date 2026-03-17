@@ -1,7 +1,36 @@
+// ──────────────────────────────────────────────
+// Edge Function: lm-signature
+// OPT 31-35: rate limiting, proper error codes, logging, certificate version
+// ──────────────────────────────────────────────
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
+// OPT-31: Simple in-memory rate limiting
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX = 20; // max requests per window
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) return false;
+  return true;
+}
+
+// Cleanup old entries periodically
+function cleanupRateLimit() {
+  const now = Date.now();
+  for (const [key, val] of rateLimitMap) {
+    if (now > val.resetAt) rateLimitMap.delete(key);
+  }
+}
 
 function corsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") || "";
@@ -28,10 +57,29 @@ function json(data: unknown, status = 200, req?: Request) {
   });
 }
 
+// OPT-33: Structured logging
+function log(level: "info" | "warn" | "error", action: string, details?: Record<string, unknown>) {
+  const entry = { timestamp: new Date().toISOString(), level, action, ...details };
+  if (level === "error") console.error(JSON.stringify(entry));
+  else if (level === "warn") console.warn(JSON.stringify(entry));
+  else console.log(JSON.stringify(entry));
+}
+
 Deno.serve(async (req) => {
   // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders(req) });
+  }
+
+  // OPT-31: Rate limiting
+  const clientIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("cf-connecting-ip") ||
+    "unknown";
+  cleanupRateLimit();
+  if (!checkRateLimit(clientIp)) {
+    log("warn", "RATE_LIMIT_EXCEEDED", { ip: clientIp });
+    return json({ error: "Trop de requetes. Reessayez dans quelques instants." }, 429, req);
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY);
@@ -43,6 +91,7 @@ Deno.serve(async (req) => {
       const token = url.searchParams.get("token");
 
       if (!token || token.length < 32) {
+        log("warn", "VERIFY_INVALID_TOKEN", { tokenLength: token?.length });
         return json({ error: "Token manquant ou invalide" }, 400, req);
       }
 
@@ -53,16 +102,25 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (tokenErr || !tokenRow) {
+        log("warn", "VERIFY_TOKEN_NOT_FOUND", { token: token.slice(0, 8) + "..." });
         return json({ error: "Token introuvable" }, 404, req);
+      }
+
+      // OPT-34: Check cancelled
+      if (tokenRow.is_cancelled) {
+        log("info", "VERIFY_TOKEN_CANCELLED", { tokenId: tokenRow.id });
+        return json({ error: "Ce lien de signature a ete annule", cancelled: true }, 410, req);
       }
 
       // Check expiration
       if (new Date(tokenRow.expires_at) < new Date()) {
+        log("info", "VERIFY_TOKEN_EXPIRED", { tokenId: tokenRow.id, expiresAt: tokenRow.expires_at });
         return json({ error: "Token expire", expired: true }, 410, req);
       }
 
       // Check already used
       if (tokenRow.is_used) {
+        log("info", "VERIFY_ALREADY_SIGNED", { tokenId: tokenRow.id });
         return json({
           error: "Document deja signe",
           already_signed: true,
@@ -79,8 +137,11 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (instErr || !instance) {
+        log("error", "VERIFY_INSTANCE_NOT_FOUND", { instanceId: tokenRow.instance_id });
         return json({ error: "Lettre de mission introuvable" }, 404, req);
       }
+
+      log("info", "VERIFY_SUCCESS", { tokenId: tokenRow.id, instanceId: instance.id });
 
       // Return LM data for display (read-only)
       return json({
@@ -89,6 +150,7 @@ Deno.serve(async (req) => {
         client_nom: tokenRow.client_nom,
         client_email: tokenRow.client_email,
         document_hash: tokenRow.document_hash,
+        expires_at: tokenRow.expires_at,
         instance: {
           id: instance.id,
           numero: instance.numero,
@@ -107,7 +169,13 @@ Deno.serve(async (req) => {
       const { token, accept, signer_nom, signer_qualite } = body;
 
       if (!token || !accept) {
+        log("warn", "SIGN_MISSING_PARAMS", { hasToken: !!token, hasAccept: !!accept });
         return json({ error: "Token et acceptation requis" }, 400, req);
+      }
+
+      // OPT-32: Validate signer_nom
+      if (!signer_nom || typeof signer_nom !== "string" || signer_nom.trim().length < 2) {
+        return json({ error: "Nom du signataire requis (minimum 2 caracteres)" }, 400, req);
       }
 
       // Load token
@@ -118,22 +186,26 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       if (tokenErr || !tokenRow) {
+        log("warn", "SIGN_TOKEN_NOT_FOUND", { token: token.slice(0, 8) + "..." });
         return json({ error: "Token introuvable" }, 404, req);
       }
 
+      if (tokenRow.is_cancelled) {
+        return json({ error: "Ce lien de signature a ete annule" }, 410, req);
+      }
+
       if (new Date(tokenRow.expires_at) < new Date()) {
-        return json({ error: "Token expire" }, 410, req);
+        log("info", "SIGN_TOKEN_EXPIRED", { tokenId: tokenRow.id });
+        return json({ error: "Token expire", expired: true }, 410, req);
       }
 
       if (tokenRow.is_used) {
+        log("info", "SIGN_ALREADY_SIGNED", { tokenId: tokenRow.id });
         return json({ error: "Document deja signe", signed_at: tokenRow.signed_at }, 409, req);
       }
 
       const now = new Date().toISOString();
-      const signerIp =
-        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-        req.headers.get("cf-connecting-ip") ||
-        "unknown";
+      const signerIp = clientIp;
       const signerUA = req.headers.get("user-agent") || "unknown";
 
       // Update token as signed
@@ -148,6 +220,7 @@ Deno.serve(async (req) => {
         .eq("id", tokenRow.id);
 
       if (updateTokenErr) {
+        log("error", "SIGN_UPDATE_TOKEN_FAILED", { tokenId: tokenRow.id, error: updateTokenErr.message });
         return json({ error: "Erreur lors de la signature" }, 500, req);
       }
 
@@ -164,7 +237,7 @@ Deno.serve(async (req) => {
         .eq("id", tokenRow.instance_id);
 
       if (updateInstErr) {
-        console.error("Failed to update LM status:", updateInstErr);
+        log("error", "SIGN_UPDATE_LM_FAILED", { instanceId: tokenRow.instance_id, error: updateInstErr.message });
       }
 
       // Load instance for certificate
@@ -174,8 +247,11 @@ Deno.serve(async (req) => {
         .eq("id", tokenRow.instance_id)
         .maybeSingle();
 
-      // Generate signature certificate
+      // OPT-35: Generate versioned signature certificate
+      const certificateId = `CERT-${tokenRow.id.slice(0, 8).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
       const certificate = {
+        version: "1.0",
+        certificate_id: certificateId,
         document: instance?.numero || tokenRow.instance_id,
         client: instance?.raison_sociale || tokenRow.client_nom,
         signer: signer_nom || tokenRow.client_nom,
@@ -186,7 +262,9 @@ Deno.serve(async (req) => {
         user_agent: signerUA,
         document_hash: tokenRow.document_hash || "",
         method: "Signature electronique simple par lien unique",
+        legal_basis: "Article 1367 du Code civil — Reglement eIDAS",
         token_id: tokenRow.id,
+        instance_id: tokenRow.instance_id,
       };
 
       // Store certificate in Supabase Storage
@@ -207,11 +285,20 @@ Deno.serve(async (req) => {
             .from("lm-documents")
             .createSignedUrl(certPath, 60 * 60 * 24 * 365); // 1 year
           certificate_url = signedUrl?.signedUrl || "";
+        } else {
+          log("warn", "CERT_UPLOAD_FAILED", { error: uploadErr.message });
         }
       } catch (e) {
-        console.error("Certificate storage failed:", e);
+        log("error", "CERT_STORAGE_ERROR", { error: String(e) });
         // Non-blocking: signature still valid even if storage fails
       }
+
+      log("info", "SIGN_SUCCESS", {
+        tokenId: tokenRow.id,
+        instanceId: tokenRow.instance_id,
+        signer: signer_nom,
+        certificateId,
+      });
 
       return json({
         success: true,
@@ -223,7 +310,7 @@ Deno.serve(async (req) => {
 
     return json({ error: "Method not allowed" }, 405, req);
   } catch (err) {
-    console.error("lm-signature error:", err);
+    log("error", "UNHANDLED_ERROR", { error: String(err) });
     return json({ error: "Erreur interne" }, 500, req);
   }
 });
