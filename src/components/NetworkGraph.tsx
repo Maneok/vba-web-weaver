@@ -1,5 +1,6 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import * as d3 from "d3";
+import { ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 import type { NetworkNode, NetworkEdge } from "@/lib/kycService";
 
 interface Props {
@@ -12,14 +13,29 @@ interface Props {
 
 export default function NetworkGraph({ nodes, edges, width = 700, height = 500, onNodeClick }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
+  const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown>>();
   const onNodeClickRef = useRef(onNodeClick);
   onNodeClickRef.current = onNodeClick;
+  const [, setForceUpdate] = useState(0);
+
+  const handleZoomIn = useCallback(() => {
+    if (!svgRef.current || !zoomRef.current) return;
+    d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1.4);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    if (!svgRef.current || !zoomRef.current) return;
+    d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 0.7);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    if (!svgRef.current || !zoomRef.current) return;
+    d3.select(svgRef.current).transition().duration(500).call(zoomRef.current.transform, d3.zoomIdentity);
+  }, []);
 
   useEffect(() => {
-    // P6-81: Skip simulation for single node (no edges to display)
     if (!svgRef.current) return;
     const svg = d3.select(svgRef.current);
-    // OPT: Single cleanup point — always clear before redraw or early return
     svg.selectAll("*").remove();
     if (!nodes || nodes.length === 0) return;
     if (nodes.length === 1 && (!edges || edges.length === 0)) return;
@@ -33,6 +49,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .scaleExtent([0.3, 3])
       .on("zoom", (event) => g.attr("transform", event.transform));
     svg.call(zoom);
+    zoomRef.current = zoom;
+    setForceUpdate(v => v + 1); // trigger re-render so buttons have ref
 
     // Build simulation data
     const simNodes = nodes.map(n => ({ ...n, x: width / 2, y: height / 2 }));
@@ -50,7 +68,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(40));
 
-    // #14: Role-based edge coloring
+    // Role-based edge coloring
     const roleColor = (label: string): string => {
       const l = (label ?? "").toLowerCase();
       if (l.includes("président") || l.includes("president")) return "rgba(59, 130, 246, 0.5)";
@@ -68,7 +86,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .attr("stroke", d => roleColor(d.label))
       .attr("stroke-width", 1.5);
 
-    // Edge labels (show on hover via title)
+    // Edge labels
     const linkLabel = g.append("g")
       .selectAll("text")
       .data(simEdges)
@@ -81,7 +99,6 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .attr("fill", d => roleColor(d.label).replace("0.5)", "0.8)"))
       .attr("text-anchor", "middle");
 
-    // Tooltip for date nomination on edge hover
     link.append("title").text(d => d.label);
 
     // Nodes - size proportional to connections
@@ -113,19 +130,17 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         })
       );
 
-    // Click handler (use ref to always get latest callback without re-running effect)
     node.on("click", (_event, d: any) => {
       if (onNodeClickRef.current) {
         onNodeClickRef.current(d as NetworkNode);
       } else {
-        // Default: open Pappers for companies
         if (d.type === "company" && d.siren) {
           window.open(`https://www.pappers.fr/entreprise/${d.siren}`, "_blank", "noopener,noreferrer");
         }
       }
     });
 
-    // Node circles - size proportional to connections
+    // Node circles
     node.append("circle")
       .attr("r", d => {
         const count = connectionCount.get(d.id) ?? 1;
@@ -191,34 +206,88 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       svg.on(".zoom", null);
       svg.selectAll("*").remove();
     };
-  // P6-44: Remove onNodeClick from deps to avoid re-render loops (ref-stable via useRef in parent)
   }, [nodes, edges, width, height]);
 
-  /* OPT-23: Empty state with icon */
+  // C3: Empty state with SVG illustration
   if (nodes.length === 0 || (nodes.length === 1 && (!edges || edges.length === 0))) {
     return (
-      <div className="flex flex-col items-center justify-center h-[400px] gap-3">
-        <div className="w-12 h-12 rounded-xl bg-white/[0.04] flex items-center justify-center">
-          <svg className="w-6 h-6 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm0-6a3 3 0 100-6 3 3 0 000 6zm-6.5 3.5l3-3m7 0l3 3M12 3v3m0 12v3" />
+      <div className="flex flex-col items-center justify-center h-[400px] gap-4">
+        <div className="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
+          <svg className="w-10 h-10 text-slate-600" fill="none" viewBox="0 0 48 48" stroke="currentColor" strokeWidth="1.2">
+            {/* Network nodes illustration */}
+            <circle cx="24" cy="12" r="4" />
+            <circle cx="12" cy="32" r="4" />
+            <circle cx="36" cy="32" r="4" />
+            <line x1="24" y1="16" x2="12" y2="28" />
+            <line x1="24" y1="16" x2="36" y2="28" />
+            <line x1="12" y1="32" x2="36" y2="32" strokeDasharray="3 3" />
           </svg>
         </div>
-        <p className="text-slate-500 text-sm">Aucune donnee de reseau disponible</p>
-        <p className="text-slate-600 text-xs">Les relations entre entites apparaitront ici.</p>
+        <div className="text-center space-y-1.5">
+          <p className="text-slate-400 text-sm font-medium">Aucun reseau de direction detecte</p>
+          <p className="text-slate-600 text-xs max-w-[260px]">Les relations entre dirigeants et societes apparaitront ici apres le screening.</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <svg
-      ref={svgRef}
-      role="img"
-      aria-label="Graphe du reseau de relations entre entites"
-      width={width}
-      height={height}
-      className="w-full"
-      viewBox={`0 0 ${width} ${height}`}
-      style={{ background: "rgba(0,0,0,0.1)", borderRadius: "8px" }}
-    />
+    <div className="relative">
+      {/* C2: Zoom controls */}
+      <div className="absolute top-3 right-3 flex flex-col gap-1 z-10 print:hidden">
+        <button
+          onClick={handleZoomIn}
+          className="w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+          aria-label="Zoomer"
+        >
+          <ZoomIn className="w-4 h-4" />
+        </button>
+        <button
+          onClick={handleZoomOut}
+          className="w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+          aria-label="Dezoomer"
+        >
+          <ZoomOut className="w-4 h-4" />
+        </button>
+        <button
+          onClick={handleReset}
+          className="w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+          aria-label="Reinitialiser le zoom"
+        >
+          <RotateCcw className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <svg
+        ref={svgRef}
+        role="img"
+        aria-label="Graphe du reseau de relations entre entites"
+        width={width}
+        height={height}
+        className="w-full"
+        viewBox={`0 0 ${width} ${height}`}
+        style={{ background: "rgba(0,0,0,0.1)", borderRadius: "8px" }}
+      />
+
+      {/* C1: Legend */}
+      <div className="flex items-center gap-4 mt-2 px-2 text-[10px] text-slate-500 print:hidden">
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full border-2 border-blue-500 bg-blue-500/30" />
+          <span>Entreprise cible</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full border-[1.5px] border-emerald-500 bg-emerald-500/15" />
+          <span>Societe</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-3 rounded-full border-[1.5px] border-orange-500 bg-orange-500/15" />
+          <span>Personne physique</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <div className="w-3 h-1 bg-slate-500/40 rounded" />
+          <span>Lien de direction</span>
+        </div>
+      </div>
+    </div>
   );
 }
