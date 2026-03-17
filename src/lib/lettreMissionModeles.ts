@@ -1,11 +1,14 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { MISSION_TYPES, getMissionTypeConfig } from "./lettreMissionTypes";
-import type { MissionTypeConfig } from "./lettreMissionTypes";
+import type { MissionTypeConfig, MissionCategory } from "./lettreMissionTypes";
 
 // ══════════════════════════════════════════════
 // Types
 // ══════════════════════════════════════════════
+
+// OPT-17: group field for editor grouping
+export type SectionGroup = 'principales' | 'obligations' | 'complementaires' | 'clauses' | 'custom';
 
 export interface LMSection {
   id: string;
@@ -18,6 +21,8 @@ export interface LMSection {
   cnoec_reference?: string;
   cnoec_warning?: string;
   ordre: number;
+  hidden?: boolean;
+  group?: SectionGroup;
 }
 
 export interface LMModele {
@@ -28,12 +33,21 @@ export interface LMModele {
   mission_type?: string;
   sections: LMSection[];
   cgv_content: string;
-  repartition_taches: any[];
+  repartition_taches: RepartitionRow[];
   is_default: boolean;
   source: "grimy" | "import_docx" | "duplicate";
   original_filename?: string;
   created_at: string;
   updated_at: string;
+}
+
+// OPT-49: Typed repartition rows
+export interface RepartitionRow {
+  id: string;
+  label: string;
+  cabinet: boolean;
+  client: boolean;
+  periodicite: 'M' | 'T' | 'A' | 'P' | 'ND' | string;
 }
 
 export interface CnoecWarning {
@@ -45,6 +59,7 @@ export interface CnoecWarning {
 
 // ══════════════════════════════════════════════
 // Modèle GRIMY par défaut — Sections
+// OPT-18: Each section has a group assigned
 // ══════════════════════════════════════════════
 
 export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
@@ -57,6 +72,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: false,
     cnoec_obligatoire: false,
     ordre: 1,
+    group: 'principales',
   },
   {
     id: "introduction",
@@ -70,6 +86,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     cnoec_warning:
       "L'introduction référençant l'article 151 du Code de déontologie est obligatoire pour la validité de la lettre de mission.",
     ordre: 2,
+    group: 'principales',
   },
   {
     id: "entite",
@@ -82,6 +99,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     cnoec_warning:
       "L'identification complète de l'entité cliente est requise par la NPMQ §30.",
     ordre: 3,
+    group: 'principales',
   },
   {
     id: "organisation",
@@ -92,6 +110,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 4,
+    group: 'principales',
   },
   {
     id: "mission",
@@ -105,6 +124,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     cnoec_warning:
       "La section « Mission » doit inclure : référence normative complète, référentiel comptable, forme du rapport et responsabilité du client (NP 2300 §8).",
     ordre: 5,
+    group: 'principales',
   },
   {
     id: "responsable_mission",
@@ -118,6 +138,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     cnoec_warning:
       "Le nom du responsable de mission doit figurer dans la lettre (NPMQ §30).",
     ordre: 6,
+    group: 'obligations',
   },
   {
     id: "duree",
@@ -131,6 +152,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     cnoec_warning:
       "La durée et les conditions de renouvellement de la mission doivent être précisées (art. 151 Code de déontologie).",
     ordre: 7,
+    group: 'principales',
   },
   {
     id: "nature_limite",
@@ -144,6 +166,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     cnoec_warning:
       "Les limites de la mission (obligation de moyens, absence de contrôle exhaustif) doivent être clairement exposées (NP 2300 §8).",
     ordre: 8,
+    group: 'principales',
   },
   {
     id: "lcbft",
@@ -156,6 +179,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     cnoec_warning:
       "Le bloc LCB-FT est obligatoire : le cabinet doit informer le client de ses obligations de vigilance (art. L.561-1 CMF).",
     ordre: 9,
+    group: 'obligations',
   },
   {
     id: "missions_complementaires_intro",
@@ -166,6 +190,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 10,
+    group: 'complementaires',
   },
   {
     id: "mission_sociale",
@@ -177,6 +202,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 11,
+    group: 'complementaires',
   },
   {
     id: "mission_juridique",
@@ -188,6 +214,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 12,
+    group: 'complementaires',
   },
   {
     id: "mission_controle_fiscal",
@@ -199,6 +226,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 13,
+    group: 'complementaires',
   },
   {
     id: "clause_resolutoire",
@@ -210,6 +238,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 14,
+    group: 'clauses',
   },
   {
     id: "mandat_fiscal",
@@ -221,6 +250,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 15,
+    group: 'clauses',
   },
   {
     id: "modalites",
@@ -231,6 +261,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 16,
+    group: 'principales',
   },
   {
     id: "honoraires",
@@ -244,6 +275,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     cnoec_warning:
       "Les modalités de détermination et de révision des honoraires doivent figurer dans la lettre de mission (art. 158 Code de déontologie).",
     ordre: 17,
+    group: 'principales',
   },
   {
     id: "signature",
@@ -254,6 +286,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 18,
+    group: 'principales',
   },
   {
     id: "annexe_repartition",
@@ -263,6 +296,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: false,
     cnoec_obligatoire: false,
     ordre: 19,
+    group: 'principales',
   },
   {
     id: "annexe_travail_dissimule",
@@ -273,6 +307,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 20,
+    group: 'principales',
   },
   {
     id: "annexe_sepa",
@@ -283,6 +318,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 21,
+    group: 'principales',
   },
   {
     id: "annexe_liasse",
@@ -293,11 +329,12 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     editable: true,
     cnoec_obligatoire: false,
     ordre: 22,
+    group: 'principales',
   },
 ];
 
 // ══════════════════════════════════════════════
-// CGV par défaut — conforme CNOEC
+// CGV par défaut — conforme CNOEC (OPT-40/41/42/43/44/45/46)
 // ══════════════════════════════════════════════
 
 export const GRIMY_DEFAULT_CGV = `Conditions générales d'intervention en vigueur au 15 mars 2026
@@ -306,9 +343,9 @@ export const GRIMY_DEFAULT_CGV = `Conditions générales d'intervention en vigue
 Les présentes conditions sont applicables aux conventions portant sur les missions conclues entre notre société d'expertise comptable et son client.
 
 2. Définition de la mission
-Les travaux incombant au professionnel sont détaillés dans la lettre de mission et ses annexes. La mission sera effectuée dans le respect des dispositions du Code de déontologie des professionnels de l'expertise comptable (décret n°2012-432 du 30 mars 2012), de la Norme Professionnelle de Maîtrise de la Qualité (NPMQ), et de la norme professionnelle applicable à la mission de présentation des comptes (NP 2300).
+Les travaux incombant au professionnel sont détaillés dans la lettre de mission et ses annexes. La mission sera effectuée dans le respect des dispositions du Code de déontologie des professionnels de l'expertise comptable (décret n°2012-432 du 30 mars 2012), de la Norme Professionnelle de Maîtrise de la Qualité (NPMQ), et de la norme professionnelle applicable à la mission concernée.
 
-3. Résiliation de la mission
+3. Résiliation et reconduction
 La mission sera tacitement renouvelée chaque année. Le client ou le professionnel peut y mettre fin par lettre recommandée dans un délai de 3 mois avant la fin de la période en cours.
 Pour les clients ayant la qualité de consommateur ou de non-professionnel au sens de l'article liminaire du Code de la consommation : conformément à l'article L 215-1 du Code de la consommation, le professionnel informera le client par écrit, au plus tôt trois mois et au plus tard un mois avant le terme de la période autorisant le rejet de la reconduction, de la possibilité de ne pas reconduire le contrat. À défaut, le client pourra mettre gratuitement un terme au contrat à tout moment à compter de la date de reconduction.
 
@@ -316,55 +353,65 @@ Pour les clients ayant la qualité de consommateur ou de non-professionnel au se
 Les délais de délivrance sont prolongés pour une durée égale à celle de la suspension.
 
 5. Obligations du professionnel
-Le professionnel effectue la mission conformément au Code de déontologie et aux normes NPMQ et NP 2300. Le responsable de la mission est un expert-comptable inscrit au tableau de l'Ordre, qui apporte personnellement son concours à la mission (NPMQ §30). Secret professionnel et discrétion assurés.
+Le professionnel effectue la mission conformément au Code de déontologie et aux normes professionnelles applicables (NPMQ et norme applicable au type de mission). Le responsable de la mission est un expert-comptable inscrit au tableau de l'Ordre, qui apporte personnellement son concours à la mission (NPMQ §30). Secret professionnel et discrétion assurés conformément à l'article 147 du Code de déontologie.
 
 6. Obligations du client
-Le client s'engage à fournir les documents d'identification KYC (CNI, Kbis, BE), à mettre à disposition les pièces comptables dans les délais, et à porter à connaissance tout fait nouveau. Le client reste responsable à l'égard des tiers de l'exhaustivité, de la fiabilité et de l'exactitude des informations comptables et financières concourant à la présentation des comptes (NP 2300 §8).
+Le client s'engage à :
+— fournir les documents d'identification KYC (CNI, Kbis, registre des bénéficiaires effectifs) conformément aux obligations LCB-FT ;
+— mettre à disposition les pièces comptables dans les délais convenus ;
+— porter à connaissance du cabinet tout fait nouveau susceptible d'affecter la mission ;
+— coopérer pleinement avec le cabinet et répondre aux demandes d'information.
+Le client reste responsable à l'égard des tiers de l'exhaustivité, de la fiabilité et de l'exactitude des informations comptables et financières concourant à la présentation des comptes.
 
-7. Honoraires
-Les honoraires sont payés par prélèvement à leur échéance. Pénalités de retard au taux BCE + 10 points. Indemnité forfaitaire de 40 € pour frais de recouvrement.
+7. Honoraires et conditions de règlement
+Les honoraires sont payés par prélèvement à leur échéance. En cas de retard de paiement, des pénalités seront exigibles de plein droit, sans qu'un rappel soit nécessaire, au taux d'intérêt égal à celui appliqué par la Banque Centrale Européenne à son opération de refinancement la plus récente, majoré de 10 points de pourcentage (art. L 441-10 Code de commerce). Une indemnité forfaitaire pour frais de recouvrement d'un montant de 40 euros est due de plein droit (art. D 441-5 Code de commerce).
 Les honoraires sont révisables annuellement selon l'évolution de l'indice des prix hors taxes relatifs aux services comptables publié par l'INSEE. À défaut de publication de cet indice, les honoraires seront révisés avec un minimum forfaitaire de 3 % par an.
 Conformément à l'article 24 de l'ordonnance du 19 septembre 1945 modifié par la loi PACTE, les missions relevant de la prérogative d'exercice exclusive ne peuvent donner lieu à des honoraires complémentaires de succès.
 
-8. Responsabilité civile
-Couverte par contrat MMA IARD. Prescription réduite à 1 an. Cet aménagement ne s'applique pas lorsque le client a la qualité de consommateur ou de non-professionnel au sens du Code de la consommation ; les délais de prescription de droit commun s'appliquent alors (article L 218-1 du Code de la consommation).
+8. Responsabilité civile professionnelle
+Le cabinet est assuré en responsabilité civile professionnelle auprès de {{assureur_nom}}, dont le siège est {{assureur_adresse}}. La prescription est réduite à 1 an conformément à l'article 2254 du Code civil. Cet aménagement ne s'applique pas lorsque le client a la qualité de consommateur ou de non-professionnel au sens du Code de la consommation ; les délais de prescription de droit commun s'appliquent alors (article L 218-1 du Code de la consommation).
 
 9. Clause résolutoire
 Conformément aux dispositions de l'article 1225 du Code civil, en cas d'inexécution par le client de l'une des obligations visées à la lettre de mission (transmission des documents, paiement des honoraires, fourniture des informations LCB-FT), le contrat pourra être résolu de plein droit, après mise en demeure restée infructueuse pendant un délai de trente (30) jours, sans préjudice des honoraires dus pour les travaux déjà effectués.
 
-10. Données personnelles
-Traitement conforme RGPD. Conservation 5 ans après fin de mission.
+10. Données personnelles (RGPD)
+Le cabinet agit en qualité de responsable de traitement au sens du Règlement (UE) 2016/679 (RGPD) pour les données collectées dans le cadre de la mission. Les données sont traitées pour les seuls besoins de la mission et des obligations légales du cabinet. Le client dispose d'un droit d'accès, de rectification, d'effacement et de portabilité de ses données, ainsi que d'un droit d'opposition et de limitation du traitement, en s'adressant au cabinet. Durée de conservation : conformément aux obligations légales et professionnelles (10 ans pour les documents comptables, 5 ans pour les données LCB-FT).
 
 11. Conservation des données LCB-FT
-Le cabinet collecte des données d'identification pour respecter ses obligations LCB-FT. Il conserve pendant cinq (5) ans à compter de la fin de la relation d'affaires les documents relatifs à l'identité des clients, personnes agissant pour leur compte et bénéficiaires effectifs (art. L 561-12 CMF), et pendant cinq (5) ans à compter de leur exécution les documents relatifs aux opérations (art. L 561-10-2 CMF). Ces données peuvent être communiquées aux autorités compétentes.
+Le cabinet collecte des données d'identification pour respecter ses obligations de lutte contre le blanchiment de capitaux et le financement du terrorisme. Il conserve pendant cinq (5) ans à compter de la fin de la relation d'affaires les documents relatifs à l'identité des clients, personnes agissant pour leur compte et bénéficiaires effectifs (art. L 561-12 CMF), et pendant cinq (5) ans à compter de leur exécution les documents relatifs aux caractéristiques des opérations (art. L 561-10-2 CMF). Ces données peuvent être communiquées aux autorités compétentes.
 
 12. Non-sollicitation des collaborateurs
 Le client s'interdit tout acte de nature à porter atteinte à l'indépendance du professionnel ou de ses collaborateurs, notamment en s'abstenant de leur faire toutes offres d'exécuter des missions en leur nom propre ou de devenir salarié du client, pendant la durée du contrat et pendant douze (12) mois suivant la fin de la mission.
 
-13. Différends
-En cas de contestation des conditions d'exercice de la mission ou de différend sur les honoraires, les parties s'engagent, préalablement à toute action en justice, à saisir le président du CROEC compétent aux fins de conciliation ou d'arbitrage (art. 160 décret du 30 mars 2012). Pour les clients consommateurs, le recours à un médiateur de la consommation est proposé (art. L 611-1 et s. C. conso). Tribunal de commerce compétent.`;
+13. Conciliation et différends
+En cas de contestation des conditions d'exercice de la mission ou de différend sur les honoraires, les parties s'engagent, préalablement à toute action en justice, à saisir le président du Conseil Régional de l'Ordre des Experts-Comptables (CROEC) compétent aux fins de conciliation ou d'arbitrage (art. 160 décret du 30 mars 2012). Pour les clients consommateurs, le recours à un médiateur de la consommation est proposé (art. L 611-1 et s. C. conso).
+
+14. Droit applicable
+Le présent contrat sera régi et interprété selon le droit français. Toute difficulté relative à l'interprétation ou l'exécution sera soumise, à défaut d'accord amiable et de conciliation devant le CROEC, au tribunal de commerce de {{ville_tribunal}}.`;
 
 // ══════════════════════════════════════════════
-// Répartition des tâches par défaut
+// Répartition des tâches par défaut (OPT-48/49)
 // ══════════════════════════════════════════════
 
-export const GRIMY_DEFAULT_REPARTITION = [
-  { id: "saisie", label: "Saisie des écritures comptables", cabinet: true, client: false, periodicite: "Mensuel" },
-  { id: "pointage", label: "Pointage et lettrage des comptes", cabinet: true, client: false, periodicite: "Mensuel" },
-  { id: "rapprochement", label: "Rapprochement bancaire", cabinet: true, client: false, periodicite: "Mensuel" },
-  { id: "tva", label: "Déclaration de TVA", cabinet: true, client: false, periodicite: "Mensuel" },
-  { id: "classement", label: "Classement des pièces justificatives", cabinet: false, client: true, periodicite: "Permanent" },
-  { id: "factures", label: "Émission des factures clients", cabinet: false, client: true, periodicite: "Permanent" },
-  { id: "relances", label: "Relances clients / suivi créances", cabinet: false, client: true, periodicite: "Permanent" },
-  { id: "inventaire", label: "Inventaire physique des stocks", cabinet: false, client: true, periodicite: "Annuel" },
-  { id: "bilan", label: "Établissement du bilan et compte de résultat", cabinet: true, client: false, periodicite: "Annuel" },
-  { id: "liasse", label: "Établissement de la liasse fiscale", cabinet: true, client: false, periodicite: "Annuel" },
-  { id: "plaquette", label: "Plaquette annuelle de présentation des comptes", cabinet: true, client: false, periodicite: "Annuel" },
-  { id: "ag", label: "Procès-verbaux d'assemblée générale", cabinet: true, client: false, periodicite: "Annuel" },
+export const GRIMY_DEFAULT_REPARTITION: RepartitionRow[] = [
+  { id: "tenue", label: "Tenue des comptes", cabinet: true, client: false, periodicite: "M" },
+  { id: "saisie", label: "Saisie des écritures comptables", cabinet: true, client: false, periodicite: "M" },
+  { id: "pointage", label: "Justification des comptes (pointage et lettrage)", cabinet: true, client: false, periodicite: "M" },
+  { id: "rapprochement", label: "Rapprochement bancaire", cabinet: true, client: false, periodicite: "M" },
+  { id: "tva", label: "Déclarations fiscales périodiques (TVA)", cabinet: true, client: false, periodicite: "M" },
+  { id: "decl_annuelles", label: "Déclarations fiscales annuelles (liasse, IS/IR, CVAE, CFE)", cabinet: true, client: false, periodicite: "A" },
+  { id: "classement", label: "Classement des pièces justificatives", cabinet: false, client: true, periodicite: "P" },
+  { id: "factures", label: "Émission des factures clients", cabinet: false, client: true, periodicite: "P" },
+  { id: "relances", label: "Relances clients / suivi créances", cabinet: false, client: true, periodicite: "P" },
+  { id: "inventaire", label: "Éléments d'inventaire (stocks, immobilisations)", cabinet: false, client: true, periodicite: "A" },
+  { id: "bilan", label: "Comptes annuels (bilan, compte de résultat, annexe)", cabinet: true, client: false, periodicite: "A" },
+  { id: "attestation", label: "Attestation de présentation des comptes", cabinet: true, client: false, periodicite: "A" },
+  { id: "ag", label: "Procès-verbaux d'assemblée générale", cabinet: true, client: false, periodicite: "A" },
+  { id: "archives", label: "Conservation archives (documents comptables)", cabinet: true, client: true, periodicite: "P" },
 ];
 
 // ══════════════════════════════════════════════
-// Build sections for a specific mission type
+// Build sections for a specific mission type (OPT-19/20/21/22)
 // ══════════════════════════════════════════════
 
 function createSpecificSection(sectionId: string, config: MissionTypeConfig): LMSection {
@@ -375,6 +422,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "ISA 210 §10",
+      group: 'principales',
     },
     planning_audit: {
       titre: "Planning d'intervention",
@@ -382,6 +430,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "ISA 210 §10",
+      group: 'principales',
     },
     declarations_ecrites: {
       titre: "Déclarations écrites",
@@ -389,6 +438,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "ISA 210 §10",
+      group: 'obligations',
     },
     objet_attestation: {
       titre: "Objet de l'attestation",
@@ -396,6 +446,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 3100 §15",
+      group: 'principales',
     },
     nature_travaux_attestation: {
       titre: "Nature des travaux",
@@ -403,6 +454,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 3100 §15",
+      group: 'principales',
     },
     utilisation_prevue: {
       titre: "Utilisation prévue des informations",
@@ -410,6 +462,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 3400 §11",
+      group: 'principales',
     },
     destinataires_info: {
       titre: "Destinataires",
@@ -417,6 +470,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 3400 §11",
+      group: 'principales',
     },
     nature_hypotheses: {
       titre: "Nature des hypothèses",
@@ -424,6 +478,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 3400 §11",
+      group: 'principales',
     },
     periode_couverte: {
       titre: "Période couverte",
@@ -431,6 +486,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 3400 §11",
+      group: 'principales',
     },
     contexte_mission: {
       titre: "Contexte de la mission",
@@ -438,6 +494,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 4400 §11",
+      group: 'principales',
     },
     informations_examinees: {
       titre: "Informations examinées",
@@ -445,6 +502,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 4400 §11",
+      group: 'principales',
     },
     procedures_detail: {
       titre: "Procédures à mettre en œuvre",
@@ -452,6 +510,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 4400 §11",
+      group: 'principales',
     },
     calendrier_procedures: {
       titre: "Calendrier",
@@ -459,6 +518,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 4400 §11",
+      group: 'principales',
     },
     diffusion_rapport: {
       titre: "Limites de diffusion du rapport",
@@ -466,6 +526,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 4400 §11",
+      group: 'principales',
     },
     informations_client: {
       titre: "Informations à communiquer par le client",
@@ -473,6 +534,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 2400 §11 / NP 4410 §11",
+      group: 'obligations',
     },
     referentiel_comptable: {
       titre: "Référentiel comptable",
@@ -480,6 +542,7 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 2300 §8",
+      group: 'obligations',
     },
     forme_rapport: {
       titre: "Forme du rapport",
@@ -487,10 +550,16 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
       type: "fixed",
       cnoec_obligatoire: true,
       cnoec_reference: "NP 2300 §8",
+      group: 'obligations',
     },
   };
 
   const spec = specificSections[sectionId] || {};
+  // OPT-22: cnoec_warning with reference and category
+  const warningText = spec.cnoec_obligatoire
+    ? `Section requise par ${spec.cnoec_reference || "le référentiel normatif"} pour les missions de type « ${config.categoryLabel} ».`
+    : undefined;
+
   return {
     id: sectionId,
     titre: spec.titre || sectionId,
@@ -499,10 +568,9 @@ function createSpecificSection(sectionId: string, config: MissionTypeConfig): LM
     editable: true,
     cnoec_obligatoire: spec.cnoec_obligatoire || false,
     cnoec_reference: spec.cnoec_reference,
-    cnoec_warning: spec.cnoec_obligatoire
-      ? `Section requise par ${spec.cnoec_reference || "le référentiel normatif"}`
-      : undefined,
+    cnoec_warning: warningText,
     ordre: 99,
+    group: spec.group || 'custom',
   };
 }
 
@@ -524,7 +592,7 @@ export function buildSectionsForMissionType(missionTypeId: string): LMSection[] 
     }
   }
 
-  // 3. Mark hidden/required sections for this mission type
+  // 3. Mark hidden/required sections for this mission type + assign groups
   const result = allSections.map((section) => ({
     ...section,
     hidden: config.hiddenSections.includes(section.id),
@@ -559,6 +627,50 @@ export function buildSectionsForMissionType(missionTypeId: string): LMSection[] 
   return result
     .filter((s) => !(s as any).hidden)
     .map((s, i) => ({ ...s, ordre: i + 1 }));
+}
+
+// ══════════════════════════════════════════════
+// OPT-24: Default CGV for a specific mission type
+// ══════════════════════════════════════════════
+
+export function getDefaultCgvForMissionType(missionTypeId: string): string {
+  const config = getMissionTypeConfig(missionTypeId);
+  let cgv = GRIMY_DEFAULT_CGV;
+
+  if (config.cgvSpecificClauses.length > 0) {
+    const specificBlock = "\n\n15. Clauses spécifiques à la mission de type « " + config.shortLabel + " »\n" +
+      config.cgvSpecificClauses.map((c, i) => `${String.fromCharCode(97 + i)}) ${c}`).join("\n");
+    cgv += specificBlock;
+  }
+
+  return cgv;
+}
+
+// ══════════════════════════════════════════════
+// OPT-25: Default repartition for a mission type
+// ══════════════════════════════════════════════
+
+export function getDefaultRepartitionForMissionType(missionTypeId: string): RepartitionRow[] {
+  if (missionTypeId === 'audit_contractuel') {
+    return [
+      { id: "programme_audit", label: "Programme d'audit", cabinet: true, client: false, periodicite: "A" },
+      { id: "phase_interimaire", label: "Phase intérimaire", cabinet: true, client: false, periodicite: "A" },
+      { id: "phase_finale", label: "Phase finale (contrôle des comptes)", cabinet: true, client: false, periodicite: "A" },
+      { id: "rapport_audit", label: "Rapport d'audit", cabinet: true, client: false, periodicite: "A" },
+      { id: "declarations_ecrites", label: "Déclarations écrites de la direction", cabinet: false, client: true, periodicite: "A" },
+      { id: "acces_documents", label: "Accès aux documents et informations", cabinet: false, client: true, periodicite: "P" },
+      { id: "archives", label: "Conservation archives", cabinet: true, client: true, periodicite: "P" },
+    ];
+  }
+  if (missionTypeId === 'attestation_particuliere') {
+    return [
+      { id: "collecte_info", label: "Collecte des informations objet de l'attestation", cabinet: false, client: true, periodicite: "ND" },
+      { id: "procedures_verif", label: "Procédures de vérification", cabinet: true, client: false, periodicite: "ND" },
+      { id: "attestation", label: "Émission de l'attestation", cabinet: true, client: false, periodicite: "ND" },
+    ];
+  }
+  // Default: presentation-style repartition
+  return [...GRIMY_DEFAULT_REPARTITION];
 }
 
 // ══════════════════════════════════════════════
@@ -652,7 +764,12 @@ export async function updateModele(
   return data as LMModele;
 }
 
+// OPT-31: Prevent deleting default modeles
 export async function deleteModele(id: string): Promise<void> {
+  const modele = await getModeleById(id);
+  if (modele.is_default) {
+    throw new Error("Impossible de supprimer un modèle par défaut. Désignez d'abord un autre modèle comme défaut.");
+  }
   const { error } = await supabase
     .from("lm_modeles")
     .delete()
@@ -664,12 +781,14 @@ export async function deleteModele(id: string): Promise<void> {
   }
 }
 
+// OPT-30: Duplicate with proper metadata
 export async function duplicateModele(id: string, newName: string): Promise<LMModele> {
   const original = await getModeleById(id);
   return createModele({
     cabinet_id: original.cabinet_id,
-    nom: newName,
+    nom: newName || `Copie de ${original.nom}`,
     description: `Copie de « ${original.nom} »`,
+    mission_type: original.mission_type,
     sections: original.sections,
     cgv_content: original.cgv_content,
     repartition_taches: original.repartition_taches,
@@ -678,8 +797,8 @@ export async function duplicateModele(id: string, newName: string): Promise<LMMo
   });
 }
 
+// OPT-32: setAsDefault — the DB trigger handles unsetting other defaults
 export async function setAsDefault(id: string, cabinetId: string): Promise<void> {
-  // The DB trigger ensure_single_default_lm_modele handles unsetting other defaults
   const { error } = await supabase
     .from("lm_modeles")
     .update({ is_default: true })
@@ -693,10 +812,88 @@ export async function setAsDefault(id: string, cabinetId: string): Promise<void>
 }
 
 // ══════════════════════════════════════════════
-// Initialisation du modèle par défaut
+// OPT-28: Count modeles by category
+// ══════════════════════════════════════════════
+
+export function countModelesByCategory(modeles: LMModele[]): Record<MissionCategory, number> {
+  const counts: Record<MissionCategory, number> = {
+    assurance_comptes: 0,
+    autres_assurance: 0,
+    sans_assurance: 0,
+    activites: 0,
+  };
+  for (const m of modeles) {
+    const config = getMissionTypeConfig(m.mission_type || 'presentation');
+    counts[config.category] = (counts[config.category] || 0) + 1;
+  }
+  return counts;
+}
+
+// ══════════════════════════════════════════════
+// OPT-29: Get modele usage count
+// ══════════════════════════════════════════════
+
+export async function getModeleUsageCount(modeleId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("lettres_mission")
+    .select("id", { count: "exact", head: true })
+    .eq("modele_id", modeleId);
+
+  if (error) {
+    logger.error("LM_MODELES", "getModeleUsageCount error", error);
+    return 0;
+  }
+  return count ?? 0;
+}
+
+// ══════════════════════════════════════════════
+// OPT-33: Export modele as JSON
+// ══════════════════════════════════════════════
+
+export function exportModeleAsJson(modele: LMModele): string {
+  return JSON.stringify({
+    nom: modele.nom,
+    description: modele.description,
+    mission_type: modele.mission_type,
+    sections: modele.sections.map(({ id, titre, contenu, type, condition, editable, cnoec_obligatoire, cnoec_reference, cnoec_warning, ordre, group }) => ({
+      id, titre, contenu, type, condition, editable, cnoec_obligatoire, cnoec_reference, cnoec_warning, ordre, group,
+    })),
+    cgv_content: modele.cgv_content,
+    repartition_taches: modele.repartition_taches,
+    source: modele.source,
+    exported_at: new Date().toISOString(),
+    version: "1.0",
+  }, null, 2);
+}
+
+// ══════════════════════════════════════════════
+// OPT-34: Import modele from JSON
+// ══════════════════════════════════════════════
+
+export async function importModeleFromJson(json: string, cabinetId: string): Promise<LMModele> {
+  const parsed = JSON.parse(json);
+  if (!parsed.nom || !Array.isArray(parsed.sections)) {
+    throw new Error("Format JSON invalide : 'nom' et 'sections' requis.");
+  }
+  return createModele({
+    cabinet_id: cabinetId,
+    nom: `Import — ${parsed.nom}`,
+    description: parsed.description || `Importé le ${new Date().toLocaleDateString("fr-FR")}`,
+    mission_type: parsed.mission_type || "presentation",
+    sections: parsed.sections,
+    cgv_content: parsed.cgv_content || GRIMY_DEFAULT_CGV,
+    repartition_taches: parsed.repartition_taches || GRIMY_DEFAULT_REPARTITION,
+    is_default: false,
+    source: "import_docx",
+  });
+}
+
+// ══════════════════════════════════════════════
+// Initialisation du modèle par défaut (OPT-35: idempotent)
 // ══════════════════════════════════════════════
 
 export async function initCabinetDefaultModele(cabinetId: string): Promise<LMModele> {
+  // Check existing default first — prevents duplicate creation
   const existing = await getDefaultModele(cabinetId);
   if (existing) return existing;
 
@@ -730,15 +927,15 @@ export async function createDefaultModeleForType(
     description: `Modèle conforme ${config.normeRef} — ${config.label}`,
     mission_type: missionType,
     sections,
-    cgv_content: GRIMY_DEFAULT_CGV,
-    repartition_taches: GRIMY_DEFAULT_REPARTITION,
+    cgv_content: getDefaultCgvForMissionType(missionType),
+    repartition_taches: getDefaultRepartitionForMissionType(missionType),
     is_default: false,
     source: "grimy",
   });
 }
 
 // ══════════════════════════════════════════════
-// Validation CNOEC
+// Validation CNOEC (OPT-23: enhanced)
 // ══════════════════════════════════════════════
 
 export function validateCnoecCompliance(sections: LMSection[], missionType?: string): {
