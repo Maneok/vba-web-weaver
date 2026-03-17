@@ -33,7 +33,7 @@ import DashboardPrintFooter from "@/components/dashboard/DashboardPrintFooter";
 import DataFreshnessIndicator from "@/components/dashboard/DataFreshnessIndicator";
 import DashboardNotificationCenter from "@/components/dashboard/DashboardNotificationCenter";
 import { useReducedMotion, useAutoRefreshInterval } from "@/components/dashboard/DashboardReducedMotion";
-import { isActiveClient, vigilanceColorFromScore, progressColor, formatEuros, pct, monthsSince } from "@/components/dashboard/dashboardUtils";
+import { isActive, scoreColor as vigilanceColor, statusColor, formatEuros, pct, monthsSince, COLOR } from "@/components/dashboard/dashboardUtils";
 
 // ── Lazy-loaded chart widgets ────────────────────────────────
 const LazyRiskRadar = React.lazy(() => import("@/components/dashboard/RiskRadarWidget"));
@@ -49,9 +49,9 @@ const LazyControlStatus = React.lazy(() => import("@/components/dashboard/Contro
 // ── Skeleton fallback ────────────────────────────────────────
 function ChartSkeleton() {
   return (
-    <div className="bg-card rounded-2xl border border-border p-5 h-[320px] animate-pulse">
-      <div className="h-4 w-44 bg-muted rounded mb-4" />
-      <div className="flex-1 bg-muted/40 rounded-xl mt-4 h-[230px]" />
+    <div className="bg-card rounded-xl border border-border p-4 h-[300px] animate-pulse">
+      <div className="h-4 w-40 bg-muted rounded mb-3" />
+      <div className="flex-1 bg-muted/40 rounded-lg mt-3 h-[220px]" />
     </div>
   );
 }
@@ -64,7 +64,7 @@ class WidgetErrorBoundary extends React.Component<{ children: React.ReactNode },
   render() {
     if (this.state.hasError) {
       return (
-        <div className="bg-card rounded-2xl border border-destructive/20 p-5 h-[320px] flex flex-col items-center justify-center text-center">
+        <div className="bg-card rounded-xl border border-destructive/20 p-4 h-[300px] flex flex-col items-center justify-center text-center">
           <AlertTriangle className="w-6 h-6 text-muted-foreground/40 mb-2" />
           <p className="text-sm text-muted-foreground">Widget indisponible</p>
           <button onClick={() => this.setState({ hasError: false })} className="text-xs text-primary mt-2 hover:underline">Réessayer</button>
@@ -94,16 +94,16 @@ function DashboardWidget({ id, children }: { id: string; children: React.ReactNo
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative group/widget transition-all duration-200 ${isDragging ? "z-50 opacity-75 scale-[1.02]" : "hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/5"}`}
+      className={`relative group/widget transition-colors duration-150 ${isDragging ? "z-50 opacity-75" : ""}`}
       {...attributes}
     >
       <button
         {...listeners}
-        className="absolute -top-2 left-1/2 -translate-x-1/2 opacity-0 group-hover/widget:opacity-60 hover:!opacity-100 focus:!opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10 bg-card border border-border rounded-full p-1 shadow-sm print:hidden"
+        className="absolute -top-1.5 left-1/2 -translate-x-1/2 opacity-0 group-hover/widget:opacity-50 hover:!opacity-100 focus:!opacity-100 transition-opacity cursor-grab active:cursor-grabbing z-10 print:hidden"
         aria-label="Déplacer ce widget"
         tabIndex={0}
       >
-        <GripVertical className="w-3 h-3 text-muted-foreground" />
+        <GripVertical className="w-3.5 h-3.5 text-muted-foreground" />
       </button>
       {children}
     </div>
@@ -111,13 +111,11 @@ function DashboardWidget({ id, children }: { id: string; children: React.ReactNo
 }
 
 // ── Band section header ──────────────────────────────────────
-function BandHeader({ label, color, icon: Icon }: { label: string; color: string; icon: React.ElementType }) {
+function BandHeader({ label, icon: Icon }: { label: string; icon: React.ElementType }) {
   return (
-    <div className="flex items-center gap-3 mt-6 mb-2 print:mt-3" role="heading" aria-level={2}>
-      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg ${color}`}>
-        <Icon className="w-3.5 h-3.5 text-white" aria-hidden="true" />
-        <span className="text-[11px] font-bold uppercase tracking-wider text-white">{label}</span>
-      </div>
+    <div className="flex items-center gap-2 mt-6 mb-2 print:mt-3" role="heading" aria-level={2}>
+      <Icon className="w-3.5 h-3.5 text-muted-foreground" aria-hidden="true" />
+      <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
       <div className="flex-1 h-px bg-border" />
     </div>
   );
@@ -337,7 +335,7 @@ export default function DashboardPage() {
   const stats = useMemo(() => {
     let totalActifs = 0, simplifiee = 0, standard = 0, renforcee = 0;
     for (const c of clients) {
-      if (!isActiveClient(c)) continue;
+      if (!isActive(c)) continue;
       totalActifs++;
       if (c.nivVigilance === "SIMPLIFIEE") simplifiee++;
       else if (c.nivVigilance === "STANDARD") standard++;
@@ -348,7 +346,7 @@ export default function DashboardPage() {
 
   // ── Compliance items (single pass, optimized) ─────────────
   const complianceItems = useMemo(() => {
-    const actifs = clients.filter(isActiveClient);
+    const actifs = clients.filter(isActive);
     const n = actifs.length || 1;
     let withScreening = 0, withDocs = 0, withLM = 0, withBE = 0, withAddr = 0;
     for (const c of actifs) {
@@ -397,9 +395,9 @@ export default function DashboardPage() {
   const alertesCount = criticalCount + warningCount;
 
   // ── Derived values ────────────────────────────────────────
-  const conformiteColor = progressColor(complianceScore);
-  const scoreColor = vigilanceColorFromScore(cockpitData.scoreMoyen);
-  const alertesColor = alertesCount > 0 ? "#ef4444" : "#22c55e";
+  const conformiteColor = statusColor(complianceScore);
+  const avgScoreColor = vigilanceColor(cockpitData.scoreMoyen);
+  const alertesColor = alertesCount > 0 ? COLOR.danger : COLOR.ok;
   const caSubValue = missionsData.ca != null ? `${formatEuros(missionsData.ca)}/an` : undefined;
 
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
@@ -425,7 +423,6 @@ export default function DashboardPage() {
   function renderBand(
     band: 1 | 2 | 3,
     label: string,
-    color: string,
     icon: React.ElementType,
     order: WidgetKey[],
     setter: React.Dispatch<React.SetStateAction<WidgetKey[]>>,
@@ -433,10 +430,10 @@ export default function DashboardPage() {
   ) {
     return (
       <section aria-label={label}>
-        <BandHeader label={label} color={color} icon={icon} />
+        <BandHeader label={label} icon={icon} />
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={makeDragHandler(band, setter)}>
           <SortableContext items={order} strategy={rectSortingStrategy}>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
               {order.map((key, i) => (
                 <AnimatedWidget key={key} index={startIndex + i} reducedMotion={reducedMotion}>
                   <DashboardWidget id={key}>
@@ -497,25 +494,13 @@ export default function DashboardPage() {
         <StatusBanner criticalCount={criticalCount} warningCount={warningCount} isLoading={isLoading} />
       </div>
 
-      {/* ── TITLE BANNER ── */}
-      <div className="text-center mb-5 py-3 rounded-xl bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border border-primary/10">
-        <h2 className="text-xs sm:text-sm font-bold uppercase tracking-[0.15em] text-foreground">Pilotage Cabinet Dynamique LCB-FT</h2>
-        <div className="flex items-center justify-center gap-3 sm:gap-4 mt-1.5 flex-wrap text-[11px] text-muted-foreground">
-          <span>Score <strong className="tabular-nums" style={{ color: scoreColor }}>{cockpitData.scoreMoyen}/120</strong></span>
-          <span className="hidden sm:inline text-border">|</span>
-          <span>KYC <strong className="tabular-nums">{cockpitData.tauxKycComplet}%</strong></span>
-          <span className="hidden sm:inline text-border">|</span>
-          <span>Formation <strong className="tabular-nums">{cockpitData.tauxFormation}%</strong></span>
-        </div>
-      </div>
-
       {/* ── 5 KPI Cards ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 mb-6" role="region" aria-label="Indicateurs clés">
-        <KPICard icon={Users} title="Clients actifs" value={stats.totalClients} color="#3b82f6"
+        <KPICard icon={Users} title="Clients actifs" value={stats.totalClients} color={COLOR.primary}
           onClick={() => navigate(stats.totalClients === 0 ? "/nouveau-client" : "/bdd")}
           loading={isLoading} subValue={stats.totalClients === 0 ? "Ajouter" : undefined}
           ariaLabel={`${stats.totalClients} clients actifs`} />
-        <KPICard icon={TrendingUp} title="Score moyen" value={`${cockpitData.scoreMoyen}/120`} color={scoreColor}
+        <KPICard icon={TrendingUp} title="Score moyen" value={`${cockpitData.scoreMoyen}/120`} color={avgScoreColor}
           onClick={() => navigate("/diagnostic")} loading={isLoading}
           subValue={cockpitData.scoreMoyen <= 25 ? "Simplifiée" : cockpitData.scoreMoyen <= 60 ? "Standard" : "Renforcée"}
           ariaLabel={`Score moyen ${cockpitData.scoreMoyen} sur 120`} />
@@ -525,16 +510,16 @@ export default function DashboardPage() {
         <KPICard icon={AlertTriangle} title="Alertes" value={alertesCount || "0"} color={alertesColor}
           onClick={() => navigate("/registre")} loading={isLoading}
           ariaLabel={`${alertesCount} alertes`} />
-        <KPICard icon={FileText} title="Missions" value={missionsData.count} color="#8b5cf6"
+        <KPICard icon={FileText} title="Missions" value={missionsData.count} color={COLOR.purple}
           onClick={() => navigate("/lettre-mission")} loading={isLoading}
           subValue={missionsData.count === 0 ? "Créer" : caSubValue}
           ariaLabel={`${missionsData.count} missions`} />
       </div>
 
       {/* ══ 3 BANDES — 9 widgets réorganisables (3 colonnes) ══ */}
-      {renderBand(1, "Risque LCB-FT", "bg-blue-600", Shield, band1Order, setBand1Order, 0)}
-      {renderBand(2, "Pilotage Cabinet", "bg-amber-600", BarChart3, band2Order, setBand2Order, 3)}
-      {renderBand(3, "Alertes Cabinet", "bg-red-600", Bell, band3Order, setBand3Order, 6)}
+      {renderBand(1, "Risque LCB-FT", Shield, band1Order, setBand1Order, 0)}
+      {renderBand(2, "Pilotage Cabinet", BarChart3, band2Order, setBand2Order, 3)}
+      {renderBand(3, "Alertes Cabinet", Bell, band3Order, setBand3Order, 6)}
 
       {/* ── Footer ── */}
       <div className="flex items-center justify-center gap-2 text-[11px] text-muted-foreground pt-6 pb-4 print:hidden">
