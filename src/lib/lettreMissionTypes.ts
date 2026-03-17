@@ -21,6 +21,7 @@ export interface MissionTypeConfig {
   shortLabel: string;
   category: MissionCategory;
   categoryLabel: string;
+  categoryColor: string;
   normeRef: string;
   description: string;
   tooltipText: string;
@@ -50,6 +51,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Présentation',
     category: 'assurance_comptes' as MissionCategory,
     categoryLabel: "Missions d'assurance — comptes complets historiques",
+    categoryColor: 'blue',
     normeRef: 'NP 2300',
     description: "Exprimer une opinion sur la cohérence et la vraisemblance des comptes annuels.",
     tooltipText: "Mission la plus courante. L'expert-comptable exprime une opinion modérée sur la cohérence et la vraisemblance des comptes.",
@@ -71,6 +73,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Examen limité',
     category: 'assurance_comptes' as MissionCategory,
     categoryLabel: "Missions d'assurance — comptes complets historiques",
+    categoryColor: 'blue',
     normeRef: 'NP 2400',
     description: "Obtenir une assurance modérée que les comptes ne comportent pas d'anomalies significatives.",
     tooltipText: "Niveau d'assurance intermédiaire. Procédures analytiques et entretiens, sans les contrôles de substance d'un audit.",
@@ -94,6 +97,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Audit contractuel',
     category: 'assurance_comptes' as MissionCategory,
     categoryLabel: "Missions d'assurance — comptes complets historiques",
+    categoryColor: 'blue',
     normeRef: 'ISA 210',
     description: "Obtenir une assurance raisonnable que les états financiers ne comportent pas d'anomalies significatives.",
     tooltipText: "Niveau d'assurance le plus élevé. Nécessite une équipe dédiée, un planning d'intervention et des déclarations écrites de la direction.",
@@ -126,6 +130,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Attestation',
     category: 'autres_assurance' as MissionCategory,
     categoryLabel: "Autres missions d'assurance",
+    categoryColor: 'purple',
     normeRef: 'NP 3100',
     description: "Exprimer une assurance sur des informations autres que des comptes complets historiques.",
     tooltipText: "Attestation sur une information spécifique (CA, effectifs, covenants...). Peut être en assurance raisonnable ou modérée.",
@@ -152,6 +157,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Prévisionnel',
     category: 'autres_assurance' as MissionCategory,
     categoryLabel: "Autres missions d'assurance",
+    categoryColor: 'purple',
     normeRef: 'NP 3400',
     description: "Examiner des informations financières prévisionnelles (budgets, business plans).",
     tooltipText: "Examen de budgets ou business plans. Opinion sur le caractère raisonnable des hypothèses, sans garantie de réalisation.",
@@ -184,6 +190,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Procédures convenues',
     category: 'sans_assurance' as MissionCategory,
     categoryLabel: 'Missions sans assurance',
+    categoryColor: 'amber',
     normeRef: 'NP 4400',
     description: "Mettre en œuvre des procédures convenues et rapporter les constats de manière factuelle, sans expression d'assurance.",
     tooltipText: "Aucune assurance exprimée. Le professionnel applique les procédures définies avec le client et rapporte factuellement ses constats.",
@@ -213,6 +220,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Compilation',
     category: 'sans_assurance' as MissionCategory,
     categoryLabel: 'Missions sans assurance',
+    categoryColor: 'amber',
     normeRef: 'NP 4410',
     description: "Utiliser l'expertise comptable pour collecter, classer et présenter des informations financières sans expression d'assurance.",
     tooltipText: "Mise en forme d'informations financières sans aucun contrôle de substance ni expression d'assurance.",
@@ -240,6 +248,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Activité commerciale',
     category: 'activites' as MissionCategory,
     categoryLabel: 'Cadre des activités',
+    categoryColor: 'teal',
     normeRef: 'Norme activités',
     description: "Activités commerciales et actes d'intermédiaire autorisés par l'article 22 de l'ordonnance de 1945.",
     tooltipText: "Prestations hors missions normées : intermédiation en assurances, vente de logiciels, formation, etc.",
@@ -264,6 +273,7 @@ export const MISSION_TYPES = {
     shortLabel: 'Autre prestation',
     category: 'activites' as MissionCategory,
     categoryLabel: 'Autres prestations',
+    categoryColor: 'teal',
     normeRef: 'Art. 22 Ord. 1945',
     description: "Assistance, conseil, accompagnement (création, cession, évaluation, social, fiscalité, organisation...).",
     tooltipText: "Missions de conseil pur (création, cession, évaluation, organisation). Obligation de moyens, sans opinion sur les comptes.",
@@ -285,25 +295,29 @@ export const MISSION_TYPES = {
 } as const satisfies Record<string, MissionTypeConfig>;
 
 // Groupement par catégorie pour le menu déroulant
-export const MISSION_CATEGORIES: { label: string; category: MissionCategory; missions: string[] }[] = [
+export const MISSION_CATEGORIES: { label: string; category: MissionCategory; color: string; missions: string[] }[] = [
   {
     label: "Missions d'assurance — comptes complets historiques",
     category: 'assurance_comptes',
+    color: 'blue',
     missions: ['presentation', 'examen_limite', 'audit_contractuel']
   },
   {
     label: "Autres missions d'assurance",
     category: 'autres_assurance',
+    color: 'purple',
     missions: ['attestation_particuliere', 'previsionnel']
   },
   {
     label: 'Missions sans assurance',
     category: 'sans_assurance',
+    color: 'amber',
     missions: ['procedures_convenues', 'compilation']
   },
   {
     label: 'Activités et autres prestations',
     category: 'activites',
+    color: 'teal',
     missions: ['activite_commerciale', 'autre_prestation']
   }
 ];
@@ -336,4 +350,35 @@ export function isModeComptableApplicable(missionTypeId: string): boolean {
 export function getSpecificVariablesForType(missionTypeId: string): SpecificVariable[] {
   const config = MISSION_TYPES[missionTypeId as keyof typeof MISSION_TYPES];
   return config?.specificVariables ? [...config.specificVariables] : [];
+}
+
+/** Get Tailwind color classes for a mission category */
+export function getCategoryColorClasses(category: MissionCategory): { bg: string; text: string; border: string; badge: string } {
+  const colors: Record<MissionCategory, { bg: string; text: string; border: string; badge: string }> = {
+    'assurance_comptes': {
+      bg: 'bg-blue-50 dark:bg-blue-950',
+      text: 'text-blue-700 dark:text-blue-300',
+      border: 'border-blue-200 dark:border-blue-800',
+      badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
+    },
+    'autres_assurance': {
+      bg: 'bg-purple-50 dark:bg-purple-950',
+      text: 'text-purple-700 dark:text-purple-300',
+      border: 'border-purple-200 dark:border-purple-800',
+      badge: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200'
+    },
+    'sans_assurance': {
+      bg: 'bg-amber-50 dark:bg-amber-950',
+      text: 'text-amber-700 dark:text-amber-300',
+      border: 'border-amber-200 dark:border-amber-800',
+      badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200'
+    },
+    'activites': {
+      bg: 'bg-teal-50 dark:bg-teal-950',
+      text: 'text-teal-700 dark:text-teal-300',
+      border: 'border-teal-200 dark:border-teal-800',
+      badge: 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200'
+    }
+  };
+  return colors[category];
 }

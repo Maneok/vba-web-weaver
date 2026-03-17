@@ -52,7 +52,7 @@ import { runAllChecks } from "@/lib/lettreMissionWorkflow";
 import AvenantDialog from "@/components/lettre-mission/AvenantDialog";
 import type { LMInstance } from "@/lib/lettreMissionEngine";
 import { getAvenants, type LMAvenant } from "@/lib/lettreMissionAvenants";
-import { MISSION_TYPES } from "@/lib/lettreMissionTypes";
+import { MISSION_TYPES, getMissionCategory, getCategoryColorClasses } from "@/lib/lettreMissionTypes";
 import { sendForSignature, getSignatureTokens } from "@/lib/lettreMissionSignature";
 import { buildClientFromWizardData } from "@/lib/lmUtils";
 
@@ -207,6 +207,15 @@ function LetterHistory({
     return entry?.normeRef || "";
   };
 
+  const getLetterCategoryColors = (letter: SavedLetter) => {
+    const missionTypeId = letter.wizard_data?.mission_type_id || letter.type_mission || "";
+    const entry = Object.values(MISSION_TYPES).find(
+      (m) => m.id === missionTypeId || m.shortLabel === missionTypeId || m.label === missionTypeId
+    );
+    const cat = entry ? getMissionCategory(entry.id) : null;
+    return cat ? getCategoryColorClasses(cat) : null;
+  };
+
   const formatEurCompact = (n: number) =>
     new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
@@ -352,10 +361,11 @@ function LetterHistory({
         {paged.map((letter) => {
           const avenantCount = avenantsByLetter[letter.id]?.length || 0;
           const modeComptable = letter.wizard_data?.type_mission;
+          const rowCatColors = getLetterCategoryColors(letter);
           return (
           <div
             key={letter.id}
-            className="group sm:grid sm:grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+            className={`group sm:grid sm:grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors ${rowCatColors ? `border-l-[3px] ${rowCatColors.border}` : ''}`}
           >
             {/* Client */}
             <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
@@ -375,7 +385,7 @@ function LetterHistory({
 
             {/* Type de mission + mode comptable */}
             <div className="hidden sm:block">
-              <Badge variant="outline" className="text-[9px] bg-white/[0.04] border-white/[0.08] text-slate-300 gap-1">
+              <Badge className={`text-[9px] gap-1 ${rowCatColors ? rowCatColors.badge : 'bg-white/[0.04] border-white/[0.08] text-slate-300'}`}>
                 {getMissionLabel(letter)}
               </Badge>
               {modeComptable && ["TENUE", "SURVEILLANCE", "REVISION"].includes(modeComptable) && (
@@ -1330,7 +1340,11 @@ export default function LettreMissionPage() {
         {/* ─── WIZARD TAB ─── */}
         <TabsContent value="wizard" className="mt-4 space-y-4">
           {/* Progress bar */}
-          <LMProgressBar currentStep={step} />
+          <LMProgressBar
+            currentStep={step}
+            onStepClick={(s) => { if (s <= step) goToStep(s); }}
+            missionCategory={getMissionCategory(data.mission_type_id || 'presentation')}
+          />
 
           {/* Step title + H) elapsed time */}
           <div className="flex items-center justify-between">

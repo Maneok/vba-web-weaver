@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
-import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
+import { getMissionTypeConfig, getCategoryColorClasses, getMissionCategory } from "@/lib/lettreMissionTypes";
 import { formatEur } from "@/lib/lmUtils";
 import { Badge } from "@/components/ui/badge";
 import { Building2, CheckCircle2, XCircle, BookOpen } from "lucide-react";
@@ -54,13 +54,15 @@ function FullSummary({ data }: { data: LMWizardData }) {
           {(() => {
             const mtConfig = getMissionTypeConfig(data.mission_type_id || "presentation");
             const mtId = data.mission_type_id || "presentation";
+            const catKey = getMissionCategory(mtId);
+            const catColors = catKey ? getCategoryColorClasses(catKey) : null;
             return (
               <div className="space-y-1.5 mt-1">
                 <div className="flex flex-wrap gap-1.5">
-                  <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[10px]">
+                  <Badge className={`text-[10px] ${catColors ? catColors.badge : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
                     {mtConfig.shortLabel}
                   </Badge>
-                  <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">
+                  <Badge className={`text-[9px] ${catColors ? catColors.badge : 'border-slate-500/30 text-slate-400'}`}>
                     {mtConfig.normeRef}
                   </Badge>
                   {data.type_mission && (mtId === 'presentation' || mtId === 'compilation') && ['TENUE', 'SURVEILLANCE', 'REVISION'].includes(data.type_mission) && (
