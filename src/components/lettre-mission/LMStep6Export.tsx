@@ -275,6 +275,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       status: data.statut,
       signatureExpert: data.signature_expert,
       signatureClient: data.signature_client,
+      missionTypeId: data.mission_type_id || "presentation",
     });
     toast.success("DOCX genere avec succes");
   });

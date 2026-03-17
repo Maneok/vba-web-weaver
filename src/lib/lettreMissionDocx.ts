@@ -204,7 +204,8 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
 
   children.push(
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: (lm?.options as any)?.missionTypeLabel?.toUpperCase() || "PRÉSENTATION DES COMPTES ANNUELS", bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: getMissionTypeConfig((lm?.options as any)?.missionTypeId || "presentation").label.toUpperCase(), bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: `Norme applicable : ${getMissionTypeConfig((lm?.options as any)?.missionTypeId || "presentation").normeRef}`, size: 18, color: "888888" })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.ville}, le ${lm.date}  |  Réf. ${lm.numero}`, size: 18, color: "888888" })] }),
   );
 
@@ -684,6 +685,13 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
         children.push(bodyText(line));
       }
     }
+  }
+
+  // OPT-25: Referentiel + forme rapport
+  if (mtConf.referentielApplicable && mtConf.referentielApplicable !== "Sans objet") {
+    children.push(heading("Référentiel et forme du rapport"));
+    children.push(bodyText(`Référentiel applicable : ${mtConf.referentielApplicable}`));
+    children.push(bodyText(`Forme du rapport : ${mtConf.formeRapport}`));
   }
 
   // Build document
