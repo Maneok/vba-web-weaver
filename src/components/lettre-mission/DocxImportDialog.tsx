@@ -10,10 +10,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -35,6 +38,7 @@ import {
   GRIMY_DEFAULT_REPARTITION,
 } from "@/lib/lettreMissionModeles";
 import type { LMModele, LMSection } from "@/lib/lettreMissionModeles";
+import { MISSION_TYPES, MISSION_CATEGORIES } from "@/lib/lettreMissionTypes";
 import { toast } from "sonner";
 import {
   Upload,
@@ -44,6 +48,7 @@ import {
   Loader2,
   Plus,
   Sparkles,
+  File,
 } from "lucide-react";
 
 interface DocxImportDialogProps {
@@ -68,8 +73,14 @@ export default function DocxImportDialog({
   const [sections, setSections] = useState<LMSection[]>([]);
   const [cgvContent, setCgvContent] = useState<string | null>(null);
   const [modeleName, setModeleName] = useState("");
-  const [setAsDefault, setSetAsDefault] = useState(false);
+  const [isDefault, setIsDefault] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  // OPT-34: Mission type selection
+  const [missionType, setMissionType] = useState("presentation");
+  // OPT-28: Simulated progress
+  const [parseProgress, setParseProgress] = useState(0);
+  // OPT-32: CGV tab
+  const [mappingTab, setMappingTab] = useState<"sections" | "cgv">("sections");
 
   const reset = useCallback(() => {
     setStep("upload");
@@ -79,8 +90,11 @@ export default function DocxImportDialog({
     setSections([]);
     setCgvContent(null);
     setModeleName("");
-    setSetAsDefault(false);
+    setIsDefault(false);
     setDragOver(false);
+    setMissionType("presentation");
+    setParseProgress(0);
+    setMappingTab("sections");
   }, []);
 
   const handleOpenChange = useCallback(
@@ -94,25 +108,37 @@ export default function DocxImportDialog({
   // ── Step 1: File handling ──
 
   const processFile = async (file: File) => {
-    if (!file.name.endsWith(".docx")) {
-      toast.error("Seuls les fichiers .docx sont acceptés.");
+    if (!file.name.endsWith(".docx") && !file.name.endsWith(".doc")) {
+      toast.error("Seuls les fichiers .docx sont acceptes.");
       return;
     }
     setLoading(true);
     setFileName(file.name);
+    setParseProgress(0);
+
+    // OPT-28: Simulated progress
+    const progressInterval = setInterval(() => {
+      setParseProgress((prev) => Math.min(prev + 15, 85));
+    }, 400);
+
     try {
       const html = await parseDocxToHtml(file);
+      setParseProgress(90);
       const result = await mapHtmlToSections(html);
+      setParseProgress(100);
       setParsed(result);
       setSections(result.sections);
       setCgvContent(result.detectedCgv);
-      setModeleName(file.name.replace(/\.docx$/i, ""));
+      // OPT-33: Pre-fill name from filename
+      setModeleName(file.name.replace(/\.(docx|doc)$/i, ""));
       setStep("mapping");
     } catch (err) {
       toast.error("Erreur lors du parsing du fichier DOCX.");
       console.error(err);
     } finally {
+      clearInterval(progressInterval);
       setLoading(false);
+      setParseProgress(0);
     }
   };
 
@@ -145,6 +171,7 @@ export default function DocxImportDialog({
     });
   };
 
+  // OPT-31: Add missing CNOEC sections
   const addMissingSections = () => {
     if (!parsed) return;
     const missingIds = detectMissingSections({ ...parsed, sections });
@@ -155,7 +182,7 @@ export default function DocxImportDialog({
       ordre: sections.length + i + 1,
     }));
     setSections((prev) => [...prev, ...toAdd]);
-    toast.success(`${toAdd.length} section(s) CNOEC ajoutée(s).`);
+    toast.success(`${toAdd.length} section(s) CNOEC ajoutee(s).`);
   };
 
   const missingCount = parsed
@@ -166,6 +193,14 @@ export default function DocxImportDialog({
     (s) => !s.id.startsWith("custom_")
   ).length;
 
+  // OPT-31: List missing section names
+  const missingSectionNames = parsed
+    ? detectMissingSections({ ...parsed, sections }).map((id) => {
+        const ref = GRIMY_DEFAULT_SECTIONS.find((s) => s.id === id);
+        return ref?.titre || id;
+      })
+    : [];
+
   // ── Step 3: Confirm ──
 
   const handleCreate = async () => {
@@ -173,20 +208,21 @@ export default function DocxImportDialog({
     try {
       const modele = await createModele({
         cabinet_id: cabinetId,
-        nom: modeleName || fileName.replace(/\.docx$/i, ""),
-        description: `Importé depuis ${fileName}`,
+        nom: modeleName || fileName.replace(/\.(docx|doc)$/i, ""),
+        description: `Importe depuis ${fileName}`,
+        mission_type: missionType,
         sections: sections.map((s, i) => ({ ...s, ordre: i + 1 })),
         cgv_content: cgvContent ?? GRIMY_DEFAULT_CGV,
         repartition_taches: GRIMY_DEFAULT_REPARTITION,
-        is_default: setAsDefault,
+        is_default: isDefault,
         source: "import_docx",
         original_filename: fileName,
       });
-      toast.success("Modèle importé avec succès !");
+      toast.success("Modele importe avec succes !");
       onImportComplete(modele);
       handleOpenChange(false);
     } catch (err) {
-      toast.error("Erreur lors de la création du modèle.");
+      toast.error("Erreur lors de la creation du modele.");
       console.error(err);
     } finally {
       setLoading(false);
@@ -200,36 +236,50 @@ export default function DocxImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+      {/* OPT-25: Responsive */}
+      <DialogContent className="max-w-2xl w-full max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            {step === "upload" && "Importer un modèle DOCX"}
-            {step === "mapping" && "Vérification du mapping"}
+            {step === "upload" && "Importer un modele DOCX"}
+            {step === "mapping" && "Verification du mapping"}
             {step === "confirm" && "Confirmer l'import"}
           </DialogTitle>
           <DialogDescription>
             {step === "upload" && "Selectionnez un fichier .docx pour importer un modele de lettre de mission."}
-            {step === "mapping" && "Verifiez la correspondance des sections detectees avec le referentiel GRIMY."}
+            {step === "mapping" && `${recognizedCount}/${ALL_SECTION_IDS.length} sections reconnues — Verifiez la correspondance.`}
             {step === "confirm" && "Confirmez les parametres du modele avant de finaliser l'import."}
           </DialogDescription>
         </DialogHeader>
 
-        {/* ── STEP 1: Upload ── */}
+        {/* Progress dots */}
+        <div className="flex items-center justify-center gap-2">
+          {(["upload", "mapping", "confirm"] as Step[]).map((s, i) => (
+            <div
+              key={s}
+              className={`w-2 h-2 rounded-full transition-colors ${
+                (["upload", "mapping", "confirm"].indexOf(step) >= i) ? "bg-blue-500" : "bg-white/[0.1]"
+              }`}
+            />
+          ))}
+        </div>
+
+        {/* ── STEP 1: Upload (OPT-27-28) ── */}
         {step === "upload" && (
           <div className="flex-1 flex items-center justify-center py-8">
             {loading ? (
-              <div className="flex flex-col items-center gap-4">
-                <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                <p className="text-sm text-muted-foreground">
-                  Analyse du document en cours…
-                </p>
+              <div className="flex flex-col items-center gap-4 w-full max-w-xs">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-400" />
+                <p className="text-sm text-slate-400">Analyse du document en cours...</p>
+                {/* OPT-28: Progress bar */}
+                <Progress value={parseProgress} className="w-full h-2" />
+                <p className="text-[10px] text-slate-500">{fileName}</p>
               </div>
             ) : (
               <label
-                className={`flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
+                className={`flex flex-col items-center justify-center w-full h-52 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ${
                   dragOver
-                    ? "border-primary bg-primary/5"
-                    : "border-muted-foreground/25 hover:border-primary/50"
+                    ? "border-blue-500 bg-blue-500/5 scale-[1.01]"
+                    : "border-blue-500/20 hover:border-blue-500/40 hover:bg-white/[0.02]"
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -238,16 +288,18 @@ export default function DocxImportDialog({
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
               >
-                <Upload className="h-10 w-10 text-muted-foreground mb-3" />
-                <p className="text-sm font-medium">
-                  Glissez-déposez votre fichier .docx ici
+                <div className="w-14 h-14 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3">
+                  <Upload className="h-7 w-7 text-blue-400" />
+                </div>
+                <p className="text-sm font-medium text-slate-300">
+                  Glissez votre DOCX ici ou cliquez pour selectionner
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  ou cliquez pour sélectionner
+                <p className="text-xs text-slate-500 mt-1">
+                  Formats acceptes : .docx, .doc
                 </p>
                 <input
                   type="file"
-                  accept=".docx"
+                  accept=".docx,.doc"
                   className="hidden"
                   onChange={handleFileInput}
                 />
@@ -256,172 +308,230 @@ export default function DocxImportDialog({
           </div>
         )}
 
-        {/* ── STEP 2: Mapping review ── */}
+        {/* ── STEP 2: Mapping review (OPT-29-32) ── */}
         {step === "mapping" && parsed && (
           <div className="flex-1 flex flex-col gap-4 min-h-0">
-            {/* Confidence bar */}
+            {/* OPT-29: Confidence bar */}
             <div className="flex items-center gap-3">
               <Progress value={parsed.confidence} className="flex-1 h-2" />
-              <span className="text-sm font-medium whitespace-nowrap">
-                {recognizedCount}/{ALL_SECTION_IDS.length} sections
-                reconnues — {parsed.confidence}%
+              <span className="text-sm font-medium whitespace-nowrap text-slate-300">
+                {recognizedCount}/{ALL_SECTION_IDS.length} — {parsed.confidence}%
               </span>
             </div>
 
-            {/* Warnings */}
-            {parsed.warnings.length > 0 && (
-              <div className="rounded-md border border-orange-200 bg-orange-50 dark:border-orange-900 dark:bg-orange-950/30 p-3 space-y-1">
-                {parsed.warnings.map((w, i) => (
-                  <div
-                    key={i}
-                    className="flex items-start gap-2 text-sm text-orange-700 dark:text-orange-400"
+            {/* OPT-31: Missing sections warning */}
+            {missingCount > 0 && (
+              <div className="rounded-xl border border-orange-500/20 bg-orange-500/5 p-3 space-y-2">
+                <div className="flex items-start gap-2 text-xs text-orange-300">
+                  <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+                  <span>Sections manquantes : {missingSectionNames.join(", ")}</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={addMissingSections}
+                    className="gap-1 text-xs border-orange-500/20 text-orange-300 hover:bg-orange-500/10"
                   >
-                    <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-                    <span>{w}</span>
-                  </div>
-                ))}
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {missingCount > 0 && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={addMissingSections}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      Ajouter {missingCount} section(s) manquante(s)
-                    </Button>
-                  )}
+                    <Plus className="h-3 w-3" />
+                    Ajouter {missingCount} section(s) manquante(s) depuis GRIMY
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => {
                       const filled = autoFillFromGrimy(sections);
                       setSections(filled);
-                      toast.success("Sections complétées depuis le modèle GRIMY.");
+                      toast.success("Sections completees depuis GRIMY.");
                     }}
+                    className="gap-1 text-xs border-white/[0.06] text-slate-300"
                   >
-                    <Sparkles className="h-3 w-3 mr-1" />
-                    Auto-compléter depuis GRIMY
+                    <Sparkles className="h-3 w-3" />
+                    Auto-completer
                   </Button>
                 </div>
               </div>
             )}
 
-            {/* Sections list */}
-            <ScrollArea className="flex-1 min-h-0 max-h-[40vh]">
-              <div className="space-y-3 pr-3">
-                {sections.map((section, idx) => (
-                  <div
-                    key={`${section.id}-${idx}`}
-                    className="rounded-md border p-3 space-y-2"
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
-                        <span className="text-sm font-medium truncate">
-                          {section.titre || "(Sans titre)"}
-                        </span>
-                      </div>
-                      {section.id.startsWith("custom_") ? (
-                        <Badge variant="outline" className="shrink-0 text-orange-600 border-orange-300">
-                          Non reconnu
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="shrink-0 text-green-600 border-green-300">
-                          <CheckCircle2 className="h-3 w-3 mr-1" />
-                          Reconnu
-                        </Badge>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Label className="text-xs text-muted-foreground shrink-0">
-                        Section GRIMY :
-                      </Label>
-                      <Select
-                        value={section.id}
-                        onValueChange={(val) =>
-                          handleSectionIdChange(idx, val)
-                        }
-                      >
-                        <SelectTrigger className="h-7 text-xs">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GRIMY_DEFAULT_SECTIONS.map((gs) => (
-                            <SelectItem key={gs.id} value={gs.id}>
-                              {gs.titre} {gs.cnoec_obligatoire ? "★" : ""}
-                            </SelectItem>
-                          ))}
-                          <SelectItem value={section.id.startsWith("custom_") ? section.id : `custom_${idx + 1}`}>
-                            (section personnalisée)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {section.contenu && (
-                      <p className="text-xs text-muted-foreground line-clamp-3 whitespace-pre-line">
-                        {section.contenu.slice(0, 200)}
-                        {section.contenu.length > 200 ? "…" : ""}
-                      </p>
-                    )}
+            {/* OPT-32: Tabs for sections vs CGV */}
+            <Tabs value={mappingTab} onValueChange={(v) => setMappingTab(v as "sections" | "cgv")}>
+              <TabsList className="bg-white/[0.03] border border-white/[0.06]">
+                <TabsTrigger value="sections" className="text-xs gap-1">
+                  <FileText className="h-3 w-3" /> Sections ({sections.length})
+                </TabsTrigger>
+                <TabsTrigger value="cgv" className="text-xs gap-1">
+                  <File className="h-3 w-3" /> CGV {cgvContent ? "✓" : ""}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="sections">
+                <ScrollArea className="max-h-[35vh]">
+                  <div className="space-y-2 pr-3">
+                    {/* OPT-29: Recognized sections first, then unrecognized */}
+                    {[...sections]
+                      .sort((a, b) => {
+                        const aCustom = a.id.startsWith("custom_") ? 1 : 0;
+                        const bCustom = b.id.startsWith("custom_") ? 1 : 0;
+                        return aCustom - bCustom;
+                      })
+                      .map((section, idx) => {
+                        const realIdx = sections.indexOf(section);
+                        const isCustom = section.id.startsWith("custom_");
+                        return (
+                          <div
+                            key={`${section.id}-${idx}`}
+                            className={`rounded-lg border p-3 space-y-2 ${
+                              isCustom ? "border-orange-500/20 bg-orange-500/5" : "border-white/[0.06] bg-white/[0.02]"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                                <span className="text-xs font-medium text-slate-300 truncate">
+                                  {section.titre || "(Sans titre)"}
+                                </span>
+                              </div>
+                              {isCustom ? (
+                                <Badge variant="outline" className="shrink-0 text-[9px] text-orange-400 border-orange-500/30">
+                                  Section personnalisee
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="shrink-0 text-[9px] text-green-400 border-green-500/30">
+                                  <CheckCircle2 className="h-2.5 w-2.5 mr-0.5" /> Reconnu
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Label className="text-[10px] text-slate-500 shrink-0">
+                                Mapper vers :
+                              </Label>
+                              <Select
+                                value={section.id}
+                                onValueChange={(val) => handleSectionIdChange(realIdx, val)}
+                              >
+                                <SelectTrigger className="h-7 text-xs bg-white/[0.04] border-white/[0.08]">
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {GRIMY_DEFAULT_SECTIONS.map((gs) => (
+                                    <SelectItem key={gs.id} value={gs.id}>
+                                      {gs.titre} {gs.cnoec_obligatoire ? "★" : ""}
+                                    </SelectItem>
+                                  ))}
+                                  <SelectItem value={section.id.startsWith("custom_") ? section.id : `custom_${realIdx + 1}`}>
+                                    (section personnalisee)
+                                  </SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {/* OPT-29: 2-line preview */}
+                            {section.contenu && (
+                              <p className="text-[10px] text-slate-500 line-clamp-2 whitespace-pre-line pl-5">
+                                {section.contenu.slice(0, 200)}
+                                {section.contenu.length > 200 ? "..." : ""}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
                   </div>
-                ))}
-              </div>
-            </ScrollArea>
+                </ScrollArea>
+              </TabsContent>
+
+              {/* OPT-32: CGV tab */}
+              <TabsContent value="cgv">
+                <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                  {cgvContent ? (
+                    <div className="space-y-2">
+                      <Badge className="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20">
+                        CGV detectees dans le document
+                      </Badge>
+                      <p className="text-xs text-slate-400 whitespace-pre-line line-clamp-10">
+                        {cgvContent.slice(0, 1000)}
+                        {cgvContent.length > 1000 ? "..." : ""}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <p className="text-xs text-slate-500">Aucune CGV detectee — les CGV GRIMY par defaut seront utilisees</p>
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </Tabs>
           </div>
         )}
 
-        {/* ── STEP 3: Confirmation ── */}
+        {/* ── STEP 3: Confirmation (OPT-33-35) ── */}
         {step === "confirm" && (
           <div className="flex-1 space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="modele-name">Nom du modèle</Label>
+            {/* OPT-33: Model name */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-400">Nom du modele</Label>
               <Input
-                id="modele-name"
                 value={modeleName}
                 onChange={(e) => setModeleName(e.target.value)}
-                placeholder="Mon modèle importé"
+                placeholder="Mon modele importe"
+                className="bg-white/[0.04] border-white/[0.08]"
               />
+            </div>
+
+            {/* OPT-34: Mission type */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-slate-400">Type de mission</Label>
+              <Select value={missionType} onValueChange={setMissionType}>
+                <SelectTrigger className="bg-white/[0.04] border-white/[0.08]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {MISSION_CATEGORIES.map((cat) => (
+                    <SelectGroup key={cat.category}>
+                      <SelectLabel className="text-[10px] text-slate-500">{cat.label}</SelectLabel>
+                      {cat.missions.map((mId) => {
+                        const config = (MISSION_TYPES as Record<string, any>)[mId];
+                        if (!config) return null;
+                        return (
+                          <SelectItem key={mId} value={mId}>
+                            {config.shortLabel} — {config.normeRef}
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
-                checked={setAsDefault}
-                onChange={(e) => setSetAsDefault(e.target.checked)}
-                className="rounded border-gray-300"
+                checked={isDefault}
+                onChange={(e) => setIsDefault(e.target.checked)}
+                className="rounded border-gray-300 accent-blue-500"
               />
-              <span className="text-sm">
-                Définir comme modèle par défaut
+              <span className="text-sm text-slate-300">
+                Definir comme modele par defaut
               </span>
             </label>
 
-            <div className="rounded-md border p-4 space-y-2 bg-muted/30">
-              <p className="text-sm font-medium">Résumé de l'import</p>
-              <div className="grid grid-cols-2 gap-2 text-sm text-muted-foreground">
-                <span>Sections :</span>
-                <span className="font-medium text-foreground">
-                  {sections.length}
-                </span>
-                <span>Sections CNOEC couvertes :</span>
-                <span className="font-medium text-foreground">
-                  {cnoecCovered}/{cnoecTotal}
-                </span>
-                <span>CGV détectées :</span>
-                <span className="font-medium text-foreground">
-                  {cgvContent ? "Oui" : "Non (CGV GRIMY par défaut)"}
-                </span>
-                <span>Fichier source :</span>
-                <span className="font-medium text-foreground truncate">
-                  {fileName}
-                </span>
+            {/* OPT-35: Summary */}
+            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
+              <p className="text-sm font-medium text-white">Resume de l'import</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <span className="text-slate-500">Sections :</span>
+                <span className="text-slate-300">{sections.length}</span>
+                <span className="text-slate-500">CNOEC couvertes :</span>
+                <span className="text-slate-300">{cnoecCovered}/{cnoecTotal}</span>
+                <span className="text-slate-500">CGV :</span>
+                <span className="text-slate-300">{cgvContent ? "Detectees" : "GRIMY par defaut"}</span>
+                <span className="text-slate-500">Source :</span>
+                <span className="text-slate-300 truncate">{fileName}</span>
               </div>
               {cnoecCovered < cnoecTotal && (
-                <div className="flex items-start gap-2 mt-2 text-sm text-orange-600">
+                <div className="flex items-start gap-2 mt-2 text-xs text-orange-400">
                   <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
                   <span>
-                    {cnoecTotal - cnoecCovered} section(s) CNOEC obligatoire(s)
-                    manquante(s). Le modèle ne sera pas 100% conforme.
+                    {cnoecTotal - cnoecCovered} section(s) CNOEC obligatoire(s) manquante(s).
                   </span>
                 </div>
               )}
@@ -430,19 +540,17 @@ export default function DocxImportDialog({
         )}
 
         {/* ── Footer navigation ── */}
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="gap-2">
           {step === "mapping" && (
             <>
               <Button
                 variant="outline"
-                onClick={() => {
-                  reset();
-                  setStep("upload");
-                }}
+                onClick={() => { reset(); setStep("upload"); }}
+                className="border-white/[0.06]"
               >
                 Retour
               </Button>
-              <Button onClick={() => setStep("confirm")}>
+              <Button onClick={() => setStep("confirm")} className="bg-blue-600 hover:bg-blue-700">
                 Continuer
               </Button>
             </>
@@ -452,14 +560,17 @@ export default function DocxImportDialog({
               <Button
                 variant="outline"
                 onClick={() => setStep("mapping")}
+                className="border-white/[0.06]"
               >
                 Retour
               </Button>
-              <Button onClick={handleCreate} disabled={loading}>
-                {loading && (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                )}
-                Créer le modèle
+              <Button
+                onClick={handleCreate}
+                disabled={loading || !modeleName.trim()}
+                className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+              >
+                {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                Creer le modele
               </Button>
             </>
           )}
