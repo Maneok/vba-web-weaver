@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -20,9 +20,10 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, Clock, Zap } from "lucide-react";
 import type { RevueMaintien } from "@/lib/revueMaintien";
-import { completeRevue } from "@/lib/revueMaintien";
+import { completeRevue, getRevuesByClient } from "@/lib/revueMaintien";
 import { toast } from "sonner";
 
 interface RevueDialogProps {
@@ -35,11 +36,13 @@ interface RevueDialogProps {
 export default function RevueDialog({ revue, open, onOpenChange, onCompleted }: RevueDialogProps) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [modeRapide, setModeRapide] = useState(false);
 
   // Step 1 — Vérifications
   const [kycVerifie, setKycVerifie] = useState(false);
   const [beVerifie, setBeVerifie] = useState(false);
   const [documentsAJour, setDocumentsAJour] = useState(false);
+  const [rbeConforme, setRbeConforme] = useState(false);
   const [pasDeChanagement, setPasDeChangement] = useState(false);
 
   // Step 2 — Évaluation risque
@@ -52,15 +55,37 @@ export default function RevueDialog({ revue, open, onOpenChange, onCompleted }: 
   const [decisionMotif, setDecisionMotif] = useState("");
   const [observations, setObservations] = useState("");
 
+  // Historique des revues
+  const [historique, setHistorique] = useState<RevueMaintien[]>([]);
+  const [historiqueLoading, setHistoriqueLoading] = useState(false);
+
   const scoreActuel = revue?.score_risque_avant ?? revue?.client_score ?? 0;
   const scoreFinal = scoreCorrect === "oui" ? scoreActuel : (parseInt(nouveauScore) || scoreActuel);
   const isRisqueEleve = scoreFinal >= 70;
+
+  // Charger l'historique à l'ouverture du dialog
+  useEffect(() => {
+    if (open && revue?.client_id) {
+      setHistoriqueLoading(true);
+      getRevuesByClient(revue.client_id)
+        .then((data) => {
+          // Filtrer les revues complétées (exclure la revue en cours), garder les 3 dernières
+          const completed = data
+            .filter((r) => r.status === "completee" && r.id !== revue.id)
+            .slice(0, 3);
+          setHistorique(completed);
+        })
+        .catch(() => setHistorique([]))
+        .finally(() => setHistoriqueLoading(false));
+    }
+  }, [open, revue?.client_id, revue?.id]);
 
   const resetForm = () => {
     setStep(1);
     setKycVerifie(false);
     setBeVerifie(false);
     setDocumentsAJour(false);
+    setRbeConforme(false);
     setPasDeChangement(false);
     setScoreCorrect("oui");
     setNouveauScore("");
@@ -68,6 +93,8 @@ export default function RevueDialog({ revue, open, onOpenChange, onCompleted }: 
     setDecision("maintien");
     setDecisionMotif("");
     setObservations("");
+    setModeRapide(false);
+    setHistorique([]);
   };
 
   const handleOpenChange = (val: boolean) => {
@@ -79,11 +106,16 @@ export default function RevueDialog({ revue, open, onOpenChange, onCompleted }: 
     if (!revue) return;
     setLoading(true);
     try {
+      // Inclure rbeConforme dans les observations si besoin
+      const obsWithRbe = rbeConforme
+        ? (observations ? `${observations}\n[RBE conforme : Oui]` : "[RBE conforme : Oui]")
+        : (observations ? `${observations}\n[RBE conforme : Non]` : "[RBE conforme : Non]");
+
       await completeRevue(revue.id, {
         score_apres: scoreFinal,
         vigilance_apres: nouvelleVigilance,
         maintien: decision === 'maintien' || decision === 'vigilance_renforcee',
-        observations,
+        observations: obsWithRbe,
         decision,
         decision_motif: decision === 'fin_relation' ? decisionMotif : undefined,
         kyc_verifie: kycVerifie,
@@ -111,6 +143,262 @@ export default function RevueDialog({ revue, open, onOpenChange, onCompleted }: 
     controle_qualite: "Controle qualite",
   };
 
+  const decisionLabels: Record<string, string> = {
+    maintien: "Maintien",
+    vigilance_renforcee: "Vigilance renforcee",
+    fin_relation: "Fin de relation",
+  };
+
+  // ─── Sections réutilisées dans les deux modes ─────────────────────
+
+  const renderVerifications = () => (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-sm">Verifications reglementaires</h3>
+
+      {isRisqueEleve && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="text-sm text-amber-600 dark:text-amber-400">
+            Verification renforcee requise — les 4 points doivent etre valides.
+          </span>
+        </div>
+      )}
+
+      <div className={modeRapide ? "grid grid-cols-2 gap-3" : "space-y-3"}>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <Checkbox checked={kycVerifie} onCheckedChange={(v) => setKycVerifie(!!v)} />
+          <span className="text-sm">L'identite du client / beneficiaire effectif a ete verifiee</span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <Checkbox checked={documentsAJour} onCheckedChange={(v) => setDocumentsAJour(!!v)} />
+          <span className="text-sm">Les documents KYC sont a jour (CNI/passeport, KBis)</span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <Checkbox checked={beVerifie} onCheckedChange={(v) => setBeVerifie(!!v)} />
+          <span className="text-sm">Les beneficiaires effectifs ont ete re-verifies</span>
+        </label>
+        <label className="flex items-start gap-3 cursor-pointer">
+          <Checkbox checked={rbeConforme} onCheckedChange={(v) => setRbeConforme(!!v)} />
+          <span className="text-sm">Le RBE (Registre des Beneficiaires Effectifs) est conforme</span>
+        </label>
+      </div>
+
+      <label className="flex items-start gap-3 cursor-pointer pt-1 border-t border-border/50">
+        <Checkbox checked={pasDeChanagement} onCheckedChange={(v) => setPasDeChangement(!!v)} />
+        <span className="text-sm text-muted-foreground">Aucun changement de situation significatif n'a ete identifie</span>
+      </label>
+    </div>
+  );
+
+  const renderEvaluation = () => (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-sm">Evaluation du risque</h3>
+      <div className={modeRapide ? "flex items-center gap-4" : "space-y-4"}>
+        <div className="p-3 rounded-lg bg-muted/50">
+          <span className="text-sm text-muted-foreground">Score actuel :</span>
+          <span className={`ml-2 font-bold text-lg ${
+            scoreActuel >= 70 ? 'text-red-500' : scoreActuel >= 50 ? 'text-orange-500' : 'text-green-500'
+          }`}>
+            {scoreActuel}
+          </span>
+        </div>
+
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Le score de risque est-il toujours correct ?</Label>
+          <RadioGroup value={scoreCorrect} onValueChange={setScoreCorrect}>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="oui" id="score-oui" />
+              <Label htmlFor="score-oui">Oui</Label>
+            </div>
+            <div className="flex items-center gap-2">
+              <RadioGroupItem value="non" id="score-non" />
+              <Label htmlFor="score-non">Non, recalculer</Label>
+            </div>
+          </RadioGroup>
+        </div>
+      </div>
+
+      {scoreCorrect === "non" && (
+        <div className="space-y-2">
+          <Label htmlFor="nouveau-score">Nouveau score de risque</Label>
+          <Input
+            id="nouveau-score"
+            type="number"
+            min={0}
+            max={120}
+            value={nouveauScore}
+            onChange={(e) => setNouveauScore(e.target.value)}
+            placeholder="0-120"
+          />
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label>Nouveau niveau de vigilance</Label>
+        <Select value={nouvelleVigilance} onValueChange={setNouvelleVigilance}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="simplifiee">Simplifiee</SelectItem>
+            <SelectItem value="normale">Normale</SelectItem>
+            <SelectItem value="renforcee">Renforcee</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+
+  const renderDecision = () => (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-sm">Decision</h3>
+
+      <RadioGroup value={decision} onValueChange={setDecision}>
+        <div className="flex items-center gap-2">
+          <RadioGroupItem value="maintien" id="d-maintien" />
+          <Label htmlFor="d-maintien">Maintien de la mission</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <RadioGroupItem value="vigilance_renforcee" id="d-vigilance" />
+          <Label htmlFor="d-vigilance">Vigilance renforcee requise</Label>
+        </div>
+        <div className="flex items-center gap-2">
+          <RadioGroupItem value="fin_relation" id="d-fin" />
+          <Label htmlFor="d-fin">Fin de la relation d'affaires</Label>
+        </div>
+      </RadioGroup>
+
+      {decision === 'fin_relation' && (
+        <div className="space-y-2">
+          <Label htmlFor="motif">Motif de la fin de relation</Label>
+          <Textarea
+            id="motif"
+            value={decisionMotif}
+            onChange={(e) => setDecisionMotif(e.target.value)}
+            placeholder="Indiquer le motif..."
+            rows={3}
+          />
+        </div>
+      )}
+
+      <div className="space-y-2">
+        <Label htmlFor="observations">Observations</Label>
+        <Textarea
+          id="observations"
+          value={observations}
+          onChange={(e) => setObservations(e.target.value)}
+          placeholder="Observations complementaires..."
+          rows={modeRapide ? 3 : 4}
+        />
+      </div>
+
+      {isRisqueEleve && (
+        <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+          <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+          <span className="text-sm text-amber-600 dark:text-amber-400">
+            Cette revue doit etre validee par un associe (score &ge; 70)
+          </span>
+        </div>
+      )}
+    </div>
+  );
+
+  const renderResume = () => (
+    <div className="space-y-4">
+      <h3 className="font-semibold text-sm">Resume de la revue</h3>
+
+      <div className="space-y-3 text-sm">
+        <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-muted/50">
+          <div>
+            <span className="text-muted-foreground">Identite verifiee :</span>
+            <span className="ml-1 font-medium">{kycVerifie ? "Oui" : "Non"}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">KYC a jour :</span>
+            <span className="ml-1 font-medium">{documentsAJour ? "Oui" : "Non"}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">BE verifies :</span>
+            <span className="ml-1 font-medium">{beVerifie ? "Oui" : "Non"}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">RBE conforme :</span>
+            <span className="ml-1 font-medium">{rbeConforme ? "Oui" : "Non"}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Score risque :</span>
+            <span className={`ml-1 font-bold ${
+              scoreFinal >= 70 ? 'text-red-500' : scoreFinal >= 50 ? 'text-orange-500' : 'text-green-500'
+            }`}>{scoreActuel} → {scoreFinal}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Vigilance :</span>
+            <span className="ml-1 font-medium capitalize">{nouvelleVigilance}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Decision :</span>
+            <span className="ml-1 font-medium">{decisionLabels[decision] || decision}</span>
+          </div>
+        </div>
+
+        {observations && (
+          <div className="p-3 rounded-lg bg-muted/50">
+            <span className="text-muted-foreground">Observations :</span>
+            <p className="mt-1">{observations}</p>
+          </div>
+        )}
+
+        {decision === 'fin_relation' && decisionMotif && (
+          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
+            <span className="text-muted-foreground">Motif fin de relation :</span>
+            <p className="mt-1">{decisionMotif}</p>
+          </div>
+        )}
+
+        {isRisqueEleve && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+            <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+            <span className="text-sm text-amber-600 dark:text-amber-400">
+              Cette revue doit etre validee par un associe (score &ge; 70)
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
+  const renderHistorique = () => (
+    <div className="space-y-3 pt-4 border-t border-border/50">
+      <h3 className="font-semibold text-sm flex items-center gap-2">
+        <Clock className="h-4 w-4 text-muted-foreground" />
+        Historique des revues
+      </h3>
+      {historiqueLoading ? (
+        <p className="text-sm text-muted-foreground">Chargement...</p>
+      ) : historique.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Aucune revue anterieure completee.</p>
+      ) : (
+        <div className="space-y-2">
+          {historique.map((h) => (
+            <div key={h.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 text-sm">
+              <span className="text-muted-foreground">
+                {h.completed_at ? new Date(h.completed_at).toLocaleDateString("fr-FR") : "—"}
+              </span>
+              <span className={`font-medium ${
+                (h.score_risque_apres ?? 0) >= 70 ? 'text-red-500' : (h.score_risque_apres ?? 0) >= 50 ? 'text-orange-500' : 'text-green-500'
+              }`}>
+                {h.score_risque_avant ?? "?"} → {h.score_risque_apres ?? "?"}
+              </span>
+              <Badge variant="outline" className="text-xs capitalize">
+                {h.decision ? (decisionLabels[h.decision] || h.decision) : "—"}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -119,224 +407,77 @@ export default function RevueDialog({ revue, open, onOpenChange, onCompleted }: 
             Revue — {revue.client_nom || "Client"}
             <Badge variant="outline" className="ml-2">{typeLabels[revue.type] || revue.type}</Badge>
           </DialogTitle>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <span>Ref : {revue.client_ref}</span>
-            <span>·</span>
-            <span>Score actuel : {scoreActuel}</span>
-            <span>·</span>
-            <span>Etape {step}/4</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>Ref : {revue.client_ref}</span>
+              <span>·</span>
+              <span>Score actuel : {scoreActuel}</span>
+              {!modeRapide && (
+                <>
+                  <span>·</span>
+                  <span>Etape {step}/4</span>
+                </>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Zap className={`h-3.5 w-3.5 ${modeRapide ? "text-amber-500" : "text-muted-foreground"}`} />
+              <Label htmlFor="mode-rapide" className="text-xs text-muted-foreground cursor-pointer">
+                Mode rapide
+              </Label>
+              <Switch
+                id="mode-rapide"
+                checked={modeRapide}
+                onCheckedChange={setModeRapide}
+                className="scale-75"
+              />
+            </div>
           </div>
         </DialogHeader>
 
-        {/* Progress bar */}
-        <div className="flex gap-1 mb-4">
-          {[1, 2, 3, 4].map(s => (
-            <div
-              key={s}
-              className={`h-1.5 flex-1 rounded-full transition-colors ${
-                s <= step ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-700'
-              }`}
-            />
-          ))}
-        </div>
-
-        {/* Step 1 — Vérifications */}
-        {step === 1 && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm">Verifications reglementaires</h3>
-            <div className="space-y-3">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <Checkbox checked={kycVerifie} onCheckedChange={(v) => setKycVerifie(!!v)} />
-                <span className="text-sm">L'identite du client / beneficiaire effectif a ete verifiee</span>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <Checkbox checked={documentsAJour} onCheckedChange={(v) => setDocumentsAJour(!!v)} />
-                <span className="text-sm">Les documents KYC sont a jour (CNI/passeport, KBis, RBE)</span>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <Checkbox checked={beVerifie} onCheckedChange={(v) => setBeVerifie(!!v)} />
-                <span className="text-sm">Les beneficiaires effectifs ont ete re-verifies</span>
-              </label>
-              <label className="flex items-start gap-3 cursor-pointer">
-                <Checkbox checked={pasDeChanagement} onCheckedChange={(v) => setPasDeChangement(!!v)} />
-                <span className="text-sm">Aucun changement de situation significatif n'a ete identifie</span>
-              </label>
-            </div>
-          </div>
-        )}
-
-        {/* Step 2 — Évaluation risque */}
-        {step === 2 && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm">Evaluation du risque</h3>
-            <div className="p-3 rounded-lg bg-muted/50">
-              <span className="text-sm text-muted-foreground">Score de risque actuel :</span>
-              <span className={`ml-2 font-bold text-lg ${
-                scoreActuel >= 70 ? 'text-red-500' : scoreActuel >= 50 ? 'text-orange-500' : 'text-green-500'
-              }`}>
-                {scoreActuel}
-              </span>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Le score de risque est-il toujours correct ?</Label>
-              <RadioGroup value={scoreCorrect} onValueChange={setScoreCorrect}>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="oui" id="score-oui" />
-                  <Label htmlFor="score-oui">Oui</Label>
-                </div>
-                <div className="flex items-center gap-2">
-                  <RadioGroupItem value="non" id="score-non" />
-                  <Label htmlFor="score-non">Non, recalculer</Label>
-                </div>
-              </RadioGroup>
-            </div>
-
-            {scoreCorrect === "non" && (
-              <div className="space-y-2">
-                <Label htmlFor="nouveau-score">Nouveau score de risque</Label>
-                <Input
-                  id="nouveau-score"
-                  type="number"
-                  min={0}
-                  max={120}
-                  value={nouveauScore}
-                  onChange={(e) => setNouveauScore(e.target.value)}
-                  placeholder="0-120"
+        {/* ─── Mode classique (stepper) ─────────────────────────────── */}
+        {!modeRapide && (
+          <>
+            {/* Progress bar */}
+            <div className="flex gap-1 mb-4">
+              {[1, 2, 3, 4].map(s => (
+                <div
+                  key={s}
+                  className={`h-1.5 flex-1 rounded-full transition-colors ${
+                    s <= step ? 'bg-blue-500' : 'bg-slate-200 dark:bg-slate-700'
+                  }`}
                 />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label>Nouveau niveau de vigilance</Label>
-              <Select value={nouvelleVigilance} onValueChange={setNouvelleVigilance}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="simplifiee">Simplifiee</SelectItem>
-                  <SelectItem value="normale">Normale</SelectItem>
-                  <SelectItem value="renforcee">Renforcee</SelectItem>
-                </SelectContent>
-              </Select>
+              ))}
             </div>
-          </div>
+
+            {step === 1 && renderVerifications()}
+            {step === 2 && renderEvaluation()}
+            {step === 3 && renderDecision()}
+            {step === 4 && renderResume()}
+
+            {/* Historique */}
+            {renderHistorique()}
+          </>
         )}
 
-        {/* Step 3 — Décision */}
-        {step === 3 && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm">Decision</h3>
+        {/* ─── Mode rapide (tout sur une page) ─────────────────────── */}
+        {modeRapide && (
+          <div className="space-y-6">
+            {renderVerifications()}
+            <div className="border-t border-border/50" />
+            {renderEvaluation()}
+            <div className="border-t border-border/50" />
+            {renderDecision()}
+            <div className="border-t border-border/50" />
+            {renderResume()}
 
-            <RadioGroup value={decision} onValueChange={setDecision}>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="maintien" id="d-maintien" />
-                <Label htmlFor="d-maintien">Maintien de la mission</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="vigilance_renforcee" id="d-vigilance" />
-                <Label htmlFor="d-vigilance">Vigilance renforcee requise</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <RadioGroupItem value="fin_relation" id="d-fin" />
-                <Label htmlFor="d-fin">Fin de la relation d'affaires</Label>
-              </div>
-            </RadioGroup>
-
-            {decision === 'fin_relation' && (
-              <div className="space-y-2">
-                <Label htmlFor="motif">Motif de la fin de relation</Label>
-                <Textarea
-                  id="motif"
-                  value={decisionMotif}
-                  onChange={(e) => setDecisionMotif(e.target.value)}
-                  placeholder="Indiquer le motif..."
-                  rows={3}
-                />
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="observations">Observations</Label>
-              <Textarea
-                id="observations"
-                value={observations}
-                onChange={(e) => setObservations(e.target.value)}
-                placeholder="Observations complementaires..."
-                rows={4}
-              />
-            </div>
-
-            {isRisqueEleve && (
-              <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
-                <span className="text-sm text-amber-600 dark:text-amber-400">
-                  Cette revue doit etre validee par un associe (score &ge; 70)
-                </span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Step 4 — Validation / Résumé */}
-        {step === 4 && (
-          <div className="space-y-4">
-            <h3 className="font-semibold text-sm">Resume de la revue</h3>
-
-            <div className="space-y-3 text-sm">
-              <div className="grid grid-cols-2 gap-2 p-3 rounded-lg bg-muted/50">
-                <div>
-                  <span className="text-muted-foreground">Identite verifiee :</span>
-                  <span className="ml-1 font-medium">{kycVerifie ? "Oui" : "Non"}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">KYC a jour :</span>
-                  <span className="ml-1 font-medium">{documentsAJour ? "Oui" : "Non"}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">BE verifies :</span>
-                  <span className="ml-1 font-medium">{beVerifie ? "Oui" : "Non"}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Score risque :</span>
-                  <span className={`ml-1 font-bold ${
-                    scoreFinal >= 70 ? 'text-red-500' : scoreFinal >= 50 ? 'text-orange-500' : 'text-green-500'
-                  }`}>{scoreActuel} → {scoreFinal}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Vigilance :</span>
-                  <span className="ml-1 font-medium capitalize">{nouvelleVigilance}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Decision :</span>
-                  <span className="ml-1 font-medium">
-                    {decision === 'maintien' && "Maintien"}
-                    {decision === 'vigilance_renforcee' && "Vigilance renforcee"}
-                    {decision === 'fin_relation' && "Fin de relation"}
-                  </span>
-                </div>
-              </div>
-
-              {observations && (
-                <div className="p-3 rounded-lg bg-muted/50">
-                  <span className="text-muted-foreground">Observations :</span>
-                  <p className="mt-1">{observations}</p>
-                </div>
-              )}
-
-              {decision === 'fin_relation' && decisionMotif && (
-                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20">
-                  <span className="text-muted-foreground">Motif fin de relation :</span>
-                  <p className="mt-1">{decisionMotif}</p>
-                </div>
-              )}
-            </div>
+            {/* Historique */}
+            {renderHistorique()}
           </div>
         )}
 
         <DialogFooter className="flex items-center justify-between gap-2 sm:justify-between">
           <div>
-            {step > 1 && (
+            {!modeRapide && step > 1 && (
               <Button variant="ghost" size="sm" onClick={() => setStep(s => s - 1)}>
                 <ChevronLeft className="h-4 w-4 mr-1" /> Precedent
               </Button>
@@ -344,7 +485,7 @@ export default function RevueDialog({ revue, open, onOpenChange, onCompleted }: 
           </div>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => handleOpenChange(false)}>Annuler</Button>
-            {step < 4 ? (
+            {!modeRapide && step < 4 ? (
               <Button onClick={() => setStep(s => s + 1)}>
                 Suivant <ChevronRight className="h-4 w-4 ml-1" />
               </Button>

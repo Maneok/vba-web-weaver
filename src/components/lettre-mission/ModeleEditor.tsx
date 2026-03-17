@@ -37,7 +37,7 @@ import {
   GRIMY_DEFAULT_REPARTITION,
   buildSectionsForMissionType,
 } from "@/lib/lettreMissionModeles";
-import type { LMModele, LMSection, CnoecWarning } from "@/lib/lettreMissionModeles";
+import type { LMModele, LMSection, CnoecWarning, RepartitionRow } from "@/lib/lettreMissionModeles";
 import { MISSION_TYPES, getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import {
   Save,
@@ -138,7 +138,7 @@ export default function ModeleEditor({
   const [cnoecExpanded, setCnoecExpanded] = useState(false);
   const [editorTab, setEditorTab] = useState("sections");
   const [sectionSearch, setSectionSearch] = useState("");
-  const [repartition, setRepartition] = useState<any[]>(() => [...(modele.repartition_taches ?? GRIMY_DEFAULT_REPARTITION)]);
+  const [repartition, setRepartition] = useState<RepartitionRow[]>(() => [...(modele.repartition_taches ?? GRIMY_DEFAULT_REPARTITION)]);
 
   // OPT-7: Unsaved changes leave confirmation
   const [showLeaveDialog, setShowLeaveDialog] = useState(false);
@@ -566,7 +566,7 @@ export default function ModeleEditor({
     ]);
   }, []);
 
-  const updateTache = useCallback((idx: number, field: string, value: any) => {
+  const updateTache = useCallback((idx: number, field: string, value: string | boolean) => {
     setRepartition((prev) => {
       const updated = [...prev];
       updated[idx] = { ...updated[idx], [field]: value };
@@ -607,7 +607,7 @@ export default function ModeleEditor({
   const checklist = useMemo(() => [
     { label: "Toutes les sections obligatoires sont actives", done: cnoecCov.covered === cnoecCov.total },
     { label: "Les CGV sont personnalisees", done: cgvContent.trim().length > 50 },
-    { label: "Le tableau de repartition est rempli", done: repartition.length > 0 && repartition.every((t: any) => t.label.trim()) },
+    { label: "Le tableau de repartition est rempli", done: repartition.length > 0 && repartition.every((t) => t.label.trim()) },
     { label: "Les honoraires types sont definis", done: sections.some((s) => s.id === "honoraires" && s.contenu.trim().length > 0 && !hiddenIds.has(s.id)) },
   ], [cnoecCov, cgvContent, repartition, sections, hiddenIds]);
 

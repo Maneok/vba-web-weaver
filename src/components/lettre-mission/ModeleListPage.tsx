@@ -41,7 +41,7 @@ import {
 } from "@/lib/lettreMissionModeles";
 import type { LMModele } from "@/lib/lettreMissionModeles";
 import { MISSION_TYPES, MISSION_CATEGORIES, getMissionTypeConfig } from "@/lib/lettreMissionTypes";
-import type { MissionCategory } from "@/lib/lettreMissionTypes";
+import type { MissionCategory, MissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { supabase } from "@/integrations/supabase/client";
 import DocxImportDialog from "./DocxImportDialog";
 import ModeleEditor from "./ModeleEditor";
@@ -444,7 +444,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
     const cat = MISSION_CATEGORIES.find((c) => c.category === category);
     if (!cat) return [];
     return cat.missions.map((mId) => {
-      const config = (MISSION_TYPES as Record<string, any>)[mId];
+      const config = (MISSION_TYPES as Record<string, MissionTypeConfig>)[mId];
       return config ? { id: mId, label: config.label, shortLabel: config.shortLabel, normeRef: config.normeRef } : null;
     }).filter(Boolean) as { id: string; label: string; shortLabel: string; normeRef: string }[];
   }, []);
@@ -846,7 +846,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
                       <SelectGroup key={cat.category}>
                         <SelectLabel className="text-[10px] text-slate-500">{cat.label}</SelectLabel>
                         {cat.missions.map((mId) => {
-                          const config = (MISSION_TYPES as Record<string, any>)[mId];
+                          const config = (MISSION_TYPES as Record<string, MissionTypeConfig>)[mId];
                           if (!config) return null;
                           return (
                             <SelectItem key={mId} value={mId}>

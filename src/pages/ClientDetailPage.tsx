@@ -1236,6 +1236,124 @@ function ClientDetailContent({ client }: { client: Client }) {
             )}
           </div>
         </TabsContent>
+
+        {/* TAB: Mission LM + Revues + Avenants (OPT 46-48, 50) */}
+        <TabsContent value="mission_lm" className="mt-4 space-y-6">
+          {/* OPT-46: Lettre de mission */}
+          <div className="glass-card p-4 sm:p-6 space-y-3">
+            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-blue-400" /> Lettre de mission
+            </h3>
+            {clientLM ? (
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="space-y-1">
+                  <span className="text-sm text-slate-200 font-medium">{clientLM.numero}</span>
+                  <span className="block text-xs text-slate-500">
+                    {clientLM.mission_type || "Présentation"} · Statut : {clientLM.status}
+                    {clientLM.signed_at && ` · Signée le ${new Date(clientLM.signed_at).toLocaleDateString("fr-FR")}`}
+                  </span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-white/[0.06] text-xs"
+                  onClick={() => navigate(`/lettre-mission?instance=${clientLM.id}`)}
+                >
+                  <Eye className="w-3 h-3" /> Voir la lettre
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-slate-500">Aucune lettre de mission active</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 border-white/[0.06] text-xs"
+                  onClick={() => navigate(`/lettre-mission?client_ref=${client.ref}`)}
+                >
+                  <Plus className="w-3 h-3" /> Créer une lettre de mission
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* OPT-47: Revues */}
+          <div className="glass-card p-4 sm:p-6 space-y-3">
+            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <ClipboardCheck className="w-4 h-4 text-emerald-400" /> Revues de maintien
+            </h3>
+            {clientRevues.length > 0 ? (
+              <div className="space-y-2">
+                {clientRevues.slice(0, 3).map((rev) => {
+                  const typeInfo = REVUE_TYPE_LABELS[rev.type] || { label: rev.type, color: 'slate' };
+                  return (
+                    <div key={rev.id} className="flex items-center gap-3 p-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                      <Badge className={`text-[9px] bg-${typeInfo.color}-500/10 text-${typeInfo.color}-400 border-0`}>{typeInfo.label}</Badge>
+                      <span className="text-xs text-slate-400">
+                        {rev.status === 'completee' && rev.completed_at
+                          ? `Complétée le ${new Date(rev.completed_at).toLocaleDateString("fr-FR")}`
+                          : `Échéance : ${new Date(rev.date_echeance).toLocaleDateString("fr-FR")}`}
+                      </span>
+                      {rev.score_risque_avant != null && (
+                        <span className="text-xs text-slate-500">
+                          Score : {rev.score_risque_avant}{rev.score_risque_apres != null ? ` → ${rev.score_risque_apres}` : ''}
+                        </span>
+                      )}
+                      {rev.decision && (
+                        <Badge variant="outline" className="text-[9px] ml-auto">{rev.decision === 'maintien' ? 'Maintien' : rev.decision === 'vigilance_renforcee' ? 'Vigilance renforcée' : 'Fin relation'}</Badge>
+                      )}
+                    </div>
+                  );
+                })}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-slate-500 hover:text-blue-400"
+                  onClick={() => navigate(`/revue-maintien?client=${client.ref}`)}
+                >
+                  Voir l'historique complet <ChevronRight className="w-3 h-3 ml-1" />
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Aucune revue enregistrée</p>
+            )}
+          </div>
+
+          {/* OPT-48: Avenants */}
+          <div className="glass-card p-4 sm:p-6 space-y-3">
+            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+              <ScrollText className="w-4 h-4 text-purple-400" /> Avenants
+            </h3>
+            {clientAvenants.length > 0 ? (
+              <div className="space-y-2">
+                {clientAvenants.map((av) => (
+                  <div key={av.id} className="flex items-center gap-3 p-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                    <span className="text-sm text-slate-200">{av.numero || "Avenant"}</span>
+                    <span className="text-xs text-slate-500">{av.objet}</span>
+                    {av.date_effet && (
+                      <span className="text-xs text-slate-500 ml-auto">Effet : {new Date(av.date_effet).toLocaleDateString("fr-FR")}</span>
+                    )}
+                    <Badge variant="outline" className="text-[9px]">{av.status}</Badge>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-slate-500">Aucun avenant</p>
+            )}
+          </div>
+
+          {/* OPT-50: Export dossier complet */}
+          <div className="glass-card p-4 sm:p-6">
+            <Button
+              variant="outline"
+              className="gap-2 border-white/[0.06] text-slate-400"
+              onClick={() => toast.info("Fonctionnalité en cours de développement")}
+            >
+              <Download className="w-4 h-4" /> Exporter le dossier complet (ZIP)
+            </Button>
+            <p className="text-[10px] text-slate-600 mt-2">LM signée + avenants + certificat signature + historique revues + documents KYC</p>
+          </div>
+        </TabsContent>
       </Tabs>
 
       {/* Confirmation suppression */}

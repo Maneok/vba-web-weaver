@@ -162,7 +162,6 @@ Deno.serve(async (req) => {
       hasCriticalMatch,
       hasPPE,
       status: allMatches.length > 0 ? (hasCriticalMatch ? "ALERTE" : "ATTENTION") : "ok",
-      _diag: _diagLogs,
     }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

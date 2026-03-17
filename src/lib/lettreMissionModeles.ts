@@ -677,7 +677,19 @@ export function getDefaultRepartitionForMissionType(missionTypeId: string): Repa
 // CRUD Supabase
 // ══════════════════════════════════════════════
 
+// OPT-16: Module-level cache for getModeles
+const _modelesCache = new Map<string, { data: LMModele[]; ts: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+export function invalidateModelesCache(cabinetId?: string) {
+  if (cabinetId) _modelesCache.delete(cabinetId);
+  else _modelesCache.clear();
+}
+
 export async function getModeles(cabinetId: string): Promise<LMModele[]> {
+  const cached = _modelesCache.get(cabinetId);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
   const { data, error } = await supabase
     .from("lm_modeles")
     .select("*")
@@ -689,7 +701,9 @@ export async function getModeles(cabinetId: string): Promise<LMModele[]> {
     logger.error("LM_MODELES", "getModeles error", error);
     throw error;
   }
-  return (data ?? []) as LMModele[];
+  const result = (data ?? []) as LMModele[];
+  _modelesCache.set(cabinetId, { data: result, ts: Date.now() });
+  return result;
 }
 
 export async function getModeleById(id: string): Promise<LMModele> {
@@ -743,6 +757,7 @@ export async function createModele(modele: Partial<LMModele>): Promise<LMModele>
     logger.error("LM_MODELES", "createModele error", error);
     throw error;
   }
+  invalidateModelesCache(modele.cabinet_id);
   return data as LMModele;
 }
 
@@ -761,6 +776,7 @@ export async function updateModele(
     logger.error("LM_MODELES", "updateModele error", error);
     throw error;
   }
+  invalidateModelesCache(); // cabinet_id not available here, clear all
   return data as LMModele;
 }
 
@@ -779,6 +795,7 @@ export async function deleteModele(id: string): Promise<void> {
     logger.error("LM_MODELES", "deleteModele error", error);
     throw error;
   }
+  invalidateModelesCache(modele.cabinet_id);
 }
 
 // OPT-30: Duplicate with proper metadata
@@ -809,6 +826,7 @@ export async function setAsDefault(id: string, cabinetId: string): Promise<void>
     logger.error("LM_MODELES", "setAsDefault error", error);
     throw error;
   }
+  invalidateModelesCache(cabinetId);
 }
 
 // ══════════════════════════════════════════════
