@@ -4,6 +4,36 @@ import { MISSION_TYPES, getMissionTypeConfig } from "./lettreMissionTypes";
 import type { MissionTypeConfig, MissionCategory } from "./lettreMissionTypes";
 
 // ══════════════════════════════════════════════
+// OPT-42/48: Sanitization helpers
+// ══════════════════════════════════════════════
+
+/** Strip <script> tags from text to prevent XSS in HTML previews */
+function stripScripts(text: string): string {
+  if (!text) return "";
+  return text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "");
+}
+
+// ══════════════════════════════════════════════
+// OPT-49: Sensitive content detection
+// ══════════════════════════════════════════════
+
+const SENSITIVE_PATTERNS = [
+  /\b(?:password|mot_de_passe|api[_-]?key|secret[_-]?key|token)\s*[:=]/i,
+  /\b(?:sk_live|pk_live|sk_test|pk_test)_[a-zA-Z0-9]+/,
+  /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----/,
+];
+
+function checkSensitiveContent(text: string): string[] {
+  const warnings: string[] = [];
+  for (const pattern of SENSITIVE_PATTERNS) {
+    if (pattern.test(text)) {
+      warnings.push(`Contenu potentiellement sensible détecté (${pattern.source.slice(0, 30)}...)`);
+    }
+  }
+  return warnings;
+}
+
+// ══════════════════════════════════════════════
 // Types
 // ══════════════════════════════════════════════
 
@@ -736,15 +766,24 @@ export async function getDefaultModele(cabinetId: string): Promise<LMModele | nu
 }
 
 export async function createModele(modele: Partial<LMModele>): Promise<LMModele> {
+  // OPT-42/48: Sanitize section content before insert
+  const rawSections = (modele.sections ?? GRIMY_DEFAULT_SECTIONS) as LMSection[];
+  const cleanSections = rawSections.map((s) => ({ ...s, contenu: stripScripts(s.contenu), titre: stripScripts(s.titre) }));
+  // OPT-49: Warn on sensitive content
+  for (const s of cleanSections) {
+    const w = checkSensitiveContent(s.contenu);
+    if (w.length > 0) logger.warn("LM_MODELES", `createModele — section « ${s.titre} »: ${w.join("; ")}`);
+  }
+
   const { data, error } = await supabase
     .from("lm_modeles")
     .insert({
       cabinet_id: modele.cabinet_id,
-      nom: modele.nom ?? "Modèle standard",
-      description: modele.description,
+      nom: stripScripts(modele.nom ?? "Modèle standard"),
+      description: modele.description ? stripScripts(modele.description) : modele.description,
       mission_type: modele.mission_type ?? "presentation",
-      sections: modele.sections ?? GRIMY_DEFAULT_SECTIONS,
-      cgv_content: modele.cgv_content ?? GRIMY_DEFAULT_CGV,
+      sections: cleanSections,
+      cgv_content: stripScripts(modele.cgv_content ?? GRIMY_DEFAULT_CGV),
       repartition_taches: modele.repartition_taches ?? GRIMY_DEFAULT_REPARTITION,
       is_default: modele.is_default ?? false,
       source: modele.source ?? "grimy",
@@ -765,9 +804,22 @@ export async function updateModele(
   id: string,
   updates: Partial<Pick<LMModele, "nom" | "description" | "sections" | "cgv_content" | "repartition_taches" | "is_default">>
 ): Promise<LMModele> {
+  // OPT-42/48: Sanitize before update
+  const sanitized = { ...updates };
+  if (sanitized.sections) {
+    sanitized.sections = (sanitized.sections as LMSection[]).map((s) => ({ ...s, contenu: stripScripts(s.contenu), titre: stripScripts(s.titre) }));
+    for (const s of sanitized.sections as LMSection[]) {
+      const w = checkSensitiveContent(s.contenu);
+      if (w.length > 0) logger.warn("LM_MODELES", `updateModele — section « ${s.titre} »: ${w.join("; ")}`);
+    }
+  }
+  if (sanitized.nom) sanitized.nom = stripScripts(sanitized.nom);
+  if (sanitized.description) sanitized.description = stripScripts(sanitized.description);
+  if (sanitized.cgv_content) sanitized.cgv_content = stripScripts(sanitized.cgv_content);
+
   const { data, error } = await supabase
     .from("lm_modeles")
-    .update(updates)
+    .update(sanitized)
     .eq("id", id)
     .select()
     .single();

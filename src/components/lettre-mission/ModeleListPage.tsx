@@ -394,7 +394,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       }
     } catch (err) {
       logger.error("LM_MODELES", "loadModeles error", err);
-      toast.error("Erreur lors du chargement des modeles.");
+      toast.error("Impossible de charger les modèles. Vérifiez votre connexion.");
       setLoadError(true);
     } finally {
       setLoading(false);
@@ -553,6 +553,19 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
     if (!deleteTarget) return;
     setDeleting(true);
     try {
+      // OPT-50: Check for signed LMs before deleting
+      const { count } = await supabase
+        .from("lettres_mission")
+        .select("id", { count: "exact", head: true })
+        .eq("modele_id", deleteTarget.id)
+        .eq("statut", "signee");
+      if (count && count > 0) {
+        toast.warning(
+          `Ce modèle est utilisé par ${count} lettre${count > 1 ? "s" : ""} signée${count > 1 ? "s" : ""}. Suppression impossible.`
+        );
+        setDeleting(false);
+        return;
+      }
       await deleteModele(deleteTarget.id);
       toast.success("Modele supprime.");
       setDeleteTarget(null);
@@ -1016,6 +1029,16 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
           <p className="text-sm text-slate-400">
             Supprimer le modele « {deleteTarget?.nom} » ? Les lettres deja generees ne seront pas affectees.
           </p>
+          {/* OPT-50: Warning if modele is in use */}
+          {deleteTarget && (usageCounts[deleteTarget.id] || 0) > 0 && (
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-400">
+                Ce modèle est utilisé par {usageCounts[deleteTarget.id]} lettre{usageCounts[deleteTarget.id] > 1 ? "s" : ""} de mission.
+                Si des lettres signées existent, la suppression sera bloquée.
+              </p>
+            </div>
+          )}
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setDeleteTarget(null)} className="border-white/[0.06]">
               Annuler
