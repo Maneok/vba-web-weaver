@@ -36,7 +36,7 @@ Deno.serve(async (req) => {
     }
 
     const searchQuery = `${raison_sociale} ${ville || ""}`.trim();
-    const fields = "name,formatted_address,business_status,rating,user_ratings_total,opening_hours,website,geometry";
+    const fields = "place_id,name,formatted_address,business_status,rating,user_ratings_total,opening_hours,geometry";
 
     const url = `https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input=${encodeURIComponent(searchQuery)}&inputtype=textquery&fields=${fields}&key=${apiKey}`;
 
@@ -58,7 +58,8 @@ Deno.serve(async (req) => {
         found: false, alertes: [], status: "unavailable", error: "Google Places API: reponse non-JSON",
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
-    console.error("[PLACES_DIAG]", JSON.stringify({ status: data.status, error_message: data.error_message, candidates_count: (data.candidates ?? []).length }));
+    const _diag = { status: data.status, error_message: data.error_message, candidates_count: (data.candidates ?? []).length };
+    console.error("[PLACES_DIAG]", JSON.stringify(_diag));
     const candidates = data.candidates ?? [];
 
     if (candidates.length === 0) {
@@ -76,6 +77,19 @@ Deno.serve(async (req) => {
     }
 
     const place = candidates[0];
+
+    let website: string | null = null;
+    if (place.place_id) {
+      try {
+        const detailUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${place.place_id}&fields=website&key=${apiKey}`;
+        const detailRes = await fetch(detailUrl, { signal: AbortSignal.timeout(5000) });
+        if (detailRes.ok) {
+          const detailData = await detailRes.json();
+          website = detailData.result?.website ?? null;
+        }
+      } catch { }
+    }
+
     const alertes: string[] = [];
 
     if (place.business_status === "CLOSED_PERMANENTLY") {
@@ -84,7 +98,7 @@ Deno.serve(async (req) => {
       alertes.push("Etablissement temporairement ferme");
     }
 
-    if ((place.user_ratings_total ?? 0) === 0 && !place.website) {
+    if ((place.user_ratings_total ?? 0) === 0 && !website) {
       alertes.push("Aucun avis et pas de site web — faible visibilite");
     }
 
@@ -100,7 +114,7 @@ Deno.serve(async (req) => {
         rating: place.rating ?? null,
         totalRatings: place.user_ratings_total ?? 0,
         isOpen: place.opening_hours?.open_now ?? null,
-        website: place.website ?? null,
+        website,
         lat,
         lng,
       },
