@@ -57,7 +57,15 @@ import { sendForSignature, getSignatureTokens } from "@/lib/lettreMissionSignatu
 import { buildClientFromWizardData } from "@/lib/lmUtils";
 
 // ─────────────────────────────────────────
-// G) Advanced history with filters, duplicate, archive
+// Mission type labels for filters
+// ─────────────────────────────────────────
+const MISSION_TYPE_OPTIONS = Object.values(MISSION_TYPES).map((m) => ({
+  id: m.id,
+  label: m.shortLabel,
+}));
+
+// ─────────────────────────────────────────
+// G) "Mes lettres" with filters, status pills, search, alertes bandeau
 // ─────────────────────────────────────────
 function LetterHistory({
   letters,
@@ -68,6 +76,7 @@ function LetterHistory({
   onDownloadPdf,
   onCreateAvenant,
   avenantsByLetter,
+  cabinetId,
 }: {
   letters: SavedLetter[];
   loading: boolean;
@@ -77,10 +86,11 @@ function LetterHistory({
   onDownloadPdf: (letter: SavedLetter) => void;
   onCreateAvenant: (letter: SavedLetter) => void;
   avenantsByLetter: Record<string, LMAvenant[]>;
+  cabinetId?: string;
 }) {
   const [searchQ, setSearchQ] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
-  const [filterPeriode, setFilterPeriode] = useState("all");
+  const [filterType, setFilterType] = useState("all");
 
   // Signature state
   const [signTarget, setSignTarget] = useState<SavedLetter | null>(null);
@@ -111,6 +121,16 @@ function LetterHistory({
     setSignLoading(false);
   };
 
+  // Status counts for pills
+  const statusCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: letters.length };
+    for (const l of letters) {
+      const s = l.statut || "brouillon";
+      counts[s] = (counts[s] || 0) + 1;
+    }
+    return counts;
+  }, [letters]);
+
   const filtered = useMemo(() => {
     let result = [...letters];
 
@@ -119,22 +139,15 @@ function LetterHistory({
       result = result.filter((l) => l.statut === filterStatut);
     }
 
-    // Filter by periode
-    if (filterPeriode !== "all") {
-      const now = new Date();
-      const safeDate = (s: string) => { const d = new Date(s); return isNaN(d.getTime()) ? null : d; };
-      if (filterPeriode === "7j") {
-        const d = new Date(); d.setDate(d.getDate() - 7);
-        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt >= d : false; });
-      } else if (filterPeriode === "30j") {
-        const d = new Date(); d.setDate(d.getDate() - 30);
-        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt >= d : false; });
-      } else if (filterPeriode === "annee") {
-        result = result.filter((l) => { const dt = safeDate(l.updated_at); return dt ? dt.getFullYear() === now.getFullYear() : false; });
-      }
+    // Filter by mission type
+    if (filterType !== "all") {
+      result = result.filter((l) => {
+        const tm = (l.type_mission || "").toLowerCase();
+        return tm === filterType.toLowerCase() || tm.includes(filterType.toLowerCase());
+      });
     }
 
-    // Search
+    // Search by client name or LM number
     if (searchQ.length >= 2) {
       const q = searchQ.toLowerCase();
       result = result.filter(
@@ -146,16 +159,26 @@ function LetterHistory({
     }
 
     return result;
-  }, [letters, filterStatut, filterPeriode, searchQ]);
+  }, [letters, filterStatut, filterType, searchQ]);
 
-  const statusColor = (s: string) => {
-    const found = LM_STATUTS.find((st) => st.value === s);
-    return found?.color || "bg-slate-500/10 text-slate-400 border-slate-500/20";
+  // Get mission shortLabel for a type_mission string
+  const getMissionLabel = (typeMission: string) => {
+    const entry = Object.values(MISSION_TYPES).find(
+      (m) => m.id === typeMission || m.shortLabel === typeMission || m.label === typeMission
+    );
+    return entry ? entry.shortLabel : typeMission;
+  };
+
+  const getMissionNorme = (typeMission: string) => {
+    const entry = Object.values(MISSION_TYPES).find(
+      (m) => m.id === typeMission || m.shortLabel === typeMission || m.label === typeMission
+    );
+    return entry?.normeRef || "";
   };
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20 p-6 lg:p-8">
+      <div className="flex items-center justify-center py-20">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
         <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
       </div>
@@ -164,7 +187,7 @@ function LetterHistory({
 
   if (letters.length === 0) {
     return (
-      <div className="text-center py-20 p-6 lg:p-8">
+      <div className="text-center py-20">
         <FileText className="w-12 h-12 text-slate-600 mx-auto mb-4" />
         <p className="text-slate-400 text-sm">Aucune lettre de mission</p>
         <p className="text-slate-500 text-xs mt-1">Creez votre premiere lettre</p>
@@ -172,41 +195,76 @@ function LetterHistory({
     );
   }
 
+  // Status pills config
+  const STATUS_PILLS = [
+    { value: "all", label: "Tous", color: "bg-white/[0.06] text-slate-300 border-white/[0.08]" },
+    { value: "brouillon", label: "Brouillons", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
+    { value: "envoyee", label: "Envoyees", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+    { value: "signee", label: "Signees", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+    { value: "resiliee", label: "Resiliees", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+    { value: "archivee", label: "Archivees", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+  ];
+
   return (
-    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4">
-      {/* Filters */}
+    <div className="space-y-4">
+      {/* OPT-32: Compact alertes bandeau */}
+      {cabinetId && (
+        <LMAlertesList
+          cabinetId={cabinetId}
+          compact
+          onNavigateToLM={(instanceId) => {
+            const letter = letters.find((l) => l.id === instanceId);
+            if (letter) onEdit(letter);
+          }}
+        />
+      )}
+
+      {/* OPT-28: Status filter pills */}
+      <div className="flex flex-wrap gap-1.5">
+        {STATUS_PILLS.map((pill) => {
+          const count = statusCounts[pill.value] || 0;
+          if (pill.value !== "all" && count === 0) return null;
+          const isActive = filterStatut === pill.value;
+          return (
+            <button
+              key={pill.value}
+              onClick={() => setFilterStatut(pill.value)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all ${
+                isActive
+                  ? `${pill.color} ring-1 ring-white/10`
+                  : "bg-white/[0.02] text-slate-500 border-white/[0.06] hover:bg-white/[0.04]"
+              }`}
+            >
+              {pill.label}
+              <span className={`text-[10px] ${isActive ? "opacity-80" : "text-slate-600"}`}>
+                {pill.value === "all" ? letters.length : count}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* OPT-29/30: Type filter + Search */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
           <Input
-            placeholder="Rechercher par nom, numero..."
+            placeholder="Rechercher par client ou n° LM..."
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
             className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
           />
         </div>
-        <Select value={filterStatut} onValueChange={setFilterStatut}>
-          <SelectTrigger className="w-full sm:w-[150px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
+        <Select value={filterType} onValueChange={setFilterType}>
+          <SelectTrigger className="w-full sm:w-[200px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
             <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
-            <SelectValue placeholder="Statut" />
+            <SelectValue placeholder="Type de mission" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            {LM_STATUTS.map((s) => (
-              <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+            <SelectItem value="all">Tous les types</SelectItem>
+            {MISSION_TYPE_OPTIONS.map((m) => (
+              <SelectItem key={m.id} value={m.id}>{m.label}</SelectItem>
             ))}
-          </SelectContent>
-        </Select>
-        <Select value={filterPeriode} onValueChange={setFilterPeriode}>
-          <SelectTrigger className="w-full sm:w-[140px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-            <Clock className="w-3 h-3 mr-1.5 text-slate-500" />
-            <SelectValue placeholder="Periode" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Toutes periodes</SelectItem>
-            <SelectItem value="7j">7 derniers jours</SelectItem>
-            <SelectItem value="30j">30 derniers jours</SelectItem>
-            <SelectItem value="annee">Cette annee</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -214,22 +272,25 @@ function LetterHistory({
       {/* Results count */}
       <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
 
-      {/* Table header (desktop) */}
-      <div className="hidden sm:grid grid-cols-[1fr_120px_100px_100px_80px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
+      {/* OPT-31: Table header (desktop) */}
+      <div className="hidden sm:grid grid-cols-[1fr_110px_140px_90px_90px_50px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
         <span>Client</span>
         <span>Numero</span>
-        <span>Type</span>
+        <span>Type de mission</span>
+        <span>Date</span>
         <span>Statut</span>
-        <span>Duree</span>
+        <span>Av.</span>
         <span className="text-right">Actions</span>
       </div>
 
       {/* Rows */}
       <div className="space-y-1.5">
-        {filtered.map((letter) => (
+        {filtered.map((letter) => {
+          const avenantCount = avenantsByLetter[letter.id]?.length || 0;
+          return (
           <div
             key={letter.id}
-            className="group sm:grid sm:grid-cols-[1fr_120px_100px_100px_80px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
+            className="group sm:grid sm:grid-cols-[1fr_110px_140px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors"
           >
             {/* Client */}
             <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
@@ -239,7 +300,7 @@ function LetterHistory({
               <div className="min-w-0">
                 <p className="text-sm font-medium text-white truncate">{letter.raison_sociale}</p>
                 <p className="text-[10px] text-slate-500 sm:hidden">
-                  {letter.numero} · {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
+                  {letter.numero} · {new Date(letter.created_at).toLocaleDateString("fr-FR")}
                 </p>
               </div>
             </button>
@@ -247,28 +308,62 @@ function LetterHistory({
             {/* Numero */}
             <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{letter.numero}</span>
 
-            {/* Type */}
-            <span className="hidden sm:block text-xs text-slate-500">{letter.type_mission}</span>
+            {/* Type de mission — OPT-31: badge with shortLabel + norme */}
+            <div className="hidden sm:block">
+              <Badge variant="outline" className="text-[9px] bg-white/[0.04] border-white/[0.08] text-slate-300 gap-1">
+                {getMissionLabel(letter.type_mission)}
+              </Badge>
+              {getMissionNorme(letter.type_mission) && (
+                <span className="block text-[9px] text-slate-600 mt-0.5 truncate">{getMissionNorme(letter.type_mission)}</span>
+              )}
+            </div>
+
+            {/* Date de creation */}
+            <span className="hidden sm:block text-[10px] text-slate-500">
+              {new Date(letter.created_at).toLocaleDateString("fr-FR")}
+            </span>
 
             {/* Statut */}
             <div className="hidden sm:block">
               <LMStatusBadge status={letter.statut} />
             </div>
 
-            {/* H) Duration */}
-            <span className="hidden sm:block text-[10px] text-slate-600">
-              {letter.duration_seconds ? formatDuration(letter.duration_seconds) : "—"}
-            </span>
+            {/* Avenants count — OPT-31 */}
+            <div className="hidden sm:block">
+              {avenantCount > 0 && (
+                <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+                  {avenantCount} av.
+                </Badge>
+              )}
+            </div>
 
             {/* Actions */}
             <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => onEdit(letter)}
                 className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
-                title="Modifier"
+                title={letter.statut === "brouillon" ? "Modifier" : "Voir"}
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
+              {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
+                <button
+                  onClick={() => openSignDialog(letter)}
+                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
+                  title="Envoyer pour signature"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {letter.statut === "signee" && (
+                <button
+                  onClick={() => onCreateAvenant(letter)}
+                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-cyan-400 transition-colors"
+                  title="Creer un avenant"
+                >
+                  <FilePlus2 className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button
                 onClick={() => onDuplicate(letter)}
                 className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
@@ -290,39 +385,21 @@ function LetterHistory({
               >
                 <Archive className="w-3.5 h-3.5" />
               </button>
-              {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
-                <button
-                  onClick={() => openSignDialog(letter)}
-                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
-                  title="Envoyer pour signature"
-                >
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              )}
-              {letter.statut === "envoyee" && (
-                <Badge variant="outline" className="text-[8px] border-blue-500/20 text-blue-400 px-1.5">
-                  <Clock className="w-2.5 h-2.5 mr-0.5" /> Signature
-                </Badge>
-              )}
-              {(letter.statut === "signee" || letter.statut === "envoyee") && (
-                <button
-                  onClick={() => onCreateAvenant(letter)}
-                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-cyan-400 transition-colors"
-                  title="Créer un avenant"
-                >
-                  <FilePlus2 className="w-3.5 h-3.5" />
-                </button>
-              )}
             </div>
 
             {/* Mobile actions */}
             <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
               <LMStatusBadge status={letter.statut} />
+              {avenantCount > 0 && (
+                <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
+                  {avenantCount} av.
+                </Badge>
+              )}
               <div className="flex-1" />
               {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
                 <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-500"><Send className="w-3.5 h-3.5" /></button>
               )}
-              {(letter.statut === "signee" || letter.statut === "envoyee") && (
+              {letter.statut === "signee" && (
                 <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
               )}
               <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
@@ -360,7 +437,8 @@ function LetterHistory({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {filtered.length === 0 && letters.length > 0 && (
@@ -1111,16 +1189,13 @@ export default function LettreMissionPage() {
             <FileText className="w-3.5 h-3.5" /> {isMobile ? "Nouvelle" : "Nouvelle lettre"}
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
-            <History className="w-3.5 h-3.5" /> Historique
+            <FolderOpen className="w-3.5 h-3.5" /> Mes lettres
             {savedLetters.length > 0 && (
               <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="alertes" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
-            <AlertTriangle className="w-3.5 h-3.5" /> Alertes
-          </TabsTrigger>
           <TabsTrigger value="modeles" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
-            <Settings2 className="w-3.5 h-3.5" /> {isMobile ? "Modèles" : "Gérer les modèles"}
+            <Settings2 className="w-3.5 h-3.5" /> {isMobile ? "Modeles" : "Modeles"}
           </TabsTrigger>
         </TabsList>
 
@@ -1244,7 +1319,7 @@ export default function LettreMissionPage() {
           )}
         </TabsContent>
 
-        {/* ─── HISTORY TAB ─── */}
+        {/* ─── MES LETTRES TAB ─── */}
         <TabsContent value="history" className="mt-4">
           <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
             <LetterHistory
@@ -1256,26 +1331,8 @@ export default function LettreMissionPage() {
               onDownloadPdf={handleDownloadPdf}
               onCreateAvenant={handleCreateAvenant}
               avenantsByLetter={avenantsByLetter}
+              cabinetId={profile?.cabinet_id}
             />
-          </div>
-        </TabsContent>
-
-        {/* ─── ALERTES TAB ─── */}
-        <TabsContent value="alertes" className="mt-4">
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
-            {profile?.cabinet_id ? (
-              <LMAlertesList
-                cabinetId={profile.cabinet_id}
-                onNavigateToLM={(instanceId) => {
-                  const letter = savedLetters.find((l) => l.id === instanceId);
-                  if (letter) handleEditLetter(letter);
-                }}
-              />
-            ) : (
-              <div className="text-center py-20 text-slate-500 text-sm">
-                Profil non initialise. Reconnectez-vous.
-              </div>
-            )}
           </div>
         </TabsContent>
 

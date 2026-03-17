@@ -271,9 +271,13 @@ class LMPdfBuilder {
     this.doc.text("LETTRE DE MISSION", PAGE_W / 2, this.y, { align: "center" });
     this.y += 6;
     this.doc.setFontSize(11);
-    const missionSubtitle = (this.lm?.options as any)?.missionTypeLabel || "PRÉSENTATION DES COMPTES ANNUELS";
-    this.doc.text(missionSubtitle.toUpperCase(), PAGE_W / 2, this.y, { align: "center" });
-    this.y += 10;
+    const mtConf = getMissionTypeConfig((this.options as any)?.missionTypeId || "presentation");
+    this.doc.text(mtConf.label.toUpperCase(), PAGE_W / 2, this.y, { align: "center" });
+    this.y += 5;
+    this.doc.setFontSize(8);
+    this.doc.setTextColor(130, 130, 130);
+    this.doc.text(`Norme applicable : ${mtConf.normeRef}`, PAGE_W / 2, this.y, { align: "center" });
+    this.y += 8;
 
     // Bloc info
     this.setSmall();
@@ -1174,6 +1178,7 @@ interface NewPdfParams {
   status?: string;
   signatureExpert?: string;
   signatureClient?: string;
+  missionTypeId?: string;
 }
 
 const REPARTITION_TASKS: [string, boolean, boolean][] = [
@@ -1291,15 +1296,20 @@ export function renderNewLettreMissionPdf(params: NewPdfParams): void {
   doc.line(MARGIN_L, y, MARGIN_R, y);
   y += 8;
 
-  // ── Title ──
+  // ── Title (OPT-19/20) ──
+  const mtConf = getMissionTypeConfig(params.missionTypeId || "presentation");
   doc.setFontSize(14);
   doc.setFont("helvetica", "bold");
   doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
   doc.text("LETTRE DE MISSION", PAGE_W / 2, y, { align: "center" });
   y += 6;
   doc.setFontSize(11);
-  doc.text("Présentation des comptes annuels", PAGE_W / 2, y, { align: "center" });
-  y += 12;
+  doc.text(mtConf.label.toUpperCase(), PAGE_W / 2, y, { align: "center" });
+  y += 5;
+  doc.setFontSize(8);
+  doc.setTextColor(130, 130, 130);
+  doc.text(`Norme applicable : ${mtConf.normeRef}`, PAGE_W / 2, y, { align: "center" });
+  y += 10;
 
   // ── Iterate sections ──
   let isFirstAnnexe = true;
@@ -1424,6 +1434,11 @@ export function renderNewLettreMissionPdf(params: NewPdfParams): void {
       const divsr = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : 1;
       setSmall();
       doc.text(`Facturation ${freqLabel} : ${formatMontant(Math.round((honoraires.comptable / divsr) * 100) / 100)} HT`, MARGIN_L, y);
+      y += 5;
+      // OPT-22: Honoraires de succes mention
+      doc.text(mtConf.honorairesSuccesAutorises
+        ? "Honoraires de résultat (succès) autorisés pour ce type de mission."
+        : "Honoraires de résultat (succès) interdits pour ce type de mission.", MARGIN_L, y);
       y += 8;
       continue;
     }
@@ -1486,6 +1501,17 @@ export function renderNewLettreMissionPdf(params: NewPdfParams): void {
     }
     writeText(resolve(section.content));
     y += 2;
+  }
+
+  // OPT-21/23: Referentiel + forme rapport encadre
+  if (mtConf.referentielApplicable && mtConf.referentielApplicable !== "Sans objet") {
+    ensureSpace(20);
+    drawSectionTitle("Referentiel et forme du rapport");
+    setSmall();
+    doc.text(`Référentiel applicable : ${mtConf.referentielApplicable}`, MARGIN_L, y);
+    y += 5;
+    doc.text(`Forme du rapport : ${mtConf.formeRapport}`, MARGIN_L, y);
+    y += 8;
   }
 
   // ── Signature images (#5) ──

@@ -58,6 +58,7 @@ Deno.serve(async (req) => {
         found: false, alertes: [], status: "unavailable", error: "Google Places API: reponse non-JSON",
       }), { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    console.error("[PLACES_DIAG]", JSON.stringify({ status: data.status, error_message: data.error_message, candidates_count: (data.candidates ?? []).length }));
     const candidates = data.candidates ?? [];
 
     if (candidates.length === 0) {

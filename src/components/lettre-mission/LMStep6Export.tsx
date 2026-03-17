@@ -218,6 +218,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         regimeFiscal: "", exerciceDebut: "", exerciceFin: "",
         tvaRegime: "", volumeComptable: "", cac: false, outilComptable: "",
         periodicite: data.frequence_facturation,
+        missionTypeId: data.mission_type_id || "presentation",
       },
     };
     await renderLettreMissionPdf(lm);

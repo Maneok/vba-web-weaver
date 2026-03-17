@@ -507,6 +507,7 @@ interface NewDocxParams {
   status?: string;
   signatureExpert?: string;
   signatureClient?: string;
+  missionTypeId?: string;
 }
 
 const REPARTITION_TASKS_DOCX: { tache: string; cabinet: boolean; client: boolean }[] = [
@@ -557,10 +558,12 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
     );
   }
 
-  // Title
+  // Title (OPT-24/25: dynamic mission type)
+  const mtConf = getMissionTypeConfig(params.missionTypeId || "presentation");
   children.push(
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "Présentation des comptes annuels", size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 80 }, children: [new TextRun({ text: mtConf.label.toUpperCase(), bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: `Norme applicable : ${mtConf.normeRef}`, size: 18, color: "888888" })] }),
   );
 
   // ── Iterate sections ──
@@ -629,6 +632,16 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
       const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : honoraires.frequence === "SEMESTRIEL" ? "semestriel" : "annuel";
       const divisor = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : honoraires.frequence === "SEMESTRIEL" ? 2 : 1;
       children.push(bodyText(`Facturation ${freqLabel} : ${formatMontant(Math.round((honoraires.comptable / divisor) * 100) / 100)} HT`));
+      // OPT-25: Honoraires de succes mention
+      children.push(new Paragraph({
+        spacing: { before: 80, after: 80 },
+        children: [new TextRun({
+          text: mtConf.honorairesSuccesAutorises
+            ? "Honoraires de résultat (succès) autorisés pour ce type de mission."
+            : "Honoraires de résultat (succès) interdits pour ce type de mission.",
+          italics: true, size: 16, color: "888888",
+        })],
+      }));
       continue;
     }
 
