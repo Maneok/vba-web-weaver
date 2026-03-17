@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { clientsService } from "@/lib/supabaseService";
 import { mapDbClient } from "@/lib/dbMappers";
 import { calculateRiskScore, calculateNextReviewDate, getPilotageStatus, APE_SCORES } from "@/lib/riskEngine";
+import { useScoringData } from "@/hooks/useScoringData";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
 import {
@@ -80,6 +81,8 @@ export default function ClientDetailPage() {
   const [fallbackClient, setFallbackClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  // #26 - Load scoring data from DB for accurate risk recalculation
+  const { scoringData } = useScoringData();
 
   // Validate ref format (alphanumeric + hyphens, max 50 chars)
   const isValidRef = ref && /^[a-zA-Z0-9_-]{1,50}$/.test(ref);
@@ -155,7 +158,6 @@ function ClientDetailContent({ client }: { client: Client }) {
   const [tab, setTab] = useState("informations");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
-
   // Sync editForm when client data changes (e.g. from external updates)
   useEffect(() => {
     if (!editing) {
@@ -307,6 +309,7 @@ function ClientDetailContent({ client }: { client: Client }) {
   const handleSave = () => {
     setSaving(true);
     try {
+      // #27 - Pass scoringData from DB for accurate risk calculation
       const risk = calculateRiskScore({
         ape: editForm.ape, paysRisque: editForm.paysRisque === "OUI",
         mission: editForm.mission, dateCreation: editForm.dateCreation,
@@ -314,7 +317,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         forme: editForm.forme, ppe: editForm.ppe === "OUI",
         atypique: editForm.atypique === "OUI", distanciel: editForm.distanciel === "OUI",
         cash: editForm.cash === "OUI", pression: editForm.pression === "OUI",
-      });
+      }, scoringData ?? undefined);
       const now = new Date().toISOString().split("T")[0];
       const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
       updateClient(client.ref, {
@@ -341,19 +344,19 @@ function ClientDetailContent({ client }: { client: Client }) {
   }, [diligences]);
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 hover:text-white" aria-label="Retour a la liste des clients">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 hover:text-white shrink-0" aria-label="Retour a la liste des clients">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h1 className="text-xl font-bold text-white">{client.raisonSociale}</h1>
-            <p className="text-xs text-slate-500 font-mono mt-0.5">{client.ref} · SIREN {client.siren} · {client.forme}</p>
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-bold text-white truncate">{client.raisonSociale}</h1>
+            <p className="text-xs text-slate-500 font-mono mt-0.5 truncate">{client.ref} · SIREN {client.siren} · {client.forme}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           <ScoreGauge score={client.scoreGlobal} />
           <VigilanceBadge level={client.nivVigilance} />
         </div>
@@ -407,7 +410,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
         {/* TAB: Informations */}
         <TabsContent value="informations" className="mt-4">
-          <div className="glass-card p-6">
+          <div className="glass-card p-4 sm:p-6">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-sm font-semibold text-slate-300">Informations du client</h3>
               {!editing ? (
@@ -423,7 +426,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             </div>
 
             {!editing ? (
-              <div className="grid grid-cols-2 gap-x-8 gap-y-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
                 <div>
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Identite</h4>
                   <InfoRow label="Dirigeant" value={client.dirigeant} icon={User} />
@@ -454,7 +457,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             )}
 
             {/* Pilotage */}
-            <div className="grid grid-cols-3 gap-4 mt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
               <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
                 <p className="text-[10px] text-slate-500 uppercase">Derniere revue</p>
                 <p className="text-sm font-medium text-slate-200 mt-1 font-mono">{client.dateDerniereRevue}</p>
@@ -473,7 +476,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
         {/* TAB: Personnes */}
         <TabsContent value="personnes" className="mt-4">
-          <div className="glass-card p-6 space-y-4">
+          <div className="glass-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-semibold text-slate-300">Beneficiaires effectifs & Screening PPE</h3>
               {!screeningLaunched && (
@@ -541,7 +544,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
         {/* TAB: Reseau (D3.js graph) */}
         <TabsContent value="reseau" className="mt-4">
-          <div className="glass-card p-6 space-y-4">
+          <div className="glass-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-slate-300">Graphe relationnel des dirigeants</h3>
@@ -615,7 +618,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         {/* TAB: Scoring */}
         <TabsContent value="scoring" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="glass-card p-6">
+            <div className="glass-card p-4 sm:p-6">
               <h3 className="text-sm font-semibold text-slate-300 mb-2">Radar de risque 6 axes</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
@@ -634,12 +637,12 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
                     <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
                     <circle cx="60" cy="60" r="50" fill="none" stroke={vigilanceColor} strokeWidth="10"
-                      strokeDasharray={`${(Math.min(client.scoreGlobal, 120) / 120) * 314} 314`}
+                      strokeDasharray={`${(Math.min(client.scoreGlobal, 100) / 100) * 314} 314`}
                       strokeLinecap="round" className="transition-all duration-1000 ease-out" />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center flex-col">
                     <span className="text-3xl font-bold text-white">{client.scoreGlobal}</span>
-                    <span className="text-[10px] text-slate-500">/120</span>
+                    <span className="text-[10px] text-slate-500">/100</span>
                   </div>
                 </div>
                 <div className="mt-3"><VigilanceBadge level={client.nivVigilance} /></div>
@@ -709,7 +712,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             {screening.inpi.data?.financials && screening.inpi.data.financials.length > 0 ? (
               <>
                 {/* Financial table */}
-                <div className="glass-card p-6">
+                <div className="glass-card p-4 sm:p-6">
                   <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
                     Donnees financieres ({screening.inpi.data.financials.length} exercice(s))
@@ -758,7 +761,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
                 {/* CA Bar Chart */}
                 {screening.inpi.data.financials.some(f => f.chiffreAffaires != null) && (
-                  <div className="glass-card p-6">
+                  <div className="glass-card p-4 sm:p-6">
                     <h3 className="text-sm font-semibold text-slate-300 mb-4">Evolution du chiffre d'affaires</h3>
                     <ResponsiveContainer width="100%" height={250}>
                       <BarChart data={screening.inpi.data.financials.filter(f => f.chiffreAffaires != null).reverse().map(f => ({
@@ -831,19 +834,12 @@ function ClientDetailContent({ client }: { client: Client }) {
 
         {/* TAB: Documents */}
         <TabsContent value="documents" className="mt-4">
-          <DocumentsTab
-            client={client}
-            screening={screening}
-            screeningLaunched={screeningLaunched}
-            launchComplianceScreening={launchComplianceScreening}
-            updateClient={updateClient}
-            navigate={navigate}
-          />
+
         </TabsContent>
 
         {/* TAB: Diligences */}
         <TabsContent value="diligences" className="mt-4">
-          <div className="glass-card p-6 space-y-4">
+          <div className="glass-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold text-slate-300">
@@ -1090,7 +1086,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
             {/* INPI History Timeline */}
             {screening.inpi.data?.companyData?.historique && screening.inpi.data.companyData.historique.length > 0 && (
-              <div className="glass-card p-6">
+              <div className="glass-card p-4 sm:p-6">
                 <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
                   <Archive className="w-4 h-4 text-indigo-400" /> Historique INPI (RNE)
                   <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0 ml-2">INPI</Badge>
@@ -1118,7 +1114,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
             {/* BODACC annonces in the same timeline */}
             {screening.bodacc.data && screening.bodacc.data.annonces.length > 0 && (
-              <div className="glass-card p-6">
+              <div className="glass-card p-4 sm:p-6">
                 <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
                   <ScrollText className="w-4 h-4 text-amber-400" /> Annonces BODACC
                   <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0 ml-2">BODACC</Badge>
@@ -1165,7 +1161,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
         {/* TAB: Historique (Audit) */}
         <TabsContent value="historique" className="mt-4">
-          <div className="glass-card p-6 space-y-4">
+          <div className="glass-card p-4 sm:p-6 space-y-4">
             <h3 className="text-sm font-semibold text-slate-300">Journal d'audit</h3>
             {clientLogs.length === 0 ? (
               <p className="text-sm text-slate-500 py-8 text-center">Aucun evenement enregistre</p>

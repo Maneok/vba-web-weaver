@@ -2,9 +2,15 @@ import React from "react";
 import { AlertTriangle } from "lucide-react";
 import { logger } from "@/lib/logger";
 
+// OPT: Shared chunk error detection — avoids duplication
+function isChunkLoadError(msg: string): boolean {
+  return msg.includes("dynamically imported module") || msg.includes("Loading chunk") || msg.includes("Failed to fetch");
+}
+
 interface PageErrorBoundaryState {
   hasError: boolean;
   errorMessage?: string;
+  isChunkError?: boolean;
 }
 
 export default class PageErrorBoundary extends React.Component<
@@ -17,11 +23,20 @@ export default class PageErrorBoundary extends React.Component<
   }
 
   static getDerivedStateFromError(error: Error): PageErrorBoundaryState {
-    return { hasError: true, errorMessage: error.message };
+    const msg = error.message || "";
+    return { hasError: true, errorMessage: msg, isChunkError: isChunkLoadError(msg) };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     logger.error("[PageError]", error, errorInfo);
+    // Auto-reload once on chunk load failure (stale deployment)
+    if (isChunkLoadError(error.message || "")) {
+      const key = "chunk-reload-" + window.location.pathname;
+      if (!sessionStorage.getItem(key)) {
+        sessionStorage.setItem(key, "1");
+        window.location.reload();
+      }
+    }
   }
 
   render() {

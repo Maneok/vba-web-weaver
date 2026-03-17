@@ -21,7 +21,7 @@ describe("riskEngine - calculateRiskScore", () => {
     const result = calculateRiskScore(baseParams);
     expect(result.scoreActivite).toBe(30); // APE 56.10A = 30
     expect(result.scorePays).toBe(0);
-    expect(result.scoreMission).toBe(10); // TENUE COMPTABLE = 10
+    expect(result.scoreMission).toBe(25); // TENUE COMPTABLE = 25
     expect(result.scoreStructure).toBe(20); // SARL = 20
     expect(result.malus).toBe(0);
   });
@@ -56,11 +56,11 @@ describe("riskEngine - calculateRiskScore", () => {
     });
     expect(result.scoreActivite).toBe(80);
     expect(result.malus).toBe(40);
-    expect(result.scoreGlobal).toBe(120); // min(80 + 40, 120)
+    expect(result.scoreGlobal).toBe(100); // min(80 + 40, 100)
     expect(result.nivVigilance).toBe("RENFORCEE");
   });
 
-  it("should cap score at 120", () => {
+  it("should cap score at 100", () => {
     const result = calculateRiskScore({
       ...baseParams,
       ape: "92.00Z", // score 100
@@ -68,14 +68,14 @@ describe("riskEngine - calculateRiskScore", () => {
       pression: true,
       distanciel: true,
     });
-    expect(result.scoreGlobal).toBe(120);
+    expect(result.scoreGlobal).toBe(100);
   });
 
   it("should return SIMPLIFIEE for score <= 25", () => {
     const result = calculateRiskScore({
       ...baseParams,
       ape: "86.21Z", // 20
-      forme: "ENTREPRISE INDIVIDUELLE", // 0
+      forme: "ENTREPRISE INDIVIDUELLE", // 20
     });
     expect(result.scoreGlobal).toBeLessThanOrEqual(25);
     expect(result.nivVigilance).toBe("SIMPLIFIEE");

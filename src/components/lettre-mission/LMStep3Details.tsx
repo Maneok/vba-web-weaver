@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
@@ -25,19 +25,24 @@ export default function LMStep3Details({ data, onChange }: Props) {
 
   const referentLcb = collaborateurs.find((c) => c.referentLcb);
 
-  // Auto pre-fill associe if not set
-  if (!data.associe_signataire && collaborateurs.length > 0) {
-    const admin = collaborateurs.find((c) => c.fonction?.toLowerCase().includes("associ"));
-    if (admin) onChange({ associe_signataire: admin.nom });
-  }
-  if (!data.referent_lcb && referentLcb) {
-    onChange({ referent_lcb: referentLcb.nom });
-  }
+  // Auto pre-fill associe and referent LCB on first render only
+  useEffect(() => {
+    const updates: Partial<LMWizardData> = {};
+    if (!data.associe_signataire && collaborateurs.length > 0) {
+      const admin = collaborateurs.find((c) => c.fonction?.toLowerCase().includes("associ"));
+      if (admin) updates.associe_signataire = admin.nom;
+    }
+    if (!data.referent_lcb && referentLcb) {
+      updates.referent_lcb = referentLcb.nom;
+    }
+    if (Object.keys(updates).length > 0) onChange(updates);
+  }, []);
 
   const validateField = (field: string, value: any) => {
     let error = "";
     if (field === "cp" && value && !/^\d{5}$/.test(value)) error = "Code postal invalide";
     if (field === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) error = "Email invalide";
+    if (field === "telephone" && value && !/^[\d\s+()-]{10,20}$/.test(value)) error = "Telephone invalide";
     setFieldErrors((prev) => ({ ...prev, [field]: error }));
   };
 
@@ -101,7 +106,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
                   inputMode="numeric" maxLength={5}
                   className={fieldErrors.cp ? errorCls : inputCls}
                 />
-                {fieldErrors.cp && <p className="text-xs text-red-400">{fieldErrors.cp}</p>}
+                {fieldErrors.cp && <p className="text-xs text-red-400" role="alert">{fieldErrors.cp}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs">Ville *</Label>
@@ -110,6 +115,17 @@ export default function LMStep3Details({ data, onChange }: Props) {
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
                 <Label className="text-slate-400 text-xs">RCS</Label>
                 <Input value={data.rcs} onChange={(e) => onChange({ rcs: e.target.value })} className={inputCls} />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label className="text-slate-400 text-xs">Date de cloture</Label>
+                <Input
+                  type="date"
+                  value={data.date_cloture}
+                  onChange={(e) => onChange({ date_cloture: e.target.value })}
+                  className={`${inputCls} w-48`}
+                />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -121,15 +137,17 @@ export default function LMStep3Details({ data, onChange }: Props) {
                   onBlur={(e) => validateField("email", e.target.value)}
                   className={fieldErrors.email ? errorCls : inputCls}
                 />
-                {fieldErrors.email && <p className="text-xs text-red-400">{fieldErrors.email}</p>}
+                {fieldErrors.email && <p className="text-xs text-red-400" role="alert">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-slate-400 text-xs">Telephone</Label>
                 <Input
                   inputMode="tel" autoComplete="tel"
                   value={data.telephone} onChange={(e) => onChange({ telephone: e.target.value })}
-                  className={inputCls}
+                  onBlur={(e) => validateField("telephone", e.target.value)}
+                  className={fieldErrors.telephone ? errorCls : inputCls}
                 />
+                {fieldErrors.telephone && <p className="text-xs text-red-400" role="alert">{fieldErrors.telephone}</p>}
               </div>
             </div>
           </div>
@@ -180,6 +198,16 @@ export default function LMStep3Details({ data, onChange }: Props) {
             </Select>
           </div>
         )}
+
+        <div className="space-y-1.5">
+          <Label className="text-slate-400 text-xs">Date de debut</Label>
+          <Input
+            type="date"
+            value={data.date_debut}
+            onChange={(e) => onChange({ date_debut: e.target.value })}
+            className={`${inputCls} w-48`}
+          />
+        </div>
       </div>
 
       {/* ── Section 3: Intervenants ── */}

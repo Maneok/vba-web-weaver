@@ -19,11 +19,10 @@ async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
 }
 
 // OPT-8: Strip fields that should never be overwritten by client code
-const PROTECTED_FIELDS = ["id", "cabinet_id", "created_at", "user_id", "updated_at"] as const;
+// OPT: Use Set for O(1) lookup + Object.fromEntries for clean filtering
+const PROTECTED_FIELDS = new Set(["id", "cabinet_id", "created_at", "user_id", "updated_at"]);
 function stripProtected(updates: Record<string, unknown>): Record<string, unknown> {
-  const safe = { ...updates };
-  for (const f of PROTECTED_FIELDS) delete safe[f];
-  return safe;
+  return Object.fromEntries(Object.entries(updates).filter(([k]) => !PROTECTED_FIELDS.has(k)));
 }
 
 // Helper: get current user's cabinet_id from profile (cached)

@@ -213,7 +213,9 @@ Le cabinet peut résilier la mission à tout moment, sans préavis ni indemnité
 
 Le client peut résilier la mission à tout moment moyennant un préavis de trois (3) mois notifié par lettre recommandée avec accusé de réception. En cas de résiliation anticipée par le client, celui-ci sera redevable des honoraires correspondant aux travaux déjà réalisés ainsi que d'une indemnité de résiliation égale à vingt-cinq pour cent (25 %) du montant annuel des honoraires prévus, sauf faute du cabinet.
 
-En cas de résiliation, le cabinet restitue au client les documents originaux qui lui ont été remis, après apurement de tout solde dû, dans un délai de trente (30) jours.`,
+En cas de résiliation, le cabinet restitue au client les documents originaux qui lui ont été remis, après apurement de tout solde dû, dans un délai de trente (30) jours.
+
+Pour les clients ayant la qualité de consommateur ou de non-professionnel au sens de l'article liminaire du Code de la consommation : conformément à l'article L 215-1 du Code de la consommation, le professionnel de l'expertise comptable informera le client par écrit, au plus tôt trois mois et au plus tard un mois avant le terme de la période autorisant le rejet de la reconduction, de la possibilité de ne pas reconduire le contrat. À défaut de cette information, le client pourra mettre gratuitement un terme au contrat, à tout moment à compter de la date de reconduction.`,
     },
     {
       numero: "4",
@@ -289,7 +291,9 @@ La responsabilité du cabinet est limitée au montant des honoraires perçus au 
 
 Le client s'engage à informer le cabinet de toute réclamation dans un délai de trois (3) mois à compter de la découverte du fait générateur du dommage.
 
-Tout litige relatif à la responsabilité du cabinet est prescrit par cinq (5) ans à compter de la réalisation du dommage ou de la date à laquelle il est révélé à la victime si celle-ci établit qu'elle n'en avait pas eu précédemment connaissance.`,
+Tout litige relatif à la responsabilité du cabinet est prescrit par cinq (5) ans à compter de la réalisation du dommage ou de la date à laquelle il est révélé à la victime si celle-ci établit qu'elle n'en avait pas eu précédemment connaissance.
+
+Cet aménagement de la durée de prescription ne s'applique pas lorsque le client a la qualité de consommateur ou de non-professionnel au sens du Code de la consommation. Dans ce cas, les délais de prescription de droit commun s'appliquent (article L 218-1 du Code de la consommation).`,
     },
     {
       numero: "9",
@@ -336,11 +340,11 @@ Le client autorise expressément le cabinet à communiquer les données nécessa
     {
       numero: "11",
       titre: "Différends",
-      texte: `En cas de différend relatif à l'exécution, l'interprétation ou la résiliation du présent contrat, les parties s'engagent à rechercher une solution amiable dans un délai de trente (30) jours à compter de la notification écrite du différend par l'une des parties.
+      texte: `En cas de contestation par le client des conditions d'exercice de la mission ou de différend sur les honoraires, les parties s'engagent, préalablement à toute action en justice, à saisir le président du Conseil Régional de l'Ordre des Experts-Comptables (CROEC) compétent aux fins de conciliation ou d'arbitrage, conformément à l'article 160 du décret du 30 mars 2012.
 
-À défaut d'accord amiable, le différend pourra être soumis à la médiation du Conseil Régional de l'Ordre des Experts-Comptables dont relève le cabinet, conformément à l'article 167 du décret du 30 mars 2012. La procédure de médiation est gratuite pour les parties.
+Pour les clients ayant la qualité de consommateur au sens du Code de la consommation, le recours à un médiateur de la consommation est proposé conformément aux articles L 611-1 et suivants du Code de la consommation.
 
-À défaut de résolution par la médiation dans un délai de soixante (60) jours à compter de la saisine du médiateur, le litige sera porté devant le tribunal compétent du ressort du siège social du cabinet.`,
+À défaut de résolution par la conciliation ou la médiation dans un délai de soixante (60) jours à compter de la saisine, le litige sera porté devant le tribunal compétent du ressort du siège social du cabinet.`,
     },
     {
       numero: "12",
@@ -356,6 +360,16 @@ Intégralité — La lettre de mission, ses éventuels avenants, les annexes et 
 Cession — Le présent contrat est conclu intuitu personae et ne peut être cédé par le client sans l'accord préalable écrit du cabinet. En cas de fusion, scission ou apport partiel d'actif du cabinet, le contrat sera transféré de plein droit au successeur du cabinet.
 
 Force majeure — Aucune des parties ne pourra être tenue responsable de l'inexécution ou du retard dans l'exécution de ses obligations contractuelles lorsque cette inexécution ou ce retard résulte d'un cas de force majeure au sens de l'article 1218 du Code civil. La partie invoquant la force majeure devra en informer l'autre partie dans les plus brefs délais. Si le cas de force majeure se prolonge au-delà de trois (3) mois, chacune des parties pourra résilier le contrat de plein droit, sans indemnité, par lettre recommandée avec accusé de réception.`,
+    },
+    {
+      numero: "13",
+      titre: "Non-sollicitation des collaborateurs",
+      texte: `Non-sollicitation — Le client s'interdit tout acte de nature à porter atteinte à l'indépendance du professionnel de l'expertise comptable ou de ses collaborateurs, notamment en s'abstenant de leur faire toutes offres d'exécuter des missions en leur nom propre ou de devenir salarié du client, pendant la durée du contrat et pendant une durée de douze (12) mois suivant la fin de la mission.`,
+    },
+    {
+      numero: "14",
+      titre: "Conservation des données LCB-FT",
+      texte: `Le cabinet collecte des données d'identification dans le cadre du présent contrat pour respecter ses obligations en matière de lutte contre le blanchiment des capitaux et le financement du terrorisme. Dans le cadre de ce traitement, le cabinet a la qualité de responsable de traitement et conserve pendant cinq (5) ans, à compter de la fin de la relation d'affaires, les documents et informations relatifs à l'identité des clients, des personnes agissant pour leur compte et des bénéficiaires effectifs (article L 561-12 du Code monétaire et financier). Le cabinet conserve pendant cinq (5) ans à compter de leur exécution, les documents et informations relatifs aux opérations faites ainsi que les documents consignant les caractéristiques des opérations mentionnées à l'article L 561-10-2 du CMF. Ces données peuvent être communiquées aux autorités légales compétentes.`,
     },
   ],
 };

@@ -43,6 +43,14 @@ export default function OnboardingPage() {
     setSaving(true);
 
     try {
+      // Fetch cabinet_id for RLS compliance
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("cabinet_id")
+        .eq("id", user.id)
+        .maybeSingle();
+      const userCabinetId = profileRow?.cabinet_id || null;
+
       // Helper to upsert a parametres row (delete+insert — works regardless of unique constraints)
       const upsertParam = async (key: string, value: unknown) => {
         const jsonValue = JSON.stringify(value);
@@ -55,7 +63,7 @@ export default function OnboardingPage() {
         // Insert new row
         const { error } = await supabase
           .from("parametres")
-          .insert({ user_id: user.id, cle: key, valeur: jsonValue, updated_at: new Date().toISOString() });
+          .insert({ user_id: user.id, cabinet_id: userCabinetId, cle: key, valeur: jsonValue, updated_at: new Date().toISOString() });
         if (error) {
           logger.warn("Onboarding", `insert ${key} failed:`, error.message);
         }

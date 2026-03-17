@@ -1,5 +1,116 @@
 import type { VigilanceLevel } from "./types";
 import { RISK_THRESHOLDS } from "./constants";
+import { supabase } from "@/integrations/supabase/client";
+import { logger } from "@/lib/logger";
+
+// ====== SCORING DATA TYPES ======
+export interface PaysRisqueData {
+  score: number;
+  est_gafi_noir: boolean;
+  est_gafi_gris: boolean;
+  est_offshore: boolean;
+}
+
+export interface ScoringData {
+  missions: Map<string, number>;
+  typesJuridiques: Map<string, number>;
+  pays: Map<string, PaysRisqueData>;
+  activites: Map<string, number>;
+}
+
+// ====== SCORING DATA CACHE (TTL 5 min) ======
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let scoringCache: { data: ScoringData; cabinetId: string; timestamp: number } | null = null;
+
+// #14 - Normalize key for flexible matching (CODE_LIKE_THIS → CODE LIKE THIS)
+function normalizeKey(s: string): string {
+  return s.toUpperCase().replace(/_/g, " ").replace(/\s+/g, " ").trim();
+}
+
+export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
+  if (
+    scoringCache &&
+    scoringCache.cabinetId === cabinetId &&
+    Date.now() - scoringCache.timestamp < CACHE_TTL_MS
+  ) {
+    return scoringCache.data;
+  }
+
+  try {
+    // #15 - Load libelle alongside code for fuzzy matching
+    const [missionsRes, typesRes, paysRes, activitesRes] = await Promise.all([
+      supabase.from("ref_missions").select("code, libelle, score").eq("cabinet_id", cabinetId),
+      supabase.from("ref_types_juridiques").select("code, libelle, score").eq("cabinet_id", cabinetId),
+      supabase.from("ref_pays").select("code, libelle, libelle_nationalite, score, est_gafi_noir, est_gafi_gris, est_offshore").eq("cabinet_id", cabinetId),
+      supabase.from("ref_activites").select("code, libelle, score").eq("cabinet_id", cabinetId),
+    ]);
+
+    const missions = new Map<string, number>();
+    if (missionsRes.data) {
+      for (const row of missionsRes.data) {
+        const r = row as Record<string, unknown>;
+        const score = (r.score as number) ?? 25;
+        // #16 - Index by code, normalized code (spaces), and libelle (upper)
+        if (r.code) missions.set(r.code as string, score);
+        if (r.code) missions.set(normalizeKey(r.code as string), score);
+        if (r.libelle) missions.set((r.libelle as string).toUpperCase().trim(), score);
+      }
+    }
+
+    const typesJuridiques = new Map<string, number>();
+    if (typesRes.data) {
+      for (const row of typesRes.data) {
+        const r = row as Record<string, unknown>;
+        const score = (r.score as number) ?? 20;
+        typesJuridiques.set(r.code as string, score);
+        if (r.code) typesJuridiques.set(normalizeKey(r.code as string), score);
+        if (r.libelle) typesJuridiques.set((r.libelle as string).toUpperCase().trim(), score);
+      }
+    }
+
+    const pays = new Map<string, PaysRisqueData>();
+    if (paysRes.data) {
+      for (const row of paysRes.data) {
+        const r = row as Record<string, unknown>;
+        const paysData: PaysRisqueData = {
+          score: (r.score as number) ?? 0,
+          est_gafi_noir: (r.est_gafi_noir as boolean) ?? false,
+          est_gafi_gris: (r.est_gafi_gris as boolean) ?? false,
+          est_offshore: (r.est_offshore as boolean) ?? false,
+        };
+        // #17 - Index by code, libelle, and nationality for broad matching
+        if (r.code) pays.set(r.code as string, paysData);
+        if (r.libelle) pays.set((r.libelle as string).toUpperCase().trim(), paysData);
+        if (r.libelle_nationalite) pays.set((r.libelle_nationalite as string).toUpperCase().trim(), paysData);
+      }
+    }
+
+    const activites = new Map<string, number>();
+    if (activitesRes.data) {
+      for (const row of activitesRes.data) {
+        const r = row as Record<string, unknown>;
+        const score = (r.score as number) ?? 25;
+        if (r.code) activites.set(r.code as string, score);
+        if (r.libelle) activites.set((r.libelle as string).toUpperCase().trim(), score);
+      }
+    }
+
+    const data: ScoringData = { missions, typesJuridiques, pays, activites };
+
+    scoringCache = { data, cabinetId, timestamp: Date.now() };
+    logger.info("RiskEngine", `Scoring data loaded for cabinet ${cabinetId} (${missions.size} missions, ${typesJuridiques.size} types, ${pays.size} pays, ${activites.size} activites)`);
+
+    return data;
+  } catch (error) {
+    logger.error("RiskEngine", "Failed to load scoring data from Supabase, using hardcoded fallback", error);
+    throw error;
+  }
+}
+
+// Exported for testing — allows invalidating the cache
+export function clearScoringCache(): void {
+  scoringCache = null;
+}
 
 // ====== CASH-INTENSIVE APE CODES (Idée 4) ======
 export const APE_CASH: string[] = [
@@ -31,27 +142,28 @@ export function calculateDateButoir(nivVigilance: VigilanceLevel): string {
 }
 
 // ====== ADDRESS NORMALIZATION (Idée 17) ======
+// OPT: Pre-compile regex patterns at module level for reuse across calls
+const ADDR_PUNCTUATION = /[,;.]/g;
+const ADDR_WHITESPACE = /\s+/g;
+const ADDR_REPLACEMENTS: [RegExp, string][] = [
+  [/\bAVENUE\b/g, "AV"], [/\bBOULEVARD\b/g, "BD"], [/\bROUTE\b/g, "RTE"],
+  [/\bPLACE\b/g, "PL"], [/\bIMPASSE\b/g, "IMP"], [/\bALLEE\b/g, "ALL"],
+  [/\bCHEMIN\b/g, "CH"],
+];
+
 export function normalizeAddress(addr: string): string {
   if (!addr || typeof addr !== "string") return "";
-  return addr
-    .toUpperCase()
-    .replace(/[,;.]/g, " ")
-    .replace(/\bAVENUE\b/g, "AV")
-    .replace(/\bBOULEVARD\b/g, "BD")
-    .replace(/\bROUTE\b/g, "RTE")
-    .replace(/\bPLACE\b/g, "PL")
-    .replace(/\bIMPASSE\b/g, "IMP")
-    .replace(/\bALLEE\b/g, "ALL")
-    .replace(/\bCHEMIN\b/g, "CH")
-    .replace(/\bRUE\b/g, "RUE")
-    .replace(/\s+/g, " ")
-    .trim();
+  let result = addr.toUpperCase().replace(ADDR_PUNCTUATION, " ");
+  for (const [pattern, replacement] of ADDR_REPLACEMENTS) {
+    result = result.replace(pattern, replacement);
+  }
+  return result.replace(ADDR_WHITESPACE, " ").trim();
 }
 
 // ====== MISSION SCORING ======
 export const MISSION_SCORES: Record<string, number> = {
-  "TENUE COMPTABLE": 10,
-  "SOCIAL / PAIE SEULE": 10,
+  "TENUE COMPTABLE": 25,
+  "SOCIAL / PAIE SEULE": 25,
   "IRPP": 20,
   "REVISION / SURVEILLANCE": 30,
   "CONSEIL DE GESTION": 40,
@@ -96,17 +208,29 @@ export const PAYS_RISQUE_SET = new Set(PAYS_RISQUE);
 export const APE_CASH_SET = new Set(APE_CASH);
 
 // ====== STRUCTURE SCORING ======
-function scoreStructure(forme: string): number {
+function scoreStructure(forme: string, scoringData?: ScoringData): number {
   if (!forme || typeof forme !== "string") return 20; // default fallback
   const f = forme.toUpperCase().trim();
-  if (["ENTREPRISE INDIVIDUELLE", "SNC", "ARTISAN"].some(k => f.includes(k))) return 0;
-  if (f.includes("EARL")) return 0;
+
+  // If DB scoring data available, look up by code
+  if (scoringData && scoringData.typesJuridiques.size > 0) {
+    const dbScore = scoringData.typesJuridiques.get(f);
+    if (dbScore !== undefined) return dbScore;
+  }
+
+  // Hardcoded fallback
+  if (["ENTREPRISE INDIVIDUELLE", "ARTISAN"].some(k => f.includes(k))) return 20;
+  if (f.includes("EARL")) return 20;
   if (f.includes("SARL") || f.includes("EURL")) return 20;
   if (["SELAS", "SELARL", "SCP"].some(k => f.includes(k))) return 30;
   if (f.includes("SCI") || f.includes("CIVILE")) return 35;
   if (f.includes("SAS")) return 40;
   if (f === "SA" || f.startsWith("SA ") || f.includes(" SA")) return 40;
-  if (f.includes("ASSOCIATION")) return 50;
+  if (f.includes("ASSOCIATION") || f.includes("ASSO")) return 60;
+  if (f === "SNC" || f.startsWith("SNC ")) return 60;
+  if (f === "CSE" || f.includes("COMITE SOCIAL")) return 60;
+  if (f === "GAEC") return 60;
+  if (f.includes("SCCV")) return 70;
   if (["TRUST", "FIDUCIE", "FONDATION"].some(k => f.includes(k))) return 100;
   return 20;
 }
@@ -138,10 +262,32 @@ function scoreMaturite(
   return 80; // Dormant shell — old company, reprise, no employees
 }
 
+// ====== COUNTRY SCORE FROM DB OR FALLBACK ======
+function computeScorePays(
+  paysRisque: boolean,
+  pays: string | undefined,
+  scoringData?: ScoringData
+): number {
+  // If DB scoring data is available and a country code is provided, use it
+  if (scoringData && scoringData.pays.size > 0 && pays) {
+    const upper = pays.toUpperCase().trim();
+    const paysData = scoringData.pays.get(upper);
+    if (paysData) {
+      if (paysData.est_gafi_noir) return 100;
+      if (paysData.est_gafi_gris) return 70;
+      if (paysData.est_offshore) return 50;
+      return paysData.score;
+    }
+  }
+  // Hardcoded fallback: simple boolean
+  return paysRisque ? 100 : 0;
+}
+
 // ====== MAIN RISK CALCULATION ======
 export function calculateRiskScore(params: {
   ape: string;
   paysRisque: boolean;
+  pays?: string;
   mission: string;
   dateCreation: string;
   dateReprise: string;
@@ -152,7 +298,7 @@ export function calculateRiskScore(params: {
   distanciel: boolean;
   cash: boolean;
   pression: boolean;
-}): {
+}, scoringData?: ScoringData): {
   scoreActivite: number;
   scorePays: number;
   scoreMission: number;
@@ -162,13 +308,40 @@ export function calculateRiskScore(params: {
   scoreGlobal: number;
   nivVigilance: VigilanceLevel;
 } {
+  // #19 - Resolve activity score with flexible DB lookup + hardcoded fallback
+  const resolveApe = (ape: string): number => {
+    if (scoringData && scoringData.activites.size > 0) {
+      const dbScore = scoringData.activites.get(ape);
+      if (dbScore !== undefined) return dbScore;
+      // Try uppercase
+      const upper = scoringData.activites.get(ape.toUpperCase().trim());
+      if (upper !== undefined) return upper;
+    }
+    return APE_SCORES[ape] ?? 25;
+  };
+
+  // #20 - Resolve mission score with flexible DB lookup + hardcoded fallback
+  const resolveMission = (mission: string): number => {
+    if (scoringData && scoringData.missions.size > 0) {
+      const dbScore = scoringData.missions.get(mission);
+      if (dbScore !== undefined) return dbScore;
+      // Try uppercase for libelle match
+      const upper = scoringData.missions.get(mission.toUpperCase().trim());
+      if (upper !== undefined) return upper;
+      // Try normalized key (underscores → spaces)
+      const normalized = scoringData.missions.get(normalizeKey(mission));
+      if (normalized !== undefined) return normalized;
+    }
+    return MISSION_SCORES[mission] ?? 25;
+  };
+
   // PPE or Atypique = forced 100, but still compute malus for audit trail
   if (params.ppe || params.atypique) {
-    const sa = APE_SCORES[params.ape] ?? 25;
-    const sp = params.paysRisque ? 100 : 0;
-    const sm = MISSION_SCORES[params.mission] ?? 25;
+    const sa = resolveApe(params.ape);
+    const sp = computeScorePays(params.paysRisque, params.pays, scoringData);
+    const sm = resolveMission(params.mission);
     const smat = scoreMaturite(params.dateCreation, params.dateReprise, params.effectif, params.forme);
-    const ss = scoreStructure(params.forme);
+    const ss = scoreStructure(params.forme, scoringData);
     let mal = 0;
     if (params.cash) mal += 40;
     if (params.pression) mal += 40;
@@ -180,11 +353,11 @@ export function calculateRiskScore(params: {
     };
   }
 
-  const scoreAct = APE_SCORES[params.ape] ?? 25;
-  const scorePays = params.paysRisque ? 100 : 0;
-  const scoreMis = MISSION_SCORES[params.mission] ?? 25;
+  const scoreAct = resolveApe(params.ape);
+  const scorePays = computeScorePays(params.paysRisque, params.pays, scoringData);
+  const scoreMis = resolveMission(params.mission);
   const scoreMat = scoreMaturite(params.dateCreation, params.dateReprise, params.effectif, params.forme);
-  const scoreStr = scoreStructure(params.forme);
+  const scoreStr = scoreStructure(params.forme, scoringData);
 
   // Malus
   let malus = 0;
@@ -204,8 +377,8 @@ export function calculateRiskScore(params: {
     scoreGlobal = Math.round(avg + malus);
   }
 
-  // Cap
-  scoreGlobal = Math.min(scoreGlobal, 120);
+  // Cap at 100 (maximum score)
+  scoreGlobal = Math.min(scoreGlobal, 100);
 
   let nivVigilance: VigilanceLevel;
   if (scoreGlobal <= RISK_THRESHOLDS.SIMPLIFIEE_MAX) nivVigilance = "SIMPLIFIEE";
@@ -261,3 +434,19 @@ export function isRiskCountry(nationality: string): boolean {
   return false;
 }
 
+// #18 - Recalculate risk for a client with all computed fields
+export function recalculateClientRisk(client: {
+  ape: string; paysRisque: boolean; pays?: string; mission: string;
+  dateCreation: string; dateReprise: string; effectif: string; forme: string;
+  ppe: boolean; atypique: boolean; distanciel: boolean; cash: boolean; pression: boolean;
+}, scoringData?: ScoringData) {
+  const risk = calculateRiskScore(client, scoringData);
+  const now = new Date().toISOString().split("T")[0];
+  const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
+  return {
+    ...risk,
+    dateDerniereRevue: now,
+    dateButoir,
+    etatPilotage: getPilotageStatus(dateButoir),
+  };
+}

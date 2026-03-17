@@ -559,7 +559,9 @@ async function callEdgeFunction<T>(name: string, body: Record<string, unknown>):
       body,
       signal: controller.signal as AbortSignal,
     });
-    if (error) throw new Error(error.message || error.context?.message || JSON.stringify(error));
+    if (error) {
+      throw new Error(error.message || error.context?.message || JSON.stringify(error));
+    }
     // P6-60: Don't throw on "unavailable" status — return it to callers for graceful handling
     return data as T;
   } catch (e) {
@@ -813,15 +815,6 @@ export function pickPrincipalDirigeant(dirigeants: Dirigeant[]): string {
 }
 
 // ====== #19: Date formatting helper ======
-// OPT-48: Deprecated — use formatDateFR from @/lib/dateUtils instead
-/** @deprecated Use formatDateFR from @/lib/dateUtils */
-export function formatDateFR(dateStr: string): string {
-  if (!dateStr) return "";
-  const parts = dateStr.split("-");
-  if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
-  return dateStr;
-}
-
 // ====== KYC COMPLETENESS (Probleme 10) ======
 
 // FIX 11: Case-insensitive type matching (inpi-documents uses "kbis", documents-fetch uses "KBIS")

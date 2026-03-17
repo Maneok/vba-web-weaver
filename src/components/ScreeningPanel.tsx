@@ -1,4 +1,4 @@
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper, MapPin, Shield, FileText, Users, Archive } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper, MapPin, Shield, FileText, Users, Archive, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { ScreeningState } from "@/lib/kycService";
@@ -232,7 +232,7 @@ export default function ScreeningPanel({ screening, compact }: Props) {
 
   return (
     <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
+      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2" role="region" aria-label="Panneau de screening automatique">
         <Shield className="w-4 h-4 text-blue-400" />
         <h3 className="text-sm font-semibold text-slate-300">Screening automatique</h3>
         {anyLoading && (
@@ -286,8 +286,11 @@ export default function ScreeningPanel({ screening, compact }: Props) {
 
             {/* Google Places details */}
             {row.key === "localisation" && screening.google.data?.place && !row.loading && (
-              <div className="mt-2 ml-7 flex items-center gap-3 text-xs text-slate-400">
+              <div className="mt-2 ml-7 flex items-center gap-3 text-xs text-slate-400 flex-wrap">
                 <span>{screening.google.data.place.businessStatus === "OPERATIONAL" ? "Ouvert" : screening.google.data.place.businessStatus}</span>
+                {screening.google.data.place.totalRatings > 0 && (
+                  <span>{screening.google.data.place.totalRatings} avis</span>
+                )}
                 {screening.google.data.place.website && (
                   <a href={screening.google.data.place.website} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center gap-1">
                     Site web <ExternalLink className="w-3 h-3" />
@@ -298,6 +301,65 @@ export default function ScreeningPanel({ screening, compact }: Props) {
                     Google Maps <ExternalLink className="w-3 h-3" />
                   </a>
                 )}
+                {screening.google.data.streetViewUrl && (
+                  <a href={screening.google.data.streetViewUrl} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline flex items-center gap-1">
+                    <Eye className="w-3 h-3" /> Street View
+                  </a>
+                )}
+              </div>
+            )}
+
+            {/* BODACC annonces details */}
+            {row.key === "bodacc" && screening.bodacc.data?.annonces && screening.bodacc.data.annonces.length > 0 && !row.loading && (
+              <div className="mt-2 ml-7 space-y-1">
+                {screening.bodacc.data.annonces.slice(0, 5).map((a: { date: string; type: string; description: string; tribunal: string; isProcedureCollective: boolean }, i: number) => (
+                  <div key={`bodacc-${i}`} className="flex items-start gap-2 text-[11px]">
+                    <span className="text-slate-600 shrink-0 font-mono">{a.date?.slice(0, 10) || "—"}</span>
+                    <span className={a.isProcedureCollective ? "text-red-400" : "text-slate-400"}>{a.type}</span>
+                    {a.tribunal && <span className="text-slate-600">({a.tribunal})</span>}
+                  </div>
+                ))}
+                {screening.bodacc.data.annonces.length > 5 && (
+                  <span className="text-[10px] text-slate-600">+ {screening.bodacc.data.annonces.length - 5} autre(s)</span>
+                )}
+              </div>
+            )}
+
+            {/* News articles with clickable links */}
+            {row.key === "news" && screening.news.data?.articles && screening.news.data.articles.length > 0 && !row.loading && (
+              <div className="mt-2 ml-7 space-y-1.5">
+                {screening.news.data.articles.slice(0, 4).map((a: { title: string; url: string; source: string; publishedAt: string; hasAlertKeyword: boolean }, i: number) => (
+                  <div key={`news-${i}`} className="flex items-start gap-2 text-[11px]">
+                    <Newspaper className={`w-3 h-3 mt-0.5 shrink-0 ${a.hasAlertKeyword ? "text-red-400" : "text-slate-600"}`} />
+                    <div className="min-w-0">
+                      <a href={a.url} target="_blank" rel="noopener noreferrer" className={`hover:underline truncate block ${a.hasAlertKeyword ? "text-red-300" : "text-blue-400"}`}>
+                        {a.title}
+                      </a>
+                      <span className="text-slate-600">{a.source} — {a.publishedAt?.slice(0, 10)}</span>
+                    </div>
+                  </div>
+                ))}
+                {screening.news.data.articles.length > 4 && (
+                  <span className="text-[10px] text-slate-600">+ {screening.news.data.articles.length - 4} autre(s) article(s)</span>
+                )}
+              </div>
+            )}
+
+            {/* Sanctions match details (score + datasets) */}
+            {row.key === "sanctions" && screening.sanctions.data?.matches && screening.sanctions.data.matches.length > 0 && !row.loading && (
+              <div className="mt-2 ml-7 space-y-1">
+                {screening.sanctions.data.matches.slice(0, 4).map((m: { person: string; score: number; datasets: string[]; isPPE: boolean; caption: string }, i: number) => (
+                  <div key={`sanc-${i}`} className="flex items-start gap-2 text-[11px]">
+                    <Shield className={`w-3 h-3 mt-0.5 shrink-0 ${m.isPPE ? "text-amber-400" : "text-red-400"}`} />
+                    <div className="min-w-0">
+                      <span className={m.isPPE ? "text-amber-300" : "text-red-300"}>{m.caption || m.person}</span>
+                      <span className="text-slate-600 ml-1">({Math.round(m.score * 100)}%{m.isPPE ? " — PPE" : ""})</span>
+                      {m.datasets?.length > 0 && (
+                        <span className="text-slate-600 ml-1">— {m.datasets.slice(0, 2).join(", ")}</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

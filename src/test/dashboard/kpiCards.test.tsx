@@ -228,7 +228,7 @@ describe("DashboardKPICards — loading", () => {
         <DashboardKPICards stats={baseStats} sparklines={baseSparklines} isLoading={true} />
       </MemoryRouter>
     );
-    const skeletons = container.querySelectorAll(".skeleton-shimmer");
+    const skeletons = container.querySelectorAll(".animate-pulse");
     expect(skeletons.length).toBeGreaterThanOrEqual(6);
   });
 

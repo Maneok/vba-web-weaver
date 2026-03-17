@@ -61,8 +61,8 @@ export const logger = {
 
   error(tag: string, ...args: unknown[]): void {
     if (shouldLog("error")) {
-      const dedupKey = `${tag}:${args[0]}`;
-      if (isDuplicate(dedupKey)) return;
+      // OPT: Early dedup check before building format prefix
+      if (isDuplicate(`${tag}:${args[0]}`)) return;
       console.error(formatPrefix("error", tag), ...args);
       // In production, capture stack trace for debugging
       if (!IS_DEV) {

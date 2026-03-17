@@ -60,6 +60,7 @@ export function runDiagnostic360(
 ): DiagnosticReport {
   const items: DiagnosticItem[] = [];
   const now = new Date();
+  const nowMs = now.getTime(); // OPT: cache once, reuse throughout
 
   // Guard against null/undefined inputs
   const safeClients = Array.isArray(clients) ? clients : [];
@@ -67,8 +68,13 @@ export function runDiagnostic360(
   const safeAlertes = Array.isArray(alertes) ? alertes : [];
   const safeLogs = Array.isArray(logs) ? logs : [];
 
-  const actifs = safeClients.filter(c => c.statut !== "INACTIF");
-  const valides = safeClients.filter(c => c.etat === "VALIDE");
+  // OPT: Single-pass classification of clients into actifs/valides
+  const actifs: Client[] = [];
+  const valides: Client[] = [];
+  for (const c of safeClients) {
+    if (c.statut !== "INACTIF") actifs.push(c);
+    if (c.etat === "VALIDE") valides.push(c);
+  }
 
   // === 1. COUVERTURE DU PORTEFEUILLE ===
   const tauxClassification = actifs.length > 0
@@ -89,7 +95,7 @@ export function runDiagnostic360(
     if (!c.dateCreationLigne) return false;
     const ts = new Date(c.dateCreationLigne).getTime();
     if (isNaN(ts)) return false;
-    const diff = (now.getTime() - ts) / MS_PER_DAY;
+    const diff = (nowMs - ts) / MS_PER_DAY;
     return diff > THRESHOLD_PROSPECT_STALE_DAYS;
   });
   if (prospects.length > 0) {
@@ -139,7 +145,7 @@ export function runDiagnostic360(
   const retards = actifs.filter(c => {
     if (!c.dateButoir) return false;
     const d = new Date(c.dateButoir);
-    return !isNaN(d.getTime()) && d < now;
+    return !isNaN(d.getTime()) && d.getTime() < nowMs;
   });
   const tauxRetard = actifs.length > 0 ? Math.round((retards.length / actifs.length) * 100) : 0;
   items.push({
@@ -158,7 +164,7 @@ export function runDiagnostic360(
     if (!c.dateButoir) return false;
     const butoir = new Date(c.dateButoir);
     if (isNaN(butoir.getTime())) return false;
-    const diff = (butoir.getTime() - now.getTime()) / MS_PER_DAY;
+    const diff = (butoir.getTime() - nowMs) / MS_PER_DAY;
     return diff > 0 && diff <= THRESHOLD_REVISION_SOON_DAYS;
   });
   if (bientotEchus.length > 0) {
@@ -175,7 +181,7 @@ export function runDiagnostic360(
   const cniExp = actifs.filter(c => {
     if (!c.dateExpCni) return false;
     const d = new Date(c.dateExpCni);
-    return !isNaN(d.getTime()) && d < now;
+    return !isNaN(d.getTime()) && d.getTime() < nowMs;
   });
   items.push({
     categorie: "KYC",
@@ -195,7 +201,7 @@ export function runDiagnostic360(
     if (!c.dateExpCni) return false;
     const exp = new Date(c.dateExpCni);
     if (isNaN(exp.getTime())) return false;
-    const diff = (exp.getTime() - now.getTime()) / MS_PER_DAY;
+    const diff = (exp.getTime() - nowMs) / MS_PER_DAY;
     return diff > 0 && diff <= THRESHOLD_CNI_EXPIRY_SOON_DAYS;
   });
   if (cniBientot.length > 0) {
@@ -319,7 +325,7 @@ export function runDiagnostic360(
   const alertesEnRetard = alertesEnCours.filter(a => {
     if (!a.dateButoir) return false;
     const d = new Date(a.dateButoir);
-    return !isNaN(d.getTime()) && d < now;
+    return !isNaN(d.getTime()) && d.getTime() < nowMs;
   });
   items.push({
     categorie: "REGISTRE",
@@ -349,7 +355,7 @@ export function runDiagnostic360(
     if (!l.horodatage) return false;
     const d = new Date(l.horodatage.replace(" ", "T"));
     if (isNaN(d.getTime())) return false;
-    return (now.getTime() - d.getTime()) < THRESHOLD_LOG_WINDOW_DAYS * MS_PER_DAY;
+    return (nowMs - d.getTime()) < THRESHOLD_LOG_WINDOW_DAYS * MS_PER_DAY;
   });
   items.push({
     categorie: "TRACABILITE",
@@ -394,7 +400,7 @@ export function runDiagnostic360(
     categorie: "RISQUE GLOBAL",
     indicateur: "Score de risque moyen du portefeuille",
     statut: scoreMoyen <= THRESHOLD_SCORE_MOYEN_OK ? "OK" : scoreMoyen <= THRESHOLD_SCORE_MOYEN_WARN ? "ALERTE" : "CRITIQUE",
-    detail: `Score moyen: ${scoreMoyen}/120`,
+    detail: `Score moyen: ${scoreMoyen}/100`,
     recommandation: scoreMoyen > THRESHOLD_SCORE_MOYEN_OK
       ? "Le niveau de risque moyen est eleve. Renforcer les mesures de vigilance."
       : "Aucune action requise.",
@@ -453,10 +459,13 @@ export function runDiagnostic360(
       : "Aucune action requise.",
   });
 
-  // === CALCUL NOTE GLOBALE ===
-  const critiques = items.filter(i => i.statut === "CRITIQUE").length;
-  const alerteCount = items.filter(i => i.statut === "ALERTE").length;
-  const okCount = items.filter(i => i.statut === "OK").length;
+  // === CALCUL NOTE GLOBALE === (OPT: single-pass instead of 3 separate filters)
+  let critiques = 0, alerteCount = 0, okCount = 0;
+  for (const item of items) {
+    if (item.statut === "CRITIQUE") critiques++;
+    else if (item.statut === "ALERTE") alerteCount++;
+    else okCount++;
+  }
 
   // Score pondéré: OK=10pts, ALERTE=5pts, CRITIQUE=0pts
   const maxPoints = items.length * SCORE_OK_POINTS;

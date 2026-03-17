@@ -1,9 +1,11 @@
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { LM_STATUTS, computeAnnexes, ANNEXE_LABELS } from "@/lib/lmWizardTypes";
-import type { Client, EtatDossier, MissionType, OuiNon, VigilanceLevel, EtatPilotage, StatutClient } from "@/lib/types";
+import { buildClientFromWizardData } from "@/lib/lmUtils";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { sanitizeWizardData } from "@/lib/lmValidation";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
+import { buildVariablesMap, resolveModeleSections } from "@/lib/lettreMissionEngine";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,85 +23,47 @@ interface Props {
   onReset: () => void;
 }
 
-function buildClientForExport(data: LMWizardData): Client {
-  return {
-    ref: data.client_ref,
-    raisonSociale: data.raison_sociale,
-    forme: data.forme_juridique,
-    siren: data.siren,
-    dirigeant: data.dirigeant,
-    adresse: data.adresse,
-    cp: data.cp,
-    ville: data.ville,
-    capital: Number(data.capital) || 0,
-    ape: data.ape,
-    mail: data.email,
-    tel: data.telephone,
-    iban: data.iban,
-    bic: data.bic,
-    etat: "EN COURS" as EtatDossier,
-    comptable: "",
-    mission: "TENUE COMPTABLE" as MissionType,
-    domaine: "",
-    effectif: "",
-    dateCreation: "",
-    dateReprise: "",
-    honoraires: data.honoraires_ht,
-    reprise: 0,
-    juridique: 0,
-    frequence: data.frequence_facturation,
-    associe: data.associe_signataire,
-    superviseur: data.chef_mission,
-    ppe: "NON" as OuiNon,
-    paysRisque: "NON" as OuiNon,
-    atypique: "NON" as OuiNon,
-    distanciel: "NON" as OuiNon,
-    cash: "NON" as OuiNon,
-    pression: "NON" as OuiNon,
-    scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
-    malus: 0, scoreGlobal: 0,
-    nivVigilance: "STANDARD" as VigilanceLevel,
-    dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
-    etatPilotage: "A JOUR" as EtatPilotage,
-    dateExpCni: "",
-    statut: "ACTIF" as StatutClient,
-    be: "",
-  };
-}
-
 // ── D) Tactile signature canvas ──
 function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: string) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isDrawing = useRef(false);
+  const initializedRef = useRef(false);
 
+  // Initialize canvas once + restore signature when value changes externally
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    // Set canvas size
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * 2;
-    canvas.height = rect.height * 2;
-    ctx.scale(2, 2);
-    ctx.lineCap = "round";
-    ctx.lineJoin = "round";
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = "#e2e8f0";
+    // Set canvas size only on first render
+    if (!initializedRef.current) {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * 2;
+      canvas.height = rect.height * 2;
+      ctx.scale(2, 2);
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = "#e2e8f0";
+      initializedRef.current = true;
+    }
 
-    // Restore existing signature
-    if (value) {
+    // Restore existing signature (on mount or when value changes externally)
+    if (value && !isDrawing.current) {
+      const rect = canvas.getBoundingClientRect();
       const img = new Image();
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+        const c = canvas.getContext("2d");
+        if (c) c.drawImage(img, 0, 0, rect.width, rect.height);
       };
       img.src = value;
     }
-  }, []);
+  }, [value]);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
-    const canvas = canvasRef.current!;
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     if ("touches" in e) {
       return { x: e.touches[0].clientX - rect.left, y: e.touches[0].clientY - rect.top };
@@ -175,19 +139,26 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
 }
 
 export default function LMStep6Export({ data, onChange, onSave, onReset }: Props) {
+  const { profile } = useAuth();
   const [showSignature, setShowSignature] = useState(false);
   const [emailTo, setEmailTo] = useState(data.email || "");
   const [showEmail, setShowEmail] = useState(false);
   const lockRef = useRef(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
+  // Cabinet info from profile (avoids hardcoding)
+  const cabinetInfo = useMemo(() => ({
+    nom: profile?.full_name ? `Cabinet ${profile.full_name}` : "Cabinet Expertise Comptable",
+    adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: profile?.email || "", telephone: "",
+  }), [profile?.full_name, profile?.email]);
+
   // E) Compute annexes
-  const annexes = computeAnnexes(data);
+  const annexes = useMemo(() => computeAnnexes(data), [data]);
   useEffect(() => {
     if (JSON.stringify(data.annexes) !== JSON.stringify(annexes)) {
       onChange({ annexes });
     }
-  }, [annexes.join(",")]);
+  }, [annexes, data.annexes, onChange]);
 
   const withLock = useCallback(async (key: string, fn: () => Promise<void>) => {
     if (lockRef.current) return;
@@ -199,22 +170,46 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       toast.error(e?.message || "Erreur lors de la generation");
     } finally {
       setGenerating(null);
-      setTimeout(() => { lockRef.current = false; }, 3000);
+      lockRef.current = false;
     }
   }, []);
 
   const handlePDF = () => withLock("pdf", async () => {
-    const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
     const sanitized = sanitizeWizardData(data);
-    const client = buildClientForExport(sanitized);
+
+    // If a modele is selected, use modele-based generation
+    if (data.modele_id) {
+      try {
+        const { getModeleById } = await import("@/lib/lettreMissionModeles");
+        const { generatePdfFromInstance } = await import("@/lib/lettreMissionPdf");
+        const modele = await getModeleById(data.modele_id);
+        const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
+        const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
+        const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
+        generatePdfFromInstance({
+          sections_snapshot: resolved,
+          cgv_snapshot: modele.cgv_content,
+          repartition_snapshot: modele.repartition_taches,
+          numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
+          status: data.statut,
+          mission_type: data.mission_type_id || modele.mission_type || "presentation",
+        }, cabinetInfo, { signatureExpert: data.signature_expert, signatureClient: data.signature_client });
+        toast.success("PDF genere depuis le modele");
+        return;
+      } catch (err) {
+        // Fallback to legacy
+        console.warn("Modele PDF failed, falling back to legacy:", err);
+      }
+    }
+
+    // Legacy generation
+    const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
+    const client = buildClientFromWizardData(sanitized);
     const lm = {
       numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
       date: new Date().toLocaleDateString("fr-FR"),
       client,
-      cabinet: {
-        nom: "Cabinet Expertise Comptable",
-        adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
-      },
+      cabinet: cabinetInfo,
       options: {
         genre: "M" as const,
         missionSociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
@@ -230,9 +225,35 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   });
 
   const handleDOCX = () => withLock("docx", async () => {
-    const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
     const sanitized = sanitizeWizardData(data);
-    const client = buildClientForExport(sanitized);
+
+    // If a modele is selected, use modele-based generation
+    if (data.modele_id) {
+      try {
+        const { getModeleById } = await import("@/lib/lettreMissionModeles");
+        const { generateDocxFromInstance } = await import("@/lib/lettreMissionDocx");
+        const modele = await getModeleById(data.modele_id);
+        const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
+        const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
+        const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
+        await generateDocxFromInstance({
+          sections_snapshot: resolved,
+          cgv_snapshot: modele.cgv_content,
+          repartition_snapshot: modele.repartition_taches,
+          numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
+          status: data.statut,
+          mission_type: data.mission_type_id || modele.mission_type || "presentation",
+        }, cabinetInfo);
+        toast.success("DOCX genere depuis le modele");
+        return;
+      } catch (err) {
+        console.warn("Modele DOCX failed, falling back to legacy:", err);
+      }
+    }
+
+    // Legacy generation
+    const { renderNewLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
+    const client = buildClientFromWizardData(sanitized);
     await renderNewLettreMissionDocx({
       sections: DEFAULT_TEMPLATE,
       client,
@@ -248,10 +269,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         juridique: 0,
         frequence: (data.frequence_facturation || "MENSUEL") as "MENSUEL" | "TRIMESTRIEL" | "ANNUEL",
       },
-      cabinet: {
-        nom: "Cabinet Expertise Comptable",
-        adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "",
-      },
+      cabinet: cabinetInfo,
       variables: {},
       status: data.statut,
       signatureExpert: data.signature_expert,
@@ -272,9 +290,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   const handleSave = async () => {
     try {
       await onSave();
-      toast.success("Lettre sauvegardee");
     } catch {
-      toast.error("Erreur lors de la sauvegarde");
+      // onSave already shows error toasts
     }
   };
 
@@ -305,6 +322,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           onClick={handlePDF}
           disabled={!!generating}
+          aria-label="Telecharger en PDF"
           className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-50"
         >
           {generating === "pdf" ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
@@ -314,6 +332,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           onClick={handleDOCX}
           disabled={!!generating}
+          aria-label="Telecharger en DOCX"
           className="flex flex-col items-center gap-3 p-5 rounded-xl border-2 border-white/[0.06] bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-50"
         >
           {generating === "docx" ? <Loader2 className="w-6 h-6 text-purple-400 animate-spin" /> : <FileText className="w-6 h-6 text-purple-400" />}

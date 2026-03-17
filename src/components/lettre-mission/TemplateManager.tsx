@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Copy, Edit2, Trash2, Star, Plus, FileText } from "lucide-react";
 import { toast } from "sonner";
@@ -258,6 +258,7 @@ export default function TemplateManager({ onLoadTemplate }: TemplateManagerProps
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Modifier le template</DialogTitle>
+            <DialogDescription>Modifiez le nom et la description du template.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -281,6 +282,7 @@ export default function TemplateManager({ onLoadTemplate }: TemplateManagerProps
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Confirmer la suppression</DialogTitle>
+            <DialogDescription>Cette action est definitive et ne peut pas etre annulee.</DialogDescription>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Etes-vous sur de vouloir supprimer ce template ? Cette action est irreversible.

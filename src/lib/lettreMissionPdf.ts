@@ -2,6 +2,7 @@ import jsPDF from "jspdf";
 import { logger } from "@/lib/logger";
 import type { LettreMission, CabinetConfig, LettreMissionOptions, EditorSectionSnapshot } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
 // ──────────────────────────────────────────────
 // Layout constants (A4 = 210 x 297mm)
@@ -270,7 +271,8 @@ class LMPdfBuilder {
     this.doc.text("LETTRE DE MISSION", PAGE_W / 2, this.y, { align: "center" });
     this.y += 6;
     this.doc.setFontSize(11);
-    this.doc.text("PRÉSENTATION DES COMPTES ANNUELS", PAGE_W / 2, this.y, { align: "center" });
+    const missionSubtitle = (this.lm?.options as any)?.missionTypeLabel || "PRÉSENTATION DES COMPTES ANNUELS";
+    this.doc.text(missionSubtitle.toUpperCase(), PAGE_W / 2, this.y, { align: "center" });
     this.y += 10;
 
     // Bloc info
@@ -1544,5 +1546,164 @@ export function renderNewLettreMissionPdf(params: NewPdfParams): void {
     fallback.setTextColor(80, 80, 80);
     fallback.text(String(err), 25, 50);
     fallback.save("LM_erreur.pdf");
+  }
+}
+
+// ──────────────────────────────────────────────
+// Generate PDF from LM Instance (modele-based)
+// ──────────────────────────────────────────────
+export function generatePdfFromInstance(instance: {
+  sections_snapshot: { id: string; titre: string; contenu: string; type: string; ordre: number; cnoec_obligatoire?: boolean }[];
+  cgv_snapshot: string;
+  repartition_snapshot?: { label: string; cabinet: boolean; client: boolean; periodicite?: string }[];
+  numero: string;
+  status?: string;
+  mission_type?: string;
+  variables_resolved?: Record<string, string>;
+}, cabinet: { nom: string; adresse: string; cp: string; ville: string; siret: string; numeroOEC: string; email: string; telephone: string }, options?: { signatureExpert?: string; signatureClient?: string }): void {
+  try {
+    const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+    let y = MARGIN_TOP;
+
+    function ensureSpace(needed: number) {
+      if (y + needed > FOOTER_Y - 5) { doc.addPage(); y = MARGIN_TOP; }
+    }
+    function addFooter(pageNum: number) {
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`Page ${pageNum} — ${cabinet.nom}`, PAGE_W / 2, FOOTER_Y + 10, { align: "center" });
+    }
+
+    // Watermark for drafts
+    if (instance.status === "brouillon" || instance.status === "en_validation") {
+      doc.setFontSize(60);
+      doc.setTextColor(230, 230, 230);
+      doc.text("PROJET", PAGE_W / 2, 150, { angle: 45, align: "center" });
+    }
+
+    // Header
+    doc.setFontSize(10);
+    doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+    doc.text(cabinet.nom, MARGIN_R, MARGIN_TOP, { align: "right" });
+    doc.setFontSize(7);
+    doc.setTextColor(130, 130, 130);
+    doc.text(`${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`, MARGIN_R, MARGIN_TOP + 4, { align: "right" });
+    doc.text(`SIRET : ${cabinet.siret} — OEC n° ${cabinet.numeroOEC}`, MARGIN_R, MARGIN_TOP + 8, { align: "right" });
+    y = MARGIN_TOP + 20;
+
+    // Numero + date
+    doc.setFontSize(8);
+    doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+    doc.text(instance.numero, MARGIN_L, y);
+    doc.text(new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }), MARGIN_R, y, { align: "right" });
+    y += 10;
+
+    // Title
+    doc.setFontSize(14);
+    doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+    doc.text("LETTRE DE MISSION", PAGE_W / 2, y, { align: "center" });
+    y += 7;
+
+    // Mission type subtitle
+    if (instance.mission_type) {
+      const mtConf = getMissionTypeConfig(instance.mission_type);
+      doc.setFontSize(10);
+      doc.text(mtConf.label.toUpperCase(), PAGE_W / 2, y, { align: "center" });
+      doc.setFontSize(8);
+      y += 4;
+      doc.setTextColor(130, 130, 130);
+      doc.text(`Norme applicable : ${mtConf.normeRef}`, PAGE_W / 2, y, { align: "center" });
+      y += 8;
+    } else {
+      y += 5;
+    }
+
+    let pageNum = 1;
+
+    // Sections
+    for (const section of instance.sections_snapshot) {
+      ensureSpace(25);
+
+      // Section title
+      doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+      doc.rect(MARGIN_L, y, CONTENT_W, 7, "F");
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text(section.titre.toUpperCase(), MARGIN_L + 3, y + 5);
+      y += 10;
+
+      // Section content
+      const content = section.contenu || "";
+      if (content === "TABLEAU_ENTITE" || content === "TABLEAU_HONORAIRES" || content === "TABLEAU_REPARTITION") {
+        // Special placeholder — skip (handled by wizard data)
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`[${content}]`, MARGIN_L + 3, y + 4);
+        y += 8;
+      } else {
+        doc.setFontSize(8.5);
+        doc.setTextColor(50, 50, 50);
+        const lines = doc.splitTextToSize(content, CONTENT_W - 6);
+        for (const line of lines) {
+          ensureSpace(5);
+          doc.text(line, MARGIN_L + 3, y + 3);
+          y += 4;
+        }
+      }
+      y += 6;
+    }
+
+    // CGV
+    if (instance.cgv_snapshot) {
+      doc.addPage();
+      pageNum++;
+      y = MARGIN_TOP;
+
+      doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+      doc.rect(MARGIN_L, y, CONTENT_W, 7, "F");
+      doc.setFontSize(9);
+      doc.setTextColor(255, 255, 255);
+      doc.text("CONDITIONS GÉNÉRALES D'INTERVENTION", MARGIN_L + 3, y + 5);
+      y += 12;
+
+      doc.setFontSize(7.5);
+      doc.setTextColor(60, 60, 60);
+      const cgvLines = doc.splitTextToSize(instance.cgv_snapshot, CONTENT_W - 6);
+      for (const line of cgvLines) {
+        if (y + 4 > FOOTER_Y - 5) {
+          addFooter(pageNum);
+          doc.addPage();
+          pageNum++;
+          y = MARGIN_TOP;
+        }
+        doc.text(line, MARGIN_L + 3, y + 3);
+        y += 3.5;
+      }
+    }
+
+    // Signatures
+    ensureSpace(40);
+    y += 10;
+    doc.setFontSize(9);
+    doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
+    doc.text("L'Expert-comptable", MARGIN_L + 10, y);
+    doc.text("Le Client", MARGIN_L + CONTENT_W - 40, y);
+    y += 25;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(MARGIN_L + 5, y, MARGIN_L + 60, y);
+    doc.line(MARGIN_L + CONTENT_W - 55, y, MARGIN_R - 5, y);
+
+    // Add footers to all pages
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addFooter(i);
+    }
+
+    const filename = `LDM_${instance.numero}_${new Date().toISOString().slice(0, 10)}.pdf`;
+    doc.save(filename);
+  } catch (err) {
+    logger.error("PDF", "generatePdfFromInstance error", err);
+    throw err;
   }
 }

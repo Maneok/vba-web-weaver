@@ -22,10 +22,12 @@ export function validateStep2(data: Record<string, unknown>): ValidationError[] 
   const selected = missions.filter((m: Record<string, unknown>) => m.selected);
   if (selected.length === 0) errors.push({ field: "missions", message: "Selectionnez au moins une mission" });
 
-  // Tenue + surveillance incompatibles
-  const ids = selected.map((m: Record<string, unknown>) => m.section_id);
-  if (ids.includes("tenue") && ids.includes("surveillance")) {
-    errors.push({ field: "missions", message: "Tenue et surveillance sont incompatibles" });
+  // Validate mission structure
+  for (const m of selected) {
+    if (!m.section_id) {
+      errors.push({ field: "missions", message: "Structure de mission invalide (section_id manquant)" });
+      break;
+    }
   }
   return errors;
 }
@@ -40,6 +42,12 @@ export function validateStep3(data: Record<string, unknown>): ValidationError[] 
   if (!data.associe_signataire) errors.push({ field: "associe_signataire", message: "Associe signataire requis" });
   if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(data.email)))
     errors.push({ field: "email", message: "Email invalide" });
+  if (data.telephone && !/^[\d\s+()-]{10,20}$/.test(String(data.telephone)))
+    errors.push({ field: "telephone", message: "Telephone invalide" });
+  if (data.date_debut) {
+    const dateDebut = new Date(String(data.date_debut));
+    if (isNaN(dateDebut.getTime())) errors.push({ field: "date_debut", message: "Date de debut invalide" });
+  }
   return errors;
 }
 
@@ -53,13 +61,20 @@ export function validateStep4(data: Record<string, unknown>): ValidationError[] 
     errors.push({ field: "honoraires_ht", message: "Montant anormalement eleve (> 500 000 EUR)" });
   if (!data.frequence_facturation)
     errors.push({ field: "frequence_facturation", message: "Frequence de facturation requise" });
-  if (data.mode_paiement === "prelevement" && data.iban) {
+  if (data.mode_paiement === "prelevement") {
+    if (!data.iban || String(data.iban).replace(/\s/g, "").length === 0) {
+      errors.push({ field: "iban", message: "IBAN requis pour le prelevement SEPA" });
+    }
+  }
+  if (data.iban) {
     const iban = String(data.iban).replace(/\s/g, "");
     if (iban.length > 0) {
       if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(iban.toUpperCase())) {
         errors.push({ field: "iban", message: "Format IBAN invalide" });
       } else if (iban.toUpperCase().startsWith("FR") && iban.length !== 27) {
         errors.push({ field: "iban", message: "IBAN francais invalide (27 car. commencant par FR)" });
+      } else if (iban.length < 15 || iban.length > 34) {
+        errors.push({ field: "iban", message: "IBAN invalide (entre 15 et 34 caracteres)" });
       } else {
         // Modulo 97 checksum
         const clean = iban.toUpperCase();

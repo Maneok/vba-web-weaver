@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap, RefreshCw } from "lucide-react";
+import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, UserPlus, MoreHorizontal, Edit3, FileDown, FileText, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, DatabaseZap, RefreshCw } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
@@ -89,7 +89,8 @@ export default function BddPage() {
     setFilterVigilance("all");
     setFilterPilotage("all");
     setFilterEtat("all");
-  }, []);
+    setSearchParams({}, { replace: true });
+  }, [setSearchParams]);
 
   // 10. Keyboard shortcut: press 'n' to navigate to /nouveau-client
   useEffect(() => {
@@ -150,6 +151,9 @@ export default function BddPage() {
       setSortDir("asc");
     }
   };
+
+  // OPT: Aria-sort helper for WCAG 2.1 compliance
+  const ariaSort = (col: SortKey) => sortKey === col ? (sortDir === "asc" ? "ascending" as const : "descending" as const) : undefined;
 
   const SortIcon = ({ column }: { column: SortKey }) => {
     if (sortKey !== column) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
@@ -262,32 +266,30 @@ export default function BddPage() {
           <h1 className="text-xl font-bold text-white">Base de Donnees Clients</h1>
           <p className="text-sm text-slate-500 mt-0.5">{clients.length} dossiers · {filtered.length} affiches</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => refreshClients()} title="Rafraichir la liste">
             <RefreshCw className="w-3.5 h-3.5" />
           </Button>
           <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportCSV}>
-            <Download className="w-3.5 h-3.5" /> Export CSV
+            <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Export CSV</span>
           </Button>
           <Button className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate("/nouveau-client")}>
-            <UserPlus className="w-4 h-4" /> Nouveau client
+            <UserPlus className="w-4 h-4" /> <span className="hidden sm:inline">Nouveau client</span>
           </Button>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap items-center animate-fade-in-up-delay-1">
-        <div className="relative flex-1 min-w-[220px]">
+      <div className="flex gap-2 flex-wrap items-center animate-fade-in-up-delay-1">
+        <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
           <Input
-            placeholder="Rechercher par nom, SIREN, reference, comptable..."
+            placeholder="Rechercher..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Rechercher un client"
             className="pl-9 pr-24 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
           />
-          {/* 8. Live results count badge */}
-          {/* OPT-20: aria-live for dynamic result count updates */}
           {debouncedSearch && (
             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-full" aria-live="polite" aria-atomic="true">
               {filtered.length} resultat{filtered.length !== 1 ? "s" : ""}
@@ -295,7 +297,7 @@ export default function BddPage() {
           )}
         </div>
         <Select value={filterVigilance} onValueChange={setFilterVigilance}>
-          <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.06]">
+          <SelectTrigger className="w-full sm:w-[160px] bg-white/[0.03] border-white/[0.06]">
             <SelectValue placeholder="Vigilance" />
           </SelectTrigger>
           <SelectContent>
@@ -306,7 +308,7 @@ export default function BddPage() {
           </SelectContent>
         </Select>
         <Select value={filterPilotage} onValueChange={setFilterPilotage}>
-          <SelectTrigger className="w-[170px] bg-white/[0.03] border-white/[0.06]">
+          <SelectTrigger className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06]">
             <SelectValue placeholder="Pilotage" />
           </SelectTrigger>
           <SelectContent>
@@ -317,7 +319,7 @@ export default function BddPage() {
           </SelectContent>
         </Select>
         <Select value={filterEtat} onValueChange={setFilterEtat}>
-          <SelectTrigger className="w-[150px] bg-white/[0.03] border-white/[0.06]">
+          <SelectTrigger className="w-full sm:w-[130px] bg-white/[0.03] border-white/[0.06]">
             <SelectValue placeholder="Etat" />
           </SelectTrigger>
           <SelectContent>
@@ -487,8 +489,75 @@ export default function BddPage() {
         </div>
       )}
 
-      {/* Table */}
-      <div className="glass-card overflow-hidden animate-fade-in-up-delay-2">
+      {/* Mobile card view */}
+      <div className="sm:hidden space-y-2 animate-fade-in-up-delay-2">
+        {filtered.length === 0 ? (
+          <div className="glass-card p-10 flex flex-col items-center gap-3 text-center">
+            <DatabaseZap className="w-10 h-10 text-slate-600" />
+            <p className="text-sm text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
+            {activeFilterCount > 0 && (
+              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1 text-xs border-white/[0.08]">
+                <X className="w-3 h-3" /> Effacer les filtres
+              </Button>
+            )}
+          </div>
+        ) : (
+          paginated.map((client) => (
+            <div
+              key={client.ref}
+              className="glass-card p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
+              onClick={() => navigate(`/client/${client.ref}`)}
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-mono text-[10px] text-slate-500">{client.ref}</span>
+                  <VigilanceBadge level={client.nivVigilance} />
+                </div>
+                <p className="font-medium text-sm text-slate-200 truncate">{client.raisonSociale}</p>
+                <p className="text-xs text-slate-500 mt-0.5">{client.forme} · {client.mission}</p>
+                <div className="flex items-center gap-3 mt-2">
+                  <PilotageBadge status={client.etatPilotage} />
+                  <span className="text-xs text-slate-500 font-mono">{client.dateButoir}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-2 shrink-0">
+                <ScoreGauge score={client.scoreGlobal} />
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-7 w-7 p-0" aria-label="Actions">
+                      <MoreHorizontal className="w-4 h-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/client/${client.ref}`); }}>
+                      <Eye className="w-3.5 h-3.5 mr-2" /> Voir detail
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch { toast.error("Erreur PDF"); } }}>
+                      <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/lettre-mission/${client.ref}`); }}>
+                      <FileText className="w-3.5 h-3.5 mr-2" /> Lettre de mission
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          ))
+        )}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between py-2">
+            <p className="text-xs text-slate-500">{page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}</p>
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0"><ChevronLeft className="w-4 h-4" /></Button>
+              <span className="text-xs text-slate-400 px-2">{page + 1} / {totalPages}</span>
+              <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0"><ChevronRightIcon className="w-4 h-4" /></Button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Table (desktop) */}
+      <div className="hidden sm:block glass-card overflow-hidden animate-fade-in-up-delay-2">
         <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto">
           <Table>
             {/* 14. Sticky table header */}
@@ -508,21 +577,21 @@ export default function BddPage() {
                   />
                 </TableHead>
                 <TableHead className="w-[90px] text-slate-500 text-[11px] uppercase tracking-wider">Ref</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("raisonSociale"); } }} role="button" tabIndex={0} aria-label="Trier par Raison Sociale">
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("raisonSociale"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Raison Sociale" aria-sort={ariaSort("raisonSociale")}>
                   <div className="flex items-center gap-1.5">Raison Sociale <SortIcon column="raisonSociale" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Forme</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("comptable"); } }} role="button" tabIndex={0} aria-label="Trier par Comptable">
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("comptable"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Comptable" aria-sort={ariaSort("comptable")}>
                   <div className="flex items-center gap-1.5">Comptable <SortIcon column="comptable" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Mission</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("scoreGlobal"); } }} role="button" tabIndex={0} aria-label="Trier par Score">
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("scoreGlobal"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Score" aria-sort={ariaSort("scoreGlobal")}>
                   <div className="flex items-center gap-1.5 justify-center">Score <SortIcon column="scoreGlobal" /></div>
                 </TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
                 <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="button" tabIndex={0} aria-label="Trier par Butoir">
+                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Butoir" aria-sort={ariaSort("dateButoir")}>
                   <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
                 </TableHead>
                 <TableHead className="w-[80px]"></TableHead>
@@ -581,6 +650,9 @@ export default function BddPage() {
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}>
                           <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/lettre-mission/${client.ref}`); }}>
+                          <FileText className="w-3.5 h-3.5 mr-2" /> Lettre de mission
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={(e) => {
                           e.stopPropagation();

@@ -24,7 +24,7 @@ const ROLE_COLORS: Record<UserRole, string> = {
 };
 
 export default function AdminUsersPage() {
-  const { profile, hasPermission } = useAuth();
+  const { profile } = useAuth();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
