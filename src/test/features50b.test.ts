@@ -43,8 +43,8 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     associe: "DIDIER", superviseur: "SAMUEL",
     ppe: "NON", paysRisque: "NON", atypique: "NON",
     distanciel: "NON", cash: "NON", pression: "NON",
-    scoreActivite: 25, scorePays: 0, scoreMission: 10, scoreMaturite: 0,
-    scoreStructure: 20, malus: 0, scoreGlobal: 11, nivVigilance: "SIMPLIFIEE",
+    scoreActivite: 25, scorePays: 0, scoreMission: 25, scoreMaturite: 0,
+    scoreStructure: 20, malus: 0, scoreGlobal: 14, nivVigilance: "SIMPLIFIEE",
     dateCreationLigne: "2024-01-01", dateDerniereRevue: "2024-01-01",
     dateButoir: "2030-01-01", etatPilotage: "A JOUR",
     dateExpCni: "2030-01-01", statut: "ACTIF",
@@ -148,7 +148,7 @@ describe("F4: flattenClientRecord", () => {
   it("flattens to snake_case keys", () => {
     const flat = flattenClientRecord(makeClient());
     expect(flat.raison_sociale).toBe("TEST SARL");
-    expect(flat.score_global).toBe(11);
+    expect(flat.score_global).toBe(14);
     expect(flat.vigilance).toBe("SIMPLIFIEE");
   });
 });

@@ -65,9 +65,11 @@ export async function searchPappers(
 
   // If free API returned nothing or we need docs, try edge function
   try {
+    // OPT-15: Unified AbortController with proper cleanup
     const timeoutController = new AbortController();
     const timeoutId = setTimeout(() => timeoutController.abort(), 10000);
     if (signal) {
+      if (signal.aborted) { clearTimeout(timeoutId); return { results: [], error: "Requete annulee" }; }
       signal.addEventListener("abort", () => timeoutController.abort(), { once: true });
     }
 
@@ -79,7 +81,6 @@ export async function searchPappers(
       data = result.data;
       error = result.error;
     } catch (invokeErr) {
-      clearTimeout(timeoutId);
       // Edge function failed (CORS, network, etc.) — already tried free API above
       const msg = invokeErr instanceof Error ? invokeErr.message : "Erreur";
       logger.debug("Pappers", "Edge function unavailable:", msg);
@@ -115,17 +116,35 @@ async function fallbackRechercheEntreprises(mode: SearchMode, query: string, sig
     const clean = query.replace(/\s/g, "");
     const searchQuery = (mode === "siren" && /^\d{9,14}$/.test(clean)) ? clean.slice(0, 9) : query;
 
+    // OPT-32: Proper AbortController with cleanup
+    let fallbackCtrl: AbortController | null = null;
+    let fallbackTimeout: ReturnType<typeof setTimeout> | null = null;
+    if (!signal) {
+      fallbackCtrl = new AbortController();
+      fallbackTimeout = setTimeout(() => fallbackCtrl!.abort(), 10000);
+    }
     const res = await fetch(
       `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(searchQuery)}&page=1&per_page=5`,
-      { signal: signal ?? AbortSignal.timeout(10000) }
+      { signal: signal ?? fallbackCtrl!.signal }
     );
+    if (fallbackTimeout) clearTimeout(fallbackTimeout);
 
     if (!res.ok) {
       logger.warn("Pappers", `recherche-entreprises returned ${res.status}`);
       return { results: [], error: "Aucun resultat trouve.", source: "datagouv" };
     }
 
+    // OPT: Validate content-type before parsing JSON
+    const ct = res.headers.get("content-type") ?? "";
+    if (!ct.includes("json")) {
+      logger.warn("Pappers", `Unexpected content-type: ${ct}`);
+      return { results: [], error: "Reponse non-JSON.", source: "datagouv" };
+    }
     const data = await res.json();
+    // OPT-22: Validate response format before processing
+    if (!data || typeof data !== "object") {
+      return { results: [], error: "Format de reponse invalide.", source: "datagouv" };
+    }
     const items = data?.results ?? [];
 
     if (items.length === 0) {
@@ -182,10 +201,13 @@ export async function checkGelAvoirs(siren: string, dirigeant: string): Promise<
   // Guard against null/undefined inputs
   if (!siren && !dirigeant) return { matched: false, matches: [] };
 
+  // OPT-31: Proper AbortController cleanup with clearTimeout
+  const gelController = new AbortController();
+  const gelTimeout = setTimeout(() => gelController.abort(), 5000);
   try {
     const res = await fetch(
       "https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1/publication/derniere-publication-et-sanctions",
-      { signal: AbortSignal.timeout(5000) }
+      { signal: gelController.signal }
     );
     if (!res.ok) return { matched: false, matches: [] };
 
@@ -228,5 +250,7 @@ export async function checkGelAvoirs(siren: string, dirigeant: string): Promise<
   } catch {
     // API unreachable — don't block the process
     return { matched: false, matches: [] };
+  } finally {
+    clearTimeout(gelTimeout);
   }
 }

@@ -42,8 +42,12 @@ export function analyzeCockpit(
   const safeCollaborateurs = Array.isArray(collaborateurs) ? collaborateurs : [];
   const safeAlertes = Array.isArray(alertes) ? alertes : [];
 
+  // OPT-23: Cache Date.now() to avoid multiple Date object creations
   const now = new Date();
+  const nowMs = now.getTime();
   const urgencies: CockpitUrgency[] = [];
+  // OPT: Pre-filter actifs once, reuse for stats
+  const actifs = safeClients.filter(c => c.statut !== "INACTIF");
 
   // 1. Revisions en retard
   const revisionsRetard: CockpitUrgency[] = [];
@@ -53,7 +57,7 @@ export function analyzeCockpit(
     const butoir = new Date(c.dateButoir);
     if (isNaN(butoir.getTime())) continue;
     if (butoir < now) {
-      const daysLate = Math.floor((now.getTime() - butoir.getTime()) / (1000 * 60 * 60 * 24));
+      const daysLate = Math.floor((nowMs - butoir.getTime()) / (1000 * 60 * 60 * 24));
       const u: CockpitUrgency = {
         type: "revision",
         severity: daysLate > COCKPIT_CRITIQUE_DAYS ? "critique" : "warning",
@@ -65,7 +69,7 @@ export function analyzeCockpit(
       urgencies.push(u);
     } else {
       // Revision approaching within 60 days
-      const daysUntil = Math.floor((butoir.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntil = Math.floor((butoir.getTime() - nowMs) / (1000 * 60 * 60 * 24));
       if (daysUntil <= 60) {
         const u: CockpitUrgency = {
           type: "revision",
@@ -96,7 +100,7 @@ export function analyzeCockpit(
       cniPerimees.push(u);
       urgencies.push(u);
     } else {
-      const daysUntil = Math.floor((expCni.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntil = Math.floor((expCni.getTime() - nowMs) / (1000 * 60 * 60 * 24));
       if (daysUntil < CNI_WARNING_DAYS) {
         const u: CockpitUrgency = {
           type: "cni",
@@ -327,8 +331,7 @@ export function analyzeCockpit(
   const severityOrder = { critique: 0, warning: 1, info: 2 };
   urgencies.sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3));
 
-  // Stats
-  const actifs = safeClients.filter(c => c.statut !== "INACTIF");
+  // OPT-41: actifs already computed at top of function
   const formesOk = safeCollaborateurs.filter(c => (c.statutFormation ?? "").includes("A JOUR")).length;
   const tauxFormation = safeCollaborateurs.length > 0 ? Math.round((formesOk / safeCollaborateurs.length) * 100) : 0;
 
@@ -346,7 +349,8 @@ export function analyzeCockpit(
   return {
     totalClients: safeClients.length,
     clientsActifs: actifs.length,
-    totalHonoraires: safeClients.reduce((sum, c) => sum + (c.honoraires ?? 0), 0),
+    // OPT: Compute totalHonoraires from actifs (already filtered) + inactifs in single pass
+    totalHonoraires: actifs.reduce((sum, c) => sum + (c.honoraires ?? 0), 0),
     urgencies,
     revisionsRetard,
     cniPerimees,

@@ -738,6 +738,7 @@ export type Database = {
           comptable: string
           cp: string | null
           created_at: string
+          data_provenance: Json | null
           date_butoir: string | null
           date_creation: string | null
           date_creation_ligne: string | null
@@ -757,10 +758,14 @@ export type Database = {
           iban_encrypted: string | null
           id: string
           juridique: number | null
+          lien_cni: string | null
+          lien_kbis: string | null
+          lien_statuts: string | null
           mail: string | null
           malus: number | null
           mission: string
           niv_vigilance: string | null
+          non_diffusible: boolean | null
           pays_risque: string | null
           ppe: string | null
           pression: string | null
@@ -778,6 +783,7 @@ export type Database = {
           statut: string | null
           superviseur: string | null
           tel: string | null
+          type_personne: string | null
           updated_at: string
           ville: string | null
         }
@@ -796,6 +802,7 @@ export type Database = {
           comptable?: string
           cp?: string | null
           created_at?: string
+          data_provenance?: Json | null
           date_butoir?: string | null
           date_creation?: string | null
           date_creation_ligne?: string | null
@@ -815,10 +822,14 @@ export type Database = {
           iban_encrypted?: string | null
           id?: string
           juridique?: number | null
+          lien_cni?: string | null
+          lien_kbis?: string | null
+          lien_statuts?: string | null
           mail?: string | null
           malus?: number | null
           mission?: string
           niv_vigilance?: string | null
+          non_diffusible?: boolean | null
           pays_risque?: string | null
           ppe?: string | null
           pression?: string | null
@@ -836,6 +847,7 @@ export type Database = {
           statut?: string | null
           superviseur?: string | null
           tel?: string | null
+          type_personne?: string | null
           updated_at?: string
           ville?: string | null
         }
@@ -854,6 +866,7 @@ export type Database = {
           comptable?: string
           cp?: string | null
           created_at?: string
+          data_provenance?: Json | null
           date_butoir?: string | null
           date_creation?: string | null
           date_creation_ligne?: string | null
@@ -873,10 +886,14 @@ export type Database = {
           iban_encrypted?: string | null
           id?: string
           juridique?: number | null
+          lien_cni?: string | null
+          lien_kbis?: string | null
+          lien_statuts?: string | null
           mail?: string | null
           malus?: number | null
           mission?: string
           niv_vigilance?: string | null
+          non_diffusible?: boolean | null
           pays_risque?: string | null
           ppe?: string | null
           pression?: string | null
@@ -894,6 +911,7 @@ export type Database = {
           statut?: string | null
           superviseur?: string | null
           tel?: string | null
+          type_personne?: string | null
           updated_at?: string
           ville?: string | null
         }

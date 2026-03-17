@@ -79,7 +79,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-500">€ HT / an</span>
         </div>
         {fieldErrors.honoraires_ht && (
-          <p className="text-xs text-red-400 animate-shake">{fieldErrors.honoraires_ht}</p>
+          <p className="text-xs text-red-400 animate-shake" role="alert">{fieldErrors.honoraires_ht}</p>
         )}
 
         {/* TVA + TTC */}
@@ -105,16 +105,39 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
       {/* ── Slider optionnel ── */}
       <div className="px-2">
         <Slider
-          value={[Math.min(data.honoraires_ht, 15000)]}
+          value={[Math.min(data.honoraires_ht, 50000)]}
           onValueChange={([v]) => onChange({ honoraires_ht: v })}
-          min={500}
-          max={15000}
+          min={0}
+          max={50000}
           step={100}
           className="w-full"
         />
         <div className="flex justify-between text-[10px] text-slate-600 mt-1">
-          <span>500 €</span>
-          <span>15 000 €</span>
+          <span>0 €</span>
+          <span>50 000 €</span>
+        </div>
+      </div>
+
+      {/* ── Taux TVA ── */}
+      <div className="space-y-1.5">
+        <Label className="text-slate-400 text-xs">Taux de TVA (%)</Label>
+        <div className="flex gap-2">
+          {[0, 5.5, 10, 20].map((rate) => {
+            const active = data.taux_tva === rate;
+            return (
+              <button
+                key={rate}
+                onClick={() => onChange({ taux_tva: rate })}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                  active
+                    ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                    : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12]"
+                }`}
+              >
+                {rate === 0 ? "Exonere" : `${rate}%`}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -184,7 +207,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
               placeholder="FR76 XXXX XXXX XXXX XXXX XXXX XXX"
               autoComplete="off"
             />
-            {fieldErrors.iban && <p className="text-xs text-red-400">{fieldErrors.iban}</p>}
+            {fieldErrors.iban && <p className="text-xs text-red-400" role="alert">{fieldErrors.iban}</p>}
           </div>
           <div className="space-y-1.5">
             <Label className="text-slate-400 text-xs">BIC</Label>
@@ -198,6 +221,29 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           </div>
         </div>
       )}
+
+      {/* ── Echeance paiement ── */}
+      <div className="space-y-1.5">
+        <Label className="text-slate-400 text-xs">Echeance de paiement (jours)</Label>
+        <div className="flex gap-2">
+          {[15, 30, 45, 60].map((d) => {
+            const active = data.echeance_jours === d;
+            return (
+              <button
+                key={d}
+                onClick={() => onChange({ echeance_jours: d })}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                  active
+                    ? "border-blue-500 bg-blue-500/10 text-blue-300"
+                    : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12]"
+                }`}
+              >
+                {d}j
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* ── Taux horaire complémentaire ── */}
       <div className="space-y-1.5">

@@ -44,8 +44,8 @@ describe("Feature #48: getRiskColor", () => {
     expect(getRiskColor(0).label).toBe("Faible");
   });
 
-  it("score 120 (max) → high", () => {
-    expect(getRiskColor(120).label).toBe("Eleve");
+  it("score 100 (max) → high", () => {
+    expect(getRiskColor(100).label).toBe("Eleve");
   });
 });
 

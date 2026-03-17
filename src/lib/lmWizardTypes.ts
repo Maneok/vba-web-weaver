@@ -26,6 +26,7 @@ export interface LMWizardData {
   siren: string;
   forme_juridique: string;
   type_mission: string; // TENUE | SURVEILLANCE | REVISION
+  mission_type_id: string; // normative OEC mission type (presentation, examen_limite, etc.)
 
   // Client info (pre-filled)
   dirigeant: string;
@@ -81,6 +82,9 @@ export interface LMWizardData {
   started_at: string; // ISO timestamp when wizard opened
   duration_seconds: number; // computed on final export
 
+  // Modele integration
+  modele_id: string; // selected LM modele ID (empty = GRIMY default)
+
   // Meta
   cabinet_id: string;
   created_by: string;
@@ -117,6 +121,7 @@ export const LM_STATUTS = [
   { value: "envoyee", label: "Envoyee", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
   { value: "signee", label: "Signee", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
   { value: "archivee", label: "Archivee", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+  { value: "resiliee", label: "Resiliee", color: "bg-red-500/10 text-red-400 border-red-500/20" },
 ] as const;
 
 export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
@@ -126,6 +131,7 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   siren: "",
   forme_juridique: "",
   type_mission: "",
+  mission_type_id: "presentation",
   dirigeant: "",
   qualite_dirigeant: "Gerant",
   adresse: "",
@@ -166,6 +172,7 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   annexes: [],
   started_at: "",
   duration_seconds: 0,
+  modele_id: "",
   cabinet_id: "",
   created_by: "",
   wizard_step: 0,

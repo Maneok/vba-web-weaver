@@ -34,12 +34,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ChevronLeft, ChevronRight, FileText, History, Plus,
   Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
-  FileDown, Search, Clock, AlertTriangle, Filter,
+  FileDown, Search, Clock, AlertTriangle, Filter, Settings2,
+  FilePlus2, Send, Link, Check,
 } from "lucide-react";
+import ModeleListPage from "@/components/lettre-mission/ModeleListPage";
+import LMStatusBadge from "@/components/lettre-mission/LMStatusBadge";
+import LMAlertesList from "@/components/lettre-mission/LMAlertesList";
+import { runAllChecks } from "@/lib/lettreMissionWorkflow";
+import AvenantDialog from "@/components/lettre-mission/AvenantDialog";
+import type { LMInstance } from "@/lib/lettreMissionEngine";
+import { getAvenants, type LMAvenant } from "@/lib/lettreMissionAvenants";
+import { sendForSignature, getSignatureTokens } from "@/lib/lettreMissionSignature";
+import { buildClientFromWizardData } from "@/lib/lmUtils";
 
 // ─────────────────────────────────────────
 // G) Advanced history with filters, duplicate, archive
@@ -51,6 +65,8 @@ function LetterHistory({
   onDuplicate,
   onArchive,
   onDownloadPdf,
+  onCreateAvenant,
+  avenantsByLetter,
 }: {
   letters: SavedLetter[];
   loading: boolean;
@@ -58,10 +74,41 @@ function LetterHistory({
   onDuplicate: (letter: SavedLetter) => void;
   onArchive: (letter: SavedLetter) => void;
   onDownloadPdf: (letter: SavedLetter) => void;
+  onCreateAvenant: (letter: SavedLetter) => void;
+  avenantsByLetter: Record<string, LMAvenant[]>;
 }) {
   const [searchQ, setSearchQ] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
   const [filterPeriode, setFilterPeriode] = useState("all");
+
+  // Signature state
+  const [signTarget, setSignTarget] = useState<SavedLetter | null>(null);
+  const [signEmail, setSignEmail] = useState("");
+  const [signClientNom, setSignClientNom] = useState("");
+  const [signLoading, setSignLoading] = useState(false);
+  const [signUrl, setSignUrl] = useState("");
+
+  const handleSendForSignature = async () => {
+    if (!signTarget || !signEmail.trim()) return;
+    setSignLoading(true);
+    try {
+      const result = await sendForSignature(signTarget.id, signEmail.trim(), signClientNom.trim() || signTarget.raison_sociale);
+      setSignUrl(result.signatureUrl);
+      toast.success("Lien de signature genere");
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors de la generation du lien");
+    } finally {
+      setSignLoading(false);
+    }
+  };
+
+  const openSignDialog = (letter: SavedLetter) => {
+    setSignTarget(letter);
+    setSignEmail(letter.wizard_data?.email || "");
+    setSignClientNom(letter.wizard_data?.dirigeant || letter.raison_sociale || "");
+    setSignUrl("");
+    setSignLoading(false);
+  };
 
   const filtered = useMemo(() => {
     let result = [...letters];
@@ -204,9 +251,7 @@ function LetterHistory({
 
             {/* Statut */}
             <div className="hidden sm:block">
-              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>
-                {letter.statut}
-              </Badge>
+              <LMStatusBadge status={letter.statut} />
             </div>
 
             {/* H) Duration */}
@@ -244,16 +289,75 @@ function LetterHistory({
               >
                 <Archive className="w-3.5 h-3.5" />
               </button>
+              {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
+                <button
+                  onClick={() => openSignDialog(letter)}
+                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
+                  title="Envoyer pour signature"
+                >
+                  <Send className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {letter.statut === "envoyee" && (
+                <Badge variant="outline" className="text-[8px] border-blue-500/20 text-blue-400 px-1.5">
+                  <Clock className="w-2.5 h-2.5 mr-0.5" /> Signature
+                </Badge>
+              )}
+              {(letter.statut === "signee" || letter.statut === "envoyee") && (
+                <button
+                  onClick={() => onCreateAvenant(letter)}
+                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-cyan-400 transition-colors"
+                  title="Créer un avenant"
+                >
+                  <FilePlus2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Mobile actions */}
             <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
-              <Badge variant="outline" className={`text-[9px] ${statusColor(letter.statut)}`}>{letter.statut}</Badge>
+              <LMStatusBadge status={letter.statut} />
               <div className="flex-1" />
+              {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
+                <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-500"><Send className="w-3.5 h-3.5" /></button>
+              )}
+              {(letter.statut === "signee" || letter.statut === "envoyee") && (
+                <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
+              )}
               <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
               <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
               <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
             </div>
+
+            {/* Avenants list */}
+            {avenantsByLetter[letter.id] && avenantsByLetter[letter.id].length > 0 && (
+              <div className="col-span-full mt-2 pt-2 border-t border-white/[0.04] space-y-1">
+                <p className="text-[10px] text-slate-600 uppercase tracking-wider mb-1">
+                  {avenantsByLetter[letter.id].length} avenant{avenantsByLetter[letter.id].length > 1 ? "s" : ""}
+                </p>
+                {avenantsByLetter[letter.id].map((av) => (
+                  <div
+                    key={av.id}
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.01] border border-white/[0.04]"
+                  >
+                    <FilePlus2 className="w-3 h-3 text-cyan-400/60 shrink-0" />
+                    <span className="text-xs font-mono text-cyan-400/80">{av.numero}</span>
+                    <span className="text-xs text-slate-400 truncate flex-1">{av.objet}</span>
+                    <Badge variant="outline" className={`text-[9px] ${
+                      av.status === "signee" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
+                      av.status === "envoyee" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
+                      av.status === "archivee" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
+                      "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                    }`}>
+                      {av.status}
+                    </Badge>
+                    <span className="text-[10px] text-slate-600">
+                      {new Date(av.created_at).toLocaleDateString("fr-FR")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -261,6 +365,86 @@ function LetterHistory({
       {filtered.length === 0 && letters.length > 0 && (
         <div className="text-center py-10 text-slate-500 text-sm">Aucun resultat pour ces filtres</div>
       )}
+
+      {/* Signature dialog */}
+      <Dialog open={!!signTarget} onOpenChange={(open) => !open && setSignTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Envoyer pour signature</DialogTitle>
+            <DialogDescription>
+              {signTarget?.raison_sociale} — {signTarget?.numero}
+            </DialogDescription>
+          </DialogHeader>
+          {signUrl ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                <Check className="w-4 h-4 text-emerald-400 shrink-0" />
+                <p className="text-sm text-emerald-300">Lien de signature genere</p>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Lien a envoyer au client</Label>
+                <div className="flex gap-2">
+                  <Input value={signUrl} readOnly className="bg-white/[0.04] border-white/[0.08] text-xs font-mono" />
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 gap-1 border-white/[0.06]"
+                    onClick={() => {
+                      navigator.clipboard.writeText(signUrl);
+                      toast.success("Lien copie dans le presse-papiers");
+                    }}
+                  >
+                    <Link className="w-3 h-3" /> Copier
+                  </Button>
+                </div>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Le client pourra consulter la lettre de mission et la signer electroniquement via ce lien.
+              </p>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-white/[0.06]">
+                  Fermer
+                </Button>
+              </DialogFooter>
+            </div>
+          ) : (
+            <div className="space-y-4 py-2">
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Email du client *</Label>
+                <Input
+                  type="email"
+                  value={signEmail}
+                  onChange={(e) => setSignEmail(e.target.value)}
+                  placeholder="client@example.com"
+                  className="bg-white/[0.04] border-white/[0.08]"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400">Nom du signataire</Label>
+                <Input
+                  value={signClientNom}
+                  onChange={(e) => setSignClientNom(e.target.value)}
+                  placeholder="Nom du client"
+                  className="bg-white/[0.04] border-white/[0.08]"
+                />
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-white/[0.06]">
+                  Annuler
+                </Button>
+                <Button
+                  onClick={handleSendForSignature}
+                  disabled={signLoading || !signEmail.trim()}
+                  className="gap-1.5 bg-blue-600 hover:bg-blue-700"
+                >
+                  {signLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Generer le lien
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -319,6 +503,12 @@ export default function LettreMissionPage() {
 
   useDocumentTitle("Lettre de Mission");
 
+  // Cabinet info from profile (avoids hardcoding)
+  const cabinetInfo = useMemo(() => ({
+    nom: profile?.full_name ? `Cabinet ${profile.full_name}` : "Cabinet Expertise Comptable",
+    adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: profile?.email || "", telephone: "",
+  }), [profile?.full_name, profile?.email]);
+
   // ── Wizard state (all hooks must be declared before any early return) ──
   const [step, setStep] = useState(0);
   const [data, setData] = useState<LMWizardData>({ ...INITIAL_LM_WIZARD_DATA });
@@ -337,20 +527,26 @@ export default function LettreMissionPage() {
   const [savedLetters, setSavedLetters] = useState<SavedLetter[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Avenants
+  const [avenantsByLetter, setAvenantsByLetter] = useState<Record<string, LMAvenant[]>>({});
+  const [avenantDialogOpen, setAvenantDialogOpen] = useState(false);
+  const [avenantTargetInstance, setAvenantTargetInstance] = useState<LMInstance | null>(null);
+
   // Swipe
   const touchStartX = useRef<number | null>(null);
 
-  // ── Permission check (after all hooks) ──
-  if (!hasPermission("write_clients")) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
-        <ShieldAlert className="w-12 h-12 text-red-400" />
-        <p className="text-white font-medium">Acces refuse</p>
-        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
-        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
-      </div>
-    );
-  }
+  const canWrite = hasPermission("write_clients");
+
+  // ── Run LM alertes checks on mount ──
+  const alertesCheckedRef = useRef(false);
+  useEffect(() => {
+    if (profile?.cabinet_id && !alertesCheckedRef.current) {
+      alertesCheckedRef.current = true;
+      runAllChecks(profile.cabinet_id).catch((e) =>
+        logger.warn("LM", "Alertes check failed:", e)
+      );
+    }
+  }, [profile?.cabinet_id]);
 
   // ── H) Time tracking ──
   useEffect(() => {
@@ -444,7 +640,7 @@ export default function LettreMissionPage() {
       const { data: drafts } = await supabase
         .from("lettres_mission")
         .select("id, wizard_data, wizard_step, created_at")
-        .eq("statut", "brouillon")
+        .or("statut.eq.brouillon,status.eq.brouillon")
         .order("updated_at", { ascending: false })
         .limit(1);
       if (cancelled) return;
@@ -484,7 +680,7 @@ export default function LettreMissionPage() {
         .from("lettres_mission")
         .select("id")
         .eq("client_ref", data.client_id)
-        .neq("statut", "archivee")
+        .not("statut", "eq", "archivee")
         .then(({ data: existing }) => {
           if (existing && existing.length > 0) {
             toast.warning("Ce client a deja une lettre de mission active");
@@ -494,29 +690,43 @@ export default function LettreMissionPage() {
     }
   }, [data.client_id]);
 
-  // ── Auto-save debounce 2s ──
+  // ── Auto-save debounce 5s (silent — no toast) ──
   const saveTimer = useRef<ReturnType<typeof setTimeout>>();
-  const saveToSupabase = useCallback(async () => {
-    if (!data.client_id) return;
+  const lmIdRef = useRef(lmId);
+  lmIdRef.current = lmId;
+  const profileCabinetRef = useRef(profile?.cabinet_id);
+  profileCabinetRef.current = profile?.cabinet_id;
+
+  const saveToSupabase = useCallback(async (currentData: LMWizardData, currentStep: number) => {
+    if (!currentData.client_id) return;
     try {
       const { data: authData } = await supabase.auth.getUser();
       if (!authData?.user) return;
-      const payload = { wizard_data: data, wizard_step: step, updated_at: new Date().toISOString() };
-      if (lmId) {
-        const { error: updErr } = await supabase.from("lettres_mission").update(payload).eq("id", lmId);
+      const payload = {
+        data: currentData,
+        wizard_data: currentData,
+        wizard_step: currentStep,
+        updated_at: new Date().toISOString(),
+      };
+      if (lmIdRef.current) {
+        const { error: updErr } = await supabase.from("lettres_mission").update(payload).eq("id", lmIdRef.current);
         if (updErr) throw updErr;
       } else {
+        const cabId = profileCabinetRef.current;
+        if (!cabId) return;
         const { data: ins } = await supabase
           .from("lettres_mission")
           .insert({
             user_id: authData.user.id,
-            cabinet_id: profile?.cabinet_id,
-            client_ref: data.client_ref,
-            raison_sociale: data.raison_sociale,
-            type_mission: data.type_mission,
+            cabinet_id: cabId,
+            client_ref: currentData.client_ref,
+            raison_sociale: currentData.raison_sociale,
+            type_mission: currentData.type_mission,
             statut: "brouillon",
-            wizard_data: data,
-            wizard_step: step,
+            status: "brouillon",
+            data: currentData,
+            wizard_data: currentData,
+            wizard_step: currentStep,
             numero: incrementCounter(),
           })
           .select("id")
@@ -524,17 +734,16 @@ export default function LettreMissionPage() {
         if (ins) setLmId(ins.id);
       }
       setLastSaved(new Date());
-      toast.success("Sauvegarde", { duration: 1500 });
     } catch (e) {
       logger.warn("LM", "Auto-save failed:", e);
     }
-  }, [data, step, lmId, profile?.cabinet_id]);
+  }, []);
 
-  // Trigger auto-save on data change (debounced 2s)
+  // Trigger auto-save on data change (debounced 5s, silent)
   useEffect(() => {
     if (!data.client_id) return;
     clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(saveToSupabase, 2000);
+    saveTimer.current = setTimeout(() => saveToSupabase(data, step), 5000);
     return () => clearTimeout(saveTimer.current);
   }, [data, step, saveToSupabase]);
 
@@ -553,13 +762,13 @@ export default function LettreMissionPage() {
             client_ref: r.client_ref || "",
             raison_sociale: r.raison_sociale || r.wizard_data?.raison_sociale || "—",
             type_mission: r.type_mission || r.wizard_data?.type_mission || "—",
-            statut: r.statut || "brouillon",
+            statut: r.statut || r.status || "brouillon",
             created_at: r.created_at,
             updated_at: r.updated_at,
-            wizard_data: r.wizard_data || {},
-            duration_seconds: r.wizard_data?.duration_seconds || 0,
-            honoraires_ht: r.wizard_data?.honoraires_ht || 0,
-            missions_count: r.wizard_data?.missions_selected?.filter((m: any) => m.selected)?.length || 0,
+            wizard_data: r.wizard_data || r.data || {},
+            duration_seconds: r.wizard_data?.duration_seconds || r.data?.duration_seconds || 0,
+            honoraires_ht: r.wizard_data?.honoraires_ht || r.data?.honoraires_ht || 0,
+            missions_count: (r.wizard_data?.missions_selected || r.data?.missions_selected)?.filter((m: any) => m.selected)?.length || 0,
           }))
         );
       }
@@ -567,6 +776,67 @@ export default function LettreMissionPage() {
       logger.warn("LM", "Failed to load letters:", e);
     }
     setHistoryLoading(false);
+  };
+
+  const loadAvenants = async (letterIds: string[]) => {
+    if (letterIds.length === 0) return;
+    try {
+      const { data: rows } = await supabase
+        .from("lm_avenants")
+        .select("*")
+        .in("instance_id", letterIds)
+        .order("created_at", { ascending: true });
+      if (rows) {
+        const grouped: Record<string, LMAvenant[]> = {};
+        for (const r of rows) {
+          const key = (r as any).instance_id;
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(r as unknown as LMAvenant);
+        }
+        setAvenantsByLetter(grouped);
+      }
+    } catch (e) {
+      logger.warn("LM", "Failed to load avenants:", e);
+    }
+  };
+
+  // Load avenants when letters change
+  useEffect(() => {
+    const signedOrSent = savedLetters
+      .filter((l) => l.statut === "signee" || l.statut === "envoyee")
+      .map((l) => l.id);
+    loadAvenants(signedOrSent);
+  }, [savedLetters]);
+
+  const handleCreateAvenant = (letter: SavedLetter) => {
+    const instance: LMInstance = {
+      id: letter.id,
+      cabinet_id: profile?.cabinet_id || "",
+      modele_id: "",
+      client_ref: letter.client_ref,
+      numero: letter.numero,
+      status: letter.statut as LMInstance["status"],
+      sections_snapshot: [],
+      cgv_snapshot: "",
+      repartition_snapshot: [],
+      variables_resolved: {
+        raison_sociale: letter.raison_sociale,
+        honoraires: String(letter.wizard_data?.honoraires_ht ?? letter.honoraires_ht ?? "0"),
+      },
+      wizard_data: letter.wizard_data as Record<string, unknown>,
+      created_at: letter.created_at,
+      updated_at: letter.updated_at,
+    };
+    setAvenantTargetInstance(instance);
+    setAvenantDialogOpen(true);
+  };
+
+  const handleAvenantCreated = async (avenant: LMAvenant) => {
+    // Reload avenants
+    const signedOrSent = savedLetters
+      .filter((l) => l.statut === "signee" || l.statut === "envoyee")
+      .map((l) => l.id);
+    await loadAvenants(signedOrSent);
   };
 
   // ── Handlers ──
@@ -622,12 +892,16 @@ export default function LettreMissionPage() {
 
     const sanitized = sanitizeWizardData(finalData);
     const { data: authData } = await supabase.auth.getUser();
+    const effectiveStatut = sanitized.statut || "brouillon";
     const payload = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,
       type_mission: sanitized.type_mission,
-      statut: sanitized.statut,
+      statut: effectiveStatut,
+      status: effectiveStatut,
+      data: sanitized,
       wizard_data: sanitized,
+      wizard_step: step,
       numero: sanitized.numero_lettre || incrementCounter(),
     };
     if (lmId) {
@@ -638,10 +912,11 @@ export default function LettreMissionPage() {
         toast.error("Impossible de sauvegarder : profil non initialise. Reconnectez-vous.");
         return;
       }
-      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, user_id: authData?.user?.id, cabinet_id: profile.cabinet_id }).select("id").maybeSingle();
+      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, data: sanitized, user_id: authData?.user?.id, cabinet_id: profile.cabinet_id }).select("id").maybeSingle();
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }
+    toast.success("Lettre de mission sauvegardée !");
     setData(finalData);
     logAudit({
       action: "LETTRE_MISSION_SAVE",
@@ -700,7 +975,7 @@ export default function LettreMissionPage() {
   // G) Archive
   const handleArchive = async (letter: SavedLetter) => {
     try {
-      const { error } = await supabase.from("lettres_mission").update({ statut: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
+      const { error } = await supabase.from("lettres_mission").update({ statut: "archivee", status: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
       if (error) throw error;
       toast.success("Lettre archivee");
       await loadSavedLetters();
@@ -715,24 +990,11 @@ export default function LettreMissionPage() {
     try {
       const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
       const wd = letter.wizard_data;
-      const client = {
-        ref: wd.client_ref, raisonSociale: wd.raison_sociale, forme: wd.forme_juridique,
-        siren: wd.siren, dirigeant: wd.dirigeant, adresse: wd.adresse, cp: wd.cp, ville: wd.ville,
-        capital: Number(wd.capital) || 0, ape: wd.ape, mail: wd.email, tel: wd.telephone,
-        iban: wd.iban, bic: wd.bic, etat: "EN_COURS", comptable: "", mission: wd.type_mission,
-        domaine: "", effectif: "", dateCreation: "", dateReprise: "",
-        honoraires: wd.honoraires_ht, reprise: 0, juridique: 0, frequence: wd.frequence_facturation,
-        associe: wd.associe_signataire, superviseur: wd.chef_mission,
-        ppe: "NON", paysRisque: "NON", atypique: "NON", distanciel: "NON", cash: "NON", pression: "NON",
-        scoreActivite: 0, scorePays: 0, scoreMission: 0, scoreMaturite: 0, scoreStructure: 0,
-        malus: 0, scoreGlobal: 0, nivVigilance: "STANDARD",
-        dateCreationLigne: "", dateDerniereRevue: "", dateButoir: "",
-        etatPilotage: "A JOUR", dateExpCni: "", statut: "ACTIF", be: "",
-      };
+      const client = buildClientFromWizardData(wd as LMWizardData);
       await renderLettreMissionPdf({
         numero: letter.numero, date: new Date().toLocaleDateString("fr-FR"),
-        client: client as Client,
-        cabinet: { nom: "Cabinet Expertise Comptable", adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: "", telephone: "" },
+        client,
+        cabinet: cabinetInfo,
         options: {
           genre: "M" as const,
           missionSociale: wd.missions_selected?.some((m: Record<string, unknown>) => m.section_id === "social" && m.selected),
@@ -762,10 +1024,11 @@ export default function LettreMissionPage() {
     const h = (e: KeyboardEvent) => {
       if (activeTab !== "wizard") return;
       if (e.key === "Escape" && step > 0) { e.preventDefault(); setStep(step - 1); }
+      if (e.key === "Enter" && e.ctrlKey && step < LM_TOTAL_STEPS - 1) { e.preventDefault(); handleNext(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [step, activeTab]);
+  }, [step, activeTab, handleNext]);
 
   // H) Elapsed time display
   const elapsed = data.started_at
@@ -786,6 +1049,17 @@ export default function LettreMissionPage() {
   };
 
   const nextDisabled = !isStepValid(step);
+
+  if (!canWrite) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
+        <ShieldAlert className="w-12 h-12 text-red-400" />
+        <p className="text-white font-medium">Acces refuse</p>
+        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
+        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-4 sm:space-y-6 animate-fade-in-up">
@@ -840,6 +1114,12 @@ export default function LettreMissionPage() {
             {savedLetters.length > 0 && (
               <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
             )}
+          </TabsTrigger>
+          <TabsTrigger value="alertes" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+            <AlertTriangle className="w-3.5 h-3.5" /> Alertes
+          </TabsTrigger>
+          <TabsTrigger value="modeles" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
+            <Settings2 className="w-3.5 h-3.5" /> {isMobile ? "Modèles" : "Gérer les modèles"}
           </TabsTrigger>
         </TabsList>
 
@@ -944,6 +1224,8 @@ export default function LettreMissionPage() {
                 Etape {step + 1} / {LM_TOTAL_STEPS}
                 <span className="ml-2 text-[9px] text-slate-600">
                   <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> prec.
+                  {" · "}
+                  <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Ctrl+⏎</kbd> suiv.
                 </span>
               </span>
               {step < LM_TOTAL_STEPS - 1 ? (
@@ -971,10 +1253,55 @@ export default function LettreMissionPage() {
               onDuplicate={handleDuplicate}
               onArchive={handleArchive}
               onDownloadPdf={handleDownloadPdf}
+              onCreateAvenant={handleCreateAvenant}
+              avenantsByLetter={avenantsByLetter}
             />
           </div>
         </TabsContent>
+
+        {/* ─── ALERTES TAB ─── */}
+        <TabsContent value="alertes" className="mt-4">
+          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
+            {profile?.cabinet_id ? (
+              <LMAlertesList
+                cabinetId={profile.cabinet_id}
+                onNavigateToLM={(instanceId) => {
+                  const letter = savedLetters.find((l) => l.id === instanceId);
+                  if (letter) handleEditLetter(letter);
+                }}
+              />
+            ) : (
+              <div className="text-center py-20 text-slate-500 text-sm">
+                Profil non initialise. Reconnectez-vous.
+              </div>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ─── MODELES TAB ─── */}
+        <TabsContent value="modeles" className="mt-4">
+          {profile?.cabinet_id ? (
+            <ModeleListPage
+              cabinetId={profile.cabinet_id}
+              onBack={() => setActiveTab("wizard")}
+            />
+          ) : (
+            <div className="text-center py-20 text-slate-500 text-sm">
+              Profil non initialisé. Reconnectez-vous.
+            </div>
+          )}
+        </TabsContent>
       </Tabs>
+
+      {/* Avenant Dialog */}
+      {avenantTargetInstance && (
+        <AvenantDialog
+          open={avenantDialogOpen}
+          onOpenChange={setAvenantDialogOpen}
+          instance={avenantTargetInstance}
+          onCreated={handleAvenantCreated}
+        />
+      )}
     </div>
   );
 }

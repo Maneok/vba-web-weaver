@@ -5,15 +5,18 @@ import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { clientsService } from "@/lib/supabaseService";
-import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, APE_CASH, MISSION_FREQUENCE, normalizeAddress } from "@/lib/riskEngine";
+import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, PAYS_RISQUE_SET, APE_CASH, APE_CASH_SET, MISSION_FREQUENCE, normalizeAddress, isRiskCountry } from "@/lib/riskEngine";
+import { useScoringData } from "@/hooks/useScoringData";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, createInitialScreening, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
-  computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant, formatDateFR,
+  computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant,
   getFormeJuridiqueLabel,
 } from "@/lib/kycService";
+// OPT-48: Use shared formatDateFR from dateUtils instead of kycService duplicate
+import { formatDateFR } from "@/lib/dateUtils";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
@@ -41,12 +44,14 @@ import {
 import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
-  Map, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
+  Map as MapIcon, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen,
 } from "lucide-react";
 
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
+// OPT-36: Import IBAN validator for proper modulo-97 validation
+import { validateIBAN } from "@/lib/ibanValidator";
 
 const STEP_LABELS = ["Recherche", "Informations", "Personnes", "Questionnaire", "Scoring", "Documents"];
 
@@ -96,6 +101,8 @@ export default function NouveauClientPage() {
   const navigate = useNavigate();
   const { clients, addClient, refreshClients, isOnline } = useAppState();
   const [step, setStep] = useState(0);
+  // #24 - Load scoring data from DB for accurate risk calculation
+  const { scoringData } = useScoringData();
 
   useDocumentTitle("Nouveau Client");
 
@@ -191,6 +198,8 @@ export default function NouveauClientPage() {
   // Screening timeout (30s) — show prominent skip button
   const [screeningTimedOut, setScreeningTimedOut] = useState(false);
   const screeningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // OPT: Dedup guard to prevent duplicate screening launches on rapid clicks
+  const lastScreenedSirenRef = useRef<string | null>(null);
 
   // #11: Collapsible sections state for step 1
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
@@ -350,7 +359,7 @@ export default function NouveauClientPage() {
 
   // Idée 4: Auto-detect cash-intensive APE
   useEffect(() => {
-    if (form.ape && APE_CASH.includes(form.ape)) {
+    if (form.ape && APE_CASH_SET.has(form.ape)) {
       setQuestions(prev => {
         const cashQ = prev.find(q => q.id === "cash");
         if (cashQ && cashQ.value !== "OUI") {
@@ -371,7 +380,7 @@ export default function NouveauClientPage() {
     if (beneficiaires.length > 0) {
       const paysRisqueMatch = beneficiaires.find(b => {
         const nat = (b.nationalite || "").toUpperCase();
-        return nat && nat !== "FRANCAISE" && nat !== "FRANÇAISE" && nat !== "FRENCH" && PAYS_RISQUE.some(p => nat.includes(p));
+        return nat && nat !== "FRANCAISE" && nat !== "FRANÇAISE" && nat !== "FRENCH" && isRiskCountry(nat);
       });
       if (paysRisqueMatch) {
         setQuestions(prev => {
@@ -393,8 +402,8 @@ export default function NouveauClientPage() {
     const paysAddr = (inpiPays || "").toUpperCase();
     const isForeignAddress = paysAddr && paysAddr !== "" && paysAddr !== "FRANCE" && paysAddr !== "FR";
     const dirNationalites = screening.inpi.data?.companyData?.dirigeants?.map(d => (d.nationalite || "").toUpperCase()) ?? [];
-    const paysRisqueDetected = isForeignAddress && PAYS_RISQUE.some(p => paysAddr.includes(p));
-    const dirPaysRisque = dirNationalites.find(n => PAYS_RISQUE.some(p => n.includes(p)));
+    const paysRisqueDetected = isForeignAddress && isRiskCountry(paysAddr);
+    const dirPaysRisque = dirNationalites.find(n => isRiskCountry(n));
     if (paysRisqueDetected || dirPaysRisque) {
       setQuestions(prev => prev.map(q =>
         q.id === "paysRisque" && q.value !== "OUI"
@@ -414,7 +423,7 @@ export default function NouveauClientPage() {
     pression: questions.find(q => q.id === "pression")?.value === "OUI",
   }), [questions]);
 
-  // Compute risk score
+  // Compute risk score — #25 pass scoringData from DB for dynamic scoring
   const risk = useMemo(() => calculateRiskScore({
     ape: form.ape,
     paysRisque: riskFlags.paysRisque,
@@ -424,7 +433,7 @@ export default function NouveauClientPage() {
     effectif: form.effectif,
     forme: form.forme,
     ...riskFlags,
-  }), [form.ape, form.mission, form.dateCreation, form.dateReprise, form.effectif, form.forme, riskFlags]);
+  }, scoringData ?? undefined), [form.ape, form.mission, form.dateCreation, form.dateReprise, form.effectif, form.forme, riskFlags, scoringData]);
 
   // Extra malus from questionnaire (beyond basic 6)
   const extraMalus = useMemo(() => {
@@ -435,7 +444,7 @@ export default function NouveauClientPage() {
 
   const bodaccMalus = screening.bodacc.data?.malus ?? 0;
   const totalMalus = risk.malus + extraMalus + bodaccMalus;
-  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus, 120);
+  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus, 100);
 
   // #51: Animate score on step 4 (placed after adjustedScore to avoid TDZ)
   useEffect(() => {
@@ -551,11 +560,14 @@ export default function NouveauClientPage() {
 
   // Launch parallel screening checks
   const launchScreening = (enterprise: EnterpriseResult) => {
+    // OPT: Dedup — skip if same SIREN already screened
+    const siren = enterprise.siren;
+    if (lastScreenedSirenRef.current === siren.replace(/\s/g, "")) return;
+    lastScreenedSirenRef.current = siren.replace(/\s/g, "");
     // Start 30s timeout for screening
     setScreeningTimedOut(false);
     if (screeningTimeoutRef.current) clearTimeout(screeningTimeoutRef.current);
     screeningTimeoutRef.current = setTimeout(() => setScreeningTimedOut(true), 30000);
-    const siren = enterprise.siren;
     const dirigeants = enterprise.dirigeants ?? [];
     const raisonSociale = enterprise.raison_sociale;
     const ville = enterprise.ville;
@@ -680,6 +692,7 @@ export default function NouveauClientPage() {
                 dateNaissance,
                 nationalite,
                 pourcentage: b.pourcentageParts || 0,
+                pourcentageVotes: b.pourcentageVotes || 0,
               };
             });
 
@@ -792,9 +805,9 @@ export default function NouveauClientPage() {
     return val.replace(/[<>{}]/g, "").trim();
   }, []);
 
-  // #22: Smooth scroll to first error
+  // #22: Smooth scroll to first error — with fallback to aria-invalid inputs
   const scrollToFirstError = useCallback(() => {
-    const firstError = document.querySelector("[data-error='true']");
+    const firstError = document.querySelector("[data-error='true'], [aria-invalid='true'], .border-red-500");
     if (firstError) firstError.scrollIntoView({ behavior: "smooth", block: "center" });
   }, []);
 
@@ -1078,14 +1091,15 @@ export default function NouveauClientPage() {
       const isAssocieUnique = forme.includes("SASU") || forme.includes("EURL") || forme.includes("INDIVIDUEL") || forme.includes("EI");
 
       if (isAssocieUnique) {
-        // Associe unique → dirigeant = BE a 100%
-        const dir = entData?.dirigeant || result.dirigeant || "";
-        const names = dir.split(" ");
+        // Associe unique → dirigeant = BE a 100%. Prefer structured data over string split
+        const dirStruct = entData?.dirigeants?.[0];
+        const dirStr = entData?.dirigeant || result.dirigeant || "";
+        const names = dirStr.split(" ");
         setBeneficiaires([{
-          nom: names[0] || "",
-          prenom: names.slice(1).join(" ") || "",
-          dateNaissance: "",
-          nationalite: "Francaise",
+          nom: dirStruct?.nom || names[0] || "",
+          prenom: dirStruct?.prenom || names.slice(1).join(" ") || "",
+          dateNaissance: dirStruct?.date_naissance || "",
+          nationalite: dirStruct?.nationalite || "Francaise",
           pourcentage: 100,
           pourcentageVotes: 100,
         }]);
@@ -1154,19 +1168,28 @@ export default function NouveauClientPage() {
     }
   }, [beneficiaires.length, step, screenBeneficiaires]);
 
-  // Step 4: question update
-  const updateQuestion = (idx: number, field: "value" | "commentaire", val: string) => {
+  // OPT-5: Wrap in useCallback to avoid re-creating on each render
+  const updateQuestion = useCallback((idx: number, field: "value" | "commentaire", val: string) => {
     setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: val } : q));
-  };
+  }, []);
 
   // Step 6: file upload
   // FIX 16: File size limit (10 MB)
   // FIX 17: File type validation (PDF, images, common doc formats)
-  const ALLOWED_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".doc", ".docx", ".xls", ".xlsx"];
+  // OPT-6: Move constants outside render, wrap handlers in useCallback
+  const ALLOWED_EXTENSIONS = useMemo(() => new Set([".pdf", ".jpg", ".jpeg", ".png", ".gif", ".webp", ".doc", ".docx", ".xls", ".xlsx"]), []);
   const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+  const MAX_TOTAL_SIZE = 50 * 1024 * 1024; // 50 MB aggregate limit
 
-  const handleFileUpload = (files: FileList | null) => {
+  const handleFileUpload = useCallback((files: FileList | null) => {
     if (!files) return;
+    // OPT: Check aggregate upload size limit
+    const currentTotal = documents.reduce((sum, d) => sum + (d.file?.size ?? 0), 0);
+    const newTotal = currentTotal + Array.from(files).reduce((sum, f) => sum + f.size, 0);
+    if (newTotal > MAX_TOTAL_SIZE) {
+      toast.error(`Taille totale des fichiers trop elevee (${Math.round(newTotal / 1024 / 1024)} Mo / max 50 Mo)`);
+      return;
+    }
     // FIX 50: Extended type detection with more keywords
     const typeMap: Record<string, string> = {
       kbis: "KBIS", extrait: "KBIS", statuts: "Statuts", statut: "Statuts",
@@ -1185,7 +1208,7 @@ export default function NouveauClientPage() {
       }
       // FIX 17: Validate file extension
       const ext = "." + f.name.split(".").pop()?.toLowerCase();
-      if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      if (!ALLOWED_EXTENSIONS.has(ext)) {
         toast.error(`Type de fichier non autorise : ${ext} (${f.name})`);
         continue;
       }
@@ -1197,7 +1220,7 @@ export default function NouveauClientPage() {
       return { name: f.name, type: detectedType, file: f };
     });
     if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
-  };
+  }, [ALLOWED_EXTENSIONS]);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -1278,6 +1301,27 @@ export default function NouveauClientPage() {
 
     const etat = decision === "REFUSER" ? "REFUSE" : decision === "ACCEPTER_RESERVE" ? "EN COURS" : "VALIDE";
 
+    // Extract document URLs from screening data for client record persistence
+    const allScreeningDocs = [
+      ...(screening.inpi.data?.documents ?? []),
+      ...(screening.documents.data?.documents ?? []),
+    ];
+    const findDocUrl = (types: string[]): string => {
+      // Prefer stored PDFs, then any available URL — exclude blob: URLs (ephemeral, not persistable)
+      const isValidUrl = (u: string) => u && !u.startsWith("blob:");
+      const stored = allScreeningDocs.find(d =>
+        types.some(t => d.type.toUpperCase().includes(t)) && d.storedInSupabase && isValidUrl(d.url)
+      );
+      if (stored?.url) return stored.url;
+      const linked = allScreeningDocs.find(d =>
+        types.some(t => d.type.toUpperCase().includes(t)) && isValidUrl(d.url) && (d.status === "auto" || d.status === "lien_direct")
+      );
+      return linked?.url || "";
+    };
+    const resolvedLienKbis = findDocUrl(["KBIS", "EXTRAIT"]);
+    const resolvedLienStatuts = findDocUrl(["STATUT"]);
+    const resolvedLienCni = findDocUrl(["CNI", "IDENTITE", "PASSEPORT"]);
+
     const newClient: Client = {
       ref,
       etat: etat as Client["etat"],
@@ -1322,6 +1366,9 @@ export default function NouveauClientPage() {
       statut: "ACTIF",
       be: beStr,
       dateFin: form.dateFin || undefined,
+      lienKbis: resolvedLienKbis || undefined,
+      lienStatuts: resolvedLienStatuts || undefined,
+      lienCni: resolvedLienCni || undefined,
       // CORRECTION 3: Store provenance
       dataProvenance: dataProvenance.length > 0 ? dataProvenance : undefined,
       // CORRECTION 6: RGPD flag
@@ -1339,7 +1386,7 @@ export default function NouveauClientPage() {
     // CORRECTION 7: Apply AML structural malus
     const amlMalus = amlSignals.reduce((sum, s) => sum + s.malus, 0);
     if (amlMalus > 0) {
-      newClient.scoreGlobal = Math.min(newClient.scoreGlobal + amlMalus, 120);
+      newClient.scoreGlobal = Math.min(newClient.scoreGlobal + amlMalus, 100);
       if (newClient.scoreGlobal >= 60) newClient.nivVigilance = "RENFORCEE";
       else if (newClient.scoreGlobal >= 25) newClient.nivVigilance = "STANDARD";
     }
@@ -1366,8 +1413,9 @@ export default function NouveauClientPage() {
       }
     }
 
-    // FIX 14: Upload manual documents to Supabase storage
+    // FIX 14: Upload manual documents to Supabase storage + update client liens
     const manualDocs = documents.filter(d => d.file);
+    const docLinkUpdates: Record<string, string> = {};
     if (manualDocs.length > 0) {
       const cleanSirenForStorage = form.siren?.replace(/\s/g, "") || ref;
       for (const doc of manualDocs) {
@@ -1386,10 +1434,30 @@ export default function NouveauClientPage() {
             logger.error(`[Submit] Upload failed for ${doc.name}:`, uploadErr.message);
           } else {
             logger.debug(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
+            // Generate signed URL for the uploaded document
+            const { data: signedData } = await supabase.storage
+              .from("kyc-documents")
+              .createSignedUrl(storagePath, 365 * 24 * 60 * 60); // 1 year
+            const signedUrl = signedData?.signedUrl;
+            if (signedUrl) {
+              const typeUp = doc.type.toUpperCase();
+              if (typeUp.includes("KBIS") || typeUp.includes("EXTRAIT")) docLinkUpdates.lien_kbis = signedUrl;
+              else if (typeUp.includes("STATUT")) docLinkUpdates.lien_statuts = signedUrl;
+              else if (typeUp.includes("CNI") || typeUp.includes("IDENTITE") || typeUp.includes("PASSEPORT")) docLinkUpdates.lien_cni = signedUrl;
+            }
           }
         } catch (err: unknown) {
           logger.error(`[Submit] Upload error for ${doc.name}:`, err);
         }
+      }
+    }
+
+    // Update client record with manual upload URLs (overrides pending-upload placeholders)
+    if (Object.keys(docLinkUpdates).length > 0) {
+      try {
+        await clientsService.updateByRef(ref, docLinkUpdates);
+      } catch {
+        logger.warn("Submit", "Failed to update document links after upload");
       }
     }
 
@@ -1409,7 +1477,8 @@ export default function NouveauClientPage() {
     setShowSuccessModal(true);
     } catch (err: unknown) {
       logger.error("[Submit] Error:", err);
-      toast.error("Erreur lors de la creation du client");
+      const msg = err instanceof Error ? err.message : "Erreur lors de la creation du client";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
@@ -1441,18 +1510,23 @@ export default function NouveauClientPage() {
     const errors: Record<string, string> = {};
     if (step >= 1) {
       if (!form.raisonSociale) errors.raisonSociale = "Obligatoire";
-      if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) errors.siren = "Le SIREN doit comporter 9 chiffres";
+      // OPT-28: Validate SIREN format AND Luhn checksum
+      if (!form.siren || form.siren.replace(/\s/g, "").length !== 9) {
+        errors.siren = "Le SIREN doit comporter 9 chiffres";
+      } else if (!/^\d{3}\s?\d{3}\s?\d{3}$/.test(form.siren.trim())) {
+        errors.siren = "Format SIREN invalide";
+      }
       // P5-7: Accept French (0X) and international (+33X) formats, strip spaces/dots/dashes
       if (form.tel) {
         const cleanTel = form.tel.replace(/[\s.\-()]/g, "");
         if (!/^(0\d{9}|\+\d{10,14})$/.test(cleanTel)) errors.tel = "Format: 0XXXXXXXXX ou +33XXXXXXXXX";
       }
       if (form.mail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.mail)) errors.mail = "Email invalide";
-      // FIX P4-30: Accept international IBANs (15-34 chars), validate format
+      // OPT-36: Use full IBAN validator with modulo-97 check
       if (form.iban) {
-        const cleanIban = form.iban.replace(/\s/g, "").toUpperCase();
-        if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(cleanIban)) {
-          errors.iban = "IBAN invalide (ex: FR76 XXXX ...)";
+        const ibanResult = validateIBAN(form.iban);
+        if (!ibanResult.valid) {
+          errors.iban = ibanResult.error || "IBAN invalide (ex: FR76 XXXX ...)";
         }
       }
     }
@@ -1597,14 +1671,14 @@ export default function NouveauClientPage() {
   const vigilanceColor = risk.nivVigilance === "SIMPLIFIEE" ? "#10b981" : risk.nivVigilance === "STANDARD" ? "#f59e0b" : "#ef4444";
 
   return (
-    <div className="p-6 lg:p-8 max-w-[1200px] mx-auto space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1200px] mx-auto space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-white">Nouveau Client</h1>
           <p className="text-sm text-slate-500 mt-0.5">Parcours d'entree en relation</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-wrap">
           {/* Idee 18: KYC progress bar */}
           <Popover>
             <PopoverTrigger asChild>
@@ -1735,7 +1809,7 @@ export default function NouveauClientPage() {
       )}
 
       {/* Step content */}
-      <div className={`glass-card p-6 transition-all duration-300 ${fieldsVisible ? "opacity-100 translate-y-0" : stepDirection === "right" ? "opacity-0 translate-x-4" : "opacity-0 -translate-x-4"}`} style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.15)" }}>
+      <div className={`glass-card p-4 sm:p-6 transition-all duration-300 ${fieldsVisible ? "opacity-100 translate-y-0" : stepDirection === "right" ? "opacity-0 translate-x-4" : "opacity-0 -translate-x-4"}`} style={{ boxShadow: "0 4px 24px rgba(0,0,0,0.15)" }}>
         {/* STEP 0: SEARCH */}
         {step === 0 && (
           <div className="space-y-6" role="region" aria-label="Etape 1 : Recherche de l'entreprise">
@@ -1914,7 +1988,7 @@ export default function NouveauClientPage() {
                   {searchResults.map((r) => (
                     <button
                       key={r.siren}
-                      onClick={() => selectPappersResult(r)}
+                      onClick={() => selectPappersResult(r, screening.enterprise.data ?? undefined)}
                       className={`w-full text-left p-3 rounded-lg border transition-all duration-200 hover:scale-[1.005] ${
                         selectedResult?.siren === r.siren
                           ? "border-blue-500/50 bg-blue-500/10 shadow-md shadow-blue-500/5"
@@ -2068,7 +2142,34 @@ export default function NouveauClientPage() {
                   <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{form.dirigeant || selectedResult.dirigeant || "—"}</p></div>
                   <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
                   <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation ? formatDateFR(selectedResult.date_creation) : "—"}</p></div>
+                  {selectedEnterprise?.site_web && (
+                    <div><span className="text-slate-500">Site web</span><p className="mt-0.5"><a href={selectedEnterprise.site_web.startsWith("http") ? selectedEnterprise.site_web : `https://${selectedEnterprise.site_web}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-xs flex items-center gap-1">{selectedEnterprise.site_web} <ExternalLink className="w-3 h-3" /></a></p></div>
+                  )}
+                  {selectedEnterprise?.nombre_etablissements != null && selectedEnterprise.nombre_etablissements > 1 && (
+                    <div><span className="text-slate-500">Etablissements</span><p className="text-slate-200 mt-0.5">{selectedEnterprise.nombre_etablissements} etablissement(s)</p></div>
+                  )}
                 </div>
+                {/* Etat administratif warning */}
+                {selectedEnterprise?.etat_administratif && selectedEnterprise.etat_administratif !== "A" && selectedEnterprise.etat_administratif !== "ACTIVE" && (
+                  <div className="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+                    <span className="text-xs text-red-400 font-semibold">Entreprise fermee ou radiee (etat: {selectedEnterprise.etat_administratif})</span>
+                  </div>
+                )}
+                {/* Dirigeants with qualite */}
+                {selectedEnterprise?.dirigeants && selectedEnterprise.dirigeants.length > 1 && (
+                  <div className="mt-3 pt-3 border-t border-emerald-500/10">
+                    <span className="text-[10px] text-slate-500 uppercase">Dirigeants ({selectedEnterprise.dirigeants.length})</span>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {selectedEnterprise.dirigeants.slice(0, 6).map((d, i) => (
+                        <span key={`dir-${i}`} className="text-[11px] text-slate-300 bg-white/[0.04] px-2 py-1 rounded">
+                          {d.prenom} {d.nom}{d.qualite ? ` — ${d.qualite}` : ""}
+                        </span>
+                      ))}
+                      {selectedEnterprise.dirigeants.length > 6 && <span className="text-[10px] text-slate-500 self-center">+{selectedEnterprise.dirigeants.length - 6}</span>}
+                    </div>
+                  </div>
+                )}
                 {dataSource !== "pappers" && (
                   <div className="mt-3 pt-3 border-t border-emerald-500/10 flex items-center gap-2 text-xs">
                     <Info className="w-3.5 h-3.5 text-amber-400" />
@@ -2152,7 +2253,7 @@ export default function NouveauClientPage() {
                 <CollapsibleContent>
                   <div className="px-5 pb-5 pt-2">
                     {/* #27: 3-column grid for short fields */}
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div data-error={!!validationErrors.raisonSociale}>
                         <SourceField
                           label={isPersonnePhysique ? "Nom du dirigeant *" : "Raison Sociale *"}
@@ -2220,7 +2321,7 @@ export default function NouveauClientPage() {
                     </div>
 
                     {/* Dates row */}
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
                       {/* #26: Date picker */}
                       <div>
                         <SourceField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" source={autoFields.has("dateCreation") ? "data.gouv" : undefined} autoFilled={autoFields.has("dateCreation")} />
@@ -2275,7 +2376,7 @@ export default function NouveauClientPage() {
                   <ChevronDown className={`w-4 h-4 text-cyan-400 transition-transform duration-200 ${collapsedSections["coordonnees"] ? "-rotate-90" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="px-5 pb-5 pt-2 grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="px-3 sm:px-5 pb-5 pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <SourceField label="Adresse *" value={form.adresse} onChange={v => { set("adresse", sanitizeInput(v)); setTouchedFields(prev => new Set(prev).add("adresse")); }} source={autoFields.has("adresse") ? (screening.inpi.data?.companyData ? "INPI" : "data.gouv") : undefined} required autoFilled={autoFields.has("adresse")} />
                     {/* #16: Postal code auto-format */}
                     <SourceField label="Code Postal *" value={form.cp} onChange={v => { set("cp", formatPostalCode(v)); setTouchedFields(prev => new Set(prev).add("cp")); }} source={autoFields.has("cp") ? "INPI" : undefined} required autoFilled={autoFields.has("cp")} />
@@ -2375,7 +2476,7 @@ export default function NouveauClientPage() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="px-5 pb-5 pt-2">
-                    <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <FormField label="Type de mission *" type="select" value={form.mission} options={MISSIONS} onChange={v => set("mission", v)} />
                       <FormField label="Frequence" type="select" value={form.frequence} options={FREQUENCES} onChange={v => set("frequence", v)} />
                       <div>
@@ -2409,7 +2510,7 @@ export default function NouveauClientPage() {
                   <ChevronDown className={`w-4 h-4 text-violet-400 transition-transform duration-200 ${collapsedSections["equipe"] ? "-rotate-90" : ""}`} />
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <div className="px-5 pb-5 pt-2 grid grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="px-3 sm:px-5 pb-5 pt-2 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     <FormField label="Comptable assigne *" type="select" value={form.comptable} options={COMPTABLES} onChange={v => set("comptable", v)} />
                     <FormField label="Associe signataire *" type="select" value={form.associe} options={ASSOCIES} onChange={v => set("associe", v)} />
                     <FormField label="Superviseur" type="select" value={form.superviseur} options={SUPERVISEURS} onChange={v => set("superviseur", v)} />
@@ -2645,7 +2746,7 @@ export default function NouveauClientPage() {
             </div>
 
             {/* #43: Real-time risk level indicator */}
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 120`}>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 100`}>
               <BarChart3 className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400">Niveau de risque en temps reel :</span>
               <VigilanceBadge level={risk.nivVigilance} />
@@ -2875,7 +2976,7 @@ export default function NouveauClientPage() {
                         cx="60" cy="60" r="50" fill="none"
                         stroke={vigilanceColor}
                         strokeWidth="10"
-                        strokeDasharray={`${(Math.min(animatedScore, 120) / 120) * 314} 314`}
+                        strokeDasharray={`${(Math.min(animatedScore, 100) / 100) * 314} 314`}
                         strokeLinecap="round"
                         className="transition-all duration-300 ease-out"
                       />
@@ -3163,8 +3264,9 @@ export default function NouveauClientPage() {
             {/* SECTION 1: Extrait RNE / Kbis — affiché en premier car c'est le doc le plus important */}
             {(() => {
               // FIX P4-24+46: Deduplicate KBIS/RBE extraits from both sources
+              // FIX: Show docs with URL OR storedInSupabase (not just stored)
               const extraitInpi = (screening.inpi.data?.documents ?? []).filter(d =>
-                (d.type?.toLowerCase() === "kbis") && d.storedInSupabase
+                (d.type?.toLowerCase() === "kbis") && (d.storedInSupabase || d.url)
               );
               const extraitPappers = (screening.documents.data?.documents ?? []).filter(d =>
                 (d.type?.toLowerCase() === "kbis" || d.type?.toLowerCase() === "extrait rbe") && d.url
@@ -3183,6 +3285,57 @@ export default function NouveauClientPage() {
                     </div>
                   </div>
                 );
+              }
+              // Fallback: generate a Fiche Entreprise from enterprise-lookup data when INPI is unavailable
+              if (allExtraits.length === 0 && !isLoading && selectedEnterprise) {
+                const ent = selectedEnterprise;
+                const today = new Date().toLocaleDateString("fr-FR");
+                const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                const dirigeantsHtml = (ent.dirigeants ?? []).map(d =>
+                  `<div class="field"><span class="label">${esc(d.qualite || "Dirigeant")}</span><span class="value">${esc(d.prenom || "")} ${esc(d.nom || "")}</span></div>`
+                ).join("\n");
+                const beHtml = (ent.beneficiaires_effectifs ?? []).map(b =>
+                  `<div class="field"><span class="label">${esc(b.prenom || "")} ${esc(b.nom || "")}</span><span class="value">${b.pourcentage_parts ?? "?"}% parts${b.nationalite ? " — " + esc(b.nationalite) : ""}</span></div>`
+                ).join("\n");
+                const ficheHtml = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>Fiche Entreprise — ${esc(ent.raison_sociale)} — ${ent.siren}</title>
+<style>body{font-family:Georgia,serif;max-width:800px;margin:40px auto;padding:20px;color:#333}h1{text-align:center;color:#1a1a2e;border-bottom:2px solid #1a1a2e;padding-bottom:10px;font-size:22px}h2{color:#1a1a2e;margin-top:30px;font-size:16px;border-bottom:1px solid #ccc;padding-bottom:5px}.field{display:flex;padding:8px 0;border-bottom:1px solid #eee}.label{font-weight:bold;width:250px;color:#555;flex-shrink:0}.value{flex:1}.footer{margin-top:40px;font-size:12px;color:#999;text-align:center;border-top:1px solid #ddd;padding-top:10px}@media print{body{margin:20px}}</style></head><body>
+<h1>FICHE ENTREPRISE</h1>
+<p style="text-align:center;color:#666;">Source : Annuaire des Entreprises (INSEE/INPI) — ${today}</p>
+<h2>Identite</h2>
+<div class="field"><span class="label">Denomination</span><span class="value">${esc(ent.raison_sociale)}</span></div>
+<div class="field"><span class="label">SIREN</span><span class="value">${ent.siren}</span></div>
+<div class="field"><span class="label">SIRET (siege)</span><span class="value">${ent.siret || ""}</span></div>
+<div class="field"><span class="label">Forme juridique</span><span class="value">${esc(ent.forme_juridique || ent.forme_juridique_raw || "")}</span></div>
+<div class="field"><span class="label">Capital</span><span class="value">${ent.capital ? ent.capital.toLocaleString("fr-FR") + " EUR" : "Non renseigne"}</span></div>
+<div class="field"><span class="label">Date de creation</span><span class="value">${esc(ent.date_creation || "")}</span></div>
+<div class="field"><span class="label">Etat</span><span class="value">${ent.etat_administratif === "A" ? "Active" : ent.etat_administratif}</span></div>
+<h2>Siege social</h2>
+<div class="field"><span class="label">Adresse</span><span class="value">${esc(ent.adresse || "")}</span></div>
+<div class="field"><span class="label">Code postal</span><span class="value">${esc(ent.code_postal || "")}</span></div>
+<div class="field"><span class="label">Commune</span><span class="value">${esc(ent.ville || "")}</span></div>
+<h2>Activite</h2>
+<div class="field"><span class="label">Code APE</span><span class="value">${esc(ent.ape || "")}</span></div>
+<div class="field"><span class="label">Libelle activite</span><span class="value">${esc(ent.libelle_ape || "")}</span></div>
+<div class="field"><span class="label">Effectif</span><span class="value">${esc(ent.effectif || "")}</span></div>
+<div class="field"><span class="label">Etablissements</span><span class="value">${ent.nombre_etablissements || 0}</span></div>
+<h2>Dirigeants</h2>
+${dirigeantsHtml || '<div class="field"><span class="value" style="color:#999;">Aucun dirigeant declare</span></div>'}
+<h2>Beneficiaires effectifs</h2>
+${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun beneficiaire effectif declare</span></div>'}
+<div class="footer">Document genere automatiquement depuis les donnees publiques (INSEE/INPI)<br>Ce document n'a pas de valeur legale officielle — Equivalent informatif a un extrait Kbis</div>
+</body></html>`;
+                const blob = new Blob([ficheHtml], { type: "text/html; charset=utf-8" });
+                const ficheUrl = URL.createObjectURL(blob);
+                allExtraits.push({
+                  type: "kbis",
+                  label: `Fiche Entreprise (equivalent Kbis) — ${today}`,
+                  url: ficheUrl,
+                  source: "annuaire_entreprises",
+                  available: true,
+                  status: "auto",
+                  storedInSupabase: false,
+                });
               }
               if (allExtraits.length === 0 && !isLoading) {
                 return (
@@ -3427,6 +3580,56 @@ export default function NouveauClientPage() {
               </div>
             )}
 
+            {/* Fallback: enterprise-lookup finances when INPI financials unavailable */}
+            {(!screening.inpi.data?.financials || screening.inpi.data.financials.length === 0) && selectedEnterprise?.finances && selectedEnterprise.finances.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-slate-400" />
+                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
+                  <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{selectedEnterprise.finances.length} exercice(s)</Badge>
+                  <Badge className="text-[9px] bg-amber-500/15 text-amber-400 border-0">Annuaire Entreprises</Badge>
+                </div>
+                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="bg-white/[0.03]">
+                          <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
+                          {selectedEnterprise.finances.map((f, i) => (
+                            <th key={f.annee || `efin-${i}`} className="text-right py-2.5 px-3 text-slate-400 font-medium">{f.annee || `Exercice ${i + 1}`}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {[
+                          { label: "Chiffre d'affaires", key: "ca" as const },
+                          { label: "Resultat net", key: "resultat" as const },
+                          { label: "Effectif", key: "effectif" as const },
+                        ].map(row => {
+                          const hasData = selectedEnterprise.finances!.some(f => f[row.key] != null);
+                          if (!hasData) return null;
+                          return (
+                            <tr key={row.key} className="border-t border-white/[0.04] hover:bg-white/[0.03]">
+                              <td className="py-2 px-3 text-slate-400">{row.label}</td>
+                              {selectedEnterprise.finances!.map((f, i) => {
+                                const val = f[row.key];
+                                const isNeg = typeof val === "number" && val < 0;
+                                return (
+                                  <td key={f.annee || `efin-${i}`} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
+                                    {val != null ? (row.key === "effectif" ? val : `${typeof val === "number" ? val.toLocaleString("fr-FR") : val} \u20AC`) : "—"}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* FIX 40: Improved INPI Historique Timeline */}
             {inpiHistorique.length > 0 && (
               <Collapsible defaultOpen={recentDirigeantChange}>
@@ -3482,13 +3685,57 @@ export default function NouveauClientPage() {
               </Collapsible>
             )}
 
+            {/* Etablissements INPI */}
+            {screening.inpi.data?.companyData?.etablissements && screening.inpi.data.companyData.etablissements.length > 1 && (
+              <Collapsible>
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-slate-400" />
+                    <h3 className="text-xs font-semibold text-slate-300">Etablissements</h3>
+                    <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.companyData.etablissements.length}</Badge>
+                  </div>
+                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-1.5">
+                  {screening.inpi.data.companyData.etablissements.map((e, i) => (
+                    <div key={e.siret || `etab-${i}`} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-xs">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {e.estSiege && <Badge className="text-[8px] bg-blue-500/20 text-blue-400 border-0 shrink-0">Siege</Badge>}
+                        <span className="text-slate-300 truncate">{[e.adresse, e.codePostal, e.commune].filter(Boolean).join(", ")}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0 ml-2">
+                        {e.activite && <span className="text-[10px] text-slate-500 truncate max-w-[120px]">{e.activite}</span>}
+                        <span className="text-slate-600 font-mono">{e.siret}</span>
+                      </div>
+                    </div>
+                  ))}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
             {/* SECTION 2: Checklist documentaire dynamique (Idee 30) */}
             {(() => {
               // FIX 29: Deduplicate documents from both sources before checklist matching
+              // Include enterprise-based fallback "Fiche Entreprise" as virtual KBIS if no real one exists
+              const inpiDocs = screening.inpi.data?.documents ?? [];
+              const fetchDocs = screening.documents.data?.documents ?? [];
+              const hasRealKbis = [...inpiDocs, ...fetchDocs].some(d =>
+                d.type?.toUpperCase().includes("KBIS") && (d.storedInSupabase || (d.status === "auto" && d.url))
+              );
+              const fallbackKbis = (!hasRealKbis && selectedEnterprise) ? [{
+                type: "kbis",
+                label: "Fiche Entreprise (equivalent Kbis)",
+                url: "#fallback",
+                source: "annuaire_entreprises",
+                available: true,
+                status: "auto" as const,
+                storedInSupabase: false,
+              }] : [];
               const rawDocs = [
                 // FIX P4-12: Prefer INPI docs first (higher quality), then documents-fetch
-                ...(screening.inpi.data?.documents ?? []),
-                ...(screening.documents.data?.documents ?? []),
+                ...inpiDocs,
+                ...fetchDocs,
+                ...fallbackKbis,
               ];
               const seenKeys = new Set<string>();
               const allDocs = rawDocs.filter(d => {
@@ -3499,10 +3746,12 @@ export default function NouveauClientPage() {
                 seenKeys.add(key);
                 return true;
               });
-              // FIX P4-10: needsAuth docs are NOT accessible — don't count them as stored
-              const hasStoredPdf = (types: string[]) => allDocs.some(d =>
+              // Accept docs that are stored in Supabase, have auto status with a URL, or lien_direct
+              // FIX P4-10: needsAuth docs are NOT accessible — exclude them
+              const hasAvailableDoc = (types: string[]) => allDocs.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t)) &&
-                d.storedInSupabase === true
+                !d.needsAuth &&
+                (d.storedInSupabase === true || (d.status === "auto" && d.url) || d.status === "lien_direct")
               );
               const hasUpload = (types: string[]) => documents.some(d =>
                 types.some(t => d.type.toUpperCase().includes(t))
@@ -3510,9 +3759,9 @@ export default function NouveauClientPage() {
 
               const results = vigilanceDocChecklist.map(c => ({
                 ...c,
-                hasPdf: hasStoredPdf(c.types),
+                hasPdf: hasAvailableDoc(c.types),
                 hasUpload: hasUpload(c.types),
-                found: hasStoredPdf(c.types) || hasUpload(c.types),
+                found: hasAvailableDoc(c.types) || hasUpload(c.types),
                 manual: ["CNI", "RIB", "Justificatif", "Organigramme"].includes(c.key),
               }));
               const foundCount = results.filter(r => r.found).length;
@@ -3542,7 +3791,7 @@ export default function NouveauClientPage() {
                       }`}>
                         {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5" /> : <X className="w-4 h-4 text-red-400 mx-auto mb-0.5" />}
                         <p className={`text-[11px] font-medium leading-tight ${item.found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
-                        {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">PDF INPI</p>}
+                        {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere</p>}
                         {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
                         {!item.found && item.manual && <p className="text-[8px] text-red-400 mt-0.5">Manuel requis</p>}
                         {!item.found && !item.manual && <p className="text-[8px] text-red-400 mt-0.5">Manquant</p>}
@@ -3640,7 +3889,7 @@ export default function NouveauClientPage() {
                                 if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
                                 const rawExt = f.name.split(".").pop()?.toLowerCase();
                                 const ext = rawExt && rawExt !== f.name.toLowerCase() ? "." + rawExt : "";
-                                if (!ext || !ALLOWED_EXTENSIONS.includes(ext)) { toast.error(`Type non autorise : ${ext || "inconnu"}`); return false; }
+                                if (!ext || !ALLOWED_EXTENSIONS.has(ext)) { toast.error(`Type non autorise : ${ext || "inconnu"}`); return false; }
                                 return true;
                               });
                               const newDocs: UploadedDoc[] = validFiles.map(f => ({
@@ -3666,7 +3915,7 @@ export default function NouveauClientPage() {
                               const validFiles = Array.from(e.target.files).filter(f => {
                                 if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
                                 const ext = "." + (f.name.split(".").pop()?.toLowerCase() ?? "");
-                                if (!ALLOWED_EXTENSIONS.includes(ext)) { toast.error(`Type non autorise : ${ext}`); return false; }
+                                if (!ALLOWED_EXTENSIONS.has(ext)) { toast.error(`Type non autorise : ${ext}`); return false; }
                                 return true;
                               });
                               const newDocs: UploadedDoc[] = validFiles.map(f => ({
@@ -3787,9 +4036,9 @@ export default function NouveauClientPage() {
         )}
       </div>
 
-      {/* #74: Floating save draft button */}
+      {/* #74: Floating save draft button — positioned top-right to avoid blocking navigation */}
       {step > 0 && hasUnsavedChanges && (
-        <div className="fixed bottom-6 right-6 z-40">
+        <div className="fixed top-20 right-6 z-40">
           <Button
             variant="outline"
             size="sm"
@@ -4015,7 +4264,9 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
     if (lat && lng) { setGeoLat(lat); setGeoLng(lng); return; }
     if (!fullAddr || fullAddr.length < 5) return;
     setGeoLoading(true);
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: AbortSignal.timeout(10000) })
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(fullAddr)}&limit=1`, { signal: controller.signal, headers: { "User-Agent": "GRIMY-LCB-Compliance/1.0" } })
       .then(r => r.json())
       .then((data: Array<{ lat: string; lon: string }>) => {
         if (data.length > 0) {
@@ -4026,14 +4277,15 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
         }
       })
       .catch((e) => logger.warn("Geo", "Geocoding failed:", e))
-      .finally(() => setGeoLoading(false));
+      .finally(() => { clearTimeout(timeoutId); setGeoLoading(false); });
+    return () => { clearTimeout(timeoutId); controller.abort(); };
   }, [lat, lng, fullAddr]);
 
   return (
     <div className="rounded-lg border border-white/[0.06] overflow-hidden">
       <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Map className="w-4 h-4 text-emerald-400" />
+          <MapIcon className="w-4 h-4 text-emerald-400" />
           <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
           {geoLoading && <Loader2 className="w-3 h-3 animate-spin text-blue-400" />}
         </div>

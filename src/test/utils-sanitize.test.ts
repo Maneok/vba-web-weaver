@@ -20,8 +20,19 @@ describe("Feature #1: sanitizeHtml", () => {
   it("preserves plain text", () => {
     expect(sanitizeHtml("Just text")).toBe("Just text");
   });
-  it("decodes HTML entities", () => {
-    expect(sanitizeHtml("&lt;script&gt;")).toBe("<script>");
+  // OPT-7: sanitizeHtml now correctly strips decoded tags (security fix)
+  it("strips decoded script tags completely (security)", () => {
+    expect(sanitizeHtml("&lt;script&gt;alert(1)&lt;/script&gt;")).toBe("");
+  });
+  it("strips decoded tags but keeps text content", () => {
+    expect(sanitizeHtml("&lt;b&gt;text&lt;/b&gt;")).toBe("text");
+  });
+  it("decodes ampersand entity", () => {
+    expect(sanitizeHtml("&amp;")).toBe("&");
+  });
+  it("decodes entities that form angle brackets (stripped as potential tags)", () => {
+    // After decoding, < > can form tag-like patterns, which get stripped for safety
+    expect(sanitizeHtml("hello &lt;world&gt; end")).toBe("hello  end");
   });
 });
 

@@ -5,7 +5,7 @@
 
 import type { AlertPriority } from "@/lib/types";
 
-/** Get Tailwind color classes for a risk score (0-120) */
+/** Get Tailwind color classes for a risk score (0-100) */
 export function getRiskColor(score: number): {
   bg: string;
   text: string;

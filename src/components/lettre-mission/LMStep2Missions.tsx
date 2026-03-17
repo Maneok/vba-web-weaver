@@ -1,13 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData, MissionSelection } from "@/lib/lmWizardTypes";
 import { DEFAULT_MISSIONS, applyFormConditionals } from "@/lib/lmDefaults";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
   Calculator, Landmark, Users, Scale, ShieldCheck, FileWarning, Lightbulb,
-  Lock, ChevronDown, AlertTriangle,
+  Lock, ChevronDown, AlertTriangle, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -44,7 +45,40 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     }
   }, [data.missions_selected.length, data.forme_juridique, client?.effectif, onChange]);
 
-  const missions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
+  const allMissions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
+
+  // Filter missions based on mission type config
+  const mtId = data.mission_type_id || "presentation";
+  const mtConfig = useMemo(() => getMissionTypeConfig(mtId), [mtId]);
+
+  // Visibility rules per section based on mission type
+  const missions = useMemo(() => {
+    return allMissions.filter((m) => {
+      // LCB-FT + travail_dissimule → always visible (mandatory)
+      if (m.section_id === "lcbft" || m.section_id === "travail_dissimule") return true;
+      // Conseil → always visible (optional)
+      if (m.section_id === "conseil") return true;
+      // Comptabilité → ONLY for présentation (NP 2300)
+      if (m.section_id === "comptabilite") return mtId === "presentation";
+      // Fiscal → visible if not in hiddenSections
+      if (m.section_id === "fiscal") return !mtConfig.hiddenSections.includes("mission_controle_fiscal");
+      // Social → visible if optionalSections includes 'mission_sociale'
+      if (m.section_id === "social") return mtConfig.optionalSections.includes("mission_sociale");
+      // Juridique → visible if optionalSections includes 'mission_juridique'
+      if (m.section_id === "juridique") return mtConfig.optionalSections.includes("mission_juridique");
+      return true;
+    });
+  }, [allMissions, mtId, mtConfig.hiddenSections, mtConfig.optionalSections]);
+
+  const hiddenCount = allMissions.length - missions.length;
+
+  // Check if mission type has no complementary services
+  const hasNoComplementary = useMemo(() => {
+    const complementary = missions.filter(
+      (m) => !["lcbft", "travail_dissimule"].includes(m.section_id) && !m.locked
+    );
+    return complementary.length === 0;
+  }, [missions]);
 
   // A) Conditional logic toasts — show once
   useEffect(() => {
@@ -95,7 +129,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
   }, [missions.length, client?.effectif, data.forme_juridique, missions, onChange]);
 
   const toggleSection = (sectionId: string) => {
-    const m = missions.find((x) => x.section_id === sectionId);
+    const m = allMissions.find((x) => x.section_id === sectionId);
     if (!m || m.locked) return;
 
     // A) Check tenue/surveillance incompatibility
@@ -106,7 +140,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
       }
     }
 
-    const updated = missions.map((x) =>
+    const updated = allMissions.map((x) =>
       x.section_id === sectionId
         ? { ...x, selected: !x.selected, sous_options: x.sous_options.map((s) => ({ ...s, selected: !x.selected })) }
         : x
@@ -115,10 +149,10 @@ export default function LMStep2Missions({ data, onChange }: Props) {
   };
 
   const toggleSub = (sectionId: string, optId: string) => {
-    const m = missions.find((x) => x.section_id === sectionId);
+    const m = allMissions.find((x) => x.section_id === sectionId);
     if (!m || m.locked) return;
 
-    const updated = missions.map((x) =>
+    const updated = allMissions.map((x) =>
       x.section_id === sectionId
         ? { ...x, sous_options: x.sous_options.map((s) => s.id === optId ? { ...s, selected: !s.selected } : s) }
         : x
@@ -126,10 +160,10 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     onChange({ missions_selected: updated });
   };
 
-  const totalSelected = missions.filter((m) => m.selected).length;
+  const totalSelected = useMemo(() => missions.filter((m) => m.selected).length, [missions]);
 
   // Check for tenue+surveillance conflict
-  const hasTenue = missions.some((m) => m.section_id === "comptabilite" && m.selected);
+  const hasTenue = allMissions.some((m) => m.section_id === "comptabilite" && m.selected);
   const isSurveillance = data.type_mission === "SURVEILLANCE";
   const hasConflict = hasTenue && isSurveillance;
 
@@ -137,10 +171,29 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     <div className="space-y-6">
       {/* A) Incompatibility warning */}
       {hasConflict && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake" role="alert">
           <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
           <p className="text-xs text-red-300">
             <strong>Missions incompatibles :</strong> La tenue comptable et la mission de surveillance ne peuvent pas etre combinees.
+          </p>
+        </div>
+      )}
+
+      {/* Hidden sections info */}
+      {hiddenCount > 0 && (
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-500/5 border border-white/[0.06] text-xs text-slate-500">
+          <EyeOff className="w-3.5 h-3.5 shrink-0" />
+          {hiddenCount} section{hiddenCount > 1 ? "s masquées" : " masquée"} (non applicable pour {mtConfig.shortLabel})
+        </div>
+      )}
+
+      {/* No complementary services message */}
+      {hasNoComplementary && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 text-xs text-blue-300/80">
+          <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+          <p>
+            Cette mission ({mtConfig.shortLabel}) ne comporte pas de prestations complémentaires standard.
+            Les obligations LCB-FT s'appliquent.
           </p>
         </div>
       )}
@@ -164,6 +217,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 type="button"
                 onClick={() => toggleSection(mission.section_id)}
                 disabled={isLocked}
+                aria-label={`${mission.selected ? "Desactiver" : "Activer"} ${mission.label}`}
                 className={`w-full flex items-center gap-3 p-4 text-left min-h-[56px] ${
                   isLocked ? "cursor-default" : "cursor-pointer active:bg-white/[0.02]"
                 }`}

@@ -40,8 +40,8 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     associe: "DIDIER", superviseur: "SAMUEL",
     ppe: "NON", paysRisque: "NON", atypique: "NON",
     distanciel: "NON", cash: "NON", pression: "NON",
-    scoreActivite: 25, scorePays: 0, scoreMission: 10, scoreMaturite: 0,
-    scoreStructure: 20, malus: 0, scoreGlobal: 11, nivVigilance: "SIMPLIFIEE",
+    scoreActivite: 25, scorePays: 0, scoreMission: 25, scoreMaturite: 0,
+    scoreStructure: 20, malus: 0, scoreGlobal: 14, nivVigilance: "SIMPLIFIEE",
     dateCreationLigne: "2024-01-01", dateDerniereRevue: "2024-01-01",
     dateButoir: "2030-01-01", etatPilotage: "A JOUR",
     dateExpCni: "2030-01-01", statut: "ACTIF",
@@ -76,7 +76,7 @@ describe("riskEngine — calculateRiskScore", () => {
     const r = calculateRiskScore(baseRiskParams);
     expect(r.scoreActivite).toBe(25);
     expect(r.scorePays).toBe(0);
-    expect(r.scoreMission).toBe(10);
+    expect(r.scoreMission).toBe(25);
     expect(r.scoreStructure).toBe(20);
     expect(r.malus).toBe(0);
   });
@@ -104,9 +104,9 @@ describe("riskEngine — calculateRiskScore", () => {
     expect(r.malus).toBe(110); // 40+30+40
   });
 
-  it("6. score capped at 120", () => {
+  it("6. score capped at 100", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "92.00Z", cash: true, pression: true, distanciel: true });
-    expect(r.scoreGlobal).toBe(120);
+    expect(r.scoreGlobal).toBe(100);
   });
 
   it("7. unknown APE defaults to 25", () => {
@@ -146,8 +146,8 @@ describe("riskEngine — scoreStructure", () => {
     expect(calculateRiskScore({ ...baseRiskParams, forme: "TRUST" }).scoreStructure).toBe(100);
   });
 
-  it("14. ENTREPRISE INDIVIDUELLE = 0", () => {
-    expect(calculateRiskScore({ ...baseRiskParams, forme: "ENTREPRISE INDIVIDUELLE" }).scoreStructure).toBe(0);
+  it("14. ENTREPRISE INDIVIDUELLE = 20", () => {
+    expect(calculateRiskScore({ ...baseRiskParams, forme: "ENTREPRISE INDIVIDUELLE" }).scoreStructure).toBe(20);
   });
 
   it("15. unknown forme defaults to 20", () => {
@@ -186,7 +186,7 @@ describe("riskEngine — vigilance levels", () => {
   it("20. maxCriterion >= 60 uses max + malus instead of avg", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "47.77Z", cash: true });
     expect(r.scoreActivite).toBe(80);
-    expect(r.scoreGlobal).toBe(120); // 80 + 40 = 120
+    expect(r.scoreGlobal).toBe(100); // 80 + 40 capped at 100
   });
 });
 
@@ -225,7 +225,7 @@ describe("riskEngine — review dates & pilotage", () => {
 
   it("28. getPilotageStatus within 60 days => BIENTOT", () => {
     const d = new Date(); d.setDate(d.getDate() + 30);
-    expect(getPilotageStatus(d.toISOString().split("T")[0])).toBe("BIENTÔT");
+    expect(getPilotageStatus(d.toISOString().split("T")[0])).toBe("BIENTOT");
   });
 
   it("29. getPilotageStatus far future => A JOUR", () => {

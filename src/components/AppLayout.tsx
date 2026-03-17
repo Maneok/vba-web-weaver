@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useTransition } from "react";
-import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Outlet, useLocation, useNavigate, NavLink } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import NotificationBell from "./NotificationBell";
 import SubscriptionBanner from "./SubscriptionBanner";
 
-import { ArrowLeft, ChevronRight, Keyboard, LogOut, Menu, ScrollText, Settings, User } from "lucide-react";
+import { ArrowLeft, ChevronRight, Keyboard, LayoutDashboard, LogOut, Menu, ScrollText, Settings, User, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppState } from "@/lib/AppContext";
 import { ROLE_LABELS } from "@/lib/auth/types";
@@ -31,6 +31,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: { label: string; 
   "/lettre-mission": { title: "Lettre de Mission", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Lettre de Mission" }] },
   "/aide": { title: "Aide", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Aide" }] },
   "/notifications": { title: "Notifications", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Notifications" }] },
+  "/super-admin": { title: "Super Admin", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Super Admin" }] },
 };
 
 /** Compute user initials safely for single-word or empty names */
@@ -58,7 +59,13 @@ export default function AppLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       const stored = localStorage.getItem("sidebar-collapsed");
-      return stored !== null ? stored === "true" : true;
+      const collapsed = stored !== null ? stored === "true" : true;
+      // Sync CSS var immediately (before first paint) to avoid layout flash
+      document.documentElement.style.setProperty(
+        "--sidebar-offset",
+        collapsed ? "72px" : "260px"
+      );
+      return collapsed;
     } catch {
       return true;
     }
@@ -74,13 +81,17 @@ export default function AppLayout() {
 
   const userInitials = getUserInitials(profile?.full_name);
 
-  // Persist sidebar collapsed state
+  // Persist sidebar collapsed state + keep CSS variable in sync
   useEffect(() => {
     try {
       localStorage.setItem("sidebar-collapsed", String(sidebarCollapsed));
     } catch {
       // Ignore storage errors (e.g. private browsing)
     }
+    document.documentElement.style.setProperty(
+      "--sidebar-offset",
+      sidebarCollapsed ? "72px" : "260px"
+    );
   }, [sidebarCollapsed]);
 
   // Keyboard shortcut: Ctrl+B to toggle sidebar
@@ -153,18 +164,19 @@ export default function AppLayout() {
         </div>
       )}
 
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-white px-3 py-2 rounded">
+      {/* OPT-16: Better focus visibility for skip link */}
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-white px-3 py-2 rounded focus:outline-2 focus:outline-offset-2 focus:outline-blue-400">
         Aller au contenu principal
       </a>
       <AppSidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
 
-      <div ref={scrollRef} className={`transition-all duration-300 ${sidebarCollapsed ? "lg:pl-[72px]" : "lg:pl-[260px]"}`}>
-        <header className="sticky top-0 z-30 h-16 flex items-center gap-4 px-6 bg-background/70 backdrop-blur-xl border-b border-transparent" style={{ borderImage: "linear-gradient(to right, transparent, rgba(255,255,255,0.06) 30%, rgba(59,130,246,0.15) 50%, rgba(255,255,255,0.06) 70%, transparent) 1" }}>
+      <div ref={scrollRef} className="app-content-offset pb-16 lg:pb-0">
+        <header className="sticky top-0 z-30 h-14 lg:h-16 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 bg-background/70 backdrop-blur-xl border-b border-transparent" style={{ borderImage: "linear-gradient(to right, transparent, rgba(255,255,255,0.06) 30%, rgba(59,130,246,0.15) 50%, rgba(255,255,255,0.06) 70%, transparent) 1" }}>
           {/* Mobile menu button with animation */}
           <button
             onClick={handleSidebarToggle}
             aria-label="Ouvrir ou fermer le menu"
-            className="lg:hidden p-2 rounded-lg hover:bg-white/[0.04] text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 transition-transform duration-200 active:scale-90"
+            className="lg:hidden p-2 rounded-lg hover:bg-white/[0.04] text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 transition-transform duration-200 active:scale-90 shrink-0"
           >
             <Menu className={`w-5 h-5 transition-transform duration-200 ${!sidebarCollapsed ? "rotate-90" : ""}`} />
           </button>
@@ -173,29 +185,31 @@ export default function AppLayout() {
           {isDetailPage && (
             <button
               onClick={() => navigate(isClientDetail ? "/bdd" : "/lettre-mission")}
-              className="hidden lg:flex items-center gap-1.5 text-sm text-slate-400 hover:text-slate-200 transition-colors rounded-lg px-2 py-1 hover:bg-white/[0.04]"
+              className="flex items-center gap-1 text-sm text-slate-400 hover:text-slate-200 transition-colors rounded-lg px-1.5 lg:px-2 py-1 hover:bg-white/[0.04] shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span>Retour</span>
+              <span className="hidden sm:inline">Retour</span>
             </button>
           )}
 
-          <nav className="flex items-center gap-1.5 text-sm" aria-label="Fil d'ariane">
-            <ol className="flex items-center gap-1.5 list-none m-0 p-0">
+          <nav className="flex items-center gap-1 lg:gap-1.5 text-sm min-w-0 flex-1" aria-label="Fil d'ariane">
+            <ol className="flex items-center gap-1 lg:gap-1.5 list-none m-0 p-0 min-w-0">
               {page.breadcrumb.map((item, i) => {
                 const isLast = i === page.breadcrumb.length - 1;
+                // On mobile, only show last 2 breadcrumb items
+                const hiddenOnMobile = !isLast && i < page.breadcrumb.length - 2;
                 return (
-                  <li key={i} className="flex items-center gap-1.5">
-                    {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-slate-600" />}
+                  <li key={i} className={`flex items-center gap-1 lg:gap-1.5 min-w-0 ${hiddenOnMobile ? "hidden sm:flex" : ""}`}>
+                    {i > 0 && <ChevronRight className="w-3 lg:w-3.5 h-3 lg:h-3.5 text-slate-600 shrink-0" />}
                     {!isLast && item.path ? (
                       <button
                         onClick={() => startTransition(() => navigate(item.path!))}
-                        className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                        className="text-slate-500 hover:text-slate-300 transition-colors cursor-pointer truncate max-w-[80px] sm:max-w-none"
                       >
                         {item.label}
                       </button>
                     ) : (
-                      <span className={isLast ? "text-slate-200 font-medium" : "text-slate-500"}>
+                      <span className={`truncate max-w-[120px] sm:max-w-none ${isLast ? "text-slate-200 font-medium" : "text-slate-500"}`} aria-current={isLast ? "page" : undefined}>
                         {item.label}
                       </span>
                     )}
@@ -205,7 +219,7 @@ export default function AppLayout() {
             </ol>
           </nav>
 
-          <div className="ml-auto flex items-center gap-3">
+          <div className="ml-auto flex items-center gap-2 lg:gap-3 shrink-0">
             <button
               onClick={() => navigate("/parametres")}
               className="hidden md:flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 text-xs text-slate-200 hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
@@ -213,10 +227,10 @@ export default function AppLayout() {
               <Settings className="h-3.5 w-3.5" />
               Parametres
             </button>
-            <span className="hidden sm:inline text-[11px] text-slate-500 font-mono">
+            <time dateTime={new Date().toISOString().split("T")[0]} className="hidden lg:inline text-[11px] text-slate-500 font-mono">
               {formatRelativeDate(new Date())}
-            </span>
-            <div className="w-px h-5 bg-white/[0.06]" />
+            </time>
+            <div className="hidden sm:block w-px h-5 bg-white/[0.06]" />
 
             <NotificationBell />
 
@@ -296,11 +310,38 @@ export default function AppLayout() {
         </main>
       </div>
 
+      {/* Mobile bottom navigation bar */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-slate-950/95 backdrop-blur-xl border-t border-white/[0.06] flex items-center justify-around px-2 h-16 safe-area-bottom" aria-label="Navigation mobile">
+        <NavLink to="/" end className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-500 hover:text-slate-300"}`}>
+          <LayoutDashboard className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Dashboard</span>
+        </NavLink>
+        <NavLink to="/bdd" className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-500 hover:text-slate-300"}`}>
+          <Users className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Clients</span>
+        </NavLink>
+        <NavLink to="/registre" className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-500 hover:text-slate-300"}`}>
+          <ScrollText className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Registre</span>
+        </NavLink>
+        <button
+          onClick={handleSidebarToggle}
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-slate-500 hover:text-slate-300 transition-colors"
+          aria-label="Ouvrir le menu complet"
+        >
+          <Menu className="w-5 h-5" />
+          <span className="text-[10px] font-medium">Menu</span>
+        </button>
+      </nav>
+
       <style>{`
         @keyframes progress-bar {
           0% { width: 10%; opacity: 0.8; }
           50% { width: 70%; opacity: 1; }
           100% { width: 95%; opacity: 0.8; }
+        }
+        .safe-area-bottom {
+          padding-bottom: env(safe-area-inset-bottom, 0px);
         }
       `}</style>
     </div>

@@ -21,6 +21,7 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
+        // OPT-11: Aggressive code-splitting for better caching & smaller initial bundle
         manualChunks(id) {
           if (id.includes("node_modules")) {
             if (id.includes("react") || id.includes("react-dom") || id.includes("react-router-dom") || id.includes("scheduler")) {
@@ -32,8 +33,14 @@ export default defineConfig(({ mode }) => ({
             if (id.includes("@supabase/supabase-js")) {
               return "supabase";
             }
-            if (id.includes("jspdf")) {
-              return "pdf";
+            if (id.includes("jspdf") || id.includes("docx") || id.includes("file-saver")) {
+              return "generation";
+            }
+            if (id.includes("@radix-ui")) {
+              return "radix-ui";
+            }
+            if (id.includes("@dnd-kit")) {
+              return "dnd-kit";
             }
           }
         },

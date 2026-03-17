@@ -278,12 +278,24 @@ export default function DashboardPage() {
         .then(() => { if (mountedRef.current) { setLastRefresh(new Date()); } })
         .catch((err: unknown) => logger.debug("Dashboard", "auto-refresh failed:", err));
     };
-    if (autoRefreshInterval > 0) {
-      refreshTimer.current = setInterval(doRefresh, autoRefreshInterval);
-    }
+    const startInterval = () => {
+      if (refreshTimer.current) clearInterval(refreshTimer.current);
+      if (autoRefreshInterval > 0) refreshTimer.current = setInterval(doRefresh, autoRefreshInterval);
+    };
+    startInterval();
+    const handleVisibility = () => {
+      if (document.hidden) {
+        if (refreshTimer.current) clearInterval(refreshTimer.current);
+      } else {
+        doRefresh();
+        startInterval();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
     return () => {
       mountedRef.current = false;
       if (refreshTimer.current) clearInterval(refreshTimer.current);
+      document.removeEventListener("visibilitychange", handleVisibility);
     };
   }, [autoRefreshInterval]);
 

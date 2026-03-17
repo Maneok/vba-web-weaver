@@ -1,18 +1,30 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
+import type { LMModele } from "@/lib/lettreMissionModeles";
+import { getModeles, validateCnoecCompliance } from "@/lib/lettreMissionModeles";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import {
   Search, Plus, Building2, User, CheckCircle2, BookOpen, Eye, CheckSquare, X,
-  AlertTriangle, ShieldAlert, History,
+  AlertTriangle, ShieldAlert, History, FileText, ShieldCheck, Loader2, Info,
 } from "lucide-react";
 import { toast } from "sonner";
+import MissionTypeSelector from "@/components/lettre-mission/MissionTypeSelector";
+import MissionSpecificFields from "@/components/lettre-mission/MissionSpecificFields";
+import { buildSectionsForMissionType } from "@/lib/lettreMissionModeles";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
+import { vigilanceColor } from "@/lib/lmUtils";
 
 interface Props {
   data: LMWizardData;
@@ -25,18 +37,39 @@ const TYPES_MISSION = [
   { value: "REVISION", label: "Revision", description: "Revision des comptes", icon: CheckSquare },
 ];
 
-function vigilanceColor(niv: string) {
-  if (niv === "SIMPLIFIEE") return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
-  if (niv === "STANDARD") return "bg-amber-500/20 text-amber-400 border-amber-500/30";
-  return "bg-red-500/20 text-red-400 border-red-500/30";
-}
-
 export default function LMStep1Client({ data, onChange }: Props) {
   const { clients } = useAppState();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [previousLM, setPreviousLM] = useState<{ id: string; wizard_data: Record<string, unknown>; numero: string; statut: string } | null>(null);
   const [screeningStatus, setScreeningStatus] = useState<"ok" | "expired" | "missing" | null>(null);
+  const [modeles, setModeles] = useState<LMModele[]>([]);
+  const [modelesLoading, setModelesLoading] = useState(false);
+
+  // Load modeles when cabinet is available
+  useEffect(() => {
+    const cabinetId = profile?.cabinet_id;
+    if (!cabinetId) return;
+    let cancelled = false;
+    setModelesLoading(true);
+    getModeles(cabinetId)
+      .then((m) => {
+        if (!cancelled) {
+          setModeles(m);
+          // Auto-select default modele if none selected
+          if (!data.modele_id) {
+            const defaultModele = m.find((mod) => mod.is_default);
+            if (defaultModele) {
+              onChange({ modele_id: defaultModele.id });
+            }
+          }
+        }
+      })
+      .catch((err) => logger.warn("LM", "Failed to load modeles:", err))
+      .finally(() => { if (!cancelled) setModelesLoading(false); });
+    return () => { cancelled = true; };
+  }, [profile?.cabinet_id]);
 
   const filtered = useMemo(() => {
     if (!search || search.length < 2) return clients.slice(0, 15);
@@ -173,6 +206,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
               <button
                 key={c.ref}
                 onClick={() => selectClient(c)}
+                aria-label={`Selectionner ${c.raisonSociale}`}
                 className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
@@ -210,7 +244,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
         <>
           {/* I) Screening banners */}
           {screeningStatus === "missing" && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
               <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-red-300">Dossier LCB-FT manquant</p>
@@ -227,7 +261,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
           {screeningStatus === "expired" && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-medium text-amber-300">Dossier LCB-FT perime</p>
@@ -244,12 +278,43 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
 
-          {/* A) Vigilance renforcee */}
-          {selectedClient && selectedClient.scoreGlobal > 60 && (
+          {/* A) Alerte risque eleve — NPLAB */}
+          {selectedClient && selectedClient.scoreGlobal >= 70 && (
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
+              <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
+              <div className="space-y-1.5">
+                <p className="text-sm font-medium text-red-300">
+                  Attention — Ce client presente un risque eleve (score {selectedClient.scoreGlobal}/100)
+                </p>
+                <p className="text-xs text-red-400/80">
+                  Conformement a la NPLAB, des mesures de vigilance renforcee doivent etre appliquees. Assurez-vous que :
+                </p>
+                <ul className="text-xs text-red-400/70 space-y-0.5 list-disc list-inside">
+                  <li>L'identite du beneficiaire effectif a ete verifiee</li>
+                  <li>Les documents KYC sont a jour</li>
+                  <li>L'analyse de risque a ete validee par un associe</li>
+                  <li>La decision d'acceptation de mission est documentee</li>
+                </ul>
+              </div>
+            </div>
+          )}
+
+          {/* A) Alerte risque moyen */}
+          {selectedClient && selectedClient.scoreGlobal >= 50 && selectedClient.scoreGlobal < 70 && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
+              <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
+              <p className="text-xs text-amber-300">
+                Ce client presente un risque moyen (score {selectedClient.scoreGlobal}/100). Revue des diligences de vigilance recommandee.
+              </p>
+            </div>
+          )}
+
+          {/* A) Vigilance renforcee — complement honoraires */}
+          {selectedClient && selectedClient.scoreGlobal >= 60 && selectedClient.scoreGlobal < 70 && (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
               <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0" />
               <p className="text-xs text-orange-300">
-                Client a <strong>vigilance renforcee</strong> (score {selectedClient.scoreGlobal}/120) — envisagez un complement d'honoraires
+                Client a <strong>vigilance renforcee</strong> — envisagez un complement d'honoraires
               </p>
             </div>
           )}
@@ -300,40 +365,130 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </button>
           )}
 
-          {/* Type mission selection */}
+          {/* Type mission selection — normative OEC types */}
           <div className="space-y-3">
-            <p className="text-sm font-medium text-slate-300">Type de mission</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {TYPES_MISSION.map(({ value, label, description, icon: Icon }) => {
-                const active = data.type_mission === value;
-                return (
-                  <button
-                    key={value}
-                    onClick={() => onChange({ type_mission: value })}
-                    className={`relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all duration-200 text-center ${
-                      active
-                        ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10"
-                        : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]"
-                    }`}
-                  >
-                    <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
-                      active ? "bg-blue-500/20" : "bg-white/[0.04]"
-                    }`}>
-                      <Icon className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-400"}`} />
-                    </div>
-                    <div>
-                      <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{label}</p>
-                      <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
-                    </div>
-                    {active && (
-                      <div className="absolute top-2 right-2">
-                        <CheckCircle2 className="w-4 h-4 text-blue-400" />
+            <p className="text-sm font-medium text-slate-300">Type de mission (référentiel normatif OEC)</p>
+            <MissionTypeSelector
+              value={data.mission_type_id || "presentation"}
+              onValueChange={(val) => {
+                const config = getMissionTypeConfig(val);
+                onChange({
+                  type_mission: config.shortLabel,
+                  mission_type_id: val,
+                });
+              }}
+            />
+          </div>
+
+          {/* Mode comptable — only for mission de présentation (NP 2300) */}
+          {(data.mission_type_id || 'presentation') === 'presentation' && (
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-slate-300">Mode comptable</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                {TYPES_MISSION.map(({ value, label, description, icon: Icon }) => {
+                  const active = data.type_mission === value;
+                  return (
+                    <button
+                      key={value}
+                      onClick={() => onChange({ type_mission: value })}
+                      className={`relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all duration-200 text-center ${
+                        active
+                          ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10"
+                          : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]"
+                      }`}
+                    >
+                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
+                        active ? "bg-blue-500/20" : "bg-white/[0.04]"
+                      }`}>
+                        <Icon className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-400"}`} />
                       </div>
-                    )}
-                  </button>
-                );
-              })}
+                      <div>
+                        <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{label}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
+                      </div>
+                      {active && (
+                        <div className="absolute top-2 right-2">
+                          <CheckCircle2 className="w-4 h-4 text-blue-400" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
+          )}
+
+          {/* Mission-type specific parameters */}
+          <MissionSpecificFields
+            missionType={data.mission_type_id || "presentation"}
+            values={Object.fromEntries(
+              getMissionTypeConfig(data.mission_type_id || "presentation")
+                .specificVariables.map((sv) => [sv.key, String((data as any)[sv.key] || "")])
+            )}
+            onChange={(key, value) => onChange({ [key]: value } as Partial<LMWizardData>)}
+          />
+
+          {/* Modele selection */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-slate-500" />
+              <p className="text-sm font-medium text-slate-300">Modèle de lettre</p>
+            </div>
+            {modelesLoading ? (
+              <div className="flex items-center gap-2 text-xs text-slate-500">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Chargement des modèles...
+              </div>
+            ) : modeles.length === 0 ? (
+              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+                <p className="text-xs text-slate-500">Aucun modèle configuré — le modèle GRIMY par défaut sera utilisé.</p>
+              </div>
+            ) : (
+              <Select
+                value={data.modele_id || ""}
+                onValueChange={(val) => onChange({ modele_id: val })}
+              >
+                <SelectTrigger className="h-11 bg-white/[0.04] border-white/[0.08] text-white">
+                  <SelectValue placeholder="Choisir un modèle..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {modeles.map((m) => {
+                    const cnoec = validateCnoecCompliance(m.sections);
+                    return (
+                      <SelectItem key={m.id} value={m.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{m.nom}</span>
+                          {m.is_default && (
+                            <Badge className="text-[8px] px-1 py-0 bg-amber-500/10 text-amber-400 border-amber-500/20">Défaut</Badge>
+                          )}
+                          {cnoec.valid ? (
+                            <ShieldCheck className="w-3.5 h-3.5 text-green-400 shrink-0" />
+                          ) : (
+                            <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0" />
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+            )}
+            {data.modele_id && modeles.length > 0 && (() => {
+              const selected = modeles.find((m) => m.id === data.modele_id);
+              if (!selected) return null;
+              const cnoec = validateCnoecCompliance(selected.sections);
+              return (
+                <div className="flex items-center gap-2 text-[10px]">
+                  <span className="text-slate-600">
+                    {selected.sections.length} sections · Source: {selected.source === "grimy" ? "GRIMY" : selected.source === "import_docx" ? "Import DOCX" : "Copie"}
+                  </span>
+                  {cnoec.valid ? (
+                    <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-400">Conforme CNOEC</Badge>
+                  ) : (
+                    <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400">{cnoec.warnings.length} alerte{cnoec.warnings.length > 1 ? "s" : ""}</Badge>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         </>
       )}

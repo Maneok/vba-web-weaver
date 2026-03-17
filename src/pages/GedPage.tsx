@@ -14,6 +14,7 @@ import {
   ChevronRight, ChevronDown, Building2, FileImage, FileCode,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -107,6 +108,7 @@ const getErrorMessage = (err: unknown, fallback: string) => {
 };
 
 export default function GedPage() {
+  const { profile } = useAuth();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -399,6 +401,7 @@ export default function GedPage() {
           .from("documents")
           .insert({
             user_id: user.id,
+            cabinet_id: profile?.cabinet_id || null,
             name: file.name,
             file_path: filePath,
             file_size: file.size,
@@ -415,6 +418,7 @@ export default function GedPage() {
 
         await supabase.from("document_versions").insert({
           document_id: docData.id,
+          cabinet_id: profile?.cabinet_id || null,
           version_number: 1,
           file_path: filePath,
           file_size: file.size,
@@ -513,6 +517,7 @@ export default function GedPage() {
 
       await supabase.from("document_versions").insert({
         document_id: selectedDoc.id,
+        cabinet_id: profile?.cabinet_id || null,
         version_number: newVersion,
         file_path: filePath,
         file_size: newVersionFile.size,

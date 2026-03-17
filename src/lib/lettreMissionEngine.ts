@@ -13,6 +13,10 @@ import { replaceVariables } from "@/lib/lettreMissionVariables";
 import { renderLettreMissionPdf } from "@/lib/lettreMissionPdf";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
+import { supabase } from "@/integrations/supabase/client";
+import type { LMSection, LMModele } from "@/lib/lettreMissionModeles";
+import { getModeleById, getDefaultModele, GRIMY_DEFAULT_SECTIONS, GRIMY_DEFAULT_CGV, GRIMY_DEFAULT_REPARTITION } from "@/lib/lettreMissionModeles";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
 // ──────────────────────────────────────────────
 // Numérotation automatique (sessionStorage)
@@ -351,4 +355,253 @@ export function renderToPdf(lettreMission: LettreMission): void {
 export async function renderToDocx(lettreMission: LettreMission): Promise<void> {
   const { renderLettreMissionDocx } = await import("@/lib/lettreMissionDocx");
   await renderLettreMissionDocx(lettreMission);
+}
+
+// ──────────────────────────────────────────────
+// LM Instance type (mirrors lettres_mission table)
+// ──────────────────────────────────────────────
+
+export interface LMInstance {
+  id: string;
+  cabinet_id: string;
+  modele_id: string;
+  client_ref: string;
+  numero: string;
+  status: "brouillon" | "en_validation" | "envoyee" | "signee" | "archivee";
+  sections_snapshot: LMSection[];
+  cgv_snapshot: string;
+  repartition_snapshot: any[];
+  variables_resolved: Record<string, string>;
+  wizard_data?: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+}
+
+// ──────────────────────────────────────────────
+// Numérotation Supabase (lettres_mission)
+// ──────────────────────────────────────────────
+
+export async function getNextLmNumero(cabinetId: string): Promise<string> {
+  const year = new Date().getFullYear();
+  const prefix = `LM-${year}-`;
+
+  const { data } = await supabase
+    .from("lettres_mission")
+    .select("numero")
+    .eq("cabinet_id", cabinetId)
+    .like("numero", `${prefix}%`)
+    .order("created_at", { ascending: false })
+    .limit(1);
+
+  if (data && data.length > 0) {
+    const lastNumero = data[0].numero as string;
+    const match = lastNumero.match(/LM-\d{4}-(\d+)/);
+    if (match) {
+      const next = parseInt(match[1], 10) + 1;
+      return `${prefix}${String(next).padStart(3, "0")}`;
+    }
+  }
+  return `${prefix}001`;
+}
+
+// ──────────────────────────────────────────────
+// Résolution des variables d'un modèle
+// ──────────────────────────────────────────────
+
+export function resolveModeleSections(
+  sections: LMSection[],
+  variablesMap: Record<string, string>,
+  missionsSelected?: { section_id: string; selected: boolean }[]
+): LMSection[] {
+  return sections
+    .filter((s) => {
+      // Filter hidden sections
+      if ((s as any).hidden) return false;
+      // Filter conditional sections based on missions
+      if (s.type === "conditional" && s.condition && missionsSelected) {
+        const condMap: Record<string, string> = {
+          sociale: "social",
+          juridique: "juridique",
+          fiscal: "fiscal",
+          clause_resolutoire: "clause_resolutoire",
+          mandat_fiscal: "mandat_fiscal",
+        };
+        const sectionId = condMap[s.condition] || s.condition;
+        const mission = missionsSelected.find((m) => m.section_id === sectionId);
+        if (mission && !mission.selected) return false;
+      }
+      return true;
+    })
+    .map((s, i) => ({
+      ...s,
+      contenu: resolveVariablesInText(s.contenu, variablesMap),
+      ordre: i + 1,
+    }));
+}
+
+function resolveVariablesInText(text: string, vars: Record<string, string>): string {
+  if (!text) return "";
+  let result = text;
+  for (const [key, value] of Object.entries(vars)) {
+    const regex = new RegExp(`\\{\\{${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\}\\}`, "gi");
+    result = result.replace(regex, value ?? "");
+  }
+  return result;
+}
+
+// ──────────────────────────────────────────────
+// Build variables map from wizard data
+// ──────────────────────────────────────────────
+
+export function buildVariablesMap(wizardData: Record<string, unknown>): Record<string, string> {
+  const d = wizardData;
+  const now = new Date();
+  const fmt = (dt: Date) => dt.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const year = now.getFullYear();
+
+  // Get mission type config for dynamic values
+  const missionTypeId = String(d.mission_type_id ?? d.type_mission ?? "presentation");
+  const mtConfig = getMissionTypeConfig(missionTypeId);
+
+  const vars: Record<string, string> = {
+    // Client
+    raison_sociale: String(d.raison_sociale ?? ""),
+    forme_juridique: String(d.forme_juridique ?? ""),
+    siren: String(d.siren ?? ""),
+    dirigeant: String(d.dirigeant ?? ""),
+    adresse: String(d.adresse ?? ""),
+    code_postal: String(d.cp ?? ""),
+    cp: String(d.cp ?? ""),
+    ville: String(d.ville ?? ""),
+    capital: String(d.capital ?? ""),
+    ape: String(d.ape ?? ""),
+    email: String(d.email ?? ""),
+    telephone: String(d.telephone ?? ""),
+    iban: String(d.iban ?? ""),
+    bic: String(d.bic ?? ""),
+    adresse_complete: `${d.adresse ?? ""}, ${d.cp ?? ""} ${d.ville ?? ""}`.trim(),
+    // Mission
+    associe: String(d.associe_signataire ?? ""),
+    responsable_mission: String(d.associe_signataire ?? ""),
+    chef_mission: String(d.chef_mission ?? ""),
+    superviseur: String(d.chef_mission ?? ""),
+    referent_lcb: String(d.referent_lcb ?? ""),
+    type_mission: String(d.type_mission ?? ""),
+    mission: String(d.type_mission ?? ""),
+    frequence: String(d.frequence_facturation ?? ""),
+    honoraires: Number(d.honoraires_ht ?? 0).toLocaleString("fr-FR"),
+    hono: `${Number(d.honoraires_ht ?? 0).toLocaleString("fr-FR")} € HT`,
+    honoraires_ttc: (Number(d.honoraires_ht ?? 0) * 1.2).toLocaleString("fr-FR"),
+    // Dates
+    date_du_jour: fmt(now),
+    date_jour: fmt(now),
+    date_lettre: fmt(now),
+    annee: String(year),
+    date_debut_mission: fmt(new Date(year, 0, 1)),
+    date_fin_mission: fmt(new Date(year, 11, 31)),
+    date_cloture: String(d.date_cloture ?? fmt(new Date(year, 11, 31))),
+    date_debut: String(d.date_debut ?? fmt(now)),
+    // Options
+    formule_politesse: "Monsieur",
+    genre: "M.",
+    periodicite: String(d.frequence_facturation ?? "MENSUEL"),
+    // Dynamic from mission type config
+    referentiel_comptable: mtConfig.referentielApplicable,
+    forme_rapport: mtConfig.formeRapport,
+    norme_ref: mtConfig.normeRef,
+    type_mission_label: mtConfig.label,
+    indice_revision: "Indice INSEE prix services comptables",
+    delai_mise_en_demeure: "30 jours",
+    // Cabinet (filled later from profile if available)
+    nom_cabinet: "",
+    cabinet_nom: "",
+    ville_cabinet: "",
+  };
+
+  // Inject mission-type specific variables from wizard data
+  for (const sv of mtConfig.specificVariables) {
+    vars[sv.key] = String(d[sv.key] ?? "");
+  }
+
+  return vars;
+}
+
+// ──────────────────────────────────────────────
+// Génération depuis un modèle
+// ──────────────────────────────────────────────
+
+export async function generateFromModele(
+  modeleId: string,
+  wizardData: Record<string, unknown>,
+  cabinetId: string
+): Promise<LMInstance> {
+  // Load modele
+  let modele: LMModele;
+  try {
+    modele = await getModeleById(modeleId);
+  } catch {
+    // Fallback to default modele or GRIMY defaults
+    const defaultModele = await getDefaultModele(cabinetId);
+    if (defaultModele) {
+      modele = defaultModele;
+    } else {
+      modele = {
+        id: "grimy-fallback",
+        cabinet_id: cabinetId,
+        nom: "GRIMY par défaut",
+        sections: GRIMY_DEFAULT_SECTIONS,
+        cgv_content: GRIMY_DEFAULT_CGV,
+        repartition_taches: GRIMY_DEFAULT_REPARTITION,
+        is_default: true,
+        source: "grimy",
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+  }
+
+  // Build variables map
+  const variablesMap = buildVariablesMap(wizardData);
+
+  // Resolve sections
+  const missionsSelected = (wizardData.missions_selected as { section_id: string; selected: boolean }[]) ?? [];
+  const resolvedSections = resolveModeleSections(modele.sections, variablesMap, missionsSelected);
+
+  // Resolve CGV + inject mission-type-specific clauses
+  const missionTypeId = String(wizardData.mission_type_id ?? wizardData.type_mission ?? modele.mission_type ?? "presentation");
+  const mtConfig = getMissionTypeConfig(missionTypeId);
+  let cgvText = modele.cgv_content;
+  if (mtConfig.cgvSpecificClauses.length > 0) {
+    cgvText += "\n\n" + mtConfig.cgvSpecificClauses.join("\n\n");
+  }
+  const resolvedCgv = resolveVariablesInText(cgvText, variablesMap);
+
+  // Get next numero
+  const numero = await getNextLmNumero(cabinetId);
+
+  // Insert instance
+  const { data: instance, error } = await supabase
+    .from("lettres_mission")
+    .insert({
+      cabinet_id: cabinetId,
+      modele_id: modele.id === "grimy-fallback" ? null : modele.id,
+      client_ref: String(wizardData.client_ref ?? ""),
+      numero,
+      status: "brouillon",
+      mission_type: missionTypeId,
+      sections_snapshot: resolvedSections,
+      cgv_snapshot: resolvedCgv,
+      repartition_snapshot: modele.repartition_taches,
+      variables_resolved: variablesMap,
+      wizard_data: wizardData,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    logger.error("LM_INSTANCE", "generateFromModele error", error);
+    throw error;
+  }
+
+  return instance as LMInstance;
 }

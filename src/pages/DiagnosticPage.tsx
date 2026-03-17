@@ -269,7 +269,7 @@ export default function DiagnosticPage() {
       </div>
 
       {/* Score Banner */}
-      <div className="glass-card overflow-hidden" role="region" aria-label="Score global du dispositif">
+      <div className="glass-card border border-white/10 rounded-xl overflow-hidden" role="region" aria-label="Score global du dispositif">
         <div className={`bg-gradient-to-r ${NOTE_COLORS[report.noteLettre] || NOTE_COLORS.D} p-6`}>
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center">
@@ -313,7 +313,7 @@ export default function DiagnosticPage() {
       </div>
 
       {/* Circular Gauges */}
-      <div className="glass-card p-6" role="region" aria-label="Indicateurs cles de conformite">
+      <div className="glass-card border border-white/10 rounded-xl p-6" role="region" aria-label="Indicateurs cles de conformite">
         <div className="flex items-center gap-2 mb-5">
           <Activity className="w-4 h-4 text-sky-400" />
           <h2 className="text-sm font-semibold text-slate-200">Indicateurs cles</h2>
@@ -349,7 +349,7 @@ export default function DiagnosticPage() {
 
       {/* Detail by Category */}
       {categories.map((cat) => (
-        <div key={cat} className="glass-card p-5">
+        <div key={cat} className="glass-card border border-white/10 rounded-xl p-5">
           <h3 className="text-sm font-semibold text-slate-200 mb-3">{cat}</h3>
           <div className="space-y-2">
             {report.items
@@ -363,7 +363,7 @@ export default function DiagnosticPage() {
 
       {/* Recommandations (auto-generated from weak indicators) */}
       {autoRecommandations.length > 0 && (
-        <div className="glass-card p-5 ring-1 ring-amber-500/20">
+        <div className="glass-card border border-white/10 rounded-xl p-5 ring-1 ring-amber-500/20">
           <h3 className="text-sm font-semibold text-amber-400 flex items-center gap-2 mb-3">
             <AlertTriangle className="w-4 h-4" />
             Recommandations
@@ -381,7 +381,7 @@ export default function DiagnosticPage() {
 
       {/* Priority Actions from diagnostic engine */}
       {report.recommandationsPrioritaires.length > 0 && (
-        <div className="glass-card p-5 ring-1 ring-red-500/20">
+        <div className="glass-card border border-white/10 rounded-xl p-5 ring-1 ring-red-500/20">
           <h3 className="text-sm font-semibold text-red-400 flex items-center gap-2 mb-3">
             <XCircle className="w-4 h-4" />
             Actions correctives prioritaires

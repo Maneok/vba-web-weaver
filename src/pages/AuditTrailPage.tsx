@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Search, Shield, Loader2, Download, ChevronLeft, ChevronRight,
   Filter, X, ArrowUpDown, Eye, Calendar, User, Activity,
@@ -424,6 +424,7 @@ export default function AuditTrailPage() {
                   <Eye className="w-5 h-5 text-blue-400" />
                   Detail de l'entree #{selectedEntry.id}
                 </DialogTitle>
+                <DialogDescription>Informations detaillees de l'evenement enregistre dans le journal d'audit.</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 mt-3">
                 <div className="grid grid-cols-2 gap-4">

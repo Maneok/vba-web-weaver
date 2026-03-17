@@ -45,11 +45,11 @@ function makeClient(overrides: Partial<Client> = {}): Client {
     pression: "NON",
     scoreActivite: 25,
     scorePays: 0,
-    scoreMission: 10,
+    scoreMission: 25,
     scoreMaturite: 0,
     scoreStructure: 20,
     malus: 0,
-    scoreGlobal: 11,
+    scoreGlobal: 14,
     nivVigilance: "SIMPLIFIEE",
     dateCreationLigne: "2024-01-01",
     dateDerniereRevue: "2024-01-01",
@@ -550,7 +550,7 @@ describe("#20: getPilotageStatus — edge cases", () => {
   it("should return BIENTOT for dates within 60 days", () => {
     const soon = new Date();
     soon.setDate(soon.getDate() + 30);
-    expect(getPilotageStatus(soon.toISOString().split("T")[0])).toBe("BIENTÔT");
+    expect(getPilotageStatus(soon.toISOString().split("T")[0])).toBe("BIENTOT");
   });
 
   it("should return A JOUR for dates beyond 60 days", () => {

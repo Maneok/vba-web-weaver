@@ -20,6 +20,7 @@ import { saveAs } from "file-saver";
 import { logger } from "@/lib/logger";
 import type { LettreMission } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
 const NAVY = "1A1A2E";
 const GREY = "F5F5F8";
@@ -203,7 +204,7 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
 
   children.push(
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 100 }, children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })] }),
-    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: "PRÉSENTATION DES COMPTES ANNUELS", bold: true, size: 22, color: NAVY })] }),
+    new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 200 }, children: [new TextRun({ text: (lm?.options as any)?.missionTypeLabel?.toUpperCase() || "PRÉSENTATION DES COMPTES ANNUELS", bold: true, size: 22, color: NAVY })] }),
     new Paragraph({ alignment: AlignmentType.CENTER, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.ville}, le ${lm.date}  |  Réf. ${lm.numero}`, size: 18, color: "888888" })] }),
   );
 
@@ -709,5 +710,157 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
   } catch (err: unknown) {
     logger.error("DOCX", "Erreur lors de la génération du DOCX template", err);
     throw new Error(`Échec de la génération du document DOCX : ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+// ──────────────────────────────────────────────
+// Generate DOCX from LM Instance (modele-based)
+// ──────────────────────────────────────────────
+export async function generateDocxFromInstance(instance: {
+  sections_snapshot: { id: string; titre: string; contenu: string; type: string; ordre: number }[];
+  cgv_snapshot: string;
+  repartition_snapshot?: { label: string; cabinet: boolean; client: boolean; periodicite?: string }[];
+  numero: string;
+  status?: string;
+  mission_type?: string;
+}, cabinet: { nom: string; adresse: string; cp: string; ville: string; siret: string; numeroOEC: string; email: string; telephone: string }): Promise<void> {
+  try {
+    const children: (Paragraph | Table)[] = [];
+
+    // Header
+    children.push(
+      new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 40 }, children: [new TextRun({ text: cabinet.nom, bold: true, size: 22, color: NAVY })] }),
+      new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 30 }, children: [new TextRun({ text: `${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`, size: 16, color: "666666" })] }),
+      new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 30 }, children: [new TextRun({ text: `SIRET : ${cabinet.siret} — OEC n° ${cabinet.numeroOEC}`, size: 16, color: "666666" })] }),
+      new Paragraph({ alignment: AlignmentType.RIGHT, spacing: { after: 150 }, children: [new TextRun({ text: `${cabinet.email} — ${cabinet.telephone}`, size: 16, color: "666666" })] }),
+    );
+
+    // Numero + date
+    children.push(
+      new Paragraph({ spacing: { after: 80 }, children: [
+        new TextRun({ text: instance.numero, bold: true, size: 20 }),
+        new TextRun({ text: `     ${new Date().toLocaleDateString("fr-FR")}`, size: 18, color: "888888" }),
+      ]}),
+    );
+
+    // Title
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        spacing: { before: 200, after: 100 },
+        children: [new TextRun({ text: "LETTRE DE MISSION", bold: true, size: 28, color: NAVY })],
+      }),
+    );
+
+    // Mission type subtitle
+    if (instance.mission_type) {
+      const mtConf = getMissionTypeConfig(instance.mission_type);
+      children.push(
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 80 },
+          children: [new TextRun({ text: mtConf.label.toUpperCase(), bold: true, size: 22, color: NAVY })],
+        }),
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
+          children: [new TextRun({ text: `Norme applicable : ${mtConf.normeRef}`, size: 18, color: "888888" })],
+        }),
+      );
+    } else {
+      children.push(new Paragraph({ spacing: { after: 200 }, children: [] }));
+    }
+
+    // Sections
+    for (const section of instance.sections_snapshot) {
+      // Section heading
+      children.push(heading(section.titre));
+
+      // Section content
+      const content = section.contenu || "";
+      if (content === "TABLEAU_ENTITE" || content === "TABLEAU_HONORAIRES" || content === "TABLEAU_REPARTITION") {
+        children.push(bodyText(`[${content}]`));
+      } else {
+        const paragraphs = content.split("\n\n");
+        for (const para of paragraphs) {
+          if (para.startsWith("▪") || para.startsWith("—") || para.startsWith("-") || para.startsWith("•")) {
+            children.push(bulletItem(para.replace(/^[▪—\-•]\s*/, "")));
+          } else {
+            children.push(bodyText(para));
+          }
+        }
+      }
+    }
+
+    // CGV
+    if (instance.cgv_snapshot) {
+      children.push(new Paragraph({ children: [new PageBreak()] }));
+      children.push(heading("Conditions Générales d'Intervention"));
+      const cgvParagraphs = instance.cgv_snapshot.split("\n\n");
+      for (const para of cgvParagraphs) {
+        children.push(new Paragraph({
+          spacing: { after: 60 },
+          children: [new TextRun({ text: para, size: 18 })],
+        }));
+      }
+    }
+
+    // Signatures
+    children.push(new Paragraph({ spacing: { before: 400 }, children: [] }));
+    children.push(new Table({
+      rows: [
+        new TableRow({
+          children: [
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+              children: [
+                new Paragraph({ children: [new TextRun({ text: "L'Expert-comptable", bold: true, size: 20 })] }),
+                new Paragraph({ spacing: { before: 600 }, children: [new TextRun({ text: "________________________", size: 18, color: "CCCCCC" })] }),
+              ],
+            }),
+            new TableCell({
+              width: { size: 50, type: WidthType.PERCENTAGE },
+              borders: { top: { style: BorderStyle.NONE }, bottom: { style: BorderStyle.NONE }, left: { style: BorderStyle.NONE }, right: { style: BorderStyle.NONE } },
+              children: [
+                new Paragraph({ children: [new TextRun({ text: "Le Client", bold: true, size: 20 })] }),
+                new Paragraph({ spacing: { before: 600 }, children: [new TextRun({ text: "________________________", size: 18, color: "CCCCCC" })] }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      width: { size: 100, type: WidthType.PERCENTAGE },
+    }));
+
+    const docx = new Document({
+      sections: [{
+        properties: {},
+        headers: {},
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: `${cabinet.nom} — `, size: 14, color: "999999" }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: "999999" }),
+                  new TextRun({ text: "/", size: 14, color: "999999" }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: "999999" }),
+                ],
+              }),
+            ],
+          }),
+        },
+        children,
+      }],
+    });
+
+    const blob = await Packer.toBlob(docx);
+    const filename = `LDM_${instance.numero}_${new Date().toISOString().slice(0, 10)}.docx`;
+    saveAs(blob, filename);
+  } catch (err) {
+    logger.error("DOCX", "generateDocxFromInstance error", err);
+    throw err;
   }
 }

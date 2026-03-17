@@ -17,6 +17,23 @@ const LEVEL_PRIORITY: Record<LogLevel, number> = {
 
 const MIN_LEVEL: LogLevel = IS_DEV ? "debug" : "warn";
 
+// OPT-47: Dedup repeated errors within a short window to avoid log spam
+const _recentErrors = new Map<string, number>();
+const DEDUP_WINDOW_MS = 5000;
+function isDuplicate(key: string): boolean {
+  const now = Date.now();
+  const last = _recentErrors.get(key);
+  if (last && now - last < DEDUP_WINDOW_MS) return true;
+  _recentErrors.set(key, now);
+  // Prune old entries periodically
+  if (_recentErrors.size > 100) {
+    for (const [k, t] of _recentErrors) {
+      if (now - t > DEDUP_WINDOW_MS) _recentErrors.delete(k);
+    }
+  }
+  return false;
+}
+
 function shouldLog(level: LogLevel): boolean {
   return LEVEL_PRIORITY[level] >= LEVEL_PRIORITY[MIN_LEVEL];
 }
@@ -44,6 +61,8 @@ export const logger = {
 
   error(tag: string, ...args: unknown[]): void {
     if (shouldLog("error")) {
+      // OPT: Early dedup check before building format prefix
+      if (isDuplicate(`${tag}:${args[0]}`)) return;
       console.error(formatPrefix("error", tag), ...args);
       // In production, capture stack trace for debugging
       if (!IS_DEV) {

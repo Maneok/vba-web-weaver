@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Sidebar layout offset — driven by JS via --sidebar-offset CSS var */
+:root {
+  --sidebar-offset: 72px; /* default: collapsed */
+}
+.app-content-offset {
+  /* mobile: no left padding — sidebar overlays content */
+}
+@media (min-width: 1024px) {
+  .app-content-offset {
+    padding-left: var(--sidebar-offset);
+    transition: padding-left 300ms ease;
+  }
+}
+
 @layer base {
   :root {
     --background: 222 47% 11%;
@@ -241,11 +255,10 @@
   animation: progress-indeterminate 1.5s ease-in-out infinite;
 }
 
-/* Focus ring improvements */
+/* Focus ring improvements — rounded to match the element's own border-radius */
 *:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px hsl(var(--background)), 0 0 0 4px hsl(217 91% 60% / 0.5);
-  border-radius: inherit;
 }
 
 /* Better selection color */
@@ -305,11 +318,42 @@ tbody tr:nth-child(even) {
 .pb-safe {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
 
 /* Prevent iOS zoom on input focus */
-@media screen and (max-width: 768px) {
+@media screen and (max-width: 767px) {
   input, select, textarea {
     font-size: 16px !important;
+  }
+}
+
+/* Responsive touch targets */
+@media (max-width: 767px) {
+  button, [role="button"], a {
+    min-height: 44px;
+  }
+  /* But not buttons inside table cells or icon-only buttons */
+  td button, th button, .icon-btn {
+    min-height: unset;
+  }
+}
+
+/* Better mobile overflow handling */
+@media (max-width: 767px) {
+  .page-container {
+    @apply px-4 py-4;
+  }
+  /* Ensure tables never break out of their containers */
+  table {
+    min-width: 100%;
   }
 }
 
@@ -377,6 +421,10 @@ tbody tr:nth-child(even) {
 ::-webkit-scrollbar-thumb {
   transition: background 0.2s ease;
 }
+
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* Responsive typography */
 @media (min-width: 1024px) {
