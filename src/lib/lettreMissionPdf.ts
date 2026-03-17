@@ -291,16 +291,19 @@ class LMPdfBuilder {
     this.doc.text(`${s(cli?.adresse)}, ${s(cli?.cp)} ${s(cli?.ville)}`, MARGIN_L, this.y);
     this.y += 12;
 
-    // Titre principal centré
-    this.setTitle(14);
-    this.doc.text("LETTRE DE MISSION", PAGE_W / 2, this.y, { align: "center" });
-    this.y += 6;
-    this.doc.setFontSize(11);
+    // OPT-26: Titre dynamique, OPT-27: badge norme
     const mtConf = getMissionTypeConfig((this.options as any)?.missionTypeId || "presentation");
-    this.doc.text(mtConf.label.toUpperCase(), PAGE_W / 2, this.y, { align: "center" });
-    this.y += 5;
+    this.ensureSpace(20);
+    this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.rect(MARGIN_L, this.y - 1, CONTENT_W, 10, "F");
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(12);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text(`LETTRE DE MISSION — ${mtConf.label.toUpperCase()}`, PAGE_W / 2, this.y + 5.5, { align: "center" });
+    this.doc.setTextColor(BODY_TEXT.r, BODY_TEXT.g, BODY_TEXT.b);
+    this.y += 13;
     this.doc.setFontSize(8);
-    this.doc.setTextColor(130, 130, 130);
+    this.doc.setTextColor(FOOTER_COLOR.r, FOOTER_COLOR.g, FOOTER_COLOR.b);
     this.doc.text(`Norme applicable : ${mtConf.normeRef}`, PAGE_W / 2, this.y, { align: "center" });
     this.y += 8;
 
@@ -716,6 +719,22 @@ class LMPdfBuilder {
     );
     this.y += 8;
 
+    // OPT-33: Mention honoraires de succès
+    const mtConfHono = getMissionTypeConfig((this.options as any)?.missionTypeId || "presentation");
+    if (!mtConfHono.honorairesSuccesAutorises) {
+      this.setSmall();
+      this.doc.setFont("helvetica", "italic");
+      const honoText = this.doc.splitTextToSize(
+        "Conformément à l'article 24 de l'ordonnance du 19 septembre 1945, les honoraires de résultat (succès) sont interdits pour ce type de mission.",
+        CONTENT_W
+      );
+      for (const line of honoText) {
+        this.doc.text(line, MARGIN_L, this.y);
+        this.y += 4;
+      }
+      this.y += 4;
+    }
+
     // Conditions de facturation
     this.drawSubTitle("Conditions de facturation et de règlement");
     this.writeText(
@@ -741,7 +760,7 @@ class LMPdfBuilder {
     const cli = this.client;
     const cab = this.cabinet;
 
-    this.ensureSpace(55);
+    this.ensureSpace(80);
     this.y += 6;
 
     this.setBody();
@@ -769,7 +788,7 @@ class LMPdfBuilder {
     this.setSmall();
     this.doc.text("Associé signataire", colL, this.y);
     this.doc.text("Gérant / Président", colR, this.y);
-    this.y += 15;
+    this.y += 50; // OPT-37: 5cm d'espace pour signature manuscrite
 
     // Signature lines
     this.doc.setDrawColor(0, 0, 0);
@@ -778,8 +797,9 @@ class LMPdfBuilder {
     this.doc.line(colR, this.y, colR + 65, this.y);
     this.y += 4;
     this.doc.setFontSize(7);
-    this.doc.text("Signature précédée de « Lu et approuvé »", colL, this.y);
-    this.doc.text("Signature précédée de « Lu et approuvé »", colR, this.y);
+    this.doc.setFont("helvetica", "italic");
+    this.doc.text("Lu et approuvé", colL, this.y);
+    this.doc.text("Lu et approuvé", colR, this.y);
   }
 
   // ──────────────────────────────────────────────
@@ -1123,19 +1143,35 @@ class LMPdfBuilder {
   // ──────────────────────────────────────────────
   private addFooters(): void {
     const totalPages = this.doc.getNumberOfPages();
+    const mtConf = getMissionTypeConfig((this.options as any)?.missionTypeId || "presentation");
     for (let i = 1; i <= totalPages; i++) {
       this.doc.setPage(i);
+      // OPT-29: Footer
       this.doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
       this.doc.setLineWidth(0.3);
       this.doc.line(MARGIN_L, FOOTER_Y, MARGIN_R, FOOTER_Y);
-      this.doc.setFontSize(7);
-      this.doc.setTextColor(130, 130, 130);
+      this.doc.setFontSize(8);
+      this.doc.setTextColor(FOOTER_COLOR.r, FOOTER_COLOR.g, FOOTER_COLOR.b);
       this.doc.text(
-        `Page ${i} — COMPTADEC`,
-        PAGE_W / 2,
-        FOOTER_Y + 4,
-        { align: "center" }
+        `${s(this.cabinet?.nom)} | Lettre de mission — Document confidentiel`,
+        MARGIN_L,
+        FOOTER_Y + 4
       );
+      this.doc.text(
+        `Page ${i} / ${totalPages}`,
+        MARGIN_R,
+        FOOTER_Y + 4,
+        { align: "right" }
+      );
+      // OPT-30: Header on pages 2+
+      if (i > 1) {
+        this.doc.setFontSize(9);
+        this.doc.setTextColor(FOOTER_COLOR.r, FOOTER_COLOR.g, FOOTER_COLOR.b);
+        this.doc.text(s(this.cabinet?.nom), MARGIN_L, 12);
+        this.doc.text(`${this.numero} — ${mtConf.shortLabel}`, MARGIN_R, 12, { align: "right" });
+        this.doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
+        this.doc.line(MARGIN_L, 14, MARGIN_R, 14);
+      }
     }
   }
 
@@ -1156,15 +1192,29 @@ class LMPdfBuilder {
     this.addFooters();
     return this.doc;
   }
+
+  addWatermark(): void {
+    const totalPages = this.doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      this.doc.setPage(i);
+      this.doc.saveGraphicsState();
+      this.doc.setFontSize(60);
+      this.doc.setTextColor(200, 200, 200);
+      this.doc.text("BROUILLON", 105, 170, { align: "center", angle: 45 });
+      this.doc.restoreGraphicsState();
+    }
+  }
 }
 
 /**
  * Génère un PDF professionnel complet pour une Lettre de Mission.
  */
-export function renderLettreMissionPdf(lm: LettreMission): jsPDF {
+export function renderLettreMissionPdf(lm: LettreMission, options?: { watermark?: boolean }): jsPDF {
   try {
     const builder = new LMPdfBuilder(lm);
-    return builder.build();
+    const doc = builder.build();
+    if (options?.watermark) builder.addWatermark();
+    return doc;
   } catch (err: unknown) {
     logger.error("PDF", "Erreur lors de la génération du PDF", err);
     // Return a minimal error PDF so callers never get undefined

@@ -443,11 +443,15 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
 
   // Build document
   const docx = new Document({
+    title: `Lettre de Mission ${lm?.numero ?? ""}`,
+    creator: str(cabinet?.nom),
+    description: "Générée par GRIMY",
     sections: [
       {
         properties: {
+          titlePage: true,
           page: {
-            margin: { top: 1418, right: 1134, bottom: 1134, left: 1418 }, // 2.5cm / 2cm
+            margin: { top: 1418, right: 1134, bottom: 1134, left: 1418 },
             pageNumbers: { start: 1 },
           },
         },
@@ -457,10 +461,10 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: `${str(cabinet?.nom)} — SIRET ${str(cabinet?.siret)} — Membre de l'Ordre des Experts-Comptables — Page `, size: 14, color: "888888" }),
-                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: "888888" }),
-                  new TextRun({ text: "/", size: 14, color: "888888" }),
-                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: "888888" }),
+                  new TextRun({ text: `${str(cabinet?.nom)} | Lettre de mission — Document confidentiel  ·  Page `, size: 14, color: FOOTER_COL }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: FOOTER_COL }),
+                  new TextRun({ text: " / ", size: 14, color: FOOTER_COL }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: FOOTER_COL }),
                 ],
               }),
             ],
@@ -682,11 +686,23 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
       children.push(heading(section.title));
     }
 
-    // Split content into paragraphs
     const resolvedContent = resolve(section.content);
     for (const line of resolvedContent.split("\n")) {
       if (line.trim()) {
-        children.push(bodyText(line));
+        if (line.includes("[À compléter]")) {
+          const segments = line.split(/(\[À compléter\])/g);
+          children.push(new Paragraph({
+            alignment: AlignmentType.JUSTIFIED,
+            spacing: { after: 80, line: 336 },
+            children: segments.filter(Boolean).map(seg =>
+              seg === "[À compléter]"
+                ? new TextRun({ text: seg, size: 21, color: "CC6600", shading: { type: ShadingType.CLEAR, color: "FFFF00", fill: "FFFF00" } })
+                : new TextRun({ text: seg, size: 21, color: BODY_COLOR })
+            ),
+          }));
+        } else {
+          children.push(bodyText(line));
+        }
       }
     }
   }
@@ -700,9 +716,13 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
 
   // Build document
   const docxDoc = new Document({
+    title: `Lettre de Mission — ${mtConf.label}`,
+    creator: cabinet.nom,
+    description: "Générée par GRIMY",
     sections: [
       {
         properties: {
+          titlePage: true,
           page: {
             margin: { top: 1418, right: 1134, bottom: 1134, left: 1418 },
             pageNumbers: { start: 1 },
@@ -714,10 +734,10 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: `${cabinet.nom} — SIRET ${cabinet.siret} — Page `, size: 14, color: "888888" }),
-                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: "888888" }),
-                  new TextRun({ text: "/", size: 14, color: "888888" }),
-                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: "888888" }),
+                  new TextRun({ text: `${cabinet.nom} | Lettre de mission — Document confidentiel  ·  Page `, size: 14, color: FOOTER_COL }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: FOOTER_COL }),
+                  new TextRun({ text: " / ", size: 14, color: FOOTER_COL }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: FOOTER_COL }),
                 ],
               }),
             ],
@@ -859,8 +879,11 @@ export async function generateDocxFromInstance(instance: {
     }));
 
     const docx = new Document({
+      title: `Lettre de Mission ${instance.numero}`,
+      creator: cabinet.nom,
+      description: "Générée par GRIMY",
       sections: [{
-        properties: {},
+        properties: { titlePage: true },
         headers: {},
         footers: {
           default: new Footer({
@@ -868,10 +891,10 @@ export async function generateDocxFromInstance(instance: {
               new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                  new TextRun({ text: `${cabinet.nom} — `, size: 14, color: "999999" }),
-                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: "999999" }),
-                  new TextRun({ text: "/", size: 14, color: "999999" }),
-                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: "999999" }),
+                  new TextRun({ text: `${cabinet.nom} | Document confidentiel  ·  Page `, size: 14, color: FOOTER_COL }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: FOOTER_COL }),
+                  new TextRun({ text: " / ", size: 14, color: FOOTER_COL }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: FOOTER_COL }),
                 ],
               }),
             ],

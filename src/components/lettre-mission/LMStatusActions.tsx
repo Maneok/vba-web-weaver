@@ -4,17 +4,28 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
   Send, CheckCircle2, Archive, XCircle, Undo2, FileText, Loader2,
-  Link2, Copy, ExternalLink, Clock,
+  Link2, Copy, ExternalLink, Clock, CalendarDays, AlertTriangle,
 } from "lucide-react";
-import { changeStatus, STATUS_TRANSITIONS, type LMStatus } from "@/lib/lettreMissionWorkflow";
+import { changeStatus, STATUS_TRANSITIONS, canTransition, type LMStatus } from "@/lib/lettreMissionWorkflow";
 import { sendForSignature, getSignatureTokens, type SignatureToken } from "@/lib/lettreMissionSignature";
 import type { SavedLetter } from "@/lib/lmWizardTypes";
 import { toast } from "sonner";
+
+const RESILIATION_MOTIFS = [
+  { value: "fin_mission", label: "Fin de mission" },
+  { value: "changement_ec", label: "Changement d'expert-comptable" },
+  { value: "cessation_activite", label: "Cessation d'activite" },
+  { value: "desaccord", label: "Desaccord / litige" },
+  { value: "non_paiement", label: "Non-paiement des honoraires" },
+  { value: "autre", label: "Autre motif" },
+];
 
 interface LMStatusActionsProps {
   instance: SavedLetter;
@@ -26,11 +37,16 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
   const [loading, setLoading] = useState(false);
   const [showSendDialog, setShowSendDialog] = useState(false);
   const [showResilierDialog, setShowResilierDialog] = useState(false);
+  const [showSignDialog, setShowSignDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
   const [email, setEmail] = useState(instance.wizard_data?.email || "");
   const [clientNom, setClientNom] = useState(instance.wizard_data?.dirigeant || instance.raison_sociale || "");
   const [motifResiliation, setMotifResiliation] = useState("");
+  const [motifCategorie, setMotifCategorie] = useState("");
+  const [confirmResiliation, setConfirmResiliation] = useState(false);
   const [signatureUrl, setSignatureUrl] = useState("");
   const [sendingSignature, setSendingSignature] = useState(false);
+  const [signDate, setSignDate] = useState(new Date().toISOString().slice(0, 10));
 
   // Token status for envoyee instances
   const [tokens, setTokens] = useState<SignatureToken[]>([]);
@@ -96,12 +112,35 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
   };
 
   const handleResilier = async () => {
-    if (!motifResiliation.trim()) {
-      toast.error("Veuillez saisir un motif de resiliation");
+    if (!confirmResiliation) {
+      toast.error("Veuillez confirmer la resiliation");
       return;
     }
+    const motifFinal = motifCategorie
+      ? `${RESILIATION_MOTIFS.find((m) => m.value === motifCategorie)?.label || motifCategorie}${motifResiliation ? ` — ${motifResiliation}` : ""}`
+      : motifResiliation.trim() || "Sans motif";
     setShowResilierDialog(false);
-    await doTransition("resiliee", { resiliee_motif: motifResiliation.trim() });
+    setConfirmResiliation(false);
+    await doTransition("resiliee", { resiliee_motif: motifFinal });
+  };
+
+  const handleSignConfirm = async () => {
+    setShowSignDialog(false);
+    setLoading(true);
+    try {
+      await changeStatus(instance.id, "signee");
+      toast.success("Lettre marquee comme signee");
+      onStatusChange();
+    } catch (e: any) {
+      toast.error(e?.message || "Erreur lors du changement de statut");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleArchiveConfirm = async () => {
+    setShowArchiveDialog(false);
+    await doTransition("archivee");
   };
 
   const copyToClipboard = (text: string) => {
@@ -138,11 +177,11 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
             </Button>
           )}
 
-          {/* Envoyee → Signee (manual) */}
+          {/* Envoyee → Signee (via dialog) */}
           {currentStatus === "envoyee" && allowed.includes("signee") && (
             <Button
               size="sm"
-              onClick={() => doTransition("signee")}
+              onClick={() => setShowSignDialog(true)}
               disabled={loading}
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-xs"
             >
@@ -177,12 +216,12 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
             </Button>
           )}
 
-          {/* Signee → Archiver */}
+          {/* Signee → Archiver (via dialog) */}
           {currentStatus === "signee" && allowed.includes("archivee") && (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => doTransition("archivee")}
+              onClick={() => setShowArchiveDialog(true)}
               disabled={loading}
               className="gap-1.5 border-white/[0.08] text-purple-400 text-xs"
             >
@@ -190,7 +229,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
             </Button>
           )}
 
-          {/* Signee → Resilier */}
+          {/* Signee → Resilier (via dialog) */}
           {currentStatus === "signee" && allowed.includes("resiliee") && (
             <Button
               size="sm"
@@ -216,12 +255,12 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
             </Button>
           )}
 
-          {/* Brouillon / Envoyee → Archiver */}
+          {/* Brouillon / Envoyee → Archiver (via dialog) */}
           {(currentStatus === "brouillon" || currentStatus === "envoyee") && allowed.includes("archivee") && (
             <Button
               size="sm"
               variant="outline"
-              onClick={() => doTransition("archivee")}
+              onClick={() => setShowArchiveDialog(true)}
               disabled={loading}
               className="gap-1.5 border-white/[0.08] text-slate-500 text-xs"
             >
@@ -234,7 +273,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
             <Button
               size="sm"
               variant="outline"
-              onClick={() => doTransition("archivee")}
+              onClick={() => setShowArchiveDialog(true)}
               disabled={loading}
               className="gap-1.5 border-white/[0.08] text-purple-400 text-xs"
             >
@@ -414,31 +453,131 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
         </DialogContent>
       </Dialog>
 
-      {/* Dialog Resilier */}
-      <Dialog open={showResilierDialog} onOpenChange={setShowResilierDialog}>
+      {/* Dialog Confirmer signature */}
+      <Dialog open={showSignDialog} onOpenChange={setShowSignDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Resilier la lettre de mission</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+              Confirmer la signature
+            </DialogTitle>
             <DialogDescription>
-              Cette action est irreversible. La lettre ne pourra plus etre modifiee.
+              Confirmez que la lettre de mission de {instance.raison_sociale} a ete signee par le client.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <div>
-              <Label htmlFor="motif" className="text-sm">Motif de resiliation</Label>
+              <Label htmlFor="sign-date" className="text-sm flex items-center gap-1.5">
+                <CalendarDays className="w-3.5 h-3.5 text-slate-500" />
+                Date de signature
+              </Label>
+              <Input
+                id="sign-date"
+                type="date"
+                value={signDate}
+                onChange={(e) => setSignDate(e.target.value)}
+                className="mt-1 w-48"
+              />
+            </div>
+            <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
+              <p className="text-xs text-slate-400">
+                Cette action marquera la lettre comme signee et declenchera le suivi (reconduction tacite, revue annuelle).
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowSignDialog(false)}>Annuler</Button>
+            <Button onClick={handleSignConfirm} className="gap-1.5 bg-emerald-600 hover:bg-emerald-700">
+              <CheckCircle2 className="w-3.5 h-3.5" /> Confirmer la signature
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Archiver */}
+      <Dialog open={showArchiveDialog} onOpenChange={setShowArchiveDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Archive className="w-5 h-5 text-purple-400" />
+              Archiver la lettre de mission
+            </DialogTitle>
+            <DialogDescription>
+              Archiver la lettre de {instance.raison_sociale} ({instance.numero}). Elle ne sera plus modifiable.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/15">
+            <p className="text-xs text-slate-400">
+              La lettre archivee restera consultable dans l'historique mais ne pourra plus etre modifiee ni resilier.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowArchiveDialog(false)}>Annuler</Button>
+            <Button onClick={handleArchiveConfirm} className="gap-1.5 bg-purple-600 hover:bg-purple-700">
+              <Archive className="w-3.5 h-3.5" /> Confirmer l'archivage
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Resilier */}
+      <Dialog open={showResilierDialog} onOpenChange={(open) => { setShowResilierDialog(open); if (!open) { setConfirmResiliation(false); setMotifCategorie(""); setMotifResiliation(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              Resilier la lettre de mission
+            </DialogTitle>
+            <DialogDescription>
+              Cette action est irreversible. La lettre de {instance.raison_sociale} ne pourra plus etre modifiee.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div>
+              <Label className="text-sm">Motif de resiliation</Label>
+              <Select value={motifCategorie} onValueChange={setMotifCategorie}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Selectionnez un motif..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {RESILIATION_MOTIFS.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="motif-detail" className="text-sm">Precisions (optionnel)</Label>
               <Textarea
-                id="motif"
+                id="motif-detail"
                 value={motifResiliation}
                 onChange={(e) => setMotifResiliation(e.target.value)}
-                placeholder="Indiquez le motif de la resiliation..."
+                placeholder="Precisions sur la resiliation..."
                 rows={3}
                 className="mt-1"
               />
             </div>
+            <div className="p-3 rounded-lg bg-red-500/5 border border-red-500/15">
+              <label className="flex items-start gap-2 cursor-pointer">
+                <Checkbox
+                  checked={confirmResiliation}
+                  onCheckedChange={(v) => setConfirmResiliation(!!v)}
+                  className="mt-0.5"
+                />
+                <span className="text-xs text-slate-400">
+                  Je confirme vouloir resilier cette lettre de mission. Cette action est irreversible et sera tracee dans l'audit trail.
+                </span>
+              </label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowResilierDialog(false)}>Annuler</Button>
-            <Button onClick={handleResilier} variant="destructive" className="gap-1.5">
+            <Button
+              onClick={handleResilier}
+              variant="destructive"
+              disabled={!confirmResiliation || !motifCategorie}
+              className="gap-1.5"
+            >
               <XCircle className="w-3.5 h-3.5" /> Confirmer la resiliation
             </Button>
           </DialogFooter>
