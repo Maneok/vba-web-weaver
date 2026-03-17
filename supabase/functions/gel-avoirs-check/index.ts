@@ -1,15 +1,5 @@
 import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
-interface GelSanction {
-  nom?: string;
-  prenom?: string;
-  denomination?: string;
-  nature?: string;
-  dateDesignation?: string;
-  registreNationalDesSanctions?: string;
-  [key: string]: unknown;
-}
-
 Deno.serve(async (req) => {
   const optRes = handleCorsOptions(req);
   if (optRes) return optRes;
@@ -28,10 +18,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch latest DG Trésor gel d'avoirs list
+    // Fetch latest DG Trésor gel d'avoirs list (new endpoint since 2025-01-21)
     const res = await fetch(
-      "https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1/publication/derniere-publication-et-sanctions",
-      { signal: AbortSignal.timeout(15000) }
+      "https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1/publication/derniere-publication-fichier-json",
+      {
+        headers: { "User-Agent": "GRIMY-LCB-Compliance/1.0" },
+        signal: AbortSignal.timeout(30000),
+      }
     );
 
     if (!res.ok) {
@@ -56,25 +49,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // The API returns { publicationDate, sanctions: [...] } or similar structure
-    const sanctions: GelSanction[] = data.sanctions ?? data.Sanctions ?? data.registreDesSanctions ?? [];
+    const publications = data.Publications ?? data.publications ?? {};
+    const items: any[] = publications.PublicationDetail ?? publications.publicationDetail ?? [];
+    const publicationDate = publications.DatePublication ?? publications.datePublication ?? null;
 
-    if (sanctions.length === 0) {
-      // P6-42: Try alternative data path with type guard
-      const registre = data.registreNationalDesGels ?? data.RegistreNationalDesGels ?? {};
-      const personnes = Array.isArray(registre.personnesPhysiques ?? registre.PersonnesPhysiques) ? (registre.personnesPhysiques ?? registre.PersonnesPhysiques) : [];
-      const entites = Array.isArray(registre.personnesMorales ?? registre.PersonnesMorales ?? registre.entites) ? (registre.personnesMorales ?? registre.PersonnesMorales ?? registre.entites) : [];
-      sanctions.push(...personnes, ...entites);
-    }
-
-    const matches: Array<{
-      matchedName: string;
-      sanctionType: string;
-      dateDesignation: string;
-      nature: string;
-      score: "exact" | "partial";
-    }> = [];
-
+    // Build search terms
     const searchTerms: string[] = [];
     if (nom) {
       const fullName = `${prenom ?? ""} ${nom}`.trim().toLowerCase();
@@ -85,52 +64,78 @@ Deno.serve(async (req) => {
       searchTerms.push(denominationEntreprise.toLowerCase());
     }
 
-    for (const sanction of sanctions) {
-      const sanctionNames: string[] = [];
+    const matches: Array<{
+      matchedName: string;
+      sanctionType: string;
+      dateDesignation: string;
+      nature: string;
+      score: "exact" | "partial";
+    }> = [];
 
-      // Collect all possible name fields
-      if (sanction.nom) sanctionNames.push(sanction.nom.toLowerCase());
-      if (sanction.prenom && sanction.nom) {
-        sanctionNames.push(`${sanction.prenom} ${sanction.nom}`.toLowerCase());
-      }
-      if (sanction.denomination) sanctionNames.push(sanction.denomination.toLowerCase());
+    for (const entry of items) {
+      const entryNom: string = (entry.Nom ?? "").toLowerCase();
+      if (!entryNom || entryNom.length < 2) continue;
 
-      // Also check nested name structures
-      const alias = (sanction as Record<string, unknown>).alias;
-      if (Array.isArray(alias)) {
-        for (const a of alias) {
-          if (typeof a === "string") sanctionNames.push(a.toLowerCase());
-          if (typeof a === "object" && a && (a as Record<string, string>).nom) {
-            sanctionNames.push((a as Record<string, string>).nom.toLowerCase());
+      const nature: string = entry.Nature ?? "";
+      const details: any[] = entry.RegistreDetail ?? [];
+
+      // Collect all searchable names for this entry
+      const sanctionNames: string[] = [entryNom];
+
+      // Extract prénoms and build "prénom nom" combinations
+      const prenomDetail = details.find((d: any) => d.TypeChamp === "PRENOM");
+      const prenoms: string[] = [];
+      if (prenomDetail?.Valeur && Array.isArray(prenomDetail.Valeur)) {
+        for (const v of prenomDetail.Valeur) {
+          const p = (v.Prenom ?? "").trim();
+          if (p) {
+            prenoms.push(p.toLowerCase());
+            sanctionNames.push(`${p.toLowerCase()} ${entryNom}`);
           }
         }
       }
 
+      // Extract aliases
+      const aliasDetail = details.find((d: any) => d.TypeChamp === "ALIAS");
+      if (aliasDetail?.Valeur && Array.isArray(aliasDetail.Valeur)) {
+        for (const v of aliasDetail.Valeur) {
+          const a = (v.Alias ?? "").trim();
+          if (a && a.length >= 2) sanctionNames.push(a.toLowerCase());
+        }
+      }
+
+      // Match against search terms
       for (const term of searchTerms) {
+        let matched = false;
         for (const sName of sanctionNames) {
           if (!sName || sName.length < 2) continue;
 
-          const isExact = sName === term || sName.includes(term) || term.includes(sName);
-          // Partial: check each word
-          const termWords = term.split(/\s+/).filter((w) => w.length > 2);
-          const nameWords = sName.split(/\s+/).filter((w) => w.length > 2);
+          const isExact = sName === term
+            || (term.length >= 4 && sName.includes(term))
+            || (sName.length >= 4 && term.includes(sName));
+          const termWords = term.split(/\s+/).filter((w) => w.length > 3);
+          const nameWords = sName.split(/\s+/).filter((w) => w.length > 3);
           const partialMatch =
-            termWords.length > 0 &&
-            termWords.every((tw) => nameWords.some((nw) => nw.includes(tw) || tw.includes(nw)));
+            termWords.length >= 2 &&
+            nameWords.length >= 2 &&
+            termWords.every((tw) => nameWords.some((nw) => nw === tw));
 
           if (isExact || partialMatch) {
+            const displayName = prenoms.length > 0
+              ? `${prenoms[0]} ${entry.Nom}`.trim()
+              : entry.Nom ?? sName;
             matches.push({
-              matchedName: sanction.nom
-                ? `${sanction.prenom ?? ""} ${sanction.nom}`.trim()
-                : sanction.denomination ?? sName,
-              sanctionType: sanction.nature ?? "Gel d'avoirs",
-              dateDesignation: sanction.dateDesignation ?? "",
-              nature: sanction.nature ?? "Gel d'avoirs DG Trésor",
+              matchedName: displayName,
+              sanctionType: nature,
+              dateDesignation: "",
+              nature: `Gel d'avoirs DG Trésor — ${nature}`,
               score: isExact ? "exact" : "partial",
             });
-            break; // One match per sanction entry is enough
+            matched = true;
+            break;
           }
         }
+        if (matched) break;
       }
     }
 
@@ -141,10 +146,10 @@ Deno.serve(async (req) => {
       JSON.stringify({
         matches,
         checked: true,
-        totalSanctionsInList: sanctions.length,
+        totalSanctionsInList: items.length,
         hasMatch,
         hasExactMatch,
-        publicationDate: data.datePublication ?? data.DatePublication ?? null,
+        publicationDate,
         status: hasMatch ? "ALERTE" : "ok",
         message: hasMatch
           ? `PERSONNE FIGURANT SUR LA LISTE DES GELS D'AVOIRS DU TRESOR (${matches.length} correspondance(s))`
