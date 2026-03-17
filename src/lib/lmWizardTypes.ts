@@ -236,6 +236,19 @@ export const ANNEXE_LABELS: Record<string, string> = {
   detail_missions_complementaires: "Detail des missions complementaires",
 };
 
+/** OPT-8: Typed honoraires data */
+export interface HonorairesData {
+  forfait_annuel?: number;
+  setup?: number;
+  taux_horaire_ec?: number;
+  taux_horaire_collab?: number;
+  social_par_bulletin?: number;
+  juridique_annuel?: number;
+  controle_fiscal_option?: 'A' | 'B' | 'aucune';
+  honoraires_succes?: { active: boolean; conditions?: string; montant?: string };
+  frequence_facturation?: 'mensuel' | 'trimestriel' | 'annuel';
+}
+
 /** H) Format duration */
 export function formatDuration(seconds: number): string {
   if (seconds <= 0) return "—";

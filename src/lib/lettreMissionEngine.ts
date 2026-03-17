@@ -14,7 +14,7 @@ import { renderLettreMissionPdf } from "@/lib/lettreMissionPdf";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
-import type { LMSection, LMModele } from "@/lib/lettreMissionModeles";
+import type { LMSection, LMModele, RepartitionRow } from "@/lib/lettreMissionModeles";
 import { getModeleById, getDefaultModele, GRIMY_DEFAULT_SECTIONS, GRIMY_DEFAULT_CGV, GRIMY_DEFAULT_REPARTITION } from "@/lib/lettreMissionModeles";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
@@ -369,13 +369,21 @@ export interface LMInstance {
   cabinet_id: string;
   modele_id: string;
   client_ref: string;
+  client_id?: string;
   numero: string;
-  status: "brouillon" | "en_validation" | "envoyee" | "signee" | "archivee";
+  status: "brouillon" | "en_validation" | "envoyee" | "signee" | "archivee" | "resiliee";
+  mission_type?: string;
+  date_cloture_exercice?: string;
   sections_snapshot: LMSection[];
   cgv_snapshot: string;
-  repartition_snapshot: any[];
+  repartition_snapshot: RepartitionRow[];
   variables_resolved: Record<string, string>;
   wizard_data?: Record<string, unknown>;
+  signature_token?: string;
+  sent_at?: string;
+  signed_at?: string;
+  pdf_url?: string;
+  docx_url?: string;
   created_at: string;
   updated_at: string;
 }

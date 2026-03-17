@@ -465,7 +465,7 @@ export default function ModeleEditor({
       toast.success("Modele sauvegarde.");
     } catch {
       setLastSaved("unsaved");
-      toast.error("Erreur lors de la sauvegarde.");
+      toast.error("Impossible de sauvegarder le modèle. Vérifiez votre connexion.");
     } finally {
       setSaving(false);
     }
