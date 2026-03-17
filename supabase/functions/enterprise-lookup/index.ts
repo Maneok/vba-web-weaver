@@ -86,7 +86,7 @@ async function _refreshINPIToken(): Promise<string | null> {
       body: JSON.stringify({ username, password }),
       signal: AbortSignal.timeout(10000),
     });
-    if (!res.ok) { console.error(`[INPI] Auth failed: ${res.status}`); return null; }
+    if (!res.ok) { console.error(`[INPI] Auth failed: ${res.status}`); console.error("[INPI] Credentials check - username exists:", !!username, "password exists:", !!password); return null; }
     const data = await res.json();
     if (data.token) {
       cachedToken = data.token;
@@ -344,7 +344,8 @@ Deno.serve(async (req) => {
     }
 
     const clean = (query as string).replace(/[\s.\-]/g, "");
-    const isSirenMode = mode === "siren" && /^\d{9,14}$/.test(clean);
+    const looksLikeSiren = /^\d{9,14}$/.test(clean);
+    const isSirenMode = (mode === "siren" || looksLikeSiren) && looksLikeSiren;
     const siren9 = isSirenMode ? clean.slice(0, 9) : "";
     const pappersKey = Deno.env.get("PAPPERS");
     const sources: string[] = [];
@@ -631,7 +632,7 @@ Deno.serve(async (req) => {
       results = await Promise.all(annuaireResults.slice(0, 10).map(async (r: any) => {
         const siege = r.siege ?? {};
         const dirigeants = (r.dirigeants ?? []).map((d: any) => ({
-          nom: d.nom ?? "", prenom: d.prenom ?? "",
+          nom: d.nom ?? "", prenom: d.prenoms ?? d.prenom ?? "",
           qualite: d.qualite ?? d.fonction ?? "",
           date_naissance: d.date_de_naissance ?? "",
           nationalite: d.nationalite ?? "",
