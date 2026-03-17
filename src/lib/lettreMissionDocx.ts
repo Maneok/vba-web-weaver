@@ -22,8 +22,11 @@ import type { LettreMission } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
-const NAVY = "1A1A2E";
-const GREY = "F5F5F8";
+const NAVY = "1B3A5C";
+const BLUE_SECTION = "2E75B6";
+const GREY = "F2F5F8";
+const BODY_COLOR = "333333";
+const FOOTER_COL = "666666";
 
 function formatMontant(n: number | undefined): string {
   return `${(n ?? 0).toLocaleString("fr-FR")} €`;
@@ -41,23 +44,24 @@ function heading(text: string): Paragraph {
 function subHeading(text: string): Paragraph {
   return new Paragraph({
     spacing: { before: 200, after: 100 },
-    border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: NAVY } },
+    border: { bottom: { style: BorderStyle.SINGLE, size: 1, color: BLUE_SECTION } },
     children: [new TextRun({ text, bold: true, size: 20, color: NAVY })],
   });
 }
 
 function bodyText(text: string): Paragraph {
   return new Paragraph({
-    spacing: { after: 80 },
-    children: [new TextRun({ text, size: 20 })],
+    alignment: AlignmentType.JUSTIFIED,
+    spacing: { after: 80, line: 336 },
+    children: [new TextRun({ text, size: 21, color: BODY_COLOR })],
   });
 }
 
 function bulletItem(text: string): Paragraph {
   return new Paragraph({
     bullet: { level: 0 },
-    spacing: { after: 40 },
-    children: [new TextRun({ text, size: 20 })],
+    spacing: { after: 40, line: 336 },
+    children: [new TextRun({ text, size: 21, color: BODY_COLOR })],
   });
 }
 
@@ -65,14 +69,14 @@ function tableRow2Col(label: string, value: string, shade: boolean): TableRow {
   return new TableRow({
     children: [
       new TableCell({
-        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
-        width: { size: 40, type: WidthType.PERCENTAGE },
-        children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 18 })] })],
+        shading: shade ? { type: ShadingType.CLEAR, color: GREY, fill: GREY } : undefined,
+        width: { size: 3800, type: WidthType.DXA },
+        children: [new Paragraph({ children: [new TextRun({ text: label, bold: true, size: 18, color: BODY_COLOR })] })],
       }),
       new TableCell({
-        shading: shade ? { type: ShadingType.SOLID, color: GREY } : undefined,
-        width: { size: 60, type: WidthType.PERCENTAGE },
-        children: [new Paragraph({ children: [new TextRun({ text: value, size: 18 })] })],
+        shading: shade ? { type: ShadingType.CLEAR, color: GREY, fill: GREY } : undefined,
+        width: { size: 5700, type: WidthType.DXA },
+        children: [new Paragraph({ children: [new TextRun({ text: value, size: 18, color: BODY_COLOR })] })],
       }),
     ],
   });

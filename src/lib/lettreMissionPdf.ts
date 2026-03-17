@@ -15,10 +15,13 @@ const FOOTER_Y = 277;  // 2cm bottom (297 - 20)
 const CONTENT_W = MARGIN_R - MARGIN_L;
 
 // Colors
-const NAVY = { r: 26, g: 26, b: 46 };   // #1a1a2e
-const GREY_BG = { r: 245, g: 245, b: 248 };
-const GREY_LINE = { r: 200, g: 200, b: 200 };
+const NAVY = { r: 27, g: 58, b: 92 };       // #1B3A5C — titres, bandeaux
+const BLUE_SECTION = { r: 46, g: 117, b: 182 }; // #2E75B6 — titres sections
+const GREY_BG = { r: 242, g: 245, b: 248 };  // #F2F5F8 — alternance tableaux
+const GREY_LINE = { r: 214, g: 228, b: 240 }; // #D6E4F0 — bordures tableaux
 const WHITE = { r: 255, g: 255, b: 255 };
+const BODY_TEXT = { r: 51, g: 51, b: 51 };    // #333333
+const FOOTER_COLOR = { r: 102, g: 102, b: 102 }; // #666666
 
 // ──────────────────────────────────────────────
 // Helpers
@@ -100,7 +103,7 @@ class LMPdfBuilder {
   private setBody(): void {
     this.doc.setFontSize(10);
     this.doc.setFont("helvetica", "normal");
-    this.doc.setTextColor(30, 30, 30);
+    this.doc.setTextColor(BODY_TEXT.r, BODY_TEXT.g, BODY_TEXT.b);
   }
 
   private setSmall(): void {
@@ -117,10 +120,31 @@ class LMPdfBuilder {
 
   private writeText(text: string, maxWidth: number = CONTENT_W): void {
     this.setBody();
+    const hasVars = /\{\{\w+\}\}/.test(text);
     const lines = this.doc.splitTextToSize(text, maxWidth);
     for (const line of lines) {
       this.ensureSpace(5);
-      this.doc.text(line, MARGIN_L, this.y);
+      if (hasVars && /\{\{\w+\}\}/.test(line)) {
+        // OPT-38: Red highlighting for unresolved variables
+        let x = MARGIN_L;
+        const segments = line.split(/(\{\{\w+\}\})/g);
+        for (const seg of segments) {
+          if (!seg) continue;
+          if (/^\{\{\w+\}\}$/.test(seg)) {
+            this.doc.setTextColor(220, 38, 38);
+            this.doc.setFont("helvetica", "bold");
+          } else {
+            this.doc.setTextColor(BODY_TEXT.r, BODY_TEXT.g, BODY_TEXT.b);
+            this.doc.setFont("helvetica", "normal");
+          }
+          this.doc.text(seg, x, this.y);
+          x += this.doc.getTextWidth(seg);
+        }
+        this.doc.setTextColor(BODY_TEXT.r, BODY_TEXT.g, BODY_TEXT.b);
+        this.doc.setFont("helvetica", "normal");
+      } else {
+        this.doc.text(line, MARGIN_L, this.y);
+      }
       this.y += 4.5;
     }
     this.y += 2;
@@ -136,14 +160,15 @@ class LMPdfBuilder {
   }
 
   private drawSectionTitle(title: string): void {
-    this.ensureSpace(12);
-    this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
-    this.doc.rect(MARGIN_L, this.y - 1, CONTENT_W, 8, "F");
-    this.doc.setTextColor(255, 255, 255);
+    this.ensureSpace(14);
     this.doc.setFontSize(11);
     this.doc.setFont("helvetica", "bold");
-    this.doc.text(title, MARGIN_L + 3, this.y + 4.5);
-    this.doc.setTextColor(30, 30, 30);
+    this.doc.setTextColor(BLUE_SECTION.r, BLUE_SECTION.g, BLUE_SECTION.b);
+    this.doc.text(title, MARGIN_L, this.y + 4.5);
+    this.doc.setDrawColor(BLUE_SECTION.r, BLUE_SECTION.g, BLUE_SECTION.b);
+    this.doc.setLineWidth(0.4);
+    this.doc.line(MARGIN_L, this.y + 6.5, MARGIN_R, this.y + 6.5);
+    this.doc.setTextColor(BODY_TEXT.r, BODY_TEXT.g, BODY_TEXT.b);
     this.y += 12;
   }
 
@@ -153,7 +178,7 @@ class LMPdfBuilder {
     this.doc.setFont("helvetica", "bold");
     this.doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
     this.doc.text(title, MARGIN_L, this.y);
-    this.doc.setTextColor(30, 30, 30);
+    this.doc.setTextColor(BODY_TEXT.r, BODY_TEXT.g, BODY_TEXT.b);
     this.y += 6;
   }
 
@@ -384,8 +409,16 @@ class LMPdfBuilder {
     this.newPage();
     const cli = this.client;
 
-    this.drawSectionTitle("OBLIGATIONS DE VIGILANCE — LUTTE CONTRE LE BLANCHIMENT");
-    this.y += 2;
+    // OPT-31: Encadrement visuel LCB-FT — bandeau NAVY
+    this.ensureSpace(14);
+    this.doc.setFillColor(NAVY.r, NAVY.g, NAVY.b);
+    this.doc.rect(MARGIN_L, this.y - 1, CONTENT_W, 8, "F");
+    this.doc.setTextColor(255, 255, 255);
+    this.doc.setFontSize(11);
+    this.doc.setFont("helvetica", "bold");
+    this.doc.text("OBLIGATIONS DE VIGILANCE — LCB-FT", MARGIN_L + 3, this.y + 4.5);
+    this.doc.setTextColor(BODY_TEXT.r, BODY_TEXT.g, BODY_TEXT.b);
+    this.y += 12;
 
     // Sous-titre référence légale
     this.setSmall();

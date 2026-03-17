@@ -47,12 +47,12 @@ export const STATUS_TRANSITIONS: Record<LMStatus, LMStatus[]> = {
   resiliee: ["archivee"],
 };
 
-export const STATUS_LABELS: Record<LMStatus, { label: string; color: string; bgClass: string }> = {
-  brouillon: { label: "Brouillon", color: "slate", bgClass: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
-  envoyee: { label: "Envoyee", color: "blue", bgClass: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-  signee: { label: "Signee", color: "emerald", bgClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-  archivee: { label: "Archivee", color: "purple", bgClass: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
-  resiliee: { label: "Resiliee", color: "red", bgClass: "bg-red-500/10 text-red-400 border-red-500/20" },
+export const STATUS_LABELS: Record<LMStatus, { label: string; color: string; bgClass: string; description: string; dotClass: string }> = {
+  brouillon: { label: "Brouillon", color: "slate", bgClass: "bg-slate-500/10 text-slate-400 border-slate-500/20", description: "En cours de redaction", dotClass: "bg-slate-400" },
+  envoyee: { label: "Envoyee", color: "blue", bgClass: "bg-blue-500/10 text-blue-400 border-blue-500/20", description: "Envoyee au client, en attente de signature", dotClass: "bg-blue-400" },
+  signee: { label: "Signee", color: "emerald", bgClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20", description: "Signee par le client", dotClass: "bg-emerald-400" },
+  archivee: { label: "Archivee", color: "purple", bgClass: "bg-purple-500/10 text-purple-400 border-purple-500/20", description: "Archivee — plus modifiable", dotClass: "bg-purple-400" },
+  resiliee: { label: "Resiliee", color: "red", bgClass: "bg-red-500/10 text-red-400 border-red-500/20", description: "Resiliee par l'une des parties", dotClass: "bg-red-400" },
 };
 
 export const ALERTE_TYPE_LABELS: Record<LMAlerteType, string> = {
@@ -292,12 +292,14 @@ export async function checkReconductions(cabinetId: string): Promise<number> {
 // ── Verification signatures en attente ──
 
 export async function checkPendingSignatures(cabinetId: string): Promise<number> {
-  const sevenDaysAgo = new Date();
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const now = new Date();
+  const sevenDaysAgo = new Date(now); sevenDaysAgo.setDate(now.getDate() - 7);
+  const fourteenDaysAgo = new Date(now); fourteenDaysAgo.setDate(now.getDate() - 14);
+  const thirtyDaysAgo = new Date(now); thirtyDaysAgo.setDate(now.getDate() - 30);
 
   const { data: letters, error } = await supabase
     .from("lettres_mission")
-    .select("id, client_ref, raison_sociale, statut, status, updated_at")
+    .select("id, client_ref, raison_sociale, statut, status, updated_at, sent_at")
     .eq("cabinet_id", cabinetId);
 
   if (error || !letters) return 0;
@@ -308,27 +310,52 @@ export async function checkPendingSignatures(cabinetId: string): Promise<number>
     const statut = letter.statut || letter.status;
     if (statut !== "envoyee") continue;
 
-    const sentDate = new Date(letter.updated_at);
-    if (isNaN(sentDate.getTime()) || sentDate > sevenDaysAgo) continue;
+    const sentDate = new Date((letter as any).sent_at || letter.updated_at);
+    if (isNaN(sentDate.getTime())) continue;
 
     const { data: existing } = await supabase
       .from("lm_alertes")
-      .select("id")
+      .select("id, type, message")
       .eq("instance_id", letter.id)
       .eq("type", "signature_relance")
-      .eq("is_resolved", false)
-      .limit(1);
+      .eq("is_resolved", false);
 
-    if (existing && existing.length > 0) continue;
+    const existingMessages = (existing || []).map((a: any) => a.message);
+    const clientLabel = letter.raison_sociale || letter.client_ref;
 
-    await createAlerte({
-      cabinet_id: cabinetId,
-      instance_id: letter.id,
-      type: "signature_relance",
-      message: `La lettre de mission de ${letter.raison_sociale || letter.client_ref} est en attente de signature depuis plus de 7 jours.`,
-      severity: "warning",
-    });
-    created++;
+    // 30 days — critical
+    if (sentDate <= thirtyDaysAgo && !existingMessages.some((m: string) => m.includes("30 jours"))) {
+      await createAlerte({
+        cabinet_id: cabinetId,
+        instance_id: letter.id,
+        type: "signature_relance",
+        message: `URGENT : La lettre de mission de ${clientLabel} est en attente de signature depuis plus de 30 jours. Action immediate requise.`,
+        severity: "critical",
+      });
+      created++;
+    }
+    // 14 days — warning
+    else if (sentDate <= fourteenDaysAgo && !existingMessages.some((m: string) => m.includes("14 jours"))) {
+      await createAlerte({
+        cabinet_id: cabinetId,
+        instance_id: letter.id,
+        type: "signature_relance",
+        message: `La lettre de mission de ${clientLabel} est en attente de signature depuis plus de 14 jours. Relance recommandee.`,
+        severity: "warning",
+      });
+      created++;
+    }
+    // 7 days — info
+    else if (sentDate <= sevenDaysAgo && (!existing || existing.length === 0)) {
+      await createAlerte({
+        cabinet_id: cabinetId,
+        instance_id: letter.id,
+        type: "signature_relance",
+        message: `La lettre de mission de ${clientLabel} est en attente de signature depuis plus de 7 jours.`,
+        severity: "info",
+      });
+      created++;
+    }
   }
 
   return created;
@@ -547,6 +574,149 @@ export async function checkRiskAlertes(cabinetId: string): Promise<RiskAlerte[]>
   }
 
   return alertes;
+}
+
+// ── Helpers utilitaires ──
+
+/** OPT-1: Verifier si une transition est autorisee */
+export function canTransition(from: LMStatus, to: LMStatus): boolean {
+  return (STATUS_TRANSITIONS[from] || []).includes(to);
+}
+
+/** OPT-7: Statistiques workflow pour le dashboard */
+export async function getWorkflowStats(cabinetId: string): Promise<{
+  total: number;
+  byStatus: Record<LMStatus, number>;
+  totalHonoraires: number;
+  avgDuration: number;
+}> {
+  const { data: letters, error } = await supabase
+    .from("lettres_mission")
+    .select("statut, status, wizard_data")
+    .eq("cabinet_id", cabinetId);
+
+  if (error || !letters) {
+    return { total: 0, byStatus: { brouillon: 0, envoyee: 0, signee: 0, archivee: 0, resiliee: 0 }, totalHonoraires: 0, avgDuration: 0 };
+  }
+
+  const byStatus: Record<LMStatus, number> = { brouillon: 0, envoyee: 0, signee: 0, archivee: 0, resiliee: 0 };
+  let totalHonoraires = 0;
+  let totalDuration = 0;
+  let durationCount = 0;
+
+  for (const l of letters) {
+    const s = (l.statut || l.status || "brouillon") as LMStatus;
+    byStatus[s] = (byStatus[s] || 0) + 1;
+    const wd = l.wizard_data as Record<string, unknown> | null;
+    if (wd?.honoraires_ht) totalHonoraires += Number(wd.honoraires_ht) || 0;
+    if (wd?.duration_seconds && Number(wd.duration_seconds) > 0) {
+      totalDuration += Number(wd.duration_seconds);
+      durationCount++;
+    }
+  }
+
+  return {
+    total: letters.length,
+    byStatus,
+    totalHonoraires,
+    avgDuration: durationCount > 0 ? Math.round(totalDuration / durationCount) : 0,
+  };
+}
+
+/** OPT-8: Activite recente */
+export async function getRecentActivity(cabinetId: string, limit = 10): Promise<{
+  id: string;
+  action: string;
+  raison_sociale: string;
+  statut: string;
+  updated_at: string;
+}[]> {
+  const { data, error } = await supabase
+    .from("lettres_mission")
+    .select("id, raison_sociale, statut, status, updated_at")
+    .eq("cabinet_id", cabinetId)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error || !data) return [];
+
+  return data.map((l: any) => ({
+    id: l.id,
+    action: "update",
+    raison_sociale: l.raison_sociale || "—",
+    statut: l.statut || l.status || "brouillon",
+    updated_at: l.updated_at,
+  }));
+}
+
+/** OPT-9: Changement de statut en masse */
+export async function bulkChangeStatus(
+  instanceIds: string[],
+  newStatus: LMStatus,
+  metadata?: { resiliee_motif?: string }
+): Promise<{ success: number; errors: string[] }> {
+  let success = 0;
+  const errors: string[] = [];
+
+  for (const id of instanceIds) {
+    try {
+      await changeStatus(id, newStatus, metadata);
+      success++;
+    } catch (e: any) {
+      errors.push(`${id}: ${e?.message || "Erreur"}`);
+    }
+  }
+
+  return { success, errors };
+}
+
+/** OPT-16: Nombre d'alertes non resolues */
+export async function getUnresolvedAlertesCount(cabinetId: string): Promise<number> {
+  const { count, error } = await supabase
+    .from("lm_alertes")
+    .select("id", { count: "exact", head: true })
+    .eq("cabinet_id", cabinetId)
+    .eq("is_resolved", false);
+
+  if (error) return 0;
+  return count || 0;
+}
+
+/** OPT-17: Ignorer une alerte (is_read sans resoudre) */
+export async function dismissAlerte(alerteId: string): Promise<void> {
+  const { error } = await supabase
+    .from("lm_alertes")
+    .update({ is_read: true })
+    .eq("id", alerteId);
+
+  if (error) throw error;
+}
+
+/** OPT-19: Archiver les lettres anciennes (archivees/resiliees > N jours) */
+export async function archiveOldLetters(cabinetId: string, olderThanDays = 365): Promise<number> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - olderThanDays);
+
+  const { data: letters, error } = await supabase
+    .from("lettres_mission")
+    .select("id, statut, status, updated_at")
+    .eq("cabinet_id", cabinetId)
+    .in("statut", ["signee"])
+    .lt("updated_at", cutoff.toISOString());
+
+  if (error || !letters) return 0;
+
+  let archived = 0;
+  for (const l of letters) {
+    try {
+      await changeStatus(l.id, "archivee");
+      archived++;
+    } catch {
+      // skip if transition not allowed
+    }
+  }
+
+  return archived;
 }
 
 // ── KPI de revue pour l'espace revue ──
