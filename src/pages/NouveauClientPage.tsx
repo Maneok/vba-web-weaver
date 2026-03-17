@@ -1022,6 +1022,12 @@ export default function NouveauClientPage() {
     autoSet("mail", entData?.email);
     autoSet("siteWeb", entData?.site_web);
 
+    // A2: Fallback domain from APE code
+    if (!updates.domaine && updates.ape) {
+      updates.domaine = `Activite ${updates.ape}`;
+      newAutoFields.add("domaine");
+    }
+
     if (entData?.capital_source) setCapitalSource(entData.capital_source);
 
     setForm(prev => ({ ...prev, ...updates }));
@@ -1612,7 +1618,7 @@ export default function NouveauClientPage() {
   // FIX P4-31: Adapt checklist for EI (no KBIS/Statuts needed)
   const vigilanceDocChecklist = useMemo(() => {
     const isEI = isPersonnePhysique || form.forme === "ENTREPRISE INDIVIDUELLE";
-    const base = isEI ? [
+    return isEI ? [
       { key: "KBIS", label: "Extrait RNE / Avis SIRENE", types: ["KBIS", "EXTRAIT", "SIRENE"] },
       { key: "CNI", label: "CNI entrepreneur", types: ["CNI", "IDENTITE", "PASSEPORT"] },
       { key: "RIB", label: "RIB / IBAN", types: ["RIB"] },
@@ -1622,16 +1628,7 @@ export default function NouveauClientPage() {
       { key: "CNI", label: "CNI dirigeant", types: ["CNI", "IDENTITE", "PASSEPORT"] },
       { key: "RIB", label: "RIB / IBAN", types: ["RIB"] },
     ];
-    if (risk.nivVigilance === "STANDARD" || risk.nivVigilance === "RENFORCEE") {
-      base.push({ key: "Justificatif", label: "Justificatif domicile", types: ["JUSTIFICATIF", "DOMICILE"] });
-    }
-    if (risk.nivVigilance === "RENFORCEE") {
-      base.push({ key: "Comptes", label: "Comptes annuels", types: ["COMPTES", "BILAN"] });
-      base.push({ key: "PV", label: "PV d'AG / Actes", types: ["PV", "ACTE"] });
-      base.push({ key: "Organigramme", label: "Organigramme", types: ["ORGANIGRAMME"] });
-    }
-    return base;
-  }, [risk.nivVigilance, isPersonnePhysique, form.forme]);
+  }, [isPersonnePhysique, form.forme]);
 
   // Idee 24: Keyboard navigation
   useEffect(() => {
@@ -2129,9 +2126,6 @@ export default function NouveauClientPage() {
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="w-5 h-5 text-emerald-400" />
                   <span className="text-sm font-semibold text-emerald-400">Donnees recuperees</span>
-                  <Badge className="border-0 text-[10px] bg-slate-500/20 text-slate-400">{dataSource === "pappers" ? "Pappers" : "data.gouv"}</Badge>
-                  {screening.inpi.data?.companyData && <Badge className="border-0 text-[10px] bg-blue-500/20 text-blue-400">INPI</Badge>}
-                  {screening.inpi.data?.companyData && capitalSource === "INPI" && <Badge className="border-0 text-[10px] bg-emerald-500/20 text-emerald-400">Verifie</Badge>}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                   <div><span className="text-slate-500">Raison sociale</span><p className="text-slate-200 font-medium mt-0.5">{selectedResult.raison_sociale}</p></div>
@@ -2283,6 +2277,7 @@ export default function NouveauClientPage() {
                           isLocked={autoFields.has("siren")}
                           autoFilled={autoFields.has("siren")}
                         />
+                        {form.siren && <button onClick={() => { navigator.clipboard.writeText(form.siren.replace(/\s/g, "")); toast.success("SIREN copie"); }} className="text-[9px] text-blue-400 hover:text-blue-300 flex items-center gap-0.5 mt-0.5"><FileText className="w-3 h-3" /> Copier</button>}
                       </div>
                       {/* #14: SIRET auto-format */}
                       <SourceField label="SIRET" value={form.siret} onChange={v => set("siret", formatSiretInput(v))} placeholder="XXX XXX XXX XXXXX" source={autoFields.has("siret") ? "data.gouv" : undefined} autoFilled={autoFields.has("siret")} />
@@ -2291,11 +2286,12 @@ export default function NouveauClientPage() {
                           <Label htmlFor="capital-social" className="text-[10px] text-slate-500 uppercase">Capital social {form.forme !== "ENTREPRISE INDIVIDUELLE" && <span className="text-red-400">*</span>}</Label>
                           {capitalSource && form.capital > 0 && <Badge className={`text-[9px] border-0 ${capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-400"}`}>{capitalSource}</Badge>}
                         </div>
-                        <Input id="capital-social" type="number" min={0} value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="Non renseigne" className={`bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${!form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
+                        <Input id="capital-social" type="number" min={0} value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="A completer" className={`bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${form.capital === 0 ? "border-orange-500/50" : !form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
                         {(() => {
                           const f = form.forme.toUpperCase();
                           const isEI = f.includes("INDIVIDUEL") || f.includes("EI");
                           if (isEI && !form.capital) return <p className="text-[10px] text-slate-500 mt-0.5">N/A (Entreprise individuelle)</p>;
+                          if (form.capital === 0) return <p className="text-[10px] text-amber-400 mt-0.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Capital non disponible via les API — saisie manuelle requise</p>;
                           if (!form.capital) return <p className="text-[10px] text-amber-400 mt-0.5">Non renseigne — a completer</p>;
                           return null;
                         })()}
@@ -2317,7 +2313,7 @@ export default function NouveauClientPage() {
                         )}
                       </div>
                       <SourceField label="Domaine d'activite" value={form.domaine} onChange={v => set("domaine", sanitizeInput(v))} source={autoFields.has("domaine") ? "data.gouv" : undefined} autoFilled={autoFields.has("domaine")} />
-                      <SourceField label="Effectif" value={form.effectif} onChange={v => set("effectif", sanitizeInput(v))} source={autoFields.has("effectif") ? "data.gouv" : undefined} autoFilled={autoFields.has("effectif")} />
+                      <SourceField label="Effectif" value={form.effectif === "NN" ? "Non communique" : form.effectif} onChange={v => set("effectif", sanitizeInput(v))} source={autoFields.has("effectif") ? "data.gouv" : undefined} autoFilled={autoFields.has("effectif")} />
                     </div>
 
                     {/* Dates row */}
@@ -2536,6 +2532,16 @@ export default function NouveauClientPage() {
                     {beneficiaires.length} BE — {beneficiaires.reduce((s, b) => s + b.pourcentage, 0)}%
                   </Badge>
                 )}
+                {beneficiaires.length > 1 && (
+                  <Button onClick={() => {
+                    const eq = Math.floor(100 / beneficiaires.length);
+                    const remainder = 100 - eq * beneficiaires.length;
+                    setBeneficiaires(prev => prev.map((b, i) => ({ ...b, pourcentage: eq + (i === 0 ? remainder : 0) })));
+                    toast.success("Repartition equitable appliquee");
+                  }} variant="ghost" size="sm" className="text-xs text-blue-400 hover:text-blue-300">
+                    Repartir equitablement
+                  </Button>
+                )}
                 <Button onClick={addBeneficiaire} variant="outline" className="gap-1.5 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400">
                   <Plus className="w-4 h-4" /> Ajouter
                 </Button>
@@ -2607,9 +2613,9 @@ export default function NouveauClientPage() {
                   </div>
                   <ResponsiveContainer width="100%" height={160}>
                     <PieChart>
-                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={30} paddingAngle={2}>
+                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={30} paddingAngle={2} animationBegin={0} animationDuration={800}>
                         {pieData.map((_, idx) => (
-                          <Cell key={idx} fill={idx === pieData.length - 1 && !overBudget && beSum < 100 ? "rgba(255,255,255,0.06)" : overBudget ? "#ef4444" : COLORS[idx % COLORS.length]} />
+                          <Cell key={idx} fill={idx === pieData.length - 1 && !overBudget && beSum < 100 ? "#334155" : overBudget ? "#ef4444" : COLORS[idx % COLORS.length]} />
                         ))}
                       </Pie>
                       <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "11px", color: "#e2e8f0" }} formatter={(v: number) => `${v}%`} />
@@ -2679,6 +2685,7 @@ export default function NouveauClientPage() {
                           <div>
                             <Label htmlFor={`be-datenaissance-${i}`} className="text-[10px] text-slate-500 uppercase">Date naissance</Label>
                             <Input id={`be-datenaissance-${i}`} type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
+                            {b.dateNaissance && <p className="text-[9px] text-slate-500 mt-0.5">{formatDateFR(b.dateNaissance)}</p>}
                           </div>
                           {/* #34: Nationality with common suggestions */}
                           <div>
@@ -2687,6 +2694,7 @@ export default function NouveauClientPage() {
                             <datalist id={`nat-list-${i}`}>
                               {["FRANCAISE", "ALGERIENNE", "MAROCAINE", "TUNISIENNE", "PORTUGAISE", "ITALIENNE", "ESPAGNOLE", "ALLEMANDE", "BELGE", "BRITANNIQUE", "AMERICAINE", "CHINOISE", "RUSSE", "TURQUE", "LIBANAISE"].map(n => <option key={n} value={n} />)}
                             </datalist>
+                            <p className="text-[9px] text-slate-500 mt-0.5">{autoFields.has("siren") ? "Source: INPI / Annuaire" : "Source: Saisie manuelle"}</p>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 mt-3">
@@ -2695,7 +2703,7 @@ export default function NouveauClientPage() {
                             <Slider
                               value={[b.pourcentage]}
                               onValueChange={([v]) => updateBeneficiaire(i, "pourcentage", v)}
-                              min={0} max={100} step={1}
+                              min={0} max={Math.max(100 - beneficiaires.reduce((s, b, j) => j === i ? s : s + b.pourcentage, 0), b.pourcentage)} step={1}
                               className="mt-2"
                             />
                           </div>
@@ -2704,7 +2712,7 @@ export default function NouveauClientPage() {
                             <Slider
                               value={[b.pourcentageVotes ?? 0]}
                               onValueChange={([v]) => updateBeneficiaire(i, "pourcentageVotes", v)}
-                              min={0} max={100} step={1}
+                              min={0} max={Math.max(100 - beneficiaires.reduce((s, b, j) => j === i ? s : s + (b.pourcentageVotes ?? 0), 0), b.pourcentageVotes ?? 0)} step={1}
                               className="mt-2"
                             />
                           </div>
@@ -2806,7 +2814,7 @@ export default function NouveauClientPage() {
                           }`}>
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1">
-                                <p className="text-sm text-slate-200">{q.question}</p>
+                                <p className="text-sm text-slate-200"><span className="text-xs font-mono text-slate-500 mr-1.5">Q{qi + 1}</span>{q.question}</p>
                                 {/* #46: Tooltip for regulatory reference */}
                                 <Popover>
                                   <PopoverTrigger asChild>
@@ -3047,6 +3055,38 @@ export default function NouveauClientPage() {
                     ))}
                   </div>
                 </div>
+
+                {/* D35: Detailed malus breakdown */}
+                {questions.filter(q => q.value === "OUI").length > 0 && (
+                  <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <h3 className="text-xs font-semibold text-slate-300 mb-2">Detail des malus</h3>
+                    <div className="space-y-1">
+                      {questions.filter(q => q.value === "OUI").map(q => (
+                        <div key={q.id} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400 truncate mr-2">{q.question.slice(0, 60)}...</span>
+                          <span className="text-red-400 font-mono font-bold shrink-0">+{q.malus}</span>
+                        </div>
+                      ))}
+                      {bodaccMalus > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-400">BODACC (procedure collective)</span>
+                          <span className="text-red-400 font-mono font-bold">+{bodaccMalus}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* D36: What-if simulation toggle */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={`gap-1.5 border-white/[0.06] transition-all ${isSimulating ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"}`}
+                  onClick={() => setIsSimulating(!isSimulating)}
+                >
+                  <RefreshCw className="w-3.5 h-3.5" /> {isSimulating ? "Mode simulation actif" : "Simuler un changement"}
+                </Button>
+
               </div>
             </div>
 
@@ -3776,7 +3816,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                         risk.nivVigilance === "SIMPLIFIEE" ? "bg-emerald-500/20 text-emerald-400" :
                         risk.nivVigilance === "STANDARD" ? "bg-amber-500/20 text-amber-400" :
                         "bg-red-500/20 text-red-400"
-                      }`}>{risk.nivVigilance} — {vigilanceDocChecklist.length} doc(s) requis</Badge>
+                      }`}>{vigilanceDocChecklist.length} documents requis</Badge>
                     </div>
                     <div className="flex items-center gap-2">
                       <Progress value={pct} className="w-24 h-2" />
@@ -3786,174 +3826,71 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   {/* FIX 41: Responsive checklist grid with better mobile layout */}
                   <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
                     {results.map(item => (
-                      <div key={item.key} className={`p-2.5 rounded-lg border text-center transition-colors ${
+                      <label key={item.key} className={`p-2.5 rounded-lg border text-center transition-colors cursor-pointer ${
                         item.found ? "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10" : "border-red-500/20 bg-red-500/5 hover:bg-red-500/10"
                       }`}>
-                        {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5" /> : <X className="w-4 h-4 text-red-400 mx-auto mb-0.5" />}
+                        {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5" /> : <Upload className="w-4 h-4 text-red-400 mx-auto mb-0.5" />}
                         <p className={`text-[11px] font-medium leading-tight ${item.found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
                         {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere</p>}
                         {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
-                        {!item.found && item.manual && <p className="text-[8px] text-red-400 mt-0.5">Manuel requis</p>}
-                        {!item.found && !item.manual && <p className="text-[8px] text-red-400 mt-0.5">Manquant</p>}
-                      </div>
+                        {!item.found && <p className="text-[8px] text-red-400 mt-0.5">Cliquez pour uploader</p>}
+                        {!item.found && (
+                          <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              const f = e.target.files[0];
+                              if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier trop volumineux (max 10 Mo)`); return; }
+                              setDocuments(prev => [...prev, { name: f.name, type: item.key, file: f }]);
+                              toast.success(`${item.label} uploade`);
+                            }
+                          }} />
+                        )}
+                      </label>
                     ))}
                   </div>
+                  {foundCount === vigilanceDocChecklist.length && (
+                    <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                      <span className="text-sm font-semibold text-emerald-400">Dossier documentaire complet</span>
+                    </div>
+                  )}
                 </div>
               );
             })()}
 
-            {/* SECTION 3: Upload zones for manual documents */}
-            <div className="space-y-3">
-              {/* #61: Document checklist + FIX 60: Improved manual docs header */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-amber-400" />
-                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Documents manuels a fournir</Label>
-                  {/* #69: Document status badges */}
-                  {documents.length > 0 && (
-                    <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0 gap-1">
-                      <CheckCircle2 className="w-3 h-3" /> {documents.length} fichier(s) uploade(s)
-                    </Badge>
-                  )}
-                </div>
-                {/* #64: File size total */}
-                {documents.filter(d => d.file).length > 0 && (
+            {/* Uploaded documents summary */}
+            {documents.filter(d => d.file).length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Documents uploades</Label>
+                    <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{documents.filter(d => d.file).length} fichier(s)</Badge>
+                  </div>
                   <span className="text-[9px] text-slate-500">
                     Total : {(documents.filter(d => d.file).reduce((s, d) => s + (d.file?.size || 0), 0) / 1024 / 1024).toFixed(1)} Mo
                   </span>
-                )}
-              </div>
-              {/* FIX 44: Dynamic upload zones based on vigilance level */}
-              {[
-                { type: "CNI", label: "CNI du dirigeant", desc: "Carte d'identite ou passeport en cours de validite" },
-                { type: "RIB", label: "RIB / IBAN", desc: "Releve d'identite bancaire du compte professionnel" },
-                ...(risk.nivVigilance !== "SIMPLIFIEE" ? [{ type: "Justificatif", label: "Justificatif de domicile", desc: "Justificatif de domicile du siege (< 3 mois)" }] : []),
-                ...(risk.nivVigilance === "RENFORCEE" ? [{ type: "Organigramme", label: "Organigramme de la structure", desc: "Schema de l'organisation capitalistique et des liens" }] : []),
-              ].map(zone => {
-                const uploaded = documents.filter(d => d.type.toUpperCase().includes(zone.type.toUpperCase()));
-                return (
-                  <div key={zone.type} className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden">
-                    <div className="px-4 py-3 flex items-center justify-between">
-                      <div>
-                        <p className="text-sm text-slate-200 font-medium">{zone.label}</p>
-                        <p className="text-[10px] text-slate-500 mt-0.5">{zone.desc}</p>
-                      </div>
-                      {uploaded.length > 0 ? (
-                        <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">Uploade</Badge>
-                      ) : (
-                        <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0">A fournir</Badge>
-                      )}
-                    </div>
-                    {uploaded.length > 0 ? (
-                      <div className="px-4 pb-3 space-y-1.5">
-                        {uploaded.map((doc, i) => {
-                          const docIdx = documents.findIndex(d => d === doc);
-                          const ext = doc.name.split(".").pop()?.toLowerCase() || "";
-                          const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
-                          return (
-                            <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10 transition-all hover:bg-emerald-500/10">
-                              <div className="flex items-center gap-3 min-w-0">
-                                {/* #63: File preview icon */}
-                                <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${isImage ? "bg-violet-500/10" : "bg-blue-500/10"}`}>
-                                  {isImage ? <Eye className="w-4 h-4 text-violet-400" /> : <FileText className="w-4 h-4 text-blue-400" />}
-                                </div>
-                                <div className="min-w-0">
-                                  <span className="text-xs text-slate-300 truncate block">{doc.name}</span>
-                                  <div className="flex items-center gap-2 mt-0.5">
-                                    {/* #64: File size display */}
-                                    {doc.file && <span className="text-[9px] text-slate-500">{doc.file.size > 1024 * 1024 ? `${(doc.file.size / 1024 / 1024).toFixed(1)} Mo` : `${(doc.file.size / 1024).toFixed(0)} Ko`}</span>}
-                                    <span className="text-[9px] text-emerald-500 uppercase">{ext}</span>
-                                    {/* #69: Status badge */}
-                                    <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">Pret</Badge>
-                                  </div>
-                                </div>
-                              </div>
-                              <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-7 w-7 p-0 shrink-0 transition-all hover:scale-110">
-                                <Trash2 className="w-3 h-3" />
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <label className="block px-4 pb-3">
-                        <div
-                          onDragOver={e => { e.preventDefault(); e.stopPropagation(); setDragOverZone(zone.type); }}
-                          onDragLeave={() => setDragOverZone(null)}
-                          onDrop={e => {
-                            e.preventDefault(); e.stopPropagation();
-                            setDragOverZone(null);
-                            const files = e.dataTransfer.files;
-                            if (files.length > 0) {
-                              const validFiles = Array.from(files).filter(f => {
-                                if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
-                                const rawExt = f.name.split(".").pop()?.toLowerCase();
-                                const ext = rawExt && rawExt !== f.name.toLowerCase() ? "." + rawExt : "";
-                                if (!ext || !ALLOWED_EXTENSIONS.has(ext)) { toast.error(`Type non autorise : ${ext || "inconnu"}`); return false; }
-                                return true;
-                              });
-                              const newDocs: UploadedDoc[] = validFiles.map(f => ({
-                                name: f.name, type: zone.type, file: f,
-                              }));
-                              if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
-                            }
-                          }}
-                          className={`border border-dashed rounded-lg p-4 text-center cursor-pointer transition-all ${
-                            dragOverZone === zone.type
-                              ? "border-blue-400 bg-blue-500/10 scale-[1.01]"
-                              : "border-white/[0.08] hover:border-blue-500/30"
-                          }`}
-                        >
-                          {/* #62: Improved drag zone styling */}
-                          <Upload className={`w-6 h-6 mx-auto mb-1.5 transition-transform duration-200 ${dragOverZone === zone.type ? "text-blue-400 scale-110" : "text-slate-600"}`} />
-                          <p className={`text-[11px] font-medium ${dragOverZone === zone.type ? "text-blue-400" : "text-slate-500"}`}>
-                            {dragOverZone === zone.type ? "Deposez le fichier ici" : "Glissez ou cliquez pour uploader"}
-                          </p>
-                          <p className="text-[9px] text-slate-600 mt-0.5">PDF, JPG, PNG — max 10 Mo</p>
-                          <input type="file" multiple className="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx" onChange={e => {
-                            if (e.target.files) {
-                              const validFiles = Array.from(e.target.files).filter(f => {
-                                if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier "${f.name}" trop volumineux (max 10 Mo)`); return false; }
-                                const ext = "." + (f.name.split(".").pop()?.toLowerCase() ?? "");
-                                if (!ALLOWED_EXTENSIONS.has(ext)) { toast.error(`Type non autorise : ${ext}`); return false; }
-                                return true;
-                              });
-                              const newDocs: UploadedDoc[] = validFiles.map(f => ({
-                                name: f.name, type: zone.type, file: f,
-                              }));
-                              if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
-                            }
-                          }} />
-                        </div>
-                      </label>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Other uploaded documents — FIX 42: Show file size and type */}
-            {documents.filter(d => !["CNI", "RIB", "JUSTIFICATIF"].some(t => d.type.toUpperCase().includes(t))).length > 0 && (
-              <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Autres documents uploades</Label>
-                {documents.filter(d => !["CNI", "RIB", "JUSTIFICATIF"].some(t => d.type.toUpperCase().includes(t))).map((doc, i) => {
+                </div>
+                {documents.filter(d => d.file).map((doc, i) => {
                   const docIdx = documents.findIndex(d => d === doc);
-                  const ext = doc.name.split(".").pop()?.toUpperCase() || "?";
+                  const ext = doc.name.split(".").pop()?.toLowerCase() || "";
+                  const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
                   return (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                    <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
                       <div className="flex items-center gap-3 min-w-0">
-                        <FileText className="w-4 h-4 text-slate-500 shrink-0" />
+                        <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${isImage ? "bg-violet-500/10" : "bg-blue-500/10"}`}>
+                          {isImage ? <Eye className="w-4 h-4 text-violet-400" /> : <FileText className="w-4 h-4 text-blue-400" />}
+                        </div>
                         <div className="min-w-0">
-                          <p className="text-sm text-slate-200 truncate">{doc.name}</p>
+                          <span className="text-xs text-slate-300 truncate block">{doc.name}</span>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Upload manuel</Badge>
-                            <span className="text-[9px] text-slate-500">{ext}</span>
-                            {doc.file && <span className="text-[9px] text-slate-500">{(doc.file.size / 1024).toFixed(0)} Ko</span>}
+                            {doc.file && <span className="text-[9px] text-slate-500">{doc.file.size > 1024 * 1024 ? `${(doc.file.size / 1024 / 1024).toFixed(1)} Mo` : `${(doc.file.size / 1024).toFixed(0)} Ko`}</span>}
+                            <Badge className="text-[8px] bg-blue-500/15 text-blue-400 border-0 uppercase">{ext}</Badge>
+                            <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">{doc.type}</Badge>
                           </div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 h-7 w-7 p-0 shrink-0">
-                        <Trash2 className="w-3.5 h-3.5" />
+                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-7 w-7 p-0 shrink-0">
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
                   );
@@ -3961,11 +3898,27 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </div>
             )}
 
+            {/* General upload zone for additional documents */}
+            <label className="block">
+              <div
+                onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={handleDrop}
+                className={`border border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
+                  dragOver ? "border-blue-400 bg-blue-500/10" : "border-white/[0.08] hover:border-blue-500/30"
+                }`}
+              >
+                <Upload className={`w-8 h-8 mx-auto mb-2 ${dragOver ? "text-blue-400" : "text-slate-600"}`} />
+                <p className="text-xs text-slate-400">Glissez ou cliquez pour ajouter des documents supplementaires</p>
+                <p className="text-[9px] text-slate-600 mt-1">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</p>
+                <input type="file" multiple className="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx" onChange={e => handleFileUpload(e.target.files)} />
+              </div>
+            </label>
+
             {/* Generate buttons + batch download */}
             <div className="flex flex-wrap gap-3">
               <Button
-                variant="outline"
-                className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
                 disabled={generatingPdf === "fiche"}
                 onClick={() => {
                   const tempClient = buildTempClient();
