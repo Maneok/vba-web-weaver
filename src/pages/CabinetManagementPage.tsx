@@ -163,7 +163,7 @@ export default function CabinetManagementPage() {
                   className={`shrink-0 flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-200 ${
                     isActive
                       ? "bg-blue-500/15 text-blue-200 border border-blue-400/30"
-                      : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-gray-50/80 dark:bg-white/[0.04] hover:text-slate-800 dark:text-slate-200 border border-transparent"
+                      : "text-slate-400 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-slate-200 border border-transparent"
                   }`}
                 >
                   <Icon className={`h-4 w-4 ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500"}`} />
@@ -201,14 +201,14 @@ export default function CabinetManagementPage() {
             {(collaborateurCount !== null || cabinetCount !== null) && (
               <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.04]">
                 {collaborateurCount !== null && (
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-400">
                     <Users className="h-3 w-3 text-slate-400 dark:text-slate-500" />
                     <span className="font-medium text-slate-700 dark:text-slate-300">{collaborateurCount}</span>
                     <span>membre{collaborateurCount !== 1 ? "s" : ""}</span>
                   </div>
                 )}
                 {cabinetCount !== null && (
-                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-400">
                     <Building2 className="h-3 w-3 text-slate-400 dark:text-slate-500" />
                     <span className="font-medium text-slate-700 dark:text-slate-300">{cabinetCount}</span>
                     <span>cabinet{cabinetCount !== 1 ? "s" : ""}</span>
@@ -236,10 +236,10 @@ export default function CabinetManagementPage() {
                         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-all duration-200 group ${
                           isActive
                             ? "bg-blue-500/15 text-blue-200 border-l-[3px] border-blue-400 pl-[9px]"
-                            : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-gray-50/80 dark:bg-white/[0.04] hover:text-slate-800 dark:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
+                            : "text-slate-400 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
                         }`}
                       >
-                        <Icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-400 dark:text-slate-500 dark:text-slate-400"}`} />
+                        <Icon className={`h-4 w-4 shrink-0 transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 group-hover:text-slate-400 dark:text-slate-400"}`} />
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="text-sm font-medium truncate">{item.label}</p>

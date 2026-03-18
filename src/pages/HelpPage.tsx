@@ -241,7 +241,7 @@ export default function HelpPage() {
               className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none ${
                 activeSection === id
                   ? "bg-blue-500/15 text-blue-200"
-                  : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-gray-50/80 dark:bg-white/[0.04] hover:text-slate-800 dark:text-slate-200"
+                  : "text-slate-400 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-slate-200"
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -272,7 +272,7 @@ export default function HelpPage() {
                 <button
                   key={`${r.section}-${r.title}`}
                   onClick={() => scrollTo(r.section)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-gray-50/80 dark:bg-white/[0.04] flex items-center gap-2 border-b border-gray-100 dark:border-white/[0.04] last:border-0"
+                  className="w-full text-left px-4 py-2.5 hover:bg-gray-100 dark:hover:bg-white/[0.04] flex items-center gap-2 border-b border-gray-100 dark:border-white/[0.04] last:border-0"
                 >
                   <ArrowUpRight className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                   <div>
@@ -287,7 +287,7 @@ export default function HelpPage() {
           )}
           {searchResults && searchResults.length === 0 && (
             <div className="absolute left-6 right-6 top-full mt-1 max-w-xl bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-white/[0.08] rounded-lg shadow-xl p-4 z-20">
-              <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 text-center">Aucun resultat pour "{search}"</p>
+              <p className="text-sm text-slate-400 dark:text-slate-400 text-center">Aucun resultat pour "{search}"</p>
             </div>
           )}
         </div>
@@ -312,7 +312,7 @@ export default function HelpPage() {
                           </Badge>
                           <h3 className="text-sm font-semibold text-slate-100">{item.title}</h3>
                         </div>
-                        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed">{item.description}</p>
+                        <p className="text-sm text-slate-400 dark:text-slate-400 leading-relaxed">{item.description}</p>
                       </div>
                     </div>
                   </Card>
@@ -344,7 +344,7 @@ export default function HelpPage() {
                           </Badge>
                           <h3 className="text-sm font-semibold text-slate-100">{item.title}</h3>
                         </div>
-                        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed mb-2">{item.description}</p>
+                        <p className="text-sm text-slate-400 dark:text-slate-400 leading-relaxed mb-2">{item.description}</p>
                         <div className="flex items-start gap-2 rounded-lg bg-amber-500/5 border border-amber-500/10 px-3 py-2">
                           <Zap className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
                           <p className="text-xs text-amber-200/80">{item.tip}</p>
@@ -366,7 +366,7 @@ export default function HelpPage() {
                   <Layers className="h-4 w-4 text-violet-400" />
                   Onglet "Modele"
                 </h3>
-                <ul className="space-y-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                <ul className="space-y-2 text-sm text-slate-400 dark:text-slate-400">
                   <li className="flex items-start gap-2">
                     <ChevronRight className="h-4 w-4 text-slate-600 mt-0.5 shrink-0" />
                     Parcourez les modeles de lettres pre-configures (expertise comptable, commissariat aux comptes, etc.)
@@ -387,7 +387,7 @@ export default function HelpPage() {
                   <Zap className="h-4 w-4 text-blue-400" />
                   Onglet "Generer"
                 </h3>
-                <ul className="space-y-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                <ul className="space-y-2 text-sm text-slate-400 dark:text-slate-400">
                   <li className="flex items-start gap-2">
                     <ChevronRight className="h-4 w-4 text-slate-600 mt-0.5 shrink-0" />
                     Selectionnez un client existant dans votre base pour pre-remplir les informations
@@ -432,7 +432,7 @@ export default function HelpPage() {
                     <ChevronRight className="h-4 w-4 text-orange-400" />
                     {item.title}
                   </h3>
-                  <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed pl-6">{item.desc}</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-400 leading-relaxed pl-6">{item.desc}</p>
                 </Card>
               ))}
             </div>
@@ -443,7 +443,7 @@ export default function HelpPage() {
             <SectionHeader icon={ClipboardCheck} title="Controle qualite" subtitle="Tirage aleatoire et audits" />
             <div className="mt-6">
               <Card className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-5">
-                <div className="space-y-4 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                <div className="space-y-4 text-sm text-slate-400 dark:text-slate-400">
                   <p>Le module de controle qualite permet de realiser des audits internes conformement aux obligations du reglement interieur LCB-FT.</p>
                   <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
                   <div>
@@ -493,7 +493,7 @@ export default function HelpPage() {
                     <AccordionTrigger className="text-sm text-slate-800 dark:text-slate-200 hover:text-slate-100 py-3 hover:no-underline">
                       {item.question}
                     </AccordionTrigger>
-                    <AccordionContent className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed pb-4 whitespace-pre-line">
+                    <AccordionContent className="text-sm text-slate-400 dark:text-slate-400 leading-relaxed pb-4 whitespace-pre-line">
                       {item.answer}
                     </AccordionContent>
                   </AccordionItem>

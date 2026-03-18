@@ -191,7 +191,7 @@ export default function RegistrePage() {
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="gap-1.5 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300"
+            className="gap-1.5 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-300"
             onClick={() => {
               exportCSV(filtered, `registre-lcb-ft-${new Date().toISOString().split("T")[0]}.csv`);
               toast.success(`${filtered.length} alertes exportees en CSV`);
@@ -290,7 +290,7 @@ export default function RegistrePage() {
         {hasActiveFilters && (
           <Button
             variant="outline"
-            className="gap-1.5 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300"
+            className="gap-1.5 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-300"
             onClick={clearAllFilters}
             aria-label="Effacer tous les filtres"
           >
@@ -334,23 +334,23 @@ export default function RegistrePage() {
                     onClick={() => setSelectedAlerte(a)}
                     aria-label={`Alerte ${alerteId} - ${a.clientConcerne}`}
                   >
-                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">{formatDateFR(a.date)}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-400 font-mono whitespace-nowrap">{formatDateFR(a.date)}</TableCell>
                     <TableCell className="font-medium text-sm text-slate-800 dark:text-slate-200 whitespace-nowrap">{a.clientConcerne}</TableCell>
                     <TableCell>
                       <span className={`text-[11px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap ${getCategoryBadgeClasses(a.categorie)}`}>
                         {a.categorie}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{a.qualification}</TableCell>
-                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 max-w-[200px] truncate">{a.details?.length > 100 ? a.details.slice(0, 100) + "..." : a.details}</TableCell>
-                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 max-w-[180px] truncate">{a.actionPrise}</TableCell>
-                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 whitespace-nowrap">{a.responsable}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-400">{a.qualification}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-400 max-w-[200px] truncate">{a.details?.length > 100 ? a.details.slice(0, 100) + "..." : a.details}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-400 max-w-[180px] truncate">{a.actionPrise}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-400 whitespace-nowrap">{a.responsable}</TableCell>
                     <TableCell>
                       <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap ${getStatutBadgeClasses(a.statut)}`}>
                         {a.statut}
                       </span>
                     </TableCell>
-                    <TableCell className={`text-xs font-mono whitespace-nowrap ${isOverdue ? "text-red-400 font-semibold" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>{formatDateFR(a.dateButoir)}</TableCell>
+                    <TableCell className={`text-xs font-mono whitespace-nowrap ${isOverdue ? "text-red-400 font-semibold" : "text-slate-400 dark:text-slate-400"}`}>{formatDateFR(a.dateButoir)}</TableCell>
                   </TableRow>
                 );
               })}
@@ -359,7 +359,7 @@ export default function RegistrePage() {
                   <TableCell colSpan={9} className="text-center py-16 text-slate-400 dark:text-slate-500">
                     <div className="flex flex-col items-center gap-3">
                       <FileX2 className="w-12 h-12 text-slate-600" />
-                      <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune alerte trouvee</p>
+                      <p className="text-sm font-medium text-slate-400 dark:text-slate-400">Aucune alerte trouvee</p>
                       <p className="text-xs text-slate-600">Modifiez vos filtres ou creez une nouvelle alerte</p>
                     </div>
                   </TableCell>
@@ -379,20 +379,20 @@ export default function RegistrePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300"
+                  className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-300"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={safePage <= 1}
                   aria-label="Page precedente"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
-                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-slate-400">
                   {safePage} / {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300"
+                  className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-700 dark:text-slate-300"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={safePage >= totalPages}
                   aria-label="Page suivante"
@@ -413,7 +413,7 @@ export default function RegistrePage() {
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-white"
+              className="h-8 w-8 p-0 text-slate-400 dark:text-slate-400 hover:text-white"
               onClick={() => setSelectedAlerte(null)}
               aria-label="Fermer le panneau de detail"
             >
@@ -507,7 +507,7 @@ export default function RegistrePage() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Client concerne <span className="text-red-400">*</span></Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-400">Client concerne <span className="text-red-400">*</span></Label>
               <Select value={newAlerte.client} onValueChange={v => { setNewAlerte(p => ({ ...p, client: v })); setFormErrors(p => { const n = { ...p }; delete n.client; return n; }); }}>
                 <SelectTrigger className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] ${formErrors.client ? "border-red-500" : ""}`} aria-invalid={!!formErrors.client}><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
                 <SelectContent>
@@ -517,7 +517,7 @@ export default function RegistrePage() {
               {formErrors.client && <p className="text-xs text-red-400 mt-1">{formErrors.client}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Categorie</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-400">Categorie</Label>
               <Select value={newAlerte.categorie} onValueChange={v => setNewAlerte(p => ({ ...p, categorie: v }))}>
                 <SelectTrigger className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -526,12 +526,12 @@ export default function RegistrePage() {
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Details <span className="text-red-400">*</span></Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-400">Details <span className="text-red-400">*</span></Label>
               <Textarea value={newAlerte.details} onChange={e => { setNewAlerte(p => ({ ...p, details: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.details; return n; }); }} className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] ${formErrors.details ? "border-red-500" : ""}`} placeholder="Description de l'alerte..." aria-invalid={!!formErrors.details} />
               {formErrors.details && <p className="text-xs text-red-400 mt-1">{formErrors.details}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Responsable <span className="text-red-400">*</span></Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-400">Responsable <span className="text-red-400">*</span></Label>
               <Select value={newAlerte.responsable} onValueChange={v => { setNewAlerte(p => ({ ...p, responsable: v })); setFormErrors(p => { const n = { ...p }; delete n.responsable; return n; }); }}>
                 <SelectTrigger className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] ${formErrors.responsable ? "border-red-500" : ""}`} aria-invalid={!!formErrors.responsable}><SelectValue placeholder="Selectionnez" /></SelectTrigger>
                 <SelectContent>
@@ -541,7 +541,7 @@ export default function RegistrePage() {
               {formErrors.responsable && <p className="text-xs text-red-400 mt-1">{formErrors.responsable}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Date echeance <span className="text-red-400">*</span></Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-400">Date echeance <span className="text-red-400">*</span></Label>
               <Input type="date" value={newAlerte.dateEcheance} onChange={e => { setNewAlerte(p => ({ ...p, dateEcheance: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.dateEcheance; return n; }); }} className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] ${formErrors.dateEcheance ? "border-red-500" : ""}`} aria-invalid={!!formErrors.dateEcheance} />
               {formErrors.dateEcheance && <p className="text-xs text-red-400 mt-1">{formErrors.dateEcheance}</p>}
             </div>

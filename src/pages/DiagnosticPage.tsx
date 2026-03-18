@@ -87,7 +87,7 @@ function DiagnosticItemCard({ item }: { item: DiagnosticItem }) {
               {item.statut}
             </span>
           </div>
-          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">{item.detail}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">{item.detail}</p>
           {item.recommandation !== "Aucune action requise." && (
             <p className="text-xs mt-1.5 text-amber-400 font-medium">
               &rarr; {item.recommandation}
@@ -254,7 +254,7 @@ export default function DiagnosticPage() {
             <ShieldCheck className="w-6 h-6 text-sky-400" />
             Diagnostic 360° Tracfin
           </h1>
-          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">
             Analyse complete du dispositif LCB-FT — {report.dateGeneration}
           </p>
         </div>
@@ -288,15 +288,15 @@ export default function DiagnosticPage() {
           <div className="flex gap-6 text-center">
             <div>
               <p className="text-2xl font-bold text-emerald-400">{okCount}</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Conformes</p>
+              <p className="text-xs text-slate-400 dark:text-slate-400">Conformes</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-amber-400">{alerteCount}</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Alertes</p>
+              <p className="text-xs text-slate-400 dark:text-slate-400">Alertes</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-red-400">{critiques}</p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Critiques</p>
+              <p className="text-xs text-slate-400 dark:text-slate-400">Critiques</p>
             </div>
             <div className="ml-auto text-right">
               <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{report.items.length} indicateurs analyses</p>

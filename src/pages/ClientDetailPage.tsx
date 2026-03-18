@@ -120,7 +120,7 @@ export default function ClientDetailPage() {
     return (
       <div className="p-8 flex flex-col items-center justify-center min-h-[40vh]">
         <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
-        <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-3 text-sm">Chargement du client...</p>
+        <p className="text-slate-400 dark:text-slate-400 mt-3 text-sm">Chargement du client...</p>
       </div>
     );
   }
@@ -388,7 +388,7 @@ function ClientDetailContent({ client }: { client: Client }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-white shrink-0" aria-label="Retour a la liste des clients">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 dark:text-slate-400 hover:text-white shrink-0" aria-label="Retour a la liste des clients">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="min-w-0">
@@ -610,7 +610,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             {screening.network.loading && (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-                <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 ml-3">Analyse du reseau en cours...</span>
+                <span className="text-sm text-slate-400 dark:text-slate-400 ml-3">Analyse du reseau en cours...</span>
               </div>
             )}
 
@@ -710,7 +710,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                     { label: "Malus", score: client.malus },
                   ].map(item => (
                     <div key={item.label} className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{item.label}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-400">{item.label}</span>
                       <div className="flex items-center gap-2">
                         <div className="w-20 h-1.5 rounded-full bg-gray-50/80 dark:bg-white/[0.04] overflow-hidden">
                           <div className={`h-full rounded-full transition-all ${item.score >= 60 ? "bg-red-500" : item.score >= 25 ? "bg-amber-500" : "bg-emerald-500"}`}
@@ -755,7 +755,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             {screening.inpi.loading && (
               <div className="glass-card p-6 flex items-center justify-center gap-2">
                 <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Recuperation des donnees financieres INPI...</span>
+                <span className="text-sm text-slate-400 dark:text-slate-400">Recuperation des donnees financieres INPI...</span>
               </div>
             )}
 
@@ -967,7 +967,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                         </div>
                         <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{a.date}</span>
                       </div>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
                       {a.tribunal && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Tribunal: {a.tribunal}</p>}
                     </div>
                   ))}
@@ -984,14 +984,14 @@ function ClientDetailContent({ client }: { client: Client }) {
                 <div className="space-y-2">
                   {screening.news.data.articles.map((a, i) => (
                     <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
-                      className={`block p-3 rounded-lg border hover:bg-gray-50 dark:bg-white/[0.03] transition-colors ${
+                      className={`block p-3 rounded-lg border hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors ${
                         a.hasAlertKeyword ? "border-red-500/20 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
                           <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">{a.title}</p>
-                          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
                           <div className="flex items-center gap-2 mt-2">
                             <span className="text-[10px] text-slate-400 dark:text-slate-500">{a.source}</span>
                             <span className="text-[10px] text-slate-400 dark:text-slate-500">{a.publishedAt?.split("T")[0]}</span>
@@ -1071,7 +1071,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             {screening.inpi.loading && (
               <div className="glass-card p-6 flex items-center justify-center gap-2">
                 <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Chargement de l'historique legal...</span>
+                <span className="text-sm text-slate-400 dark:text-slate-400">Chargement de l'historique legal...</span>
               </div>
             )}
 
@@ -1152,7 +1152,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{h.date}</span>
                         </div>
                         {h.description && h.type && h.description !== h.type && (
-                          <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">{h.description}</p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-400 mt-1">{h.description}</p>
                         )}
                         {h.detail && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{h.detail}</p>}
                       </div>
@@ -1186,7 +1186,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                           </div>
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{a.date}</span>
                         </div>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
                         {a.tribunal && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Tribunal: {a.tribunal}</p>}
                       </div>
                     </div>
@@ -1226,7 +1226,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                         <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{log.horodatage}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400 border-0">{log.typeAction}</Badge>
+                        <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-400 border-0">{log.typeAction}</Badge>
                         <span className="text-[10px] text-slate-400 dark:text-slate-500">{log.utilisateur}</span>
                       </div>
                     </div>
@@ -1289,7 +1289,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                   return (
                     <div key={rev.id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
                       <Badge className={`text-[9px] bg-${typeInfo.color}-500/10 text-${typeInfo.color}-400 border-0`}>{typeInfo.label}</Badge>
-                      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                      <span className="text-xs text-slate-400 dark:text-slate-400">
                         {rev.status === 'completee' && rev.completed_at
                           ? `Complétée le ${new Date(rev.completed_at).toLocaleDateString("fr-FR")}`
                           : `Échéance : ${new Date(rev.date_echeance).toLocaleDateString("fr-FR")}`}
@@ -1346,7 +1346,7 @@ function ClientDetailContent({ client }: { client: Client }) {
           <div className="glass-card p-4 sm:p-6">
             <Button
               variant="outline"
-              className="gap-2 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400"
+              className="gap-2 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-400"
               onClick={() => toast.info("Fonctionnalité en cours de développement")}
             >
               <Download className="w-4 h-4" /> Exporter le dossier complet (ZIP)
@@ -1777,7 +1777,7 @@ function DocumentsTab({
 
                 {/* #44 — Document type label */}
                 <p className={`text-sm font-semibold transition-colors ${
-                  isDragOver ? "text-blue-400" : doc.linked ? "text-emerald-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400 group-hover:text-blue-400"
+                  isDragOver ? "text-blue-400" : doc.linked ? "text-emerald-400" : "text-slate-400 dark:text-slate-400 group-hover:text-blue-400"
                 }`}>{doc.type}</p>
 
                 {/* #45 — Status with expiration info */}
@@ -1815,7 +1815,7 @@ function DocumentsTab({
                           className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/[0.06] hover:bg-blue-500/20 flex items-center justify-center transition-colors"
                           aria-label={`Ouvrir ${doc.type}`}
                         >
-                          <Eye className="w-3 h-3 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
+                          <Eye className="w-3 h-3 text-slate-400 dark:text-slate-400" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent><p className="text-xs">Ouvrir</p></TooltipContent>
@@ -1828,7 +1828,7 @@ function DocumentsTab({
                         className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/[0.06] hover:bg-amber-500/20 flex items-center justify-center transition-colors"
                         aria-label={`Remplacer ${doc.type}`}
                       >
-                        <RefreshCw className="w-3 h-3 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
+                        <RefreshCw className="w-3 h-3 text-slate-400 dark:text-slate-400" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent><p className="text-xs">Remplacer</p></TooltipContent>
@@ -1840,7 +1840,7 @@ function DocumentsTab({
                         className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/[0.06] hover:bg-red-500/20 flex items-center justify-center transition-colors"
                         aria-label={`Supprimer ${doc.type}`}
                       >
-                        <Trash2 className="w-3 h-3 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
+                        <Trash2 className="w-3 h-3 text-slate-400 dark:text-slate-400" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent><p className="text-xs">Supprimer</p></TooltipContent>
@@ -1921,7 +1921,7 @@ function DocumentsTab({
           ) : (
             <div className="space-y-2">
               {filteredDocs.map((doc, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors group">
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors group">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                       doc.source === "pappers" ? "bg-emerald-500/10" :
@@ -1937,7 +1937,7 @@ function DocumentsTab({
                     <div className="min-w-0">
                       <p className="text-sm text-slate-800 dark:text-slate-200 truncate">{doc.label}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400 border-0">{doc.type}</Badge>
+                        <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-400 border-0">{doc.type}</Badge>
                         <Badge className={`text-[9px] border-0 ${
                           doc.source === "pappers" ? "bg-emerald-500/20 text-emerald-400" :
                           doc.source === "inpi" ? "bg-blue-500/20 text-blue-400" :
@@ -1968,7 +1968,7 @@ function DocumentsTab({
           <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-white/[0.03] flex items-center justify-center mx-auto mb-4">
             <Paperclip className="w-8 h-8 text-slate-600" />
           </div>
-          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">Aucun document pour ce client</p>
+          <p className="text-sm text-slate-400 dark:text-slate-400 font-medium">Aucun document pour ce client</p>
           <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto">
             Glissez-deposez vos fichiers sur les rubriques ci-dessus, ou lancez la recuperation automatique
           </p>
@@ -2043,7 +2043,7 @@ function EditForm({ form, setForm }: { form: Client; setForm: (f: Client) => voi
           ] as const).map(({ key, label }) => (
             <div key={key} className="flex items-center gap-2">
               <Switch checked={form[key] === "OUI"} onCheckedChange={v => set(key, v ? "OUI" : "NON")} />
-              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{label}</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-400">{label}</Label>
             </div>
           ))}
         </div>

@@ -25,7 +25,7 @@ export default function SuspendedPage() {
           <h1 className="text-2xl font-bold text-slate-100">
             Abonnement suspendu
           </h1>
-          <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
+          <p className="text-slate-400 dark:text-slate-400 text-sm leading-relaxed">
             L'abonnement de votre cabinet est suspendu.
             Contactez votre administrateur.
           </p>

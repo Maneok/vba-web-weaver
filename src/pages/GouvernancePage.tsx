@@ -35,9 +35,9 @@ import DeclarationsSoupcon from "@/components/gouvernance/DeclarationsSoupcon";
 // ─── Helpers ────────────────────────────────────────────────
 
 function getFormationBadge(dateStr: string) {
-  if (!dateStr) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400" };
+  if (!dateStr) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400 dark:text-slate-400" };
   const ts = new Date(dateStr).getTime();
-  if (isNaN(ts)) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400" };
+  if (isNaN(ts)) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400 dark:text-slate-400" };
   const diffDays = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
   const diffYears = diffDays / 365;
   if (diffYears < 1) return { label: "A jour", color: "bg-emerald-500/15 text-emerald-400" };
@@ -109,7 +109,7 @@ export default function GouvernancePage() {
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <TableHead className="cursor-pointer hover:text-slate-700 dark:text-slate-300" onClick={() => handleSort(field)}>
+    <TableHead className="cursor-pointer hover:text-slate-700 dark:hover:text-slate-300" onClick={() => handleSort(field)}>
       <span className="flex items-center gap-1">
         {children}
         <ArrowUpDown className={`w-3 h-3 ${sortField === field ? "text-blue-400" : "text-slate-600"}`} />
@@ -263,7 +263,7 @@ export default function GouvernancePage() {
     }
   ) => (
     <div className="space-y-1.5">
-      <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{label}</Label>
+      <Label className="text-xs text-slate-400 dark:text-slate-400">{label}</Label>
       {opts?.type === "select" && opts.options ? (
         <Select value={value as string} onValueChange={onChange}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -427,7 +427,7 @@ export default function GouvernancePage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{c.email || "---"}</TableCell>
+                              <TableCell className="text-sm text-slate-400 dark:text-slate-400">{c.email || "---"}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="text-xs">{c.fonction}</Badge>
                               </TableCell>

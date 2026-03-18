@@ -166,18 +166,18 @@ export default function AppLayout() {
       )}
 
       {/* OPT-16: Better focus visibility for skip link */}
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-slate-900 dark:text-slate-900 dark:text-white px-3 py-2 rounded focus:outline-2 focus:outline-offset-2 focus:outline-blue-400">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-slate-900 dark:text-white px-3 py-2 rounded focus:outline-2 focus:outline-offset-2 focus:outline-blue-400">
         Aller au contenu principal
       </a>
       <AppSidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
 
       <div ref={scrollRef} className="app-content-offset pb-16 lg:pb-0">
-        <header className="sticky top-0 z-30 h-14 lg:h-16 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 bg-background/70 backdrop-blur-xl border-b border-transparent" style={{ borderImage: "linear-gradient(to right, transparent, rgba(255,255,255,0.06) 30%, rgba(59,130,246,0.15) 50%, rgba(255,255,255,0.06) 70%, transparent) 1" }}>
+        <header className="sticky top-0 z-30 h-14 lg:h-16 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 bg-background/70 backdrop-blur-xl border-b border-gray-200/80 dark:border-white/[0.06]">
           {/* Mobile menu button with animation */}
           <button
             onClick={handleSidebarToggle}
             aria-label="Ouvrir ou fermer le menu"
-            className="lg:hidden p-2 rounded-lg hover:bg-gray-50/80 dark:bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 transition-transform duration-200 active:scale-90 shrink-0"
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-white/[0.04] text-slate-500 dark:text-slate-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 transition-transform duration-200 active:scale-90 shrink-0"
           >
             <Menu className={`w-5 h-5 transition-transform duration-200 ${!sidebarCollapsed ? "rotate-90" : ""}`} />
           </button>
@@ -186,7 +186,7 @@ export default function AppLayout() {
           {isDetailPage && (
             <button
               onClick={() => navigate(isClientDetail ? "/bdd" : "/lettre-mission")}
-              className="flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-800 dark:text-slate-200 transition-colors rounded-lg px-1.5 lg:px-2 py-1 hover:bg-gray-50/80 dark:bg-gray-50/80 dark:bg-white/[0.04] shrink-0"
+              className="flex items-center gap-1 text-sm text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors rounded-lg px-1.5 lg:px-2 py-1 hover:bg-gray-100 dark:hover:bg-white/[0.04] shrink-0"
             >
               <ArrowLeft className="w-4 h-4" />
               <span className="hidden sm:inline">Retour</span>
@@ -205,12 +205,12 @@ export default function AppLayout() {
                     {!isLast && item.path ? (
                       <button
                         onClick={() => startTransition(() => navigate(item.path!))}
-                        className="text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-700 dark:text-slate-300 transition-colors cursor-pointer truncate max-w-[80px] sm:max-w-none"
+                        className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer truncate max-w-[80px] sm:max-w-none"
                       >
                         {item.label}
                       </button>
                     ) : (
-                      <span className={`truncate max-w-[120px] sm:max-w-none ${isLast ? "text-slate-800 dark:text-slate-800 dark:text-slate-200 font-medium" : "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500"}`} aria-current={isLast ? "page" : undefined}>
+                      <span className={`truncate max-w-[120px] sm:max-w-none ${isLast ? "text-slate-800 dark:text-slate-200 font-medium" : "text-slate-400 dark:text-slate-500"}`} aria-current={isLast ? "page" : undefined}>
                         {item.label}
                       </span>
                     )}
@@ -223,15 +223,15 @@ export default function AppLayout() {
           <div className="ml-auto flex items-center gap-2 lg:gap-3 shrink-0">
             <button
               onClick={() => navigate("/parametres")}
-              className="hidden md:flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-300 dark:border-white/[0.08] bg-white dark:bg-white dark:bg-white/[0.02] px-3 py-1.5 text-xs text-slate-800 dark:text-slate-800 dark:text-slate-200 hover:bg-gray-100 dark:bg-gray-100 dark:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              className="hidden md:flex items-center gap-2 rounded-lg border border-gray-300 dark:border-white/[0.08] bg-white dark:bg-white/[0.02] px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
             >
               <Settings className="h-3.5 w-3.5" />
               Parametres
             </button>
-            <time dateTime={new Date().toISOString().split("T")[0]} className="hidden lg:inline text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 font-mono">
+            <time dateTime={new Date().toISOString().split("T")[0]} className="hidden lg:inline text-[11px] text-slate-400 dark:text-slate-500 font-mono">
               {formatRelativeDate(new Date())}
             </time>
-            <div className="hidden sm:block w-px h-5 bg-gray-100 dark:bg-gray-100 dark:bg-white/[0.06]" />
+            <div className="hidden sm:block w-px h-5 bg-gray-100 dark:bg-white/[0.06]" />
 
             <ThemeToggle />
             <NotificationBell />
@@ -242,12 +242,12 @@ export default function AppLayout() {
                   aria-label="Ouvrir le menu utilisateur"
                   className="relative group w-9 h-9 rounded-full p-[2px] bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 hover:from-blue-300 hover:to-indigo-500 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 >
-                  <span className="flex items-center justify-center w-full h-full rounded-full bg-gray-50 dark:bg-gray-50 dark:bg-slate-900 text-[11px] font-bold text-slate-900 dark:text-slate-900 dark:text-white">
+                  <span className="flex items-center justify-center w-full h-full rounded-full bg-gray-50 dark:bg-slate-900 text-[11px] font-bold text-slate-900 dark:text-white">
                     {userInitials}
                   </span>
                   {/* OPT-18: Connection status — aria-label + pulsing dot for live */}
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-slate-900 ${
+                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
                       isOnline && session ? "bg-emerald-400 status-dot-live" : "bg-red-400"
                     }`}
                     title={isOnline && session ? "Connecte" : "Hors ligne"}
@@ -260,7 +260,7 @@ export default function AppLayout() {
                 <DropdownMenuLabel className="flex flex-col gap-1">
                   <span>Mon espace</span>
                   {profile?.role && (
-                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full w-fit ${roleBadgeColor[profile.role] ?? "bg-slate-500/20 text-slate-700 dark:text-slate-700 dark:text-slate-300"}`}>
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full w-fit ${roleBadgeColor[profile.role] ?? "bg-slate-500/20 text-slate-700 dark:text-slate-300"}`}>
                       {roleLabel}
                     </span>
                   )}
@@ -276,11 +276,11 @@ export default function AppLayout() {
                   <ScrollText className="mr-2 h-4 w-4" /> Journal & securite
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem disabled className="text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 text-xs justify-between">
+                <DropdownMenuItem disabled className="text-slate-400 dark:text-slate-500 text-xs justify-between">
                   <span className="flex items-center gap-2">
                     <Keyboard className="h-3.5 w-3.5" /> Sidebar
                   </span>
-                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-gray-100 dark:bg-white/[0.06] rounded border border-gray-300 dark:border-gray-300 dark:border-white/[0.1]">Ctrl+B</kbd>
+                  <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-gray-100 dark:bg-white/[0.06] rounded border border-gray-300 dark:border-white/[0.1]">Ctrl+B</kbd>
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-red-400 focus:text-red-300">
@@ -315,22 +315,22 @@ export default function AppLayout() {
       </div>
 
       {/* Mobile bottom navigation bar */}
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-gray-50 dark:bg-gray-50 dark:bg-slate-950/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-200 dark:border-white/[0.06] flex items-center justify-around px-2 h-16 safe-area-bottom" aria-label="Navigation mobile">
-        <NavLink to="/" end className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-700 dark:text-slate-300"}`}>
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-950/95 backdrop-blur-xl border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-around px-2 h-16 safe-area-bottom" aria-label="Navigation mobile">
+        <NavLink to="/" end className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}>
           <LayoutDashboard className="w-5 h-5" />
           <span className="text-[10px] font-medium">Dashboard</span>
         </NavLink>
-        <NavLink to="/bdd" className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-700 dark:text-slate-300"}`}>
+        <NavLink to="/bdd" className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}>
           <Users className="w-5 h-5" />
           <span className="text-[10px] font-medium">Clients</span>
         </NavLink>
-        <NavLink to="/registre" className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-700 dark:text-slate-300"}`}>
+        <NavLink to="/registre" className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}>
           <ScrollText className="w-5 h-5" />
           <span className="text-[10px] font-medium">Registre</span>
         </NavLink>
         <button
           onClick={handleSidebarToggle}
-          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-700 dark:text-slate-300 transition-colors"
+          className="flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors"
           aria-label="Ouvrir le menu complet"
         >
           <Menu className="w-5 h-5" />

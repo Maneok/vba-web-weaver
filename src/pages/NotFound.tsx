@@ -24,7 +24,7 @@ const NotFound = () => {
 
         <div className="space-y-2">
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">Page introuvable</h1>
-          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed">
+          <p className="text-sm text-slate-400 dark:text-slate-400 leading-relaxed">
             La page <code className="text-xs bg-gray-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded text-blue-300">{location.pathname}</code> n'existe pas ou a ete deplacee.
           </p>
         </div>
@@ -33,7 +33,7 @@ const NotFound = () => {
           <Button
             variant="outline"
             onClick={() => navigate(-1)}
-            className="gap-2 border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:bg-gray-100 dark:bg-white/[0.06]"
+            className="gap-2 border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-white/[0.06]"
           >
             <ArrowLeft className="w-4 h-4" /> Retour
           </Button>

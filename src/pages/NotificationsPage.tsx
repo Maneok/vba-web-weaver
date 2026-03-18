@@ -178,7 +178,7 @@ export default function NotificationsPage() {
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               filter === f.key
                 ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-gray-50/80 dark:bg-white/[0.04] border border-transparent"
+                : "text-slate-400 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/[0.04] border border-transparent"
             }`}
           >
             {f.label}
@@ -191,7 +191,7 @@ export default function NotificationsPage() {
         {fetchError && notifications.length === 0 ? (
           <div className="p-12 text-center">
             <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Impossible de charger les notifications</p>
+            <p className="text-sm text-slate-400 dark:text-slate-400">Impossible de charger les notifications</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={() => fetchNotifications(true)}>
               Reessayer
             </Button>
@@ -204,7 +204,7 @@ export default function NotificationsPage() {
         ) : notifications.length === 0 ? (
           <div className="p-12 text-center">
             <Bell className="h-10 w-10 text-slate-700 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune notification</p>
+            <p className="text-sm text-slate-400 dark:text-slate-400">Aucune notification</p>
             <p className="text-xs text-slate-600 mt-1">
               {filter !== "all" ? "Essayez un autre filtre" : "Vous n'avez aucune notification pour le moment"}
             </p>
@@ -245,7 +245,7 @@ export default function NotificationsPage() {
                   {/* Expanded detail */}
                   {selectedId === n.id && (
                     <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/[0.06] space-y-2">
-                      <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{n.message}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-400">{n.message}</p>
                       <p className="text-[10px] text-slate-600">{formatDateTimeFR(n.created_at)}</p>
                       <div className="flex items-center gap-2 pt-1">
                         {!n.lue && (
@@ -265,7 +265,7 @@ export default function NotificationsPage() {
                 {!n.lue && selectedId !== n.id && (
                   <button
                     onClick={(e) => { e.stopPropagation(); markAsRead(n.id); }}
-                    className="opacity-0 group-hover:opacity-100 hover:opacity-100 shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:bg-white/[0.06] transition-all"
+                    className="opacity-0 group-hover:opacity-100 hover:opacity-100 shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-white/[0.06] transition-all"
                     aria-label="Marquer comme lu"
                     title="Marquer comme lu"
                   >
@@ -283,7 +283,7 @@ export default function NotificationsPage() {
                   size="sm"
                   onClick={() => setPage(p => p + 1)}
                   disabled={loading}
-                  className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400"
+                  className="text-xs text-slate-400 dark:text-slate-400"
                 >
                   {loading ? "Chargement..." : "Charger plus"}
                 </Button>

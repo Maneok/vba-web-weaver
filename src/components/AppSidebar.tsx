@@ -132,8 +132,8 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         className={({ isActive }) =>
           `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
             isActive
-              ? "bg-blue-500/15 text-blue-200 border-l-[3px] border-blue-400 pl-[9px]"
-              : "text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-gray-50/80 dark:bg-gray-50/80 dark:bg-white/[0.04] hover:text-slate-800 dark:text-slate-800 dark:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
+              ? "bg-blue-500/10 dark:bg-blue-500/15 text-blue-600 dark:text-blue-200 border-l-[3px] border-blue-500 dark:border-blue-400 pl-[9px]"
+              : "text-slate-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
           }`
         }
       >
@@ -142,7 +142,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           <>
             <span className="truncate animate-fade-in-up">{item.label}</span>
             {hasBadge && (
-              <span className="ml-auto rounded-full bg-blue-500/20 px-2 py-0.5 text-[11px] font-medium text-blue-200">
+              <span className="ml-auto rounded-full bg-blue-500/10 dark:bg-blue-500/20 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-200">
                 {badge.count}
               </span>
             )}
@@ -152,7 +152,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           </>
         )}
         {collapsed && hasBadge && (
-          <span className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full ${badge.color} ring-2 ring-slate-950`} />
+          <span className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full ${badge.color} ring-2 ring-white dark:ring-slate-950`} />
         )}
       </NavLink>
     );
@@ -177,13 +177,13 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const renderSection = (items: NavItem[], label: string, isFirst = false) => (
     <div>
       {!isFirst && collapsed && (
-        <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-slate-800/50" />
+        <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-gray-200 dark:border-slate-800/50" />
       )}
       {!isFirst && !collapsed && (
-        <div role="separator" aria-hidden="true" className="mt-2 border-t border-slate-800/50" />
+        <div role="separator" aria-hidden="true" className="mt-2 border-t border-gray-200 dark:border-slate-800/50" />
       )}
       {!collapsed && (
-        <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500">
+        <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
           {label}
         </p>
       )}
@@ -197,7 +197,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     <button
       onClick={() => navigate("/nouveau-client")}
       aria-label="Nouveau Client"
-      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-emerald-500/20 to-teal-500/15 text-emerald-400 hover:from-emerald-500/30 hover:to-teal-500/25 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-emerald-500/10 dark:from-emerald-500/20 to-teal-500/10 dark:to-teal-500/15 text-emerald-600 dark:text-emerald-400 hover:from-emerald-500/20 dark:hover:from-emerald-500/30 hover:to-teal-500/15 dark:hover:to-teal-500/25 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
     >
       <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
       {!collapsed && <span>Nouveau Client</span>}
@@ -215,16 +215,16 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 border-r border-gray-200 dark:border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-gray-50 dark:bg-slate-950/95 backdrop-blur-xl transition-all duration-300 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-40 border-r border-gray-200 dark:border-white/[0.06] bg-white dark:bg-slate-950/95 backdrop-blur-xl transition-all duration-300 flex flex-col ${
           collapsed ? "-translate-x-full lg:translate-x-0 lg:w-[72px]" : "translate-x-0 w-[260px]"
         }`}
       >
         {/* Header */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-gray-200 dark:border-gray-200 dark:border-white/[0.06]">
+        <div className="h-16 px-4 flex items-center justify-between border-b border-gray-200 dark:border-white/[0.06]">
           <button
             onClick={onToggle}
             aria-label="Reduire ou etendre le menu lateral"
-            className="flex items-center gap-2 text-left text-sm font-semibold tracking-wide text-slate-100 hover:text-slate-900 dark:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+            className="flex items-center gap-2 text-left text-sm font-semibold tracking-wide text-slate-800 dark:text-slate-100 hover:text-slate-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
           >
             {collapsed ? (
               <span className="text-blue-400 font-bold">LCB</span>
@@ -239,7 +239,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             <button
               onClick={onToggle}
               aria-label="Reduire le menu"
-              className="p-1 rounded-md text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-700 dark:text-slate-300 hover:bg-gray-50/80 dark:bg-gray-50/80 dark:bg-white/[0.04] transition-colors"
+              className="p-1 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors"
             >
               <ChevronLeft className="h-4 w-4 transition-transform duration-300" />
             </button>
@@ -269,12 +269,12 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           {profile?.is_super_admin && (
             <div>
               {collapsed ? (
-                <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-slate-800/50" />
+                <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-gray-200 dark:border-slate-800/50" />
               ) : (
-                <div role="separator" aria-hidden="true" className="mt-2 border-t border-slate-800/50" />
+                <div role="separator" aria-hidden="true" className="mt-2 border-t border-gray-200 dark:border-slate-800/50" />
               )}
               {!collapsed && (
-                <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500">
+                <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
                   Administration
                 </p>
               )}
@@ -288,14 +288,14 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </nav>
 
         {/* User info + logout + version */}
-        <div className="border-t border-gray-200 dark:border-gray-200 dark:border-white/[0.06] p-3">
+        <div className="border-t border-gray-200 dark:border-white/[0.06] p-3">
           {/* OPT-19: Title tooltip on truncated user info */}
           {profile && !collapsed && (
             <div className="mb-2 px-3">
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-800 dark:text-slate-200 truncate" title={profile.full_name || undefined}>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate" title={profile.full_name || undefined}>
                 {profile.full_name}
               </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 truncate" title={profile.email || undefined}>{profile.email}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 truncate" title={profile.email || undefined}>{profile.email}</p>
             </div>
           )}
 
@@ -305,7 +305,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 <button
                   onClick={handleSignOut}
                   aria-label="Deconnexion"
-                  className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
+                  className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 dark:text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
                 >
                   <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />
                 </button>
@@ -316,7 +316,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             <button
               onClick={handleSignOut}
               aria-label="Deconnexion"
-              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
+              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 dark:text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
             >
               <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />
               <span>Deconnexion</span>
@@ -326,7 +326,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           {/* Trust footer + version */}
           <div className={`mt-2 text-center select-none ${collapsed ? "px-1" : "px-3"}`}>
             {!collapsed && (
-              <p className="text-[10px] text-slate-300 dark:text-slate-600 mb-0.5">
+              <p className="text-[10px] text-slate-400 dark:text-slate-600 mb-0.5">
                 Conforme LCB-FT · Art. L.561-2 CMF
               </p>
             )}

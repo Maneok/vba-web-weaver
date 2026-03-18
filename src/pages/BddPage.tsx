@@ -291,7 +291,7 @@ export default function BddPage() {
             className="pl-9 pr-24 bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
           />
           {debouncedSearch && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-gray-100 dark:bg-white/[0.06] px-2 py-0.5 rounded-full" aria-live="polite" aria-atomic="true">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 dark:text-slate-400 bg-gray-100 dark:bg-white/[0.06] px-2 py-0.5 rounded-full" aria-live="polite" aria-atomic="true">
               {filtered.length} resultat{filtered.length !== 1 ? "s" : ""}
             </span>
           )}
@@ -341,7 +341,7 @@ export default function BddPage() {
             variant="ghost"
             size="sm"
             onClick={clearFilters}
-            className="gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"
+            className="gap-1 text-xs text-slate-400 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
           >
             <X className="w-3 h-3" /> Effacer filtres
           </Button>
@@ -483,7 +483,7 @@ export default function BddPage() {
               <Trash2 className="w-3 h-3" /> Supprimer
             </Button>
           )}
-          <Button size="sm" variant="ghost" className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" onClick={() => { setSelectedRefs(new Set()); setSelectAllPages(false); }}>
+          <Button size="sm" variant="ghost" className="text-xs text-slate-400 dark:text-slate-400" onClick={() => { setSelectedRefs(new Set()); setSelectAllPages(false); }}>
             Deselectionner
           </Button>
         </div>
@@ -494,7 +494,7 @@ export default function BddPage() {
         {filtered.length === 0 ? (
           <div className="glass-card p-10 flex flex-col items-center gap-3 text-center">
             <DatabaseZap className="w-10 h-10 text-slate-600" />
-            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
+            <p className="text-sm text-slate-400 dark:text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
             {activeFilterCount > 0 && (
               <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1 text-xs border-gray-300 dark:border-white/[0.08]">
                 <X className="w-3 h-3" /> Effacer les filtres
@@ -505,7 +505,7 @@ export default function BddPage() {
           paginated.map((client) => (
             <div
               key={client.ref}
-              className="glass-card p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-gray-50 dark:bg-white/[0.03] transition-colors"
+              className="glass-card p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.03] transition-colors"
               onClick={() => navigate(`/client/${client.ref}`)}
             >
               <div className="min-w-0 flex-1">
@@ -550,7 +550,7 @@ export default function BddPage() {
             <p className="text-xs text-slate-400 dark:text-slate-500">{page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}</p>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0"><ChevronLeft className="w-4 h-4" /></Button>
-              <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 px-2">{page + 1} / {totalPages}</span>
+              <span className="text-xs text-slate-400 dark:text-slate-400 px-2">{page + 1} / {totalPages}</span>
               <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0"><ChevronRightIcon className="w-4 h-4" /></Button>
             </div>
           </div>
@@ -602,7 +602,7 @@ export default function BddPage() {
               {paginated.map((client, idx) => (
                 <TableRow
                   key={client.ref}
-                  className={`cursor-pointer border-gray-100 dark:border-white/[0.04] transition-colors hover:bg-gray-50 dark:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "bg-white/[0.01]" : ""}`}
+                  className={`cursor-pointer border-gray-100 dark:border-white/[0.04] transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "bg-white/[0.01]" : ""}`}
                   onClick={() => navigate(`/client/${client.ref}`)}
                 >
                   <TableCell onClick={e => e.stopPropagation()}>
@@ -622,9 +622,9 @@ export default function BddPage() {
                   <TableCell className="font-mono text-[11px] text-slate-400 dark:text-slate-500">{client.ref}</TableCell>
                   {/* OPT-20: Title tooltip on truncated cells */}
                   <TableCell className="font-medium text-sm text-slate-800 dark:text-slate-200 max-w-[200px]"><span className="truncate block" title={client.raisonSociale}>{client.raisonSociale}</span></TableCell>
-                  <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{client.forme}</TableCell>
-                  <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" title={client.comptable}>{client.comptable}</TableCell>
-                  <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{client.mission}</TableCell>
+                  <TableCell className="text-xs text-slate-400 dark:text-slate-400">{client.forme}</TableCell>
+                  <TableCell className="text-xs text-slate-400 dark:text-slate-400" title={client.comptable}>{client.comptable}</TableCell>
+                  <TableCell className="text-xs text-slate-400 dark:text-slate-400">{client.mission}</TableCell>
                   <TableCell><ScoreGauge score={client.scoreGlobal} /></TableCell>
                   <TableCell className="text-center"><VigilanceBadge level={client.nivVigilance} /></TableCell>
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
@@ -635,7 +635,7 @@ export default function BddPage() {
                       return <span className={`text-xs font-mono font-semibold ${color}`}>{s}%</span>;
                     })()}
                   </TableCell>
-                  <TableCell className="text-xs text-center text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">{client.dateButoir}</TableCell>
+                  <TableCell className="text-xs text-center text-slate-400 dark:text-slate-400 font-mono">{client.dateButoir}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
@@ -688,7 +688,7 @@ export default function BddPage() {
                   <TableCell colSpan={12} className="text-center py-16">
                     <div className="flex flex-col items-center gap-3">
                       <DatabaseZap className="w-10 h-10 text-slate-600" />
-                      <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
+                      <p className="text-sm text-slate-400 dark:text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
                       <p className="text-xs text-slate-600">Essayez de modifier vos criteres de recherche ou d'effacer les filtres</p>
                       {activeFilterCount > 0 && (
                         <Button variant="outline" size="sm" onClick={clearFilters} className="mt-2 gap-1 text-xs border-gray-300 dark:border-white/[0.08]">

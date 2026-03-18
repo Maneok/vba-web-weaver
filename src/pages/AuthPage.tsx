@@ -147,13 +147,13 @@ export default function AuthPage() {
             <Shield className="w-7 h-7 text-slate-900 dark:text-white" />
           </div>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">GRIMY</h1>
-          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Conformité LAB pour professionnels assujettis</p>
+          <p className="text-sm text-slate-400 dark:text-slate-400">Conformité LAB pour professionnels assujettis</p>
         </div>
 
         <Card className="border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg text-slate-100">Bienvenue</CardTitle>
-            <CardDescription className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
+            <CardDescription className="text-slate-400 dark:text-slate-400">
               Connectez-vous ou creez votre compte
             </CardDescription>
           </CardHeader>
@@ -285,7 +285,7 @@ export default function AuthPage() {
             <Button
               type="button"
               variant="outline"
-              className="w-full border-gray-300 dark:border-white/[0.08] bg-gray-50/80 dark:bg-white/[0.04] text-slate-800 dark:text-slate-200 hover:bg-gray-200/50 dark:bg-white/[0.08]"
+              className="w-full border-gray-300 dark:border-white/[0.08] bg-gray-50/80 dark:bg-white/[0.04] text-slate-800 dark:text-slate-200 hover:bg-gray-200/50 dark:hover:bg-white/[0.08]"
               disabled={googleLoading || loading}
               onClick={async () => {
                 setGoogleLoading(true);

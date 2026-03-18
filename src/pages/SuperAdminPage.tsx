@@ -84,7 +84,7 @@ export default function SuperAdminPage() {
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? "bg-blue-500/20 text-blue-300 shadow-sm"
-                  : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-white/5"
+                  : "text-slate-400 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/5"
               }`}
             >
               <Icon className="h-4 w-4" />

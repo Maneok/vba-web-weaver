@@ -51,8 +51,8 @@ const ACTION_MAP: Record<string, ActionConfig> = {
   SCORING_CALCUL: { icon: Calculator, bgClass: "bg-blue-500/15", textClass: "text-blue-400", borderClass: "border-blue-500/30" },
   ALERTE_REGISTRE: { icon: AlertTriangle, bgClass: "bg-orange-500/15", textClass: "text-orange-400", borderClass: "border-orange-500/30" },
   DECLARATION_TRACFIN: { icon: Shield, bgClass: "bg-red-500/15", textClass: "text-red-400", borderClass: "border-red-500/30" },
-  CONNEXION: { icon: LogIn, bgClass: "bg-slate-500/15", textClass: "text-slate-400 dark:text-slate-500 dark:text-slate-400", borderClass: "border-slate-500/30" },
-  DECONNEXION: { icon: LogOut, bgClass: "bg-slate-500/15", textClass: "text-slate-400 dark:text-slate-500 dark:text-slate-400", borderClass: "border-slate-500/30" },
+  CONNEXION: { icon: LogIn, bgClass: "bg-slate-500/15", textClass: "text-slate-400 dark:text-slate-400", borderClass: "border-slate-500/30" },
+  DECONNEXION: { icon: LogOut, bgClass: "bg-slate-500/15", textClass: "text-slate-400 dark:text-slate-400", borderClass: "border-slate-500/30" },
   REVUE_PERIODIQUE: { icon: RefreshCw, bgClass: "bg-blue-500/15", textClass: "text-blue-400", borderClass: "border-blue-500/30" },
   CONTROLE_QUALITE: { icon: ClipboardCheck, bgClass: "bg-purple-500/15", textClass: "text-purple-400", borderClass: "border-purple-500/30" },
   LETTRE_MISSION: { icon: FileText, bgClass: "bg-blue-500/15", textClass: "text-blue-400", borderClass: "border-blue-500/30" },
@@ -61,7 +61,7 @@ const ACTION_MAP: Record<string, ActionConfig> = {
 const DEFAULT_ACTION: ActionConfig = {
   icon: Activity,
   bgClass: "bg-slate-500/15",
-  textClass: "text-slate-400 dark:text-slate-500 dark:text-slate-400",
+  textClass: "text-slate-400 dark:text-slate-400",
   borderClass: "border-slate-500/30",
 };
 
@@ -243,7 +243,7 @@ export default function LogsPage() {
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-slate-500/10 flex items-center justify-center">
-            <Activity className="w-[18px] h-[18px] text-slate-400 dark:text-slate-500 dark:text-slate-400" />
+            <Activity className="w-[18px] h-[18px] text-slate-400 dark:text-slate-400" />
           </div>
           <div>
             <p className="text-xl font-bold text-slate-900 dark:text-white">{filtered.length}</p>
@@ -309,7 +309,7 @@ export default function LogsPage() {
         <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de debut" className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" />
         <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de fin" className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" />
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" onClick={clearFilters} aria-label="Effacer tous les filtres">
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400 dark:text-slate-400" onClick={clearFilters} aria-label="Effacer tous les filtres">
             <X className="w-3 h-3 mr-1" /> Effacer
           </Button>
         )}
@@ -333,7 +333,7 @@ export default function LogsPage() {
                   <ScrollText className="w-8 h-8 text-slate-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune entree dans le journal</p>
+                  <p className="text-sm font-medium text-slate-400 dark:text-slate-400">Aucune entree dans le journal</p>
                   <p className="text-xs text-slate-600 mt-1">
                     Les actions effectuees dans l'application apparaitront ici automatiquement.
                   </p>
@@ -353,7 +353,7 @@ export default function LogsPage() {
                   <div className="relative z-10 w-10 h-6 rounded-full bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center">
                     <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                   </div>
-                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 capitalize">{group.label}</span>
+                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-400 capitalize">{group.label}</span>
                   <span className="text-[10px] text-slate-600">({group.logs.length})</span>
                 </div>
 
@@ -383,7 +383,7 @@ export default function LogsPage() {
                             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center text-[8px] font-bold text-blue-400 flex-shrink-0">
                               {(log.utilisateur || "??").slice(0, 2).toUpperCase()}
                             </div>
-                            <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate">{log.utilisateur}</span>
+                            <span className="text-xs text-slate-400 dark:text-slate-400 truncate">{log.utilisateur}</span>
                           </div>
                           {log.details && (
                             <p className="mt-1 text-xs text-slate-400 dark:text-slate-500 leading-relaxed truncate max-w-2xl">{log.details}</p>
@@ -403,7 +403,7 @@ export default function LogsPage() {
           <div className="mt-6 text-center">
             <button
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="px-6 py-2.5 text-sm font-medium rounded-lg bg-gray-50/80 dark:bg-white/[0.04] border border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:bg-gray-200/50 dark:bg-white/[0.08] hover:text-white transition-colors"
+              className="px-6 py-2.5 text-sm font-medium rounded-lg bg-gray-50/80 dark:bg-white/[0.04] border border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:bg-gray-200/50 dark:hover:bg-white/[0.08] hover:text-white transition-colors"
               aria-label={`Charger ${filtered.length - visibleCount} entrees supplementaires`}
             >
               Charger plus ({filtered.length - visibleCount} restants)

@@ -98,7 +98,7 @@ function getFileIcon(fileName: string) {
   if (ext === "pdf") return <FileText className="w-4 h-4 text-red-400 shrink-0" />;
   if (ext === "html" || ext === "htm") return <FileCode className="w-4 h-4 text-blue-400 shrink-0" />;
   if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return <FileImage className="w-4 h-4 text-emerald-400 shrink-0" />;
-  if (ext === "txt") return <File className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400 shrink-0" />;
+  if (ext === "txt") return <File className="w-4 h-4 text-slate-400 dark:text-slate-400 shrink-0" />;
   return <File className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />;
 }
 
@@ -582,7 +582,7 @@ export default function GedPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">GED Intelligente</h1>
-        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
+        <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">
           Gestion electronique des documents — Upload, versionning et alertes d'expiration
         </p>
       </div>
@@ -602,7 +602,7 @@ export default function GedPage() {
                       <Badge variant={status?.variant}>{status?.label}</Badge>
                       <span className="font-medium text-slate-800 dark:text-slate-200">{doc.name}</span>
                       {doc.client_ref && (
-                        <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">({doc.client_ref})</span>
+                        <span className="text-slate-400 dark:text-slate-400">({doc.client_ref})</span>
                       )}
                       <span className="text-slate-400 dark:text-slate-500">
                         - {CATEGORIES.find((c) => c.value === doc.category)?.label}
@@ -640,7 +640,7 @@ export default function GedPage() {
         {storageLoading ? (
           <div className="flex items-center justify-center py-10">
             <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-400 border-t-transparent" />
-            <span className="ml-3 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Chargement du stockage...</span>
+            <span className="ml-3 text-sm text-slate-400 dark:text-slate-400">Chargement du stockage...</span>
           </div>
         ) : filteredStorageFolders.length === 0 ? (
           <div className="text-center py-10 text-slate-400 dark:text-slate-500">
@@ -775,7 +775,7 @@ export default function GedPage() {
             <SelectItem value="soon">Expire bientot (&lt;90j)</SelectItem>
           </SelectContent>
         </Select>
-        <div className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <div className="text-sm text-slate-400 dark:text-slate-400">
           {filtered.length} document(s)
         </div>
       </div>
@@ -787,14 +787,14 @@ export default function GedPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-white/5 hover:bg-transparent">
-              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Document</TableHead>
-              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Categorie</TableHead>
-              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Client</TableHead>
-              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Taille</TableHead>
-              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Version</TableHead>
-              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Expiration</TableHead>
-              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Modifie le</TableHead>
-              <TableHead scope="col" className="text-right text-slate-400 dark:text-slate-500 dark:text-slate-400">Actions</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-400">Document</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-400">Categorie</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-400">Client</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-400">Taille</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-400">Version</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-400">Expiration</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-400">Modifie le</TableHead>
+              <TableHead scope="col" className="text-right text-slate-400 dark:text-slate-400">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -823,14 +823,14 @@ export default function GedPage() {
                         {CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{doc.client_ref || "-"}</TableCell>
+                    <TableCell className="text-sm text-slate-400 dark:text-slate-400">{doc.client_ref || "-"}</TableCell>
                     <TableCell className="text-sm text-slate-400 dark:text-slate-500">
                       {formatFileSize(doc.file_size || 0)}
                     </TableCell>
                     <TableCell>
                       <button
                         onClick={() => openVersionDialog(doc)}
-                        className="flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400 transition-colors"
+                        className="flex items-center gap-1 text-sm text-slate-400 dark:text-slate-400 hover:text-blue-400 transition-colors"
                       >
                         <History className="w-3.5 h-3.5" />
                         v{doc.current_version}
@@ -853,7 +853,7 @@ export default function GedPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
+                          className="h-8 w-8 text-slate-400 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                           onClick={() => downloadDocument(doc.file_path, doc.name)}
                           title="Telecharger"
                           aria-label={`Telecharger ${doc.name}`}
@@ -863,7 +863,7 @@ export default function GedPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-white/5"
+                          className="h-8 w-8 text-slate-400 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 hover:bg-white/5"
                           onClick={() => openVersionDialog(doc)}
                           title="Versions"
                           aria-label={`Historique des versions de ${doc.name}`}
@@ -978,7 +978,7 @@ export default function GedPage() {
                 >
                   <Badge variant="outline" className="border-white/10 text-slate-700 dark:text-slate-300">v{v.version_number}</Badge>
                   <div className="flex-1 min-w-0">
-                    <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                    <p className="text-slate-400 dark:text-slate-400">
                       {format(parseISO(v.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
                     </p>
                     {v.comment && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{v.comment}</p>}
@@ -989,7 +989,7 @@ export default function GedPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
+                    className="h-7 w-7 text-slate-400 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                     onClick={() => downloadDocument(v.file_path, `v${v.version_number}_${selectedDoc?.name}`)}
                     aria-label={`Telecharger version ${v.version_number}`}
                   >
@@ -1005,7 +1005,7 @@ export default function GedPage() {
                 type="file"
                 onChange={(e) => setNewVersionFile(e.target.files?.[0] || null)}
                 accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
-                className="bg-white/5 border-white/10 text-slate-800 dark:text-slate-200 file:text-slate-400 dark:text-slate-500 dark:text-slate-400"
+                className="bg-white/5 border-white/10 text-slate-800 dark:text-slate-200 file:text-slate-400 dark:text-slate-400"
               />
               <Input
                 placeholder="Commentaire (optionnel)"

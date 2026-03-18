@@ -31,7 +31,7 @@ interface AuditRow {
 
 const ACTION_COLORS: Record<string, string> = {
   CONNEXION: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  DECONNEXION: "bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/20",
+  DECONNEXION: "bg-slate-500/10 text-slate-400 dark:text-slate-400 border-slate-500/20",
   CREATION: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   MODIFICATION: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   SUPPRESSION: "bg-red-500/10 text-red-400 border-red-500/20",
@@ -92,7 +92,7 @@ function renderDiffView(oldData: Record<string, unknown> | null, newData: Record
               <span className="text-emerald-400">{c.new_ || "(vide)"}</span>
             </>
           ) : (
-            <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">{c.new_}</span>
+            <span className="text-slate-400 dark:text-slate-400">{c.new_}</span>
           )}
         </div>
       ))}
@@ -217,7 +217,7 @@ export default function AuditTrailPage() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400"
+            className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-400"
             onClick={() => {
               exportAuditCSV(filtered);
               toast.success(`${filtered.length} entrees exportees en CSV`);
@@ -235,7 +235,7 @@ export default function AuditTrailPage() {
           { label: "Dernières 24h", value: stats.last24h, color: "text-emerald-400", icon: Calendar },
           { label: "7 derniers jours", value: stats.last7d, color: "text-purple-400", icon: Calendar },
           { label: "Modifications", value: stats.modifications, color: "text-amber-400", icon: Activity },
-          { label: "Connexions", value: stats.connexions, color: "text-slate-400 dark:text-slate-500 dark:text-slate-400", icon: User },
+          { label: "Connexions", value: stats.connexions, color: "text-slate-400 dark:text-slate-400", icon: User },
         ].map(s => (
           <div key={s.label} className="glass-card p-3 text-center">
             <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
@@ -277,7 +277,7 @@ export default function AuditTrailPage() {
         <Input type="date" value={dateStart} max={dateEnd || undefined} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} aria-label="Date de debut du filtre" className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" />
         <Input type="date" value={dateEnd} min={dateStart || undefined} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} aria-label="Date de fin du filtre" className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" />
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" onClick={clearFilters}>
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400 dark:text-slate-400" onClick={clearFilters}>
             <X className="w-3 h-3 mr-1" /> Effacer
           </Button>
         )}
@@ -316,14 +316,14 @@ export default function AuditTrailPage() {
                 {paginated.map((entry) => (
                   <TableRow key={entry.id} className="border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02] transition-colors">
                     <TableCell className="text-xs font-mono text-slate-600">{entry.id}</TableCell>
-                    <TableCell className="text-xs font-mono text-slate-400 dark:text-slate-500 dark:text-slate-400 whitespace-nowrap">
+                    <TableCell className="text-xs font-mono text-slate-400 dark:text-slate-400 whitespace-nowrap">
                       {formatDateTimeFR(entry.created_at)}
                     </TableCell>
                     <TableCell className="text-xs text-slate-700 dark:text-slate-300">{entry.user_email}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={ACTION_COLORS[entry.action] || "bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/20"}
+                        className={ACTION_COLORS[entry.action] || "bg-slate-500/10 text-slate-400 dark:text-slate-400 border-slate-500/20"}
                       >
                         {entry.action}
                       </Badge>
@@ -369,7 +369,7 @@ export default function AuditTrailPage() {
                             <Shield className="w-8 h-8 text-slate-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune entree dans le journal d'audit</p>
+                            <p className="text-sm font-medium text-slate-400 dark:text-slate-400">Aucune entree dans le journal d'audit</p>
                             <p className="text-xs text-slate-600 mt-1">
                               Les actions reglementaires seront enregistrees ici automatiquement.
                             </p>
@@ -401,7 +401,7 @@ export default function AuditTrailPage() {
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{safePage} / {totalPages}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-400">{safePage} / {totalPages}</span>
                   <Button
                     variant="outline"
                     size="sm"
@@ -442,7 +442,7 @@ export default function AuditTrailPage() {
                   </div>
                   <div>
                     <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Action</p>
-                    <Badge className={ACTION_COLORS[selectedEntry.action] || "bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400"}>
+                    <Badge className={ACTION_COLORS[selectedEntry.action] || "bg-slate-500/10 text-slate-400 dark:text-slate-400"}>
                       {selectedEntry.action}
                     </Badge>
                   </div>
@@ -477,7 +477,7 @@ export default function AuditTrailPage() {
                   <div>
                     <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Donnees</p>
                     <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-3 max-h-[300px] overflow-y-auto">
-                      <pre className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono whitespace-pre-wrap">
+                      <pre className="text-xs text-slate-400 dark:text-slate-400 font-mono whitespace-pre-wrap">
                         {JSON.stringify(selectedEntry.new_data, null, 2)}
                       </pre>
                     </div>

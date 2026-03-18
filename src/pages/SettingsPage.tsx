@@ -180,7 +180,7 @@ function InfoTip({ text }: { text: string }) {
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Info className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 cursor-help inline ml-1.5" />
+          <Info className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-help inline ml-1.5" />
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-[260px] text-xs">
           {text}
@@ -268,7 +268,7 @@ function CabinetSubTabs() {
           <Building2 className="w-5 h-5" />
           Gestion du Cabinet
         </h2>
-        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Cabinets, collaborateurs, roles, reglages, connecteurs et cles API.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Cabinets, collaborateurs, roles, reglages, connecteurs et cles API.</p>
       </div>
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1">
@@ -323,7 +323,7 @@ function RefSubTabs() {
           <BookOpen className="w-5 h-5" />
           Referentiels
         </h2>
-        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Tables de reference pour le calcul de risque et la conformite LCB-FT.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Tables de reference pour le calcul de risque et la conformite LCB-FT.</p>
       </div>
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList className="bg-white/5 border border-white/10">
@@ -765,7 +765,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-slate-100">Parametres</h1>
-        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Configuration du cabinet, scoring de risque et conformite LCB-FT.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Configuration du cabinet, scoring de risque et conformite LCB-FT.</p>
       </div>
 
       {/* Tabs */}
@@ -857,7 +857,7 @@ export default function SettingsPage() {
 
                 {/* Progress bar */}
                 <div className="mt-4 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                  <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-400">
                     <span>Completion du profil</span>
                     <span className="font-medium">{computeCabinetCompletion(cabinet)}%</span>
                   </div>
@@ -870,7 +870,7 @@ export default function SettingsPage() {
                 <Collapsible open={identiteOpen} onOpenChange={setIdentiteOpen}>
                   <div className="rounded-lg border border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors">
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
                           <div className="w-1 h-6 rounded-full bg-blue-500" />
                           <Building2 className="w-4 h-4 text-blue-400" />
@@ -969,7 +969,7 @@ export default function SettingsPage() {
                 <Collapsible open={coordonneesOpen} onOpenChange={setCoordonneesOpen}>
                   <div className="rounded-lg border border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors">
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
                           <div className="w-1 h-6 rounded-full bg-emerald-500" />
                           <MapPin className="w-4 h-4 text-emerald-400" />
@@ -1079,7 +1079,7 @@ export default function SettingsPage() {
                 <Collapsible open={apparenceOpen} onOpenChange={setApparenceOpen}>
                   <div className="rounded-lg border border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors">
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
                           <div className="w-1 h-6 rounded-full bg-violet-500" />
                           <Palette className="w-4 h-4 text-violet-400" />
@@ -1208,7 +1208,7 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   {showResetConfirm ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Reinitialiser les valeurs ?</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-400">Reinitialiser les valeurs ?</span>
                       <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => { resetCabinet(); setShowResetConfirm(false); }}>
                         Confirmer
                       </Button>
@@ -1217,7 +1217,7 @@ export default function SettingsPage() {
                       </Button>
                     </div>
                   ) : (
-                    <Button variant="ghost" size="sm" onClick={() => setShowResetConfirm(true)} aria-label="Reinitialiser les informations du cabinet" className="gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 h-8">
+                    <Button variant="ghost" size="sm" onClick={() => setShowResetConfirm(true)} aria-label="Reinitialiser les informations du cabinet" className="gap-2 text-slate-400 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 h-8">
                       <RotateCcw className="w-3.5 h-3.5" />
                       Reinitialiser
                     </Button>
@@ -1250,7 +1250,7 @@ export default function SettingsPage() {
           <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-100">Configuration du scoring</h2>
-              <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Seuils de vigilance, malus de risque et frequences de revue.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Seuils de vigilance, malus de risque et frequences de revue.</p>
             </div>
 
             {/* Seuils */}
@@ -1268,7 +1268,7 @@ export default function SettingsPage() {
                   <p className="text-[11px] text-slate-400 dark:text-slate-500">Score &ge; ce seuil = vigilance RENFORCEE</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">STANDARD (auto)</Label>
+                  <Label className="text-slate-400 dark:text-slate-400 text-xs">STANDARD (auto)</Label>
                   <p className="text-sm text-slate-700 dark:text-slate-300 pt-2">{scoring.seuil_bas + 1 <= scoring.seuil_haut - 1 ? `${scoring.seuil_bas + 1} \u2013 ${scoring.seuil_haut - 1}` : "Plage invalide"}</p>
                   <p className="text-[11px] text-slate-400 dark:text-slate-500">Plage calculee automatiquement</p>
                 </div>
@@ -1362,7 +1362,7 @@ export default function SettingsPage() {
           <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-100">Configuration LCB-FT</h2>
-              <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Referent, formations et listes de pays a risque.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Referent, formations et listes de pays a risque.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
