@@ -54,9 +54,11 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
   // Quick edit buttons
   const editButtons = [
     { label: "Client", step: 0 },
-    { label: "Missions", step: 1 },
-    { label: "Details", step: 2 },
-    { label: "Honoraires", step: 3 },
+    { label: "Mission", step: 1 },
+    { label: "Prestations", step: 2 },
+    { label: "Parametres", step: 3 },
+    { label: "Honoraires", step: 4 },
+    { label: "Clauses", step: 5 },
   ];
 
   const previewContent = (

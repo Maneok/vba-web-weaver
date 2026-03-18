@@ -22,9 +22,11 @@ import { incrementCounter } from "@/lib/lettreMissionEngine";
 import type { Client } from "@/lib/types";
 
 import LMStep1Client from "@/components/lettre-mission/LMStep1Client";
+import LMStep2MissionType from "@/components/lettre-mission/LMStep2MissionType";
 import LMStep2Missions from "@/components/lettre-mission/LMStep2Missions";
-import LMStep3Details from "@/components/lettre-mission/LMStep3Details";
+import LMStep4Modele from "@/components/lettre-mission/LMStep4Modele";
 import LMStep4Honoraires from "@/components/lettre-mission/LMStep4Honoraires";
+import LMStep6Clauses from "@/components/lettre-mission/LMStep6Clauses";
 import LMStep5Preview from "@/components/lettre-mission/LMStep5Preview";
 import LMStep6Export from "@/components/lettre-mission/LMStep6Export";
 import LMProgressBar from "@/components/lettre-mission/LMProgressBar";
@@ -1232,7 +1234,7 @@ export default function LettreMissionPage() {
   const handleExpress = () => {
     setExpressMode(!expressMode);
     if (!expressMode && data.client_id) {
-      setStep(3);
+      setStep(4); // Skip to Honoraires
     }
   };
 
@@ -1256,11 +1258,13 @@ export default function LettreMissionPage() {
   const renderStep = () => {
     switch (step) {
       case 0: return <LMStep1Client data={data} onChange={handleChange} />;
-      case 1: return <LMStep2Missions data={data} onChange={handleChange} />;
-      case 2: return <LMStep3Details data={data} onChange={handleChange} />;
-      case 3: return <LMStep4Honoraires data={data} onChange={handleChange} />;
-      case 4: return <LMStep5Preview data={data} onChange={handleChange} onGoToStep={goToStep} isMobile={isMobile} />;
-      case 5: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} />;
+      case 1: return <LMStep2MissionType data={data} onChange={handleChange} />;
+      case 2: return <LMStep2Missions data={data} onChange={handleChange} />;
+      case 3: return <LMStep4Modele data={data} onChange={handleChange} />;
+      case 4: return <LMStep4Honoraires data={data} onChange={handleChange} />;
+      case 5: return <LMStep6Clauses data={data} onChange={handleChange} />;
+      case 6: return <LMStep5Preview data={data} onChange={handleChange} onGoToStep={goToStep} isMobile={isMobile} />;
+      case 7: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} />;
       default: return null;
     }
   };

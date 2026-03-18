@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────
-// Validation & sanitization pour le wizard LM (6 étapes)
+// Validation & sanitization pour le wizard LM (8 étapes)
 // ──────────────────────────────────────────────
 
 export interface ValidationError {
@@ -7,15 +7,21 @@ export interface ValidationError {
   message: string;
 }
 
-/** Step 1 — Client + type mission */
-export function validateStep1(data: Record<string, unknown>): ValidationError[] {
+/** Step 0 — Client selection */
+export function validateStep0(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
   if (!data.client_id) errors.push({ field: "client_id", message: "Selectionnez un client" });
-  if (!data.type_mission) errors.push({ field: "type_mission", message: "Selectionnez le type de mission" });
   return errors;
 }
 
-/** Step 2 — Missions */
+/** Step 1 — Mission type */
+export function validateStep1(data: Record<string, unknown>): ValidationError[] {
+  const errors: ValidationError[] = [];
+  if (!data.mission_type_id) errors.push({ field: "mission_type_id", message: "Selectionnez le type de mission" });
+  return errors;
+}
+
+/** Step 2 — Missions complementaires */
 export function validateStep2(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
   const missions = Array.isArray(data.missions_selected) ? data.missions_selected : [];
@@ -32,18 +38,10 @@ export function validateStep2(data: Record<string, unknown>): ValidationError[] 
   return errors;
 }
 
-/** Step 3 — Détails & modalités */
+/** Step 3 — Modele, duree, responsable */
 export function validateStep3(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
-  if (!data.dirigeant) errors.push({ field: "dirigeant", message: "Nom du dirigeant requis" });
-  if (!data.adresse) errors.push({ field: "adresse", message: "Adresse requise" });
-  if (!data.cp || !/^\d{5}$/.test(String(data.cp))) errors.push({ field: "cp", message: "Code postal invalide (5 chiffres)" });
-  if (!data.ville) errors.push({ field: "ville", message: "Ville requise" });
   if (!data.associe_signataire) errors.push({ field: "associe_signataire", message: "Associe signataire requis" });
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(String(data.email)))
-    errors.push({ field: "email", message: "Email invalide" });
-  if (data.telephone && !/^[\d\s+()-]{10,20}$/.test(String(data.telephone)))
-    errors.push({ field: "telephone", message: "Telephone invalide" });
   if (data.date_debut) {
     const dateDebut = new Date(String(data.date_debut));
     if (isNaN(dateDebut.getTime())) errors.push({ field: "date_debut", message: "Date de debut invalide" });
@@ -93,24 +91,31 @@ export function validateStep4(data: Record<string, unknown>): ValidationError[] 
   return errors;
 }
 
-/** Step 5 — Preview (always valid) */
+/** Step 5 — Clauses (always valid) */
 export function validateStep5(): ValidationError[] {
   return [];
 }
 
-/** Step 6 — Export (always valid) */
+/** Step 6 — Preview (always valid) */
 export function validateStep6(): ValidationError[] {
+  return [];
+}
+
+/** Step 7 — Export (always valid) */
+export function validateStep7(): ValidationError[] {
   return [];
 }
 
 /** Map step index (0-based) → validator */
 export const VALIDATORS: Record<number, (data: Record<string, unknown>) => ValidationError[]> = {
-  0: validateStep1,
-  1: validateStep2,
-  2: validateStep3,
-  3: validateStep4,
-  4: validateStep5,
-  5: validateStep6,
+  0: validateStep0,
+  1: validateStep1,
+  2: validateStep2,
+  3: validateStep3,
+  4: validateStep4,
+  5: validateStep5,
+  6: validateStep6,
+  7: validateStep7,
 };
 
 /** Sanitize HTML/XSS dans les champs texte */

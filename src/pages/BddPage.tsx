@@ -625,7 +625,18 @@ export default function BddPage() {
                   <TableCell className="text-xs text-slate-400 dark:text-slate-400">{client.forme}</TableCell>
                   <TableCell className="text-xs text-slate-400 dark:text-slate-400" title={client.comptable}>{client.comptable}</TableCell>
                   <TableCell className="text-xs text-slate-400 dark:text-slate-400">{client.mission}</TableCell>
-                  <TableCell><ScoreGauge score={client.scoreGlobal} /></TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1">
+                      <ScoreGauge score={client.scoreGlobal} />
+                      {(() => {
+                        const ref = client.dateDerniereRevue || client.dateCreation;
+                        if (!ref) return <span className="text-[9px] text-amber-500" title="Score jamais calcule">&#9888;&#65039;</span>;
+                        const age = Date.now() - new Date(ref).getTime();
+                        if (age > 30 * 24 * 60 * 60 * 1000) return <span className="text-[9px] text-amber-500" title="Score non recalcule depuis 30+ jours">&#9888;&#65039;</span>;
+                        return null;
+                      })()}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-center"><VigilanceBadge level={client.nivVigilance} /></TableCell>
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
                   <TableCell className="text-center">

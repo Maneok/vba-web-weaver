@@ -1,30 +1,18 @@
 import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
-import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
-import type { LMModele } from "@/lib/lettreMissionModeles";
-import { getModeles, validateCnoecCompliance } from "@/lib/lettreMissionModeles";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
-import {
-  Search, Plus, Building2, User, CheckCircle2, BookOpen, Eye, CheckSquare, X,
-  AlertTriangle, ShieldAlert, History, FileText, ShieldCheck, Loader2, Info,
+  Search, Plus, Building2, User, CheckCircle2, X,
+  AlertTriangle, ShieldAlert, History, FileText,
 } from "lucide-react";
 import { toast } from "sonner";
-import MissionTypeSelector from "@/components/lettre-mission/MissionTypeSelector";
-import MissionSpecificFields from "@/components/lettre-mission/MissionSpecificFields";
-import { buildSectionsForMissionType } from "@/lib/lettreMissionModeles";
-import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { vigilanceColor } from "@/lib/lmUtils";
 
 interface Props {
@@ -32,45 +20,12 @@ interface Props {
   onChange: (updates: Partial<LMWizardData>) => void;
 }
 
-const TYPES_MISSION = [
-  { value: "TENUE", label: "Tenue", description: "Tenue de comptabilite complete", icon: BookOpen },
-  { value: "SURVEILLANCE", label: "Surveillance", description: "Surveillance et conseil", icon: Eye },
-  { value: "REVISION", label: "Revision", description: "Revision des comptes", icon: CheckSquare },
-];
-
 export default function LMStep1Client({ data, onChange }: Props) {
   const { clients } = useAppState();
-  const { profile } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [previousLM, setPreviousLM] = useState<{ id: string; wizard_data: Record<string, unknown>; numero: string; statut: string } | null>(null);
   const [screeningStatus, setScreeningStatus] = useState<"ok" | "expired" | "missing" | null>(null);
-  const [modeles, setModeles] = useState<LMModele[]>([]);
-  const [modelesLoading, setModelesLoading] = useState(false);
-
-  // Load modeles when cabinet is available
-  useEffect(() => {
-    const cabinetId = profile?.cabinet_id;
-    if (!cabinetId) return;
-    let cancelled = false;
-    setModelesLoading(true);
-    getModeles(cabinetId)
-      .then((m) => {
-        if (!cancelled) {
-          setModeles(m);
-          // Auto-select default modele if none selected
-          if (!data.modele_id) {
-            const defaultModele = m.find((mod) => mod.is_default);
-            if (defaultModele) {
-              onChange({ modele_id: defaultModele.id });
-            }
-          }
-        }
-      })
-      .catch((err) => logger.warn("LM", "Failed to load modeles:", err))
-      .finally(() => { if (!cancelled) setModelesLoading(false); });
-    return () => { cancelled = true; };
-  }, [profile?.cabinet_id]);
 
   const filtered = useMemo(() => {
     if (!search || search.length < 2) return clients.slice(0, 15);
@@ -85,7 +40,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
   const selectedClient = clients.find((c) => c.ref === data.client_id);
 
-  // B) Check for previous signed LM + I) Screening check
+  // Check for previous signed LM + Screening check
   useEffect(() => {
     if (!data.client_id) {
       setPreviousLM(null);
@@ -95,7 +50,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
     let cancelled = false;
 
-    // B) Previous LM
+    // Previous LM
     supabase
       .from("lettres_mission")
       .select("id, wizard_data, numero, statut")
@@ -110,7 +65,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
       })
       .catch((e) => { if (!cancelled) logger.warn("LM", "Previous LM check failed:", e); });
 
-    // I) Screening check — look at dateDerniereRevue
+    // Screening check
     if (selectedClient) {
       if (!selectedClient.dateDerniereRevue) {
         setScreeningStatus("missing");
@@ -121,7 +76,6 @@ export default function LMStep1Client({ data, onChange }: Props) {
         setScreeningStatus(revueDate < oneYearAgo ? "expired" : "ok");
       }
 
-      // A) Vigilance renforcee banner
       if (selectedClient.scoreGlobal > 60) {
         toast.warning("Client a vigilance renforcee — envisagez un complement d'honoraires", { duration: 5000 });
       }
@@ -163,12 +117,12 @@ export default function LMStep1Client({ data, onChange }: Props) {
     setSearch("");
   };
 
-  // B) Import previous LM data
   const importPreviousLM = () => {
     if (!previousLM?.wizard_data) return;
     const wd = previousLM.wizard_data as Record<string, unknown>;
     onChange({
       type_mission: (wd.type_mission as string) || data.type_mission,
+      mission_type_id: (wd.mission_type_id as string) || data.mission_type_id,
       missions_selected: (wd.missions_selected as unknown[]) || [],
       duree: (wd.duree as string) || data.duree,
       tacite_reconduction: (wd.tacite_reconduction as boolean) ?? true,
@@ -186,7 +140,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ── Client selection ── */}
+      {/* Client selection */}
       {!data.client_id ? (
         <>
           <div className="relative">
@@ -208,7 +162,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 key={c.ref}
                 onClick={() => selectClient(c)}
                 aria-label={`Selectionner ${c.raisonSociale}`}
-                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
+                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
                   c.forme === "ENTREPRISE INDIVIDUELLE" ? "bg-purple-500/15" : "bg-blue-500/15"
@@ -235,7 +189,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
           <Button
             variant="outline"
-            className="w-full gap-2 border-dashed border-gray-300 dark:border-white/[0.08] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/5 hover:border-blue-500/20 h-11"
+            className="w-full gap-2 border-dashed border-gray-300 dark:border-white/[0.08] text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/5 hover:border-blue-500/20 h-11"
             onClick={() => navigate("/nouveau-client")}
             aria-label="Creer un nouveau client"
           >
@@ -244,7 +198,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
         </>
       ) : (
         <>
-          {/* I) Screening banners */}
+          {/* Screening banners */}
           {screeningStatus === "missing" && (
             <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
               <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
@@ -280,7 +234,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
 
-          {/* A) Alerte risque eleve — NPLAB */}
+          {/* Risk alerts */}
           {selectedClient && selectedClient.scoreGlobal >= 70 && (
             <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
               <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
@@ -289,7 +243,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                   Attention — Ce client presente un risque eleve (score {selectedClient.scoreGlobal}/100)
                 </p>
                 <p className="text-xs text-red-400/80">
-                  Conformement a la NPLAB, des mesures de vigilance renforcee doivent etre appliquees. Assurez-vous que :
+                  Conformement a la NPLAB, des mesures de vigilance renforcee doivent etre appliquees.
                 </p>
                 <ul className="text-xs text-red-400/70 space-y-0.5 list-disc list-inside">
                   <li>L'identite du beneficiaire effectif a ete verifiee</li>
@@ -301,7 +255,6 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
 
-          {/* A) Alerte risque moyen */}
           {selectedClient && selectedClient.scoreGlobal >= 50 && selectedClient.scoreGlobal < 70 && (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
@@ -311,7 +264,6 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
 
-          {/* A) Vigilance renforcee — complement honoraires */}
           {selectedClient && selectedClient.scoreGlobal >= 60 && selectedClient.scoreGlobal < 70 && (
             <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
               <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0" />
@@ -326,9 +278,9 @@ export default function LMStep1Client({ data, onChange }: Props) {
             <button
               onClick={clearClient}
               aria-label="Deselectionner le client"
-              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gray-100 dark:bg-white/[0.06] hover:bg-gray-200 dark:bg-white/[0.1] flex items-center justify-center transition-colors"
+              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gray-100 dark:bg-white/[0.06] hover:bg-gray-200 dark:hover:bg-white/[0.1] flex items-center justify-center transition-colors"
             >
-              <X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
+              <X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
             </button>
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-emerald-500/15 flex items-center justify-center">
@@ -354,7 +306,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             )}
           </div>
 
-          {/* OPT-5: Active LM warning + avenant suggestion */}
+          {/* Active LM warning + import */}
           {previousLM && (
             <div className="space-y-2">
               <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
@@ -386,149 +338,6 @@ export default function LMStep1Client({ data, onChange }: Props) {
               </button>
             </div>
           )}
-
-          {/* OPT-1: Type mission selection — normative OEC types */}
-          <div className="space-y-3">
-            <div>
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Type de mission (referentiel normatif OEC)</p>
-              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Determine le cadre normatif, la forme du rapport et les obligations deontologiques applicables.</p>
-            </div>
-            <MissionTypeSelector
-              value={data.mission_type_id || "presentation"}
-              onValueChange={(val) => {
-                const config = getMissionTypeConfig(val);
-                const updates: Partial<LMWizardData> = {
-                  mission_type_id: val,
-                };
-                // Reset mode comptable for non-applicable types
-                if (val !== 'presentation' && val !== 'compilation') {
-                  updates.type_mission = config.shortLabel;
-                } else if (!data.type_mission || !['TENUE', 'SURVEILLANCE', 'REVISION'].includes(data.type_mission)) {
-                  updates.type_mission = 'TENUE';
-                }
-                // Reset specific variables when type changes
-                updates.specific_variables = {};
-                onChange(updates);
-              }}
-            />
-          </div>
-
-          {/* OPT-2: Mode comptable — only for presentation and compilation */}
-          {((data.mission_type_id || 'presentation') === 'presentation' || data.mission_type_id === 'compilation') && (
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Mode d'intervention comptable</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
-                  Le mode d'intervention definit comment le cabinet intervient sur la comptabilite en amont de la mission de {(data.mission_type_id || 'presentation') === 'presentation' ? 'presentation (NP 2300 §A1)' : 'compilation (NP 4410)'}.
-                </p>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {TYPES_MISSION.map(({ value, label, description, icon: Icon }) => {
-                  const active = data.type_mission === value;
-                  return (
-                    <button
-                      key={value}
-                      onClick={() => onChange({ type_mission: value })}
-                      className={`relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all duration-200 text-center ${
-                        active
-                          ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10"
-                          : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-white/[0.12] hover:bg-gray-50/80 dark:bg-white/[0.04]"
-                      }`}
-                    >
-                      <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
-                        active ? "bg-blue-500/20" : "bg-gray-50/80 dark:bg-white/[0.04]"
-                      }`}>
-                        <Icon className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`} />
-                      </div>
-                      <div>
-                        <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-700 dark:text-slate-300"}`}>{label}</p>
-                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{description}</p>
-                      </div>
-                      {active && (
-                        <div className="absolute top-2 right-2">
-                          <CheckCircle2 className="w-4 h-4 text-blue-400" />
-                        </div>
-                      )}
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* OPT-3: Mission-type specific parameters */}
-          <MissionSpecificFields
-            missionType={data.mission_type_id || "presentation"}
-            values={data.specific_variables || {}}
-            onChange={(key, value) => {
-              const updated = { ...(data.specific_variables || {}), [key]: value };
-              onChange({ specific_variables: updated });
-            }}
-          />
-
-          {/* Modele selection */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Modèle de lettre</p>
-            </div>
-            {modelesLoading ? (
-              <div className="space-y-2">
-                <Skeleton className="h-11 w-full bg-gray-100 dark:bg-white/[0.06] rounded-lg" />
-                <Skeleton className="h-4 w-48 bg-gray-50/80 dark:bg-white/[0.04]" />
-              </div>
-            ) : modeles.length === 0 ? (
-              <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-                <p className="text-xs text-slate-400 dark:text-slate-500">Aucun modèle configuré — le modèle GRIMY par défaut sera utilisé.</p>
-              </div>
-            ) : (
-              <Select
-                value={data.modele_id || ""}
-                onValueChange={(val) => onChange({ modele_id: val })}
-              >
-                <SelectTrigger className="h-11 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white">
-                  <SelectValue placeholder="Choisir un modèle..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {modeles.map((m) => {
-                    const cnoec = validateCnoecCompliance(m.sections);
-                    return (
-                      <SelectItem key={m.id} value={m.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{m.nom}</span>
-                          {m.is_default && (
-                            <Badge className="text-[8px] px-1 py-0 bg-amber-500/10 text-amber-400 border-amber-500/20">Défaut</Badge>
-                          )}
-                          {cnoec.valid ? (
-                            <ShieldCheck className="w-3.5 h-3.5 text-green-400 shrink-0" />
-                          ) : (
-                            <AlertTriangle className="w-3.5 h-3.5 text-orange-400 shrink-0" />
-                          )}
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-            )}
-            {data.modele_id && modeles.length > 0 && (() => {
-              const selected = modeles.find((m) => m.id === data.modele_id);
-              if (!selected) return null;
-              const cnoec = validateCnoecCompliance(selected.sections);
-              return (
-                <div className="flex items-center gap-2 text-[10px]">
-                  <span className="text-slate-300 dark:text-slate-600">
-                    {selected.sections.length} sections · Source: {selected.source === "grimy" ? "GRIMY" : selected.source === "import_docx" ? "Import DOCX" : "Copie"}
-                  </span>
-                  {cnoec.valid ? (
-                    <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-400">Conforme CNOEC</Badge>
-                  ) : (
-                    <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400">{cnoec.warnings.length} alerte{cnoec.warnings.length > 1 ? "s" : ""}</Badge>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
         </>
       )}
     </div>

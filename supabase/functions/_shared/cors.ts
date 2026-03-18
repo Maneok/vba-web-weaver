@@ -17,7 +17,10 @@ const ALLOWED_ORIGINS = new Set([
 export function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get("origin") || "";
   // Allow if origin is in allowlist, or if no origin (server-to-server / same-origin)
-  const isAllowed = !origin || ALLOWED_ORIGINS.has(origin) || origin.endsWith(".vercel.app");
+  const isAllowed = !origin || ALLOWED_ORIGINS.has(origin)
+    || origin.endsWith("vba-web-weaver.vercel.app")
+    || origin.endsWith("projet-lcb.vercel.app")
+    || origin.endsWith("grimy.vercel.app");
   return {
     "Access-Control-Allow-Origin": isAllowed ? (origin || "*") : "",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",

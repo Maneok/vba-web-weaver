@@ -3,6 +3,7 @@ import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData, MissionSelection } from "@/lib/lmWizardTypes";
 import { DEFAULT_MISSIONS, applyFormConditionals } from "@/lib/lmDefaults";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
+import MissionSpecificFields from "@/components/lettre-mission/MissionSpecificFields";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
@@ -181,6 +182,16 @@ export default function LMStep2Missions({ data, onChange }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Mission-specific fields for the selected mission type */}
+      <MissionSpecificFields
+        missionType={data.mission_type_id || "presentation"}
+        values={data.specific_variables || {}}
+        onChange={(key, value) => {
+          const updated = { ...(data.specific_variables || {}), [key]: value };
+          onChange({ specific_variables: updated });
+        }}
+      />
+
       {/* A) Incompatibility warning */}
       {hasConflict && (
         <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake" role="alert">

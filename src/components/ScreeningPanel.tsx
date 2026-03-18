@@ -54,7 +54,7 @@ const ATTENTION_LABELS: Record<string, string> = {
   network: "Mandats multiples",
   documents: "Documents partiels",
   inpi: "Donnees partielles",
-  inpi_docs: "Liens seulement",
+  inpi_docs: "Disponible en ligne",
   gelAvoirs: "Correspondance(s) trouvee(s)",
 };
 
@@ -201,7 +201,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
       detail: inpiDocsStored > 0
         ? `${inpiDocsStored} PDF(s) recupere(s)`
         : inpiDocsTotal > 0
-          ? `${inpiDocsTotal} document(s) — liens seulement`
+          ? `${inpiDocsTotal} document(s) — disponible(s) en ligne`
           : (screening.inpi.data || screening.documents.data) ? "Aucun document" : undefined,
     },
     {

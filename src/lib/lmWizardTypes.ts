@@ -99,28 +99,32 @@ export interface LMWizardData {
   wizard_step: number;
 }
 
-export const LM_TOTAL_STEPS = 6;
+export const LM_TOTAL_STEPS = 8;
 
 export const LM_STEP_LABELS = [
   "Client",
-  "Missions",
-  "Details",
+  "Mission",
+  "Prestations",
+  "Parametres",
   "Honoraires",
+  "Clauses",
   "Apercu",
   "Export",
 ] as const;
 
 export const LM_STEP_TITLES = [
   "Pour quel client ?",
-  "Quelles missions realiser ?",
-  "Precisez les modalites",
+  "Quel type de mission ?",
+  "Quelles prestations complementaires ?",
+  "Modele, duree et responsable",
   "Definissez vos honoraires",
+  "Clauses et conditions generales",
   "Verifiez votre lettre",
   "Votre lettre est prete !",
 ] as const;
 
 /** Estimated seconds per step */
-export const LM_STEP_DURATIONS = [30, 60, 45, 30, 30, 15] as const;
+export const LM_STEP_DURATIONS = [20, 30, 30, 30, 30, 15, 30, 15] as const;
 
 /** C) Statuts workflow */
 export const LM_STATUTS = [

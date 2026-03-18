@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
 import { clientsService } from "@/lib/supabaseService";
-import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, PAYS_RISQUE_SET, APE_CASH, APE_CASH_SET, MISSION_FREQUENCE, normalizeAddress, isRiskCountry } from "@/lib/riskEngine";
+import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPilotageStatus, APE_SCORES, MISSION_SCORES, PAYS_RISQUE, PAYS_RISQUE_SET, APE_CASH, APE_CASH_SET, MISSION_FREQUENCE, normalizeAddress, isRiskCountry, computeScreeningMalus } from "@/lib/riskEngine";
 import { useScoringData } from "@/hooks/useScoringData";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
@@ -443,8 +443,10 @@ export default function NouveauClientPage() {
   }, [questions]);
 
   const bodaccMalus = screening.bodacc.data?.malus ?? 0;
-  const totalMalus = risk.malus + extraMalus + bodaccMalus;
-  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus, 100);
+  // BUG 46 FIX: Include screening malus in the adjusted score
+  const screeningMalus = useMemo(() => computeScreeningMalus(screening), [screening]);
+  const totalMalus = risk.malus + extraMalus + bodaccMalus + screeningMalus;
+  const adjustedScore = Math.min(risk.scoreGlobal + extraMalus + bodaccMalus + screeningMalus, 100);
 
   // #51: Animate score on step 4 (placed after adjustedScore to avoid TDZ)
   useEffect(() => {
@@ -2858,15 +2860,15 @@ export default function NouveauClientPage() {
               <BarChart3 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
               <span className="text-xs text-slate-500 dark:text-slate-400">Niveau de risque en temps reel :</span>
               <VigilanceBadge level={risk.nivVigilance} />
-              <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={120}>
+              <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={100}>
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     adjustedScore >= 60 ? "bg-red-500" : adjustedScore >= 25 ? "bg-amber-500" : "bg-emerald-500"
                   }`}
-                  style={{ width: `${Math.min((adjustedScore / 120) * 100, 100)}%` }}
+                  style={{ width: `${Math.min((adjustedScore / 100) * 100, 100)}%` }}
                 />
               </div>
-              <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">{adjustedScore}/120</span>
+              <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">{adjustedScore}/100</span>
             </div>
 
             {/* #45: "Tout NON" shortcut */}
@@ -3092,7 +3094,7 @@ export default function NouveauClientPage() {
                     <div className="absolute inset-0 flex items-center justify-center flex-col">
                       {/* #51: Animated score reveal */}
                       <span className="text-4xl font-bold text-slate-900 dark:text-white tabular-nums">{animatedScore}</span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">/120</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">/100</span>
                     </div>
                   </div>
                   <div className="mt-4">
@@ -3111,7 +3113,7 @@ export default function NouveauClientPage() {
                     return (
                       <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-center gap-2">
                         <span className="text-[10px] text-slate-400 dark:text-slate-500">Moyenne cabinet :</span>
-                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{avgScore}/120</span>
+                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{avgScore}/100</span>
                         {adjustedScore > avgScore && <span className="text-[9px] text-amber-400">+{adjustedScore - avgScore} au-dessus</span>}
                         {adjustedScore < avgScore && <span className="text-[9px] text-emerald-400">{avgScore - adjustedScore} en-dessous</span>}
                         {adjustedScore === avgScore && <span className="text-[9px] text-slate-400 dark:text-slate-500">= moyenne</span>}
@@ -3355,7 +3357,7 @@ export default function NouveauClientPage() {
                       { label: "Forme juridique", value: form.forme, ok: !!form.forme },
                       { label: "Adresse", value: [form.adresse, form.cp, form.ville].filter(Boolean).join(", "), ok: !!(form.adresse && form.cp && form.ville) },
                       { label: "Dirigeant", value: form.dirigeant, ok: !!form.dirigeant },
-                      { label: "Score / Vigilance", value: `${adjustedScore}/120 — ${risk.nivVigilance}`, ok: true },
+                      { label: "Score / Vigilance", value: `${adjustedScore}/100 — ${risk.nivVigilance}`, ok: true },
                       { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0 },
                       { label: "Decision", value: decision || "—", ok: !!decision },
                       { label: "Docs manuels", value: `${documents.length} fichier(s)`, ok: documents.length > 0 },
@@ -4240,7 +4242,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   {(screening.inpi.data?.documents ?? []).filter(d => d.storedInSupabase).length + documents.length} doc(s)
                 </span>
                 <span className="text-[10px] text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded-full">
-                  Score {adjustedScore}/120
+                  Score {adjustedScore}/100
                 </span>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full ${
                   risk.nivVigilance === "SIMPLIFIEE" ? "text-emerald-400 bg-emerald-500/10" :
