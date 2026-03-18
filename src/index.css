@@ -171,7 +171,7 @@
     font-weight: 600;
   }
 
-  /* Custom scrollbar */
+  /* Custom scrollbar — adaptive light/dark */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
@@ -180,17 +180,26 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: hsl(217 33% 22%);
+    background: #94a3b8; /* slate-400 */
     border-radius: 4px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: hsl(217 33% 32%);
+    background: #64748b; /* slate-500 */
+  }
+  .dark ::-webkit-scrollbar-thumb {
+    background: #475569; /* slate-600 */
+  }
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #64748b; /* slate-500 */
   }
 
   /* Firefox scrollbar */
   * {
     scrollbar-width: thin;
-    scrollbar-color: hsl(217 33% 22%) transparent;
+    scrollbar-color: #94a3b8 transparent;
+  }
+  .dark * {
+    scrollbar-color: #475569 transparent;
   }
 }
 
@@ -607,21 +616,7 @@ html {
   html { scroll-behavior: auto; }
 }
 
-/* OPT-49: Better scrollbar styling for dark theme */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: hsl(215, 20%, 30%);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: hsl(215, 20%, 40%);
-}
+/* OPT-49: Scrollbar styling — handled in @layer base above */
 
 /* OPT-50: Reduced-motion global preference */
 @media (prefers-reduced-motion: reduce) {
