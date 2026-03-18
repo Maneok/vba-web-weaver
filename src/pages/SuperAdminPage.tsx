@@ -67,7 +67,7 @@ export default function SuperAdminPage() {
           <Shield className="h-6 w-6 text-blue-400" />
         </div>
         <div>
-          <h1 className="text-xl font-bold text-slate-100">Super Admin GRIMY</h1>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">Super Admin GRIMY</h1>
           <p className="text-sm text-slate-400 dark:text-slate-500">Gestion globale de la plateforme</p>
         </div>
       </div>
@@ -90,7 +90,7 @@ export default function SuperAdminPage() {
               <Icon className="h-4 w-4" />
               <span className="hidden sm:inline">{tab.label}</span>
               {tab.id === "unpaid" && unpaidCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-slate-900 dark:text-white min-w-[18px] text-center">
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[18px] text-center">
                   {unpaidCount}
                 </span>
               )}

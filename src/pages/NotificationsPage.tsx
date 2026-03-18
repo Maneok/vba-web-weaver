@@ -154,7 +154,7 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Notifications</h1>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Notifications</h1>
           <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
             {unreadCount > 0 ? `${unreadCount} non lue${unreadCount > 1 ? "s" : ""}` : "Tout est a jour"}
           </p>
@@ -231,7 +231,7 @@ export default function NotificationsPage() {
                 <div className="mt-0.5 shrink-0">{getNotifIcon(n.type)}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className={`text-sm ${!n.lue ? "font-semibold text-slate-100" : "font-medium text-slate-700 dark:text-slate-300"}`}>
+                    <p className={`text-sm ${!n.lue ? "font-semibold text-slate-900 dark:text-slate-100" : "font-medium text-slate-700 dark:text-slate-300"}`}>
                       {n.titre}
                     </p>
                     {!n.lue && (

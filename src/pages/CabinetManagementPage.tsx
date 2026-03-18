@@ -150,7 +150,7 @@ export default function CabinetManagementPage() {
             <div className="h-8 w-8 rounded-lg bg-blue-500/20 flex items-center justify-center shrink-0">
               <Building2 className="h-4 w-4 text-blue-400" />
             </div>
-            <h2 className="font-semibold text-slate-100 text-sm truncate mr-2">{cabinetName}</h2>
+            <h2 className="font-semibold text-slate-900 dark:text-slate-100 text-sm truncate mr-2">{cabinetName}</h2>
           </div>
           <div className="flex overflow-x-auto gap-1 px-3 pb-2 scrollbar-hide">
             {allNavItems.map((item) => {
@@ -188,7 +188,7 @@ export default function CabinetManagementPage() {
                 <Building2 className="h-5 w-5 text-blue-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="font-semibold text-slate-100 truncate">{cabinetName}</h2>
+                <h2 className="font-semibold text-slate-900 dark:text-slate-100 truncate">{cabinetName}</h2>
                 {isPrincipal && (
                   <span className="inline-flex items-center gap-1 text-[11px] text-amber-400">
                     <Crown className="h-3 w-3" /> Cabinet principal

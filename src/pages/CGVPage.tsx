@@ -76,7 +76,7 @@ export default function CGVPage() {
           </p>
         </section>
 
-        <p className="text-sm text-slate-400 dark:text-slate-500 pt-8 border-t border-slate-800">
+        <p className="text-sm text-slate-400 dark:text-slate-500 pt-8 border-t border-gray-200 dark:border-slate-800">
           Dernière mise à jour : mars 2026
         </p>
       </div>

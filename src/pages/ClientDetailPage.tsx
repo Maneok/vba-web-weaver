@@ -1750,7 +1750,7 @@ function DocumentsTab({
 
               {/* #41 — Recent upload badge */}
               {isRecent && (
-                <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-blue-600 text-[9px] text-slate-900 dark:text-white font-bold shadow-lg animate-bounce">
+                <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-blue-600 text-[9px] text-white font-bold shadow-lg animate-bounce">
                   NOUVEAU
                 </div>
               )}

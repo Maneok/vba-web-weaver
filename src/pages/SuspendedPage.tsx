@@ -22,7 +22,7 @@ export default function SuspendedPage() {
         </div>
 
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-slate-100">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100">
             Abonnement suspendu
           </h1>
           <p className="text-slate-400 dark:text-slate-400 text-sm leading-relaxed">
@@ -33,7 +33,7 @@ export default function SuspendedPage() {
 
         <button
           onClick={handleSignOut}
-          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-red-500/15 text-red-300 hover:bg-red-500/25 border border-red-500/20 transition-colors text-sm font-medium"
+          className="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg bg-red-500/15 text-red-600 dark:text-red-300 hover:bg-red-500/25 border border-red-500/20 transition-colors text-sm font-medium"
         >
           <LogOut className="h-4 w-4" />
           Se deconnecter

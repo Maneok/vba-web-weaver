@@ -229,7 +229,7 @@ export default function HelpPage() {
         <div className="p-4 border-b border-gray-200 dark:border-white/[0.06]">
           <div className="flex items-center gap-2 mb-1">
             <BookOpen className="h-5 w-5 text-blue-400" />
-            <h2 className="text-sm font-semibold text-slate-100">Documentation</h2>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Documentation</h2>
           </div>
           <p className="text-xs text-slate-400 dark:text-slate-500">Guide d'utilisation</p>
         </div>
@@ -310,7 +310,7 @@ export default function HelpPage() {
                           <Badge variant="outline" className="text-[10px] font-mono border-blue-500/30 text-blue-300">
                             Etape {item.step}
                           </Badge>
-                          <h3 className="text-sm font-semibold text-slate-100">{item.title}</h3>
+                          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{item.title}</h3>
                         </div>
                         <p className="text-sm text-slate-400 dark:text-slate-400 leading-relaxed">{item.description}</p>
                       </div>
@@ -342,7 +342,7 @@ export default function HelpPage() {
                           <Badge variant="outline" className="text-[10px] font-mono border-emerald-500/30 text-emerald-300">
                             Etape {item.step}
                           </Badge>
-                          <h3 className="text-sm font-semibold text-slate-100">{item.title}</h3>
+                          <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{item.title}</h3>
                         </div>
                         <p className="text-sm text-slate-400 dark:text-slate-400 leading-relaxed mb-2">{item.description}</p>
                         <div className="flex items-start gap-2 rounded-lg bg-amber-500/5 border border-amber-500/10 px-3 py-2">
@@ -362,7 +362,7 @@ export default function HelpPage() {
             <SectionHeader icon={FileText} title="Lettre de mission" subtitle="Modeles et generation" />
             <div className="mt-6 space-y-4">
               <Card className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-5">
-                <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                   <Layers className="h-4 w-4 text-violet-400" />
                   Onglet "Modele"
                 </h3>
@@ -383,7 +383,7 @@ export default function HelpPage() {
               </Card>
 
               <Card className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-5">
-                <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-3 flex items-center gap-2">
                   <Zap className="h-4 w-4 text-blue-400" />
                   Onglet "Generer"
                 </h3>
@@ -428,7 +428,7 @@ export default function HelpPage() {
                 },
               ].map((item) => (
                 <Card key={item.title} className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-4">
-                  <h3 className="text-sm font-semibold text-slate-100 mb-1.5 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-1.5 flex items-center gap-2">
                     <ChevronRight className="h-4 w-4 text-orange-400" />
                     {item.title}
                   </h3>
@@ -447,7 +447,7 @@ export default function HelpPage() {
                   <p>Le module de controle qualite permet de realiser des audits internes conformement aux obligations du reglement interieur LCB-FT.</p>
                   <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
                   <div>
-                    <h3 className="text-sm font-semibold text-slate-100 mb-2">Tirage aleatoire</h3>
+                    <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100 mb-2">Tirage aleatoire</h3>
                     <ul className="space-y-2">
                       <li className="flex items-start gap-2">
                         <ChevronRight className="h-4 w-4 text-slate-600 mt-0.5 shrink-0" />
@@ -490,7 +490,7 @@ export default function HelpPage() {
                     value={`faq-${i}`}
                     className="border border-gray-200 dark:border-white/[0.06] rounded-lg bg-white dark:bg-white/[0.02] px-4 data-[state=open]:bg-gray-50 dark:bg-white/[0.03]"
                   >
-                    <AccordionTrigger className="text-sm text-slate-800 dark:text-slate-200 hover:text-slate-100 py-3 hover:no-underline">
+                    <AccordionTrigger className="text-sm text-slate-800 dark:text-slate-200 hover:text-slate-900 dark:hover:text-slate-100 py-3 hover:no-underline">
                       {item.question}
                     </AccordionTrigger>
                     <AccordionContent className="text-sm text-slate-400 dark:text-slate-400 leading-relaxed pb-4 whitespace-pre-line">
@@ -518,7 +518,7 @@ function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementTyp
         <Icon className="h-5 w-5" />
       </div>
       <div>
-        <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
         <p className="text-xs text-slate-400 dark:text-slate-500">{subtitle}</p>
       </div>
     </div>

@@ -45,7 +45,7 @@ function CircularGauge({ value, label, sublabel }: { value: number; label: strin
           />
         </RadialBarChart>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-bold text-slate-100">{Math.round(clamped)}%</span>
+          <span className="text-lg font-bold text-slate-900 dark:text-slate-100">{Math.round(clamped)}%</span>
         </div>
       </div>
       <p className="text-xs font-medium text-slate-700 dark:text-slate-300 text-center leading-tight max-w-[120px]">{label}</p>
@@ -250,7 +250,7 @@ export default function DiagnosticPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-sky-400" />
             Diagnostic 360° Tracfin
           </h1>
@@ -280,7 +280,7 @@ export default function DiagnosticPage() {
               <p className="text-lg font-bold text-slate-900 dark:text-white">
                 Score du dispositif : {report.scoreGlobalDispositif}/100
               </p>
-              <p className="text-sm text-white/80 mt-1">{report.synthese}</p>
+              <p className="text-sm text-slate-700 dark:text-white/80 mt-1">{report.synthese}</p>
             </div>
           </div>
         </div>

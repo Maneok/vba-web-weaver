@@ -166,7 +166,7 @@ export default function AppLayout() {
       )}
 
       {/* OPT-16: Better focus visibility for skip link */}
-      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-slate-900 dark:text-white px-3 py-2 rounded focus:outline-2 focus:outline-offset-2 focus:outline-blue-400">
+      <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:top-2 focus:left-2 bg-blue-600 text-white px-3 py-2 rounded focus:outline-2 focus:outline-offset-2 focus:outline-blue-400">
         Aller au contenu principal
       </a>
       <AppSidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />

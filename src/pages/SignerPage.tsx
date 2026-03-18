@@ -223,7 +223,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center">
-              <FileText className="w-4 h-4 text-slate-900 dark:text-white" />
+              <FileText className="w-4 h-4 text-white" />
             </div>
             <span className="text-xs font-semibold text-slate-600">GRIMY</span>
           </div>
@@ -388,7 +388,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
                   href={certificateUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-slate-900 dark:text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Download className="w-4 h-4" /> Telecharger le certificat
                 </a>
@@ -598,7 +598,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
             <Button
               onClick={handleSign}
               disabled={!accepted || !cgvAccepted || !signerNom.trim()}
-              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white py-6 text-base font-semibold disabled:opacity-40"
+              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-6 text-base font-semibold disabled:opacity-40"
             >
               <CheckCircle2 className="w-5 h-5" />
               Signer electroniquement

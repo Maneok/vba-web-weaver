@@ -152,7 +152,7 @@ export default function AuthPage() {
 
         <Card className="border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
-            <CardTitle className="text-lg text-slate-100">Bienvenue</CardTitle>
+            <CardTitle className="text-lg text-slate-900 dark:text-slate-100">Bienvenue</CardTitle>
             <CardDescription className="text-slate-400 dark:text-slate-400">
               Connectez-vous ou creez votre compte
             </CardDescription>
@@ -190,7 +190,7 @@ export default function AuthPage() {
                       autoComplete="email"
                       aria-label="Adresse email de connexion"
                       aria-describedby={error ? "auth-error" : undefined}
-                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -205,7 +205,7 @@ export default function AuthPage() {
                       autoComplete="current-password"
                       aria-label="Mot de passe"
                       aria-describedby={error ? "auth-error" : undefined}
-                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading || googleLoading}>
@@ -227,7 +227,7 @@ export default function AuthPage() {
                       onChange={(e) => setRegName(e.target.value)}
                       required
                       autoComplete="name"
-                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -240,7 +240,7 @@ export default function AuthPage() {
                       onChange={(e) => setRegEmail(e.target.value)}
                       required
                       autoComplete="email"
-                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -254,7 +254,7 @@ export default function AuthPage() {
                       required
                       minLength={8}
                       autoComplete="new-password"
-                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
@@ -266,7 +266,7 @@ export default function AuthPage() {
                       value={regCabinet}
                       onChange={(e) => setRegCabinet(e.target.value)}
                       required
-                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>

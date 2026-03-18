@@ -264,16 +264,16 @@ function CabinetSubTabs() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <Building2 className="w-5 h-5" />
           Gestion du Cabinet
         </h2>
         <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Cabinets, collaborateurs, roles, reglages, connecteurs et cles API.</p>
       </div>
       <Tabs value={subTab} onValueChange={setSubTab}>
-        <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1">
+        <TabsList className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 flex-wrap h-auto gap-1">
           {CABINET_SUB_TABS.map(({ value, label, icon: Icon }) => (
-            <TabsTrigger key={value} value={value} className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <TabsTrigger key={value} value={value} className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2">
               <Icon className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{label}</span>
             </TabsTrigger>
@@ -283,10 +283,10 @@ function CabinetSubTabs() {
           <TabsContent key={value} value={value}>
             <Suspense
               fallback={
-                <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
-                  <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
-                  <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
-                  <div className="h-64 w-full bg-white/5 rounded animate-pulse" />
+                <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl p-6 space-y-3">
+                  <div className="h-5 w-48 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+                  <div className="h-4 w-64 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+                  <div className="h-64 w-full bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
                 </div>
               }
             >
@@ -319,16 +319,16 @@ function RefSubTabs() {
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
+        <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <BookOpen className="w-5 h-5" />
           Referentiels
         </h2>
         <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Tables de reference pour le calcul de risque et la conformite LCB-FT.</p>
       </div>
       <Tabs value={subTab} onValueChange={setSubTab}>
-        <TabsList className="bg-white/5 border border-white/10">
+        <TabsList className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
           {REF_SUB_TABS.map(({ value, label, icon: Icon }) => (
-            <TabsTrigger key={value} value={value} className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+            <TabsTrigger key={value} value={value} className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2">
               <Icon className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">{label}</span>
             </TabsTrigger>
@@ -338,10 +338,10 @@ function RefSubTabs() {
           <TabsContent key={value} value={value}>
             <Suspense
               fallback={
-                <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
-                  <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
-                  <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
-                  <div className="h-64 w-full bg-white/5 rounded animate-pulse" />
+                <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl p-6 space-y-3">
+                  <div className="h-5 w-48 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+                  <div className="h-4 w-64 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+                  <div className="h-64 w-full bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
                 </div>
               }
             >
@@ -735,25 +735,25 @@ export default function SettingsPage() {
     return (
       <div className="p-6 lg:p-8 max-w-[1200px] mx-auto space-y-6">
         <div className="space-y-2">
-          <div className="h-6 w-40 bg-white/5 rounded animate-pulse" />
-          <div className="h-4 w-80 bg-white/5 rounded animate-pulse" />
+          <div className="h-6 w-40 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+          <div className="h-4 w-80 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
         </div>
-        <div className="h-10 w-72 bg-white/5 rounded animate-pulse" />
-        <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
+        <div className="h-10 w-72 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+        <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl p-6 space-y-6">
           <div className="space-y-3">
-            <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
-            <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
+            <div className="h-5 w-48 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+            <div className="h-4 w-64 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="space-y-2">
-                <div className="h-4 w-24 bg-white/5 rounded animate-pulse" />
-                <div className="h-10 w-full bg-white/5 rounded animate-pulse" />
+                <div className="h-4 w-24 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+                <div className="h-10 w-full bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
               </div>
             ))}
           </div>
           <div className="flex justify-end">
-            <div className="h-10 w-32 bg-white/5 rounded animate-pulse" />
+            <div className="h-10 w-32 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
           </div>
         </div>
       </div>
@@ -764,37 +764,37 @@ export default function SettingsPage() {
     <div className="p-6 lg:p-8 max-w-[1200px] mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-xl font-semibold text-slate-100">Parametres</h1>
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Parametres</h1>
         <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Configuration du cabinet, scoring de risque et conformite LCB-FT.</p>
       </div>
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-        <TabsList className="bg-white/5 border border-white/10">
-          <TabsTrigger value="cabinet" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2 relative">
+        <TabsList className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
+          <TabsTrigger value="cabinet" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2 relative">
             <Building2 className="w-4 h-4" />
             <span className="hidden sm:inline">Cabinet</span>
             {dirtyCabinet && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
-          <TabsTrigger value="scoring" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2 relative">
+          <TabsTrigger value="scoring" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2 relative">
             <Target className="w-4 h-4" />
             <span className="hidden sm:inline">Scoring</span>
             {dirtyScoring && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
-          <TabsTrigger value="lcbft" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2 relative">
+          <TabsTrigger value="lcbft" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2 relative">
             <ShieldCheck className="w-4 h-4" />
             <span className="hidden sm:inline">LCB-FT</span>
             {dirtyLcbft && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
-          <TabsTrigger value="referentiels" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+          <TabsTrigger value="referentiels" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2">
             <BookOpen className="w-4 h-4" />
             <span className="hidden sm:inline">Referentiels</span>
           </TabsTrigger>
-          <TabsTrigger value="gestion-cabinet" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+          <TabsTrigger value="gestion-cabinet" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2">
             <Building2 className="w-4 h-4" />
             <span className="hidden sm:inline">Gestion Cabinet</span>
           </TabsTrigger>
-          <TabsTrigger value="abonnement" className="data-[state=active]:bg-white/10 data-[state=active]:text-white gap-2">
+          <TabsTrigger value="abonnement" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2">
             <CreditCard className="w-4 h-4" />
             <span className="hidden sm:inline">Abonnement</span>
           </TabsTrigger>
@@ -805,27 +805,27 @@ export default function SettingsPage() {
           <div className="space-y-4">
             {/* Dirty warning banner */}
             {dirtyCabinet && (
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-300 text-sm">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-amber-700 dark:text-amber-300 text-sm">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
                 Modifications non enregistrees. Pensez a sauvegarder vos changements.
               </div>
             )}
 
             {/* Main card with gradient header */}
-            <div className="glass-card border border-white/10 rounded-xl overflow-hidden">
+            <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl overflow-hidden">
               {/* Gradient header */}
-              <div className="px-6 py-5 bg-gradient-to-r from-white/[0.04] to-white/[0.01] border-b border-white/10">
+              <div className="px-6 py-5 bg-gradient-to-r from-gray-50 dark:from-white/[0.04] to-gray-50/50 dark:to-white/[0.01] border-b border-gray-200 dark:border-white/10">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-4">
                     {/* Avatar circle */}
                     <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center text-slate-900 dark:text-white font-bold text-lg shrink-0 shadow-lg"
+                      className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg"
                       style={{ backgroundColor: cabinet.couleurPrimaire }}
                     >
                       {getInitials(cabinet.nom)}
                     </div>
                     <div>
-                      <h2 className="text-lg font-semibold text-slate-100">
+                      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">
                         {cabinet.nom || "Mon cabinet"}
                       </h2>
                       <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -868,7 +868,7 @@ export default function SettingsPage() {
               <div className="p-6 space-y-5">
                 {/* ---- Section 1: Identite ---- */}
                 <Collapsible open={identiteOpen} onOpenChange={setIdentiteOpen}>
-                  <div className="rounded-lg border border-white/10 overflow-hidden">
+                  <div className="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
                       <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
@@ -967,7 +967,7 @@ export default function SettingsPage() {
 
                 {/* ---- Section 2: Coordonnees ---- */}
                 <Collapsible open={coordonneesOpen} onOpenChange={setCoordonneesOpen}>
-                  <div className="rounded-lg border border-white/10 overflow-hidden">
+                  <div className="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
                       <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
@@ -1077,7 +1077,7 @@ export default function SettingsPage() {
 
                 {/* ---- Section 3: Apparence ---- */}
                 <Collapsible open={apparenceOpen} onOpenChange={setApparenceOpen}>
-                  <div className="rounded-lg border border-white/10 overflow-hidden">
+                  <div className="rounded-lg border border-gray-200 dark:border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
                       <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
@@ -1103,7 +1103,7 @@ export default function SettingsPage() {
                                     type="button"
                                     title={c.label}
                                     onClick={() => updateCabinet("couleurPrimaire", c.value)}
-                                    className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-110 ${cabinet.couleurPrimaire === c.value ? "border-white ring-2 ring-white/30 scale-110" : "border-white/20"}`}
+                                    className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-110 ${cabinet.couleurPrimaire === c.value ? "border-blue-600 ring-2 ring-blue-600/30 dark:border-white dark:ring-white/30 scale-110" : "border-gray-300 dark:border-white/20"}`}
                                     style={{ backgroundColor: c.value }}
                                   />
                                 ))}
@@ -1111,7 +1111,7 @@ export default function SettingsPage() {
                                   type="color"
                                   value={cabinet.couleurPrimaire}
                                   onChange={(e) => updateCabinet("couleurPrimaire", e.target.value)}
-                                  className="w-7 h-7 rounded-full border border-white/20 bg-transparent cursor-pointer"
+                                  className="w-7 h-7 rounded-full border border-gray-300 dark:border-white/20 bg-transparent cursor-pointer"
                                   title="Couleur personnalisee"
                                 />
                                 <span className="text-xs text-slate-400 dark:text-slate-500 font-mono ml-1">{cabinet.couleurPrimaire}</span>
@@ -1128,7 +1128,7 @@ export default function SettingsPage() {
                                     type="button"
                                     title={c.label}
                                     onClick={() => updateCabinet("couleurSecondaire", c.value)}
-                                    className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-110 ${cabinet.couleurSecondaire === c.value ? "border-white ring-2 ring-white/30 scale-110" : "border-white/20"}`}
+                                    className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-110 ${cabinet.couleurSecondaire === c.value ? "border-blue-600 ring-2 ring-blue-600/30 dark:border-white dark:ring-white/30 scale-110" : "border-gray-300 dark:border-white/20"}`}
                                     style={{ backgroundColor: c.value }}
                                   />
                                 ))}
@@ -1136,7 +1136,7 @@ export default function SettingsPage() {
                                   type="color"
                                   value={cabinet.couleurSecondaire}
                                   onChange={(e) => updateCabinet("couleurSecondaire", e.target.value)}
-                                  className="w-7 h-7 rounded-full border border-white/20 bg-transparent cursor-pointer"
+                                  className="w-7 h-7 rounded-full border border-gray-300 dark:border-white/20 bg-transparent cursor-pointer"
                                   title="Couleur personnalisee"
                                 />
                                 <span className="text-xs text-slate-400 dark:text-slate-500 font-mono ml-1">{cabinet.couleurSecondaire}</span>
@@ -1170,7 +1170,7 @@ export default function SettingsPage() {
                               <div className="p-4 space-y-2">
                                 <div className="flex items-center gap-3">
                                   <div
-                                    className="w-9 h-9 rounded-full flex items-center justify-center text-slate-900 dark:text-white text-xs font-bold shrink-0"
+                                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
                                     style={{ backgroundColor: cabinet.couleurPrimaire }}
                                   >
                                     {getInitials(cabinet.nom)}
@@ -1204,7 +1204,7 @@ export default function SettingsPage() {
               </div>
 
               {/* Sticky save bar */}
-              <div className="sticky bottom-0 z-10 px-6 py-3 border-t border-white/10 bg-gray-50 dark:bg-slate-900/80 backdrop-blur-lg flex items-center justify-between">
+              <div className="sticky bottom-0 z-10 px-6 py-3 border-t border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-slate-900/80 backdrop-blur-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {showResetConfirm ? (
                     <div className="flex items-center gap-2">
@@ -1247,9 +1247,9 @@ export default function SettingsPage() {
 
         {/* ===== SCORING TAB ===== */}
         <TabsContent value="scoring">
-          <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
+          <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl p-6 space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-slate-100">Configuration du scoring</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Configuration du scoring</h2>
               <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Seuils de vigilance, malus de risque et frequences de revue.</p>
             </div>
 
@@ -1359,9 +1359,9 @@ export default function SettingsPage() {
 
         {/* ===== LCB-FT TAB ===== */}
         <TabsContent value="lcbft">
-          <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
+          <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl p-6 space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-slate-100">Configuration LCB-FT</h2>
+              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Configuration LCB-FT</h2>
               <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Referent, formations et listes de pays a risque.</p>
             </div>
 
@@ -1456,10 +1456,10 @@ export default function SettingsPage() {
         <TabsContent value="abonnement">
           <Suspense
             fallback={
-              <div className="glass-card border border-white/10 rounded-xl p-6 space-y-3">
-                <div className="h-5 w-48 bg-white/5 rounded animate-pulse" />
-                <div className="h-4 w-64 bg-white/5 rounded animate-pulse" />
-                <div className="h-8 w-full bg-white/5 rounded animate-pulse" />
+              <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl p-6 space-y-3">
+                <div className="h-5 w-48 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+                <div className="h-4 w-64 bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
+                <div className="h-8 w-full bg-gray-200 dark:bg-white/5 rounded animate-pulse" />
               </div>
             }
           >

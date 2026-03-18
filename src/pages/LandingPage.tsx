@@ -740,7 +740,7 @@ function InteractiveDemo() {
           <button
             onClick={run}
             disabled={stage === "running"}
-            className="rounded-lg bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 disabled:opacity-45 px-4 py-2.5 text-sm font-medium text-slate-900 dark:text-white transition-colors btn-press"
+            className="rounded-lg bg-gradient-to-r from-violet-600 to-purple-500 hover:from-violet-500 hover:to-purple-400 disabled:opacity-45 px-4 py-2.5 text-sm font-medium text-white transition-colors btn-press"
           >
             {stage === "idle" ? "Lancer" : stage === "running" ? "En cours..." : "Relancer"}
           </button>
@@ -816,7 +816,7 @@ function VideoPlayer() {
       {!playing ? (
         <div className="relative flex flex-col items-center justify-center h-full gap-4">
           <div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-600/90 shadow-lg shadow-blue-600/30 group-hover:bg-blue-500 transition-colors pulse-play">
-            <Play className="h-7 w-7 text-slate-900 dark:text-white ml-1" />
+            <Play className="h-7 w-7 text-white ml-1" />
           </div>
           <p className="text-sm font-medium text-[--l-text-3]">Découvrir GRIMY en 60 secondes</p>
           <p className="text-xs text-[--l-text-5]">Cliquez pour lancer la vidéo</p>
@@ -1228,7 +1228,7 @@ function LegalModal({ type, onClose }: { type: Exclude<LegalModalType, null>; on
           })}
         </div>
         <div className="mt-8 pt-4 border-t flex justify-end" style={{ borderColor: "var(--l-border)" }}>
-          <button onClick={onClose} className="px-6 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-slate-900 dark:text-white hover:bg-blue-500 transition-colors btn-press">
+          <button onClick={onClose} className="px-6 py-2.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-500 transition-colors btn-press">
             Fermer
           </button>
         </div>
@@ -1776,11 +1776,11 @@ export default function LandingPage() {
         {showUrgencyBanner && (
           <div className="fixed top-0.5 left-0 right-0 z-[58] bg-gradient-to-r from-amber-600/90 to-orange-600/90 backdrop-blur-sm urgency-enter">
             <div className="mx-auto max-w-7xl flex items-center justify-center gap-3 px-4 py-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-slate-900 dark:text-white shrink-0" />
-              <p className="text-xs font-medium text-slate-900 dark:text-white">
+              <AlertTriangle className="h-3.5 w-3.5 text-white shrink-0" />
+              <p className="text-xs font-medium text-white">
                 <span className="hidden sm:inline">NPMQ 2025 en vigueur depuis janvier — </span>2 500 contrôles LAB prévus cette année. Êtes-vous prêt ?
               </p>
-              <Link to="/auth" className="text-[10px] font-bold text-slate-900 dark:text-white underline underline-offset-2 whitespace-nowrap">
+              <Link to="/auth" className="text-[10px] font-bold text-white underline underline-offset-2 whitespace-nowrap">
                 Vérifier ma conformité
               </Link>
               <button onClick={() => setShowUrgencyBanner(false)} className="ml-1 text-white/70 hover:text-white" aria-label="Fermer">
@@ -1839,7 +1839,7 @@ export default function LandingPage() {
                 <Button variant="ghost" className="btn-press" style={{ color: "var(--l-text-3)" }}>Se connecter</Button>
               </Link>
               <Link to="/auth" className="hidden sm:inline-flex" aria-label="Demarrer l'essai gratuit">
-                <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-500/20 btn-press text-slate-900 dark:text-white">Démarrer</Button>
+                <Button className="bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-500 hover:to-blue-400 shadow-lg shadow-blue-500/20 btn-press text-white">Démarrer</Button>
               </Link>
 
               {/* Mobile hamburger — Sheet */}
@@ -1856,7 +1856,7 @@ export default function LandingPage() {
                     ))}
                     <div className="pt-4 mt-4 flex flex-col gap-3" style={{ borderTop: "1px solid var(--l-border)" }}>
                       <Link to="/auth"><Button variant="outline" className="w-full" style={{ borderColor: "var(--l-border)", color: "var(--l-text-2)" }}>Connexion</Button></Link>
-                      <Link to="/auth"><Button className="w-full bg-blue-600 text-slate-900 dark:text-white">Démarrer gratuitement</Button></Link>
+                      <Link to="/auth"><Button className="w-full bg-blue-600 text-white">Démarrer gratuitement</Button></Link>
                     </div>
                   </div>
                 </SheetContent>
@@ -1914,7 +1914,7 @@ export default function LandingPage() {
 
             <div className={`flex flex-col sm:flex-row items-center justify-center gap-3 transition-all duration-1000 delay-500 ${heroVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-6"}`}>
               <Link to="/auth" aria-label="Demarrer l'essai gratuit de 14 jours">
-                <Button size="lg" className="h-12 px-8 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-blue-600/25 btn-press text-slate-900 dark:text-white cta-glow">
+                <Button size="lg" className="h-12 px-8 text-base bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-xl shadow-blue-600/25 btn-press text-white cta-glow">
                   Essai gratuit 14 jours <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -1986,7 +1986,7 @@ export default function LandingPage() {
 
             <div data-reveal className="mt-12 text-center opacity-0 translate-y-10 transition-all duration-700 delay-500">
               <Link to="/auth">
-                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/20 btn-press text-slate-900 dark:text-white h-11 px-6">
+                <Button className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/20 btn-press text-white h-11 px-6">
                   Découvrir la solution <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
@@ -2279,7 +2279,7 @@ export default function LandingPage() {
                         {/* Populaire badge — inline, not absolute */}
                         {plan.popular ? (
                           <div className="mb-4">
-                            <Badge className="bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-600 text-slate-900 dark:text-white border-0 px-3 py-1 badge-shimmer">Le plus populaire</Badge>
+                            <Badge className="bg-gradient-to-r from-blue-600 via-indigo-500 to-blue-600 text-white border-0 px-3 py-1 badge-shimmer">Le plus populaire</Badge>
                           </div>
                         ) : (
                           <div className="mb-4 h-6" /> /* spacer for alignment */
@@ -2324,7 +2324,7 @@ export default function LandingPage() {
                             </a>
                           ) : (
                             <Link to="/auth" className="block">
-                              <Button className={`w-full h-12 btn-press text-base ${plan.popular ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/20 text-slate-900 dark:text-white" : "bg-[--l-surface-raised] hover:opacity-80"}`} style={plan.popular ? {} : { color: "var(--l-text)" }}>
+                              <Button className={`w-full h-12 btn-press text-base ${plan.popular ? "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 shadow-lg shadow-blue-600/20 text-white" : "bg-[--l-surface-raised] hover:opacity-80"}`} style={plan.popular ? {} : { color: "var(--l-text)" }}>
                                 {plan.cta}
                               </Button>
                             </Link>

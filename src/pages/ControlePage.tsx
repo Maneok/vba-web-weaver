@@ -903,7 +903,7 @@ export default function ControlePage() {
         <div className="animate-fade-in-up flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">Controle qualite</p>
-            <h1 className="text-xl font-semibold text-slate-100 mt-1">
+            <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100 mt-1">
               Revue des dossiers LCB-FT
             </h1>
             <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
@@ -1498,9 +1498,9 @@ export default function ControlePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── Draw Options Dialog ── */}
         <Dialog open={showDrawOptions} onOpenChange={setShowDrawOptions}>
-          <DialogContent className="max-w-lg bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100">
+          <DialogContent className="max-w-lg bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-slate-100">
+              <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                 <Shuffle className="w-5 h-5 text-blue-400" />
                 Options de tirage
               </DialogTitle>
@@ -1621,9 +1621,9 @@ export default function ControlePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── New/Edit Control Form Dialog ── */}
         <Dialog open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>
-          <DialogContent className="max-w-3xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="flex items-center gap-2 text-slate-100">
+              <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                 {editMode ? <Edit3 className="w-5 h-5 text-amber-400" /> : <Plus className="w-5 h-5 text-blue-400" />}
                 {editMode ? "Modifier le controle qualite" : "Nouveau controle qualite"}
               </DialogTitle>
@@ -1882,12 +1882,12 @@ export default function ControlePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── Detail Dialog ── */}
         <Dialog open={detailId !== null} onOpenChange={(open) => { if (!open) { setDetailId(null); setShowDeleteConfirm(false); } }}>
-          <DialogContent className="max-w-3xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 max-h-[90vh] overflow-y-auto">
             {detailControle && (
               <>
                 <DialogHeader>
                   <div className="flex items-center justify-between">
-                    <DialogTitle className="flex items-center gap-2 text-slate-100">
+                    <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                       <Eye className="w-5 h-5 text-blue-400" />
                       Detail du controle
                     </DialogTitle>
@@ -2031,7 +2031,7 @@ export default function ControlePage() {
 
         {/* ── Delete confirmation ── */}
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <DialogContent className="max-w-sm bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100">
+          <DialogContent className="max-w-sm bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-400">
                 <Trash2 className="w-5 h-5" />

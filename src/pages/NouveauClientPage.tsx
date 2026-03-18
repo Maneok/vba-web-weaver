@@ -1880,8 +1880,8 @@ export default function NouveauClientPage() {
             >
               {/* #73: Completion checkmarks + #97: Shadow on active */}
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                i < step ? "bg-emerald-500 text-slate-900 dark:text-white shadow-lg shadow-emerald-500/20 scale-90" :
-                i === step ? "bg-blue-500 text-slate-900 dark:text-white ring-4 ring-blue-500/20 shadow-xl shadow-blue-500/30 scale-110" :
+                i < step ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-90" :
+                i === step ? "bg-blue-500 text-white ring-4 ring-blue-500/20 shadow-xl shadow-blue-500/30 scale-110" :
                 "bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500"
               }`}>
                 {i < step ? <Check className="w-4 h-4" /> : i + 1}
@@ -2935,7 +2935,7 @@ export default function NouveauClientPage() {
                                     onClick={() => updateQuestion(qi, "value", val)}
                                     className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
                                       q.value === val
-                                        ? val === "OUI" ? "bg-red-500 text-slate-900 dark:text-white shadow-md shadow-red-500/20" : val === "NON" ? "bg-emerald-500 text-slate-900 dark:text-white shadow-md shadow-emerald-500/20" : "bg-slate-500 text-slate-900 dark:text-white"
+                                        ? val === "OUI" ? "bg-red-500 text-white shadow-md shadow-red-500/20" : val === "NON" ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "bg-slate-500 text-white"
                                         : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 hover:bg-gray-200/50 dark:bg-white/[0.08]"
                                     }`}
                                   >
@@ -3003,7 +3003,7 @@ export default function NouveauClientPage() {
                                 onClick={() => updateQuestion(qi, "value", val)}
                                 className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
                                   q.value === val
-                                    ? val === "OUI" ? "bg-red-500 text-slate-900 dark:text-white shadow-md" : val === "NON" ? "bg-emerald-500 text-slate-900 dark:text-white shadow-md" : "bg-slate-500 text-slate-900 dark:text-white"
+                                    ? val === "OUI" ? "bg-red-500 text-white shadow-md" : val === "NON" ? "bg-emerald-500 text-white shadow-md" : "bg-slate-500 text-white"
                                     : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 hover:bg-gray-200/50 dark:bg-white/[0.08]"
                                 }`}
                               >
@@ -4018,7 +4018,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
             {/* Generate buttons + batch download */}
             <div className="flex flex-wrap gap-3">
               <Button
-                className="gap-2 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white shadow-md"
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
                 disabled={generatingPdf === "fiche"}
                 onClick={() => {
                   const tempClient = buildTempClient();

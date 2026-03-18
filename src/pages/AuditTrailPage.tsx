@@ -420,11 +420,11 @@ export default function AuditTrailPage() {
 
       {/* Detail dialog */}
       <Dialog open={!!selectedEntry} onOpenChange={(open) => { if (!open) setSelectedEntry(null); }}>
-        <DialogContent className="max-w-2xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-slate-100 max-h-[90vh] overflow-y-auto">
           {selectedEntry && (
             <>
               <DialogHeader>
-                <DialogTitle className="flex items-center gap-2 text-slate-100">
+                <DialogTitle className="flex items-center gap-2 text-slate-900 dark:text-slate-100">
                   <Eye className="w-5 h-5 text-blue-400" />
                   Detail de l'entree #{selectedEntry.id}
                 </DialogTitle>
