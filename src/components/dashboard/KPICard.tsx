@@ -40,7 +40,7 @@ export function KPICard({
 
   return (
     <div
-      className={`bg-card rounded-2xl p-5 border border-border border-l-4 hover:border-white/[0.12] transition-colors duration-200 print:break-inside-avoid ${isClickable ? "cursor-pointer" : ""}`}
+      className={`bg-card rounded-2xl p-5 border border-border border-l-4 hover:border-gray-300 dark:hover:border-white/[0.12] transition-colors duration-200 print:break-inside-avoid ${isClickable ? "cursor-pointer" : ""}`}
       style={{ borderLeftColor: color }}
       onClick={onClick}
       role={isClickable ? "button" : undefined}
