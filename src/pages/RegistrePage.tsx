@@ -185,13 +185,13 @@ export default function RegistrePage() {
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in-up">
         <div>
-          <h1 className="text-xl font-bold text-white">Registre LCB-FT</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Registre des alertes, investigations et decisions</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Registre LCB-FT</h1>
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Registre des alertes, investigations et decisions</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            className="gap-1.5 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-slate-300"
+            className="gap-1.5 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300"
             onClick={() => {
               exportCSV(filtered, `registre-lcb-ft-${new Date().toISOString().split("T")[0]}.csv`);
               toast.success(`${filtered.length} alertes exportees en CSV`);
@@ -212,8 +212,8 @@ export default function RegistrePage() {
             <BookOpen className="w-5 h-5 text-blue-400" />
           </div>
           <div>
-            <p className="text-2xl font-bold text-white">{totalAlertes}</p>
-            <p className="text-[11px] text-slate-500">Total alertes</p>
+            <p className="text-2xl font-bold text-slate-900 dark:text-white">{totalAlertes}</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">Total alertes</p>
           </div>
         </div>
         <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.02] cursor-default focus-visible:ring-2 focus-visible:ring-blue-400" role="region" aria-label={`Alertes en cours : ${enCours}`}>
@@ -222,7 +222,7 @@ export default function RegistrePage() {
           </div>
           <div>
             <p className="text-2xl font-bold text-orange-400">{enCours}</p>
-            <p className="text-[11px] text-slate-500">En cours</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">En cours</p>
           </div>
         </div>
         <div className="glass-card p-4 flex items-center gap-4 transition-transform duration-200 hover:scale-[1.02] cursor-default focus-visible:ring-2 focus-visible:ring-blue-400" role="region" aria-label={`Declarations TRACFIN : ${tracfinCount}`}>
@@ -231,7 +231,7 @@ export default function RegistrePage() {
           </div>
           <div>
             <p className="text-2xl font-bold text-red-400">{tracfinCount}</p>
-            <p className="text-[11px] text-slate-500">Declarations TRACFIN</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">Declarations TRACFIN</p>
           </div>
         </div>
       </div>
@@ -239,17 +239,17 @@ export default function RegistrePage() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-3 flex-wrap animate-fade-in-up" style={{ animationDelay: "120ms" }}>
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher dans le registre..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
+            className="pl-9 bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
             aria-label="Rechercher dans le registre"
           />
         </div>
         <Select value={filterStatut} onValueChange={(v) => { setFilterStatut(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06]" aria-label="Filtrer par statut">
+          <SelectTrigger className="w-full sm:w-[150px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" aria-label="Filtrer par statut">
             <SelectValue placeholder="Statut" />
           </SelectTrigger>
           <SelectContent>
@@ -259,7 +259,7 @@ export default function RegistrePage() {
           </SelectContent>
         </Select>
         <Select value={filterCategorie} onValueChange={(v) => { setFilterCategorie(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-full sm:w-[200px] bg-white/[0.03] border-white/[0.06]" aria-label="Filtrer par categorie">
+          <SelectTrigger className="w-full sm:w-[200px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" aria-label="Filtrer par categorie">
             <SelectValue placeholder="Categorie" />
           </SelectTrigger>
           <SelectContent>
@@ -274,7 +274,7 @@ export default function RegistrePage() {
           value={dateStart}
           max={dateEnd || undefined}
           onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }}
-          className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
+          className="w-full sm:w-[150px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300"
           placeholder="Date debut"
           aria-label="Date de debut du filtre"
         />
@@ -283,14 +283,14 @@ export default function RegistrePage() {
           value={dateEnd}
           min={dateStart || undefined}
           onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }}
-          className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06] text-slate-300"
+          className="w-full sm:w-[150px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300"
           placeholder="Date fin"
           aria-label="Date de fin du filtre"
         />
         {hasActiveFilters && (
           <Button
             variant="outline"
-            className="gap-1.5 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-slate-300"
+            className="gap-1.5 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300"
             onClick={clearAllFilters}
             aria-label="Effacer tous les filtres"
           >
@@ -304,22 +304,22 @@ export default function RegistrePage() {
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
-              <TableRow className="border-white/[0.06] hover:bg-transparent">
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("date")} aria-label="Trier par date" aria-sort={sortKey === "date" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
+              <TableRow className="border-gray-200 dark:border-white/[0.06] hover:bg-transparent">
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("date")} aria-label="Trier par date" aria-sort={sortKey === "date" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Date <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("clientConcerne")} aria-label="Trier par client" aria-sort={sortKey === "clientConcerne" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("clientConcerne")} aria-label="Trier par client" aria-sort={sortKey === "clientConcerne" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Client <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("categorie")} aria-label="Trier par categorie" aria-sort={sortKey === "categorie" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none" onClick={() => handleSort("categorie")} aria-label="Trier par categorie" aria-sort={sortKey === "categorie" ? (sortDir === "asc" ? "ascending" : "descending") : "none"}>
                   <span className="inline-flex items-center gap-1">Categorie <ArrowUpDown className="w-3 h-3" /></span>
                 </TableHead>
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Qualification</TableHead>
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Action prise</TableHead>
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Responsable</TableHead>
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Statut</TableHead>
-                <TableHead scope="col" className="text-slate-500 text-[11px] uppercase tracking-wider">Date butoir</TableHead>
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Qualification</TableHead>
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Action prise</TableHead>
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Responsable</TableHead>
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Statut</TableHead>
+                <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Date butoir</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -330,36 +330,36 @@ export default function RegistrePage() {
                 return (
                   <TableRow
                     key={alerteId}
-                    className={`border-white/[0.04] hover:bg-white/[0.02] transition-colors cursor-pointer ${isOverdue ? "bg-red-500/[0.06]" : ""}`}
+                    className={`border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02] transition-colors cursor-pointer ${isOverdue ? "bg-red-500/[0.06]" : ""}`}
                     onClick={() => setSelectedAlerte(a)}
                     aria-label={`Alerte ${alerteId} - ${a.clientConcerne}`}
                   >
-                    <TableCell className="text-xs text-slate-400 font-mono whitespace-nowrap">{formatDateFR(a.date)}</TableCell>
-                    <TableCell className="font-medium text-sm text-slate-200 whitespace-nowrap">{a.clientConcerne}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono whitespace-nowrap">{formatDateFR(a.date)}</TableCell>
+                    <TableCell className="font-medium text-sm text-slate-800 dark:text-slate-200 whitespace-nowrap">{a.clientConcerne}</TableCell>
                     <TableCell>
                       <span className={`text-[11px] font-medium px-2 py-0.5 rounded-md whitespace-nowrap ${getCategoryBadgeClasses(a.categorie)}`}>
                         {a.categorie}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-400">{a.qualification}</TableCell>
-                    <TableCell className="text-xs text-slate-400 max-w-[200px] truncate">{a.details?.length > 100 ? a.details.slice(0, 100) + "..." : a.details}</TableCell>
-                    <TableCell className="text-xs text-slate-400 max-w-[180px] truncate">{a.actionPrise}</TableCell>
-                    <TableCell className="text-xs text-slate-400 whitespace-nowrap">{a.responsable}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{a.qualification}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 max-w-[200px] truncate">{a.details?.length > 100 ? a.details.slice(0, 100) + "..." : a.details}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 max-w-[180px] truncate">{a.actionPrise}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 whitespace-nowrap">{a.responsable}</TableCell>
                     <TableCell>
                       <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap ${getStatutBadgeClasses(a.statut)}`}>
                         {a.statut}
                       </span>
                     </TableCell>
-                    <TableCell className={`text-xs font-mono whitespace-nowrap ${isOverdue ? "text-red-400 font-semibold" : "text-slate-400"}`}>{formatDateFR(a.dateButoir)}</TableCell>
+                    <TableCell className={`text-xs font-mono whitespace-nowrap ${isOverdue ? "text-red-400 font-semibold" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>{formatDateFR(a.dateButoir)}</TableCell>
                   </TableRow>
                 );
               })}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-16 text-slate-500">
+                  <TableCell colSpan={9} className="text-center py-16 text-slate-400 dark:text-slate-500">
                     <div className="flex flex-col items-center gap-3">
                       <FileX2 className="w-12 h-12 text-slate-600" />
-                      <p className="text-sm font-medium text-slate-400">Aucune alerte trouvee</p>
+                      <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune alerte trouvee</p>
                       <p className="text-xs text-slate-600">Modifiez vos filtres ou creez une nouvelle alerte</p>
                     </div>
                   </TableCell>
@@ -369,8 +369,8 @@ export default function RegistrePage() {
           </Table>
         </div>
         {filtered.length > 0 && (
-          <div className="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between">
-            <span className="text-xs text-slate-500">
+          <div className="px-4 py-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
+            <span className="text-xs text-slate-400 dark:text-slate-500">
               {filtered.length} alerte{filtered.length > 1 ? "s" : ""} affichee{filtered.length > 1 ? "s" : ""}
               {filtered.length !== alertes.length && ` sur ${alertes.length}`}
             </span>
@@ -379,20 +379,20 @@ export default function RegistrePage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 w-7 p-0 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-slate-300"
+                  className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={safePage <= 1}
                   aria-label="Page precedente"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
-                <span className="text-xs text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
                   {safePage} / {totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 w-7 p-0 border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] text-slate-300"
+                  className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] hover:bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={safePage >= totalPages}
                   aria-label="Page suivante"
@@ -407,13 +407,13 @@ export default function RegistrePage() {
 
       {/* Detail Sheet */}
       <Sheet open={!!selectedAlerte} onOpenChange={(open) => { if (!open) setSelectedAlerte(null); }}>
-        <SheetContent className="bg-[hsl(217,33%,12%)] border-white/[0.06] w-full sm:max-w-lg overflow-y-auto">
+        <SheetContent className="bg-[hsl(217,33%,12%)] border-gray-200 dark:border-white/[0.06] w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader className="flex flex-row items-center justify-between">
-            <SheetTitle className="text-white text-lg">Detail de l'alerte</SheetTitle>
+            <SheetTitle className="text-slate-900 dark:text-white text-lg">Detail de l'alerte</SheetTitle>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 text-slate-400 hover:text-white"
+              className="h-8 w-8 p-0 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-white"
               onClick={() => setSelectedAlerte(null)}
               aria-label="Fermer le panneau de detail"
             >
@@ -425,20 +425,20 @@ export default function RegistrePage() {
               <DetailRow label="Date" value={formatDateFR(selectedAlerte.date)} mono />
               <DetailRow label="Client concerne" value={selectedAlerte.clientConcerne} />
               <div>
-                <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Categorie</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Categorie</p>
                 <span className={`text-xs font-medium px-2.5 py-1 rounded-md ${getCategoryBadgeClasses(selectedAlerte.categorie)}`}>
                   {selectedAlerte.categorie}
                 </span>
               </div>
               <DetailRow label="Qualification" value={selectedAlerte.qualification || "—"} />
               <div>
-                <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Details</p>
-                <p className="text-sm text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedAlerte.details || "—"}</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Details</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedAlerte.details || "—"}</p>
               </div>
               <DetailRow label="Action prise" value={selectedAlerte.actionPrise || "—"} />
               <DetailRow label="Responsable" value={selectedAlerte.responsable || "—"} />
               <div>
-                <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Statut</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Statut</p>
                 <span className={`text-xs font-semibold px-2.5 py-1 rounded-md ${getStatutBadgeClasses(selectedAlerte.statut)}`}>
                   {selectedAlerte.statut}
                 </span>
@@ -448,8 +448,8 @@ export default function RegistrePage() {
               <DetailRow label="Validateur" value={selectedAlerte.validateur || "—"} />
 
               {/* Action buttons */}
-              <div className="pt-4 border-t border-white/[0.06] space-y-2">
-                <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Actions</p>
+              <div className="pt-4 border-t border-gray-200 dark:border-white/[0.06] space-y-2">
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Actions</p>
                 {selectedAlerte.statut === "EN COURS" && (
                   <Button
                     size="sm"
@@ -501,15 +501,15 @@ export default function RegistrePage() {
 
       {/* New alert dialog */}
       <Dialog open={showDialog} onOpenChange={(open) => { setShowDialog(open); if (!open) setFormErrors({}); }}>
-        <DialogContent className="bg-[hsl(217,33%,14%)] border-white/[0.06]">
+        <DialogContent className="bg-[hsl(217,33%,14%)] border-gray-200 dark:border-white/[0.06]">
           <DialogHeader>
-            <DialogTitle className="text-white">Nouvelle alerte LCB-FT</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-white">Nouvelle alerte LCB-FT</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label className="text-xs text-slate-400">Client concerne <span className="text-red-400">*</span></Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Client concerne <span className="text-red-400">*</span></Label>
               <Select value={newAlerte.client} onValueChange={v => { setNewAlerte(p => ({ ...p, client: v })); setFormErrors(p => { const n = { ...p }; delete n.client; return n; }); }}>
-                <SelectTrigger className={`bg-white/[0.03] border-white/[0.06] ${formErrors.client ? "border-red-500" : ""}`} aria-invalid={!!formErrors.client}><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
+                <SelectTrigger className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] ${formErrors.client ? "border-red-500" : ""}`} aria-invalid={!!formErrors.client}><SelectValue placeholder="Selectionnez un client" /></SelectTrigger>
                 <SelectContent>
                   {clients.map(c => <SelectItem key={c.ref} value={c.ref}>{c.raisonSociale} ({c.ref})</SelectItem>)}
                 </SelectContent>
@@ -517,23 +517,23 @@ export default function RegistrePage() {
               {formErrors.client && <p className="text-xs text-red-400 mt-1">{formErrors.client}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Categorie</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Categorie</Label>
               <Select value={newAlerte.categorie} onValueChange={v => setNewAlerte(p => ({ ...p, categorie: v }))}>
-                <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Details <span className="text-red-400">*</span></Label>
-              <Textarea value={newAlerte.details} onChange={e => { setNewAlerte(p => ({ ...p, details: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.details; return n; }); }} className={`bg-white/[0.03] border-white/[0.06] ${formErrors.details ? "border-red-500" : ""}`} placeholder="Description de l'alerte..." aria-invalid={!!formErrors.details} />
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Details <span className="text-red-400">*</span></Label>
+              <Textarea value={newAlerte.details} onChange={e => { setNewAlerte(p => ({ ...p, details: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.details; return n; }); }} className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] ${formErrors.details ? "border-red-500" : ""}`} placeholder="Description de l'alerte..." aria-invalid={!!formErrors.details} />
               {formErrors.details && <p className="text-xs text-red-400 mt-1">{formErrors.details}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Responsable <span className="text-red-400">*</span></Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Responsable <span className="text-red-400">*</span></Label>
               <Select value={newAlerte.responsable} onValueChange={v => { setNewAlerte(p => ({ ...p, responsable: v })); setFormErrors(p => { const n = { ...p }; delete n.responsable; return n; }); }}>
-                <SelectTrigger className={`bg-white/[0.03] border-white/[0.06] ${formErrors.responsable ? "border-red-500" : ""}`} aria-invalid={!!formErrors.responsable}><SelectValue placeholder="Selectionnez" /></SelectTrigger>
+                <SelectTrigger className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] ${formErrors.responsable ? "border-red-500" : ""}`} aria-invalid={!!formErrors.responsable}><SelectValue placeholder="Selectionnez" /></SelectTrigger>
                 <SelectContent>
                   {[...DEFAULT_ASSOCIES, ...DEFAULT_SUPERVISEURS].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                 </SelectContent>
@@ -541,8 +541,8 @@ export default function RegistrePage() {
               {formErrors.responsable && <p className="text-xs text-red-400 mt-1">{formErrors.responsable}</p>}
             </div>
             <div>
-              <Label className="text-xs text-slate-400">Date echeance <span className="text-red-400">*</span></Label>
-              <Input type="date" value={newAlerte.dateEcheance} onChange={e => { setNewAlerte(p => ({ ...p, dateEcheance: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.dateEcheance; return n; }); }} className={`bg-white/[0.03] border-white/[0.06] ${formErrors.dateEcheance ? "border-red-500" : ""}`} aria-invalid={!!formErrors.dateEcheance} />
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Date echeance <span className="text-red-400">*</span></Label>
+              <Input type="date" value={newAlerte.dateEcheance} onChange={e => { setNewAlerte(p => ({ ...p, dateEcheance: e.target.value })); setFormErrors(p => { const n = { ...p }; delete n.dateEcheance; return n; }); }} className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] ${formErrors.dateEcheance ? "border-red-500" : ""}`} aria-invalid={!!formErrors.dateEcheance} />
               {formErrors.dateEcheance && <p className="text-xs text-red-400 mt-1">{formErrors.dateEcheance}</p>}
             </div>
             <Button className="w-full bg-blue-600 hover:bg-blue-700" onClick={handleAddAlerte} disabled={!newAlerte.client || !newAlerte.details.trim() || !newAlerte.responsable || !newAlerte.dateEcheance}>
@@ -579,8 +579,8 @@ export default function RegistrePage() {
 function DetailRow({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div>
-      <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-sm text-slate-300 ${mono ? "font-mono" : ""}`}>{value}</p>
+      <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">{label}</p>
+      <p className={`text-sm text-slate-700 dark:text-slate-300 ${mono ? "font-mono" : ""}`}>{value}</p>
     </div>
   );
 }

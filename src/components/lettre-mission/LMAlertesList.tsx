@@ -109,7 +109,7 @@ export function LMAlertesBadge({ cabinetId }: { cabinetId: string }) {
   if (count <= 0) return null;
 
   return (
-    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-none">
+    <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-red-500 text-slate-900 dark:text-white text-[10px] font-semibold leading-none">
       {count > 99 ? "99+" : count}
     </span>
   );
@@ -307,20 +307,20 @@ export default function LMAlertesList({
       <div className={`rounded-xl border ${bannerColor} overflow-hidden`}>
         <button
           onClick={() => setExpanded(!expanded)}
-          className="w-full flex items-center gap-3 p-3 text-left hover:bg-white/[0.02] transition-colors"
+          className="w-full flex items-center gap-3 p-3 text-left hover:bg-white dark:bg-white/[0.02] transition-colors"
         >
           <BannerIcon className={`w-4 h-4 ${hasCritical ? "text-red-400" : "text-amber-400"} shrink-0`} />
           <div className="flex-1 min-w-0">
             <span className={`text-sm font-medium ${textColor}`}>
               {alertes.length} alerte{alertes.length > 1 ? "s" : ""} en cours
             </span>
-            <span className="text-xs text-slate-500 ml-2">{parts.join(", ")}</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500 ml-2">{parts.join(", ")}</span>
           </div>
-          {expanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+          {expanded ? <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
         </button>
 
         {expanded && (
-          <div className="border-t border-white/[0.06] p-2 space-y-1">
+          <div className="border-t border-gray-200 dark:border-white/[0.06] p-2 space-y-1">
             {visibleAlertes.map((alerte) => {
               const sev = SEVERITY_CONFIG[alerte.severity] || SEVERITY_CONFIG.warning;
               const SevIcon = sev.icon;
@@ -331,17 +331,17 @@ export default function LMAlertesList({
               return (
                 <div
                   key={alerte.id}
-                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white/[0.02] ${transitionStyle} ${getItemClasses(alerte.id)}`}
+                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-white dark:bg-white/[0.02] ${transitionStyle} ${getItemClasses(alerte.id)}`}
                 >
                   <SevIcon className={`w-3.5 h-3.5 ${sev.color} shrink-0`} />
-                  <span className="text-xs text-slate-300 flex-1 min-w-0 truncate" title={alerte.message}>
+                  <span className="text-xs text-slate-700 dark:text-slate-300 flex-1 min-w-0 truncate" title={alerte.message}>
                     {truncMsg}
                   </span>
                   <Button
                     size="sm"
                     variant="ghost"
                     onClick={() => handleTraiter(alerte)}
-                    className="h-6 px-2 text-[10px] text-slate-400 hover:text-emerald-400"
+                    className="h-6 px-2 text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-emerald-400"
                   >
                     Traiter
                   </Button>
@@ -349,7 +349,7 @@ export default function LMAlertesList({
               );
             })}
             {remaining > 0 && (
-              <p className="text-[10px] text-slate-500 text-center py-1">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center py-1">
                 et {remaining} autre{remaining > 1 ? "s" : ""}...
               </p>
             )}
@@ -367,7 +367,7 @@ export default function LMAlertesList({
     return (
       <div className="flex items-center justify-center py-12">
         <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
-        <span className="ml-2 text-slate-400 text-sm">Chargement des alertes...</span>
+        <span className="ml-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">Chargement des alertes...</span>
       </div>
     );
   }
@@ -389,7 +389,7 @@ export default function LMAlertesList({
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               filterSeverity === pill.value
                 ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                : "bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:bg-white/[0.06]"
+                : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500 dark:text-slate-400 border border-gray-300 dark:border-white/[0.08] hover:bg-gray-100 dark:bg-white/[0.06]"
             }`}
           >
             {pill.label}
@@ -404,7 +404,7 @@ export default function LMAlertesList({
           className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
             filterType === "all"
               ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-              : "bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:bg-white/[0.06]"
+              : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500 dark:text-slate-400 border border-gray-300 dark:border-white/[0.08] hover:bg-gray-100 dark:bg-white/[0.06]"
           }`}
         >
           Tous les types
@@ -416,7 +416,7 @@ export default function LMAlertesList({
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
               filterType === key
                 ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                : "bg-white/[0.04] text-slate-400 border border-white/[0.08] hover:bg-white/[0.06]"
+                : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500 dark:text-slate-400 border border-gray-300 dark:border-white/[0.08] hover:bg-gray-100 dark:bg-white/[0.06]"
             }`}
           >
             {label}
@@ -426,7 +426,7 @@ export default function LMAlertesList({
 
       {/* ── Toolbar row ── */}
       <div className="flex items-center justify-between">
-        <p className="text-[10px] text-slate-600">
+        <p className="text-[10px] text-slate-300 dark:text-slate-600">
           {filtered.length} alerte{filtered.length !== 1 ? "s" : ""}
           {!showResolved ? ` non traitee${filtered.length !== 1 ? "s" : ""}` : ""}
         </p>
@@ -435,7 +435,7 @@ export default function LMAlertesList({
           variant="outline"
           onClick={handleRunChecks}
           disabled={checking}
-          className="gap-1.5 border-white/[0.08] text-slate-400 text-xs"
+          className="gap-1.5 border-gray-300 dark:border-white/[0.08] text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs"
         >
           {checking ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
           Verifier maintenant
@@ -446,7 +446,7 @@ export default function LMAlertesList({
       {filtered.length === 0 && (
         <div className="text-center py-12">
           <CheckCircle2 className="w-10 h-10 text-emerald-500/30 mx-auto mb-3" />
-          <p className="text-sm text-slate-400">Aucune alerte en cours. Tout est en ordre !</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune alerte en cours. Tout est en ordre !</p>
         </div>
       )}
 
@@ -455,10 +455,10 @@ export default function LMAlertesList({
         <div key={group.type} className="space-y-2">
           {/* Group header */}
           <div className="flex items-center gap-2 pt-2">
-            <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">
+            <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wide">
               {group.label}
             </h4>
-            <Badge variant="outline" className="text-[9px] bg-white/[0.04] border-white/[0.08] text-slate-500 h-4 px-1.5">
+            <Badge variant="outline" className="text-[9px] bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-400 dark:text-slate-500 h-4 px-1.5">
               {group.items.length}
             </Badge>
           </div>
@@ -476,12 +476,12 @@ export default function LMAlertesList({
                 <SevIcon className={`w-4 h-4 ${sev.color} shrink-0 mt-0.5`} />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <Badge variant="outline" className="text-[9px] bg-white/[0.04] border-white/[0.08] text-slate-300">
+                    <Badge variant="outline" className="text-[9px] bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300">
                       {ALERTE_TYPE_LABELS[alerte.type] || alerte.type}
                     </Badge>
                     <Badge
                       variant="outline"
-                      className={`text-[9px] border-white/[0.08] ${
+                      className={`text-[9px] border-gray-300 dark:border-white/[0.08] ${
                         alerte.severity === "critical"
                           ? "text-red-400 bg-red-500/10"
                           : alerte.severity === "warning"
@@ -492,14 +492,14 @@ export default function LMAlertesList({
                       {sev.label}
                     </Badge>
                     {alerte.due_date && (
-                      <span className="text-[10px] text-slate-500">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
                         Echeance : {new Date(alerte.due_date).toLocaleDateString("fr-FR")}
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-200 mt-1">{alerte.message}</p>
+                  <p className="text-sm text-slate-800 dark:text-slate-200 mt-1">{alerte.message}</p>
                   {alerte.is_resolved && alerte.resolved_at && (
-                    <p className="text-[10px] text-slate-600 mt-1">
+                    <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">
                       Resolue le {new Date(alerte.resolved_at).toLocaleDateString("fr-FR")}
                     </p>
                   )}
@@ -510,7 +510,7 @@ export default function LMAlertesList({
                       size="sm"
                       variant="ghost"
                       onClick={() => onNavigateToLM(alerte.instance_id!)}
-                      className="h-7 px-2 text-slate-500 hover:text-blue-400"
+                      className="h-7 px-2 text-slate-400 dark:text-slate-500 hover:text-blue-400"
                       title="Voir la lettre"
                     >
                       <ExternalLink className="w-3 h-3" />
@@ -522,7 +522,7 @@ export default function LMAlertesList({
                         size="sm"
                         variant="ghost"
                         onClick={() => handleTraiter(alerte)}
-                        className="h-7 px-2 text-xs text-slate-400 hover:text-emerald-400 gap-1"
+                        className="h-7 px-2 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-emerald-400 gap-1"
                       >
                         <CheckCircle2 className="w-3 h-3" />
                         Traiter
@@ -531,7 +531,7 @@ export default function LMAlertesList({
                         size="sm"
                         variant="ghost"
                         onClick={() => handleIgnorer(alerte)}
-                        className="h-7 px-2 text-xs text-slate-500 hover:text-slate-300 gap-1"
+                        className="h-7 px-2 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 gap-1"
                         title="Ignorer cette alerte"
                       >
                         <EyeOff className="w-3 h-3" />

@@ -282,7 +282,7 @@ export default function CabinetConfigForm() {
           </CardContent>
         </Card>
 
-        <Button className="w-full gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white shadow-lg shadow-blue-500/20" onClick={handleSave}>
+        <Button className="w-full gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-slate-900 dark:text-white shadow-lg shadow-blue-500/20" onClick={handleSave}>
           <Save className="h-4 w-4" />
           Sauvegarder la configuration
         </Button>

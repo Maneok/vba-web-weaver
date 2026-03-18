@@ -103,7 +103,7 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
 
   return (
     <div
-      className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid"
+      className="bg-card rounded-2xl border border-border p-5 hover:border-gray-300 dark:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid"
       aria-label="Actions requises"
     >
       {/* Header */}
@@ -184,7 +184,7 @@ export default function DashboardCockpit({ cockpit, isLoading }: DashboardCockpi
                   role="listitem"
                   className={`w-full flex items-center gap-3 py-2.5 px-3 rounded-lg border border-transparent border-l-2 ${leftBorder} transition-all duration-200 text-left ${
                     isClickable
-                      ? "hover:bg-muted/50 hover:border-white/[0.06] hover:border-l-2 cursor-pointer"
+                      ? "hover:bg-muted/50 hover:border-gray-200 dark:border-white/[0.06] hover:border-l-2 cursor-pointer"
                       : ""
                   }`}
                   {...(isClickable

@@ -16,7 +16,7 @@ const FLAG_DEFS = [
 
 function FlagsBadges({ item }: { item: Record<string, unknown> }) {
   const active = FLAG_DEFS.filter((f) => !!item[f.key]);
-  if (active.length === 0) return <span className="text-slate-600">—</span>;
+  if (active.length === 0) return <span className="text-slate-300 dark:text-slate-600">—</span>;
   return (
     <div className="flex flex-wrap gap-1">
       {active.map((f) => (

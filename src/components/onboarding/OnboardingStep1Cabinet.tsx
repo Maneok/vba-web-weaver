@@ -77,18 +77,18 @@ export function OnboardingStep1Cabinet({ data, onChange, onNext, onSkip }: Step1
           <Building2 className="w-6 h-6 text-blue-400" />
         </div>
         <h2 className="text-2xl font-semibold">Votre cabinet</h2>
-        <p className="text-slate-400 mt-1">
+        <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
           Entrez votre SIRET pour remplir automatiquement les informations
         </p>
       </div>
 
       {/* SIRET field */}
       <div className="space-y-2">
-        <Label htmlFor="siret" className="text-sm text-slate-300">
+        <Label htmlFor="siret" className="text-sm text-slate-700 dark:text-slate-300">
           SIRET / SIREN
         </Label>
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
             id="siret"
             value={siretInput}
@@ -99,7 +99,7 @@ export function OnboardingStep1Cabinet({ data, onChange, onNext, onSkip }: Step1
               setError("");
             }}
             placeholder="Ex : 123 456 789 00012"
-            className="pl-10 pr-10 bg-white/[0.04] border-white/[0.08] focus:border-blue-500/50"
+            className="pl-10 pr-10 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] focus:border-blue-500/50"
             autoFocus
           />
           {searching && (
@@ -117,37 +117,37 @@ export function OnboardingStep1Cabinet({ data, onChange, onNext, onSkip }: Step1
         <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
           {searching ? (
             <div className="space-y-3">
-              <div className="h-10 bg-white/[0.04] rounded-md animate-pulse" />
-              <div className="h-10 bg-white/[0.04] rounded-md animate-pulse" />
+              <div className="h-10 bg-gray-50/80 dark:bg-white/[0.04] rounded-md animate-pulse" />
+              <div className="h-10 bg-gray-50/80 dark:bg-white/[0.04] rounded-md animate-pulse" />
             </div>
           ) : (
             <>
               <div className="space-y-2">
-                <Label htmlFor="nom" className="text-sm text-slate-300">
+                <Label htmlFor="nom" className="text-sm text-slate-700 dark:text-slate-300">
                   Nom du cabinet
                 </Label>
                 <Input
                   id="nom"
                   value={data.nom}
                   onChange={(e) => onChange({ ...data, nom: e.target.value })}
-                  className="bg-white/[0.04] border-white/[0.08] focus:border-blue-500/50"
+                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] focus:border-blue-500/50"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="adresse" className="text-sm text-slate-300">
+                <Label htmlFor="adresse" className="text-sm text-slate-700 dark:text-slate-300">
                   Adresse du siege
                 </Label>
                 <Input
                   id="adresse"
                   value={[data.adresse, data.cp, data.ville].filter(Boolean).join(", ")}
                   onChange={(e) => onChange({ ...data, adresse: e.target.value, cp: "", ville: "" })}
-                  className="bg-white/[0.04] border-white/[0.08] focus:border-blue-500/50"
+                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] focus:border-blue-500/50"
                 />
               </div>
 
               {data.formeJuridique && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
                   Forme juridique : {data.formeJuridique}
                 </p>
               )}
@@ -160,7 +160,7 @@ export function OnboardingStep1Cabinet({ data, onChange, onNext, onSkip }: Step1
       {!found && !searching && siretInput.replace(/\s/g, "").length < 9 && (
         <div className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nom-manual" className="text-sm text-slate-300">
+            <Label htmlFor="nom-manual" className="text-sm text-slate-700 dark:text-slate-300">
               Ou saisissez le nom du cabinet
             </Label>
             <Input
@@ -168,7 +168,7 @@ export function OnboardingStep1Cabinet({ data, onChange, onNext, onSkip }: Step1
               value={data.nom}
               onChange={(e) => onChange({ ...data, nom: e.target.value })}
               placeholder="Ex : Cabinet Dupont & Associes"
-              className="bg-white/[0.04] border-white/[0.08] focus:border-blue-500/50"
+              className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] focus:border-blue-500/50"
             />
           </div>
         </div>
@@ -178,7 +178,7 @@ export function OnboardingStep1Cabinet({ data, onChange, onNext, onSkip }: Step1
       <div className="flex items-center justify-between pt-4">
         <button
           onClick={onSkip}
-          className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+          className="text-sm text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
         >
           Passer cette etape
         </button>

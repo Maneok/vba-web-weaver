@@ -35,9 +35,9 @@ import DeclarationsSoupcon from "@/components/gouvernance/DeclarationsSoupcon";
 // ─── Helpers ────────────────────────────────────────────────
 
 function getFormationBadge(dateStr: string) {
-  if (!dateStr) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400" };
+  if (!dateStr) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400" };
   const ts = new Date(dateStr).getTime();
-  if (isNaN(ts)) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400" };
+  if (isNaN(ts)) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400" };
   const diffDays = Math.floor((Date.now() - ts) / (1000 * 60 * 60 * 24));
   const diffYears = diffDays / 365;
   if (diffYears < 1) return { label: "A jour", color: "bg-emerald-500/15 text-emerald-400" };
@@ -109,7 +109,7 @@ export default function GouvernancePage() {
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <TableHead className="cursor-pointer hover:text-slate-300" onClick={() => handleSort(field)}>
+    <TableHead className="cursor-pointer hover:text-slate-700 dark:text-slate-300" onClick={() => handleSort(field)}>
       <span className="flex items-center gap-1">
         {children}
         <ArrowUpDown className={`w-3 h-3 ${sortField === field ? "text-blue-400" : "text-slate-600"}`} />
@@ -263,7 +263,7 @@ export default function GouvernancePage() {
     }
   ) => (
     <div className="space-y-1.5">
-      <Label className="text-xs text-slate-400">{label}</Label>
+      <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{label}</Label>
       {opts?.type === "select" && opts.options ? (
         <Select value={value as string} onValueChange={onChange}>
           <SelectTrigger><SelectValue /></SelectTrigger>
@@ -295,7 +295,7 @@ export default function GouvernancePage() {
               <Shield className="w-7 h-7 text-blue-400" />
               Gouvernance LCB-FT
             </h1>
-            <p className="text-sm text-slate-500 mt-1">
+            <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
               Organisation, formation, procedures et controle du dispositif de conformite
             </p>
           </div>
@@ -335,7 +335,7 @@ export default function GouvernancePage() {
             <InfosCabinet />
 
             {/* Annuaire */}
-            <Card className="border-white/[0.06] bg-white/[0.02]">
+            <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
               <CardHeader className="flex flex-row items-center justify-between pb-3">
                 <CardTitle className="text-lg font-semibold flex items-center gap-2">
                   <Users className="w-5 h-5 text-blue-400" />
@@ -369,7 +369,7 @@ export default function GouvernancePage() {
               <CardContent>
                 {/* Search */}
                 <div className="relative mb-4">
-                  <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-500" />
+                  <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
                   <Input
                     placeholder="Rechercher un collaborateur..."
                     value={search}
@@ -380,7 +380,7 @@ export default function GouvernancePage() {
                 </div>
 
                 {/* Table */}
-                <div className="rounded-md border border-white/[0.06] overflow-x-auto">
+                <div className="rounded-md border border-gray-200 dark:border-white/[0.06] overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -396,13 +396,13 @@ export default function GouvernancePage() {
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                          <TableCell colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500">
                             Chargement...
                           </TableCell>
                         </TableRow>
                       ) : filtered.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                          <TableCell colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500">
                             <Users className="w-6 h-6 mx-auto mb-2 opacity-40" />
                             Aucun collaborateur trouve
                           </TableCell>
@@ -427,7 +427,7 @@ export default function GouvernancePage() {
                                   )}
                                 </div>
                               </TableCell>
-                              <TableCell className="text-sm text-slate-400">{c.email || "---"}</TableCell>
+                              <TableCell className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{c.email || "---"}</TableCell>
                               <TableCell>
                                 <Badge variant="outline" className="text-xs">{c.fonction}</Badge>
                               </TableCell>

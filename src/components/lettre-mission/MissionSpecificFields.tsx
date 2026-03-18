@@ -56,11 +56,11 @@ export default function MissionSpecificFields({ missionType, values, onChange }:
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Info className="w-4 h-4 text-blue-400" />
-        <p className="text-sm font-medium text-slate-300">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
           Paramètres spécifiques — {config.shortLabel}
         </p>
       </div>
-      <p className="text-[11px] text-slate-500">
+      <p className="text-[11px] text-slate-400 dark:text-slate-500">
         Ces informations seront injectées dans le corps de la lettre de mission ({config.normeRef}).
       </p>
       <div className="space-y-3">
@@ -69,7 +69,7 @@ export default function MissionSpecificFields({ missionType, values, onChange }:
 
           return (
             <div key={sv.key} className="space-y-1.5">
-              <Label className="text-xs text-slate-400">{sv.label}</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{sv.label}</Label>
 
               {/* Select for closed-choice fields */}
               {selectOpts ? (
@@ -77,7 +77,7 @@ export default function MissionSpecificFields({ missionType, values, onChange }:
                   value={values[sv.key] || ""}
                   onValueChange={(v) => onChange(sv.key, v)}
                 >
-                  <SelectTrigger className="h-10 bg-white/[0.04] border-white/[0.08] text-white text-sm">
+                  <SelectTrigger className="h-10 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white text-sm">
                     <SelectValue placeholder={sv.placeholder} />
                   </SelectTrigger>
                   <SelectContent>
@@ -93,7 +93,7 @@ export default function MissionSpecificFields({ missionType, values, onChange }:
                   type="date"
                   value={values[sv.key] || ""}
                   onChange={(e) => onChange(sv.key, e.target.value)}
-                  className="h-10 bg-white/[0.04] border-white/[0.08] text-white text-sm"
+                  className="h-10 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white text-sm"
                 />
               ) : isTextareaField(sv.label, sv.placeholder) ? (
                 <Textarea
@@ -101,14 +101,14 @@ export default function MissionSpecificFields({ missionType, values, onChange }:
                   onChange={(e) => onChange(sv.key, e.target.value)}
                   placeholder={sv.placeholder}
                   rows={3}
-                  className="bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600 text-sm resize-none"
+                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white placeholder:text-slate-300 dark:text-slate-600 text-sm resize-none"
                 />
               ) : (
                 <Input
                   value={values[sv.key] || ""}
                   onChange={(e) => onChange(sv.key, e.target.value)}
                   placeholder={sv.placeholder}
-                  className="h-10 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600 text-sm"
+                  className="h-10 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white placeholder:text-slate-300 dark:text-slate-600 text-sm"
                 />
               )}
             </div>

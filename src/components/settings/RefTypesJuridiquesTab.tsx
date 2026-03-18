@@ -13,7 +13,7 @@ const columns: ColumnDef<RefTypeJuridique>[] = [
     width: "160px",
     render: (item) => {
       const val = (item as unknown as Record<string, unknown>).type_client as string;
-      if (!val) return <span className="text-slate-600">—</span>;
+      if (!val) return <span className="text-slate-300 dark:text-slate-600">—</span>;
       return (
         <Badge variant="outline" className={val === "Personne morale"
           ? "border-cyan-500/30 text-cyan-400 text-xs"

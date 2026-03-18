@@ -34,7 +34,7 @@ const ROLE_COLORS: Record<CabinetRole, string> = {
   COLLABORATEUR: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
   CONTROLEUR: "bg-purple-500/20 text-purple-300 border-purple-500/30",
   SECRETAIRE: "bg-pink-500/20 text-pink-300 border-pink-500/30",
-  STAGIAIRE: "bg-slate-500/20 text-slate-300 border-slate-500/30",
+  STAGIAIRE: "bg-slate-500/20 text-slate-700 dark:text-slate-300 border-slate-500/30",
 };
 
 const ROLE_LABELS: Record<CabinetRole, string> = {
@@ -99,7 +99,7 @@ const ROLE_TO_FONCTION: Record<CabinetRole, string> = {
 const PAGE_SIZE = 15;
 
 function getFormationBadge(date: string | null | undefined): { label: string; className: string } {
-  if (!date) return { label: "Non renseignee", className: "bg-slate-500/20 text-slate-400 border-slate-500/30" };
+  if (!date) return { label: "Non renseignee", className: "bg-slate-500/20 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/30" };
   const d = new Date(date);
   const now = new Date();
   const diffMs = now.getTime() - d.getTime();
@@ -118,7 +118,7 @@ function escapeCSVField(value: string): string {
 
 function SkeletonRows() {
   return (
-    <div className="border border-white/[0.06] rounded-lg p-4 space-y-4">
+    <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg p-4 space-y-4">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4">
           <Skeleton className="h-9 w-9 rounded-full" />
@@ -617,9 +617,9 @@ export default function CollaborateursList() {
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-100">Collaborateurs</h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
             {membres.length} membre{membres.length > 1 ? "s" : ""}
-            <span className="mx-1.5 text-slate-600">|</span>
+            <span className="mx-1.5 text-slate-300 dark:text-slate-600">|</span>
             <span className="text-emerald-400">{activeCount} actif{activeCount > 1 ? "s" : ""}</span>
             {inactiveCount > 0 && (
               <>
@@ -630,7 +630,7 @@ export default function CollaborateursList() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2 border-white/10 text-slate-300 hover:bg-white/[0.04]" aria-label="Exporter la liste en CSV">
+          <Button variant="outline" size="sm" onClick={exportCSV} className="gap-2 border-white/10 text-slate-700 dark:text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04]" aria-label="Exporter la liste en CSV">
             <Download className="h-4 w-4" /> Export CSV
           </Button>
           <Dialog
@@ -704,17 +704,17 @@ export default function CollaborateursList() {
       {/* Filters */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Rechercher par nom ou email..."
-            className="pl-9 bg-white/[0.03] border-white/[0.08]"
+            className="pl-9 bg-gray-50 dark:bg-white/[0.03] border-gray-300 dark:border-white/[0.08]"
             aria-label="Rechercher un collaborateur"
           />
         </div>
         <Select value={filterRole} onValueChange={(v) => { setFilterRole(v); setPage(0); }}>
-          <SelectTrigger className="w-[160px] bg-white/[0.03] border-white/[0.08]" aria-label="Filtrer par role">
+          <SelectTrigger className="w-[160px] bg-gray-50 dark:bg-white/[0.03] border-gray-300 dark:border-white/[0.08]" aria-label="Filtrer par role">
             <SelectValue placeholder="Tous les roles" />
           </SelectTrigger>
           <SelectContent>
@@ -725,7 +725,7 @@ export default function CollaborateursList() {
           </SelectContent>
         </Select>
         <Select value={filterStatus} onValueChange={(v) => { setFilterStatus(v); setPage(0); }}>
-          <SelectTrigger className="w-[140px] bg-white/[0.03] border-white/[0.08]" aria-label="Filtrer par statut">
+          <SelectTrigger className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-300 dark:border-white/[0.08]" aria-label="Filtrer par statut">
             <SelectValue placeholder="Tous" />
           </SelectTrigger>
           <SelectContent>
@@ -738,9 +738,9 @@ export default function CollaborateursList() {
         {/* Bulk actions */}
         {selected.size > 0 && (
           <div className="flex items-center gap-2 ml-auto">
-            <span className="text-sm text-slate-400">{selected.size} selectionne(s) (page courante)</span>
+            <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{selected.size} selectionne(s) (page courante)</span>
             <Select value={bulkAction} onValueChange={setBulkAction}>
-              <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.08]" aria-label="Action en masse">
+              <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-white/[0.03] border-gray-300 dark:border-white/[0.08]" aria-label="Action en masse">
                 <SelectValue placeholder="Action en masse" />
               </SelectTrigger>
               <SelectContent>
@@ -757,10 +757,10 @@ export default function CollaborateursList() {
       </div>
 
       {/* Table */}
-      <div className="border border-white/[0.06] rounded-lg overflow-hidden">
+      <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-white/[0.06] bg-white/[0.02]">
+            <TableRow className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
               <TableHead className="w-10">
                 <Checkbox
                   checked={paginated.length > 0 && selected.size === paginated.length}
@@ -768,26 +768,26 @@ export default function CollaborateursList() {
                   aria-label="Selectionner tous les collaborateurs de cette page"
                 />
               </TableHead>
-              <TableHead className="text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("full_name")}>
+              <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("full_name")}>
                 Collaborateur <SortIcon col="full_name" />
               </TableHead>
-              <TableHead className="text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("role")}>
+              <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("role")}>
                 Role <SortIcon col="role" />
               </TableHead>
-              <TableHead className="text-slate-400">Competence</TableHead>
-              <TableHead className="text-slate-400">Formation</TableHead>
-              <TableHead className="text-slate-400">Cabinet</TableHead>
-              <TableHead className="text-slate-400">Statut</TableHead>
-              <TableHead className="text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("date_ajout")}>
+              <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Competence</TableHead>
+              <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Formation</TableHead>
+              <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Cabinet</TableHead>
+              <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Statut</TableHead>
+              <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400 cursor-pointer select-none" onClick={() => toggleSort("date_ajout")}>
                 Date ajout <SortIcon col="date_ajout" />
               </TableHead>
-              <TableHead className="text-slate-400 text-right">Actions</TableHead>
+              <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {paginated.length === 0 && (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-slate-500">
+                <TableCell colSpan={9} className="text-center py-12 text-slate-400 dark:text-slate-500">
                   <Users className="h-8 w-8 mx-auto mb-2 opacity-50" />
                   <p>Aucun collaborateur trouve.</p>
                 </TableCell>
@@ -800,7 +800,7 @@ export default function CollaborateursList() {
               const compLevel = COMPETENCE_LEVELS.find((l) => l.value === m.competence);
               const formBadge = getFormationBadge(m.derniere_formation);
               return (
-                <TableRow key={m.id} className={`border-white/[0.06] hover:bg-white/[0.02] ${!m.is_active ? "opacity-50" : ""}`}>
+                <TableRow key={m.id} className={`border-gray-200 dark:border-white/[0.06] hover:bg-white dark:bg-white/[0.02] ${!m.is_active ? "opacity-50" : ""}`}>
                   <TableCell>
                     <Checkbox checked={selected.has(m.id)} onCheckedChange={() => toggleSelect(m.id)} aria-label={`Selectionner ${m.full_name || m.email}`} />
                   </TableCell>
@@ -815,11 +815,11 @@ export default function CollaborateursList() {
                         )}
                       </div>
                       <div>
-                        <p className="font-medium text-slate-200 text-sm">
-                          {m.full_name || <span className="text-slate-500">&mdash;</span>}
-                          {isSelf && <span className="text-xs text-slate-500 ml-1.5">(vous)</span>}
+                        <p className="font-medium text-slate-800 dark:text-slate-200 text-sm">
+                          {m.full_name || <span className="text-slate-400 dark:text-slate-500">&mdash;</span>}
+                          {isSelf && <span className="text-xs text-slate-400 dark:text-slate-500 ml-1.5">(vous)</span>}
                         </p>
-                        <p className="text-xs text-slate-500">{m.email}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500">{m.email}</p>
                       </div>
                     </div>
                   </TableCell>
@@ -833,7 +833,7 @@ export default function CollaborateursList() {
                       </Tooltip>
                     ) : (
                       <Select value={m.role} onValueChange={(v) => updateRole(m, v as CabinetRole)}>
-                        <SelectTrigger className="w-[160px] h-8 bg-transparent border-white/[0.08]" aria-label={`Changer le role de ${m.full_name}`}>
+                        <SelectTrigger className="w-[160px] h-8 bg-transparent border-gray-300 dark:border-white/[0.08]" aria-label={`Changer le role de ${m.full_name}`}>
                           <Badge className={ROLE_COLORS[m.role]}>{ROLE_LABELS[m.role]}</Badge>
                         </SelectTrigger>
                         <SelectContent>
@@ -853,7 +853,7 @@ export default function CollaborateursList() {
                     {compLevel ? (
                       <Badge className={compLevel.color}>{compLevel.label}</Badge>
                     ) : (
-                      <span className="text-xs text-slate-600">&mdash;</span>
+                      <span className="text-xs text-slate-300 dark:text-slate-600">&mdash;</span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -868,7 +868,7 @@ export default function CollaborateursList() {
                       </TooltipContent>
                     </Tooltip>
                   </TableCell>
-                  <TableCell className="text-sm text-slate-400">{cab?.nom || <span className="text-slate-600">&mdash;</span>}</TableCell>
+                  <TableCell className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{cab?.nom || <span className="text-slate-300 dark:text-slate-600">&mdash;</span>}</TableCell>
                   <TableCell>
                     {m.is_active ? (
                       <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30">Actif</Badge>
@@ -876,7 +876,7 @@ export default function CollaborateursList() {
                       <Badge className="bg-red-500/20 text-red-300 border-red-500/30">Inactif</Badge>
                     )}
                   </TableCell>
-                  <TableCell className="text-xs text-slate-400">
+                  <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
                     {new Date(m.date_ajout).toLocaleDateString("fr-FR")}
                   </TableCell>
                   <TableCell className="text-right">
@@ -920,7 +920,7 @@ export default function CollaborateursList() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm text-slate-400">
+        <div className="flex items-center justify-between text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
           <span>{filtered.length} resultat{filtered.length > 1 ? "s" : ""}</span>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(page - 1)} aria-label="Page precedente">

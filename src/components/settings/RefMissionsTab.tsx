@@ -12,8 +12,8 @@ const columns: ColumnDef<RefMission>[] = [
     width: "160px",
     render: (item) => {
       const val = item.type_mission;
-      if (!val) return <span className="text-slate-600">\u2014</span>;
-      return <Badge variant="outline" className="text-xs border-slate-500/30 text-slate-400 whitespace-nowrap">{val}</Badge>;
+      if (!val) return <span className="text-slate-300 dark:text-slate-600">\u2014</span>;
+      return <Badge variant="outline" className="text-xs border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400 whitespace-nowrap">{val}</Badge>;
     },
   },
   { key: "libelle", label: "Libelle", minWidth: "120px" },

@@ -48,8 +48,8 @@ function CircularGauge({ value, label, sublabel }: { value: number; label: strin
           <span className="text-lg font-bold text-slate-100">{Math.round(clamped)}%</span>
         </div>
       </div>
-      <p className="text-xs font-medium text-slate-300 text-center leading-tight max-w-[120px]">{label}</p>
-      {sublabel && <p className="text-[10px] text-slate-500 text-center">{sublabel}</p>}
+      <p className="text-xs font-medium text-slate-700 dark:text-slate-300 text-center leading-tight max-w-[120px]">{label}</p>
+      {sublabel && <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center">{sublabel}</p>}
     </div>
   );
 }
@@ -82,12 +82,12 @@ function DiagnosticItemCard({ item }: { item: DiagnosticItem }) {
         <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${config.color}`} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-slate-200">{item.indicateur}</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{item.indicateur}</p>
             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${config.color} ${config.bg}`}>
               {item.statut}
             </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">{item.detail}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">{item.detail}</p>
           {item.recommandation !== "Aucune action requise." && (
             <p className="text-xs mt-1.5 text-amber-400 font-medium">
               &rarr; {item.recommandation}
@@ -254,14 +254,14 @@ export default function DiagnosticPage() {
             <ShieldCheck className="w-6 h-6 text-sky-400" />
             Diagnostic 360° Tracfin
           </h1>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
             Analyse complete du dispositif LCB-FT — {report.dateGeneration}
           </p>
         </div>
         <Button
           onClick={() => { try { generateDiagnosticPdf(report); toast.success("PDF diagnostic genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}
           variant="outline"
-          className="gap-2 border-white/10 text-slate-300 hover:bg-white/5"
+          className="gap-2 border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/5"
           aria-label="Exporter le diagnostic en PDF"
         >
           <FileDown className="w-4 h-4" />
@@ -274,10 +274,10 @@ export default function DiagnosticPage() {
         <div className={`bg-gradient-to-r ${NOTE_COLORS[report.noteLettre] || NOTE_COLORS.D} p-6`}>
           <div className="flex items-center gap-6">
             <div className="w-20 h-20 rounded-2xl bg-white/15 backdrop-blur flex items-center justify-center">
-              <span className="text-4xl font-black text-white">{report.noteLettre}</span>
+              <span className="text-4xl font-black text-slate-900 dark:text-white">{report.noteLettre}</span>
             </div>
             <div className="flex-1">
-              <p className="text-lg font-bold text-white">
+              <p className="text-lg font-bold text-slate-900 dark:text-white">
                 Score du dispositif : {report.scoreGlobalDispositif}/100
               </p>
               <p className="text-sm text-white/80 mt-1">{report.synthese}</p>
@@ -288,19 +288,19 @@ export default function DiagnosticPage() {
           <div className="flex gap-6 text-center">
             <div>
               <p className="text-2xl font-bold text-emerald-400">{okCount}</p>
-              <p className="text-xs text-slate-400">Conformes</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Conformes</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-amber-400">{alerteCount}</p>
-              <p className="text-xs text-slate-400">Alertes</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Alertes</p>
             </div>
             <div>
               <p className="text-2xl font-bold text-red-400">{critiques}</p>
-              <p className="text-xs text-slate-400">Critiques</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Critiques</p>
             </div>
             <div className="ml-auto text-right">
-              <p className="text-sm font-medium text-slate-200">{report.items.length} indicateurs analyses</p>
-              <p className="text-xs text-slate-500">sur l'ensemble du dispositif</p>
+              <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{report.items.length} indicateurs analyses</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">sur l'ensemble du dispositif</p>
             </div>
           </div>
         </div>
@@ -317,7 +317,7 @@ export default function DiagnosticPage() {
       <div className="glass-card border border-white/10 rounded-xl p-6" role="region" aria-label="Indicateurs cles de conformite">
         <div className="flex items-center gap-2 mb-5">
           <Activity className="w-4 h-4 text-sky-400" />
-          <h2 className="text-sm font-semibold text-slate-200">Indicateurs cles</h2>
+          <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Indicateurs cles</h2>
         </div>
         <div className="flex flex-wrap justify-around gap-6">
           <CircularGauge
@@ -351,7 +351,7 @@ export default function DiagnosticPage() {
       {/* Detail by Category */}
       {categories.map((cat) => (
         <div key={cat} className="glass-card border border-white/10 rounded-xl p-5">
-          <h3 className="text-sm font-semibold text-slate-200 mb-3">{cat}</h3>
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3">{cat}</h3>
           <div className="space-y-2">
             {report.items
               .filter((i) => i.categorie === cat)
@@ -373,7 +373,7 @@ export default function DiagnosticPage() {
             {autoRecommandations.map((rec, i) => (
               <div key={`auto-${i}-${rec.slice(0, 20)}`} className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/10">
                 <span className="font-bold text-amber-400 text-sm">{i + 1}.</span>
-                <p className="text-sm text-slate-300">{rec}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">{rec}</p>
               </div>
             ))}
           </div>
@@ -391,7 +391,7 @@ export default function DiagnosticPage() {
             {report.recommandationsPrioritaires.map((rec, i) => (
               <div key={`prio-${i}-${rec.slice(0, 20)}`} className="flex items-start gap-3 p-3 rounded-lg bg-red-500/5 border border-red-500/10">
                 <span className="font-bold text-red-400 text-sm">{i + 1}.</span>
-                <p className="text-sm text-slate-300">{rec}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300">{rec}</p>
               </div>
             ))}
           </div>

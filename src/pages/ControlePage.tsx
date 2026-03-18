@@ -36,7 +36,7 @@ const SUIVI_OPTIONS = [
   { value: "A_TRAITER", label: "A traiter", color: "text-amber-400 bg-amber-500/10 border-amber-500/20" },
   { value: "EN_COURS", label: "En cours", color: "text-blue-400 bg-blue-500/10 border-blue-500/20" },
   { value: "RESOLU", label: "Resolu", color: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20" },
-  { value: "CLOTURE", label: "Cloture", color: "text-slate-400 bg-slate-500/10 border-slate-500/20" },
+  { value: "CLOTURE", label: "Cloture", color: "text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-slate-500/10 border-slate-500/20" },
 ];
 
 const CHECKPOINT_TEMPLATES: Record<string, string[]> = {
@@ -203,12 +203,12 @@ function TableSkeleton() {
     <div className="p-6 space-y-3 animate-pulse">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex gap-4 items-center">
-          <div className="h-4 bg-white/[0.06] rounded w-20" />
-          <div className="h-4 bg-white/[0.06] rounded w-40 flex-1" />
-          <div className="h-4 bg-white/[0.06] rounded w-16" />
-          <div className="h-4 bg-white/[0.06] rounded w-20" />
-          <div className="h-4 bg-white/[0.06] rounded w-32" />
-          <div className="h-4 bg-white/[0.06] rounded w-4" />
+          <div className="h-4 bg-gray-100 dark:bg-white/[0.06] rounded w-20" />
+          <div className="h-4 bg-gray-100 dark:bg-white/[0.06] rounded w-40 flex-1" />
+          <div className="h-4 bg-gray-100 dark:bg-white/[0.06] rounded w-16" />
+          <div className="h-4 bg-gray-100 dark:bg-white/[0.06] rounded w-20" />
+          <div className="h-4 bg-gray-100 dark:bg-white/[0.06] rounded w-32" />
+          <div className="h-4 bg-gray-100 dark:bg-white/[0.06] rounded w-4" />
         </div>
       ))}
     </div>
@@ -233,7 +233,7 @@ function FlagPills({ data, className }: { data: ControleQualite; className?: str
           className={`text-xs px-2 py-0.5 rounded-full border ${
             flag.value === "OUI"
               ? "text-red-400 bg-red-500/10 border-red-500/20"
-              : "text-slate-500 bg-slate-500/5 border-white/[0.06]"
+              : "text-slate-400 dark:text-slate-500 bg-slate-500/5 border-gray-200 dark:border-white/[0.06]"
           }`}
         >
           {flag.label}: {flag.value}
@@ -253,7 +253,7 @@ function StatCard({
   return (
     <div
       className={`glass-card p-4 text-center transition-all duration-200 ${
-        onClick ? "cursor-pointer hover:bg-white/[0.04]" : ""
+        onClick ? "cursor-pointer hover:bg-gray-50/80 dark:bg-white/[0.04]" : ""
       } ${active ? "ring-1 ring-blue-500/50" : ""}`}
       onClick={onClick}
       role={onClick ? "button" : undefined}
@@ -265,7 +265,7 @@ function StatCard({
         <Icon className={`w-4 h-4 ${color}`} />
         <p className={`text-2xl font-bold ${color} tabular-nums`}>{value}</p>
       </div>
-      <p className="text-xs text-slate-500">{label}</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500">{label}</p>
       {subtitle && <p className="text-[10px] text-slate-600 mt-0.5">{subtitle}</p>}
     </div>
   );
@@ -902,11 +902,11 @@ export default function ControlePage() {
         {/* ── Header ── */}
         <div className="animate-fade-in-up flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-wider text-slate-500">Controle qualite</p>
+            <p className="text-xs uppercase tracking-wider text-slate-400 dark:text-slate-500">Controle qualite</p>
             <h1 className="text-xl font-semibold text-slate-100 mt-1">
               Revue des dossiers LCB-FT
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
               {stats.total} controle{stats.total > 1 ? "s" : ""} enregistre{stats.total > 1 ? "s" : ""}
               {stats.total > 0 && ` · Taux de conformite: ${stats.tauxConformite}%`}
             </p>
@@ -921,7 +921,7 @@ export default function ControlePage() {
             <Tooltip>
               <TooltipTrigger asChild>
                 {/* BUG FIX #37: disabled when empty */}
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportCSV} disabled={filteredControles.length === 0}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={handleExportCSV} disabled={filteredControles.length === 0}>
                   <Download className="w-3.5 h-3.5" /> CSV
                 </Button>
               </TooltipTrigger>
@@ -929,7 +929,7 @@ export default function ControlePage() {
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportPDF} disabled={exportingPdf || (controles.length === 0 && clients.filter((c) => c.etat === "VALIDE").length === 0)}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={handleExportPDF} disabled={exportingPdf || (controles.length === 0 && clients.filter((c) => c.etat === "VALIDE").length === 0)}>
                   {exportingPdf ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />} {exportingPdf ? "Generation..." : "PDF"}
                 </Button>
               </TooltipTrigger>
@@ -977,7 +977,7 @@ export default function ControlePage() {
         </div>
 
         {/* ── Tabs ── */}
-        <div className="animate-fade-in-up flex gap-1 border-b border-white/[0.06]">
+        <div className="animate-fade-in-up flex gap-1 border-b border-gray-200 dark:border-white/[0.06]">
           {([
             { id: "historique" as const, label: "Historique", icon: ClipboardCheck },
             { id: "statistiques" as const, label: "Statistiques", icon: BarChart3 },
@@ -988,7 +988,7 @@ export default function ControlePage() {
               className={`flex items-center gap-1.5 px-4 py-2.5 text-xs font-medium transition-colors ${
                 activeTab === tab.id
                   ? "text-blue-400 border-b-2 border-blue-400 -mb-px"
-                  : "text-slate-500 hover:text-slate-300"
+                  : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300"
               }`}
               onClick={() => setActiveTab(tab.id)}
               aria-selected={activeTab === tab.id}
@@ -1007,49 +1007,49 @@ export default function ControlePage() {
             <div className="animate-fade-in-up flex flex-col gap-3">
               <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
                 <div className="relative flex-1 min-w-0 w-full sm:w-auto">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
                   <input
                     ref={searchRef}
                     type="text"
                     placeholder="Rechercher par nom, SIREN, controleur... (Ctrl+F)"
-                    className="w-full pl-9 pr-8 py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full pl-9 pr-8 py-2 rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     aria-label="Rechercher des controles"
                   />
                   {search && (
                     <button className="absolute right-2 top-1/2 -translate-y-1/2" onClick={() => setSearch("")} aria-label="Effacer la recherche">
-                      <X className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300" />
+                      <X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300" />
                     </button>
                   )}
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <select
-                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                     value={filterResultat}
                     onChange={(e) => setFilterResultat(e.target.value)}
                     aria-label="Filtrer par resultat"
                   >
-                    <option value="ALL" className="bg-slate-900">Tous les resultats</option>
+                    <option value="ALL" className="bg-gray-50 dark:bg-slate-900">Tous les resultats</option>
                     {RESULTAT_OPTIONS.map((opt) => (
-                      <option key={opt} value={opt} className="bg-slate-900">{opt}</option>
+                      <option key={opt} value={opt} className="bg-gray-50 dark:bg-slate-900">{opt}</option>
                     ))}
                   </select>
                   <select
-                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                     value={filterVigilance}
                     onChange={(e) => setFilterVigilance(e.target.value)}
                     aria-label="Filtrer par vigilance"
                   >
-                    <option value="ALL" className="bg-slate-900">Toutes vigilances</option>
-                    <option value="SIMPLIFIEE" className="bg-slate-900">Simplifiee</option>
-                    <option value="STANDARD" className="bg-slate-900">Standard</option>
-                    <option value="RENFORCEE" className="bg-slate-900">Renforcee</option>
+                    <option value="ALL" className="bg-gray-50 dark:bg-slate-900">Toutes vigilances</option>
+                    <option value="SIMPLIFIEE" className="bg-gray-50 dark:bg-slate-900">Simplifiee</option>
+                    <option value="STANDARD" className="bg-gray-50 dark:bg-slate-900">Standard</option>
+                    <option value="RENFORCEE" className="bg-gray-50 dark:bg-slate-900">Renforcee</option>
                   </select>
                   {/* BUG FIX #28: date from/to with max/min constraints */}
                   <input
                     type="date"
-                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                     value={filterDateFrom}
                     max={filterDateTo || undefined}
                     onChange={(e) => setFilterDateFrom(e.target.value)}
@@ -1058,7 +1058,7 @@ export default function ControlePage() {
                   />
                   <input
                     type="date"
-                    className="rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-xs text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-xs text-slate-700 dark:text-slate-300 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                     value={filterDateTo}
                     min={filterDateFrom || undefined}
                     onChange={(e) => setFilterDateTo(e.target.value)}
@@ -1066,7 +1066,7 @@ export default function ControlePage() {
                     aria-label="Date fin"
                   />
                   {hasFilters && (
-                    <Button variant="ghost" size="sm" className="text-xs text-slate-500 hover:text-slate-300 gap-1" onClick={clearFilters}>
+                    <Button variant="ghost" size="sm" className="text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 gap-1" onClick={clearFilters}>
                       <X className="w-3 h-3" /> Effacer filtres
                     </Button>
                   )}
@@ -1076,10 +1076,10 @@ export default function ControlePage() {
 
             {/* ── Table ── */}
             <div className="animate-fade-in-up glass-card overflow-hidden">
-              <div className="px-6 py-4 border-b border-white/[0.06] flex items-center gap-2">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2">
                 <ClipboardCheck className="w-4 h-4 text-blue-400" />
-                <h3 className="text-sm font-semibold text-slate-300">Historique des controles</h3>
-                <span className="text-xs text-slate-500 ml-auto">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Historique des controles</h3>
+                <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
                   {filteredControles.length !== controles.length && `${filteredControles.length} / `}
                   {controles.length} enregistrement{controles.length > 1 ? "s" : ""}
                 </span>
@@ -1091,7 +1091,7 @@ export default function ControlePage() {
                 <div className="p-12 text-center">
                   <XCircle className="w-8 h-8 text-red-500 mx-auto mb-3" />
                   <p className="text-sm text-red-400">Erreur de chargement</p>
-                  <Button variant="outline" size="sm" className="mt-3 gap-1.5 border-white/[0.06]" onClick={loadControles}>
+                  <Button variant="outline" size="sm" className="mt-3 gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={loadControles}>
                     <RefreshCw className="w-3.5 h-3.5" /> Reessayer
                   </Button>
                 </div>
@@ -1100,7 +1100,7 @@ export default function ControlePage() {
                   {controles.length === 0 ? (
                     <>
                       <ShieldCheck className="w-10 h-10 text-slate-600 mx-auto mb-3" />
-                      <p className="text-sm text-slate-400 font-medium">Aucun controle enregistre</p>
+                      <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">Aucun controle enregistre</p>
                       <p className="text-xs text-slate-600 mt-1">
                         Lancez un tirage aleatoire pour commencer votre premier controle qualite.
                       </p>
@@ -1111,8 +1111,8 @@ export default function ControlePage() {
                   ) : (
                     <>
                       <Search className="w-8 h-8 text-slate-600 mx-auto mb-3" />
-                      <p className="text-sm text-slate-400">Aucun controle ne correspond aux filtres</p>
-                      <Button variant="ghost" size="sm" className="mt-2 text-xs text-slate-500" onClick={clearFilters}>
+                      <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucun controle ne correspond aux filtres</p>
+                      <Button variant="ghost" size="sm" className="mt-2 text-xs text-slate-400 dark:text-slate-500" onClick={clearFilters}>
                         Effacer les filtres
                       </Button>
                     </>
@@ -1123,7 +1123,7 @@ export default function ControlePage() {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm" role="table">
                       <thead>
-                        <tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">
+                        <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-gray-200 dark:border-white/[0.06]">
                           <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")} aria-label="Trier par date" role="button">
                             <span className="flex items-center gap-1">Date <SortIconIndicator field="dateTirage" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
@@ -1152,20 +1152,20 @@ export default function ControlePage() {
                           return (
                             <tr
                               key={c.id || `${c.siren}-${c.dateTirage}`}
-                              className={`${cfg?.rowBg || "hover:bg-white/[0.02]"} cursor-pointer transition-colors`}
+                              className={`${cfg?.rowBg || "hover:bg-white dark:bg-white/[0.02]"} cursor-pointer transition-colors`}
                               onClick={() => setDetailId(c.id ?? null)}
                             >
                               <td className="px-6 py-3.5">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
-                                    <span className="text-slate-400 font-mono text-xs">{formatDateFR(c.dateTirage)}</span>
+                                    <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono text-xs">{formatDateFR(c.dateTirage)}</span>
                                   </TooltipTrigger>
                                   <TooltipContent>{timeAgo(c.dateTirage)}</TooltipContent>
                                 </Tooltip>
                               </td>
                               <td className="px-6 py-3.5">
-                                <p className="text-slate-200 font-medium">{c.dossierAudite}</p>
-                                <p className="text-xs text-slate-500">{c.siren} · {c.forme}</p>
+                                <p className="text-slate-800 dark:text-slate-200 font-medium">{c.dossierAudite}</p>
+                                <p className="text-xs text-slate-400 dark:text-slate-500">{c.siren} · {c.forme}</p>
                               </td>
                               <td className="px-6 py-3.5">
                                 <ScoreGauge score={c.scoreGlobal} />
@@ -1174,7 +1174,7 @@ export default function ControlePage() {
                                 <VigilanceBadge level={c.nivVigilance} />
                               </td>
                               <td className="px-6 py-3.5">
-                                <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg?.color || "text-slate-400 bg-slate-500/10 border-slate-500/20"}`}>
+                                <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg?.color || "text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-slate-500/10 border-slate-500/20"}`}>
                                   <ResultIcon className="w-3 h-3" />
                                   {c.resultatGlobal}
                                 </span>
@@ -1189,12 +1189,12 @@ export default function ControlePage() {
                                   </Tooltip>
                                 )}
                               </td>
-                              <td className="px-6 py-3.5 text-xs text-slate-400">
+                              <td className="px-6 py-3.5 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
                                 {c.controleur || <span className="text-slate-600">—</span>}
                               </td>
                               <td className="px-6 py-3.5">
                                 {c.suiviStatut ? (
-                                  <span className={`text-xs px-2 py-0.5 rounded-full border ${SUIVI_OPTIONS.find((s) => s.value === c.suiviStatut)?.color || "text-slate-400 bg-slate-500/10 border-slate-500/20"}`}>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full border ${SUIVI_OPTIONS.find((s) => s.value === c.suiviStatut)?.color || "text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-slate-500/10 border-slate-500/20"}`}>
                                     {SUIVI_OPTIONS.find((s) => s.value === c.suiviStatut)?.label || c.suiviStatut}
                                   </span>
                                 ) : (
@@ -1202,7 +1202,7 @@ export default function ControlePage() {
                                 )}
                               </td>
                               <td className="px-6 py-3.5">
-                                <Eye className="w-4 h-4 text-slate-500" />
+                                <Eye className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                               </td>
                             </tr>
                           );
@@ -1213,24 +1213,24 @@ export default function ControlePage() {
 
                   {/* ── Pagination ── */}
                   {/* BUG FIX #35: don't show "1-0 sur 0" */}
-                  <div className="px-6 py-3 border-t border-white/[0.06] flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <div className="px-6 py-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
                       <span>Afficher</span>
                       <select
-                        className="rounded border border-white/[0.08] bg-white/[0.03] px-2 py-1 text-xs text-slate-300"
+                        className="rounded border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-2 py-1 text-xs text-slate-700 dark:text-slate-300"
                         value={pageSize}
                         onChange={(e) => { setPageSize(Number(e.target.value)); setPage(0); }}
                         aria-label="Nombre de resultats par page"
                       >
                         {PAGE_SIZES.map((s) => (
-                          <option key={s} value={s} className="bg-slate-900">{s}</option>
+                          <option key={s} value={s} className="bg-gray-50 dark:bg-slate-900">{s}</option>
                         ))}
                       </select>
                       <span>par page</span>
                     </div>
                     <div className="flex items-center gap-1">
                       {filteredControles.length > 0 && (
-                        <span className="text-xs text-slate-500 mr-2">
+                        <span className="text-xs text-slate-400 dark:text-slate-500 mr-2">
                           {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredControles.length)} sur {filteredControles.length}
                         </span>
                       )}
@@ -1240,7 +1240,7 @@ export default function ControlePage() {
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </Button>
-                      <span className="text-xs text-slate-400 mx-1">{page + 1}/{totalPages}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mx-1">{page + 1}/{totalPages}</span>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </Button>
@@ -1259,12 +1259,12 @@ export default function ControlePage() {
         {activeTab === "statistiques" && (
           <div className="animate-fade-in-up space-y-6">
             <div className="glass-card p-6">
-              <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-blue-400" />
                 Evolution mensuelle de la conformite
               </h3>
               {monthlyStats.length === 0 ? (
-                <p className="text-xs text-slate-500 text-center py-8">Pas de donnees disponibles</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-8">Pas de donnees disponibles</p>
               ) : (
                 <div className="space-y-4">
                   {/* BUG FIX #19: use global max for consistent bar scale */}
@@ -1273,7 +1273,7 @@ export default function ControlePage() {
                       <Tooltip key={m.month}>
                         <TooltipTrigger asChild>
                           <div className="flex-1 flex flex-col items-center gap-1">
-                            <span className="text-[10px] text-slate-500 tabular-nums">{m.rate}%</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums">{m.rate}%</span>
                             <div className="w-full flex flex-col justify-end" style={{ height: "120px" }}>
                               <div
                                 className="w-full bg-emerald-500/30 rounded-t transition-all"
@@ -1293,7 +1293,7 @@ export default function ControlePage() {
                       </Tooltip>
                     ))}
                   </div>
-                  <div className="flex items-center gap-4 text-xs text-slate-500">
+                  <div className="flex items-center gap-4 text-xs text-slate-400 dark:text-slate-500">
                     <span className="flex items-center gap-1.5">
                       <span className="w-3 h-2 rounded bg-emerald-500/30" /> Conformes
                     </span>
@@ -1309,7 +1309,7 @@ export default function ControlePage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Risk factor distribution */}
               <div className="glass-card border border-white/10 rounded-xl p-5">
-                <h4 className="text-xs font-medium text-slate-400 mb-3">Facteurs de risque les plus frequents</h4>
+                <h4 className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-3">Facteurs de risque les plus frequents</h4>
                 {(() => {
                   const factors = [
                     { label: "PPE", count: controles.filter((c) => c.ppe === "OUI").length },
@@ -1324,11 +1324,11 @@ export default function ControlePage() {
                     <div className="space-y-2">
                       {factors.map((f) => (
                         <div key={f.label} className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400 w-20">{f.label}</span>
-                          <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                          <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 w-20">{f.label}</span>
+                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
                             <div className="h-full rounded-full bg-red-500/50" style={{ width: `${(f.count / max) * 100}%` }} />
                           </div>
-                          <span className="text-xs text-slate-500 tabular-nums w-6 text-right">{f.count}</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums w-6 text-right">{f.count}</span>
                         </div>
                       ))}
                     </div>
@@ -1338,7 +1338,7 @@ export default function ControlePage() {
 
               {/* Vigilance distribution */}
               <div className="glass-card border border-white/10 rounded-xl p-5">
-                <h4 className="text-xs font-medium text-slate-400 mb-3">Repartition par vigilance</h4>
+                <h4 className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-3">Repartition par vigilance</h4>
                 {(() => {
                   const levels = [
                     { label: "Simplifiee", count: controles.filter((c) => c.nivVigilance === "SIMPLIFIEE").length, color: "bg-emerald-500/50" },
@@ -1348,18 +1348,18 @@ export default function ControlePage() {
                   const total = Math.max(levels.reduce((s, l) => s + l.count, 0), 1);
                   return (
                     <div className="space-y-3">
-                      <div className="flex h-3 rounded-full overflow-hidden bg-white/[0.06]">
+                      <div className="flex h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-white/[0.06]">
                         {levels.map((l) => (
                           <div key={l.label} className={`${l.color} transition-all`} style={{ width: `${(l.count / total) * 100}%` }} />
                         ))}
                       </div>
                       {levels.map((l) => (
                         <div key={l.label} className="flex items-center justify-between">
-                          <span className="flex items-center gap-1.5 text-xs text-slate-400">
+                          <span className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
                             <span className={`w-2 h-2 rounded-full ${l.color}`} />
                             {l.label}
                           </span>
-                          <span className="text-xs text-slate-500 tabular-nums">{l.count} ({Math.round((l.count / total) * 100)}%)</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">{l.count} ({Math.round((l.count / total) * 100)}%)</span>
                         </div>
                       ))}
                     </div>
@@ -1369,7 +1369,7 @@ export default function ControlePage() {
 
               {/* Score distribution */}
               <div className="glass-card border border-white/10 rounded-xl p-5">
-                <h4 className="text-xs font-medium text-slate-400 mb-3">Distribution des scores</h4>
+                <h4 className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-3">Distribution des scores</h4>
                 {(() => {
                   const ranges = [
                     { label: "0-25", count: controles.filter((c) => c.scoreGlobal <= 25).length, color: "bg-emerald-500/50" },
@@ -1382,11 +1382,11 @@ export default function ControlePage() {
                     <div className="space-y-2">
                       {ranges.map((r) => (
                         <div key={r.label} className="flex items-center gap-2">
-                          <span className="text-xs text-slate-400 w-12 tabular-nums">{r.label}</span>
-                          <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                          <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 w-12 tabular-nums">{r.label}</span>
+                          <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
                             <div className={`h-full rounded-full ${r.color}`} style={{ width: `${(r.count / max) * 100}%` }} />
                           </div>
-                          <span className="text-xs text-slate-500 tabular-nums w-6 text-right">{r.count}</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums w-6 text-right">{r.count}</span>
                         </div>
                       ))}
                     </div>
@@ -1396,22 +1396,22 @@ export default function ControlePage() {
 
               {/* Incidents summary */}
               <div className="glass-card border border-white/10 rounded-xl p-5">
-                <h4 className="text-xs font-medium text-slate-400 mb-3">Resume des incidents</h4>
+                <h4 className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-3">Resume des incidents</h4>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Total incidents</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Total incidents</span>
                     <span className="text-sm font-bold text-orange-400 tabular-nums">{stats.incidents}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">NC mineures</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">NC mineures</span>
                     <span className="text-sm font-bold text-amber-400 tabular-nums">{stats.ncMineur}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-slate-400">NC majeures</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">NC majeures</span>
                     <span className="text-sm font-bold text-red-400 tabular-nums">{stats.ncMajeur}</span>
                   </div>
-                  <div className="border-t border-white/[0.06] pt-2 flex items-center justify-between">
-                    <span className="text-xs text-slate-400">Actions en cours</span>
+                  <div className="border-t border-gray-200 dark:border-white/[0.06] pt-2 flex items-center justify-between">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Actions en cours</span>
                     <span className="text-sm font-bold text-blue-400 tabular-nums">
                       {controles.filter((c) => c.suiviStatut === "EN_COURS" || c.suiviStatut === "A_TRAITER").length}
                     </span>
@@ -1425,16 +1425,16 @@ export default function ControlePage() {
         {/* ── Tab: Couverture ── */}
         {activeTab === "couverture" && (
           <div className="animate-fade-in-up glass-card border border-white/10 rounded-xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/[0.06] flex items-center gap-2">
+            <div className="px-6 py-4 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2">
               <Target className="w-4 h-4 text-blue-400" />
-              <h3 className="text-sm font-semibold text-slate-300">Couverture des controles</h3>
-              <span className="text-xs text-slate-500 ml-auto">
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Couverture des controles</h3>
+              <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
                 {stats.controlledSirens.size}/{stats.validClients.length} clients controles ({stats.coverageRate}%)
               </span>
             </div>
 
-            <div className="px-6 py-3 border-b border-white/[0.06]">
-              <div className="h-2 rounded-full bg-white/[0.06] overflow-hidden">
+            <div className="px-6 py-3 border-b border-gray-200 dark:border-white/[0.06]">
+              <div className="h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
                 <div
                   className="h-full rounded-full bg-gradient-to-r from-blue-500 to-emerald-500 transition-all duration-500"
                   style={{ width: `${stats.coverageRate}%` }}
@@ -1445,7 +1445,7 @@ export default function ControlePage() {
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-xs text-slate-500 border-b border-white/[0.06]">
+                  <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-gray-200 dark:border-white/[0.06]">
                     <th className="px-6 py-3 font-medium">Statut</th>
                     <th className="px-6 py-3 font-medium">Client</th>
                     <th className="px-6 py-3 font-medium">Score</th>
@@ -1460,26 +1460,26 @@ export default function ControlePage() {
                     .sort((a, b) => (a.controlled ? 1 : 0) - (b.controlled ? 1 : 0) || b.scoreGlobal - a.scoreGlobal)
                     .slice(0, 50)
                     .map((c) => (
-                      <tr key={c.siren} className="hover:bg-white/[0.02]">
+                      <tr key={c.siren} className="hover:bg-white dark:bg-white/[0.02]">
                         <td className="px-6 py-3">
                           {c.controlled ? (
                             <span className="flex items-center gap-1 text-xs text-emerald-400">
                               <CheckCircle2 className="w-3.5 h-3.5" /> Controle
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-xs text-slate-500">
+                            <span className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500">
                               <Minus className="w-3.5 h-3.5" /> Non controle
                             </span>
                           )}
                         </td>
                         <td className="px-6 py-3">
-                          <p className="text-slate-200 font-medium text-xs">{c.raisonSociale}</p>
-                          <p className="text-[10px] text-slate-500">{c.siren}</p>
+                          <p className="text-slate-800 dark:text-slate-200 font-medium text-xs">{c.raisonSociale}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500">{c.siren}</p>
                         </td>
                         <td className="px-6 py-3"><ScoreGauge score={c.scoreGlobal} /></td>
                         <td className="px-6 py-3"><VigilanceBadge level={c.nivVigilance} /></td>
-                        <td className="px-6 py-3 text-xs text-slate-400 tabular-nums">{c.controlCount}</td>
-                        <td className="px-6 py-3 text-xs text-slate-400">
+                        <td className="px-6 py-3 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 tabular-nums">{c.controlCount}</td>
+                        <td className="px-6 py-3 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
                           {c.lastControl ? formatDateFR(c.lastControl) : <span className="text-slate-600">Jamais</span>}
                         </td>
                       </tr>
@@ -1488,7 +1488,7 @@ export default function ControlePage() {
               </table>
             </div>
             {coverageData.length > 50 && (
-              <div className="px-6 py-3 border-t border-white/[0.06] text-xs text-slate-500 text-center">
+              <div className="px-6 py-3 border-t border-gray-200 dark:border-white/[0.06] text-xs text-slate-400 dark:text-slate-500 text-center">
                 Affichage limite aux 50 premiers clients (tries par priorite)
               </div>
             )}
@@ -1498,7 +1498,7 @@ export default function ControlePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── Draw Options Dialog ── */}
         <Dialog open={showDrawOptions} onOpenChange={setShowDrawOptions}>
-          <DialogContent className="max-w-lg bg-slate-900 border-white/[0.08] text-slate-100">
+          <DialogContent className="max-w-lg bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-slate-100">
                 <Shuffle className="w-5 h-5 text-blue-400" />
@@ -1507,7 +1507,7 @@ export default function ControlePage() {
             </DialogHeader>
             <div className="space-y-4 mt-2">
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-400">Mode de selection</label>
+                <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Mode de selection</label>
                 <div className="grid grid-cols-3 gap-2">
                   {([
                     { value: "random" as const, label: "Aleatoire", icon: Shuffle, desc: "Tirage pur" },
@@ -1519,13 +1519,13 @@ export default function ControlePage() {
                       className={`p-3 rounded-lg border text-center transition-all ${
                         drawMode === m.value
                           ? "border-blue-500/50 bg-blue-500/10 text-blue-400"
-                          : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12]"
+                          : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-white/[0.12]"
                       }`}
                       onClick={() => setDrawMode(m.value)}
                     >
                       <m.icon className="w-4 h-4 mx-auto mb-1" />
                       <p className="text-xs font-medium">{m.label}</p>
-                      <p className="text-[10px] text-slate-500 mt-0.5">{m.desc}</p>
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{m.desc}</p>
                     </button>
                   ))}
                 </div>
@@ -1533,7 +1533,7 @@ export default function ControlePage() {
 
               {drawMode !== "manual" && (
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-slate-400">Nombre de clients a tirer</label>
+                  <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Nombre de clients a tirer</label>
                   <div className="flex items-center gap-2">
                     <input
                       type="range"
@@ -1544,7 +1544,7 @@ export default function ControlePage() {
                       className="flex-1"
                       aria-label="Nombre de clients a tirer"
                     />
-                    <span className="text-sm font-bold text-slate-200 tabular-nums w-6 text-center">{drawCount}</span>
+                    <span className="text-sm font-bold text-slate-800 dark:text-slate-200 tabular-nums w-6 text-center">{drawCount}</span>
                   </div>
                 </div>
               )}
@@ -1555,26 +1555,26 @@ export default function ControlePage() {
                     type="checkbox"
                     checked={excludeControlled}
                     onChange={(e) => setExcludeControlled(e.target.checked)}
-                    className="rounded border-white/[0.2] bg-white/[0.05]"
+                    className="rounded border-white/[0.2] bg-gray-100 dark:bg-white/[0.05]"
                   />
-                  <span className="text-xs text-slate-400">Exclure les clients deja controles ({stats.controlledSirens.size})</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Exclure les clients deja controles ({stats.controlledSirens.size})</span>
                 </label>
               )}
 
               {drawMode === "manual" && (
                 <div className="space-y-2">
-                  <label className="text-xs font-medium text-slate-400">Selectionner les clients</label>
+                  <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Selectionner les clients</label>
                   <input
                     type="text"
                     placeholder="Rechercher un client..."
-                    className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                    className="w-full rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                     value={clientSearch}
                     onChange={(e) => setClientSearch(e.target.value)}
                     aria-label="Rechercher un client pour le tirage"
                   />
-                  <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-white/[0.06] p-2">
+                  <div className="max-h-40 overflow-y-auto space-y-1 rounded-lg border border-gray-200 dark:border-white/[0.06] p-2">
                     {availableClients.slice(0, 20).map((c) => (
-                      <label key={c.siren} className="flex items-center gap-2 p-1.5 rounded hover:bg-white/[0.04] cursor-pointer">
+                      <label key={c.siren} className="flex items-center gap-2 p-1.5 rounded hover:bg-gray-50/80 dark:bg-white/[0.04] cursor-pointer">
                         <input
                           type="checkbox"
                           checked={selectedClients.includes(c.siren)}
@@ -1582,10 +1582,10 @@ export default function ControlePage() {
                             if (e.target.checked) setSelectedClients((prev) => [...prev, c.siren]);
                             else setSelectedClients((prev) => prev.filter((s) => s !== c.siren));
                           }}
-                          className="rounded border-white/[0.2] bg-white/[0.05]"
+                          className="rounded border-white/[0.2] bg-gray-100 dark:bg-white/[0.05]"
                         />
-                        <span className="text-xs text-slate-300">{c.raisonSociale}</span>
-                        <span className="text-[10px] text-slate-500 ml-auto">{c.siren}</span>
+                        <span className="text-xs text-slate-700 dark:text-slate-300">{c.raisonSociale}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">{c.siren}</span>
                       </label>
                     ))}
                   </div>
@@ -1595,10 +1595,10 @@ export default function ControlePage() {
                 </div>
               )}
 
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+              <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-3">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="text-slate-500">Clients valides disponibles</span>
-                  <span className="text-slate-300 font-medium tabular-nums">
+                  <span className="text-slate-400 dark:text-slate-500">Clients valides disponibles</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-medium tabular-nums">
                     {excludeControlled && drawMode !== "manual"
                       ? clients.filter((c) => c.etat === "VALIDE" && !stats.controlledSirens.has(c.siren)).length
                       : clients.filter((c) => c.etat === "VALIDE").length}
@@ -1607,7 +1607,7 @@ export default function ControlePage() {
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <Button variant="outline" className="border-white/[0.06]" onClick={() => setShowDrawOptions(false)}>
+                <Button variant="outline" className="border-gray-200 dark:border-white/[0.06]" onClick={() => setShowDrawOptions(false)}>
                   Annuler
                 </Button>
                 <Button className="gap-1.5 bg-blue-600 hover:bg-blue-700" onClick={executeRandomDraw}>
@@ -1621,7 +1621,7 @@ export default function ControlePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── New/Edit Control Form Dialog ── */}
         <Dialog open={showForm} onOpenChange={(open) => { if (!open) handleCloseForm(); }}>
-          <DialogContent className="max-w-3xl bg-slate-900 border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-slate-100">
                 {editMode ? <Edit3 className="w-5 h-5 text-amber-400" /> : <Plus className="w-5 h-5 text-blue-400" />}
@@ -1631,12 +1631,12 @@ export default function ControlePage() {
 
             <div className="space-y-5 mt-2">
               {/* Pre-filled client info */}
-              <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
-                <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Dossier tire au sort</p>
+              <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4">
+                <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Dossier tire au sort</p>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-200">{form.dossierAudite}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">{form.siren} · {form.forme} · {formatDateFR(form.dateTirage)}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{form.dossierAudite}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{form.siren} · {form.forme} · {formatDateFR(form.dateTirage)}</p>
                   </div>
                   <div className="flex items-center gap-3">
                     <ScoreGauge score={form.scoreGlobal} />
@@ -1649,12 +1649,12 @@ export default function ControlePage() {
 
               {/* Controleur */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-400">
+                <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">
                   Controleur <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="text"
-                  className={`w-full rounded-lg border ${formErrors.controleur ? "border-red-500/50" : "border-white/[0.08]"} bg-white/[0.03] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50`}
+                  className={`w-full rounded-lg border ${formErrors.controleur ? "border-red-500/50" : "border-gray-300 dark:border-white/[0.08]"} bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50`}
                   placeholder="Nom du controleur..."
                   value={form.controleur}
                   onChange={(e) => { setForm((prev) => ({ ...prev, controleur: e.target.value })); setFormDirty(true); }}
@@ -1665,7 +1665,7 @@ export default function ControlePage() {
 
               {/* 3 checkpoints */}
               <div className="space-y-3">
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Points de controle <span className="text-red-400">*</span></p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Points de controle <span className="text-red-400">*</span></p>
                 {([
                   { key: "point1" as const, label: "1. Identite & Beneficiaires effectifs", placeholder: "Verification CNI, KBIS, RBE a jour..." },
                   { key: "point2" as const, label: "2. Scoring & Niveau de vigilance", placeholder: "Coherence du score, criteres de risque..." },
@@ -1673,7 +1673,7 @@ export default function ControlePage() {
                 ]).map((cp) => (
                   <div key={cp.key} className="space-y-1">
                     <div className="flex items-center justify-between">
-                      <label className="text-xs font-medium text-slate-400">{cp.label}</label>
+                      <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">{cp.label}</label>
                       <div className="flex items-center gap-1">
                         <span className="text-[10px] text-slate-600 tabular-nums">{form[cp.key].length}/500</span>
                         <button
@@ -1685,7 +1685,7 @@ export default function ControlePage() {
                       </div>
                     </div>
                     <textarea
-                      className={`w-full rounded-lg border ${formErrors[cp.key] ? "border-red-500/50" : "border-white/[0.08]"} bg-white/[0.03] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none`}
+                      className={`w-full rounded-lg border ${formErrors[cp.key] ? "border-red-500/50" : "border-gray-300 dark:border-white/[0.08]"} bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none`}
                       rows={2}
                       maxLength={500}
                       placeholder={cp.placeholder}
@@ -1695,11 +1695,11 @@ export default function ControlePage() {
                     />
                     {formErrors[cp.key] && <p className="text-xs text-red-400">{formErrors[cp.key]}</p>}
                     {showTemplates === cp.key && (
-                      <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-2 space-y-1">
+                      <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-2 space-y-1">
                         {CHECKPOINT_TEMPLATES[cp.key].map((tpl, i) => (
                           <button
                             key={i}
-                            className="w-full text-left text-xs text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] px-2 py-1.5 rounded transition-colors"
+                            className="w-full text-left text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-gray-50/80 dark:bg-white/[0.04] px-2 py-1.5 rounded transition-colors"
                             onClick={() => {
                               setForm((prev) => ({ ...prev, [cp.key]: tpl }));
                               setShowTemplates(null);
@@ -1717,7 +1717,7 @@ export default function ControlePage() {
 
               {/* Resultat global */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-400">Resultat global</label>
+                <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Resultat global</label>
                 <div className="grid grid-cols-2 gap-2">
                   {RESULTAT_OPTIONS.map((opt) => {
                     const cfg = resultatConfig[opt];
@@ -1728,7 +1728,7 @@ export default function ControlePage() {
                         className={`flex items-center gap-2 p-2.5 rounded-lg border text-xs font-medium transition-all ${
                           form.resultatGlobal === opt
                             ? cfg.color
-                            : "border-white/[0.06] text-slate-500 hover:border-white/[0.12]"
+                            : "border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 hover:border-white/[0.12]"
                         }`}
                         onClick={() => {
                           setForm((prev) => ({
@@ -1758,11 +1758,11 @@ export default function ControlePage() {
                     Plan d'action correctrice requis
                   </p>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-slate-400">
+                    <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">
                       Action correctrice <span className="text-red-400">*</span>
                     </label>
                     <textarea
-                      className={`w-full rounded-lg border ${formErrors.actionCorrectrice ? "border-red-500/50" : "border-white/[0.08]"} bg-white/[0.03] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none`}
+                      className={`w-full rounded-lg border ${formErrors.actionCorrectrice ? "border-red-500/50" : "border-gray-300 dark:border-white/[0.08]"} bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none`}
                       rows={2}
                       placeholder="Decrire les actions a mener pour corriger la non-conformite..."
                       value={form.actionCorrectrice}
@@ -1773,12 +1773,12 @@ export default function ControlePage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-slate-400">
+                      <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">
                         Date d'echeance <span className="text-red-400">*</span>
                       </label>
                       <input
                         type="date"
-                        className={`w-full rounded-lg border ${formErrors.dateEcheance ? "border-red-500/50" : "border-white/[0.08]"} bg-white/[0.03] px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50`}
+                        className={`w-full rounded-lg border ${formErrors.dateEcheance ? "border-red-500/50" : "border-gray-300 dark:border-white/[0.08]"} bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50`}
                         value={form.dateEcheance}
                         min={new Date().toISOString().split("T")[0]}
                         onChange={(e) => { setForm((prev) => ({ ...prev, dateEcheance: e.target.value })); setFormDirty(true); }}
@@ -1787,15 +1787,15 @@ export default function ControlePage() {
                       {formErrors.dateEcheance && <p className="text-xs text-red-400">{formErrors.dateEcheance}</p>}
                     </div>
                     <div className="space-y-1">
-                      <label className="text-xs font-medium text-slate-400">Statut de suivi</label>
+                      <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Statut de suivi</label>
                       <select
-                        className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                        className="w-full rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                         value={form.suiviStatut}
                         onChange={(e) => { setForm((prev) => ({ ...prev, suiviStatut: e.target.value })); setFormDirty(true); }}
                         aria-label="Statut de suivi"
                       >
                         {SUIVI_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value} className="bg-slate-900">{opt.label}</option>
+                          <option key={opt.value} value={opt.value} className="bg-gray-50 dark:bg-slate-900">{opt.label}</option>
                         ))}
                       </select>
                     </div>
@@ -1805,10 +1805,10 @@ export default function ControlePage() {
 
               {/* Incident */}
               <div className="space-y-1">
-                <label className="text-xs font-medium text-slate-400">Incident declare</label>
+                <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Incident declare</label>
                 <input
                   type="text"
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
+                  className="w-full rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50"
                   placeholder="Decrire l'incident le cas echeant..."
                   value={form.incident}
                   onChange={(e) => { setForm((prev) => ({ ...prev, incident: e.target.value })); setFormDirty(true); }}
@@ -1819,11 +1819,11 @@ export default function ControlePage() {
               {/* Commentaire */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="text-xs font-medium text-slate-400">Commentaire</label>
+                  <label className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Commentaire</label>
                   <span className="text-[10px] text-slate-600 tabular-nums">{form.commentaire.length}/1000</span>
                 </div>
                 <textarea
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 text-sm text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
+                  className="w-full rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50 resize-none"
                   rows={3}
                   maxLength={1000}
                   placeholder="Observations complementaires..."
@@ -1852,12 +1852,12 @@ export default function ControlePage() {
               )}
 
               {/* Actions */}
-              <div className="flex justify-between items-center pt-2 border-t border-white/[0.06]">
+              <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-white/[0.06]">
                 <div className="text-xs text-slate-600">
                   {formDirty && <span className="text-amber-400">Modifications non enregistrees</span>}
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" className="border-white/[0.06]" onClick={() => handleCloseForm()}>
+                  <Button variant="outline" className="border-gray-200 dark:border-white/[0.06]" onClick={() => handleCloseForm()}>
                     Annuler
                   </Button>
                   <Button className="bg-blue-600 hover:bg-blue-700 gap-1.5" onClick={handleSave} disabled={saving}>
@@ -1882,7 +1882,7 @@ export default function ControlePage() {
         {/* ════════════════════════════════════════════════════════════════ */}
         {/* ── Detail Dialog ── */}
         <Dialog open={detailId !== null} onOpenChange={(open) => { if (!open) { setDetailId(null); setShowDeleteConfirm(false); } }}>
-          <DialogContent className="max-w-3xl bg-slate-900 border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-3xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
             {detailControle && (
               <>
                 <DialogHeader>
@@ -1895,7 +1895,7 @@ export default function ControlePage() {
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(-1)} disabled={detailIndexInFiltered <= 0}>
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
-                      <span className="text-xs text-slate-500 tabular-nums">{detailIndexInFiltered + 1}/{filteredControles.length}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">{detailIndexInFiltered + 1}/{filteredControles.length}</span>
                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(1)} disabled={detailIndexInFiltered >= filteredControles.length - 1}>
                         <ChevronRight className="w-4 h-4" />
                       </Button>
@@ -1904,16 +1904,16 @@ export default function ControlePage() {
                 </DialogHeader>
 
                 <div className="space-y-5 mt-2">
-                  <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-4">
+                  <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-slate-200">{detailControle.dossierAudite}</p>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{detailControle.dossierAudite}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                           {detailControle.siren} · {detailControle.forme} · {formatDateFR(detailControle.dateTirage)}
                           <span className="text-slate-600 ml-1">({timeAgo(detailControle.dateTirage)})</span>
                         </p>
                         {detailControle.controleur && (
-                          <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+                          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-1">
                             <UserCheck className="w-3 h-3" /> Controleur: {detailControle.controleur}
                           </p>
                         )}
@@ -1927,26 +1927,26 @@ export default function ControlePage() {
                   </div>
 
                   <div className="space-y-3">
-                    <p className="text-xs text-slate-500 uppercase tracking-wider">Points de controle</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Points de controle</p>
                     {([
                       { label: "1. Identite & Beneficiaires effectifs", value: detailControle.point1 },
                       { label: "2. Scoring & Niveau de vigilance", value: detailControle.point2 },
                       { label: "3. Documents & Contrat", value: detailControle.point3 },
                     ]).map((cp) => (
-                      <div key={cp.label} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                        <p className="text-xs font-medium text-slate-400 mb-1">{cp.label}</p>
-                        <p className="text-sm text-slate-200 whitespace-pre-wrap">{cp.value || <span className="text-slate-600 italic">Non renseigne</span>}</p>
+                      <div key={cp.label} className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-3">
+                        <p className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1">{cp.label}</p>
+                        <p className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{cp.value || <span className="text-slate-600 italic">Non renseigne</span>}</p>
                       </div>
                     ))}
                   </div>
 
                   <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-500">Resultat:</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">Resultat:</span>
                     {(() => {
                       const cfg = resultatConfig[detailControle.resultatGlobal as ResultatGlobal];
                       const ResultIcon = cfg?.icon || CheckCircle2;
                       return (
-                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg?.color || "text-slate-400 bg-slate-500/10 border-slate-500/20"}`}>
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg?.color || "text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-slate-500/10 border-slate-500/20"}`}>
                           <ResultIcon className="w-3 h-3" />
                           {detailControle.resultatGlobal}
                         </span>
@@ -1964,9 +1964,9 @@ export default function ControlePage() {
                       <p className="text-xs font-medium text-blue-400 mb-1 flex items-center gap-1">
                         <ArrowRight className="w-3 h-3" /> Action correctrice
                       </p>
-                      <p className="text-sm text-slate-200">{detailControle.actionCorrectrice}</p>
+                      <p className="text-sm text-slate-800 dark:text-slate-200">{detailControle.actionCorrectrice}</p>
                       {detailControle.dateEcheance && (
-                        <p className="text-xs text-slate-500 mt-1">Echeance: {formatDateFR(detailControle.dateEcheance)}</p>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Echeance: {formatDateFR(detailControle.dateEcheance)}</p>
                       )}
                     </div>
                   )}
@@ -1974,14 +1974,14 @@ export default function ControlePage() {
                   {detailControle.incident && (
                     <div className="rounded-lg border border-orange-500/20 bg-orange-500/5 p-3">
                       <p className="text-xs font-medium text-orange-400 mb-1">Incident declare</p>
-                      <p className="text-sm text-slate-200">{detailControle.incident}</p>
+                      <p className="text-sm text-slate-800 dark:text-slate-200">{detailControle.incident}</p>
                     </div>
                   )}
 
                   {detailControle.commentaire && (
-                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                      <p className="text-xs font-medium text-slate-400 mb-1">Commentaire</p>
-                      <p className="text-sm text-slate-200 whitespace-pre-wrap">{detailControle.commentaire}</p>
+                    <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-3">
+                      <p className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1">Commentaire</p>
+                      <p className="text-sm text-slate-800 dark:text-slate-200 whitespace-pre-wrap">{detailControle.commentaire}</p>
                     </div>
                   )}
 
@@ -2003,14 +2003,14 @@ export default function ControlePage() {
                   })()}
 
                   {/* Actions bar */}
-                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/[0.06]">
-                    <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleEditFromDetail}>
+                  <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-gray-200 dark:border-white/[0.06]">
+                    <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={handleEditFromDetail}>
                       <Edit3 className="w-3.5 h-3.5" /> Modifier
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => handleExportSinglePDF(detailControle)}>
+                    <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={() => handleExportSinglePDF(detailControle)}>
                       <FileText className="w-3.5 h-3.5" /> Fiche PDF
                     </Button>
-                    <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => handleCopyControl(detailControle)}>
+                    <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={() => handleCopyControl(detailControle)}>
                       <Copy className="w-3.5 h-3.5" /> Copier
                     </Button>
                     <div className="flex-1" />
@@ -2031,19 +2031,19 @@ export default function ControlePage() {
 
         {/* ── Delete confirmation ── */}
         <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
-          <DialogContent className="max-w-sm bg-slate-900 border-white/[0.08] text-slate-100">
+          <DialogContent className="max-w-sm bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-red-400">
                 <Trash2 className="w-5 h-5" />
                 Confirmer la suppression
               </DialogTitle>
             </DialogHeader>
-            <p className="text-sm text-slate-300 mt-2">
+            <p className="text-sm text-slate-700 dark:text-slate-300 mt-2">
               Etes-vous sur de vouloir supprimer le controle de <span className="font-semibold">{detailControle?.dossierAudite}</span> ?
               Cette action est irreversible.
             </p>
             <div className="flex justify-end gap-2 mt-4">
-              <Button variant="outline" className="border-white/[0.06]" onClick={() => setShowDeleteConfirm(false)}>
+              <Button variant="outline" className="border-gray-200 dark:border-white/[0.06]" onClick={() => setShowDeleteConfirm(false)}>
                 Annuler
               </Button>
               <Button className="bg-red-600 hover:bg-red-700 gap-1.5" onClick={handleDelete} disabled={deleting}>
@@ -2070,9 +2070,9 @@ export default function ControlePage() {
 
         {/* ── Keyboard shortcuts help ── */}
         <div className="text-[10px] text-slate-600 text-center">
-          <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">N</kbd> Nouveau tirage
+          <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.06]">N</kbd> Nouveau tirage
           {" · "}
-          <kbd className="px-1 py-0.5 rounded bg-white/[0.04] border border-white/[0.06]">Ctrl+F</kbd> Rechercher
+          <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.06]">Ctrl+F</kbd> Rechercher
         </div>
       </div>
     </TooltipProvider>

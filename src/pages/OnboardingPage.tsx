@@ -128,7 +128,7 @@ export default function OnboardingPage() {
       <div className="mb-6 text-center">
         <h1 className="text-lg font-bold tracking-tight">
           <span className="text-blue-400">GRIMY</span>
-          <span className="text-slate-500 font-normal ml-2 text-sm">Conformite LCB-FT</span>
+          <span className="text-slate-400 dark:text-slate-500 font-normal ml-2 text-sm">Conformite LCB-FT</span>
         </h1>
       </div>
 
@@ -186,7 +186,7 @@ export default function OnboardingPage() {
         <div className="fixed inset-0 bg-black/20 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-xl p-6 flex items-center gap-3">
             <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-            <span className="text-sm text-slate-300">Enregistrement en cours...</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300">Enregistrement en cours...</span>
           </div>
         </div>
       )}

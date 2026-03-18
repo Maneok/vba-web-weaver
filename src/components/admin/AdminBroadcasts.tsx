@@ -105,7 +105,7 @@ export default function AdminBroadcasts() {
       <div className="flex justify-end">
         <button
           onClick={() => setDialogOpen(true)}
-          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white text-sm font-medium rounded-lg transition-colors"
         >
           <Plus className="h-4 w-4" /> Nouvelle annonce
         </button>
@@ -114,8 +114,8 @@ export default function AdminBroadcasts() {
       {/* Broadcasts List */}
       {broadcasts.length === 0 ? (
         <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
-          <Megaphone className="h-8 w-8 text-slate-500 mx-auto mb-3" />
-          <p className="text-slate-400 text-sm">Aucune annonce envoyee</p>
+          <Megaphone className="h-8 w-8 text-slate-400 dark:text-slate-500 mx-auto mb-3" />
+          <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">Aucune annonce envoyee</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -123,17 +123,17 @@ export default function AdminBroadcasts() {
             <div key={b.id} className="bg-white/5 border border-white/10 rounded-xl p-5">
               <div className="flex items-start justify-between gap-4">
                 <div className="flex-1 min-w-0">
-                  <h4 className="text-sm font-semibold text-slate-200">{b.title}</h4>
-                  <p className="text-sm text-slate-400 mt-1 whitespace-pre-wrap">{b.message}</p>
+                  <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200">{b.title}</h4>
+                  <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 whitespace-pre-wrap">{b.message}</p>
                 </div>
                 <div className="text-right shrink-0 space-y-1">
                   <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300">
                     {targetLabels[b.target] ?? b.target}
                   </span>
-                  <p className="text-xs text-slate-500">{b.recipients_count} destinataire(s)</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{b.recipients_count} destinataire(s)</p>
                 </div>
               </div>
-              <p className="text-xs text-slate-600 mt-3">{formatDate(b.created_at)}</p>
+              <p className="text-xs text-slate-300 dark:text-slate-600 mt-3">{formatDate(b.created_at)}</p>
             </div>
           ))}
         </div>
@@ -148,31 +148,31 @@ export default function AdminBroadcasts() {
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-sm text-slate-300">Titre</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">Titre</label>
               <input
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Titre de l'annonce"
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-slate-300">Message</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">Message</label>
               <textarea
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={5}
                 placeholder="Contenu de l'annonce..."
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1 resize-none"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1 resize-none"
               />
             </div>
             <div>
-              <label className="text-sm text-slate-300">Cible</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">Cible</label>
               <select
                 value={target}
                 onChange={(e) => setTarget(e.target.value)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
               >
                 <option value="all">Tous les cabinets</option>
                 <option value="trialing">Seulement trials</option>
@@ -182,11 +182,11 @@ export default function AdminBroadcasts() {
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setDialogOpen(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
+            <button onClick={() => setDialogOpen(false)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
             <button
               onClick={handleSend}
               disabled={sending || !title.trim() || !message.trim()}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-45 transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg disabled:opacity-45 transition-colors"
             >
               <Send className="h-3.5 w-3.5" /> {sending ? "Envoi..." : "Envoyer"}
             </button>

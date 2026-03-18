@@ -261,13 +261,13 @@ export default function AdminCabinets() {
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
           <input
             type="text"
             placeholder="Rechercher par nom ou email..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+            className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
           />
         </div>
         <div className="flex gap-2">
@@ -284,7 +284,7 @@ export default function AdminCabinets() {
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                 statusFilter === f.value
                   ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                  : "bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10"
+                  : "bg-white/5 text-slate-400 dark:text-slate-500 dark:text-slate-400 border border-white/10 hover:bg-white/10"
               }`}
             >
               {f.label}
@@ -298,7 +298,7 @@ export default function AdminCabinets() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-500 border-b border-white/10">
+              <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-white/10">
                 <th className="px-4 py-3">Nom</th>
                 <th className="px-4 py-3">Plan</th>
                 <th className="px-4 py-3">Statut</th>
@@ -314,23 +314,23 @@ export default function AdminCabinets() {
               {filtered.map((cab) => (
                 <tr
                   key={cab.id}
-                  className="border-b border-white/5 hover:bg-white/[0.02] cursor-pointer transition-colors"
+                  className="border-b border-white/5 hover:bg-white dark:bg-white/[0.02] cursor-pointer transition-colors"
                   onClick={() => openCabinetDetail(cab)}
                 >
-                  <td className="px-4 py-3 text-slate-200 font-medium">{cab.name}</td>
+                  <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-medium">{cab.name}</td>
                   <td className="px-4 py-3">
                     <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300 capitalize">{cab.plan}</span>
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[cab.subscription_status] ?? "bg-slate-500/20 text-slate-300"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[cab.subscription_status] ?? "bg-slate-500/20 text-slate-700 dark:text-slate-300"}`}>
                       {statusLabels[cab.subscription_status] ?? cab.subscription_status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-400">{cab.active_users}/{cab.max_users}</td>
-                  <td className="px-4 py-3 text-slate-400">{cab.total_clients}/{cab.max_clients}</td>
-                  <td className="px-4 py-3 text-slate-400 truncate max-w-[180px]">{cab.admin_email}</td>
-                  <td className="px-4 py-3 text-slate-500">{formatRelative(cab.last_login)}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400">{cab.active_users}/{cab.max_users}</td>
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400">{cab.total_clients}/{cab.max_clients}</td>
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate max-w-[180px]">{cab.admin_email}</td>
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500">{formatRelative(cab.last_login)}</td>
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500">
                     {cab.trial_days_remaining != null && cab.trial_days_remaining > 0
                       ? `${cab.trial_days_remaining}j`
                       : "-"}
@@ -339,7 +339,7 @@ export default function AdminCabinets() {
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <button className="p-1 rounded hover:bg-white/10 transition-colors">
-                          <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                          <MoreHorizontal className="h-4 w-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -370,7 +370,7 @@ export default function AdminCabinets() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-500">Aucun cabinet trouve</td></tr>
+                <tr><td colSpan={9} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">Aucun cabinet trouve</td></tr>
               )}
             </tbody>
           </table>
@@ -381,7 +381,7 @@ export default function AdminCabinets() {
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
         <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="text-slate-200">{selectedCabinet?.name}</SheetTitle>
+            <SheetTitle className="text-slate-800 dark:text-slate-200">{selectedCabinet?.name}</SheetTitle>
           </SheetHeader>
           {detailLoading ? (
             <div className="space-y-4 mt-6">
@@ -391,65 +391,65 @@ export default function AdminCabinets() {
             <div className="space-y-6 mt-6">
               {/* Cabinet Info */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase">Informations</h4>
+                <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase">Informations</h4>
                 {Object.entries(cabinetDetail.cabinet ?? {}).map(([key, val]) => (
                   <div key={key} className="flex justify-between text-sm">
-                    <span className="text-slate-400">{key}</span>
-                    <span className="text-slate-200">{String(val ?? "-")}</span>
+                    <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">{key}</span>
+                    <span className="text-slate-800 dark:text-slate-200">{String(val ?? "-")}</span>
                   </div>
                 ))}
               </div>
 
               {/* Subscription */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase">Abonnement</h4>
+                <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase">Abonnement</h4>
                 {Object.entries(cabinetDetail.subscription ?? {}).map(([key, val]) => (
                   <div key={key} className="flex justify-between text-sm">
-                    <span className="text-slate-400">{key}</span>
-                    <span className="text-slate-200">{String(val ?? "-")}</span>
+                    <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">{key}</span>
+                    <span className="text-slate-800 dark:text-slate-200">{String(val ?? "-")}</span>
                   </div>
                 ))}
               </div>
 
               {/* Users */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase">Utilisateurs</h4>
+                <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase">Utilisateurs</h4>
                 {(cabinetDetail.users ?? []).map((u, i) => (
                   <div key={i} className="flex justify-between text-sm border-b border-white/5 pb-1">
-                    <span className="text-slate-200">{String(u.full_name ?? u.email)}</span>
-                    <span className="text-slate-400">{String(u.role ?? "")}</span>
+                    <span className="text-slate-800 dark:text-slate-200">{String(u.full_name ?? u.email)}</span>
+                    <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">{String(u.role ?? "")}</span>
                   </div>
                 ))}
-                {(cabinetDetail.users ?? []).length === 0 && <p className="text-sm text-slate-500">Aucun utilisateur</p>}
+                {(cabinetDetail.users ?? []).length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500">Aucun utilisateur</p>}
               </div>
 
               {/* Recent Audits */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase">Derniers audits</h4>
+                <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase">Derniers audits</h4>
                 {(cabinetDetail.recent_audits ?? []).slice(0, 5).map((a, i) => (
-                  <div key={i} className="text-sm text-slate-300">
-                    {String(a.action)} — <span className="text-slate-500">{formatRelative(String(a.created_at ?? ""))}</span>
+                  <div key={i} className="text-sm text-slate-700 dark:text-slate-300">
+                    {String(a.action)} — <span className="text-slate-400 dark:text-slate-500">{formatRelative(String(a.created_at ?? ""))}</span>
                   </div>
                 ))}
-                {(cabinetDetail.recent_audits ?? []).length === 0 && <p className="text-sm text-slate-500">Aucun audit</p>}
+                {(cabinetDetail.recent_audits ?? []).length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500">Aucun audit</p>}
               </div>
 
               {/* Payment History */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-slate-400 uppercase">Historique paiements</h4>
+                <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase">Historique paiements</h4>
                 {(cabinetDetail.payment_history ?? []).slice(0, 5).map((p, i) => (
                   <div key={i} className="flex justify-between text-sm">
-                    <span className="text-slate-300">{((Number(p.amount) || 0) / 100).toFixed(2)} &euro;</span>
-                    <span className="text-slate-500">{formatRelative(String(p.created_at ?? ""))}</span>
+                    <span className="text-slate-700 dark:text-slate-300">{((Number(p.amount) || 0) / 100).toFixed(2)} &euro;</span>
+                    <span className="text-slate-400 dark:text-slate-500">{formatRelative(String(p.created_at ?? ""))}</span>
                   </div>
                 ))}
-                {(cabinetDetail.payment_history ?? []).length === 0 && <p className="text-sm text-slate-500">Aucun paiement</p>}
+                {(cabinetDetail.payment_history ?? []).length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500">Aucun paiement</p>}
               </div>
 
               {/* Notes */}
               <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-semibold text-slate-400 uppercase">Notes internes</h4>
+                  <h4 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase">Notes internes</h4>
                   <button
                     onClick={() => setNoteDialog(true)}
                     className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
@@ -459,11 +459,11 @@ export default function AdminCabinets() {
                 </div>
                 {(cabinetDetail.notes ?? []).map((n, i) => (
                   <div key={i} className="text-sm border-b border-white/5 pb-2">
-                    <p className="text-slate-300">{String(n.note)}</p>
-                    <p className="text-xs text-slate-500 mt-1">{formatRelative(String(n.created_at ?? ""))}</p>
+                    <p className="text-slate-700 dark:text-slate-300">{String(n.note)}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{formatRelative(String(n.created_at ?? ""))}</p>
                   </div>
                 ))}
-                {(cabinetDetail.notes ?? []).length === 0 && <p className="text-sm text-slate-500">Aucune note</p>}
+                {(cabinetDetail.notes ?? []).length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500">Aucune note</p>}
               </div>
             </div>
           ) : null}
@@ -495,11 +495,11 @@ export default function AdminCabinets() {
             <DialogTitle>Reactiver le cabinet</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <label className="text-sm text-slate-300">Choisir le plan :</label>
+            <label className="text-sm text-slate-700 dark:text-slate-300">Choisir le plan :</label>
             <select
               value={reactivatePlan}
               onChange={(e) => setReactivatePlan(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200"
             >
               <option value="solo">Solo</option>
               <option value="cabinet">Cabinet</option>
@@ -507,8 +507,8 @@ export default function AdminCabinets() {
             </select>
           </div>
           <DialogFooter>
-            <button onClick={() => setReactivateDialog(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button onClick={() => reactivateDialog && handleReactivate(reactivateDialog.id, reactivatePlan)} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg">
+            <button onClick={() => setReactivateDialog(null)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
+            <button onClick={() => reactivateDialog && handleReactivate(reactivateDialog.id, reactivatePlan)} className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white rounded-lg">
               Reactiver
             </button>
           </DialogFooter>
@@ -522,11 +522,11 @@ export default function AdminCabinets() {
             <DialogTitle>Changer le plan</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <label className="text-sm text-slate-300">Nouveau plan :</label>
+            <label className="text-sm text-slate-700 dark:text-slate-300">Nouveau plan :</label>
             <select
               value={newPlan}
               onChange={(e) => setNewPlan(e.target.value)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200"
             >
               <option value="solo">Solo</option>
               <option value="cabinet">Cabinet</option>
@@ -534,8 +534,8 @@ export default function AdminCabinets() {
             </select>
           </div>
           <DialogFooter>
-            <button onClick={() => setChangePlanDialog(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button onClick={() => changePlanDialog && handleChangePlan(changePlanDialog.id, newPlan)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+            <button onClick={() => setChangePlanDialog(null)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
+            <button onClick={() => changePlanDialog && handleChangePlan(changePlanDialog.id, newPlan)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg">
               Appliquer
             </button>
           </DialogFooter>
@@ -549,19 +549,19 @@ export default function AdminCabinets() {
             <DialogTitle>Prolonger le trial</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
-            <label className="text-sm text-slate-300">Nombre de jours :</label>
+            <label className="text-sm text-slate-700 dark:text-slate-300">Nombre de jours :</label>
             <input
               type="number"
               min={1}
               max={365}
               value={trialDays}
               onChange={(e) => setTrialDays(parseInt(e.target.value) || 14)}
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200"
             />
           </div>
           <DialogFooter>
-            <button onClick={() => setExtendTrialDialog(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button onClick={() => extendTrialDialog && handleExtendTrial(extendTrialDialog.id, trialDays)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+            <button onClick={() => setExtendTrialDialog(null)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
+            <button onClick={() => extendTrialDialog && handleExtendTrial(extendTrialDialog.id, trialDays)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg">
               Prolonger
             </button>
           </DialogFooter>
@@ -576,41 +576,41 @@ export default function AdminCabinets() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-sm text-slate-300">Code coupon :</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">Code coupon :</label>
               <input
                 type="text"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
                 placeholder="PROMO2026"
               />
             </div>
             <div>
-              <label className="text-sm text-slate-300">Pourcentage de reduction :</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">Pourcentage de reduction :</label>
               <input
                 type="number"
                 min={1}
                 max={100}
                 value={couponPercent}
                 onChange={(e) => setCouponPercent(parseInt(e.target.value) || 10)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-slate-300">Duree (mois) :</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">Duree (mois) :</label>
               <input
                 type="number"
                 min={1}
                 max={24}
                 value={couponDuration}
                 onChange={(e) => setCouponDuration(parseInt(e.target.value) || 1)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
               />
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setCouponDialog(null)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
-            <button onClick={() => couponDialog && handleApplyCoupon(couponDialog.id)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg">
+            <button onClick={() => setCouponDialog(null)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
+            <button onClick={() => couponDialog && handleApplyCoupon(couponDialog.id)} className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg">
               Appliquer
             </button>
           </DialogFooter>
@@ -632,7 +632,7 @@ export default function AdminCabinets() {
             value={purgeConfirm}
             onChange={(e) => setPurgeConfirm(e.target.value)}
             placeholder='Tapez "PURGER"'
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200"
           />
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setPurgeConfirm("")}>Annuler</AlertDialogCancel>
@@ -658,14 +658,14 @@ export default function AdminCabinets() {
             onChange={(e) => setNoteText(e.target.value)}
             rows={4}
             placeholder="Votre note..."
-            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 resize-none"
+            className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 resize-none"
           />
           <DialogFooter>
-            <button onClick={() => setNoteDialog(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
+            <button onClick={() => setNoteDialog(false)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
             <button
               onClick={() => selectedCabinet && handleAddNote(selectedCabinet.id)}
               disabled={!noteText.trim()}
-              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-45"
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg disabled:opacity-45"
             >
               Ajouter
             </button>

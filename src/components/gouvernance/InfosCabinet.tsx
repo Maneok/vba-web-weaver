@@ -88,7 +88,7 @@ export default function InfosCabinet() {
 
   if (loading) {
     return (
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardContent className="p-6">
           <div className="animate-pulse space-y-3">
             <div className="h-4 bg-slate-700 rounded w-1/3" />
@@ -100,7 +100,7 @@ export default function InfosCabinet() {
   }
 
   return (
-    <Card className="border-white/[0.06] bg-white/[0.02]">
+    <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
       <CardHeader className="flex flex-row items-center justify-between pb-3">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Building2 className="w-5 h-5 text-blue-400" />
@@ -125,43 +125,43 @@ export default function InfosCabinet() {
         {editing ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Raison sociale</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Raison sociale</Label>
               <Input value={editForm.raison_sociale} onChange={e => setEditForm(p => ({ ...p, raison_sociale: e.target.value }))} placeholder="Cabinet X" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">SIRET</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">SIRET</Label>
               <Input value={editForm.siret} onChange={e => setEditForm(p => ({ ...p, siret: e.target.value }))} placeholder="123 456 789 00012" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">N° OEC</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">N° OEC</Label>
               <Input value={editForm.numero_oec} onChange={e => setEditForm(p => ({ ...p, numero_oec: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">CROEC</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">CROEC</Label>
               <Input value={editForm.croec} onChange={e => setEditForm(p => ({ ...p, croec: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Adresse</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Adresse</Label>
               <Input value={editForm.adresse} onChange={e => setEditForm(p => ({ ...p, adresse: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Code postal</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Code postal</Label>
               <Input value={editForm.cp} onChange={e => setEditForm(p => ({ ...p, cp: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Ville</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Ville</Label>
               <Input value={editForm.ville} onChange={e => setEditForm(p => ({ ...p, ville: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Assureur RC Pro</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Assureur RC Pro</Label>
               <Input value={editForm.rc_pro_assureur} onChange={e => setEditForm(p => ({ ...p, rc_pro_assureur: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">N° police RC Pro</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">N° police RC Pro</Label>
               <Input value={editForm.rc_pro_police} onChange={e => setEditForm(p => ({ ...p, rc_pro_police: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Expiration RC Pro</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Expiration RC Pro</Label>
               <Input type="date" value={editForm.rc_pro_expiration} onChange={e => setEditForm(p => ({ ...p, rc_pro_expiration: e.target.value }))} />
             </div>
           </div>
@@ -173,10 +173,10 @@ export default function InfosCabinet() {
             <InfoField label="CROEC" value={info.croec} />
             <InfoField label="Adresse" value={[info.adresse, info.cp, info.ville].filter(Boolean).join(", ")} />
             <div className="space-y-0.5">
-              <span className="text-xs text-slate-500">RC Pro</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">RC Pro</span>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm">{info.rc_pro_assureur || "---"}</span>
-                {info.rc_pro_police && <span className="text-xs text-slate-500">({info.rc_pro_police})</span>}
+                {info.rc_pro_police && <span className="text-xs text-slate-400 dark:text-slate-500">({info.rc_pro_police})</span>}
                 {info.rc_pro_expiration && (
                   isRcProExpired() ? (
                     <Badge variant="destructive" className="text-xs gap-1">
@@ -204,7 +204,7 @@ export default function InfosCabinet() {
 function InfoField({ label, value }: { label: string; value: string }) {
   return (
     <div className="space-y-0.5">
-      <span className="text-xs text-slate-500">{label}</span>
+      <span className="text-xs text-slate-400 dark:text-slate-500">{label}</span>
       <p className="text-sm">{value || "---"}</p>
     </div>
   );

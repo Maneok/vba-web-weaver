@@ -38,7 +38,7 @@ function formatDate(dateStr: string) {
 
 const DECISION_COLORS = {
   DECLARE: "bg-red-500/15 text-red-400",
-  CLASSE: "bg-slate-500/15 text-slate-400",
+  CLASSE: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400",
   EN_ANALYSE: "bg-amber-500/15 text-amber-400",
 };
 
@@ -51,7 +51,7 @@ const DECISION_LABELS = {
 const STATUT_COLORS = {
   EN_COURS: "bg-amber-500/15 text-amber-400",
   TRANSMISE: "bg-emerald-500/15 text-emerald-400",
-  CLASSEE: "bg-slate-500/15 text-slate-400",
+  CLASSEE: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400",
 };
 
 const DS_STORAGE_KEY = "lcb-declarations-soupcon";
@@ -131,7 +131,7 @@ export default function DeclarationsSoupcon() {
   return (
     <div className="space-y-6">
       {/* Registre des declarations */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <AlertTriangle className="w-5 h-5 text-red-400" />
@@ -143,7 +143,7 @@ export default function DeclarationsSoupcon() {
         </CardHeader>
         <CardContent>
           {declarations.length === 0 ? (
-            <div className="text-center py-8 text-slate-500">
+            <div className="text-center py-8 text-slate-400 dark:text-slate-500">
               <Shield className="w-10 h-10 mx-auto mb-3 opacity-40" />
               <p className="text-sm">Aucune declaration de soupcon enregistree.</p>
               <p className="text-xs mt-1 max-w-md mx-auto">
@@ -152,7 +152,7 @@ export default function DeclarationsSoupcon() {
               </p>
             </div>
           ) : (
-            <div className="rounded-md border border-white/[0.06] overflow-x-auto">
+            <div className="rounded-md border border-gray-200 dark:border-white/[0.06] overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -175,7 +175,7 @@ export default function DeclarationsSoupcon() {
                           {DECISION_LABELS[ds.decision]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-slate-400">{ds.refTracfin || "---"}</TableCell>
+                      <TableCell className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{ds.refTracfin || "---"}</TableCell>
                       <TableCell>
                         <Badge className={`text-xs ${STATUT_COLORS[ds.statut]}`}>
                           {ds.statut === "EN_COURS" ? "En cours" : ds.statut === "TRANSMISE" ? "Transmise" : "Classee"}
@@ -207,14 +207,14 @@ export default function DeclarationsSoupcon() {
                 { step: "3", title: "Informer le referent LCB", desc: "Le referent LCB-FT analyse la situation et prend la decision." },
                 { step: "4", title: "Declarer sur ERMES", desc: "Effectuer la declaration sur la plateforme ERMES de TRACFIN." },
               ].map(item => (
-                <div key={item.step} className="p-3 rounded-md bg-white/[0.03] border border-white/[0.06]">
+                <div key={item.step} className="p-3 rounded-md bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
                   <div className="flex items-center gap-2 mb-1.5">
                     <div className="w-6 h-6 rounded-full bg-blue-500/20 text-blue-400 text-xs font-bold flex items-center justify-center">
                       {item.step}
                     </div>
                     <span className="text-sm font-medium">{item.title}</span>
                   </div>
-                  <p className="text-xs text-slate-500">{item.desc}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{item.desc}</p>
                 </div>
               ))}
             </div>
@@ -225,9 +225,9 @@ export default function DeclarationsSoupcon() {
                 </a>
               </Button>
               {referentLcb && (
-                <div className="flex items-center gap-2 text-sm text-slate-400 px-3 py-1.5 rounded-md bg-white/[0.03] border border-white/[0.06]">
+                <div className="flex items-center gap-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 px-3 py-1.5 rounded-md bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
                   <User className="w-3.5 h-3.5" />
-                  Correspondant TRACFIN : <strong className="text-slate-300">{referentLcb.nom}</strong>
+                  Correspondant TRACFIN : <strong className="text-slate-700 dark:text-slate-300">{referentLcb.nom}</strong>
                   {referentLcb.email && (
                     <span className="text-xs">({referentLcb.email})</span>
                   )}
@@ -239,32 +239,32 @@ export default function DeclarationsSoupcon() {
       </Card>
 
       {/* Registre des abstentions */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
-            <Archive className="w-5 h-5 text-slate-400" />
+            <Archive className="w-5 h-5 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
             Registre des abstentions
           </CardTitle>
-          <p className="text-xs text-slate-500 mt-1">
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
             Situations analysees mais classees sans declaration — chaque abstention est documentee avec sa justification
           </p>
         </CardHeader>
         <CardContent>
           {abstentions.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">Aucune abstention enregistree</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-4">Aucune abstention enregistree</p>
           ) : (
             <div className="space-y-2">
               {abstentions.map(a => (
-                <div key={a.id} className="p-3 rounded-md bg-white/[0.02] border border-white/[0.04]">
+                <div key={a.id} className="p-3 rounded-md bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
                   <div className="flex items-center justify-between mb-1">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium">{a.client}</span>
-                      <span className="text-xs text-slate-500">{formatDate(a.dateDetection)}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500">{formatDate(a.dateDetection)}</span>
                     </div>
-                    <Badge className="bg-slate-500/15 text-slate-400 text-xs">Classe sans suite</Badge>
+                    <Badge className="bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Classe sans suite</Badge>
                   </div>
-                  {a.motif && <p className="text-xs text-slate-400 mt-1">Motif : {a.motif}</p>}
-                  {a.justification && <p className="text-xs text-slate-500 mt-1">Justification : {a.justification}</p>}
+                  {a.motif && <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Motif : {a.motif}</p>}
+                  {a.justification && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Justification : {a.justification}</p>}
                 </div>
               ))}
             </div>
@@ -298,7 +298,7 @@ export default function DeclarationsSoupcon() {
           {wizardStep === 1 && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Client concerne *</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Client concerne *</Label>
                 <Select value={newDs.client} onValueChange={v => setNewDs(p => ({ ...p, client: v }))}>
                   <SelectTrigger><SelectValue placeholder="Selectionner un client..." /></SelectTrigger>
                   <SelectContent>
@@ -311,7 +311,7 @@ export default function DeclarationsSoupcon() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Motif de l'analyse</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Motif de l'analyse</Label>
                 <Input value={newDs.motif} onChange={e => setNewDs(p => ({ ...p, motif: e.target.value }))} placeholder="Ex: Operation atypique, comportement suspect..." />
               </div>
             </div>
@@ -321,7 +321,7 @@ export default function DeclarationsSoupcon() {
           {wizardStep === 2 && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Elements suspects *</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Elements suspects *</Label>
                 <Textarea
                   value={newDs.elementsSuspects}
                   onChange={e => setNewDs(p => ({ ...p, elementsSuspects: e.target.value }))}
@@ -336,7 +336,7 @@ export default function DeclarationsSoupcon() {
           {wizardStep === 3 && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Decision *</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Decision *</Label>
                 <Select value={newDs.decision} onValueChange={v => setNewDs(p => ({ ...p, decision: v as DeclarationSoupcon["decision"] }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -347,13 +347,13 @@ export default function DeclarationsSoupcon() {
               </div>
               {newDs.decision === "DECLARE" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-400">Reference TRACFIN (si connue)</Label>
+                  <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Reference TRACFIN (si connue)</Label>
                   <Input value={newDs.refTracfin} onChange={e => setNewDs(p => ({ ...p, refTracfin: e.target.value }))} placeholder="Numero de declaration" />
                 </div>
               )}
               {newDs.decision === "CLASSE" && (
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-400">Justification du classement *</Label>
+                  <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Justification du classement *</Label>
                   <Textarea
                     value={newDs.justification}
                     onChange={e => setNewDs(p => ({ ...p, justification: e.target.value }))}

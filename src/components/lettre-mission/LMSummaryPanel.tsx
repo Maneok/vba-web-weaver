@@ -17,12 +17,12 @@ function CompactSummary({ data }: { data: LMWizardData }) {
   const ttc = data.honoraires_ht + tva;
 
   return (
-    <div className="flex items-center justify-between px-4 py-2 bg-white/[0.03] border-t border-white/[0.06] text-xs">
-      <span className="text-slate-400">
+    <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-white/[0.03] border-t border-gray-200 dark:border-white/[0.06] text-xs">
+      <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
         {missionCount > 0 ? `${missionCount} mission${missionCount > 1 ? "s" : ""}` : "Aucune mission"}
       </span>
       {data.honoraires_ht > 0 && (
-        <span className="text-white font-semibold">{formatEur(ttc)} TTC</span>
+        <span className="text-slate-900 dark:text-white font-semibold">{formatEur(ttc)} TTC</span>
       )}
     </div>
   );
@@ -36,19 +36,19 @@ function FullSummary({ data }: { data: LMWizardData }) {
 
   return (
     <div className="sticky top-20 space-y-5">
-      <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Resume</h3>
+      <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resume</h3>
 
       {/* Client */}
       {data.raison_sociale ? (
         <div className="space-y-2">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Client</p>
-          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Client</p>
+          <div className="flex items-center gap-2.5 p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
             <div className="w-8 h-8 rounded-lg bg-blue-500/15 flex items-center justify-center shrink-0">
               <Building2 className="w-4 h-4 text-blue-400" />
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-medium text-white truncate">{data.raison_sociale}</p>
-              <p className="text-[10px] text-slate-500">{data.siren || "—"} · {data.forme_juridique || "—"}</p>
+              <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{data.raison_sociale}</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">{data.siren || "—"} · {data.forme_juridique || "—"}</p>
             </div>
           </div>
           {(() => {
@@ -62,7 +62,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
                   <Badge className={`text-[10px] ${catColors ? catColors.badge : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
                     {mtConfig.shortLabel}
                   </Badge>
-                  <Badge className={`text-[9px] ${catColors ? catColors.badge : 'border-slate-500/30 text-slate-400'}`}>
+                  <Badge className={`text-[9px] ${catColors ? catColors.badge : 'border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400'}`}>
                     {mtConfig.normeRef}
                   </Badge>
                   {data.type_mission && (mtId === 'presentation' || mtId === 'compilation') && ['TENUE', 'SURVEILLANCE', 'REVISION'].includes(data.type_mission) && (
@@ -87,18 +87,18 @@ function FullSummary({ data }: { data: LMWizardData }) {
           })()}
         </div>
       ) : (
-        <div className="text-xs text-slate-600 italic">Aucun client selectionne</div>
+        <div className="text-xs text-slate-300 dark:text-slate-600 italic">Aucun client selectionne</div>
       )}
 
       {/* Missions */}
       {missions.length > 0 && (
         <div className="space-y-2">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Missions</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Missions</p>
           <div className="flex flex-wrap gap-1.5">
             {missions.map((m) => (
               <span
                 key={m.section_id}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.04] border border-white/[0.06] text-[10px] text-slate-300"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-gray-50/80 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.06] text-[10px] text-slate-700 dark:text-slate-300"
               >
                 <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                 {m.label}
@@ -111,28 +111,28 @@ function FullSummary({ data }: { data: LMWizardData }) {
       {/* Durée */}
       {data.duree && (
         <div className="space-y-1">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Duree</p>
-          <p className="text-sm text-slate-300">{data.duree} an{data.duree !== "1" ? "s" : ""} · {data.frequence_facturation || "—"}</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Duree</p>
+          <p className="text-sm text-slate-700 dark:text-slate-300">{data.duree} an{data.duree !== "1" ? "s" : ""} · {data.frequence_facturation || "—"}</p>
         </div>
       )}
 
       {/* Honoraires */}
       {data.honoraires_ht > 0 && (
-        <div className="space-y-2 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-          <p className="text-[10px] text-slate-500 uppercase tracking-wider">Honoraires</p>
+        <div className="space-y-2 p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Honoraires</p>
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">HT</span>
-              <span className="text-slate-300">{formatEur(data.honoraires_ht)}</span>
+              <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">HT</span>
+              <span className="text-slate-700 dark:text-slate-300">{formatEur(data.honoraires_ht)}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400">TVA ({data.taux_tva}%)</span>
-              <span className="text-slate-300">{formatEur(tva)}</span>
+              <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">TVA ({data.taux_tva}%)</span>
+              <span className="text-slate-700 dark:text-slate-300">{formatEur(tva)}</span>
             </div>
-            <div className="h-px bg-white/[0.06] my-1" />
+            <div className="h-px bg-gray-100 dark:bg-white/[0.06] my-1" />
             <div className="flex justify-between">
-              <span className="text-xs font-medium text-slate-300">TTC</span>
-              <span className="text-base font-bold text-white">{formatEur(ttc)}</span>
+              <span className="text-xs font-medium text-slate-700 dark:text-slate-300">TTC</span>
+              <span className="text-base font-bold text-slate-900 dark:text-white">{formatEur(ttc)}</span>
             </div>
           </div>
         </div>

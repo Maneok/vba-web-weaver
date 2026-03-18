@@ -155,7 +155,7 @@ export default function ManuelProcedures() {
   return (
     <div className="space-y-6">
       {/* Manuel actuel */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div className="flex items-start gap-4">
@@ -165,12 +165,12 @@ export default function ManuelProcedures() {
               <div>
                 <h3 className="text-lg font-semibold">Manuel de procedures LCB-FT</h3>
                 <div className="flex flex-wrap items-center gap-3 mt-1.5">
-                  <span className="text-sm text-slate-400">Version actuelle : <strong>{currentVersion?.version}</strong> du {formatDate(currentVersion?.date || "")}</span>
+                  <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Version actuelle : <strong>{currentVersion?.version}</strong> du {formatDate(currentVersion?.date || "")}</span>
                   <Badge className="bg-emerald-500/15 text-emerald-400 text-xs">
                     <CheckCircle2 className="w-3 h-3 mr-1" /> VALIDE
                   </Badge>
                 </div>
-                <div className="flex flex-wrap items-center gap-4 mt-1 text-xs text-slate-500">
+                <div className="flex flex-wrap items-center gap-4 mt-1 text-xs text-slate-400 dark:text-slate-500">
                   <span className="flex items-center gap-1">
                     <Clock className="w-3 h-3" /> Derniere MAJ : {daysSince(currentVersion?.date || "")}
                   </span>
@@ -203,7 +203,7 @@ export default function ManuelProcedures() {
       </Card>
 
       {/* Tableau de diffusion */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-400" />
@@ -215,7 +215,7 @@ export default function ManuelProcedures() {
         </CardHeader>
         <CardContent>
           {lectures.length === 0 ? (
-            <div className="text-center py-6 text-slate-500">
+            <div className="text-center py-6 text-slate-400 dark:text-slate-500">
               <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Aucun collaborateur enregistre</p>
               <p className="text-xs mt-1">Ajoutez des collaborateurs pour suivre la diffusion du manuel</p>
@@ -223,13 +223,13 @@ export default function ManuelProcedures() {
           ) : (
           <div className="space-y-2">
             {lectures.map(l => (
-              <div key={l.collaborateur} className="flex items-center justify-between py-2 px-3 rounded-md bg-white/[0.02] border border-white/[0.04]">
+              <div key={l.collaborateur} className="flex items-center justify-between py-2 px-3 rounded-md bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
                 <div className="flex items-center gap-3">
                   <div className={`w-2 h-2 rounded-full ${l.dateLecture ? "bg-emerald-400" : "bg-red-400"}`} />
                   <span className="text-sm">{l.collaborateur}</span>
                 </div>
                 {l.dateLecture ? (
-                  <span className="text-xs text-slate-500">Lu le {formatDate(l.dateLecture)}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">Lu le {formatDate(l.dateLecture)}</span>
                 ) : (
                   <div className="flex items-center gap-2">
                     <Badge className="bg-red-500/15 text-red-400 text-xs">Non lu</Badge>
@@ -246,7 +246,7 @@ export default function ManuelProcedures() {
       </Card>
 
       {/* Historique des versions */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <Clock className="w-5 h-5 text-purple-400" />
@@ -265,23 +265,23 @@ export default function ManuelProcedures() {
                   }`} />
                   <button
                     onClick={() => handleView(v)}
-                    className="w-full text-left p-3 rounded-md bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.05] transition-colors"
+                    className="w-full text-left p-3 rounded-md bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04] hover:bg-gray-100 dark:bg-white/[0.05] transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{v.version}</span>
                         <Badge className={`text-xs ${
-                          v.statut === "VALIDE" ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-500/15 text-slate-400"
+                          v.statut === "VALIDE" ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400"
                         }`}>
                           {v.statut}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
+                      <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500">
                         <span>{formatDate(v.date)}</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </div>
                     </div>
-                    <p className="text-xs text-slate-500 mt-1">{v.resume}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{v.resume}</p>
                   </button>
                 </div>
               ))}
@@ -300,7 +300,7 @@ export default function ManuelProcedures() {
             </DialogTitle>
             <DialogDescription>{viewingVersion?.resume}</DialogDescription>
           </DialogHeader>
-          <div className="whitespace-pre-wrap text-sm text-slate-300 bg-white/[0.02] p-4 rounded-md border border-white/[0.06]">
+          <div className="whitespace-pre-wrap text-sm text-slate-700 dark:text-slate-300 bg-white dark:bg-white/[0.02] p-4 rounded-md border border-gray-200 dark:border-white/[0.06]">
             {viewingVersion?.contenu}
           </div>
         </DialogContent>
@@ -318,11 +318,11 @@ export default function ManuelProcedures() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Resume des modifications *</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Resume des modifications *</Label>
               <Input value={newVersion.resume} onChange={e => setNewVersion(p => ({ ...p, resume: e.target.value }))} placeholder="Ex: Mise a jour procedure gel des avoirs" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Contenu</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Contenu</Label>
               <Textarea value={newVersion.contenu} onChange={e => setNewVersion(p => ({ ...p, contenu: e.target.value }))} rows={8} placeholder="Contenu du manuel..." />
             </div>
             <div className="flex gap-2 justify-end">

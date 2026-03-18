@@ -106,7 +106,7 @@ export default function LMRevueEspace() {
           </div>
           <div>
             <p className="text-xl font-bold text-red-400">{kpis.vigilanceRenforcee}</p>
-            <p className="text-[11px] text-slate-500">Vigilance renforcee</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">Vigilance renforcee</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 rounded-xl bg-amber-500/5 border border-amber-500/15">
@@ -115,7 +115,7 @@ export default function LMRevueEspace() {
           </div>
           <div>
             <p className="text-xl font-bold text-amber-400">{kpis.kycExpires}</p>
-            <p className="text-[11px] text-slate-500">KYC expires</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">KYC expires</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-4 rounded-xl bg-blue-500/5 border border-blue-500/15">
@@ -124,7 +124,7 @@ export default function LMRevueEspace() {
           </div>
           <div>
             <p className="text-xl font-bold text-blue-400">{kpis.revuesAFaire}</p>
-            <p className="text-[11px] text-slate-500">Revues a faire</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500">Revues a faire</p>
           </div>
         </div>
       </div>
@@ -132,17 +132,17 @@ export default function LMRevueEspace() {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher par nom, reference, SIREN..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
+            className="pl-9 h-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white text-xs"
           />
         </div>
         <Select value={riskFilter} onValueChange={(v) => setRiskFilter(v as RiskFilter)}>
-          <SelectTrigger className="w-full sm:w-[160px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-            <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
+          <SelectTrigger className="w-full sm:w-[160px] h-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-xs text-slate-700 dark:text-slate-300">
+            <Filter className="w-3 h-3 mr-1.5 text-slate-400 dark:text-slate-500" />
             <SelectValue placeholder="Niveau risque" />
           </SelectTrigger>
           <SelectContent>
@@ -153,8 +153,8 @@ export default function LMRevueEspace() {
           </SelectContent>
         </Select>
         <Select value={alerteFilter} onValueChange={(v) => setAlerteFilter(v as AlerteFilter)}>
-          <SelectTrigger className="w-full sm:w-[170px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-            <AlertTriangle className="w-3 h-3 mr-1.5 text-slate-500" />
+          <SelectTrigger className="w-full sm:w-[170px] h-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-xs text-slate-700 dark:text-slate-300">
+            <AlertTriangle className="w-3 h-3 mr-1.5 text-slate-400 dark:text-slate-500" />
             <SelectValue placeholder="Type alerte" />
           </SelectTrigger>
           <SelectContent>
@@ -166,12 +166,12 @@ export default function LMRevueEspace() {
         </Select>
       </div>
 
-      <p className="text-[10px] text-slate-600">{filtered.length} client{filtered.length > 1 ? "s" : ""}</p>
+      <p className="text-[10px] text-slate-300 dark:text-slate-600">{filtered.length} client{filtered.length > 1 ? "s" : ""}</p>
 
       {/* Client rows */}
       <div className="space-y-2">
         {filtered.length === 0 && (
-          <div className="text-center py-10 text-slate-500 text-sm">Aucun client pour ces filtres</div>
+          <div className="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">Aucun client pour ces filtres</div>
         )}
         {filtered.map((client) => {
           const score = client.scoreGlobal ?? 0;
@@ -180,12 +180,12 @@ export default function LMRevueEspace() {
           return (
             <div
               key={client.ref}
-              className={`${riskBorderColor(score)} rounded-xl bg-white/[0.02] border border-white/[0.06] p-4 hover:bg-white/[0.04] transition-colors`}
+              className={`${riskBorderColor(score)} rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] p-4 hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors`}
             >
               <div className="flex items-center gap-3 flex-wrap">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate">{client.raisonSociale}</p>
-                  <p className="text-[10px] text-slate-500 mt-0.5">{client.ref} · {client.siren} · {client.forme}</p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{client.raisonSociale}</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{client.ref} · {client.siren} · {client.forme}</p>
                 </div>
 
                 <Badge
@@ -215,14 +215,14 @@ export default function LMRevueEspace() {
                 </Badge>
 
                 <div className="flex items-center gap-1.5 shrink-0">
-                  <Clock className="w-3 h-3 text-slate-600" />
-                  <span className="text-[10px] text-slate-500">
+                  <Clock className="w-3 h-3 text-slate-300 dark:text-slate-600" />
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
                     {client.dateDerniereRevue
                       ? new Date(client.dateDerniereRevue).toLocaleDateString("fr-FR")
                       : "Jamais"}
                   </span>
                   {days !== null && (
-                    <span className={`text-[9px] ${days > 365 ? "text-red-400" : days > 180 ? "text-amber-400" : "text-slate-600"}`}>
+                    <span className={`text-[9px] ${days > 365 ? "text-red-400" : days > 180 ? "text-amber-400" : "text-slate-300 dark:text-slate-600"}`}>
                       ({days}j)
                     </span>
                   )}
@@ -232,7 +232,7 @@ export default function LMRevueEspace() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 text-[10px] gap-1 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
+                    className="h-7 text-[10px] gap-1 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
                     onClick={() => navigate(`/client/${client.ref}`)}
                   >
                     <ClipboardCheck className="w-3 h-3" /> Effectuer la revue
@@ -240,7 +240,7 @@ export default function LMRevueEspace() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-[10px] gap-1 text-slate-500 hover:text-indigo-400"
+                    className="h-7 text-[10px] gap-1 text-slate-400 dark:text-slate-500 hover:text-indigo-400"
                     onClick={() => navigate(`/lettre-mission/${client.ref}`)}
                   >
                     <FileText className="w-3 h-3" /> LM

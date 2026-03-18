@@ -65,29 +65,29 @@ export function OnboardingComplete({ cabinetName, responsableName, cabinetData }
 
       <div>
         <h2 className="text-2xl font-semibold">Votre cabinet est pret !</h2>
-        <p className="text-slate-400 mt-2">
+        <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-2">
           {cabinetName || "Votre espace"} est configure. Vous pouvez commencer a travailler.
         </p>
       </div>
 
       {/* Summary */}
-      <div className="bg-white/[0.03] border border-white/[0.08] rounded-xl p-4 text-left max-w-sm mx-auto space-y-2">
+      <div className="bg-gray-50 dark:bg-white/[0.03] border border-gray-300 dark:border-white/[0.08] rounded-xl p-4 text-left max-w-sm mx-auto space-y-2">
         {cabinetName && (
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Cabinet</span>
-            <span className="text-slate-200 font-medium">{cabinetName}</span>
+            <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Cabinet</span>
+            <span className="text-slate-800 dark:text-slate-200 font-medium">{cabinetName}</span>
           </div>
         )}
         {cabinetData.siret && (
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">SIRET</span>
-            <span className="text-slate-200 font-mono text-xs">{cabinetData.siret}</span>
+            <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">SIRET</span>
+            <span className="text-slate-800 dark:text-slate-200 font-mono text-xs">{cabinetData.siret}</span>
           </div>
         )}
         {responsableName && (
           <div className="flex justify-between text-sm">
-            <span className="text-slate-400">Referent LCB-FT</span>
-            <span className="text-slate-200 font-medium">{responsableName}</span>
+            <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Referent LCB-FT</span>
+            <span className="text-slate-800 dark:text-slate-200 font-medium">{responsableName}</span>
           </div>
         )}
       </div>
@@ -104,7 +104,7 @@ export function OnboardingComplete({ cabinetName, responsableName, cabinetData }
         <Button
           variant="ghost"
           onClick={() => goTo("/nouveau-client")}
-          className="text-slate-400 hover:text-slate-200 gap-2"
+          className="text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 gap-2"
         >
           <UserPlus className="w-4 h-4" />
           Ajouter mon premier client

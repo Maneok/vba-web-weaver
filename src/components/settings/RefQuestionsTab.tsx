@@ -15,7 +15,7 @@ const columns: ColumnDef<RefQuestion>[] = [
     minWidth: "140px",
     render: (item) => {
       const cats = (item.categorie || "").split(",").map((c) => c.trim()).filter(Boolean);
-      if (cats.length === 0) return <span className="text-slate-600">—</span>;
+      if (cats.length === 0) return <span className="text-slate-300 dark:text-slate-600">—</span>;
       return (
         <div className="flex flex-wrap gap-1">
           {cats.map((cat) => (
@@ -35,7 +35,7 @@ const columns: ColumnDef<RefQuestion>[] = [
     render: (item) => (
       <Badge variant="outline" className={item.ponderation > 0
         ? "border-amber-500/30 text-amber-400 text-xs"
-        : "border-white/10 text-slate-500 text-xs"
+        : "border-white/10 text-slate-400 dark:text-slate-500 text-xs"
       }>
         {item.ponderation > 0 ? `Oui (+${item.ponderation})` : "Non"}
       </Badge>

@@ -120,7 +120,7 @@ export default function ClientDetailPage() {
     return (
       <div className="p-8 flex flex-col items-center justify-center min-h-[40vh]">
         <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
-        <p className="text-slate-400 mt-3 text-sm">Chargement du client...</p>
+        <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-3 text-sm">Chargement du client...</p>
       </div>
     );
   }
@@ -131,8 +131,8 @@ export default function ClientDetailPage() {
         <div className="w-16 h-16 rounded-full bg-slate-500/10 flex items-center justify-center mb-4">
           <User className="w-8 h-8 text-slate-600" />
         </div>
-        <p className="text-base font-medium text-slate-300">Client introuvable</p>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-base font-medium text-slate-700 dark:text-slate-300">Client introuvable</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
           {!isValidRef
             ? "La reference fournie n'est pas valide."
             : "Ce client n'existe pas ou a ete supprime."}
@@ -388,12 +388,12 @@ function ClientDetailContent({ client }: { client: Client }) {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 hover:text-white shrink-0" aria-label="Retour a la liste des clients">
+          <Button variant="ghost" size="sm" onClick={() => navigate("/bdd")} className="text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-white shrink-0" aria-label="Retour a la liste des clients">
             <ArrowLeft className="w-4 h-4" />
           </Button>
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-bold text-white truncate">{client.raisonSociale}</h1>
-            <p className="text-xs text-slate-500 font-mono mt-0.5 truncate">{client.ref} · SIREN {client.siren} · {client.forme}</p>
+            <h1 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white truncate">{client.raisonSociale}</h1>
+            <p className="text-xs text-slate-400 dark:text-slate-500 font-mono mt-0.5 truncate">{client.ref} · SIREN {client.siren} · {client.forme}</p>
           </div>
         </div>
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
@@ -404,20 +404,20 @@ function ClientDetailContent({ client }: { client: Client }) {
 
       {/* Action buttons */}
       <div className="flex flex-wrap gap-3" role="toolbar" aria-label="Actions client">
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { try { generateFicheAcceptation(client); toast.success("Fiche LCB-FT generee"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }} aria-label="Telecharger la fiche LCB-FT en PDF">
+        <Button variant="outline" className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { try { generateFicheAcceptation(client); toast.success("Fiche LCB-FT generee"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }} aria-label="Telecharger la fiche LCB-FT en PDF">
           <FileDown className="w-4 h-4" /> Fiche LCB-FT (PDF)
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { try { generateLettreMission(client); toast.success("Lettre de mission generee"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }} aria-label="Telecharger la lettre de mission en PDF">
+        <Button variant="outline" className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={() => { try { generateLettreMission(client); toast.success("Lettre de mission generee"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }} aria-label="Telecharger la lettre de mission en PDF">
           <FileDown className="w-4 h-4" /> Lettre de mission (PDF)
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400" onClick={() => navigate(`/lettre-mission/${client.ref}`)} aria-label="Generer une lettre de mission">
+        <Button variant="outline" className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400" onClick={() => navigate(`/lettre-mission/${client.ref}`)} aria-label="Generer une lettre de mission">
           <FileText className="w-4 h-4" /> Générer lettre de mission
         </Button>
-        <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }} aria-label="Lancer le screening de conformite">
+        <Button variant="outline" className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400" onClick={() => { launchComplianceScreening(); setTab("compliance"); }} aria-label="Lancer le screening de conformite">
           <Shield className="w-4 h-4" /> Lancer screening
         </Button>
         {profile?.role === "ADMIN" && (
-          <Button variant="outline" className="gap-2 border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => setShowDeleteConfirm(true)}>
+          <Button variant="outline" className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => setShowDeleteConfirm(true)}>
             <Trash2 className="w-4 h-4" /> Supprimer
           </Button>
         )}
@@ -444,7 +444,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab} aria-label="Sections de la fiche client">
-        <TabsList className="bg-white/[0.03] border border-white/[0.06] flex-wrap h-auto gap-0.5 p-1">
+        <TabsList className="bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] flex-wrap h-auto gap-0.5 p-1">
           <TabsTrigger value="informations" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Informations</TabsTrigger>
           <TabsTrigger value="personnes" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Personnes</TabsTrigger>
           <TabsTrigger value="reseau" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Reseau</TabsTrigger>
@@ -462,9 +462,9 @@ function ClientDetailContent({ client }: { client: Client }) {
         <TabsContent value="informations" className="mt-4">
           <div className="glass-card p-4 sm:p-6">
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-semibold text-slate-300">Informations du client</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Informations du client</h3>
               {!editing ? (
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => { setEditForm({ ...client }); setEditing(true); }}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={() => { setEditForm({ ...client }); setEditing(true); }}>
                   <Edit3 className="w-3.5 h-3.5" /> Modifier
                 </Button>
               ) : (
@@ -508,16 +508,16 @@ function ClientDetailContent({ client }: { client: Client }) {
 
             {/* Pilotage */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
-              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-slate-500 uppercase">Derniere revue</p>
-                <p className="text-sm font-medium text-slate-200 mt-1 font-mono">{client.dateDerniereRevue}</p>
+              <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Derniere revue</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-1 font-mono">{client.dateDerniereRevue}</p>
               </div>
-              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-slate-500 uppercase">Date butoir</p>
-                <p className="text-sm font-medium text-slate-200 mt-1 font-mono">{client.dateButoir}</p>
+              <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Date butoir</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-1 font-mono">{client.dateButoir}</p>
               </div>
-              <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-                <p className="text-[10px] text-slate-500 uppercase">Pilotage</p>
+              <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Pilotage</p>
                 <div className="mt-1"><PilotageBadge status={client.etatPilotage} /></div>
               </div>
             </div>
@@ -528,9 +528,9 @@ function ClientDetailContent({ client }: { client: Client }) {
         <TabsContent value="personnes" className="mt-4">
           <div className="glass-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-slate-300">Beneficiaires effectifs & Screening PPE</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Beneficiaires effectifs & Screening PPE</h3>
               {!screeningLaunched && (
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={launchComplianceScreening}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={launchComplianceScreening}>
                   <Shield className="w-3.5 h-3.5" /> Verifier sanctions/PPE
                 </Button>
               )}
@@ -573,12 +573,12 @@ function ClientDetailContent({ client }: { client: Client }) {
                   entries = entries.filter(e => e.nom && e.nom.trim() !== "");
                   return entries;
                 })().map((b) => (
-                  <div key={b.nom} className="p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] flex items-center justify-between">
+                  <div key={b.nom} className="p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
                         <User className="w-4 h-4 text-blue-400" />
                       </div>
-                      <span className="text-sm text-slate-200">{b.prenom ? `${b.prenom} ${b.nom}` : b.nom}</span>
+                      <span className="text-sm text-slate-800 dark:text-slate-200">{b.prenom ? `${b.prenom} ${b.nom}` : b.nom}</span>
                     </div>
                     {client.ppe === "OUI" && (
                       <Badge className="bg-red-500/10 text-red-400 border-0 text-[10px]">PPE</Badge>
@@ -587,7 +587,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-500 py-8 text-center">Aucun beneficiaire effectif renseigne</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">Aucun beneficiaire effectif renseigne</p>
             )}
           </div>
         </TabsContent>
@@ -597,11 +597,11 @@ function ClientDetailContent({ client }: { client: Client }) {
           <div className="glass-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-slate-300">Graphe relationnel des dirigeants</h3>
-                <p className="text-xs text-slate-500 mt-0.5">Detection automatique des reseaux de societes et mandats multiples</p>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Graphe relationnel des dirigeants</h3>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Detection automatique des reseaux de societes et mandats multiples</p>
               </div>
               {!screeningLaunched && (
-                <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={launchComplianceScreening}>
+                <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={launchComplianceScreening}>
                   <Users className="w-3.5 h-3.5" /> Analyser le reseau
                 </Button>
               )}
@@ -610,7 +610,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             {screening.network.loading && (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
-                <span className="text-sm text-slate-400 ml-3">Analyse du reseau en cours...</span>
+                <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 ml-3">Analyse du reseau en cours...</span>
               </div>
             )}
 
@@ -632,17 +632,17 @@ function ClientDetailContent({ client }: { client: Client }) {
 
                 {/* Stats */}
                 <div className="flex gap-4">
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] text-center flex-1">
-                    <p className="text-2xl font-bold text-white">{screening.network.data.totalCompanies}</p>
-                    <p className="text-[10px] text-slate-500">Societes detectees</p>
+                  <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] text-center flex-1">
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{screening.network.data.totalCompanies}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Societes detectees</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] text-center flex-1">
-                    <p className="text-2xl font-bold text-white">{screening.network.data.totalPersons}</p>
-                    <p className="text-[10px] text-slate-500">Personnes</p>
+                  <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] text-center flex-1">
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{screening.network.data.totalPersons}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Personnes</p>
                   </div>
-                  <div className="p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] text-center flex-1">
-                    <p className="text-2xl font-bold text-white">{screening.network.data.alertes.length}</p>
-                    <p className="text-[10px] text-slate-500">Alertes</p>
+                  <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] text-center flex-1">
+                    <p className="text-2xl font-bold text-slate-900 dark:text-white">{screening.network.data.alertes.length}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">Alertes</p>
                   </div>
                 </div>
 
@@ -657,7 +657,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             )}
 
             {!screening.network.loading && !screening.network.data && !screeningLaunched && (
-              <div className="text-center py-16 text-slate-500">
+              <div className="text-center py-16 text-slate-400 dark:text-slate-500">
                 <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Cliquez sur "Analyser le reseau" pour lancer l'analyse</p>
               </div>
@@ -669,7 +669,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         <TabsContent value="scoring" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass-card p-4 sm:p-6">
-              <h3 className="text-sm font-semibold text-slate-300 mb-2">Radar de risque 6 axes</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Radar de risque 6 axes</h3>
               <ResponsiveContainer width="100%" height={300}>
                 <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
                   <PolarGrid stroke="rgba(255,255,255,0.06)" />
@@ -691,15 +691,15 @@ function ClientDetailContent({ client }: { client: Client }) {
                       strokeLinecap="round" className="transition-all duration-1000 ease-out" />
                   </svg>
                   <div className="absolute inset-0 flex items-center justify-center flex-col">
-                    <span className="text-3xl font-bold text-white">{client.scoreGlobal}</span>
-                    <span className="text-[10px] text-slate-500">/100</span>
+                    <span className="text-3xl font-bold text-slate-900 dark:text-white">{client.scoreGlobal}</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">/100</span>
                   </div>
                 </div>
                 <div className="mt-3"><VigilanceBadge level={client.nivVigilance} /></div>
               </div>
 
               <div className="glass-card p-4">
-                <h3 className="text-xs font-semibold text-slate-300 mb-3">Decomposition</h3>
+                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">Decomposition</h3>
                 <div className="space-y-2">
                   {[
                     { label: "Activite", score: client.scoreActivite },
@@ -710,13 +710,13 @@ function ClientDetailContent({ client }: { client: Client }) {
                     { label: "Malus", score: client.malus },
                   ].map(item => (
                     <div key={item.label} className="flex items-center justify-between">
-                      <span className="text-xs text-slate-400">{item.label}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{item.label}</span>
                       <div className="flex items-center gap-2">
-                        <div className="w-20 h-1.5 rounded-full bg-white/[0.04] overflow-hidden">
+                        <div className="w-20 h-1.5 rounded-full bg-gray-50/80 dark:bg-white/[0.04] overflow-hidden">
                           <div className={`h-full rounded-full transition-all ${item.score >= 60 ? "bg-red-500" : item.score >= 25 ? "bg-amber-500" : "bg-emerald-500"}`}
                             style={{ width: `${Math.min(item.score, 100)}%` }} />
                         </div>
-                        <span className="text-xs font-mono font-bold text-slate-300 w-8 text-right">{item.score}</span>
+                        <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 w-8 text-right">{item.score}</span>
                       </div>
                     </div>
                   ))}
@@ -735,7 +735,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             </div>
 
             <div className="glass-card p-6 lg:col-span-2">
-              <h3 className="text-sm font-semibold text-slate-300 mb-2">Historique du score</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Historique du score</h3>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={scoreHistory}>
                   <CartesianGrid stroke="rgba(255,255,255,0.04)" strokeDasharray="3 3" />
@@ -755,7 +755,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             {screening.inpi.loading && (
               <div className="glass-card p-6 flex items-center justify-center gap-2">
                 <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                <span className="text-sm text-slate-400">Recuperation des donnees financieres INPI...</span>
+                <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Recuperation des donnees financieres INPI...</span>
               </div>
             )}
 
@@ -763,7 +763,7 @@ function ClientDetailContent({ client }: { client: Client }) {
               <>
                 {/* Financial table */}
                 <div className="glass-card p-4 sm:p-6">
-                  <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
                     Donnees financieres ({screening.inpi.data.financials.length} exercice(s))
                     <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0 ml-2">Source INPI</Badge>
@@ -771,10 +771,10 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
-                        <tr className="border-b border-white/[0.08]">
-                          <th className="text-left py-3 text-slate-500 font-medium text-xs">Indicateur</th>
+                        <tr className="border-b border-gray-300 dark:border-white/[0.08]">
+                          <th className="text-left py-3 text-slate-400 dark:text-slate-500 font-medium text-xs">Indicateur</th>
                           {screening.inpi.data.financials.map((f, i) => (
-                            <th key={i} className="text-right py-3 text-slate-500 font-medium text-xs px-4">{f.dateCloture || `Exercice ${i + 1}`}</th>
+                            <th key={i} className="text-right py-3 text-slate-400 dark:text-slate-500 font-medium text-xs px-4">{f.dateCloture || `Exercice ${i + 1}`}</th>
                           ))}
                         </tr>
                       </thead>
@@ -790,13 +790,13 @@ function ClientDetailContent({ client }: { client: Client }) {
                           const hasData = screening.inpi.data!.financials.some(f => f[row.key] != null);
                           if (!hasData) return null;
                           return (
-                            <tr key={row.key} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
-                              <td className="py-3 text-slate-300 text-xs">{row.label}</td>
+                            <tr key={row.key} className="border-b border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02]">
+                              <td className="py-3 text-slate-700 dark:text-slate-300 text-xs">{row.label}</td>
                               {screening.inpi.data!.financials.map((f, i) => {
                                 const val = f[row.key];
                                 const isNeg = typeof val === "number" && val < 0;
                                 return (
-                                  <td key={i} className={`text-right py-3 px-4 font-mono text-xs ${isNeg ? "text-red-400 font-semibold" : "text-slate-200"}`}>
+                                  <td key={i} className={`text-right py-3 px-4 font-mono text-xs ${isNeg ? "text-red-400 font-semibold" : "text-slate-800 dark:text-slate-200"}`}>
                                     {val != null ? `${val.toLocaleString("fr-FR")}${row.unit ? ` ${row.unit}` : ""}` : "—"}
                                   </td>
                                 );
@@ -812,7 +812,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                 {/* CA Bar Chart */}
                 {screening.inpi.data.financials.some(f => f.chiffreAffaires != null) && (
                   <div className="glass-card p-4 sm:p-6">
-                    <h3 className="text-sm font-semibold text-slate-300 mb-4">Evolution du chiffre d'affaires</h3>
+                    <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Evolution du chiffre d'affaires</h3>
                     <ResponsiveContainer width="100%" height={250}>
                       <BarChart data={screening.inpi.data.financials.filter(f => f.chiffreAffaires != null).reverse().map(f => ({
                         date: f.dateCloture || "N/A",
@@ -832,7 +832,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
                 {/* Financial alerts */}
                 <div className="glass-card p-6 space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-300 mb-3">Alertes financieres</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Alertes financieres</h3>
                   {screening.inpi.data.financials.some(f => f.resultat != null && f.resultat < 0) && (
                     <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/20">
                       <AlertTriangle className="w-4 h-4 text-red-400" />
@@ -859,9 +859,9 @@ function ClientDetailContent({ client }: { client: Client }) {
                     return null;
                   })()}
                   {client.honoraires > 0 && screening.inpi.data.financials[0]?.chiffreAffaires != null && screening.inpi.data.financials[0].chiffreAffaires > 0 && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
                       <FileText className="w-4 h-4 text-blue-400" />
-                      <span className="text-xs text-slate-300">Ratio honoraires/CA : {((client.honoraires / screening.inpi.data.financials[0].chiffreAffaires) * 100).toFixed(2)}%</span>
+                      <span className="text-xs text-slate-700 dark:text-slate-300">Ratio honoraires/CA : {((client.honoraires / screening.inpi.data.financials[0].chiffreAffaires) * 100).toFixed(2)}%</span>
                     </div>
                   )}
                   {!screening.inpi.data.financials.some(f => f.resultat != null && f.resultat < 0) && !screening.inpi.data.financials.some(f => f.capitauxPropres != null && f.capitauxPropres < 0) && (
@@ -874,8 +874,8 @@ function ClientDetailContent({ client }: { client: Client }) {
               </>
             ) : !screening.inpi.loading ? (
               <div className="glass-card p-6 text-center py-16">
-                <TrendingUp className="w-10 h-10 mx-auto mb-3 text-slate-500 opacity-30" />
-                <p className="text-sm text-slate-500">Aucune donnee financiere disponible</p>
+                <TrendingUp className="w-10 h-10 mx-auto mb-3 text-slate-400 dark:text-slate-500 opacity-30" />
+                <p className="text-sm text-slate-400 dark:text-slate-500">Aucune donnee financiere disponible</p>
                 <p className="text-xs text-slate-600 mt-1">Les bilans seront recuperes depuis l'INPI lors du screening</p>
               </div>
             ) : null}
@@ -892,14 +892,14 @@ function ClientDetailContent({ client }: { client: Client }) {
           <div className="glass-card p-4 sm:p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-sm font-semibold text-slate-300">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                   Diligences {sectorDiligences ? `- Secteur ${sectorDiligences.label}` : "generiques"}
                 </h3>
-                <p className="text-xs text-slate-500 mt-0.5">Code APE : {client.ape} · Vigilance : {client.nivVigilance}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Code APE : {client.ape} · Vigilance : {client.nivVigilance}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Progress value={diligenceProgress} className="w-24 h-2" />
-                <span className="text-sm font-bold text-slate-300">{diligenceProgress}%</span>
+                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{diligenceProgress}%</span>
               </div>
             </div>
 
@@ -908,28 +908,28 @@ function ClientDetailContent({ client }: { client: Client }) {
                 <div key={i} className={`p-4 rounded-lg border transition-colors ${
                   d.statut === "FAIT" ? "border-emerald-500/20 bg-emerald-500/5" :
                   d.statut === "EN_COURS" ? "border-amber-500/20 bg-amber-500/5" :
-                  "border-white/[0.06] bg-white/[0.02]"
+                  "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
                 }`}>
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-3 flex-1">
                       <ClipboardCheck className={`w-4 h-4 shrink-0 ${
-                        d.statut === "FAIT" ? "text-emerald-400" : d.statut === "EN_COURS" ? "text-amber-400" : "text-slate-500"
+                        d.statut === "FAIT" ? "text-emerald-400" : d.statut === "EN_COURS" ? "text-amber-400" : "text-slate-400 dark:text-slate-500"
                       }`} />
-                      <span className="text-sm text-slate-200">{d.label}</span>
+                      <span className="text-sm text-slate-800 dark:text-slate-200">{d.label}</span>
                     </div>
                     <div className="flex items-center gap-3">
                       <Select value={d.responsable} onValueChange={v => updateDiligence(i, "responsable", v)}>
-                        <SelectTrigger className="w-[120px] h-8 text-xs bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger>
+                        <SelectTrigger className="w-[120px] h-8 text-xs bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"><SelectValue /></SelectTrigger>
                         <SelectContent>
                           {["MAGALIE", "JULIEN", "FANNY", "SERGE", "JOSE"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                         </SelectContent>
                       </Select>
-                      <Input type="date" value={d.deadline} onChange={e => updateDiligence(i, "deadline", e.target.value)} className="w-[140px] h-8 text-xs bg-white/[0.03] border-white/[0.06]" />
+                      <Input type="date" value={d.deadline} onChange={e => updateDiligence(i, "deadline", e.target.value)} className="w-[140px] h-8 text-xs bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" />
                       <Select value={d.statut} onValueChange={v => updateDiligence(i, "statut", v)}>
                         <SelectTrigger className={`w-[110px] h-8 text-xs ${
                           d.statut === "FAIT" ? "text-emerald-400 border-emerald-500/30" :
                           d.statut === "EN_COURS" ? "text-amber-400 border-amber-500/30" :
-                          "border-white/[0.06]"
+                          "border-gray-200 dark:border-white/[0.06]"
                         }`}><SelectValue /></SelectTrigger>
                         <SelectContent>
                           <SelectItem value="A_FAIRE">A faire</SelectItem>
@@ -954,21 +954,21 @@ function ClientDetailContent({ client }: { client: Client }) {
             {/* BODACC History */}
             {screening.bodacc.data && screening.bodacc.data.annonces.length > 0 && (
               <div className="glass-card p-6 space-y-3">
-                <h3 className="text-sm font-semibold text-slate-300">Historique legal (BODACC)</h3>
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Historique legal (BODACC)</h3>
                 <div className="space-y-2">
                   {screening.bodacc.data.annonces.map((a, i) => (
                     <div key={i} className={`p-3 rounded-lg border ${
-                      a.isProcedureCollective ? "border-red-500/20 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"
+                      a.isProcedureCollective ? "border-red-500/20 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
                     }`}>
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {a.isProcedureCollective && <AlertTriangle className="w-3.5 h-3.5 text-red-400" />}
-                          <span className="text-sm text-slate-200 font-medium">{a.type}</span>
+                          <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{a.type}</span>
                         </div>
-                        <span className="text-xs text-slate-500 font-mono">{a.date}</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{a.date}</span>
                       </div>
-                      <p className="text-xs text-slate-400 mt-1 line-clamp-2">{a.description}</p>
-                      {a.tribunal && <p className="text-[10px] text-slate-500 mt-1">Tribunal: {a.tribunal}</p>}
+                      <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                      {a.tribunal && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Tribunal: {a.tribunal}</p>}
                     </div>
                   ))}
                 </div>
@@ -978,23 +978,23 @@ function ClientDetailContent({ client }: { client: Client }) {
             {/* News / Revue de presse */}
             {screening.news.data && screening.news.data.articles.length > 0 && (
               <div className="glass-card p-6 space-y-3">
-                <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <Newspaper className="w-4 h-4 text-purple-400" /> Revue de presse
                 </h3>
                 <div className="space-y-2">
                   {screening.news.data.articles.map((a, i) => (
                     <a key={i} href={a.url} target="_blank" rel="noopener noreferrer"
-                      className={`block p-3 rounded-lg border hover:bg-white/[0.03] transition-colors ${
-                        a.hasAlertKeyword ? "border-red-500/20 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"
+                      className={`block p-3 rounded-lg border hover:bg-gray-50 dark:bg-white/[0.03] transition-colors ${
+                        a.hasAlertKeyword ? "border-red-500/20 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
                       }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1">
-                          <p className="text-sm text-slate-200 font-medium">{a.title}</p>
-                          <p className="text-xs text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                          <p className="text-sm text-slate-800 dark:text-slate-200 font-medium">{a.title}</p>
+                          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
                           <div className="flex items-center gap-2 mt-2">
-                            <span className="text-[10px] text-slate-500">{a.source}</span>
-                            <span className="text-[10px] text-slate-500">{a.publishedAt?.split("T")[0]}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{a.source}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500">{a.publishedAt?.split("T")[0]}</span>
                             {a.hasAlertKeyword && (
                               <Badge className="bg-red-500/15 text-red-400 border-0 text-[9px]">
                                 Mots-cles : {a.matchedKeywords.join(", ")}
@@ -1002,7 +1002,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                             )}
                           </div>
                         </div>
-                        <ExternalLink className="w-4 h-4 text-slate-500 shrink-0 mt-1" />
+                        <ExternalLink className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0 mt-1" />
                       </div>
                     </a>
                   ))}
@@ -1013,7 +1013,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             {/* Google Places */}
             {screening.google.data?.place && (
               <div className="glass-card p-6 space-y-3">
-                <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-emerald-400" /> Verification Google Places
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -1055,8 +1055,8 @@ function ClientDetailContent({ client }: { client: Client }) {
 
             {!screeningLaunched && (
               <div className="text-center py-16 glass-card">
-                <Shield className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-30" />
-                <p className="text-sm text-slate-500">Cliquez sur "Lancer screening" pour verifier ce client</p>
+                <Shield className="w-12 h-12 mx-auto mb-4 text-slate-400 dark:text-slate-500 opacity-30" />
+                <p className="text-sm text-slate-400 dark:text-slate-500">Cliquez sur "Lancer screening" pour verifier ce client</p>
                 <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700" onClick={launchComplianceScreening}>
                   <Shield className="w-4 h-4" /> Lancer le screening compliance
                 </Button>
@@ -1071,7 +1071,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             {screening.inpi.loading && (
               <div className="glass-card p-6 flex items-center justify-center gap-2">
                 <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
-                <span className="text-sm text-slate-400">Chargement de l'historique legal...</span>
+                <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Chargement de l'historique legal...</span>
               </div>
             )}
 
@@ -1119,7 +1119,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
               return (
                 <div className="glass-card p-4 space-y-2">
-                  <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-400" /> Alertes historiques
                   </h3>
                   {alerts.map((a, i) => (
@@ -1137,24 +1137,24 @@ function ClientDetailContent({ client }: { client: Client }) {
             {/* INPI History Timeline */}
             {screening.inpi.data?.companyData?.historique && screening.inpi.data.companyData.historique.length > 0 && (
               <div className="glass-card p-4 sm:p-6">
-                <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
                   <Archive className="w-4 h-4 text-indigo-400" /> Historique INPI (RNE)
                   <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0 ml-2">INPI</Badge>
                 </h3>
                 <div className="relative pl-6 space-y-3">
-                  <div className="absolute left-2 top-2 bottom-2 w-px bg-white/[0.08]" />
+                  <div className="absolute left-2 top-2 bottom-2 w-px bg-gray-200/50 dark:bg-white/[0.08]" />
                   {screening.inpi.data.companyData.historique.map((h, i) => (
                     <div key={i} className="relative flex items-start gap-3">
                       <div className="absolute left-[-18px] w-3 h-3 rounded-full bg-indigo-500/30 border border-indigo-500/50 mt-1" />
-                      <div className="flex-1 p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                      <div className="flex-1 p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-medium text-slate-200">{h.type || h.description}</span>
-                          <span className="text-[10px] text-slate-500 font-mono">{h.date}</span>
+                          <span className="text-xs font-medium text-slate-800 dark:text-slate-200">{h.type || h.description}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{h.date}</span>
                         </div>
                         {h.description && h.type && h.description !== h.type && (
-                          <p className="text-[11px] text-slate-400 mt-1">{h.description}</p>
+                          <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">{h.description}</p>
                         )}
-                        {h.detail && <p className="text-[10px] text-slate-500 mt-0.5">{h.detail}</p>}
+                        {h.detail && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{h.detail}</p>}
                       </div>
                     </div>
                   ))}
@@ -1165,29 +1165,29 @@ function ClientDetailContent({ client }: { client: Client }) {
             {/* BODACC annonces in the same timeline */}
             {screening.bodacc.data && screening.bodacc.data.annonces.length > 0 && (
               <div className="glass-card p-4 sm:p-6">
-                <h3 className="text-sm font-semibold text-slate-300 mb-4 flex items-center gap-2">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4 flex items-center gap-2">
                   <ScrollText className="w-4 h-4 text-amber-400" /> Annonces BODACC
                   <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0 ml-2">BODACC</Badge>
                 </h3>
                 <div className="relative pl-6 space-y-3">
-                  <div className="absolute left-2 top-2 bottom-2 w-px bg-white/[0.08]" />
+                  <div className="absolute left-2 top-2 bottom-2 w-px bg-gray-200/50 dark:bg-white/[0.08]" />
                   {screening.bodacc.data.annonces.map((a, i) => (
                     <div key={i} className="relative flex items-start gap-3">
                       <div className={`absolute left-[-18px] w-3 h-3 rounded-full mt-1 ${
                         a.isProcedureCollective ? "bg-red-500/50 border-red-500" : "bg-amber-500/30 border-amber-500/50"
                       } border`} />
                       <div className={`flex-1 p-3 rounded-lg border ${
-                        a.isProcedureCollective ? "border-red-500/20 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"
+                        a.isProcedureCollective ? "border-red-500/20 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
                       }`}>
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             {a.isProcedureCollective && <AlertTriangle className="w-3.5 h-3.5 text-red-400" />}
-                            <span className="text-xs font-medium text-slate-200">{a.type}</span>
+                            <span className="text-xs font-medium text-slate-800 dark:text-slate-200">{a.type}</span>
                           </div>
-                          <span className="text-[10px] text-slate-500 font-mono">{a.date}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{a.date}</span>
                         </div>
-                        <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">{a.description}</p>
-                        {a.tribunal && <p className="text-[10px] text-slate-500 mt-1">Tribunal: {a.tribunal}</p>}
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{a.description}</p>
+                        {a.tribunal && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">Tribunal: {a.tribunal}</p>}
                       </div>
                     </div>
                   ))}
@@ -1197,8 +1197,8 @@ function ClientDetailContent({ client }: { client: Client }) {
 
             {!screening.inpi.loading && !screening.inpi.data?.companyData?.historique?.length && !screening.bodacc.data?.annonces?.length && (
               <div className="glass-card p-6 text-center py-16">
-                <Clock className="w-10 h-10 mx-auto mb-3 text-slate-500 opacity-30" />
-                <p className="text-sm text-slate-500">Aucun historique legal disponible</p>
+                <Clock className="w-10 h-10 mx-auto mb-3 text-slate-400 dark:text-slate-500 opacity-30" />
+                <p className="text-sm text-slate-400 dark:text-slate-500">Aucun historique legal disponible</p>
                 {!screeningLaunched && (
                   <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700" onClick={launchComplianceScreening}>
                     <Shield className="w-4 h-4" /> Lancer le screening
@@ -1212,22 +1212,22 @@ function ClientDetailContent({ client }: { client: Client }) {
         {/* TAB: Historique (Audit) */}
         <TabsContent value="historique" className="mt-4">
           <div className="glass-card p-4 sm:p-6 space-y-4">
-            <h3 className="text-sm font-semibold text-slate-300">Journal d'audit</h3>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Journal d'audit</h3>
             {clientLogs.length === 0 ? (
-              <p className="text-sm text-slate-500 py-8 text-center">Aucun evenement enregistre</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">Aucun evenement enregistre</p>
             ) : (
               <div className="space-y-2">
                 {clientLogs.map((log, i) => (
-                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                    <Clock className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />
+                  <div key={i} className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+                    <Clock className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5 shrink-0" />
                     <div className="flex-1">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm text-slate-200">{log.details}</span>
-                        <span className="text-[10px] text-slate-500 font-mono">{log.horodatage}</span>
+                        <span className="text-sm text-slate-800 dark:text-slate-200">{log.details}</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{log.horodatage}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{log.typeAction}</Badge>
-                        <span className="text-[10px] text-slate-500">{log.utilisateur}</span>
+                        <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400 border-0">{log.typeAction}</Badge>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">{log.utilisateur}</span>
                       </div>
                     </div>
                   </div>
@@ -1241,14 +1241,14 @@ function ClientDetailContent({ client }: { client: Client }) {
         <TabsContent value="mission_lm" className="mt-4 space-y-6">
           {/* OPT-46: Lettre de mission */}
           <div className="glass-card p-4 sm:p-6 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
               <FileText className="w-4 h-4 text-blue-400" /> Lettre de mission
             </h3>
             {clientLM ? (
               <div className="flex items-center gap-4 flex-wrap">
                 <div className="space-y-1">
-                  <span className="text-sm text-slate-200 font-medium">{clientLM.numero}</span>
-                  <span className="block text-xs text-slate-500">
+                  <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{clientLM.numero}</span>
+                  <span className="block text-xs text-slate-400 dark:text-slate-500">
                     {clientLM.mission_type || "Présentation"} · Statut : {clientLM.status}
                     {clientLM.signed_at && ` · Signée le ${new Date(clientLM.signed_at).toLocaleDateString("fr-FR")}`}
                   </span>
@@ -1256,7 +1256,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 border-white/[0.06] text-xs"
+                  className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-xs"
                   onClick={() => navigate(`/lettre-mission?instance=${clientLM.id}`)}
                 >
                   <Eye className="w-3 h-3" /> Voir la lettre
@@ -1264,11 +1264,11 @@ function ClientDetailContent({ client }: { client: Client }) {
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                <span className="text-sm text-slate-500">Aucune lettre de mission active</span>
+                <span className="text-sm text-slate-400 dark:text-slate-500">Aucune lettre de mission active</span>
                 <Button
                   variant="outline"
                   size="sm"
-                  className="gap-1.5 border-white/[0.06] text-xs"
+                  className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-xs"
                   onClick={() => navigate(`/lettre-mission?client_ref=${client.ref}`)}
                 >
                   <Plus className="w-3 h-3" /> Créer une lettre de mission
@@ -1279,7 +1279,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
           {/* OPT-47: Revues */}
           <div className="glass-card p-4 sm:p-6 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
               <ClipboardCheck className="w-4 h-4 text-emerald-400" /> Revues de maintien
             </h3>
             {clientRevues.length > 0 ? (
@@ -1287,15 +1287,15 @@ function ClientDetailContent({ client }: { client: Client }) {
                 {clientRevues.slice(0, 3).map((rev) => {
                   const typeInfo = REVUE_TYPE_LABELS[rev.type] || { label: rev.type, color: 'slate' };
                   return (
-                    <div key={rev.id} className="flex items-center gap-3 p-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
+                    <div key={rev.id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
                       <Badge className={`text-[9px] bg-${typeInfo.color}-500/10 text-${typeInfo.color}-400 border-0`}>{typeInfo.label}</Badge>
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
                         {rev.status === 'completee' && rev.completed_at
                           ? `Complétée le ${new Date(rev.completed_at).toLocaleDateString("fr-FR")}`
                           : `Échéance : ${new Date(rev.date_echeance).toLocaleDateString("fr-FR")}`}
                       </span>
                       {rev.score_risque_avant != null && (
-                        <span className="text-xs text-slate-500">
+                        <span className="text-xs text-slate-400 dark:text-slate-500">
                           Score : {rev.score_risque_avant}{rev.score_risque_apres != null ? ` → ${rev.score_risque_apres}` : ''}
                         </span>
                       )}
@@ -1308,37 +1308,37 @@ function ClientDetailContent({ client }: { client: Client }) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="text-xs text-slate-500 hover:text-blue-400"
+                  className="text-xs text-slate-400 dark:text-slate-500 hover:text-blue-400"
                   onClick={() => navigate(`/revue-maintien?client=${client.ref}`)}
                 >
                   Voir l'historique complet <ChevronRight className="w-3 h-3 ml-1" />
                 </Button>
               </div>
             ) : (
-              <p className="text-sm text-slate-500">Aucune revue enregistrée</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">Aucune revue enregistrée</p>
             )}
           </div>
 
           {/* OPT-48: Avenants */}
           <div className="glass-card p-4 sm:p-6 space-y-3">
-            <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
               <ScrollText className="w-4 h-4 text-purple-400" /> Avenants
             </h3>
             {clientAvenants.length > 0 ? (
               <div className="space-y-2">
                 {clientAvenants.map((av) => (
-                  <div key={av.id} className="flex items-center gap-3 p-2 rounded-lg border border-white/[0.06] bg-white/[0.02]">
-                    <span className="text-sm text-slate-200">{av.numero || "Avenant"}</span>
-                    <span className="text-xs text-slate-500">{av.objet}</span>
+                  <div key={av.id} className="flex items-center gap-3 p-2 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+                    <span className="text-sm text-slate-800 dark:text-slate-200">{av.numero || "Avenant"}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500">{av.objet}</span>
                     {av.date_effet && (
-                      <span className="text-xs text-slate-500 ml-auto">Effet : {new Date(av.date_effet).toLocaleDateString("fr-FR")}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">Effet : {new Date(av.date_effet).toLocaleDateString("fr-FR")}</span>
                     )}
                     <Badge variant="outline" className="text-[9px]">{av.status}</Badge>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-slate-500">Aucun avenant</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">Aucun avenant</p>
             )}
           </div>
 
@@ -1346,7 +1346,7 @@ function ClientDetailContent({ client }: { client: Client }) {
           <div className="glass-card p-4 sm:p-6">
             <Button
               variant="outline"
-              className="gap-2 border-white/[0.06] text-slate-400"
+              className="gap-2 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400"
               onClick={() => toast.info("Fonctionnalité en cours de développement")}
             >
               <Download className="w-4 h-4" /> Exporter le dossier complet (ZIP)
@@ -1630,9 +1630,9 @@ function DocumentsTab({
               <FolderOpen className="w-5 h-5 text-blue-400" />
             </div>
             <div>
-              <h3 className="text-sm font-semibold text-slate-200">Gestion documentaire</h3>
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Gestion documentaire</h3>
               {/* #34 — Document count summary */}
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                 {totalKycPresent}/4 documents KYC
                 {totalAutoRecovered > 0 && ` · ${totalAutoRecovered} auto-recupere${totalAutoRecovered > 1 ? "s" : ""}`}
               </p>
@@ -1640,12 +1640,12 @@ function DocumentsTab({
           </div>
           <div className="flex items-center gap-2">
             {!screeningLaunched && (
-              <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 transition-all" onClick={launchComplianceScreening}>
+              <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 transition-all" onClick={launchComplianceScreening}>
                 <Globe className="w-3.5 h-3.5" /> Recuperer documents
               </Button>
             )}
             {/* #35 — Quick GED link button */}
-            <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate("/ged")}>
+            <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate("/ged")}>
               <Upload className="w-3.5 h-3.5" /> GED
             </Button>
           </div>
@@ -1653,7 +1653,7 @@ function DocumentsTab({
 
         {/* #36 — KYC completeness progress bar with percentage */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-2 rounded-full bg-white/[0.04] overflow-hidden">
+          <div className="flex-1 h-2 rounded-full bg-gray-50/80 dark:bg-white/[0.04] overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-700 ease-out ${
                 kycCompleteness === 100 ? "bg-emerald-500" : kycCompleteness >= 50 ? "bg-amber-500" : "bg-red-500"
@@ -1735,7 +1735,7 @@ function DocumentsTab({
                     ? "border-blue-500/30 bg-blue-500/5 animate-pulse"
                     : doc.linked
                       ? "border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-500/50 hover:bg-emerald-500/8"
-                      : "border-white/[0.06] bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5"
+                      : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5"
               } border-dashed ${!doc.linked ? "border-dashed" : "border-solid"}`}
             >
               {/* Hidden file input */}
@@ -1750,14 +1750,14 @@ function DocumentsTab({
 
               {/* #41 — Recent upload badge */}
               {isRecent && (
-                <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-blue-600 text-[9px] text-white font-bold shadow-lg animate-bounce">
+                <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-full bg-blue-600 text-[9px] text-slate-900 dark:text-white font-bold shadow-lg animate-bounce">
                   NOUVEAU
                 </div>
               )}
 
               {/* #42 — Upload progress spinner overlay */}
               {isUploading && (
-                <div className="absolute inset-0 rounded-xl bg-slate-900/60 flex items-center justify-center z-10">
+                <div className="absolute inset-0 rounded-xl bg-gray-50 dark:bg-slate-900/60 flex items-center justify-center z-10">
                   <div className="flex flex-col items-center gap-2">
                     <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
                     <span className="text-[10px] text-blue-400 font-medium">Depot en cours...</span>
@@ -1770,14 +1770,14 @@ function DocumentsTab({
                 <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
                   isDragOver ? "bg-blue-500/20 text-blue-400" :
                   doc.linked ? "bg-emerald-500/10 text-emerald-400" :
-                  "bg-white/[0.04] text-slate-500 group-hover:bg-blue-500/10 group-hover:text-blue-400"
+                  "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500 group-hover:bg-blue-500/10 group-hover:text-blue-400"
                 }`}>
                   {doc.linked ? <FileCheck className="w-5 h-5" /> : cat.icon}
                 </div>
 
                 {/* #44 — Document type label */}
                 <p className={`text-sm font-semibold transition-colors ${
-                  isDragOver ? "text-blue-400" : doc.linked ? "text-emerald-400" : "text-slate-400 group-hover:text-blue-400"
+                  isDragOver ? "text-blue-400" : doc.linked ? "text-emerald-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400 group-hover:text-blue-400"
                 }`}>{doc.type}</p>
 
                 {/* #45 — Status with expiration info */}
@@ -1789,7 +1789,7 @@ function DocumentsTab({
                 ) : isDragOver ? (
                   <span className="text-[10px] text-blue-400 font-medium">Relacher pour deposer</span>
                 ) : (
-                  <span className="text-[10px] text-slate-500 group-hover:text-blue-400/70">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 group-hover:text-blue-400/70">
                     Cliquer ou glisser-deposer
                   </span>
                 )}
@@ -1812,10 +1812,10 @@ function DocumentsTab({
                       <TooltipTrigger asChild>
                         <button
                           onClick={(e) => { e.stopPropagation(); window.open(doc.url!, "_blank"); }}
-                          className="w-6 h-6 rounded-md bg-white/[0.06] hover:bg-blue-500/20 flex items-center justify-center transition-colors"
+                          className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/[0.06] hover:bg-blue-500/20 flex items-center justify-center transition-colors"
                           aria-label={`Ouvrir ${doc.type}`}
                         >
-                          <Eye className="w-3 h-3 text-slate-400" />
+                          <Eye className="w-3 h-3 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
                         </button>
                       </TooltipTrigger>
                       <TooltipContent><p className="text-xs">Ouvrir</p></TooltipContent>
@@ -1825,10 +1825,10 @@ function DocumentsTab({
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); fileInputRefs.current[doc.type]?.click(); }}
-                        className="w-6 h-6 rounded-md bg-white/[0.06] hover:bg-amber-500/20 flex items-center justify-center transition-colors"
+                        className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/[0.06] hover:bg-amber-500/20 flex items-center justify-center transition-colors"
                         aria-label={`Remplacer ${doc.type}`}
                       >
-                        <RefreshCw className="w-3 h-3 text-slate-400" />
+                        <RefreshCw className="w-3 h-3 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent><p className="text-xs">Remplacer</p></TooltipContent>
@@ -1837,10 +1837,10 @@ function DocumentsTab({
                     <TooltipTrigger asChild>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleRemoveDoc(cat); }}
-                        className="w-6 h-6 rounded-md bg-white/[0.06] hover:bg-red-500/20 flex items-center justify-center transition-colors"
+                        className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/[0.06] hover:bg-red-500/20 flex items-center justify-center transition-colors"
                         aria-label={`Supprimer ${doc.type}`}
                       >
-                        <Trash2 className="w-3 h-3 text-slate-400" />
+                        <Trash2 className="w-3 h-3 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
                       </button>
                     </TooltipTrigger>
                     <TooltipContent><p className="text-xs">Supprimer</p></TooltipContent>
@@ -1857,13 +1857,13 @@ function DocumentsTab({
         <div className="glass-card p-5">
           <div className="flex items-center gap-2 mb-3">
             <ScanLine className="w-4 h-4 text-indigo-400" />
-            <h4 className="text-xs font-semibold text-slate-300">Extraction OCR intelligente</h4>
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Extraction OCR intelligente</h4>
             <Badge className="text-[9px] bg-indigo-500/15 text-indigo-400 border-0">IA</Badge>
           </div>
-          <p className="text-xs text-slate-500 mb-3">
+          <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
             Utilisez l'OCR pour extraire automatiquement les informations de vos documents (SIREN, IBAN, identite...)
           </p>
-          <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate("/ged")}>
+          <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate("/ged")}>
             <ScanLine className="w-3.5 h-3.5" /> Ouvrir la GED pour l'OCR
           </Button>
         </div>
@@ -1875,7 +1875,7 @@ function DocumentsTab({
           <Loader2 className="w-5 h-5 text-blue-400 animate-spin shrink-0" />
           <div>
             <p className="text-sm text-blue-400 font-medium">Recherche de documents en cours...</p>
-            <p className="text-xs text-slate-500 mt-0.5">Pappers, INPI, liens automatiques</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Pappers, INPI, liens automatiques</p>
           </div>
         </div>
       )}
@@ -1885,7 +1885,7 @@ function DocumentsTab({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Inbox className="w-4 h-4 text-emerald-400" />
-              <h4 className="text-xs font-semibold text-slate-300">
+              <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300">
                 Documents auto-recuperes ({screening.documents.data.autoRecovered})
               </h4>
             </div>
@@ -1893,7 +1893,7 @@ function DocumentsTab({
             <div className="flex items-center gap-2">
               {availableSources.length > 1 && (
                 <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger className="w-[100px] h-7 text-[10px] bg-white/[0.03] border-white/[0.06]">
+                  <SelectTrigger className="w-[100px] h-7 text-[10px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1905,23 +1905,23 @@ function DocumentsTab({
                 </Select>
               )}
               <div className="relative">
-                <Search className="w-3 h-3 text-slate-500 absolute left-2 top-1/2 -translate-y-1/2" />
+                <Search className="w-3 h-3 text-slate-400 dark:text-slate-500 absolute left-2 top-1/2 -translate-y-1/2" />
                 <Input
                   placeholder="Rechercher..."
                   value={docSearch}
                   onChange={(e) => setDocSearch(e.target.value)}
-                  className="h-7 pl-7 w-[140px] text-[10px] bg-white/[0.03] border-white/[0.06]"
+                  className="h-7 pl-7 w-[140px] text-[10px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"
                 />
               </div>
             </div>
           </div>
 
           {filteredDocs.length === 0 ? (
-            <p className="text-xs text-slate-500 text-center py-4">Aucun document correspondant</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 text-center py-4">Aucun document correspondant</p>
           ) : (
             <div className="space-y-2">
               {filteredDocs.map((doc, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors group">
+                <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors group">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
                       doc.source === "pappers" ? "bg-emerald-500/10" :
@@ -1935,9 +1935,9 @@ function DocumentsTab({
                       }`} />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm text-slate-200 truncate">{doc.label}</p>
+                      <p className="text-sm text-slate-800 dark:text-slate-200 truncate">{doc.label}</p>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{doc.type}</Badge>
+                        <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400 border-0">{doc.type}</Badge>
                         <Badge className={`text-[9px] border-0 ${
                           doc.source === "pappers" ? "bg-emerald-500/20 text-emerald-400" :
                           doc.source === "inpi" ? "bg-blue-500/20 text-blue-400" :
@@ -1965,10 +1965,10 @@ function DocumentsTab({
       {/* ═══ EMPTY STATE ═══ */}
       {!screening.documents.loading && !screening.documents.data?.documents?.length && !screeningLaunched && kycCompleteness === 0 && (
         <div className="glass-card p-8 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-white/[0.03] flex items-center justify-center mx-auto mb-4">
+          <div className="w-16 h-16 rounded-2xl bg-gray-50 dark:bg-white/[0.03] flex items-center justify-center mx-auto mb-4">
             <Paperclip className="w-8 h-8 text-slate-600" />
           </div>
-          <p className="text-sm text-slate-400 font-medium">Aucun document pour ce client</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">Aucun document pour ce client</p>
           <p className="text-xs text-slate-600 mt-1 max-w-sm mx-auto">
             Glissez-deposez vos fichiers sur les rubriques ci-dessus, ou lancez la recuperation automatique
           </p>
@@ -1984,10 +1984,10 @@ function DocumentsTab({
 function InfoRow({ label, value, icon: Icon }: { label: string; value: string | number; icon?: React.ComponentType<{ className?: string }> }) {
   return (
     <div className="flex items-start gap-2.5 py-2">
-      {Icon && <Icon className="w-4 h-4 text-slate-500 mt-0.5 shrink-0" />}
+      {Icon && <Icon className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5 shrink-0" />}
       <div>
-        <p className="text-[10px] text-slate-500 uppercase tracking-widest">{label}</p>
-        <p className="text-sm font-medium text-slate-200 mt-0.5">{value || "---"}</p>
+        <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-0.5">{value || "---"}</p>
       </div>
     </div>
   );
@@ -1999,30 +1999,30 @@ function EditForm({ form, setForm }: { form: Client; setForm: (f: Client) => voi
   return (
     <div className="grid grid-cols-2 gap-4">
       <div>
-        <Label className="text-[10px] text-slate-500">Raison Sociale</Label>
-        <Input value={form.raisonSociale} onChange={e => set("raisonSociale", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" />
+        <Label className="text-[10px] text-slate-400 dark:text-slate-500">Raison Sociale</Label>
+        <Input value={form.raisonSociale} onChange={e => set("raisonSociale", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" />
       </div>
       <div>
-        <Label className="text-[10px] text-slate-500">Dirigeant</Label>
-        <Input value={form.dirigeant} onChange={e => set("dirigeant", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" />
+        <Label className="text-[10px] text-slate-400 dark:text-slate-500">Dirigeant</Label>
+        <Input value={form.dirigeant} onChange={e => set("dirigeant", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" />
       </div>
       <div>
-        <Label className="text-[10px] text-slate-500">Adresse</Label>
-        <Input value={form.adresse} onChange={e => set("adresse", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" />
+        <Label className="text-[10px] text-slate-400 dark:text-slate-500">Adresse</Label>
+        <Input value={form.adresse} onChange={e => set("adresse", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" />
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <div><Label className="text-[10px] text-slate-500">CP</Label><Input value={form.cp} onChange={e => set("cp", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-        <div><Label className="text-[10px] text-slate-500">Ville</Label><Input value={form.ville} onChange={e => set("ville", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+        <div><Label className="text-[10px] text-slate-400 dark:text-slate-500">CP</Label><Input value={form.cp} onChange={e => set("cp", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" /></div>
+        <div><Label className="text-[10px] text-slate-400 dark:text-slate-500">Ville</Label><Input value={form.ville} onChange={e => set("ville", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" /></div>
       </div>
-      <div><Label className="text-[10px] text-slate-500">Telephone</Label><Input value={form.tel} onChange={e => set("tel", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-      <div><Label className="text-[10px] text-slate-500">Email</Label><Input value={form.mail} onChange={e => set("mail", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-      <div><Label className="text-[10px] text-slate-500">Honoraires</Label><Input type="number" value={form.honoraires} onChange={e => set("honoraires", Number(e.target.value))} className="bg-white/[0.03] border-white/[0.06]" /></div>
-      <div><Label className="text-[10px] text-slate-500">IBAN</Label><Input value={form.iban} onChange={e => set("iban", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
-      <div><Label className="text-[10px] text-slate-500">BIC</Label><Input value={form.bic} onChange={e => set("bic", e.target.value)} className="bg-white/[0.03] border-white/[0.06]" /></div>
+      <div><Label className="text-[10px] text-slate-400 dark:text-slate-500">Telephone</Label><Input value={form.tel} onChange={e => set("tel", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" /></div>
+      <div><Label className="text-[10px] text-slate-400 dark:text-slate-500">Email</Label><Input value={form.mail} onChange={e => set("mail", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" /></div>
+      <div><Label className="text-[10px] text-slate-400 dark:text-slate-500">Honoraires</Label><Input type="number" value={form.honoraires} onChange={e => set("honoraires", Number(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" /></div>
+      <div><Label className="text-[10px] text-slate-400 dark:text-slate-500">IBAN</Label><Input value={form.iban} onChange={e => set("iban", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" /></div>
+      <div><Label className="text-[10px] text-slate-400 dark:text-slate-500">BIC</Label><Input value={form.bic} onChange={e => set("bic", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" /></div>
       <div>
-        <Label className="text-[10px] text-slate-500">Mission</Label>
+        <Label className="text-[10px] text-slate-400 dark:text-slate-500">Mission</Label>
         <Select value={form.mission} onValueChange={v => set("mission", v)}>
-          <SelectTrigger className="bg-white/[0.03] border-white/[0.06]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"><SelectValue /></SelectTrigger>
           <SelectContent>
             {(["TENUE COMPTABLE", "REVISION / SURVEILLANCE", "SOCIAL / PAIE SEULE", "CONSEIL DE GESTION", "CONSTITUTION / CESSION", "DOMICILIATION", "IRPP"] as const).map(m =>
               <SelectItem key={m} value={m}>{m}</SelectItem>
@@ -2031,7 +2031,7 @@ function EditForm({ form, setForm }: { form: Client; setForm: (f: Client) => voi
         </Select>
       </div>
       <div className="col-span-2">
-        <Label className="text-[10px] text-slate-500 mb-2 block">Facteurs de risque</Label>
+        <Label className="text-[10px] text-slate-400 dark:text-slate-500 mb-2 block">Facteurs de risque</Label>
         <div className="grid grid-cols-3 gap-3">
           {([
             { key: "ppe", label: "PPE" },
@@ -2043,7 +2043,7 @@ function EditForm({ form, setForm }: { form: Client; setForm: (f: Client) => voi
           ] as const).map(({ key, label }) => (
             <div key={key} className="flex items-center gap-2">
               <Switch checked={form[key] === "OUI"} onCheckedChange={v => set(key, v ? "OUI" : "NON")} />
-              <Label className="text-xs text-slate-400">{label}</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{label}</Label>
             </div>
           ))}
         </div>

@@ -1772,7 +1772,7 @@ export default function NouveauClientPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Nouveau Client</h1>
+          <h1 className="text-xl font-bold text-white">Nouveau Client</h1>
           <p className="text-sm text-slate-500 mt-0.5">Parcours d'entree en relation</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -1790,7 +1790,7 @@ export default function NouveauClientPage() {
                 <Progress value={specO90Kyc.percent} className="w-16 h-1.5" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-72 bg-gray-50 dark:bg-slate-900 border-white/10">
+            <PopoverContent className="w-72 bg-slate-900 border-white/10">
               <h4 className="text-xs font-semibold text-slate-300 mb-2">Champs obligatoires SPEC_O90</h4>
               <p className="text-[10px] text-slate-500 mb-3">{specO90Kyc.filled}/{specO90Kyc.total} remplis</p>
               {specO90Kyc.missing.length > 0 ? (
@@ -1880,9 +1880,9 @@ export default function NouveauClientPage() {
             >
               {/* #73: Completion checkmarks + #97: Shadow on active */}
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
-                i < step ? "bg-emerald-500 text-slate-900 dark:text-white shadow-lg shadow-emerald-500/20 scale-90" :
-                i === step ? "bg-blue-500 text-slate-900 dark:text-white ring-4 ring-blue-500/20 shadow-xl shadow-blue-500/30 scale-110" :
-                "bg-gray-100 dark:bg-white/[0.06] text-slate-500"
+                i < step ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-90" :
+                i === step ? "bg-blue-500 text-white ring-4 ring-blue-500/20 shadow-xl shadow-blue-500/30 scale-110" :
+                "bg-white/[0.06] text-slate-500"
               }`}>
                 {i < step ? <Check className="w-4 h-4" /> : i + 1}
               </div>
@@ -1890,7 +1890,7 @@ export default function NouveauClientPage() {
                 i < step ? "text-emerald-400" : i === step ? "text-slate-200" : "text-slate-600"
               }`}>{label}</span>
               {i < STEP_LABELS.length - 1 && (
-                <div className={`w-8 lg:w-16 h-0.5 mx-2 rounded-full transition-colors duration-300 ${i < step ? "bg-emerald-500" : "bg-gray-100 dark:bg-white/[0.06]"}`} />
+                <div className={`w-8 lg:w-16 h-0.5 mx-2 rounded-full transition-colors duration-300 ${i < step ? "bg-emerald-500" : "bg-white/[0.06]"}`} />
               )}
             </button>
           ))}
@@ -1912,14 +1912,14 @@ export default function NouveauClientPage() {
           <div className="space-y-6" role="region" aria-label="Etape 1 : Recherche de l'entreprise">
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Recherche de l'entreprise</h2>
+                <h2 className="text-lg font-semibold text-white mb-1">Recherche de l'entreprise</h2>
                 <p className="text-sm text-slate-500">Recherchez par SIREN, nom de societe ou dirigeant via l'API Pappers</p>
               </div>
               {/* #5: Creation manuelle shortcut */}
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30 transition-all duration-200 hover:scale-[1.02]"
+                className="gap-1.5 border-white/[0.06] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30 transition-all duration-200 hover:scale-[1.02]"
                 onClick={() => setStep(1)}
               >
                 <Plus className="w-3.5 h-3.5" /> Creation manuelle
@@ -1927,7 +1927,7 @@ export default function NouveauClientPage() {
             </div>
 
             {/* #4: Search mode tabs with icons */}
-            <div className="flex gap-1 p-1 rounded-full bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] w-fit">
+            <div className="flex gap-1 p-1 rounded-full bg-white/[0.03] border border-white/[0.06] w-fit">
               {([
                 { value: "siren", icon: Hash, label: "SIREN" },
                 { value: "nom", icon: Building2, label: "Nom societe" },
@@ -1939,7 +1939,7 @@ export default function NouveauClientPage() {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
                     searchMode === tab.value
                       ? "bg-blue-500/20 text-blue-400 shadow-sm"
-                      : "text-slate-500 hover:text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04]"
+                      : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"
                   }`}
                 >
                   <tab.icon className="w-3.5 h-3.5" /> {tab.label}
@@ -1977,7 +1977,7 @@ export default function NouveauClientPage() {
                     return items[placeholderIdx % items.length];
                   })()}
                   aria-label="Rechercher une entreprise par SIREN, nom ou dirigeant"
-                  className="pl-9 pr-9 bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all"
+                  className="pl-9 pr-9 bg-white/[0.03] border-white/[0.06] focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/50 transition-all"
                 />
                 {/* #3: Clear button */}
                 {searchQuery && (
@@ -1991,8 +1991,8 @@ export default function NouveauClientPage() {
                 )}
                 {/* #2: Search history dropdown */}
                 {showSearchHistory && searchHistory.length > 0 && (
-                  <div className="absolute top-full left-0 right-0 mt-1 z-20 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-white/[0.1] rounded-lg shadow-xl overflow-hidden">
-                    <div className="px-3 py-2 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2">
+                  <div className="absolute top-full left-0 right-0 mt-1 z-20 bg-slate-900 border border-white/[0.1] rounded-lg shadow-xl overflow-hidden">
+                    <div className="px-3 py-2 border-b border-white/[0.06] flex items-center gap-2">
                       <History className="w-3 h-3 text-slate-500" />
                       <span className="text-[10px] text-slate-500 uppercase tracking-wider">Recherches recentes</span>
                     </div>
@@ -2000,7 +2000,7 @@ export default function NouveauClientPage() {
                       <button
                         key={h}
                         onMouseDown={() => { setSearchQuery(h); setShowSearchHistory(false); }}
-                        className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors flex items-center gap-2"
+                        className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-white/[0.04] transition-colors flex items-center gap-2"
                       >
                         <Clock className="w-3 h-3 text-slate-600" /> {h}
                       </button>
@@ -2016,7 +2016,7 @@ export default function NouveauClientPage() {
             </div>
             {/* #8: Keyboard shortcut hint */}
             <p className="text-[10px] text-slate-600 -mt-4 flex items-center gap-1.5">
-              <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-500 font-mono text-[9px]">Entree</kbd> pour rechercher
+              <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-500 font-mono text-[9px]">Entree</kbd> pour rechercher
               {searchMode === "siren" && <span className="text-slate-600 ml-2">Format: 9 chiffres</span>}
             </p>
 
@@ -2024,13 +2024,13 @@ export default function NouveauClientPage() {
             {searchLoading && (
               <div className="space-y-3">
                 {[1, 2, 3].map(i => (
-                  <div key={i} className="p-4 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] animate-pulse">
+                  <div key={i} className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02] animate-pulse">
                     <div className="flex items-center justify-between">
                       <div className="space-y-2">
-                        <div className="h-4 w-48 bg-gray-100 dark:bg-white/[0.06] rounded" />
-                        <div className="h-3 w-32 bg-gray-50/80 dark:bg-white/[0.04] rounded" />
+                        <div className="h-4 w-48 bg-white/[0.06] rounded" />
+                        <div className="h-3 w-32 bg-white/[0.04] rounded" />
                       </div>
-                      <div className="h-8 w-8 bg-gray-50/80 dark:bg-white/[0.04] rounded-full" />
+                      <div className="h-8 w-8 bg-white/[0.04] rounded-full" />
                     </div>
                   </div>
                 ))}
@@ -2089,7 +2089,7 @@ export default function NouveauClientPage() {
                       className={`w-full text-left p-3 rounded-lg border transition-all duration-200 hover:scale-[1.005] ${
                         selectedResult?.siren === r.siren
                           ? "border-blue-500/50 bg-blue-500/10 shadow-md shadow-blue-500/5"
-                          : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] hover:border-gray-300 dark:border-white/[0.1]"
+                          : "border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/[0.1]"
                       }`}
                     >
                       <div className="flex items-center justify-between">
@@ -2193,8 +2193,8 @@ export default function NouveauClientPage() {
 
             {/* Network Graph preview (Probleme 9) */}
             {screening.network.data && screening.network.data.nodes?.length > 0 && (
-              <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] overflow-hidden">
-                <div className="px-4 py-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2">
+              <div className="rounded-lg border border-white/[0.06] overflow-hidden">
+                <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2">
                   <User className="w-4 h-4 text-cyan-400" />
                   <h3 className="text-sm font-semibold text-slate-300">Reseau dirigeants</h3>
                   <span className="text-[10px] text-slate-500 ml-auto">
@@ -2209,7 +2209,7 @@ export default function NouveauClientPage() {
                   />
                 </div>
                 {(screening.network.data.alertes?.length ?? 0) > 0 && (
-                  <div className="px-4 py-3 border-t border-gray-200 dark:border-white/[0.06] space-y-1">
+                  <div className="px-4 py-3 border-t border-white/[0.06] space-y-1">
                     {screening.network.data.alertes.slice(0, 5).map((a, i) => (
                       <div key={`net-${i}-${a.message.slice(0, 20)}`} className="flex items-start gap-2 text-xs">
                         <AlertTriangle className={`w-3 h-3 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />
@@ -2256,7 +2256,7 @@ export default function NouveauClientPage() {
                     <span className="text-[10px] text-slate-500 uppercase">Dirigeants ({selectedEnterprise.dirigeants.length})</span>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {selectedEnterprise.dirigeants.slice(0, 6).map((d, i) => (
-                        <span key={`dir-${i}`} className="text-[11px] text-slate-300 bg-gray-50/80 dark:bg-white/[0.04] px-2 py-1 rounded">
+                        <span key={`dir-${i}`} className="text-[11px] text-slate-300 bg-white/[0.04] px-2 py-1 rounded">
                           {d.prenom} {d.nom}{d.qualite ? ` — ${d.qualite}` : ""}
                         </span>
                       ))}
@@ -2287,7 +2287,7 @@ export default function NouveauClientPage() {
         {step === 1 && (
           <div className="space-y-6" role="region" aria-label="Etape 2 : Informations du client">
             <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Informations du client</h2>
+              <h2 className="text-lg font-semibold text-white">Informations du client</h2>
               {/* #24: Required fields progress bar */}
               {(() => {
                 const reqFields = [form.raisonSociale, form.siren, form.forme, form.ape, form.dirigeant, form.adresse, form.cp, form.ville];
@@ -2305,7 +2305,7 @@ export default function NouveauClientPage() {
 
             {/* KYC Completeness indicator */}
             {selectedEnterprise && (
-              <div className="p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
+              <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-blue-400" />
                   <span className="text-xs text-slate-300">Completude KYC</span>
@@ -2386,7 +2386,7 @@ export default function NouveauClientPage() {
                           <Label htmlFor="capital-social" className="text-[10px] text-slate-500 uppercase">Capital social {form.forme !== "ENTREPRISE INDIVIDUELLE" && <span className="text-red-400">*</span>}</Label>
                           {capitalSource && form.capital > 0 && <Badge className={`text-[9px] border-0 ${capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-400"}`}>{capitalSource}</Badge>}
                         </div>
-                        <Input id="capital-social" type="number" min={0} value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="A completer" className={`bg-gray-50 dark:bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${form.capital === 0 ? "border-orange-500/50" : !form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
+                        <Input id="capital-social" type="number" min={0} value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="A completer" className={`bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${form.capital === 0 ? "border-orange-500/50" : !form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
                         {(() => {
                           const f = form.forme.toUpperCase();
                           const isEI = f.includes("INDIVIDUEL") || f.includes("EI");
@@ -2406,7 +2406,7 @@ export default function NouveauClientPage() {
                                 <HelpCircle className="w-3 h-3" /> Qu'est-ce que le code APE ?
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10 text-xs text-slate-300">
+                            <PopoverContent className="w-64 bg-slate-900 border-white/10 text-xs text-slate-300">
                               Le code APE (Activite Principale Exercee) est attribue par l'INSEE. Il determine le score de risque sectoriel dans le calcul LCB-FT.
                             </PopoverContent>
                           </Popover>
@@ -2441,13 +2441,13 @@ export default function NouveauClientPage() {
                           </div>
                           <span className="text-[9px] text-slate-600">{form.objetSocial.length} caracteres</span>
                         </div>
-                        <p className="text-xs text-slate-300 mt-1 p-2 rounded bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">{form.objetSocial.slice(0, 300)}{form.objetSocial.length > 300 ? "..." : ""}</p>
+                        <p className="text-xs text-slate-300 mt-1 p-2 rounded bg-white/[0.02] border border-white/[0.06]">{form.objetSocial.slice(0, 300)}{form.objetSocial.length > 300 ? "..." : ""}</p>
                       </div>
                     )}
 
                     {/* INPI badges */}
                     {screening.inpi.data?.companyData && (
-                      <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-gray-200 dark:border-white/[0.06]">
+                      <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-white/[0.06]">
                         {screening.inpi.data.companyData.capitalVariable && <Badge className="text-[9px] bg-amber-500/20 text-amber-400 border-0">Capital variable</Badge>}
                         {screening.inpi.data.companyData.ess && <Badge className="text-[9px] bg-emerald-500/20 text-emerald-400 border-0">ESS</Badge>}
                         {screening.inpi.data.companyData.societeMission && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">Societe a mission</Badge>}
@@ -2485,7 +2485,7 @@ export default function NouveauClientPage() {
                         <Label className="text-[10px] text-slate-500 uppercase">Site web</Label>
                         {autoFields.has("siteWeb") && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
                       </div>
-                      <Input value={form.siteWeb} onChange={e => set("siteWeb", e.target.value)} placeholder="https://..." className="bg-gray-50 dark:bg-white/[0.03] mt-1 border-gray-200 dark:border-white/[0.06] focus:ring-2 focus:ring-blue-500/30" />
+                      <Input value={form.siteWeb} onChange={e => set("siteWeb", e.target.value)} placeholder="https://..." className="bg-white/[0.03] mt-1 border-white/[0.06] focus:ring-2 focus:ring-blue-500/30" />
                       {form.siteWeb && (() => {
                         try {
                           const url = new URL(form.siteWeb.startsWith("http") ? form.siteWeb : `https://${form.siteWeb}`);
@@ -2551,7 +2551,7 @@ export default function NouveauClientPage() {
 
             {/* FIX 54: Improved separator with icon */}
             <div className="relative">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-white/[0.08]" /></div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.08]" /></div>
               <div className="relative flex justify-center">
                 <span className="bg-[hsl(217,33%,12%)] px-4 text-xs text-slate-500 uppercase tracking-widest flex items-center gap-2">
                   <ChevronDown className="w-3 h-3" /> Informations a completer <ChevronDown className="w-3 h-3" />
@@ -2623,7 +2623,7 @@ export default function NouveauClientPage() {
             {/* FIX 59: Improved BE header with count */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Beneficiaires effectifs</h2>
+                <h2 className="text-lg font-semibold text-white">Beneficiaires effectifs</h2>
                 <p className="text-sm text-slate-500 mt-0.5">Personnes detenant plus de 25% du capital ou des droits de vote</p>
               </div>
               <div className="flex items-center gap-2">
@@ -2642,7 +2642,7 @@ export default function NouveauClientPage() {
                     Repartir equitablement
                   </Button>
                 )}
-                <Button onClick={addBeneficiaire} variant="outline" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400">
+                <Button onClick={addBeneficiaire} variant="outline" className="gap-1.5 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400">
                   <Plus className="w-4 h-4" /> Ajouter
                 </Button>
               </div>
@@ -2704,7 +2704,7 @@ export default function NouveauClientPage() {
               if (beSum < 100) pieData.push({ name: "Non attribue", value: 100 - beSum });
               const COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899", "#10b981"];
               return (
-                <div className={`p-4 rounded-lg border ${overBudget ? "border-red-500/30 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"}`}>
+                <div className={`p-4 rounded-lg border ${overBudget ? "border-red-500/30 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"}`}>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xs font-semibold text-slate-300">Repartition du capital</h3>
                     <span className={`text-sm font-bold font-mono ${overBudget ? "text-red-400" : beSum === 100 ? "text-emerald-400" : "text-amber-400"}`}>
@@ -2733,10 +2733,10 @@ export default function NouveauClientPage() {
                 return (
                   <div key={key || `be-${i}`} className={`rounded-lg border transition-all duration-200 overflow-hidden ${
                     status === "match" ? "border-red-500/30 bg-red-500/[0.03]" :
-                    "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
+                    "border-white/[0.06] bg-white/[0.02]"
                   }`}>
                     {/* #37: Compact header + #40: Collapse toggle + #33: Percentage bar */}
-                    <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-white dark:bg-white/[0.02] transition-colors" onClick={() => setCollapsedBE(prev => ({ ...prev, [i]: !prev[i] }))}>
+                    <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-white/[0.02] transition-colors" onClick={() => setCollapsedBE(prev => ({ ...prev, [i]: !prev[i] }))}>
                       <div className="flex items-center gap-3 min-w-0">
                         {/* #31: Drag handle placeholder */}
                         <GripVertical className="w-4 h-4 text-slate-600 shrink-0 cursor-grab" />
@@ -2751,7 +2751,7 @@ export default function NouveauClientPage() {
                         </div>
                         {/* #33: Visual percentage bar */}
                         <div className="flex items-center gap-2 shrink-0 ml-auto mr-4">
-                          <div className="w-20 h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
+                          <div className="w-20 h-2 rounded-full bg-white/[0.06] overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all duration-300 ${
                                 b.pourcentage > 50 ? "bg-blue-500" : b.pourcentage > 25 ? "bg-cyan-500" : b.pourcentage > 0 ? "bg-amber-500" : "bg-slate-600"
@@ -2771,26 +2771,26 @@ export default function NouveauClientPage() {
                     </div>
                     {/* #40: Collapsible details */}
                     {!isCollapsed && (
-                      <div className="px-4 pb-4 pt-1 border-t border-gray-100 dark:border-white/[0.04]">
+                      <div className="px-4 pb-4 pt-1 border-t border-white/[0.04]">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
                             <Label htmlFor={`be-nom-${i}`} className="text-[10px] text-slate-500 uppercase">Nom</Label>
-                            <Input id={`be-nom-${i}`} value={b.nom} onChange={e => updateBeneficiaire(i, "nom", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="NOM" />
+                            <Input id={`be-nom-${i}`} value={b.nom} onChange={e => updateBeneficiaire(i, "nom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="NOM" />
                           </div>
                           <div>
                             <Label htmlFor={`be-prenom-${i}`} className="text-[10px] text-slate-500 uppercase">Prenom</Label>
-                            <Input id={`be-prenom-${i}`} value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="Prenom" />
+                            <Input id={`be-prenom-${i}`} value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="Prenom" />
                           </div>
                           {/* #35: Date picker for birth date */}
                           <div>
                             <Label htmlFor={`be-datenaissance-${i}`} className="text-[10px] text-slate-500 uppercase">Date naissance</Label>
-                            <Input id={`be-datenaissance-${i}`} type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
+                            <Input id={`be-datenaissance-${i}`} type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
                             {b.dateNaissance && <p className="text-[9px] text-slate-500 mt-0.5">{formatDateFR(b.dateNaissance)}</p>}
                           </div>
                           {/* #34: Nationality with common suggestions */}
                           <div>
                             <Label htmlFor={`be-nationalite-${i}`} className="text-[10px] text-slate-500 uppercase">Nationalite</Label>
-                            <Input id={`be-nationalite-${i}`} value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list={`nat-list-${i}`} />
+                            <Input id={`be-nationalite-${i}`} value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-white/[0.03] border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list={`nat-list-${i}`} />
                             <datalist id={`nat-list-${i}`}>
                               {["FRANCAISE", "ALGERIENNE", "MAROCAINE", "TUNISIENNE", "PORTUGAISE", "ITALIENNE", "ESPAGNOLE", "ALLEMANDE", "BELGE", "BRITANNIQUE", "AMERICAINE", "CHINOISE", "RUSSE", "TURQUE", "LIBANAISE"].map(n => <option key={n} value={n} />)}
                             </datalist>
@@ -2832,7 +2832,7 @@ export default function NouveauClientPage() {
             {/* FIX 58: Questionnaire header with OUI count + #41: Progress */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Questionnaire LCB-FT</h2>
+                <h2 className="text-lg font-semibold text-white">Questionnaire LCB-FT</h2>
                 <p className="text-sm text-slate-500 mt-0.5">Evaluation des facteurs de risque reglementaires</p>
               </div>
               <div className="flex items-center gap-3">
@@ -2847,18 +2847,18 @@ export default function NouveauClientPage() {
                   </Badge>
                 )}
                 {/* #48: Running malus score */}
-                <Badge className={`text-[9px] border-0 font-mono ${extraMalus > 0 ? "bg-red-500/20 text-red-400" : "bg-gray-100 dark:bg-white/[0.06] text-slate-400"}`}>
+                <Badge className={`text-[9px] border-0 font-mono ${extraMalus > 0 ? "bg-red-500/20 text-red-400" : "bg-white/[0.06] text-slate-400"}`}>
                   {extraMalus > 0 ? `+${extraMalus + risk.malus} pts` : "0 malus"}
                 </Badge>
               </div>
             </div>
 
             {/* #43: Real-time risk level indicator */}
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 100`}>
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 100`}>
               <BarChart3 className="w-4 h-4 text-slate-400" />
               <span className="text-xs text-slate-400">Niveau de risque en temps reel :</span>
               <VigilanceBadge level={risk.nivVigilance} />
-              <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={120}>
+              <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={120}>
                 <div
                   className={`h-full rounded-full transition-all duration-500 ${
                     adjustedScore >= 60 ? "bg-red-500" : adjustedScore >= 25 ? "bg-amber-500" : "bg-emerald-500"
@@ -2874,7 +2874,7 @@ export default function NouveauClientPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all"
+                className="text-xs gap-1.5 border-white/[0.06] text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all"
                 onClick={() => {
                   setQuestions(prev => prev.map(q => ({ ...q, value: "NON" as const, commentaire: q.value === "OUI" ? q.commentaire : "" })));
                   toast.success("Toutes les reponses ont ete mises a NON");
@@ -2910,7 +2910,7 @@ export default function NouveauClientPage() {
                         const qi = questions.findIndex(qq => qq.id === q.id);
                         return (
                           <div key={q.id} className={`p-4 border-t transition-all duration-200 ${
-                            q.value === "OUI" ? "border-red-500/20 bg-red-500/5" : "border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02]"
+                            q.value === "OUI" ? "border-red-500/20 bg-red-500/5" : "border-white/[0.04] hover:bg-white/[0.02]"
                           }`}>
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1">
@@ -2922,7 +2922,7 @@ export default function NouveauClientPage() {
                                       <BookOpen className="w-3 h-3" /> {q.reference}
                                     </button>
                                   </PopoverTrigger>
-                                  <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10 text-xs text-slate-300">
+                                  <PopoverContent className="w-64 bg-slate-900 border-white/10 text-xs text-slate-300">
                                     Reference reglementaire : {q.reference}. Malus associe : +{q.malus} points sur le score global de risque.
                                   </PopoverContent>
                                 </Popover>
@@ -2935,8 +2935,8 @@ export default function NouveauClientPage() {
                                     onClick={() => updateQuestion(qi, "value", val)}
                                     className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
                                       q.value === val
-                                        ? val === "OUI" ? "bg-red-500 text-slate-900 dark:text-white shadow-md shadow-red-500/20" : val === "NON" ? "bg-emerald-500 text-slate-900 dark:text-white shadow-md shadow-emerald-500/20" : "bg-slate-500 text-slate-900 dark:text-white"
-                                        : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 hover:bg-gray-200/50 dark:bg-white/[0.08]"
+                                        ? val === "OUI" ? "bg-red-500 text-white shadow-md shadow-red-500/20" : val === "NON" ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "bg-slate-500 text-white"
+                                        : "bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]"
                                     }`}
                                   >
                                     {val}
@@ -2959,7 +2959,7 @@ export default function NouveauClientPage() {
                                   value={q.commentaire}
                                   onChange={e => updateQuestion(qi, "commentaire", sanitizeInput(e.target.value))}
                                   placeholder="Commentaire obligatoire — justifiez votre reponse..."
-                                  className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-sm min-h-[60px] focus:ring-2 focus:ring-red-500/30 transition-all ${!q.commentaire ? "border-red-500/50" : "border-emerald-500/30"}`}
+                                  className={`bg-white/[0.03] border-white/[0.06] text-sm min-h-[60px] focus:ring-2 focus:ring-red-500/30 transition-all ${!q.commentaire ? "border-red-500/50" : "border-emerald-500/30"}`}
                                 />
                                 {/* #18: Character count */}
                                 <div className="flex items-center justify-between">
@@ -2989,7 +2989,7 @@ export default function NouveauClientPage() {
                     const qi = questions.findIndex(qq => qq.id === q.id);
                     return (
                       <div key={q.id} className={`p-4 rounded-lg border transition-all duration-200 ${
-                        q.value === "OUI" ? "border-red-500/30 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
+                        q.value === "OUI" ? "border-red-500/30 bg-red-500/5" : "border-white/[0.06] bg-white/[0.02]"
                       }`}>
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
@@ -3003,8 +3003,8 @@ export default function NouveauClientPage() {
                                 onClick={() => updateQuestion(qi, "value", val)}
                                 className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
                                   q.value === val
-                                    ? val === "OUI" ? "bg-red-500 text-slate-900 dark:text-white shadow-md" : val === "NON" ? "bg-emerald-500 text-slate-900 dark:text-white shadow-md" : "bg-slate-500 text-slate-900 dark:text-white"
-                                    : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 hover:bg-gray-200/50 dark:bg-white/[0.08]"
+                                    ? val === "OUI" ? "bg-red-500 text-white shadow-md" : val === "NON" ? "bg-emerald-500 text-white shadow-md" : "bg-slate-500 text-white"
+                                    : "bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]"
                                 }`}
                               >
                                 {val}
@@ -3018,7 +3018,7 @@ export default function NouveauClientPage() {
                               <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
                               <span className="text-xs text-red-400 font-semibold">Malus : +{q.malus} points</span>
                             </div>
-                            <Textarea value={q.commentaire} onChange={e => updateQuestion(qi, "commentaire", sanitizeInput(e.target.value))} placeholder="Commentaire obligatoire..." className={`bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-sm min-h-[60px] ${!q.commentaire ? "border-red-500/50" : ""}`} />
+                            <Textarea value={q.commentaire} onChange={e => updateQuestion(qi, "commentaire", sanitizeInput(e.target.value))} placeholder="Commentaire obligatoire..." className={`bg-white/[0.03] border-white/[0.06] text-sm min-h-[60px] ${!q.commentaire ? "border-red-500/50" : ""}`} />
                             {!q.commentaire && <p className="text-[10px] text-red-400">Commentaire obligatoire</p>}
                           </div>
                         )}
@@ -3034,11 +3034,11 @@ export default function NouveauClientPage() {
         {/* STEP 4: SCORING & DECISION */}
         {step === 4 && (
           <div className="space-y-6" role="region" aria-label="Etape 5 : Scoring et decision">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Scoring et Decision</h2>
+            <h2 className="text-lg font-semibold text-white">Scoring et Decision</h2>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* #53: Improved radar chart */}
-              <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-lg">
+              <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06] shadow-lg">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-slate-300">Radar de risque 6 axes</h3>
                   {/* #52: Score breakdown tooltip */}
@@ -3048,7 +3048,7 @@ export default function NouveauClientPage() {
                         <HelpCircle className="w-3.5 h-3.5" /> Detail
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10">
+                    <PopoverContent className="w-64 bg-slate-900 border-white/10">
                       <h4 className="text-xs font-semibold text-slate-300 mb-2">Contribution de chaque facteur</h4>
                       <div className="space-y-1.5">
                         {radarData.map(d => (
@@ -3075,7 +3075,7 @@ export default function NouveauClientPage() {
               {/* Score gauge */}
               <div className="space-y-4">
                 {/* #51: Animated gauge with count-up */}
-                <div className="p-6 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] text-center shadow-lg">
+                <div className="p-6 rounded-lg bg-white/[0.02] border border-white/[0.06] text-center shadow-lg">
                   <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-3">Score Global</p>
                   <div className="relative w-40 h-40 mx-auto">
                     <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
@@ -3091,7 +3091,7 @@ export default function NouveauClientPage() {
                     </svg>
                     <div className="absolute inset-0 flex items-center justify-center flex-col">
                       {/* #51: Animated score reveal */}
-                      <span className="text-4xl font-bold text-slate-900 dark:text-white tabular-nums">{animatedScore}</span>
+                      <span className="text-4xl font-bold text-white tabular-nums">{animatedScore}</span>
                       <span className="text-[10px] text-slate-500">/120</span>
                     </div>
                   </div>
@@ -3109,7 +3109,7 @@ export default function NouveauClientPage() {
                     const avgScore = clients.length > 0 ? Math.round(clients.reduce((s, c) => s + (c.scoreGlobal || 0), 0) / clients.length) : null;
                     if (avgScore === null) return null;
                     return (
-                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-center gap-2">
+                      <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center justify-center gap-2">
                         <span className="text-[10px] text-slate-500">Moyenne cabinet :</span>
                         <span className="text-xs font-mono font-bold text-slate-400">{avgScore}/120</span>
                         {adjustedScore > avgScore && <span className="text-[9px] text-amber-400">+{adjustedScore - avgScore} au-dessus</span>}
@@ -3121,7 +3121,7 @@ export default function NouveauClientPage() {
                 </div>
 
                 {/* Score breakdown */}
-                <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
                   <h3 className="text-xs font-semibold text-slate-300 mb-3">Decomposition</h3>
                   <div className="space-y-2">
                     {/* FIX 49: Score decomposition with visual bars */}
@@ -3143,7 +3143,7 @@ export default function NouveauClientPage() {
                             item.score >= 60 ? "text-red-400" : item.score >= 25 ? "text-amber-400" : "text-emerald-400"
                           }`}>{item.score}</span>
                         </div>
-                        <div className="h-1 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
+                        <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
                           <div
                             className={`h-full rounded-full transition-all duration-500 ${
                               item.score >= 60 ? "bg-red-500" : item.score >= 25 ? "bg-amber-500" : "bg-emerald-500"
@@ -3158,7 +3158,7 @@ export default function NouveauClientPage() {
 
                 {/* D35: Detailed malus breakdown */}
                 {questions.filter(q => q.value === "OUI").length > 0 && (
-                  <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                  <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
                     <h3 className="text-xs font-semibold text-slate-300 mb-2">Detail des malus</h3>
                     <div className="space-y-1">
                       {questions.filter(q => q.value === "OUI").map(q => (
@@ -3181,7 +3181,7 @@ export default function NouveauClientPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={`gap-1.5 border-gray-200 dark:border-white/[0.06] transition-all ${isSimulating ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"}`}
+                  className={`gap-1.5 border-white/[0.06] transition-all ${isSimulating ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"}`}
                   onClick={() => setIsSimulating(!isSimulating)}
                 >
                   <RefreshCw className="w-3.5 h-3.5" /> {isSimulating ? "Mode simulation actif" : "Simuler un changement"}
@@ -3191,7 +3191,7 @@ export default function NouveauClientPage() {
             </div>
 
             {/* Idée 9: Date butoir auto-calculée */}
-            <div className="p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
+            <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.06] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-blue-400" />
                 <span className="text-xs text-slate-300">Date butoir prochaine revue</span>
@@ -3212,14 +3212,14 @@ export default function NouveauClientPage() {
             )}
 
             {/* FIX 52: Improved decision section with shadows and transitions */}
-            <div className="p-4 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] lg:col-span-2">
+            <div className="p-4 rounded-lg bg-white/[0.03] border border-white/[0.06] lg:col-span-2">
               <h3 className="text-sm font-semibold text-slate-300 mb-4">Decision</h3>
               <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setDecision("ACCEPTER")}
                   aria-pressed={decision === "ACCEPTER"}
                   className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:outline-none ${
-                    decision === "ACCEPTER" ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-emerald-500/30 hover:bg-emerald-500/5"
+                    decision === "ACCEPTER" ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10" : "border-white/[0.06] hover:border-emerald-500/30 hover:bg-emerald-500/5"
                   }`}
                 >
                   <Check className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-500"}`} />
@@ -3229,7 +3229,7 @@ export default function NouveauClientPage() {
                   onClick={() => setDecision("ACCEPTER_RESERVE")}
                   aria-pressed={decision === "ACCEPTER_RESERVE"}
                   className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none ${
-                    decision === "ACCEPTER_RESERVE" ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-amber-500/30 hover:bg-amber-500/5"
+                    decision === "ACCEPTER_RESERVE" ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10" : "border-white/[0.06] hover:border-amber-500/30 hover:bg-amber-500/5"
                   }`}
                 >
                   <AlertTriangle className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-500"}`} />
@@ -3239,7 +3239,7 @@ export default function NouveauClientPage() {
                   onClick={() => setDecision("REFUSER")}
                   aria-pressed={decision === "REFUSER"}
                   className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:outline-none ${
-                    decision === "REFUSER" ? "border-red-500 bg-red-500/10 shadow-lg shadow-red-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-red-500/30 hover:bg-red-500/5"
+                    decision === "REFUSER" ? "border-red-500 bg-red-500/10 shadow-lg shadow-red-500/10" : "border-white/[0.06] hover:border-red-500/30 hover:bg-red-500/5"
                   }`}
                 >
                   <X className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "REFUSER" ? "text-red-400" : "text-slate-500"}`} />
@@ -3255,7 +3255,7 @@ export default function NouveauClientPage() {
                     value={motifRefus}
                     onChange={e => setMotifRefus(sanitizeInput(e.target.value))}
                     placeholder="Indiquez le motif de refus..."
-                    className={`bg-gray-50 dark:bg-white/[0.03] mt-1 focus:ring-2 focus:ring-red-500/30 ${!motifRefus ? "border-red-500/50" : "border-gray-200 dark:border-white/[0.06]"}`}
+                    className={`bg-white/[0.03] mt-1 focus:ring-2 focus:ring-red-500/30 ${!motifRefus ? "border-red-500/50" : "border-white/[0.06]"}`}
                   />
                   {!motifRefus && <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Le motif est obligatoire pour un refus</p>}
                   <div className="flex justify-end mt-1"><span className="text-[9px] text-slate-600">{motifRefus.length} car.</span></div>
@@ -3268,7 +3268,7 @@ export default function NouveauClientPage() {
                     value={motifReserve}
                     onChange={e => setMotifReserve(sanitizeInput(e.target.value))}
                     placeholder="Indiquez les reserves et conditions d'acceptation..."
-                    className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] mt-1 focus:ring-2 focus:ring-amber-500/30"
+                    className="bg-white/[0.03] border-white/[0.06] mt-1 focus:ring-2 focus:ring-amber-500/30"
                   />
                   <div className="flex justify-end mt-1"><span className="text-[9px] text-slate-600">{motifReserve.length} car.</span></div>
                 </div>
@@ -3279,7 +3279,7 @@ export default function NouveauClientPage() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all hover:scale-[1.02]"
+              className="gap-1.5 border-white/[0.06] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all hover:scale-[1.02]"
               onClick={() => {
                 window.print();
                 toast.info("Impression du scoring lancee");
@@ -3296,7 +3296,7 @@ export default function NouveauClientPage() {
             {/* Header with KYC progress */}
             <div className="flex items-center justify-between">
               <div>
-                <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Documents et finalisation</h2>
+                <h2 className="text-lg font-semibold text-white">Documents et finalisation</h2>
                 <p className="text-sm text-slate-500 mt-0.5">Verifiez les pieces collectees et uploadez les justificatifs manquants</p>
               </div>
               <div className="flex items-center gap-3">
@@ -3339,7 +3339,7 @@ export default function NouveauClientPage() {
 
             {/* Recapitulatif compact */}
             <Collapsible>
-              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:bg-white/[0.05] transition-colors">
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
                   <h3 className="text-sm font-semibold text-slate-300">Recapitulatif du dossier</h3>
@@ -3347,7 +3347,7 @@ export default function NouveauClientPage() {
                 <ChevronDown className="w-4 h-4 text-slate-500" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
-                <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {[
                       { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale },
@@ -3360,7 +3360,7 @@ export default function NouveauClientPage() {
                       { label: "Decision", value: decision || "—", ok: !!decision },
                       { label: "Docs manuels", value: `${documents.length} fichier(s)`, ok: documents.length > 0 },
                     ].map(item => (
-                      <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-white dark:bg-white/[0.02]">
+                      <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-white/[0.02]">
                         <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${item.ok ? "bg-emerald-400" : "bg-orange-400"}`} />
                         <div className="min-w-0">
                           <p className="text-[10px] text-slate-500">{item.label}</p>
@@ -3563,7 +3563,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
 
               if (storedDocs.length === 0 && linkDocs.length === 0 && !isLoading) {
                 return (
-                  <div className="p-4 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+                  <div className="p-4 rounded-lg border border-white/[0.06] bg-white/[0.02]">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="w-4 h-4 text-slate-500" />
                       <p className="text-sm text-slate-400">Aucun acte ou statut recupere automatiquement</p>
@@ -3585,7 +3585,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 if (t === "Statuts") return "text-violet-400 bg-violet-500/10";
                 if (t === "PV AG") return "text-cyan-400 bg-cyan-500/10";
                 if (t.includes("Comptes")) return "text-amber-400 bg-amber-500/10";
-                return "text-slate-400 bg-gray-100 dark:bg-white/[0.06]";
+                return "text-slate-400 bg-white/[0.06]";
               };
 
               return (
@@ -3594,7 +3594,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-400" />
                       <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Documents collectes</Label>
-                      <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{storedDocs.length + linkDocs.length}</Badge>
+                      <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{storedDocs.length + linkDocs.length}</Badge>
                     </div>
                     {isLoading && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />}
                   </div>
@@ -3628,7 +3628,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
 
                   {/* Link-only docs */}
                   {linkDocs.map((doc, i) => (
-                    <div key={`link-${i}`} className="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors group">
+                    <div key={`link-${i}`} className="flex items-center justify-between p-3 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.04] transition-colors group">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${typeColor(doc.type)}`}>
                           <ExternalLink className="w-4 h-4" />
@@ -3636,7 +3636,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                         <div className="min-w-0">
                           <p className="text-sm text-slate-300 truncate max-w-[400px]">{doc.label}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <Badge className="text-[8px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
+                            <Badge className="text-[8px] bg-white/[0.06] text-slate-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
                             <span className="text-[8px] text-amber-400/70">Lien externe</span>
                             {doc.source && <span className="text-[8px] text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
                           </div>
@@ -3644,7 +3644,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                       </div>
                       {doc.url && (
                         <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                          className="shrink-0 ml-2 text-[11px] font-medium bg-gray-100 dark:bg-white/[0.06] text-slate-300 hover:bg-gray-200 dark:bg-white/[0.1] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
+                          className="shrink-0 ml-2 text-[11px] font-medium bg-white/[0.06] text-slate-300 hover:bg-white/[0.1] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
                           <ExternalLink className="w-3 h-3" /> Voir
                         </a>
                       )}
@@ -3660,13 +3660,13 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-amber-400" />
                   <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
-                  <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.financials.length} exercice(s)</Badge>
+                  <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.financials.length} exercice(s)</Badge>
                 </div>
-                <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
+                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="bg-gray-50 dark:bg-white/[0.03]">
+                        <tr className="bg-white/[0.03]">
                           <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
                           {screening.inpi.data.financials.map((f, i) => (
                             <th key={f.dateCloture || `fin-${i}`} className="text-right py-2.5 px-3 text-slate-400 font-medium">
@@ -3687,7 +3687,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           const hasData = screening.inpi.data!.financials.some(f => f[row.key] != null);
                           if (!hasData) return null;
                           return (
-                            <tr key={row.key} className="border-t border-gray-100 dark:border-white/[0.04] hover:bg-gray-50 dark:bg-white/[0.03] even:bg-gray-50/50 dark:bg-white/[0.01]">
+                            <tr key={row.key} className="border-t border-white/[0.04] hover:bg-white/[0.03] even:bg-white/[0.01]">
                               <td className="py-2 px-3 text-slate-400">{row.label}</td>
                               {screening.inpi.data!.financials.map((f, i) => {
                                 const val = f[row.key];
@@ -3726,14 +3726,14 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-slate-400" />
                   <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
-                  <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{selectedEnterprise.finances.length} exercice(s)</Badge>
+                  <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{selectedEnterprise.finances.length} exercice(s)</Badge>
                   <Badge className="text-[9px] bg-amber-500/15 text-amber-400 border-0">Annuaire Entreprises</Badge>
                 </div>
-                <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
+                <div className="rounded-xl border border-white/[0.06] overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
-                        <tr className="bg-gray-50 dark:bg-white/[0.03]">
+                        <tr className="bg-white/[0.03]">
                           <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
                           {selectedEnterprise.finances.map((f, i) => (
                             <th key={f.annee || `efin-${i}`} className="text-right py-2.5 px-3 text-slate-400 font-medium">{f.annee || `Exercice ${i + 1}`}</th>
@@ -3749,7 +3749,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           const hasData = selectedEnterprise.finances!.some(f => f[row.key] != null);
                           if (!hasData) return null;
                           return (
-                            <tr key={row.key} className="border-t border-gray-100 dark:border-white/[0.04] hover:bg-gray-50 dark:bg-white/[0.03]">
+                            <tr key={row.key} className="border-t border-white/[0.04] hover:bg-white/[0.03]">
                               <td className="py-2 px-3 text-slate-400">{row.label}</td>
                               {selectedEnterprise.finances!.map((f, i) => {
                                 const val = f[row.key];
@@ -3773,11 +3773,11 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
             {/* FIX 40: Improved INPI Historique Timeline */}
             {inpiHistorique.length > 0 && (
               <Collapsible defaultOpen={recentDirigeantChange}>
-                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:bg-white/[0.05] transition-colors">
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4 text-slate-400" />
                     <h3 className="text-xs font-semibold text-slate-300">Historique INPI</h3>
-                    <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{inpiHistorique.length}</Badge>
+                    <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{inpiHistorique.length}</Badge>
                     {recentDirigeantChange && (
                       <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" /> Dirigeant modifie
@@ -3797,14 +3797,14 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                       return (
                         <div key={i} className="relative pb-4">
                           {i < inpiHistorique.slice(0, 10).length - 1 && (
-                            <div className="absolute left-[-16px] top-3 bottom-0 w-px bg-gray-200/50 dark:bg-white/[0.08]" />
+                            <div className="absolute left-[-16px] top-3 bottom-0 w-px bg-white/[0.08]" />
                           )}
                           <div className={`absolute left-[-20px] top-1.5 w-2.5 h-2.5 rounded-full border-2 ${
                             isRecent && isDirigeant ? "bg-red-400 border-red-500" :
                             isRecent ? "bg-amber-400 border-amber-500" :
                             "bg-slate-600 border-slate-500"
                           }`} />
-                          <div className={`p-2 rounded-lg ${isRecent && isDirigeant ? "bg-red-500/5 border border-red-500/20" : "bg-white dark:bg-white/[0.02]"}`}>
+                          <div className={`p-2 rounded-lg ${isRecent && isDirigeant ? "bg-red-500/5 border border-red-500/20" : "bg-white/[0.02]"}`}>
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] text-slate-500 font-mono">{formatDateFR(evt.date)}</span>
                               <Badge className={`text-[9px] border-0 ${
@@ -3828,17 +3828,17 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
             {/* Etablissements INPI */}
             {screening.inpi.data?.companyData?.etablissements && screening.inpi.data.companyData.etablissements.length > 1 && (
               <Collapsible>
-                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:bg-white/[0.05] transition-colors">
+                <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.05] transition-colors">
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-slate-400" />
                     <h3 className="text-xs font-semibold text-slate-300">Etablissements</h3>
-                    <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.companyData.etablissements.length}</Badge>
+                    <Badge className="text-[9px] bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.companyData.etablissements.length}</Badge>
                   </div>
                   <ChevronDown className="w-4 h-4 text-slate-500" />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-1.5">
                   {screening.inpi.data.companyData.etablissements.map((e, i) => (
-                    <div key={e.siret || `etab-${i}`} className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04] text-xs">
+                    <div key={e.siret || `etab-${i}`} className="flex items-center justify-between p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] text-xs">
                       <div className="flex items-center gap-2 min-w-0">
                         {e.estSiege && <Badge className="text-[8px] bg-blue-500/20 text-blue-400 border-0 shrink-0">Siege</Badge>}
                         <span className="text-slate-300 truncate">{[e.adresse, e.codePostal, e.commune].filter(Boolean).join(", ")}</span>
@@ -3908,7 +3908,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               const pct = Math.round((foundCount / vigilanceDocChecklist.length) * 100);
 
               return (
-                <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                <div className="p-4 rounded-lg bg-white/[0.02] border border-white/[0.06]">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <h3 className="text-xs font-semibold text-slate-300">Checklist documentaire</h3>
@@ -4005,7 +4005,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 onDragLeave={() => setDragOver(false)}
                 onDrop={handleDrop}
                 className={`border border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
-                  dragOver ? "border-blue-400 bg-blue-500/10" : "border-gray-300 dark:border-white/[0.08] hover:border-blue-500/30"
+                  dragOver ? "border-blue-400 bg-blue-500/10" : "border-white/[0.08] hover:border-blue-500/30"
                 }`}
               >
                 <Upload className={`w-8 h-8 mx-auto mb-2 ${dragOver ? "text-blue-400" : "text-slate-600"}`} />
@@ -4018,7 +4018,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
             {/* Generate buttons + batch download */}
             <div className="flex flex-wrap gap-3">
               <Button
-                className="gap-2 bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white shadow-md"
+                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
                 disabled={generatingPdf === "fiche"}
                 onClick={() => {
                   const tempClient = buildTempClient();
@@ -4035,7 +4035,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </Button>
               <Button
                 variant="outline"
-                className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
+                className="gap-2 border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
                 disabled={generatingPdf === "lettre"}
                 onClick={() => {
                   const tempClient = buildTempClient();
@@ -4066,7 +4066,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 return (
                   <Button
                     variant="outline"
-                    className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400"
+                    className="gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400"
                     onClick={() => {
                       allStoredDocs.forEach((doc, i) => {
                         setTimeout(() => {
@@ -4095,7 +4095,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
           <Button
             variant="outline"
             size="sm"
-            className={`gap-1.5 shadow-lg border-gray-300 dark:border-white/[0.1] bg-gray-50 dark:bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-400 hover:text-blue-400"}`}
+            className={`gap-1.5 shadow-lg border-white/[0.1] bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-400 hover:text-blue-400"}`}
             onClick={() => {
               const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
               try { sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData)); } catch { /* storage full */ }
@@ -4125,7 +4125,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
           <Button
             variant="outline"
             onClick={() => step > 0 ? setStep(step - 1) : navigate("/bdd")}
-            className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+            className="gap-1.5 border-white/[0.06] hover:bg-white/[0.04] transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
           >
             <ChevronLeft className="w-4 h-4" />
             {step === 0 ? "Annuler" : "Precedent"}
@@ -4135,8 +4135,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
           <div className="flex flex-col items-center">
             <span className="text-[10px] text-slate-500 tabular-nums">Etape {step + 1} / {STEP_LABELS.length}</span>
             <span className="text-[9px] text-slate-600">
-              <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> precedent
-              {" "}<kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-600 font-mono text-[8px]">Entree</kbd> suivant
+              <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> precedent
+              {" "}<kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Entree</kbd> suivant
             </span>
           </div>
 
@@ -4224,14 +4224,14 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
           tabIndex={0}
           ref={el => el?.focus()}
         >
-          <div className="bg-gray-50 dark:bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100" onClick={e => e.stopPropagation()}>
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl transform transition-all duration-300 scale-100" onClick={e => e.stopPropagation()}>
             <div className="text-center mb-6">
               {/* #95: Success animation */}
               <div className="w-20 h-20 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-4 animate-bounce" style={{ animationDuration: "1s", animationIterationCount: "2" }}>
                 <Sparkles className="w-6 h-6 text-emerald-400 absolute animate-ping" style={{ animationDuration: "1.5s" }} />
                 <CheckCircle2 className="w-10 h-10 text-emerald-400" />
               </div>
-              <h2 className="text-xl font-bold text-slate-900 dark:text-white">Client cree avec succes</h2>
+              <h2 className="text-xl font-bold text-white">Client cree avec succes</h2>
               <p className="text-sm text-slate-400 mt-2">{form.raisonSociale} — {createdClientRef}</p>
               <p className="text-xs text-slate-500 mt-1">Fiche LCB-FT generee automatiquement</p>
               {/* FIX 45: Show document count in success modal */}
@@ -4261,7 +4261,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               <Button
                 onClick={() => navigate(`/lettre-mission/${createdClientRef}`)}
                 variant="outline"
-                className="w-full gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400"
+                className="w-full gap-2 border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400"
               >
                 <FileDown className="w-4 h-4" /> Generer la lettre de mission
               </Button>
@@ -4335,8 +4335,8 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
   }, [lat, lng, fullAddr]);
 
   return (
-    <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] overflow-hidden">
-      <div className="px-4 py-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
+    <div className="rounded-lg border border-white/[0.06] overflow-hidden">
+      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MapIcon className="w-4 h-4 text-emerald-400" />
           <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
@@ -4436,9 +4436,9 @@ function SourceField({ label, value, onChange, type = "text", error, placeholder
   const isEmpty = !value || value === "" || value === 0;
   const showOrange = required && isEmpty && !error;
   // #25: Color-coded borders
-  const borderClass = error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : !isEmpty ? "border-emerald-500/20" : "border-gray-200 dark:border-white/[0.06]";
+  const borderClass = error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : !isEmpty ? "border-emerald-500/20" : "border-white/[0.06]";
   // #29: Auto-filled background tint
-  const bgClass = autoFilled && !isEmpty ? "bg-blue-500/[0.04]" : "bg-gray-50 dark:bg-white/[0.03]";
+  const bgClass = autoFilled && !isEmpty ? "bg-blue-500/[0.04]" : "bg-white/[0.03]";
 
   if (type === "select" && options) {
     return (
@@ -4526,7 +4526,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
           {sourceBadge}
         </div>
         <Select value={String(value)} onValueChange={onChange}>
-          <SelectTrigger className={`bg-gray-50 dark:bg-white/[0.03] mt-1 ${showOrange ? "border-amber-500/50" : "border-gray-200 dark:border-white/[0.06]"}`}>
+          <SelectTrigger className={`bg-white/[0.03] mt-1 ${showOrange ? "border-amber-500/50" : "border-white/[0.06]"}`}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -4551,7 +4551,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
         placeholder={placeholder}
         autoComplete={autoComplete}
         {...(type === "number" ? { min: 0 } : {})}
-        className={`bg-gray-50 dark:bg-white/[0.03] mt-1 focus:ring-2 focus:ring-blue-500/30 transition-all ${error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : !isEmpty ? "border-emerald-500/20" : "border-gray-200 dark:border-white/[0.06]"}`}
+        className={`bg-white/[0.03] mt-1 focus:ring-2 focus:ring-blue-500/30 transition-all ${error ? "border-red-500/50" : showOrange ? "border-amber-500/50" : !isEmpty ? "border-emerald-500/20" : "border-white/[0.06]"}`}
       />
       {/* #94: Error styling with icon */}
       {error && <p className="text-[10px] text-red-400 mt-0.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" /> {error}</p>}

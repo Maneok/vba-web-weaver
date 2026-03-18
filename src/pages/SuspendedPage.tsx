@@ -15,7 +15,7 @@ export default function SuspendedPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950 flex items-center justify-center p-6">
       <div className="max-w-md w-full text-center space-y-6">
         <div className="mx-auto w-16 h-16 rounded-full bg-red-500/15 flex items-center justify-center">
           <AlertTriangle className="h-8 w-8 text-red-400" />
@@ -25,7 +25,7 @@ export default function SuspendedPage() {
           <h1 className="text-2xl font-bold text-slate-100">
             Abonnement suspendu
           </h1>
-          <p className="text-slate-400 text-sm leading-relaxed">
+          <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm leading-relaxed">
             L'abonnement de votre cabinet est suspendu.
             Contactez votre administrateur.
           </p>

@@ -227,7 +227,7 @@ export default function ControleInterne() {
   return (
     <div className="space-y-6">
       {/* Section Planification */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <Calendar className="w-5 h-5 text-blue-400" />
@@ -239,7 +239,7 @@ export default function ControleInterne() {
         </CardHeader>
         <CardContent>
           {controlesPrevus.length === 0 ? (
-            <div className="text-center py-6 text-slate-500">
+            <div className="text-center py-6 text-slate-400 dark:text-slate-500">
               <ClipboardCheck className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Aucun controle planifie</p>
               <p className="text-xs mt-1">Planifiez un controle avec tirage aleatoire des dossiers</p>
@@ -247,7 +247,7 @@ export default function ControleInterne() {
           ) : (
             <div className="space-y-3">
               {controlesPrevus.map(ctrl => (
-                <div key={ctrl.id} className="p-3 rounded-md bg-white/[0.02] border border-white/[0.04]">
+                <div key={ctrl.id} className="p-3 rounded-md bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-blue-400" />
@@ -260,7 +260,7 @@ export default function ControleInterne() {
                         {ctrl.statut === "EN_COURS" ? "En cours" : ctrl.statut === "TERMINE" ? "Termine" : "Planifie"}
                       </Badge>
                     </div>
-                    {ctrl.controleur && <span className="text-xs text-slate-500">Controleur : {ctrl.controleur}</span>}
+                    {ctrl.controleur && <span className="text-xs text-slate-400 dark:text-slate-500">Controleur : {ctrl.controleur}</span>}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
                     {ctrl.dossiers.map((d) => (
@@ -275,7 +275,7 @@ export default function ControleInterne() {
       </Card>
 
       {/* Section Non-conformites */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <div>
             <CardTitle className="text-lg font-semibold flex items-center gap-2">
@@ -283,8 +283,8 @@ export default function ControleInterne() {
               Non-conformites
             </CardTitle>
             <div className="flex gap-4 mt-1.5">
-              <span className="text-xs text-slate-500">{kpis.ouvertes} ouverte(s)</span>
-              <span className="text-xs text-slate-500">{kpis.resoluesTrimestre} resolue(s) ce trimestre</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">{kpis.ouvertes} ouverte(s)</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500">{kpis.resoluesTrimestre} resolue(s) ce trimestre</span>
             </div>
           </div>
           <Button size="sm" onClick={() => setShowNcDialog(true)} className="gap-1.5">
@@ -294,12 +294,12 @@ export default function ControleInterne() {
         <CardContent>
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-500" />
+              <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
               <Input placeholder="Rechercher..." value={ncSearch} onChange={e => setNcSearch(e.target.value)} className="pl-9" aria-label="Rechercher une non-conformite" />
             </div>
             <Select value={ncFilter} onValueChange={setNcFilter}>
               <SelectTrigger className="w-[160px]">
-                <Filter className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                <Filter className="w-3.5 h-3.5 mr-1.5 text-slate-400 dark:text-slate-500" />
                 <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
@@ -310,7 +310,7 @@ export default function ControleInterne() {
               </SelectContent>
             </Select>
           </div>
-          <div className="rounded-md border border-white/[0.06] overflow-x-auto">
+          <div className="rounded-md border border-gray-200 dark:border-white/[0.06] overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -327,7 +327,7 @@ export default function ControleInterne() {
               <TableBody>
                 {filteredNcs.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={8} className="text-center py-8 text-slate-400 dark:text-slate-500">
                       <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-40" />
                       <p className="text-sm">Aucune non-conformite enregistree</p>
                       {(ncSearch || ncFilter !== "all") && (
@@ -339,13 +339,13 @@ export default function ControleInterne() {
                   filteredNcs.map(nc => (
                     <TableRow key={nc.id}>
                       <TableCell className="text-sm">{formatDate(nc.date)}</TableCell>
-                      <TableCell className="text-sm text-slate-400">{nc.source || "---"}</TableCell>
+                      <TableCell className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{nc.source || "---"}</TableCell>
                       <TableCell className="text-sm font-medium">{nc.client || "---"}</TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">{nc.description}</TableCell>
                       <TableCell>
                         <Badge className={`text-xs ${GRAVITE_COLORS[nc.gravite]}`}>{nc.gravite}</Badge>
                       </TableCell>
-                      <TableCell className="text-sm text-slate-400">{nc.responsable || "---"}</TableCell>
+                      <TableCell className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{nc.responsable || "---"}</TableCell>
                       <TableCell className="text-sm">{formatDate(nc.echeance)}</TableCell>
                       <TableCell>
                         <Select value={nc.statut} onValueChange={(v) => handleNcStatutChange(nc.id, v as NonConformite["statut"])}>
@@ -371,7 +371,7 @@ export default function ControleInterne() {
       </Card>
 
       {/* Historique controles CROEC */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <FileText className="w-5 h-5 text-purple-400" />
@@ -383,7 +383,7 @@ export default function ControleInterne() {
         </CardHeader>
         <CardContent>
           {controlesCROEC.length === 0 ? (
-            <div className="text-center py-6 text-slate-500">
+            <div className="text-center py-6 text-slate-400 dark:text-slate-500">
               <FileText className="w-8 h-8 mx-auto mb-2 opacity-40" />
               <p className="text-sm">Aucun controle CROEC enregistre</p>
               <p className="text-xs mt-1">Ajoutez un controle passe pour constituer l'historique</p>
@@ -393,7 +393,7 @@ export default function ControleInterne() {
               <div className="absolute left-3 top-0 bottom-0 w-px bg-slate-700" />
               <div className="space-y-3 pl-8">
                 {controlesCROEC.sort((a, b) => (b.date || "").localeCompare(a.date || "")).map(c => (
-                  <div key={c.id} className="relative p-3 rounded-md bg-white/[0.02] border border-white/[0.04]">
+                  <div key={c.id} className="relative p-3 rounded-md bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04]">
                     <div className={`absolute -left-5 top-4 w-2.5 h-2.5 rounded-full ${
                       c.resultat === "CONFORME" ? "bg-emerald-400" :
                       c.resultat === "AVEC_RESERVES" ? "bg-amber-400" : "bg-red-400"
@@ -401,13 +401,13 @@ export default function ControleInterne() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{formatDate(c.date)}</span>
-                        <span className="text-xs text-slate-500">{c.type}</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">{c.type}</span>
                       </div>
                       <Badge className={`text-xs ${RESULTAT_COLORS[c.resultat]}`}>
                         {RESULTAT_LABELS[c.resultat]}
                       </Badge>
                     </div>
-                    {c.notes && <p className="text-xs text-slate-500 mt-1">{c.notes}</p>}
+                    {c.notes && <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{c.notes}</p>}
                   </div>
                 ))}
               </div>
@@ -436,11 +436,11 @@ export default function ControleInterne() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Date du controle</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Date du controle</Label>
               <Input type="date" value={newControle.date} onChange={e => setNewControle(p => ({ ...p, date: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Controleur</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Controleur</Label>
               <Select value={newControle.controleur} onValueChange={v => setNewControle(p => ({ ...p, controleur: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selectionner..." /></SelectTrigger>
                 <SelectContent>
@@ -451,7 +451,7 @@ export default function ControleInterne() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Nombre de dossiers</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nombre de dossiers</Label>
               <Input type="number" min="1" max="20" value={newControle.nbDossiers} onChange={e => setNewControle(p => ({ ...p, nbDossiers: Number(e.target.value) || 3 }))} />
             </div>
             <div className="flex gap-2 justify-end">
@@ -477,21 +477,21 @@ export default function ControleInterne() {
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Source</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Source</Label>
                 <Input value={newNc.source} onChange={e => setNewNc(p => ({ ...p, source: e.target.value }))} placeholder="Ex: Controle interne" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Client</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Client</Label>
                 <Input value={newNc.client} onChange={e => setNewNc(p => ({ ...p, client: e.target.value }))} placeholder="Nom du client" />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Description *</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Description *</Label>
               <Textarea value={newNc.description} onChange={e => setNewNc(p => ({ ...p, description: e.target.value }))} rows={3} />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Gravite</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Gravite</Label>
                 <Select value={newNc.gravite} onValueChange={v => setNewNc(p => ({ ...p, gravite: v as NonConformite["gravite"] }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -502,16 +502,16 @@ export default function ControleInterne() {
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Echeance</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Echeance</Label>
                 <Input type="date" value={newNc.echeance} onChange={e => setNewNc(p => ({ ...p, echeance: e.target.value }))} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Action corrective</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Action corrective</Label>
               <Textarea value={newNc.actionCorrective} onChange={e => setNewNc(p => ({ ...p, actionCorrective: e.target.value }))} rows={2} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Responsable</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Responsable</Label>
               <Select value={newNc.responsable} onValueChange={v => setNewNc(p => ({ ...p, responsable: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selectionner..." /></SelectTrigger>
                 <SelectContent>
@@ -543,15 +543,15 @@ export default function ControleInterne() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Date *</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Date *</Label>
               <Input type="date" value={newCroec.date} onChange={e => setNewCroec(p => ({ ...p, date: e.target.value }))} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Type</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Type</Label>
               <Input value={newCroec.type} onChange={e => setNewCroec(p => ({ ...p, type: e.target.value }))} placeholder="Controle qualite" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Resultat</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Resultat</Label>
               <Select value={newCroec.resultat} onValueChange={v => setNewCroec(p => ({ ...p, resultat: v as ControleCROEC["resultat"] }))}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
@@ -562,7 +562,7 @@ export default function ControleInterne() {
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Notes</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Notes</Label>
               <Textarea value={newCroec.notes} onChange={e => setNewCroec(p => ({ ...p, notes: e.target.value }))} rows={2} />
             </div>
             <div className="flex gap-2 justify-end">

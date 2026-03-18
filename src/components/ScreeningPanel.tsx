@@ -22,11 +22,11 @@ function normalizeStatus(s: string | null): string | null {
 function StatusIcon({ status, loading }: { status: Status | null; loading: boolean }) {
   if (loading) return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
   const norm = normalizeStatus(status);
-  if (!norm) return <div className="w-4 h-4 rounded-full bg-white/[0.06]" />;
+  if (!norm) return <div className="w-4 h-4 rounded-full bg-gray-100 dark:bg-white/[0.06]" />;
   if (norm === "OK") return <CheckCircle2 className="w-4 h-4 text-emerald-400" />;
   if (norm === "ATTENTION") return <AlertTriangle className="w-4 h-4 text-amber-400" />;
   if (norm === "ALERTE") return <XCircle className="w-4 h-4 text-red-400 animate-pulse" />;
-  return <AlertTriangle className="w-4 h-4 text-slate-500" />;
+  return <AlertTriangle className="w-4 h-4 text-slate-400 dark:text-slate-500" />;
 }
 
 // Per-key contextual badge labels
@@ -62,12 +62,12 @@ function StatusBadge({ status, loading, tooltip, rowKey }: { status: Status | nu
   const badge = (() => {
     if (loading) return <Badge className="bg-blue-500/15 text-blue-400 border-0 text-[10px] rounded-lg">Verification...</Badge>;
     const norm = normalizeStatus(status);
-    if (!norm) return <Badge className="bg-white/[0.06] text-slate-500 border-0 text-[10px] rounded-lg">En attente</Badge>;
+    if (!norm) return <Badge className="bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 border-0 text-[10px] rounded-lg">En attente</Badge>;
     const colors: Record<string, string> = {
       OK: "bg-emerald-500/15 text-emerald-400",
       ATTENTION: "bg-amber-500/15 text-amber-400",
       ALERTE: "bg-red-500/15 text-red-400 animate-pulse",
-      ERREUR: "bg-slate-500/15 text-slate-400",
+      ERREUR: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400",
     };
     const label = norm === "OK"
       ? (rowKey ? OK_LABELS[rowKey] ?? "OK" : "OK")
@@ -78,7 +78,7 @@ function StatusBadge({ status, loading, tooltip, rowKey }: { status: Status | nu
           : norm === "ERREUR"
             ? "Service indisponible"
             : norm;
-    return <Badge className={`${colors[norm] ?? "bg-slate-500/15 text-slate-400"} border-0 text-[10px] rounded-lg`}>{label}</Badge>;
+    return <Badge className={`${colors[norm] ?? "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400"} border-0 text-[10px] rounded-lg`}>{label}</Badge>;
   })();
 
   if (tooltip) {
@@ -279,18 +279,18 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
   const alertCount = rows.filter(r => normalizeStatus(r.status) === "ALERTE").length;
 
   return (
-    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] overflow-hidden print:hidden">
+    <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] overflow-hidden print:hidden">
       {/* Header */}
-      <div className="px-4 py-3 border-b border-white/[0.06] flex items-center gap-2" role="region" aria-label="Panneau de screening automatique">
+      <div className="px-4 py-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2" role="region" aria-label="Panneau de screening automatique">
         <Shield className="w-4 h-4 text-blue-400" />
-        <h3 className="text-sm font-semibold text-slate-300">Screening automatique</h3>
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Screening automatique</h3>
         {anyLoading && (
           <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin ml-auto" />
         )}
         {/* A10: Compact/Detailed toggle */}
         <button
           onClick={() => setIsCompactView(v => !v)}
-          className="ml-auto flex items-center gap-1.5 text-[10px] text-slate-500 hover:text-slate-300 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 rounded px-1.5 py-0.5"
+          className="ml-auto flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 rounded px-1.5 py-0.5"
           aria-label={isCompactView ? "Vue detaillee" : "Vue compacte"}
         >
           {isCompactView ? <LayoutList className="w-3.5 h-3.5" /> : <List className="w-3.5 h-3.5" />}
@@ -300,9 +300,9 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
 
       {/* A5: Summary bar */}
       {completedChecks > 0 && (
-        <div className="px-4 py-2.5 border-b border-white/[0.06] bg-white/[0.01]">
+        <div className="px-4 py-2.5 border-b border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
           <div className="flex items-center justify-between text-[11px] mb-1.5">
-            <span className="text-slate-400">
+            <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
               Screening {anyLoading ? "en cours" : "complete"} — <span className="font-mono tabular-nums">{completedChecks}/{totalChecks}</span> verifications
             </span>
             {alertCount > 0 ? (
@@ -311,7 +311,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
               <span className="text-emerald-400">0 alerte critique</span>
             ) : null}
           </div>
-          <div className="w-full h-1 rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="w-full h-1 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-500 ease-out ${alertCount > 0 ? "bg-red-500" : "bg-emerald-500"}`}
               style={{ width: `${(completedChecks / totalChecks) * 100}%` }}
@@ -344,7 +344,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                     <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
                     <div className="flex items-center gap-2">
                       {row.icon}
-                      <span className="text-sm text-slate-200">{row.label}</span>
+                      <span className="text-sm text-slate-800 dark:text-slate-200">{row.label}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
@@ -363,7 +363,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                 <div className="flex items-center gap-2.5">
                   <StatusIcon status={row.status} loading={row.loading} />
                   {row.icon}
-                  <span className="text-xs text-slate-300">{row.label}</span>
+                  <span className="text-xs text-slate-700 dark:text-slate-300">{row.label}</span>
                 </div>
                 <StatusBadge status={row.status} loading={row.loading} tooltip={TOOLTIPS[row.key]} rowKey={row.key} />
               </div>
@@ -379,17 +379,17 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                     <StatusIcon status={row.status} loading={row.loading} />
                     <div className="flex items-center gap-2">
                       {row.icon}
-                      <span className="text-sm text-slate-200">{row.label}</span>
+                      <span className="text-sm text-slate-800 dark:text-slate-200">{row.label}</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {row.detail && !row.loading && (
-                      <span className="text-[10px] text-slate-500">{row.detail}</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.detail}</span>
                     )}
                     <StatusBadge status={row.status} loading={row.loading} tooltip={TOOLTIPS[row.key]} rowKey={row.key} />
                     {hasDetails && (
                       <CollapsibleTrigger asChild>
-                        <button className="text-slate-500 hover:text-slate-300 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 rounded p-0.5" aria-label="Afficher les details">
+                        <button className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500 rounded p-0.5" aria-label="Afficher les details">
                           <ChevronDown className="w-3.5 h-3.5" />
                         </button>
                       </CollapsibleTrigger>
@@ -416,14 +416,14 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                         </div>
                       ))}
                       {row.alertes.length > 3 && (
-                        <span className="text-[10px] text-slate-500 ml-5">+ {row.alertes.length - 3} autre(s) alerte(s)</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-5">+ {row.alertes.length - 3} autre(s) alerte(s)</span>
                       )}
                     </div>
                   )}
 
                   {/* Google Places details */}
                   {row.key === "localisation" && screening.google.data?.place && !row.loading && (
-                    <div className="mt-2 ml-7 flex items-center gap-3 text-xs text-slate-400 flex-wrap">
+                    <div className="mt-2 ml-7 flex items-center gap-3 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 flex-wrap">
                       <span>{screening.google.data.place.businessStatus === "OPERATIONAL" ? "Ouvert" : screening.google.data.place.businessStatus}</span>
                       {screening.google.data.place.totalRatings > 0 && (
                         <span className="font-mono tabular-nums">{screening.google.data.place.totalRatings} avis</span>
@@ -451,13 +451,13 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                     <div className="mt-2 ml-7 space-y-1">
                       {screening.bodacc.data.annonces.slice(0, 5).map((a: { date: string; type: string; description: string; tribunal: string; isProcedureCollective: boolean }, i: number) => (
                         <div key={`bodacc-${i}`} className="flex items-start gap-2 text-[11px]">
-                          <span className="text-slate-600 shrink-0 font-mono tabular-nums">{a.date?.slice(0, 10) || "—"}</span>
-                          <span className={a.isProcedureCollective ? "text-red-400" : "text-slate-400"}>{a.type}</span>
-                          {a.tribunal && <span className="text-slate-600">({a.tribunal})</span>}
+                          <span className="text-slate-300 dark:text-slate-600 shrink-0 font-mono tabular-nums">{a.date?.slice(0, 10) || "—"}</span>
+                          <span className={a.isProcedureCollective ? "text-red-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}>{a.type}</span>
+                          {a.tribunal && <span className="text-slate-300 dark:text-slate-600">({a.tribunal})</span>}
                         </div>
                       ))}
                       {screening.bodacc.data.annonces.length > 5 && (
-                        <span className="text-[10px] text-slate-600">+ {screening.bodacc.data.annonces.length - 5} autre(s)</span>
+                        <span className="text-[10px] text-slate-300 dark:text-slate-600">+ {screening.bodacc.data.annonces.length - 5} autre(s)</span>
                       )}
                     </div>
                   )}
@@ -467,15 +467,15 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                     <div className="mt-2 ml-7 space-y-2">
                       {screening.news.data.articles.slice(0, 4).map((a: { title: string; url: string; source: string; publishedAt: string; hasAlertKeyword: boolean }, i: number) => (
                         <div key={`news-${i}`} className="flex items-start gap-2 text-[11px]">
-                          <Newspaper className={`w-3 h-3 mt-0.5 shrink-0 ${a.hasAlertKeyword ? "text-red-400" : "text-slate-600"}`} />
+                          <Newspaper className={`w-3 h-3 mt-0.5 shrink-0 ${a.hasAlertKeyword ? "text-red-400" : "text-slate-300 dark:text-slate-600"}`} />
                           <div className="min-w-0 flex-1">
                             <a href={a.url} target="_blank" rel="noopener noreferrer" className={`hover:underline line-clamp-1 font-medium ${a.hasAlertKeyword ? "text-red-300" : "text-blue-400"}`}>
                               {a.title?.length > 80 ? a.title.slice(0, 78) + "\u2026" : a.title}
                             </a>
                             <div className="flex items-center gap-2 mt-0.5">
-                              <span className="text-slate-600">{a.source}</span>
+                              <span className="text-slate-300 dark:text-slate-600">{a.source}</span>
                               <span className="text-slate-700">&middot;</span>
-                              <span className="text-slate-600">{formatRelativeDate(a.publishedAt)}</span>
+                              <span className="text-slate-300 dark:text-slate-600">{formatRelativeDate(a.publishedAt)}</span>
                               {a.hasAlertKeyword && (
                                 <Badge className="bg-red-500/15 text-red-400 border-0 text-[9px] rounded-lg px-1.5 py-0">Mot-cle negatif</Badge>
                               )}
@@ -484,7 +484,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                         </div>
                       ))}
                       {screening.news.data.articles.length > 4 && (
-                        <span className="text-[10px] text-slate-600">+ {screening.news.data.articles.length - 4} autre(s) article(s)</span>
+                        <span className="text-[10px] text-slate-300 dark:text-slate-600">+ {screening.news.data.articles.length - 4} autre(s) article(s)</span>
                       )}
                     </div>
                   )}
@@ -497,9 +497,9 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                           <Shield className={`w-3 h-3 mt-0.5 shrink-0 ${m.isPPE ? "text-amber-400" : "text-red-400"}`} />
                           <div className="min-w-0">
                             <span className={m.isPPE ? "text-amber-300" : "text-red-300"}>{m.caption || m.person}</span>
-                            <span className="text-slate-600 ml-1 font-mono tabular-nums">({Math.round(m.score * 100)}%{m.isPPE ? " — PPE" : ""})</span>
+                            <span className="text-slate-300 dark:text-slate-600 ml-1 font-mono tabular-nums">({Math.round(m.score * 100)}%{m.isPPE ? " — PPE" : ""})</span>
                             {m.datasets?.length > 0 && (
-                              <span className="text-slate-600 ml-1">— {m.datasets.slice(0, 2).join(", ")}</span>
+                              <span className="text-slate-300 dark:text-slate-600 ml-1">— {m.datasets.slice(0, 2).join(", ")}</span>
                             )}
                           </div>
                         </div>

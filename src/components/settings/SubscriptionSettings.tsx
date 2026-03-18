@@ -66,7 +66,7 @@ interface PaymentRecord {
 
 const PLAN_CONFIG: Record<PlanType, { label: string; color: string; bgColor: string }> = {
   trial: { label: "Essai", color: "text-blue-300", bgColor: "bg-blue-500/20 border-blue-500/30" },
-  solo: { label: "Solo", color: "text-slate-300", bgColor: "bg-slate-500/20 border-slate-500/30" },
+  solo: { label: "Solo", color: "text-slate-700 dark:text-slate-300", bgColor: "bg-slate-500/20 border-slate-500/30" },
   cabinet: { label: "Cabinet", color: "text-blue-300", bgColor: "bg-blue-500/20 border-blue-500/30" },
   enterprise: { label: "Enterprise", color: "text-purple-300", bgColor: "bg-purple-500/20 border-purple-500/30" },
 };
@@ -82,7 +82,7 @@ const PAYMENT_STATUS_CONFIG: Record<string, { label: string; color: string }> = 
   paid: { label: "Paye", color: "text-green-400" },
   pending: { label: "En attente", color: "text-orange-400" },
   failed: { label: "Echoue", color: "text-red-400" },
-  refunded: { label: "Rembourse", color: "text-slate-400" },
+  refunded: { label: "Rembourse", color: "text-slate-400 dark:text-slate-500 dark:text-slate-400" },
 };
 
 const PLANS = [
@@ -234,7 +234,7 @@ export default function SubscriptionSettings() {
   if (!usage) {
     return (
       <div className="glass-card border border-white/10 rounded-xl p-6">
-        <div className="flex items-center gap-3 text-slate-400">
+        <div className="flex items-center gap-3 text-slate-400 dark:text-slate-500 dark:text-slate-400">
           <AlertCircle className="w-5 h-5" />
           <p>Impossible de charger les donnees d'abonnement. Veuillez reessayer plus tard.</p>
         </div>
@@ -257,14 +257,14 @@ export default function SubscriptionSettings() {
               <Crown className="w-5 h-5 text-amber-400" />
               Abonnement
             </h2>
-            <p className="text-sm text-slate-400 mt-1">Gerez votre plan et vos ressources.</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Gerez votre plan et vos ressources.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Plan */}
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
-            <p className="text-xs text-slate-500 uppercase tracking-wider">Plan actuel</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Plan actuel</p>
             <Badge className={`${planConfig.bgColor} ${planConfig.color} border text-sm`}>
               {planConfig.label}
             </Badge>
@@ -272,7 +272,7 @@ export default function SubscriptionSettings() {
 
           {/* Status */}
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
-            <p className="text-xs text-slate-500 uppercase tracking-wider">Statut</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Statut</p>
             <Badge className={`${statusConfig.bgColor} ${statusConfig.color} border text-sm`}>
               {statusConfig.label}
             </Badge>
@@ -280,10 +280,10 @@ export default function SubscriptionSettings() {
 
           {/* Billing cycle */}
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
-            <p className="text-xs text-slate-500 uppercase tracking-wider">Cycle de facturation</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Cycle de facturation</p>
             <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-slate-400" />
-              <span className="text-sm text-slate-200">
+              <Calendar className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
+              <span className="text-sm text-slate-800 dark:text-slate-200">
                 {usage.billing_cycle === "annual" ? "Annuel" : "Mensuel"}
               </span>
             </div>
@@ -293,7 +293,7 @@ export default function SubscriptionSettings() {
           <div className="bg-white/5 border border-white/10 rounded-lg p-4 space-y-2">
             {usage.trial_days_remaining != null ? (
               <>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Jours restants</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Jours restants</p>
                 <div className="flex items-center gap-2">
                   <Clock className="w-4 h-4 text-blue-400" />
                   <span className="text-sm text-blue-300 font-medium">
@@ -303,8 +303,8 @@ export default function SubscriptionSettings() {
               </>
             ) : (
               <>
-                <p className="text-xs text-slate-500 uppercase tracking-wider">Prochain renouvellement</p>
-                <span className="text-sm text-slate-200">
+                <p className="text-xs text-slate-400 dark:text-slate-500 uppercase tracking-wider">Prochain renouvellement</p>
+                <span className="text-sm text-slate-800 dark:text-slate-200">
                   {usage.current_period_end ? formatDate(usage.current_period_end) : "—"}
                 </span>
               </>
@@ -324,8 +324,8 @@ export default function SubscriptionSettings() {
           {/* Seats */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-300">Sieges utilises</span>
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-slate-700 dark:text-slate-300">Sieges utilises</span>
+              <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
                 {usage.seats_used} / {usage.seats_limit}
               </span>
             </div>
@@ -334,7 +334,7 @@ export default function SubscriptionSettings() {
               className="h-2.5 bg-white/10"
             />
             {usage.pending_invitations > 0 && (
-              <p className="text-xs text-slate-500 flex items-center gap-1.5">
+              <p className="text-xs text-slate-400 dark:text-slate-500 flex items-center gap-1.5">
                 <UserPlus className="w-3.5 h-3.5" />
                 {usage.pending_invitations} invitation{usage.pending_invitations > 1 ? "s" : ""} en attente
               </p>
@@ -344,8 +344,8 @@ export default function SubscriptionSettings() {
           {/* Clients */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <span className="text-sm text-slate-300">Clients</span>
-              <span className="text-sm text-slate-400">
+              <span className="text-sm text-slate-700 dark:text-slate-300">Clients</span>
+              <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
                 {usage.clients_used} / {usage.clients_limit}
               </span>
             </div>
@@ -380,10 +380,10 @@ export default function SubscriptionSettings() {
                 Changer de plan
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-[700px] bg-slate-900 border-white/10">
+            <DialogContent className="sm:max-w-[700px] bg-gray-50 dark:bg-slate-900 border-white/10">
               <DialogHeader>
                 <DialogTitle className="text-slate-100">Changer de plan</DialogTitle>
-                <DialogDescription className="text-slate-400">
+                <DialogDescription className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
                   Selectionnez le plan qui correspond le mieux a vos besoins.
                 </DialogDescription>
               </DialogHeader>
@@ -400,7 +400,7 @@ export default function SubscriptionSettings() {
                       } ${isCurrent ? "ring-2 ring-blue-500/50" : ""}`}
                     >
                       {plan.popular && (
-                        <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-[10px]">
+                        <Badge className="absolute -top-2.5 left-1/2 -translate-x-1/2 bg-blue-500 text-slate-900 dark:text-white text-[10px]">
                           Populaire
                         </Badge>
                       )}
@@ -408,15 +408,15 @@ export default function SubscriptionSettings() {
                         <h3 className="text-base font-semibold text-slate-100">{plan.name}</h3>
                         <div className="mt-2">
                           <span className="text-2xl font-bold text-slate-100">{plan.price}€</span>
-                          <span className="text-sm text-slate-400">/mois</span>
+                          <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">/mois</span>
                         </div>
-                        <p className="text-xs text-slate-500 mt-0.5">
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                           ou {plan.priceAnnual}€/mois (annuel)
                         </p>
                       </div>
                       <ul className="space-y-2">
                         {plan.features.map((feature) => (
-                          <li key={feature} className="flex items-start gap-2 text-sm text-slate-300">
+                          <li key={feature} className="flex items-start gap-2 text-sm text-slate-700 dark:text-slate-300">
                             <Check className="w-4 h-4 text-green-400 mt-0.5 shrink-0" />
                             {feature}
                           </li>
@@ -446,12 +446,12 @@ export default function SubscriptionSettings() {
       {/* Payment history */}
       <div className="glass-card border border-white/10 rounded-xl p-6 space-y-5">
         <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
-          <CreditCard className="w-5 h-5 text-slate-400" />
+          <CreditCard className="w-5 h-5 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
           Historique des paiements
         </h2>
 
         {payments.length === 0 ? (
-          <div className="text-center py-6 text-slate-500">
+          <div className="text-center py-6 text-slate-400 dark:text-slate-500">
             <CreditCard className="w-8 h-8 mx-auto mb-2 opacity-40" />
             <p className="text-sm">Aucun paiement enregistre.</p>
           </div>
@@ -460,27 +460,27 @@ export default function SubscriptionSettings() {
             <Table>
               <TableHeader>
                 <TableRow className="border-white/10 hover:bg-transparent">
-                  <TableHead className="text-slate-400">Date</TableHead>
-                  <TableHead className="text-slate-400">Description</TableHead>
-                  <TableHead className="text-slate-400 text-right">Montant</TableHead>
-                  <TableHead className="text-slate-400 text-right">Statut</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Date</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Description</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-right">Montant</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-right">Statut</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {payments.map((payment) => {
                   const statusCfg = PAYMENT_STATUS_CONFIG[payment.status] || {
                     label: payment.status,
-                    color: "text-slate-400",
+                    color: "text-slate-400 dark:text-slate-500 dark:text-slate-400",
                   };
                   return (
                     <TableRow key={payment.id} className="border-white/10">
-                      <TableCell className="text-slate-300 text-sm">
+                      <TableCell className="text-slate-700 dark:text-slate-300 text-sm">
                         {formatDate(payment.date)}
                       </TableCell>
-                      <TableCell className="text-slate-300 text-sm">
+                      <TableCell className="text-slate-700 dark:text-slate-300 text-sm">
                         {payment.description}
                       </TableCell>
-                      <TableCell className="text-slate-200 text-sm text-right font-medium">
+                      <TableCell className="text-slate-800 dark:text-slate-200 text-sm text-right font-medium">
                         {formatCurrency(payment.amount)}
                       </TableCell>
                       <TableCell className="text-right">

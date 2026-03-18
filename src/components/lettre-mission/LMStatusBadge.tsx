@@ -58,7 +58,7 @@ export default function LMStatusBadge({ status, size = "sm", showTooltip, dateLa
         <TooltipTrigger asChild>{badge}</TooltipTrigger>
         <TooltipContent side="top" className="text-xs">
           <p>{info.description}</p>
-          {dateLabel && <p className="text-slate-400 mt-0.5">{dateLabel}</p>}
+          {dateLabel && <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-0.5">{dateLabel}</p>}
         </TooltipContent>
       </Tooltip>
     );

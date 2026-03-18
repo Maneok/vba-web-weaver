@@ -193,7 +193,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
 
       {/* Hidden sections info */}
       {hiddenCount > 0 && (
-        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-500/5 border border-white/[0.06] text-xs text-slate-500">
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-500/5 border border-gray-200 dark:border-white/[0.06] text-xs text-slate-400 dark:text-slate-500">
           <EyeOff className="w-3.5 h-3.5 shrink-0" />
           {hiddenCount} section{hiddenCount > 1 ? "s masquées" : " masquée"} (non applicable pour {mtConfig.shortLabel})
         </div>
@@ -221,8 +221,8 @@ export default function LMStep2Missions({ data, onChange }: Props) {
               key={mission.section_id}
               className={`rounded-xl border-2 transition-all duration-200 ${
                 mission.selected
-                  ? "bg-white/[0.04] border-blue-500/20"
-                  : "bg-white/[0.01] border-white/[0.04] hover:border-white/[0.08]"
+                  ? "bg-gray-50/80 dark:bg-white/[0.04] border-blue-500/20"
+                  : "bg-white/[0.01] border-gray-100 dark:border-white/[0.04] hover:border-gray-300 dark:border-white/[0.08]"
               }`}
             >
               <button
@@ -231,19 +231,19 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 disabled={isLocked}
                 aria-label={`${mission.selected ? "Desactiver" : "Activer"} ${mission.label}`}
                 className={`w-full flex items-center gap-3 p-4 text-left min-h-[56px] rounded-xl transition-colors ${
-                  isLocked ? "cursor-default" : "cursor-pointer active:bg-white/[0.02] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
+                  isLocked ? "cursor-default" : "cursor-pointer active:bg-white dark:bg-white/[0.02] focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400"
                 }`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                  mission.selected ? "bg-blue-500/15 text-blue-400" : "bg-white/[0.04] text-slate-500"
+                  mission.selected ? "bg-blue-500/15 text-blue-400" : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500"
                 }`}>
                   {icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${mission.selected ? "text-white" : "text-slate-400"}`}>
+                  <p className={`text-sm font-semibold ${mission.selected ? "text-slate-900 dark:text-white" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>
                     {mission.label}
                   </p>
-                  <p className="text-[11px] text-slate-500 mt-0.5">{mission.description}</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{mission.description}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isLocked && (
@@ -252,7 +252,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                     </Badge>
                   )}
                   {mission.selected && !isLocked && (
-                    <span className="text-[10px] text-slate-500 tabular-nums">{subCount}/{mission.sous_options.length}</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums">{subCount}/{mission.sous_options.length}</span>
                   )}
                   <Switch
                     checked={mission.selected}
@@ -260,19 +260,19 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                     disabled={isLocked}
                     onClick={(e) => e.stopPropagation()}
                   />
-                  {mission.selected && <ChevronDown className="w-4 h-4 text-slate-500" />}
+                  {mission.selected && <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
                 </div>
               </button>
 
               <div className={`overflow-hidden transition-all duration-200 ${
                 mission.selected ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
               }`}>
-                <div className="px-4 pb-4 pt-1 space-y-1 border-t border-white/[0.04]">
+                <div className="px-4 pb-4 pt-1 space-y-1 border-t border-gray-100 dark:border-white/[0.04]">
                   {mission.sous_options.map((opt) => (
                     <label
                       key={opt.id}
                       className={`flex items-center gap-3 p-2.5 rounded-lg transition-colors ${
-                        isLocked ? "cursor-default opacity-60" : "cursor-pointer hover:bg-white/[0.03] active:bg-white/[0.05]"
+                        isLocked ? "cursor-default opacity-60" : "cursor-pointer hover:bg-gray-50 dark:bg-white/[0.03] active:bg-gray-100 dark:bg-white/[0.05]"
                       }`}
                     >
                       <Checkbox
@@ -280,7 +280,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                         onCheckedChange={() => toggleSub(mission.section_id, opt.id)}
                         disabled={isLocked}
                       />
-                      <span className={`text-sm ${opt.selected ? "text-slate-300" : "text-slate-500"}`}>
+                      <span className={`text-sm ${opt.selected ? "text-slate-700 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}`}>
                         {opt.label}
                       </span>
                     </label>

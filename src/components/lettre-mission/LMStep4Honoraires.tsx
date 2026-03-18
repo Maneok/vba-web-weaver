@@ -57,14 +57,14 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
     setFieldErrors((prev) => ({ ...prev, [field]: error }));
   };
 
-  const inputCls = "bg-white/[0.04] border-white/[0.08] text-white";
-  const errorCls = "bg-white/[0.04] border-red-500/40 text-white ring-1 ring-red-500/20";
+  const inputCls = "bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white";
+  const errorCls = "bg-gray-50/80 dark:bg-white/[0.04] border-red-500/40 text-slate-900 dark:text-white ring-1 ring-red-500/20";
 
   return (
     <div className="space-y-8">
       {/* ── Grand input montant ── */}
       <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-2 text-slate-400">
+        <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400">
           <DollarSign className="w-5 h-5 text-blue-400" />
           <span className="text-sm font-medium">Honoraires annuels HT</span>
         </div>
@@ -80,7 +80,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
             className={`${fieldErrors.honoraires_ht ? errorCls : inputCls} text-center text-4xl font-bold h-16`}
             placeholder="0"
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-500">€ HT / an</span>
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 dark:text-slate-500">€ HT / an</span>
         </div>
         {fieldErrors.honoraires_ht && (
           <p className="text-xs text-red-400 animate-shake" role="alert">{fieldErrors.honoraires_ht}</p>
@@ -91,17 +91,17 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           {data.taux_tva > 0 ? (
             <>
               <div>
-                <span className="text-slate-500">TVA {data.taux_tva}% : </span>
-                <span className="text-slate-300">{formatEur(tva)}</span>
+                <span className="text-slate-400 dark:text-slate-500">TVA {data.taux_tva}% : </span>
+                <span className="text-slate-700 dark:text-slate-300">{formatEur(tva)}</span>
               </div>
-              <div className="w-px h-4 bg-white/[0.1]" />
+              <div className="w-px h-4 bg-gray-200 dark:bg-white/[0.1]" />
               <div>
-                <span className="text-slate-500">TTC : </span>
-                <span className="text-xl font-bold text-white">{formatEur(ttc)}</span>
+                <span className="text-slate-400 dark:text-slate-500">TTC : </span>
+                <span className="text-xl font-bold text-slate-900 dark:text-white">{formatEur(ttc)}</span>
               </div>
             </>
           ) : (
-            <span className="text-slate-500">TVA exoneree — TTC = <span className="text-white font-bold">{formatEur(data.honoraires_ht)}</span></span>
+            <span className="text-slate-400 dark:text-slate-500">TVA exoneree — TTC = <span className="text-slate-900 dark:text-white font-bold">{formatEur(data.honoraires_ht)}</span></span>
           )}
         </div>
       </div>
@@ -116,7 +116,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           step={100}
           className="w-full"
         />
-        <div className="flex justify-between text-[10px] text-slate-600 mt-1">
+        <div className="flex justify-between text-[10px] text-slate-300 dark:text-slate-600 mt-1">
           <span>0 €</span>
           <span>50 000 €</span>
         </div>
@@ -124,7 +124,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Taux TVA ── */}
       <div className="space-y-1.5">
-        <Label className="text-slate-400 text-xs">Taux de TVA (%)</Label>
+        <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Taux de TVA (%)</Label>
         <div className="flex gap-2">
           {[0, 5.5, 10, 20].map((rate) => {
             const active = data.taux_tva === rate;
@@ -135,7 +135,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 className={`px-3.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   active
                     ? "border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm shadow-blue-500/10"
-                    : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
+                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-white/[0.12] hover:bg-gray-50/80 dark:bg-white/[0.04]"
                 }`}
               >
                 {rate === 0 ? "Exonere" : `${rate}%`}
@@ -147,7 +147,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Fréquence facturation ── */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-300">Frequence de facturation</p>
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Frequence de facturation</p>
         <div className="grid grid-cols-3 gap-3">
           {FREQUENCES.map((f) => {
             const active = data.frequence_facturation === f.value;
@@ -158,16 +158,16 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${
                   active
                     ? "border-blue-500 bg-blue-500/10"
-                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]"
+                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-white/[0.12]"
                 }`}
               >
-                <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{f.label}</p>
+                <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-700 dark:text-slate-300"}`}>{f.label}</p>
               </button>
             );
           })}
         </div>
         {data.honoraires_ht > 0 && data.frequence_facturation !== "ANNUEL" && (
-          <p className="text-xs text-slate-500 text-center">
+          <p className="text-xs text-slate-400 dark:text-slate-500 text-center">
             Soit {formatEur(perPeriod)} TTC / {periodLabel}
           </p>
         )}
@@ -175,7 +175,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Mode de paiement ── */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-300">Mode de paiement</p>
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Mode de paiement</p>
         <div className="grid grid-cols-3 gap-3">
           {MODES_PAIEMENT.map(({ value, label }) => {
             const active = data.mode_paiement === value;
@@ -187,11 +187,11 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 ${
                   active
                     ? "border-blue-500 bg-blue-500/10"
-                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]"
+                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-white/[0.12]"
                 }`}
               >
-                <div className={`${active ? "text-blue-400" : "text-slate-500"}`}>{icon}</div>
-                <p className={`text-xs font-medium ${active ? "text-blue-300" : "text-slate-400"}`}>{label}</p>
+                <div className={`${active ? "text-blue-400" : "text-slate-400 dark:text-slate-500"}`}>{icon}</div>
+                <p className={`text-xs font-medium ${active ? "text-blue-300" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>{label}</p>
               </button>
             );
           })}
@@ -200,9 +200,9 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── SEPA fields ── */}
       {data.mode_paiement === "prelevement" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
           <div className="space-y-1.5">
-            <Label className="text-slate-400 text-xs">IBAN</Label>
+            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">IBAN</Label>
             <Input
               value={formatIBAN(data.iban)}
               onChange={(e) => onChange({ iban: e.target.value.replace(/\s/g, "") })}
@@ -214,7 +214,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
             {fieldErrors.iban && <p className="text-xs text-red-400" role="alert">{fieldErrors.iban}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-slate-400 text-xs">BIC</Label>
+            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">BIC</Label>
             <Input
               value={data.bic}
               onChange={(e) => onChange({ bic: e.target.value.toUpperCase() })}
@@ -228,7 +228,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Echeance paiement ── */}
       <div className="space-y-1.5">
-        <Label className="text-slate-400 text-xs">Echeance de paiement (jours)</Label>
+        <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Echeance de paiement (jours)</Label>
         <div className="flex gap-2">
           {[15, 30, 45, 60].map((d) => {
             const active = data.echeance_jours === d;
@@ -239,7 +239,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 className={`px-3.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   active
                     ? "border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm shadow-blue-500/10"
-                    : "border-white/[0.06] bg-white/[0.02] text-slate-400 hover:border-white/[0.12] hover:bg-white/[0.04]"
+                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-white/[0.12] hover:bg-gray-50/80 dark:bg-white/[0.04]"
                 }`}
               >
                 {d}j
@@ -251,7 +251,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Taux horaire complémentaire ── */}
       <div className="space-y-1.5">
-        <Label className="text-slate-400 text-xs">Taux horaire complementaire</Label>
+        <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Taux horaire complementaire</Label>
         <div className="relative w-40">
           <Input
             inputMode="decimal"
@@ -260,29 +260,29 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
             className={`${inputCls} pr-16`}
             placeholder="150"
           />
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-500 pointer-events-none">€ HT/h</span>
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-slate-500 pointer-events-none">€ HT/h</span>
         </div>
-        <p className="text-[10px] text-slate-600">Pour toute prestation hors perimetre</p>
+        <p className="text-[10px] text-slate-300 dark:text-slate-600">Pour toute prestation hors perimetre</p>
       </div>
 
       {/* ── OPT-11: Honoraires de succès ── */}
       {mtConfig.honorairesSuccesAutorises && (
-        <div className="space-y-3 p-4 rounded-xl bg-white/[0.02] border border-white/[0.06]">
+        <div className="space-y-3 p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
           <div className="flex items-center gap-2">
             <Trophy className="w-4 h-4 text-amber-400" />
-            <p className="text-sm font-medium text-slate-300">Honoraires complementaires de succes</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Honoraires complementaires de succes</p>
           </div>
           <label className="flex items-center gap-3 cursor-pointer">
             <Checkbox
               checked={data.honoraires_succes_prevu || false}
               onCheckedChange={(v) => onChange({ honoraires_succes_prevu: !!v })}
             />
-            <span className="text-sm text-slate-300">Prevoir des honoraires de succes</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300">Prevoir des honoraires de succes</span>
           </label>
           {data.honoraires_succes_prevu && (
             <div className="space-y-3 ml-7">
               <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs">Conditions de declenchement</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Conditions de declenchement</Label>
                 <Input
                   value={data.honoraires_succes_conditions || ""}
                   onChange={(e) => onChange({ honoraires_succes_conditions: e.target.value })}
@@ -291,7 +291,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs">Montant ou pourcentage</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Montant ou pourcentage</Label>
                 <Input
                   value={data.honoraires_succes_montant || ""}
                   onChange={(e) => onChange({ honoraires_succes_montant: e.target.value })}
@@ -309,9 +309,9 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
         <div className="flex items-center justify-between p-4 rounded-xl bg-blue-500/5 border border-blue-500/15">
           <div className="flex items-center gap-2">
             <Calculator className="w-4 h-4 text-blue-400" />
-            <span className="text-sm text-slate-300">Total honoraires annuels estimes</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300">Total honoraires annuels estimes</span>
           </div>
-          <span className="text-lg font-bold text-white">{formatEur(data.honoraires_ht)} HT</span>
+          <span className="text-lg font-bold text-slate-900 dark:text-white">{formatEur(data.honoraires_ht)} HT</span>
         </div>
       )}
     </div>

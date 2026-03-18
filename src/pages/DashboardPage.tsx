@@ -489,7 +489,7 @@ export default function DashboardPage() {
             cockpitUrgencies={cockpitData.urgencies} complianceItems={complianceItems}
           />
           <button
-            className="h-8 flex items-center gap-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-all disabled:opacity-45 hover:shadow-md hover:shadow-emerald-500/15 active:scale-95"
+            className="h-8 flex items-center gap-1.5 px-3 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white text-xs font-medium transition-all disabled:opacity-45 hover:shadow-md hover:shadow-emerald-500/15 active:scale-95"
             onClick={handleRefresh}
             disabled={isRefreshing}
             title="Rafraîchir (R)"

@@ -16,12 +16,12 @@ export default function AttestationTravailDissimule({
 
   return (
     <div className="border border-slate-600 rounded-lg">
-      <div className="bg-gray-800 text-white px-6 py-3 rounded-t-lg">
+      <div className="bg-gray-800 text-slate-900 dark:text-white px-6 py-3 rounded-t-lg">
         <h3 className="text-base font-semibold">
           {ATTESTATION_TRAVAIL_DISSIMULE?.titre ?? "Attestation"}
         </h3>
       </div>
-      <div className="p-6 text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+      <div className="p-6 text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line">
         {texte}
       </div>
     </div>

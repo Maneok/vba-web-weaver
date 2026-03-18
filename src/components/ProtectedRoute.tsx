@@ -160,7 +160,7 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
           )}
         </div>
         <div className="text-center space-y-1">
-          <p className="text-base font-medium text-white">
+          <p className="text-base font-medium text-slate-900 dark:text-white">
             {isOffline ? "Pas de connexion internet" : "Impossible de charger le profil"}
           </p>
           <p className="text-sm text-muted-foreground">
@@ -178,7 +178,7 @@ export default function ProtectedRoute({ children, requiredPermission, skipOnboa
           </button>
           <button
             onClick={() => signOut()}
-            className="flex items-center gap-2 px-5 py-2.5 bg-white/[0.06] text-slate-300 rounded-lg text-sm font-medium hover:bg-white/[0.1] transition-colors border border-white/[0.08]"
+            className="flex items-center gap-2 px-5 py-2.5 bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:bg-white/[0.1] transition-colors border border-gray-300 dark:border-white/[0.08]"
           >
             <LogOut className="w-4 h-4" />
             Se deconnecter

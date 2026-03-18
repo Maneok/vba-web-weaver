@@ -23,7 +23,7 @@ export default function LcbftBloc({ vigilanceLevel, client }: LcbftBlocProps) {
   return (
     <div className="border-l-4 border-[#0f172a] bg-[#f8fafc] rounded-r-lg overflow-hidden">
       {/* Header */}
-      <div className="bg-[#0f172a] text-white px-6 py-4 flex items-center gap-3">
+      <div className="bg-[#0f172a] text-slate-900 dark:text-white px-6 py-4 flex items-center gap-3">
         <Lock className="h-5 w-5" />
         <h3 className="text-lg font-semibold">{template.titre}</h3>
       </div>

@@ -63,7 +63,7 @@ export default function AnnexesPreview({ repartition, onRepartitionChange }: Ann
             </thead>
             <tbody>
               {rows.map((row) => (
-                <tr key={row.id} className="border-b border-white/[0.04] hover:bg-white/[0.02]">
+                <tr key={row.id} className="border-b border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02]">
                   <td className="px-3 py-2 text-xs">{row.label}</td>
                   <td className="px-3 py-2 text-center">
                     <Checkbox

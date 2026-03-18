@@ -223,33 +223,33 @@ export default function BddPage() {
       <div className="p-6 lg:p-8 space-y-6 max-w-[1400px] mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-2">
-            <Skeleton className="h-6 w-56 bg-white/[0.06]" />
-            <Skeleton className="h-4 w-36 bg-white/[0.04]" />
+            <Skeleton className="h-6 w-56 bg-gray-100 dark:bg-white/[0.06]" />
+            <Skeleton className="h-4 w-36 bg-gray-50/80 dark:bg-white/[0.04]" />
           </div>
           <div className="flex gap-2">
-            <Skeleton className="h-9 w-28 bg-white/[0.06]" />
-            <Skeleton className="h-9 w-36 bg-white/[0.06]" />
+            <Skeleton className="h-9 w-28 bg-gray-100 dark:bg-white/[0.06]" />
+            <Skeleton className="h-9 w-36 bg-gray-100 dark:bg-white/[0.06]" />
           </div>
         </div>
         <div className="flex gap-3 flex-wrap">
-          <Skeleton className="h-10 flex-1 min-w-[220px] bg-white/[0.04]" />
-          <Skeleton className="h-10 w-[180px] bg-white/[0.04]" />
-          <Skeleton className="h-10 w-[170px] bg-white/[0.04]" />
-          <Skeleton className="h-10 w-[150px] bg-white/[0.04]" />
+          <Skeleton className="h-10 flex-1 min-w-[220px] bg-gray-50/80 dark:bg-white/[0.04]" />
+          <Skeleton className="h-10 w-[180px] bg-gray-50/80 dark:bg-white/[0.04]" />
+          <Skeleton className="h-10 w-[170px] bg-gray-50/80 dark:bg-white/[0.04]" />
+          <Skeleton className="h-10 w-[150px] bg-gray-50/80 dark:bg-white/[0.04]" />
         </div>
         <div className="glass-card overflow-hidden">
           <div className="p-4 space-y-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-4 w-4 bg-white/[0.04]" />
-                <Skeleton className="h-4 w-16 bg-white/[0.04]" />
-                <Skeleton className="h-4 w-40 bg-white/[0.06]" />
-                <Skeleton className="h-4 w-16 bg-white/[0.04]" />
-                <Skeleton className="h-4 w-24 bg-white/[0.04]" />
-                <Skeleton className="h-4 w-16 bg-white/[0.04]" />
-                <Skeleton className="h-4 w-12 bg-white/[0.04]" />
-                <Skeleton className="h-5 w-20 rounded-full bg-white/[0.04]" />
-                <Skeleton className="h-5 w-16 rounded-full bg-white/[0.04]" />
+                <Skeleton className="h-4 w-4 bg-gray-50/80 dark:bg-white/[0.04]" />
+                <Skeleton className="h-4 w-16 bg-gray-50/80 dark:bg-white/[0.04]" />
+                <Skeleton className="h-4 w-40 bg-gray-100 dark:bg-white/[0.06]" />
+                <Skeleton className="h-4 w-16 bg-gray-50/80 dark:bg-white/[0.04]" />
+                <Skeleton className="h-4 w-24 bg-gray-50/80 dark:bg-white/[0.04]" />
+                <Skeleton className="h-4 w-16 bg-gray-50/80 dark:bg-white/[0.04]" />
+                <Skeleton className="h-4 w-12 bg-gray-50/80 dark:bg-white/[0.04]" />
+                <Skeleton className="h-5 w-20 rounded-full bg-gray-50/80 dark:bg-white/[0.04]" />
+                <Skeleton className="h-5 w-16 rounded-full bg-gray-50/80 dark:bg-white/[0.04]" />
               </div>
             ))}
           </div>
@@ -263,14 +263,14 @@ export default function BddPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-xl font-bold text-white">Base de Donnees Clients</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{clients.length} dossiers · {filtered.length} affiches</p>
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Base de Donnees Clients</h1>
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">{clients.length} dossiers · {filtered.length} affiches</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={() => refreshClients()} title="Rafraichir la liste">
+          <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={() => refreshClients()} title="Rafraichir la liste">
             <RefreshCw className="w-3.5 h-3.5" />
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 border-white/[0.06]" onClick={handleExportCSV}>
+          <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06]" onClick={handleExportCSV}>
             <Download className="w-3.5 h-3.5" /> <span className="hidden sm:inline">Export CSV</span>
           </Button>
           <Button className="gap-1.5 bg-emerald-600 hover:bg-emerald-700" onClick={() => navigate("/nouveau-client")}>
@@ -282,22 +282,22 @@ export default function BddPage() {
       {/* Filters */}
       <div className="flex gap-2 flex-wrap items-center animate-fade-in-up-delay-1">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             aria-label="Rechercher un client"
-            className="pl-9 pr-24 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
+            className="pl-9 pr-24 bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50 focus:ring-blue-500/20"
           />
           {debouncedSearch && (
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 bg-white/[0.06] px-2 py-0.5 rounded-full" aria-live="polite" aria-atomic="true">
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-gray-100 dark:bg-white/[0.06] px-2 py-0.5 rounded-full" aria-live="polite" aria-atomic="true">
               {filtered.length} resultat{filtered.length !== 1 ? "s" : ""}
             </span>
           )}
         </div>
         <Select value={filterVigilance} onValueChange={setFilterVigilance}>
-          <SelectTrigger className="w-full sm:w-[160px] bg-white/[0.03] border-white/[0.06]">
+          <SelectTrigger className="w-full sm:w-[160px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]">
             <SelectValue placeholder="Vigilance" />
           </SelectTrigger>
           <SelectContent>
@@ -308,7 +308,7 @@ export default function BddPage() {
           </SelectContent>
         </Select>
         <Select value={filterPilotage} onValueChange={setFilterPilotage}>
-          <SelectTrigger className="w-full sm:w-[150px] bg-white/[0.03] border-white/[0.06]">
+          <SelectTrigger className="w-full sm:w-[150px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]">
             <SelectValue placeholder="Pilotage" />
           </SelectTrigger>
           <SelectContent>
@@ -319,7 +319,7 @@ export default function BddPage() {
           </SelectContent>
         </Select>
         <Select value={filterEtat} onValueChange={setFilterEtat}>
-          <SelectTrigger className="w-full sm:w-[130px] bg-white/[0.03] border-white/[0.06]">
+          <SelectTrigger className="w-full sm:w-[130px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]">
             <SelectValue placeholder="Etat" />
           </SelectTrigger>
           <SelectContent>
@@ -341,7 +341,7 @@ export default function BddPage() {
             variant="ghost"
             size="sm"
             onClick={clearFilters}
-            className="gap-1 text-xs text-slate-400 hover:text-slate-200"
+            className="gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"
           >
             <X className="w-3 h-3" /> Effacer filtres
           </Button>
@@ -353,17 +353,17 @@ export default function BddPage() {
         <div className="glass-card p-4 animate-fade-in-up-delay-1">
           <div className="flex items-center gap-2 mb-3">
             <Clock className="w-4 h-4 text-blue-400" />
-            <h3 className="text-sm font-semibold text-slate-300">Brouillons ({drafts.length})</h3>
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Brouillons ({drafts.length})</h3>
           </div>
           <div className="space-y-2">
             {drafts.map(draft => (
               <div key={draft.key} className="flex items-center justify-between p-3 rounded-lg border border-blue-500/20 bg-blue-500/5">
                 <div className="flex items-center gap-3">
                   <div>
-                    <span className="text-sm text-slate-200 font-medium">{draft.raisonSociale || "Sans nom"}</span>
-                    <span className="text-xs text-slate-500 ml-2 font-mono">{draft.siren}</span>
+                    <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{draft.raisonSociale || "Sans nom"}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 ml-2 font-mono">{draft.siren}</span>
                   </div>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">
                     Etape {draft.step + 1}/6 · {draft.savedAt ? (() => {
                       const diff = Date.now() - draft.savedAt;
                       const mins = Math.floor(diff / 60000);
@@ -483,7 +483,7 @@ export default function BddPage() {
               <Trash2 className="w-3 h-3" /> Supprimer
             </Button>
           )}
-          <Button size="sm" variant="ghost" className="text-xs text-slate-400" onClick={() => { setSelectedRefs(new Set()); setSelectAllPages(false); }}>
+          <Button size="sm" variant="ghost" className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" onClick={() => { setSelectedRefs(new Set()); setSelectAllPages(false); }}>
             Deselectionner
           </Button>
         </div>
@@ -494,9 +494,9 @@ export default function BddPage() {
         {filtered.length === 0 ? (
           <div className="glass-card p-10 flex flex-col items-center gap-3 text-center">
             <DatabaseZap className="w-10 h-10 text-slate-600" />
-            <p className="text-sm text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
             {activeFilterCount > 0 && (
-              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1 text-xs border-white/[0.08]">
+              <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1 text-xs border-gray-300 dark:border-white/[0.08]">
                 <X className="w-3 h-3" /> Effacer les filtres
               </Button>
             )}
@@ -505,27 +505,27 @@ export default function BddPage() {
           paginated.map((client) => (
             <div
               key={client.ref}
-              className="glass-card p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-white/[0.03] transition-colors"
+              className="glass-card p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-gray-50 dark:bg-white/[0.03] transition-colors"
               onClick={() => navigate(`/client/${client.ref}`)}
             >
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
-                  <span className="font-mono text-[10px] text-slate-500">{client.ref}</span>
+                  <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500">{client.ref}</span>
                   <VigilanceBadge level={client.nivVigilance} />
                 </div>
                 {/* OPT-21: Title tooltip on truncated mobile card */}
-                <p className="font-medium text-sm text-slate-200 truncate" title={client.raisonSociale}>{client.raisonSociale}</p>
-                <p className="text-xs text-slate-500 mt-0.5">{client.forme} · {client.mission}</p>
+                <p className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate" title={client.raisonSociale}>{client.raisonSociale}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{client.forme} · {client.mission}</p>
                 <div className="flex items-center gap-3 mt-2">
                   <PilotageBadge status={client.etatPilotage} />
-                  <span className="text-xs text-slate-500 font-mono">{client.dateButoir}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{client.dateButoir}</span>
                 </div>
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <ScoreGauge score={client.scoreGlobal} />
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                    <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-7 w-7 p-0" aria-label="Actions">
+                    <Button variant="ghost" size="sm" className="text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-7 w-7 p-0" aria-label="Actions">
                       <MoreHorizontal className="w-4 h-4" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -547,10 +547,10 @@ export default function BddPage() {
         )}
         {totalPages > 1 && (
           <div className="flex items-center justify-between py-2">
-            <p className="text-xs text-slate-500">{page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500">{page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}</p>
             <div className="flex items-center gap-1">
               <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0"><ChevronLeft className="w-4 h-4" /></Button>
-              <span className="text-xs text-slate-400 px-2">{page + 1} / {totalPages}</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 px-2">{page + 1} / {totalPages}</span>
               <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0"><ChevronRightIcon className="w-4 h-4" /></Button>
             </div>
           </div>
@@ -563,7 +563,7 @@ export default function BddPage() {
           <Table>
             {/* 14. Sticky table header */}
             <TableHeader className="sticky top-0 z-10 bg-[#0f1117] backdrop-blur-sm">
-              <TableRow className="border-white/[0.06] hover:bg-transparent">
+              <TableRow className="border-gray-200 dark:border-white/[0.06] hover:bg-transparent">
                 <TableHead className="w-[40px]">
                   <input
                     type="checkbox"
@@ -577,22 +577,22 @@ export default function BddPage() {
                     aria-label="Selectionner tous les clients de la page"
                   />
                 </TableHead>
-                <TableHead className="w-[90px] text-slate-500 text-[11px] uppercase tracking-wider">Ref</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("raisonSociale"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Raison Sociale" aria-sort={ariaSort("raisonSociale")}>
+                <TableHead className="w-[90px] text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Ref</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("raisonSociale"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Raison Sociale" aria-sort={ariaSort("raisonSociale")}>
                   <div className="flex items-center gap-1.5">Raison Sociale <SortIcon column="raisonSociale" /></div>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Forme</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("comptable"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Comptable" aria-sort={ariaSort("comptable")}>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Forme</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("comptable"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Comptable" aria-sort={ariaSort("comptable")}>
                   <div className="flex items-center gap-1.5">Comptable <SortIcon column="comptable" /></div>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Mission</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("scoreGlobal"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Score" aria-sort={ariaSort("scoreGlobal")}>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Mission</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("scoreGlobal"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Score" aria-sort={ariaSort("scoreGlobal")}>
                   <div className="flex items-center gap-1.5 justify-center">Score <SortIcon column="scoreGlobal" /></div>
                 </TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
-                <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Butoir" aria-sort={ariaSort("dateButoir")}>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Butoir" aria-sort={ariaSort("dateButoir")}>
                   <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
                 </TableHead>
                 <TableHead className="w-[80px]"></TableHead>
@@ -602,7 +602,7 @@ export default function BddPage() {
               {paginated.map((client, idx) => (
                 <TableRow
                   key={client.ref}
-                  className={`cursor-pointer border-white/[0.04] transition-colors hover:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "bg-white/[0.01]" : ""}`}
+                  className={`cursor-pointer border-gray-100 dark:border-white/[0.04] transition-colors hover:bg-gray-50 dark:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "bg-white/[0.01]" : ""}`}
                   onClick={() => navigate(`/client/${client.ref}`)}
                 >
                   <TableCell onClick={e => e.stopPropagation()}>
@@ -619,12 +619,12 @@ export default function BddPage() {
                       aria-label={`Selectionner ${client.raisonSociale}`}
                     />
                   </TableCell>
-                  <TableCell className="font-mono text-[11px] text-slate-500">{client.ref}</TableCell>
+                  <TableCell className="font-mono text-[11px] text-slate-400 dark:text-slate-500">{client.ref}</TableCell>
                   {/* OPT-20: Title tooltip on truncated cells */}
-                  <TableCell className="font-medium text-sm text-slate-200 max-w-[200px]"><span className="truncate block" title={client.raisonSociale}>{client.raisonSociale}</span></TableCell>
-                  <TableCell className="text-xs text-slate-400">{client.forme}</TableCell>
-                  <TableCell className="text-xs text-slate-400" title={client.comptable}>{client.comptable}</TableCell>
-                  <TableCell className="text-xs text-slate-400">{client.mission}</TableCell>
+                  <TableCell className="font-medium text-sm text-slate-800 dark:text-slate-200 max-w-[200px]"><span className="truncate block" title={client.raisonSociale}>{client.raisonSociale}</span></TableCell>
+                  <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{client.forme}</TableCell>
+                  <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" title={client.comptable}>{client.comptable}</TableCell>
+                  <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{client.mission}</TableCell>
                   <TableCell><ScoreGauge score={client.scoreGlobal} /></TableCell>
                   <TableCell className="text-center"><VigilanceBadge level={client.nivVigilance} /></TableCell>
                   <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
@@ -635,11 +635,11 @@ export default function BddPage() {
                       return <span className={`text-xs font-mono font-semibold ${color}`}>{s}%</span>;
                     })()}
                   </TableCell>
-                  <TableCell className="text-xs text-center text-slate-400 font-mono">{client.dateButoir}</TableCell>
+                  <TableCell className="text-xs text-center text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">{client.dateButoir}</TableCell>
                   <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                        <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0" aria-label="Actions">
+                        <Button variant="ghost" size="sm" className="text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0" aria-label="Actions">
                           <MoreHorizontal className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
@@ -688,10 +688,10 @@ export default function BddPage() {
                   <TableCell colSpan={12} className="text-center py-16">
                     <div className="flex flex-col items-center gap-3">
                       <DatabaseZap className="w-10 h-10 text-slate-600" />
-                      <p className="text-sm text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
+                      <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 font-medium">Aucun client ne correspond aux filtres</p>
                       <p className="text-xs text-slate-600">Essayez de modifier vos criteres de recherche ou d'effacer les filtres</p>
                       {activeFilterCount > 0 && (
-                        <Button variant="outline" size="sm" onClick={clearFilters} className="mt-2 gap-1 text-xs border-white/[0.08]">
+                        <Button variant="outline" size="sm" onClick={clearFilters} className="mt-2 gap-1 text-xs border-gray-300 dark:border-white/[0.08]">
                           <X className="w-3 h-3" /> Effacer les filtres
                         </Button>
                       )}
@@ -705,8 +705,8 @@ export default function BddPage() {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.06]">
-            <p className="text-xs text-slate-500">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-gray-200 dark:border-white/[0.06]">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}
             </p>
             {/* 13. Pagination with first/last page buttons */}

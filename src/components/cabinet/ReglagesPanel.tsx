@@ -329,7 +329,7 @@ export default function ReglagesPanel() {
   // #4 - Retry button in empty state calls loadReglages
   if (!reglages) {
     return (
-      <div className="text-center py-12 text-slate-500">
+      <div className="text-center py-12 text-slate-400 dark:text-slate-500">
         <Settings2 className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p>Impossible de charger les reglages.</p>
         <Button
@@ -354,17 +354,17 @@ export default function ReglagesPanel() {
           <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <Settings2 className="h-5 w-5 text-blue-400" /> Reglages du cabinet
             {/* #7 - Toggle count summary */}
-            <span className="text-xs font-normal text-slate-500 ml-2">
+            <span className="text-xs font-normal text-slate-400 dark:text-slate-500 ml-2">
               {toggleCounts.active}/{toggleCounts.total} actifs
             </span>
           </h2>
-          <p className="text-sm text-slate-400">Configurez le comportement de votre cabinet. Les modifications sont appliquees immediatement.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Configurez le comportement de votre cabinet. Les modifications sont appliquees immediatement.</p>
         </div>
         <Button
           variant="outline"
           size="sm"
           onClick={() => setResetOpen(true)}
-          className="gap-2 border-white/10 text-slate-300 hover:bg-white/[0.04]"
+          className="gap-2 border-white/10 text-slate-700 dark:text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04]"
           aria-label="Reinitialiser les reglages"
         >
           <RotateCcw className="h-4 w-4" /> Reinitialiser
@@ -373,7 +373,7 @@ export default function ReglagesPanel() {
 
       {SECTIONS.map((section) => (
         <div key={section.title} className="space-y-4">
-          <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2 uppercase tracking-wider">
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2 uppercase tracking-wider">
             {section.icon} {section.title}
           </h3>
           <div className="space-y-1">
@@ -384,16 +384,16 @@ export default function ReglagesPanel() {
               return (
                 <div
                   key={toggle.key}
-                  className={`flex items-center justify-between py-4 px-4 rounded-lg hover:bg-white/[0.02] transition-colors border border-transparent hover:border-white/[0.04] ${toggle.critical ? "ring-1 ring-amber-500/10" : ""}`}
+                  className={`flex items-center justify-between py-4 px-4 rounded-lg hover:bg-white dark:bg-white/[0.02] transition-colors border border-transparent hover:border-gray-100 dark:border-white/[0.04] ${toggle.critical ? "ring-1 ring-amber-500/10" : ""}`}
                 >
                   <div className="space-y-0.5 flex-1 mr-4">
-                    <Label className="text-sm font-medium text-slate-200 cursor-pointer flex items-center gap-2">
+                    <Label className="text-sm font-medium text-slate-800 dark:text-slate-200 cursor-pointer flex items-center gap-2">
                       {toggle.label}
                       {toggle.critical && (
                         <span className="text-[10px] text-amber-400 font-normal bg-amber-500/10 px-1.5 py-0.5 rounded">critique</span>
                       )}
                     </Label>
-                    <p className="text-xs text-slate-500">{toggle.description}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">{toggle.description}</p>
                   </div>
                   {/* #5 - Disable switch while updating */}
                   <Switch
@@ -411,11 +411,11 @@ export default function ReglagesPanel() {
 
       {/* Delai suspension */}
       <div className="space-y-4">
-        <h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Suspension</h3>
-        <div className="flex items-center justify-between py-4 px-4 rounded-lg hover:bg-white/[0.02] transition-colors">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Suspension</h3>
+        <div className="flex items-center justify-between py-4 px-4 rounded-lg hover:bg-white dark:bg-white/[0.02] transition-colors">
           <div className="space-y-0.5 flex-1 mr-4">
-            <Label className="text-sm font-medium text-slate-200">Delai de suspension automatique</Label>
-            <p className="text-xs text-slate-500">Nombre de jours d'inactivite avant suspension automatique d'un dossier (30-365)</p>
+            <Label className="text-sm font-medium text-slate-800 dark:text-slate-200">Delai de suspension automatique</Label>
+            <p className="text-xs text-slate-400 dark:text-slate-500">Nombre de jours d'inactivite avant suspension automatique d'un dossier (30-365)</p>
           </div>
           <div className="flex items-center gap-2">
             <Input
@@ -424,10 +424,10 @@ export default function ReglagesPanel() {
               max={365}
               value={localDelai}
               onChange={(e) => handleDelaiChange(e.target.value)}
-              className="w-20 bg-white/[0.03] border-white/[0.08] text-center"
+              className="w-20 bg-gray-50 dark:bg-white/[0.03] border-gray-300 dark:border-white/[0.08] text-center"
               aria-label="Delai de suspension en jours"
             />
-            <span className="text-sm text-slate-500">jours</span>
+            <span className="text-sm text-slate-400 dark:text-slate-500">jours</span>
             {/* #6 - Visual indicator for unsaved delai */}
             {delaiUnsaved && (
               <span className="text-[10px] text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded whitespace-nowrap">

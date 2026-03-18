@@ -190,7 +190,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
       {!data.client_id ? (
         <>
           <div className="relative">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
             <Input
               placeholder="Rechercher par nom, SIREN ou reference..."
               value={search}
@@ -198,7 +198,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
               inputMode="search"
               autoComplete="off"
               autoFocus
-              className="pl-10 h-12 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600 text-base"
+              className="pl-10 h-12 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white placeholder:text-slate-300 dark:text-slate-600 text-base"
             />
           </div>
 
@@ -208,7 +208,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 key={c.ref}
                 onClick={() => selectClient(c)}
                 aria-label={`Selectionner ${c.raisonSociale}`}
-                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
+                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
                   c.forme === "ENTREPRISE INDIVIDUELLE" ? "bg-purple-500/15" : "bg-blue-500/15"
@@ -218,8 +218,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
                     : <Building2 className="w-4 h-4 text-blue-400" />}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-white truncate" title={c.raisonSociale}>{c.raisonSociale}</p>
-                  <p className="text-xs text-slate-500">{c.siren} · {c.forme}</p>
+                  <p className="text-sm font-medium text-slate-900 dark:text-white truncate" title={c.raisonSociale}>{c.raisonSociale}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{c.siren} · {c.forme}</p>
                 </div>
                 <Badge variant="outline" className={`text-[10px] shrink-0 ${vigilanceColor(c.nivVigilance)}`}>
                   {c.nivVigilance}
@@ -227,7 +227,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
               </button>
             ))}
             {filtered.length === 0 && search.length >= 2 && (
-              <div className="text-center py-10 text-slate-500 text-sm">
+              <div className="text-center py-10 text-slate-400 dark:text-slate-500 text-sm">
                 Aucun client trouve pour "{search}"
               </div>
             )}
@@ -235,7 +235,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
           <Button
             variant="outline"
-            className="w-full gap-2 border-dashed border-white/[0.08] text-slate-400 hover:text-blue-400 hover:bg-blue-500/5 hover:border-blue-500/20 h-11"
+            className="w-full gap-2 border-dashed border-gray-300 dark:border-white/[0.08] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/5 hover:border-blue-500/20 h-11"
             onClick={() => navigate("/nouveau-client")}
             aria-label="Creer un nouveau client"
           >
@@ -326,9 +326,9 @@ export default function LMStep1Client({ data, onChange }: Props) {
             <button
               onClick={clearClient}
               aria-label="Deselectionner le client"
-              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-white/[0.06] hover:bg-white/[0.1] flex items-center justify-center transition-colors"
+              className="absolute top-3 right-3 w-7 h-7 rounded-full bg-gray-100 dark:bg-white/[0.06] hover:bg-gray-200 dark:bg-white/[0.1] flex items-center justify-center transition-colors"
             >
-              <X className="w-3.5 h-3.5 text-slate-400" />
+              <X className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
             </button>
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-xl bg-emerald-500/15 flex items-center justify-center">
@@ -341,11 +341,11 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
             {selectedClient && (
               <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div><span className="text-slate-500">Dirigeant : </span><span className="text-slate-300">{data.dirigeant || "—"}</span></div>
-                <div><span className="text-slate-500">Ville : </span><span className="text-slate-300">{data.ville || "—"}</span></div>
-                <div><span className="text-slate-500">APE : </span><span className="text-slate-300">{data.ape || "—"}</span></div>
+                <div><span className="text-slate-400 dark:text-slate-500">Dirigeant : </span><span className="text-slate-700 dark:text-slate-300">{data.dirigeant || "—"}</span></div>
+                <div><span className="text-slate-400 dark:text-slate-500">Ville : </span><span className="text-slate-700 dark:text-slate-300">{data.ville || "—"}</span></div>
+                <div><span className="text-slate-400 dark:text-slate-500">APE : </span><span className="text-slate-700 dark:text-slate-300">{data.ape || "—"}</span></div>
                 <div>
-                  <span className="text-slate-500">Vigilance : </span>
+                  <span className="text-slate-400 dark:text-slate-500">Vigilance : </span>
                   <Badge variant="outline" className={`text-[9px] ml-1 ${vigilanceColor(selectedClient.nivVigilance)}`}>
                     {selectedClient.nivVigilance}
                   </Badge>
@@ -390,8 +390,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
           {/* OPT-1: Type mission selection — normative OEC types */}
           <div className="space-y-3">
             <div>
-              <p className="text-sm font-medium text-slate-300">Type de mission (referentiel normatif OEC)</p>
-              <p className="text-[11px] text-slate-500 mt-0.5">Determine le cadre normatif, la forme du rapport et les obligations deontologiques applicables.</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Type de mission (referentiel normatif OEC)</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">Determine le cadre normatif, la forme du rapport et les obligations deontologiques applicables.</p>
             </div>
             <MissionTypeSelector
               value={data.mission_type_id || "presentation"}
@@ -417,8 +417,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
           {((data.mission_type_id || 'presentation') === 'presentation' || data.mission_type_id === 'compilation') && (
             <div className="space-y-3">
               <div>
-                <p className="text-sm font-medium text-slate-300">Mode d'intervention comptable</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Mode d'intervention comptable</p>
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                   Le mode d'intervention definit comment le cabinet intervient sur la comptabilite en amont de la mission de {(data.mission_type_id || 'presentation') === 'presentation' ? 'presentation (NP 2300 §A1)' : 'compilation (NP 4410)'}.
                 </p>
               </div>
@@ -432,17 +432,17 @@ export default function LMStep1Client({ data, onChange }: Props) {
                       className={`relative flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all duration-200 text-center ${
                         active
                           ? "border-blue-500 bg-blue-500/10 shadow-lg shadow-blue-500/10"
-                          : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]"
+                          : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-white/[0.12] hover:bg-gray-50/80 dark:bg-white/[0.04]"
                       }`}
                     >
                       <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${
-                        active ? "bg-blue-500/20" : "bg-white/[0.04]"
+                        active ? "bg-blue-500/20" : "bg-gray-50/80 dark:bg-white/[0.04]"
                       }`}>
-                        <Icon className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-400"}`} />
+                        <Icon className={`w-5 h-5 ${active ? "text-blue-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`} />
                       </div>
                       <div>
-                        <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-300"}`}>{label}</p>
-                        <p className="text-[11px] text-slate-500 mt-0.5">{description}</p>
+                        <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-700 dark:text-slate-300"}`}>{label}</p>
+                        <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{description}</p>
                       </div>
                       {active && (
                         <div className="absolute top-2 right-2">
@@ -469,24 +469,24 @@ export default function LMStep1Client({ data, onChange }: Props) {
           {/* Modele selection */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-slate-500" />
-              <p className="text-sm font-medium text-slate-300">Modèle de lettre</p>
+              <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Modèle de lettre</p>
             </div>
             {modelesLoading ? (
               <div className="space-y-2">
-                <Skeleton className="h-11 w-full bg-white/[0.06] rounded-lg" />
-                <Skeleton className="h-4 w-48 bg-white/[0.04]" />
+                <Skeleton className="h-11 w-full bg-gray-100 dark:bg-white/[0.06] rounded-lg" />
+                <Skeleton className="h-4 w-48 bg-gray-50/80 dark:bg-white/[0.04]" />
               </div>
             ) : modeles.length === 0 ? (
-              <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06]">
-                <p className="text-xs text-slate-500">Aucun modèle configuré — le modèle GRIMY par défaut sera utilisé.</p>
+              <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                <p className="text-xs text-slate-400 dark:text-slate-500">Aucun modèle configuré — le modèle GRIMY par défaut sera utilisé.</p>
               </div>
             ) : (
               <Select
                 value={data.modele_id || ""}
                 onValueChange={(val) => onChange({ modele_id: val })}
               >
-                <SelectTrigger className="h-11 bg-white/[0.04] border-white/[0.08] text-white">
+                <SelectTrigger className="h-11 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white">
                   <SelectValue placeholder="Choisir un modèle..." />
                 </SelectTrigger>
                 <SelectContent>
@@ -517,7 +517,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
               const cnoec = validateCnoecCompliance(selected.sections);
               return (
                 <div className="flex items-center gap-2 text-[10px]">
-                  <span className="text-slate-600">
+                  <span className="text-slate-300 dark:text-slate-600">
                     {selected.sections.length} sections · Source: {selected.source === "grimy" ? "GRIMY" : selected.source === "import_docx" ? "Import DOCX" : "Copie"}
                   </span>
                   {cnoec.valid ? (

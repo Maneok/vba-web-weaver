@@ -304,7 +304,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
         aria-label={`Zone de depot pour ${config.label}`}
         className={`
           relative border-2 border-dashed rounded-lg ${compact ? "p-3" : "p-6"} text-center cursor-pointer transition-all
-          ${dragOver ? "border-blue-400 bg-blue-500/10" : "border-white/10 hover:border-white/20 bg-white/[0.02] focus-visible:border-blue-400 focus-visible:ring-2 focus-visible:ring-blue-400/30"}
+          ${dragOver ? "border-blue-400 bg-blue-500/10" : "border-white/10 hover:border-white/20 bg-white dark:bg-white/[0.02] focus-visible:border-blue-400 focus-visible:ring-2 focus-visible:ring-blue-400/30"}
           ${status === "loading" ? "pointer-events-none opacity-60" : ""}
         `}
       >
@@ -321,16 +321,16 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
           <div className="flex flex-col items-center gap-2">
             <Loader2 className="w-6 h-6 text-blue-400 animate-spin" />
             <span className="text-sm text-blue-400">Analyse OCR en cours...</span>
-            {fileName && <span className="text-xs text-slate-500">{fileName}</span>}
+            {fileName && <span className="text-xs text-slate-400 dark:text-slate-500">{fileName}</span>}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-2 text-slate-400">
+            <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400">
               {config.icon}
               <Upload className="w-4 h-4" />
             </div>
-            <span className="text-sm text-slate-400">{label || config.description}</span>
-            <span className="text-xs text-slate-600">JPG, PNG ou PDF</span>
+            <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{label || config.description}</span>
+            <span className="text-xs text-slate-300 dark:text-slate-600">JPG, PNG ou PDF</span>
           </div>
         )}
       </div>
@@ -371,7 +371,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
 
       {/* Extracted data display */}
       {status === "success" && extracted && (
-        <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-3 space-y-2">
+        <div className="rounded-lg border border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] p-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -379,7 +379,7 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
             </div>
             <div className="flex items-center gap-2">
               <Badge className="bg-blue-500/15 text-blue-400 border-0 text-[10px]">OCR auto</Badge>
-              {fileName && <span className="text-[10px] text-slate-600">{fileName}</span>}
+              {fileName && <span className="text-[10px] text-slate-300 dark:text-slate-600">{fileName}</span>}
             </div>
           </div>
 
@@ -391,12 +391,12 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
             <Button
               size="sm"
               onClick={handleValidate}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs"
+              className="bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white text-xs"
             >
               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
               Valider et remplir
             </Button>
-            <Button variant="ghost" size="sm" onClick={reset} className="text-xs text-slate-400">
+            <Button variant="ghost" size="sm" onClick={reset} className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
               Nouveau scan
             </Button>
           </div>
@@ -411,8 +411,8 @@ export default function OcrUploader({ mode, onExtracted, clientSiren, compact, l
 function DataRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="flex items-center justify-between text-xs">
-      <span className="text-slate-500">{label}</span>
-      <span className={`font-mono ${value ? "text-slate-200" : "text-slate-600"}`}>{value || "—"}</span>
+      <span className="text-slate-400 dark:text-slate-500">{label}</span>
+      <span className={`font-mono ${value ? "text-slate-800 dark:text-slate-200" : "text-slate-300 dark:text-slate-600"}`}>{value || "—"}</span>
     </div>
   );
 }
@@ -427,10 +427,10 @@ function CniDataDisplay({ data }: { data: OcrCniResult }) {
       <DataRow label="Lieu de naissance" value={data.lieuNaissance} />
       <DataRow label="N° document" value={data.numeroDocument} />
       <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-500">Date expiration</span>
+        <span className="text-slate-400 dark:text-slate-500">Date expiration</span>
         <span
           className={`font-mono ${
-            expired !== null && expired > 0 ? "text-red-400 font-semibold" : "text-slate-200"
+            expired !== null && expired > 0 ? "text-red-400 font-semibold" : "text-slate-800 dark:text-slate-200"
           }`}
         >
           {formatDateDisplay(data.dateExpiration)}
@@ -446,9 +446,9 @@ function RibDataDisplay({ data }: { data: OcrRibResult }) {
   return (
     <div className="space-y-1 mt-2">
       <div className="flex items-center justify-between text-xs">
-        <span className="text-slate-500">IBAN</span>
+        <span className="text-slate-400 dark:text-slate-500">IBAN</span>
         <div className="flex items-center gap-2">
-          <span className="font-mono text-slate-200">{data.iban || "—"}</span>
+          <span className="font-mono text-slate-800 dark:text-slate-200">{data.iban || "—"}</span>
           {ibanValidation && (
             <Badge
               className={`text-[9px] border-0 ${

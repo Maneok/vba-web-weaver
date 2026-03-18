@@ -50,22 +50,22 @@ export default function LMStep3Details({ data, onChange }: Props) {
     setFieldErrors((prev) => ({ ...prev, [field]: error }));
   };
 
-  const inputCls = "bg-white/[0.04] border-white/[0.08] text-white";
-  const errorCls = "bg-white/[0.04] border-red-500/40 text-white ring-1 ring-red-500/20";
+  const inputCls = "bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white";
+  const errorCls = "bg-gray-50/80 dark:bg-white/[0.04] border-red-500/40 text-slate-900 dark:text-white ring-1 ring-red-500/20";
 
   const clientInfoFilled = data.dirigeant && data.adresse && data.cp && data.ville;
 
   return (
     <div className="space-y-6">
       {/* ── Section 1: Client info (collapsible) ── */}
-      <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+      <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
         <button
           type="button"
           onClick={() => setShowClientInfo(!showClientInfo)}
-          className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 rounded-t-xl"
+          className="w-full flex items-center justify-between p-4 text-left hover:bg-white dark:bg-white/[0.02] transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 rounded-t-xl"
         >
           <div className="flex items-center gap-3">
-            <p className="text-sm font-medium text-slate-300">Informations client</p>
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Informations client</p>
             {clientInfoFilled && !showClientInfo && (
               <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Auto
@@ -74,21 +74,21 @@ export default function LMStep3Details({ data, onChange }: Props) {
           </div>
           <div className="flex items-center gap-2">
             {!showClientInfo && clientInfoFilled && (
-              <span className="text-xs text-slate-500 hidden sm:block">{data.dirigeant} · {data.ville}</span>
+              <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:block">{data.dirigeant} · {data.ville}</span>
             )}
-            <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showClientInfo ? "rotate-180" : ""}`} />
+            <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform ${showClientInfo ? "rotate-180" : ""}`} />
           </div>
         </button>
 
         <div className={`overflow-hidden transition-all duration-200 ${showClientInfo ? "max-h-[800px] opacity-100" : "max-h-0 opacity-0"}`}>
-          <div className="px-4 pb-4 space-y-4 border-t border-white/[0.04]">
+          <div className="px-4 pb-4 space-y-4 border-t border-gray-100 dark:border-white/[0.04]">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs">Dirigeant *</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Dirigeant *</Label>
                 <Input value={data.dirigeant} onChange={(e) => onChange({ dirigeant: e.target.value })} className={inputCls} autoComplete="name" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs">Qualite</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Qualite</Label>
                 <Select value={data.qualite_dirigeant} onValueChange={(v) => onChange({ qualite_dirigeant: v })}>
                   <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -98,12 +98,12 @@ export default function LMStep3Details({ data, onChange }: Props) {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs">Adresse *</Label>
+              <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Adresse *</Label>
               <Input value={data.adresse} onChange={(e) => onChange({ adresse: e.target.value })} className={inputCls} autoComplete="street-address" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs">Code postal *</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Code postal *</Label>
                 <Input
                   value={data.cp} onChange={(e) => onChange({ cp: e.target.value })}
                   onBlur={(e) => validateField("cp", e.target.value)}
@@ -113,17 +113,17 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 {fieldErrors.cp && <p className="text-xs text-red-400" role="alert">{fieldErrors.cp}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs">Ville *</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Ville *</Label>
                 <Input value={data.ville} onChange={(e) => onChange({ ville: e.target.value })} className={inputCls} />
               </div>
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <Label className="text-slate-400 text-xs">RCS</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">RCS</Label>
                 <Input value={data.rcs} onChange={(e) => onChange({ rcs: e.target.value })} className={inputCls} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-slate-400 text-xs">Date de cloture</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Date de cloture</Label>
                 <Input
                   type="date"
                   lang="fr"
@@ -135,7 +135,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs">Email</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Email</Label>
                 <Input
                   type="email" inputMode="email" autoComplete="email"
                   value={data.email} onChange={(e) => onChange({ email: e.target.value })}
@@ -145,7 +145,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 {fieldErrors.email && <p className="text-xs text-red-400" role="alert">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 text-xs">Telephone</Label>
+                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Telephone</Label>
                 <Input
                   inputMode="tel" autoComplete="tel"
                   value={data.telephone} onChange={(e) => onChange({ telephone: e.target.value })}
@@ -161,7 +161,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
 
       {/* ── Section 2: Durée & renouvellement ── */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-300">Duree et renouvellement</p>
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Duree et renouvellement</p>
         <div className="grid grid-cols-3 gap-3">
           {DUREES.map((d) => {
             const active = data.duree === d.value;
@@ -172,27 +172,27 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 className={`p-4 rounded-xl border-2 text-center transition-all duration-200 ${
                   active
                     ? "border-blue-500 bg-blue-500/10"
-                    : "border-white/[0.06] bg-white/[0.02] hover:border-white/[0.12]"
+                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-white/[0.12]"
                 }`}
               >
-                <p className={`text-lg font-bold ${active ? "text-blue-300" : "text-slate-300"}`}>{d.label}</p>
-                <p className="text-[10px] text-slate-500 mt-1">{d.description}</p>
+                <p className={`text-lg font-bold ${active ? "text-blue-300" : "text-slate-700 dark:text-slate-300"}`}>{d.label}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{d.description}</p>
               </button>
             );
           })}
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
           <div>
-            <p className="text-sm text-slate-300">Tacite reconduction</p>
-            <p className="text-[10px] text-slate-500">Renouvellement automatique a echeance</p>
+            <p className="text-sm text-slate-700 dark:text-slate-300">Tacite reconduction</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">Renouvellement automatique a echeance</p>
           </div>
           <Switch checked={data.tacite_reconduction} onCheckedChange={(v) => onChange({ tacite_reconduction: v })} />
         </div>
 
         {data.tacite_reconduction && (
           <div className="space-y-1.5">
-            <Label className="text-slate-400 text-xs">Preavis (mois)</Label>
+            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Preavis (mois)</Label>
             <Select value={String(data.preavis_mois)} onValueChange={(v) => onChange({ preavis_mois: Number(v) })}>
               <SelectTrigger className={`${inputCls} w-32`}><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -205,7 +205,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
         )}
 
         <div className="space-y-1.5">
-          <Label className="text-slate-400 text-xs">Date de debut</Label>
+          <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Date de debut</Label>
           <Input
             type="date"
             lang="fr"
@@ -218,10 +218,10 @@ export default function LMStep3Details({ data, onChange }: Props) {
 
       {/* ── Section 3: Intervenants ── */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-300">Intervenants</p>
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Intervenants</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-slate-400 text-xs">Associe signataire *</Label>
+            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Associe signataire *</Label>
             <Select value={data.associe_signataire} onValueChange={(v) => onChange({ associe_signataire: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
               <SelectContent>
@@ -230,7 +230,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-slate-400 text-xs">Chef de mission</Label>
+            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Chef de mission</Label>
             <Select value={data.chef_mission} onValueChange={(v) => onChange({ chef_mission: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
               <SelectContent>
@@ -239,20 +239,20 @@ export default function LMStep3Details({ data, onChange }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-slate-400 text-xs">Validateur (co-edition)</Label>
+            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Validateur (co-edition)</Label>
             <Select value={data.validateur} onValueChange={(v) => onChange({ validateur: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Aucun validateur" /></SelectTrigger>
               <SelectContent>
                 {collaborateurs.map((c) => <SelectItem key={c.nom} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
               </SelectContent>
             </Select>
-            <p className="text-[10px] text-slate-600">Collaborateur qui validera la lettre avant envoi</p>
+            <p className="text-[10px] text-slate-300 dark:text-slate-600">Collaborateur qui validera la lettre avant envoi</p>
           </div>
         </div>
         {data.referent_lcb && (
-          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
             <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px]">LCB</Badge>
-            <span className="text-xs text-slate-400">Referent : {data.referent_lcb}</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Referent : {data.referent_lcb}</span>
           </div>
         )}
       </div>
@@ -261,32 +261,32 @@ export default function LMStep3Details({ data, onChange }: Props) {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-blue-400" />
-          <p className="text-sm font-medium text-slate-300">Cadre de la mission — {mtConfig.shortLabel}</p>
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Cadre de la mission — {mtConfig.shortLabel}</p>
         </div>
 
-        <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
+        <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-2">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[9px] border-blue-500/30 text-blue-400">{mtConfig.normeRef}</Badge>
-            <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">{mtConfig.formeRapport}</Badge>
+            <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400">{mtConfig.formeRapport}</Badge>
           </div>
-          <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-4">{mtConfig.missionText.split('\n')[0]}</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-4">{mtConfig.missionText.split('\n')[0]}</p>
         </div>
 
         {mtConfig.natureLimiteText && (
-          <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-1.5">
-            <p className="text-[10px] text-slate-500 uppercase tracking-wider">Nature et limites de la mission</p>
-            <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-3">{mtConfig.natureLimiteText.split('\n')[0]}</p>
+          <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-1.5">
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Nature et limites de la mission</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-3">{mtConfig.natureLimiteText.split('\n')[0]}</p>
           </div>
         )}
 
         <div className="flex items-center gap-2">
-          <span className="text-[10px] text-slate-500">Forme du rapport :</span>
-          <span className="text-[11px] text-slate-300">{mtConfig.formeRapport}</span>
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">Forme du rapport :</span>
+          <span className="text-[11px] text-slate-700 dark:text-slate-300">{mtConfig.formeRapport}</span>
         </div>
       </div>
 
       {/* ── OPT-10: Honoraires de succès ── */}
-      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-white/[0.06]">
+      <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-white/[0.06]">
         {mtConfig.honorairesSuccesAutorises ? (
           <Badge className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 gap-1">
             <CheckCircle2 className="w-3 h-3" /> Honoraires de succes autorises
@@ -299,32 +299,32 @@ export default function LMStep3Details({ data, onChange }: Props) {
       </div>
 
       {/* ── Section 4: Clauses (collapsible) ── */}
-      <div className="rounded-xl border border-white/[0.06] overflow-hidden">
+      <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
         <button
           type="button"
           onClick={() => setShowClauses(!showClauses)}
-          className="w-full flex items-center justify-between p-4 text-left hover:bg-white/[0.02] transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 rounded-t-xl"
+          className="w-full flex items-center justify-between p-4 text-left hover:bg-white dark:bg-white/[0.02] transition-colors focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-blue-400 rounded-t-xl"
         >
-          <p className="text-sm font-medium text-slate-300">Clauses obligatoires</p>
-          <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform ${showClauses ? "rotate-180" : ""}`} />
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Clauses obligatoires</p>
+          <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform ${showClauses ? "rotate-180" : ""}`} />
         </button>
 
         <div className={`overflow-hidden transition-all duration-200 ${showClauses ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
-          <div className="px-4 pb-4 space-y-3 border-t border-white/[0.04]">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02] mt-3">
-              <span className="text-sm text-slate-300">LCB-FT</span>
+          <div className="px-4 pb-4 space-y-3 border-t border-gray-100 dark:border-white/[0.04]">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] mt-3">
+              <span className="text-sm text-slate-700 dark:text-slate-300">LCB-FT</span>
               <Switch checked={data.clause_lcbft} disabled />
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02]">
-              <span className="text-sm text-slate-300">Travail dissimule</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02]">
+              <span className="text-sm text-slate-700 dark:text-slate-300">Travail dissimule</span>
               <Switch checked={data.clause_travail_dissimule} disabled />
             </div>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/[0.02]">
-              <span className="text-sm text-slate-300">RGPD</span>
+            <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02]">
+              <span className="text-sm text-slate-700 dark:text-slate-300">RGPD</span>
               <Switch checked={data.clause_rgpd} onCheckedChange={(v) => onChange({ clause_rgpd: v })} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-400 text-xs">Clauses supplementaires</Label>
+              <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Clauses supplementaires</Label>
               <Textarea
                 value={data.clauses_supplementaires}
                 onChange={(e) => onChange({ clauses_supplementaires: e.target.value })}

@@ -225,13 +225,13 @@ export default function HelpPage() {
   return (
     <div className="flex h-[calc(100vh-4rem)] gap-0 overflow-hidden ml-0">
       {/* ─── Left nav ─────────────────────────────────── */}
-      <nav className="hidden lg:flex w-[240px] shrink-0 flex-col border-r border-white/[0.06] bg-slate-950/60 backdrop-blur-sm">
-        <div className="p-4 border-b border-white/[0.06]">
+      <nav className="hidden lg:flex w-[240px] shrink-0 flex-col border-r border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-slate-950/60 backdrop-blur-sm">
+        <div className="p-4 border-b border-gray-200 dark:border-white/[0.06]">
           <div className="flex items-center gap-2 mb-1">
             <BookOpen className="h-5 w-5 text-blue-400" />
             <h2 className="text-sm font-semibold text-slate-100">Documentation</h2>
           </div>
-          <p className="text-xs text-slate-500">Guide d'utilisation</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">Guide d'utilisation</p>
         </div>
         <div className="flex-1 overflow-y-auto p-3 space-y-0.5">
           {SECTIONS.map(({ id, label, icon: Icon }) => (
@@ -241,7 +241,7 @@ export default function HelpPage() {
               className={`w-full flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:ring-2 focus-visible:ring-blue-400 focus-visible:outline-none ${
                 activeSection === id
                   ? "bg-blue-500/15 text-blue-200"
-                  : "text-slate-400 hover:bg-white/[0.04] hover:text-slate-200"
+                  : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:bg-gray-50/80 dark:bg-white/[0.04] hover:text-slate-800 dark:text-slate-200"
               }`}
             >
               <Icon className="h-4 w-4 shrink-0" />
@@ -254,30 +254,30 @@ export default function HelpPage() {
       {/* ─── Main content ─────────────────────────────── */}
       <main className="flex-1 overflow-y-auto scroll-smooth">
         {/* Search bar */}
-        <div className="sticky top-0 z-10 bg-slate-950/80 backdrop-blur-xl border-b border-white/[0.06] px-6 py-3">
+        <div className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-950/80 backdrop-blur-xl border-b border-gray-200 dark:border-white/[0.06] px-6 py-3">
           <div className="relative max-w-xl">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
             <Input
               placeholder="Rechercher dans l'aide..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-white/[0.04] border-white/[0.08] text-slate-200 placeholder:text-slate-500"
+              className="pl-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:text-slate-500"
             />
           </div>
 
           {/* Search results dropdown */}
           {searchResults && searchResults.length > 0 && (
-            <div className="absolute left-6 right-6 top-full mt-1 max-w-xl bg-slate-900 border border-white/[0.08] rounded-lg shadow-xl max-h-64 overflow-y-auto z-20">
+            <div className="absolute left-6 right-6 top-full mt-1 max-w-xl bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-white/[0.08] rounded-lg shadow-xl max-h-64 overflow-y-auto z-20">
               {searchResults.map((r, i) => (
                 <button
                   key={`${r.section}-${r.title}`}
                   onClick={() => scrollTo(r.section)}
-                  className="w-full text-left px-4 py-2.5 hover:bg-white/[0.04] flex items-center gap-2 border-b border-white/[0.04] last:border-0"
+                  className="w-full text-left px-4 py-2.5 hover:bg-gray-50/80 dark:bg-white/[0.04] flex items-center gap-2 border-b border-gray-100 dark:border-white/[0.04] last:border-0"
                 >
                   <ArrowUpRight className="h-3.5 w-3.5 text-blue-400 shrink-0" />
                   <div>
-                    <p className="text-sm text-slate-200">{r.title}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm text-slate-800 dark:text-slate-200">{r.title}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">
                       {SECTIONS.find((s) => s.id === r.section)?.label}
                     </p>
                   </div>
@@ -286,8 +286,8 @@ export default function HelpPage() {
             </div>
           )}
           {searchResults && searchResults.length === 0 && (
-            <div className="absolute left-6 right-6 top-full mt-1 max-w-xl bg-slate-900 border border-white/[0.08] rounded-lg shadow-xl p-4 z-20">
-              <p className="text-sm text-slate-400 text-center">Aucun resultat pour "{search}"</p>
+            <div className="absolute left-6 right-6 top-full mt-1 max-w-xl bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-white/[0.08] rounded-lg shadow-xl p-4 z-20">
+              <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 text-center">Aucun resultat pour "{search}"</p>
             </div>
           )}
         </div>
@@ -300,7 +300,7 @@ export default function HelpPage() {
               {QUICK_START.map((item) => {
                 const Icon = item.icon;
                 return (
-                  <Card key={item.step} className="bg-white/[0.02] border-white/[0.06] p-4 hover:border-white/[0.10] transition-colors">
+                  <Card key={item.step} className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-4 hover:border-white/[0.10] transition-colors">
                     <div className="flex gap-4">
                       <div className="flex items-center justify-center h-10 w-10 rounded-xl bg-blue-500/10 text-blue-400 shrink-0">
                         <Icon className="h-5 w-5" />
@@ -312,7 +312,7 @@ export default function HelpPage() {
                           </Badge>
                           <h3 className="text-sm font-semibold text-slate-100">{item.title}</h3>
                         </div>
-                        <p className="text-sm text-slate-400 leading-relaxed">{item.description}</p>
+                        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed">{item.description}</p>
                       </div>
                     </div>
                   </Card>
@@ -344,7 +344,7 @@ export default function HelpPage() {
                           </Badge>
                           <h3 className="text-sm font-semibold text-slate-100">{item.title}</h3>
                         </div>
-                        <p className="text-sm text-slate-400 leading-relaxed mb-2">{item.description}</p>
+                        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed mb-2">{item.description}</p>
                         <div className="flex items-start gap-2 rounded-lg bg-amber-500/5 border border-amber-500/10 px-3 py-2">
                           <Zap className="h-3.5 w-3.5 text-amber-400 mt-0.5 shrink-0" />
                           <p className="text-xs text-amber-200/80">{item.tip}</p>
@@ -361,12 +361,12 @@ export default function HelpPage() {
           <section id="lettre" ref={(el) => { sectionRefs.current["lettre"] = el; }}>
             <SectionHeader icon={FileText} title="Lettre de mission" subtitle="Modeles et generation" />
             <div className="mt-6 space-y-4">
-              <Card className="bg-white/[0.02] border-white/[0.06] p-5">
+              <Card className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-5">
                 <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
                   <Layers className="h-4 w-4 text-violet-400" />
                   Onglet "Modele"
                 </h3>
-                <ul className="space-y-2 text-sm text-slate-400">
+                <ul className="space-y-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
                   <li className="flex items-start gap-2">
                     <ChevronRight className="h-4 w-4 text-slate-600 mt-0.5 shrink-0" />
                     Parcourez les modeles de lettres pre-configures (expertise comptable, commissariat aux comptes, etc.)
@@ -382,12 +382,12 @@ export default function HelpPage() {
                 </ul>
               </Card>
 
-              <Card className="bg-white/[0.02] border-white/[0.06] p-5">
+              <Card className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-5">
                 <h3 className="text-sm font-semibold text-slate-100 mb-3 flex items-center gap-2">
                   <Zap className="h-4 w-4 text-blue-400" />
                   Onglet "Generer"
                 </h3>
-                <ul className="space-y-2 text-sm text-slate-400">
+                <ul className="space-y-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
                   <li className="flex items-start gap-2">
                     <ChevronRight className="h-4 w-4 text-slate-600 mt-0.5 shrink-0" />
                     Selectionnez un client existant dans votre base pour pre-remplir les informations
@@ -427,12 +427,12 @@ export default function HelpPage() {
                   desc: "Une fois l'analyse terminee, cloturez l'alerte avec un motif de cloture. Si le soupcon est confirme, documentez les actions entreprises (declaration TRACFIN, mesures de vigilance renforcee, fin de la relation d'affaires).",
                 },
               ].map((item) => (
-                <Card key={item.title} className="bg-white/[0.02] border-white/[0.06] p-4">
+                <Card key={item.title} className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-4">
                   <h3 className="text-sm font-semibold text-slate-100 mb-1.5 flex items-center gap-2">
                     <ChevronRight className="h-4 w-4 text-orange-400" />
                     {item.title}
                   </h3>
-                  <p className="text-sm text-slate-400 leading-relaxed pl-6">{item.desc}</p>
+                  <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed pl-6">{item.desc}</p>
                 </Card>
               ))}
             </div>
@@ -442,10 +442,10 @@ export default function HelpPage() {
           <section id="controle" ref={(el) => { sectionRefs.current["controle"] = el; }}>
             <SectionHeader icon={ClipboardCheck} title="Controle qualite" subtitle="Tirage aleatoire et audits" />
             <div className="mt-6">
-              <Card className="bg-white/[0.02] border-white/[0.06] p-5">
-                <div className="space-y-4 text-sm text-slate-400">
+              <Card className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-5">
+                <div className="space-y-4 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
                   <p>Le module de controle qualite permet de realiser des audits internes conformement aux obligations du reglement interieur LCB-FT.</p>
-                  <Separator className="bg-white/[0.06]" />
+                  <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
                   <div>
                     <h3 className="text-sm font-semibold text-slate-100 mb-2">Tirage aleatoire</h3>
                     <ul className="space-y-2">
@@ -467,7 +467,7 @@ export default function HelpPage() {
                       </li>
                     </ul>
                   </div>
-                  <Separator className="bg-white/[0.06]" />
+                  <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
                   <div className="flex items-start gap-2 rounded-lg bg-blue-500/5 border border-blue-500/10 px-3 py-2">
                     <Lock className="h-3.5 w-3.5 text-blue-400 mt-0.5 shrink-0" />
                     <p className="text-xs text-blue-200/80">
@@ -488,12 +488,12 @@ export default function HelpPage() {
                   <AccordionItem
                     key={`faq-${i}`}
                     value={`faq-${i}`}
-                    className="border border-white/[0.06] rounded-lg bg-white/[0.02] px-4 data-[state=open]:bg-white/[0.03]"
+                    className="border border-gray-200 dark:border-white/[0.06] rounded-lg bg-white dark:bg-white/[0.02] px-4 data-[state=open]:bg-gray-50 dark:bg-white/[0.03]"
                   >
-                    <AccordionTrigger className="text-sm text-slate-200 hover:text-slate-100 py-3 hover:no-underline">
+                    <AccordionTrigger className="text-sm text-slate-800 dark:text-slate-200 hover:text-slate-100 py-3 hover:no-underline">
                       {item.question}
                     </AccordionTrigger>
-                    <AccordionContent className="text-sm text-slate-400 leading-relaxed pb-4 whitespace-pre-line">
+                    <AccordionContent className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed pb-4 whitespace-pre-line">
                       {item.answer}
                     </AccordionContent>
                   </AccordionItem>
@@ -519,7 +519,7 @@ function SectionHeader({ icon: Icon, title, subtitle }: { icon: React.ElementTyp
       </div>
       <div>
         <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
-        <p className="text-xs text-slate-500">{subtitle}</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500">{subtitle}</p>
       </div>
     </div>
   );

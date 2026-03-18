@@ -103,7 +103,7 @@ export default function AdminOverview() {
     { label: "MRR", value: `${((stats?.mrr_cents ?? 0) / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} \u20ac`, icon: TrendingUp, color: "text-emerald-400" },
     { label: "Utilisateurs actifs", value: stats?.active_users ?? 0, icon: Users, color: "text-violet-400" },
     { label: "Clients total", value: stats?.total_clients ?? 0, icon: FolderOpen, color: "text-amber-400" },
-    { label: "Derniere maintenance", value: formatRelative(stats?.last_maintenance ?? null), icon: Wrench, color: "text-slate-400", isText: true },
+    { label: "Derniere maintenance", value: formatRelative(stats?.last_maintenance ?? null), icon: Wrench, color: "text-slate-400 dark:text-slate-500 dark:text-slate-400", isText: true },
   ];
 
   return (
@@ -116,7 +116,7 @@ export default function AdminOverview() {
             <div key={kpi.label} className="bg-white/5 border border-white/10 rounded-xl p-4 flex flex-col gap-2">
               <div className="flex items-center gap-2">
                 <Icon className={`h-4 w-4 ${kpi.color}`} />
-                <span className="text-xs text-slate-400">{kpi.label}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{kpi.label}</span>
               </div>
               <span className={`text-2xl font-bold ${kpi.color}`}>
                 {kpi.value}
@@ -128,7 +128,7 @@ export default function AdminOverview() {
 
       {/* Signups Chart */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-        <h3 className="text-sm font-semibold text-slate-200 mb-4">Inscriptions des 30 derniers jours</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">Inscriptions des 30 derniers jours</h3>
         <ResponsiveContainer width="100%" height={250}>
           <BarChart data={signups}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
@@ -152,11 +152,11 @@ export default function AdminOverview() {
 
       {/* Recent Cabinets */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-        <h3 className="text-sm font-semibold text-slate-200 mb-4">5 derniers cabinets inscrits</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">5 derniers cabinets inscrits</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-500 border-b border-white/10">
+              <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-white/10">
                 <th className="pb-2 pr-4">Nom</th>
                 <th className="pb-2 pr-4">Plan</th>
                 <th className="pb-2 pr-4">Statut</th>
@@ -166,22 +166,22 @@ export default function AdminOverview() {
             </thead>
             <tbody>
               {recentCabinets.map((cab) => (
-                <tr key={cab.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                  <td className="py-2.5 pr-4 text-slate-200 font-medium">{cab.name}</td>
+                <tr key={cab.id} className="border-b border-white/5 hover:bg-white dark:bg-white/[0.02]">
+                  <td className="py-2.5 pr-4 text-slate-800 dark:text-slate-200 font-medium">{cab.name}</td>
                   <td className="py-2.5 pr-4">
                     <span className="px-2 py-0.5 rounded-full text-xs bg-blue-500/20 text-blue-300 capitalize">{cab.plan}</span>
                   </td>
                   <td className="py-2.5 pr-4">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[cab.status] ?? "bg-slate-500/20 text-slate-300"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[cab.status] ?? "bg-slate-500/20 text-slate-700 dark:text-slate-300"}`}>
                       {cab.status}
                     </span>
                   </td>
-                  <td className="py-2.5 pr-4 text-slate-400">{cab.admin_email}</td>
-                  <td className="py-2.5 text-slate-500">{formatRelative(cab.created_at)}</td>
+                  <td className="py-2.5 pr-4 text-slate-400 dark:text-slate-500 dark:text-slate-400">{cab.admin_email}</td>
+                  <td className="py-2.5 text-slate-400 dark:text-slate-500">{formatRelative(cab.created_at)}</td>
                 </tr>
               ))}
               {recentCabinets.length === 0 && (
-                <tr><td colSpan={5} className="py-8 text-center text-slate-500">Aucun cabinet</td></tr>
+                <tr><td colSpan={5} className="py-8 text-center text-slate-400 dark:text-slate-500">Aucun cabinet</td></tr>
               )}
             </tbody>
           </table>

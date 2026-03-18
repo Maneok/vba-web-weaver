@@ -41,7 +41,7 @@ const DEFAULT_NOMS = new Set(DEFAULT_CONNECTEURS.map((d) => d.nom));
 
 const STATUT_CONFIG = {
   connecte: { icon: Wifi, color: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30", label: "Connecte" },
-  deconnecte: { icon: WifiOff, color: "bg-slate-500/20 text-slate-400 border-slate-500/30", label: "Deconnecte" },
+  deconnecte: { icon: WifiOff, color: "bg-slate-500/20 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/30", label: "Deconnecte" },
   erreur: { icon: AlertTriangle, color: "bg-red-500/20 text-red-300 border-red-500/30", label: "Erreur" },
 };
 
@@ -55,7 +55,7 @@ const TYPE_LABELS: Record<string, string> = {
 
 function SkeletonConnecteurs() {
   return (
-    <div className="border border-white/[0.06] rounded-lg p-4 space-y-4">
+    <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg p-4 space-y-4">
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4">
           <div className="flex-1 space-y-2">
@@ -313,7 +313,7 @@ export default function ConnecteursPanel() {
             <Plug className="h-5 w-5 text-blue-400" /> Connecteurs
           </h2>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-sm text-slate-400">
+            <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
               {connecteurs.length} connecteur{connecteurs.length > 1 ? "s" : ""}
             </span>
             {connecteurs.length > 0 && (
@@ -321,7 +321,7 @@ export default function ConnecteursPanel() {
                 <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 gap-1 text-xs">
                   <Wifi className="h-3 w-3" /> {countConnecte}
                 </Badge>
-                <Badge className="bg-slate-500/20 text-slate-400 border-slate-500/30 gap-1 text-xs">
+                <Badge className="bg-slate-500/20 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/30 gap-1 text-xs">
                   <WifiOff className="h-3 w-3" /> {countDeconnecte}
                 </Badge>
                 {countErreur > 0 && (
@@ -393,21 +393,21 @@ export default function ConnecteursPanel() {
             <Plug className="h-8 w-8 text-blue-400 animate-pulse" />
           </div>
           <div>
-            <p className="text-slate-300 font-medium">Aucun connecteur configure</p>
-            <p className="text-sm text-slate-500 mt-1">Les connecteurs par defaut seront initialises automatiquement.</p>
+            <p className="text-slate-700 dark:text-slate-300 font-medium">Aucun connecteur configure</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Les connecteurs par defaut seront initialises automatiquement.</p>
           </div>
         </div>
       ) : (
-        <div className="border border-white/[0.06] rounded-lg overflow-hidden">
+        <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-white/[0.06] bg-white/[0.02]">
-                <TableHead className="text-slate-400">Connecteur</TableHead>
-                <TableHead className="text-slate-400">Type</TableHead>
-                <TableHead className="text-slate-400">Statut</TableHead>
-                <TableHead className="text-slate-400">Derniere connexion</TableHead>
-                <TableHead className="text-slate-400">Derniere activite</TableHead>
-                <TableHead className="text-slate-400 text-right">Actions</TableHead>
+              <TableRow className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Connecteur</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Type</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Statut</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Derniere connexion</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Derniere activite</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -419,15 +419,15 @@ export default function ConnecteursPanel() {
                 const isDefault = DEFAULT_NOMS.has(c.nom);
                 const isBusy = busyConnecteurs.has(c.id);
                 return (
-                  <TableRow key={c.id} className="border-white/[0.06] hover:bg-white/[0.02]">
+                  <TableRow key={c.id} className="border-gray-200 dark:border-white/[0.06] hover:bg-white dark:bg-white/[0.02]">
                     <TableCell>
                       <div>
-                        <p className="font-medium text-slate-200">{c.nom}</p>
-                        {description && <p className="text-xs text-slate-500">{description}</p>}
+                        <p className="font-medium text-slate-800 dark:text-slate-200">{c.nom}</p>
+                        {description && <p className="text-xs text-slate-400 dark:text-slate-500">{description}</p>}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-slate-400 border-slate-700">
+                      <Badge variant="outline" className="text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-700">
                         {TYPE_LABELS[c.type] || c.type}
                       </Badge>
                     </TableCell>
@@ -443,15 +443,15 @@ export default function ConnecteursPanel() {
                         )}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-400">{formatDate(c.derniere_connexion) || <span className="text-slate-600">&mdash;</span>}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{formatDate(c.derniere_connexion) || <span className="text-slate-300 dark:text-slate-600">&mdash;</span>}</TableCell>
                     <TableCell>
                       {c.derniere_activite ? (
-                        <span className="text-xs text-slate-400 flex items-center gap-1">
+                        <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 flex items-center gap-1">
                           <Activity className="h-3 w-3" />
                           {formatDate(c.derniere_activite)}
                         </span>
                       ) : (
-                        <span className="text-xs text-slate-600">&mdash;</span>
+                        <span className="text-xs text-slate-300 dark:text-slate-600">&mdash;</span>
                       )}
                     </TableCell>
                     <TableCell className="text-right">

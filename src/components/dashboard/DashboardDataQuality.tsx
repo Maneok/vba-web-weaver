@@ -65,7 +65,7 @@ export default function DashboardDataQuality({
 
   return (
     <div
-      className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid"
+      className="bg-card rounded-2xl border border-border p-5 hover:border-gray-300 dark:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid"
       role="figure"
       aria-label="Qualité des données"
     >

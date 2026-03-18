@@ -47,16 +47,16 @@ export default class PageErrorBoundary extends React.Component<
           <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center">
             <AlertTriangle className="w-8 h-8 text-amber-400" />
           </div>
-          <h2 className="text-lg font-semibold text-white">Erreur sur cette page</h2>
-          <p className="text-sm text-slate-400 text-center max-w-md">
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Erreur sur cette page</h2>
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 text-center max-w-md">
             Une erreur est survenue lors de l'affichage. Les autres pages restent accessibles.
           </p>
           {this.state.errorMessage && (
             <details className="w-full max-w-lg">
-              <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300 transition-colors">
+              <summary className="text-xs text-slate-400 dark:text-slate-500 cursor-pointer hover:text-slate-700 dark:text-slate-300 transition-colors">
                 Voir les details de l'erreur
               </summary>
-              <pre className="mt-2 text-xs bg-black/30 border border-white/10 rounded-lg p-3 overflow-auto text-slate-300">
+              <pre className="mt-2 text-xs bg-black/30 border border-white/10 rounded-lg p-3 overflow-auto text-slate-700 dark:text-slate-300">
                 {this.state.errorMessage}
               </pre>
             </details>
@@ -70,7 +70,7 @@ export default class PageErrorBoundary extends React.Component<
             </button>
             <button
               onClick={() => window.location.href = "/"}
-              className="px-5 py-2.5 bg-white/[0.06] text-slate-300 rounded-lg text-sm font-medium hover:bg-white/[0.1] transition-colors border border-white/[0.08]"
+              className="px-5 py-2.5 bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 rounded-lg text-sm font-medium hover:bg-gray-200 dark:bg-white/[0.1] transition-colors border border-gray-300 dark:border-white/[0.08]"
             >
               Retour au dashboard
             </button>

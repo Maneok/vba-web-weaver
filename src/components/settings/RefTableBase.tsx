@@ -106,7 +106,7 @@ export function RiskBadge({ score }: { score: number }) {
 export function PiloteBadge({ value }: { value: boolean }) {
   return value
     ? <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">Oui</Badge>
-    : <Badge variant="outline" className="text-slate-500 border-white/10">Non</Badge>;
+    : <Badge variant="outline" className="text-slate-400 dark:text-slate-500 border-white/10">Non</Badge>;
 }
 
 /* ========== HIGHLIGHT (all occurrences) ========== */
@@ -404,7 +404,7 @@ export default function RefTableBase<T extends { id: string }>({
   }, []);
 
   function renderSortIcon(key: string) {
-    if (sortKey !== key) return <ArrowUpDown className="w-3 h-3 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />;
+    if (sortKey !== key) return <ArrowUpDown className="w-3 h-3 text-slate-300 dark:text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity" />;
     return sortDir === "asc" ? <ArrowUp className="w-3 h-3 text-blue-400" /> : <ArrowDown className="w-3 h-3 text-blue-400" />;
   }
 
@@ -761,9 +761,9 @@ export default function RefTableBase<T extends { id: string }>({
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="min-w-0">
           <h2 className="text-lg font-semibold text-slate-100">{title}</h2>
-          <p className="text-sm text-slate-400 mt-1">
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
             {description}
-            <span className="ml-2 text-slate-500">({items.length} element{items.length > 1 ? "s" : ""})</span>
+            <span className="ml-2 text-slate-400 dark:text-slate-500">({items.length} element{items.length > 1 ? "s" : ""})</span>
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 flex-wrap">
@@ -808,7 +808,7 @@ export default function RefTableBase<T extends { id: string }>({
       {/* ===== FILTERS ===== */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
@@ -820,7 +820,7 @@ export default function RefTableBase<T extends { id: string }>({
           {searchInput && (
             <button
               onClick={() => setSearchInput("")}
-              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
               aria-label="Effacer la recherche"
             >
               <X className="w-3.5 h-3.5" />
@@ -867,7 +867,7 @@ export default function RefTableBase<T extends { id: string }>({
           </Select>
         ))}
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={resetFilters} className="gap-1.5 text-xs text-slate-400 hover:text-slate-200" aria-label="Reinitialiser les filtres">
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="gap-1.5 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200" aria-label="Reinitialiser les filtres">
             <X className="w-3.5 h-3.5" /> Reinitialiser
           </Button>
         )}
@@ -875,7 +875,7 @@ export default function RefTableBase<T extends { id: string }>({
 
       {/* ===== FILTERED COUNT ===== */}
       {hasActiveFilters && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           {sorted.length} resultat{sorted.length > 1 ? "s" : ""} sur {items.length} element{items.length > 1 ? "s" : ""}
         </p>
       )}
@@ -894,7 +894,7 @@ export default function RefTableBase<T extends { id: string }>({
                 Modifier le risque
               </Button>
             )}
-            <Button variant="ghost" size="sm" className="text-xs text-slate-400" onClick={() => setSelected(new Set())} aria-label="Deselectionner tout">
+            <Button variant="ghost" size="sm" className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" onClick={() => setSelected(new Set())} aria-label="Deselectionner tout">
               Deselectionner
             </Button>
           </div>
@@ -912,7 +912,7 @@ export default function RefTableBase<T extends { id: string }>({
           onKeyDown={handleTableKeyDown}
         >
           {/* 43. Sticky header */}
-          <thead className="sticky top-0 z-10 bg-slate-900/95 backdrop-blur-sm">
+          <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-900/95 backdrop-blur-sm">
             <tr className="border-b border-white/10">
               <th className="w-10 py-2.5 px-2">
                 <Checkbox
@@ -926,12 +926,12 @@ export default function RefTableBase<T extends { id: string }>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  className="text-left py-2.5 px-3 text-xs font-medium text-slate-400 uppercase tracking-wider select-none group"
+                  className="text-left py-2.5 px-3 text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wider select-none group"
                   style={{ width: col.width || "auto", minWidth: col.minWidth || (col.width || "auto") }}
                 >
                   {col.sortable !== false ? (
                     <button
-                      className="flex items-center gap-1.5 hover:text-slate-200 transition-colors"
+                      className="flex items-center gap-1.5 hover:text-slate-800 dark:text-slate-200 transition-colors"
                       onClick={() => handleSort(col.key)}
                       aria-label={`Trier par ${col.label}`}
                     >
@@ -951,8 +951,8 @@ export default function RefTableBase<T extends { id: string }>({
               <tr>
                 <td colSpan={columns.length + 2} className="text-center py-16">
                   <div className="flex flex-col items-center gap-3">
-                    <FileSearch className="w-10 h-10 text-slate-600" />
-                    <p className="text-slate-500 text-sm">
+                    <FileSearch className="w-10 h-10 text-slate-300 dark:text-slate-600" />
+                    <p className="text-slate-400 dark:text-slate-500 text-sm">
                       {hasActiveFilters ? "Aucun resultat pour ces filtres" : "Aucun element dans ce referentiel"}
                     </p>
                     {hasActiveFilters && (
@@ -980,7 +980,7 @@ export default function RefTableBase<T extends { id: string }>({
                     className={[
                       "border-b border-white/5 cursor-pointer transition-colors duration-150",
                       idx % 2 === 0 ? "bg-transparent" : "bg-white/[0.015]",
-                      isSelected ? "!bg-blue-500/10 hover:!bg-blue-500/15" : "hover:bg-white/[0.06]",
+                      isSelected ? "!bg-blue-500/10 hover:!bg-blue-500/15" : "hover:bg-gray-100 dark:bg-white/[0.06]",
                       isFocused ? "ring-1 ring-inset ring-blue-500/50" : "",
                       "ref-fade-in",
                     ].join(" ")}
@@ -1001,7 +1001,7 @@ export default function RefTableBase<T extends { id: string }>({
                     {columns.map((col) => (
                       <td
                         key={col.key}
-                        className="py-2.5 px-3 text-slate-200"
+                        className="py-2.5 px-3 text-slate-800 dark:text-slate-200"
                         style={{ width: col.width || "auto", minWidth: col.minWidth || "auto" }}
                       >
                         {/* 45. Truncate long text with tooltip */}
@@ -1022,17 +1022,17 @@ export default function RefTableBase<T extends { id: string }>({
                     <td className="py-2.5 px-3" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center gap-0.5">
                         <ActionTooltip label="Modifier">
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-slate-200" onClick={() => openEdit(item)} aria-label="Modifier">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200" onClick={() => openEdit(item)} aria-label="Modifier">
                             <Pencil className="w-3.5 h-3.5" />
                           </Button>
                         </ActionTooltip>
                         <ActionTooltip label="Dupliquer">
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-blue-400" onClick={() => openDuplicate(item)} aria-label="Dupliquer">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400" onClick={() => openDuplicate(item)} aria-label="Dupliquer">
                             <Copy className="w-3.5 h-3.5" />
                           </Button>
                         </ActionTooltip>
                         <ActionTooltip label="Supprimer">
-                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 hover:text-red-400" onClick={() => setDeleteConfirm(item.id)} aria-label="Supprimer">
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-red-400" onClick={() => setDeleteConfirm(item.id)} aria-label="Supprimer">
                             <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </ActionTooltip>
@@ -1049,11 +1049,11 @@ export default function RefTableBase<T extends { id: string }>({
       {/* ===== FOOTER ===== */}
       <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
         <div className="flex items-center gap-4">
-          <span className="text-xs text-slate-500">
+          <span className="text-xs text-slate-400 dark:text-slate-500">
             {sorted.length} element{sorted.length > 1 ? "s" : ""} affiche{sorted.length > 1 ? "s" : ""} sur {items.length} total
           </span>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-slate-500">Lignes :</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">Lignes :</span>
             <Select value={String(pageSize)} onValueChange={(v) => setPageSize(Number(v))}>
               <SelectTrigger className="w-[70px] h-7 bg-white/5 border-white/10 text-xs" aria-label="Nombre de lignes par page">
                 <SelectValue />
@@ -1068,7 +1068,7 @@ export default function RefTableBase<T extends { id: string }>({
         </div>
         {/* 46. Better pagination with page numbers */}
         <div className="flex items-center gap-1.5">
-          <span className="text-xs text-slate-500 mr-1">Page {safePage + 1} / {totalPages}</span>
+          <span className="text-xs text-slate-400 dark:text-slate-500 mr-1">Page {safePage + 1} / {totalPages}</span>
           <Button variant="ghost" size="sm" disabled={safePage === 0} onClick={() => setPage(0)} className="h-7 w-7 p-0" aria-label="Premiere page">
             <ChevronsLeft className="w-4 h-4" />
           </Button>
@@ -1083,7 +1083,7 @@ export default function RefTableBase<T extends { id: string }>({
                 variant={i === safePage ? "default" : "ghost"}
                 size="sm"
                 onClick={() => setPage(i)}
-                className={`h-7 w-7 p-0 text-xs ${i === safePage ? "" : "text-slate-400"}`}
+                className={`h-7 w-7 p-0 text-xs ${i === safePage ? "" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}
                 aria-label={`Page ${i + 1}`}
                 aria-current={i === safePage ? "page" : undefined}
               >
@@ -1093,15 +1093,15 @@ export default function RefTableBase<T extends { id: string }>({
           ) : (
             <>
               {[0, 1].map((i) => (
-                <Button key={i} variant={i === safePage ? "default" : "ghost"} size="sm" onClick={() => setPage(i)} className={`h-7 w-7 p-0 text-xs ${i === safePage ? "" : "text-slate-400"}`}>{i + 1}</Button>
+                <Button key={i} variant={i === safePage ? "default" : "ghost"} size="sm" onClick={() => setPage(i)} className={`h-7 w-7 p-0 text-xs ${i === safePage ? "" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>{i + 1}</Button>
               ))}
-              {safePage > 3 && <span className="text-xs text-slate-600 px-1">...</span>}
+              {safePage > 3 && <span className="text-xs text-slate-300 dark:text-slate-600 px-1">...</span>}
               {safePage > 2 && safePage < totalPages - 3 && (
                 <Button variant="default" size="sm" className="h-7 w-7 p-0 text-xs">{safePage + 1}</Button>
               )}
-              {safePage < totalPages - 4 && <span className="text-xs text-slate-600 px-1">...</span>}
+              {safePage < totalPages - 4 && <span className="text-xs text-slate-300 dark:text-slate-600 px-1">...</span>}
               {[totalPages - 2, totalPages - 1].filter(i => i > 1).map((i) => (
-                <Button key={i} variant={i === safePage ? "default" : "ghost"} size="sm" onClick={() => setPage(i)} className={`h-7 w-7 p-0 text-xs ${i === safePage ? "" : "text-slate-400"}`}>{i + 1}</Button>
+                <Button key={i} variant={i === safePage ? "default" : "ghost"} size="sm" onClick={() => setPage(i)} className={`h-7 w-7 p-0 text-xs ${i === safePage ? "" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>{i + 1}</Button>
               ))}
             </>
           )}
@@ -1116,26 +1116,26 @@ export default function RefTableBase<T extends { id: string }>({
 
       {/* 48. Reset to defaults */}
       <div className="flex justify-end pt-1">
-        <Button variant="ghost" size="sm" onClick={handleResetDefaults} className="gap-1.5 text-xs text-slate-400 hover:text-slate-200" aria-label="Reinitialiser aux valeurs par defaut">
+        <Button variant="ghost" size="sm" onClick={handleResetDefaults} className="gap-1.5 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200" aria-label="Reinitialiser aux valeurs par defaut">
           <RotateCcw className="w-3.5 h-3.5" /> Reinitialiser aux valeurs par defaut
         </Button>
       </div>
 
       {/* ===== CREATE / EDIT DIALOG ===== */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-lg max-h-[85vh] overflow-y-auto">
+        <DialogContent className="bg-gray-50 dark:bg-slate-900 border-white/10 max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-slate-100">
               {editItem ? "Modifier l'element" : "Ajouter un element"}
             </DialogTitle>
-            <DialogDescription className="text-slate-400 text-sm">
+            <DialogDescription className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">
               {editItem ? "Modifiez les champs ci-dessous puis validez." : "Remplissez les champs ci-dessous pour creer un nouvel element."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
             {fields.map((field, fieldIdx) => (
               <div key={field.key} className="space-y-1.5">
-                <Label className="text-slate-300 text-sm">
+                <Label className="text-slate-700 dark:text-slate-300 text-sm">
                   {field.label}
                   {field.required && <span className="text-red-400 ml-1">*</span>}
                 </Label>
@@ -1161,7 +1161,7 @@ export default function RefTableBase<T extends { id: string }>({
                         step={1}
                         className="flex-1"
                       />
-                      <span className="text-sm font-mono text-slate-300 w-10 text-right tabular-nums">{Number(form[field.key] ?? 0)}</span>
+                      <span className="text-sm font-mono text-slate-700 dark:text-slate-300 w-10 text-right tabular-nums">{Number(form[field.key] ?? 0)}</span>
                     </div>
                     {/* 49. Preview risk badge next to slider */}
                     <RiskBadge score={Number(form[field.key] ?? 0)} />
@@ -1169,7 +1169,7 @@ export default function RefTableBase<T extends { id: string }>({
                 ) : field.type === "checkbox" ? (
                   <div className="flex items-center gap-2">
                     <Checkbox checked={!!form[field.key]} onCheckedChange={(v) => updateForm(field.key, !!v)} />
-                    <span className="text-sm text-slate-300">{field.placeholder || "Actif"}</span>
+                    <span className="text-sm text-slate-700 dark:text-slate-300">{field.placeholder || "Actif"}</span>
                   </div>
                 ) : field.type === "multi-checkbox" && field.options ? (
                   <div className="flex flex-wrap gap-3 pt-1">
@@ -1178,7 +1178,7 @@ export default function RefTableBase<T extends { id: string }>({
                       const parts = currentVal.split(",").map((s) => s.trim()).filter(Boolean);
                       const checked = parts.includes(opt.value);
                       return (
-                        <label key={opt.value} className="flex items-center gap-1.5 text-sm text-slate-300 cursor-pointer hover:text-slate-100 transition-colors">
+                        <label key={opt.value} className="flex items-center gap-1.5 text-sm text-slate-700 dark:text-slate-300 cursor-pointer hover:text-slate-100 transition-colors">
                           <Checkbox
                             checked={checked}
                             onCheckedChange={(v) => {
@@ -1209,11 +1209,11 @@ export default function RefTableBase<T extends { id: string }>({
                       placeholder={field.placeholder}
                       rows={3}
                       maxLength={field.maxLength}
-                      className={`w-full rounded-md bg-white/5 border border-white/10 px-3 py-2 text-sm text-slate-200 placeholder:text-slate-500 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 resize-y ${formErrors[field.key] ? "border-red-500 ring-1 ring-red-500/30" : ""}`}
+                      className={`w-full rounded-md bg-white/5 border border-white/10 px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:text-slate-500 focus:ring-2 focus:ring-blue-500/40 focus:border-blue-500 resize-y ${formErrors[field.key] ? "border-red-500 ring-1 ring-red-500/30" : ""}`}
                     />
                     {/* 50. Character count */}
                     {field.maxLength && (
-                      <p className="text-[10px] text-slate-600 text-right">
+                      <p className="text-[10px] text-slate-300 dark:text-slate-600 text-right">
                         {String(form[field.key] ?? "").length} / {field.maxLength}
                       </p>
                     )}
@@ -1238,7 +1238,7 @@ export default function RefTableBase<T extends { id: string }>({
             {/* Score preview (when score is not a slider field but exists in form) */}
             {hasScore && form.score !== undefined && !fields.some((f) => f.key === "score" && f.type === "slider") && (
               <div className="flex items-center gap-2 pt-1">
-                <span className="text-xs text-slate-400">Apercu risque :</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Apercu risque :</span>
                 <RiskBadge score={Number(form.score ?? 0)} />
               </div>
             )}
@@ -1255,10 +1255,10 @@ export default function RefTableBase<T extends { id: string }>({
 
       {/* ===== DELETE CONFIRMATION DIALOG ===== */}
       <Dialog open={!!deleteConfirm} onOpenChange={() => setDeleteConfirm(null)}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-sm">
+        <DialogContent className="bg-gray-50 dark:bg-slate-900 border-white/10 max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-slate-100">Confirmer la suppression</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
               Cette action est irreversible. Vous pourrez annuler pendant 5 secondes apres la suppression.
             </DialogDescription>
           </DialogHeader>
@@ -1274,10 +1274,10 @@ export default function RefTableBase<T extends { id: string }>({
 
       {/* ===== BULK DELETE DIALOG ===== */}
       <Dialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-sm">
+        <DialogContent className="bg-gray-50 dark:bg-slate-900 border-white/10 max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-slate-100">Supprimer {selected.size} element{selected.size > 1 ? "s" : ""} ?</DialogTitle>
-            <DialogDescription className="text-slate-400">
+            <DialogDescription className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
               Cette action est irreversible.
             </DialogDescription>
           </DialogHeader>
@@ -1293,14 +1293,14 @@ export default function RefTableBase<T extends { id: string }>({
 
       {/* ===== BULK RISK CHANGE DIALOG ===== */}
       <Dialog open={bulkRiskOpen} onOpenChange={setBulkRiskOpen}>
-        <DialogContent className="bg-slate-900 border-white/10 max-w-sm">
+        <DialogContent className="bg-gray-50 dark:bg-slate-900 border-white/10 max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-slate-100">Modifier le risque ({selected.size} elements)</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="flex items-center gap-3">
               <Slider value={[bulkRiskScore]} onValueChange={([v]) => setBulkRiskScore(v)} min={0} max={100} step={1} className="flex-1" />
-              <span className="text-sm font-mono text-slate-300 w-10 text-right tabular-nums">{bulkRiskScore}</span>
+              <span className="text-sm font-mono text-slate-700 dark:text-slate-300 w-10 text-right tabular-nums">{bulkRiskScore}</span>
             </div>
             <RiskBadge score={bulkRiskScore} />
           </div>

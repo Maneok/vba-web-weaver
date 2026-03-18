@@ -19,7 +19,7 @@ import { UserPlus, Shield, UserCheck, UserX, Users, Copy } from "lucide-react";
 const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN: "bg-primary text-primary-foreground",
   SUPERVISEUR: "bg-[hsl(var(--risk-medium))] text-black",
-  COLLABORATEUR: "bg-[hsl(var(--chart-5))] text-white",
+  COLLABORATEUR: "bg-[hsl(var(--chart-5))] text-slate-900 dark:text-white",
   STAGIAIRE: "bg-muted text-muted-foreground",
 };
 

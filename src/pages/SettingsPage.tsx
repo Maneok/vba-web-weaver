@@ -180,7 +180,7 @@ function InfoTip({ text }: { text: string }) {
     <TooltipProvider delayDuration={200}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Info className="w-3.5 h-3.5 text-slate-500 hover:text-slate-300 cursor-help inline ml-1.5" />
+          <Info className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 cursor-help inline ml-1.5" />
         </TooltipTrigger>
         <TooltipContent side="top" className="max-w-[260px] text-xs">
           {text}
@@ -268,7 +268,7 @@ function CabinetSubTabs() {
           <Building2 className="w-5 h-5" />
           Gestion du Cabinet
         </h2>
-        <p className="text-sm text-slate-400 mt-1">Cabinets, collaborateurs, roles, reglages, connecteurs et cles API.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Cabinets, collaborateurs, roles, reglages, connecteurs et cles API.</p>
       </div>
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto gap-1">
@@ -323,7 +323,7 @@ function RefSubTabs() {
           <BookOpen className="w-5 h-5" />
           Referentiels
         </h2>
-        <p className="text-sm text-slate-400 mt-1">Tables de reference pour le calcul de risque et la conformite LCB-FT.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Tables de reference pour le calcul de risque et la conformite LCB-FT.</p>
       </div>
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList className="bg-white/5 border border-white/10">
@@ -765,7 +765,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div>
         <h1 className="text-xl font-semibold text-slate-100">Parametres</h1>
-        <p className="text-sm text-slate-400 mt-1">Configuration du cabinet, scoring de risque et conformite LCB-FT.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Configuration du cabinet, scoring de risque et conformite LCB-FT.</p>
       </div>
 
       {/* Tabs */}
@@ -819,7 +819,7 @@ export default function SettingsPage() {
                   <div className="flex items-center gap-4">
                     {/* Avatar circle */}
                     <div
-                      className="w-14 h-14 rounded-full flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-lg"
+                      className="w-14 h-14 rounded-full flex items-center justify-center text-slate-900 dark:text-white font-bold text-lg shrink-0 shadow-lg"
                       style={{ backgroundColor: cabinet.couleurPrimaire }}
                     >
                       {getInitials(cabinet.nom)}
@@ -848,7 +848,7 @@ export default function SettingsPage() {
                     </div>
                   </div>
                   {lastSavedCabinet && (
-                    <div className="flex items-center gap-1.5 text-xs text-slate-500 whitespace-nowrap shrink-0">
+                    <div className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap shrink-0">
                       <Clock className="w-3.5 h-3.5" />
                       {relativeTime(lastSavedCabinet)}
                     </div>
@@ -857,7 +857,7 @@ export default function SettingsPage() {
 
                 {/* Progress bar */}
                 <div className="mt-4 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-slate-400">
+                  <div className="flex items-center justify-between text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
                     <span>Completion du profil</span>
                     <span className="font-medium">{computeCabinetCompletion(cabinet)}%</span>
                   </div>
@@ -870,13 +870,13 @@ export default function SettingsPage() {
                 <Collapsible open={identiteOpen} onOpenChange={setIdentiteOpen}>
                   <div className="rounded-lg border border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
                           <div className="w-1 h-6 rounded-full bg-blue-500" />
                           <Building2 className="w-4 h-4 text-blue-400" />
-                          <span className="text-sm font-semibold text-slate-200">Identite</span>
+                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Identite</span>
                         </div>
-                        {identiteOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                        {identiteOpen ? <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
                       </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -889,7 +889,7 @@ export default function SettingsPage() {
                               <TooltipProvider delayDuration={200}><Tooltip><TooltipTrigger asChild><span className="text-red-400 cursor-help">*</span></TooltipTrigger><TooltipContent side="top" className="text-xs">Champ obligatoire</TooltipContent></Tooltip></TooltipProvider>
                             </Label>
                             <div className="relative">
-                              <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Building2 className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                               <Input
                                 id="cab-nom"
                                 value={cabinet.nom}
@@ -909,7 +909,7 @@ export default function SettingsPage() {
                           <div className="space-y-1.5">
                             <Label htmlFor="cab-associe" className="text-xs">Associe principal</Label>
                             <div className="relative">
-                              <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <User className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                               <Input
                                 id="cab-associe"
                                 value={cabinet.associe_principal}
@@ -931,7 +931,7 @@ export default function SettingsPage() {
                               <InfoTip text="Le SIRET doit contenir exactement 14 chiffres. Les espaces sont ignores." />
                             </Label>
                             <div className="relative">
-                              <Fingerprint className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Fingerprint className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                               <Input
                                 id="cab-siret"
                                 value={formatSiretInput(cabinet.siret)}
@@ -949,7 +949,7 @@ export default function SettingsPage() {
                           <div className="space-y-1.5">
                             <Label htmlFor="cab-oec" className="text-xs">Numero OEC</Label>
                             <div className="relative">
-                              <Award className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Award className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                               <Input
                                 id="cab-oec"
                                 value={cabinet.numeroOEC}
@@ -969,13 +969,13 @@ export default function SettingsPage() {
                 <Collapsible open={coordonneesOpen} onOpenChange={setCoordonneesOpen}>
                   <div className="rounded-lg border border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
                           <div className="w-1 h-6 rounded-full bg-emerald-500" />
                           <MapPin className="w-4 h-4 text-emerald-400" />
-                          <span className="text-sm font-semibold text-slate-200">Coordonnees</span>
+                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Coordonnees</span>
                         </div>
-                        {coordonneesOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                        {coordonneesOpen ? <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
                       </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -984,7 +984,7 @@ export default function SettingsPage() {
                         <div className="space-y-1.5">
                           <Label htmlFor="cab-adresse" className="text-xs">Adresse</Label>
                           <div className="relative">
-                            <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                            <MapPin className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                             <Input
                               id="cab-adresse"
                               value={cabinet.adresse}
@@ -1004,7 +1004,7 @@ export default function SettingsPage() {
                           <div className="space-y-1.5">
                             <Label htmlFor="cab-cp" className="text-xs">Code postal</Label>
                             <div className="relative">
-                              <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                               <Input
                                 id="cab-cp"
                                 value={cabinet.cp}
@@ -1024,7 +1024,7 @@ export default function SettingsPage() {
                           <div className="space-y-1.5">
                             <Label htmlFor="cab-ville" className="text-xs">Ville</Label>
                             <div className="relative">
-                              <Building className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Building className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                               <Input
                                 id="cab-ville"
                                 value={cabinet.ville}
@@ -1041,7 +1041,7 @@ export default function SettingsPage() {
                           <div className="space-y-1.5">
                             <Label htmlFor="cab-email" className="text-xs">Email</Label>
                             <div className="relative">
-                              <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Mail className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                               <Input
                                 id="cab-email"
                                 type="email"
@@ -1058,7 +1058,7 @@ export default function SettingsPage() {
                           <div className="space-y-1.5">
                             <Label htmlFor="cab-tel" className="text-xs">Telephone</Label>
                             <div className="relative">
-                              <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+                              <Phone className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
                               <Input
                                 id="cab-tel"
                                 value={formatPhoneInput(cabinet.telephone)}
@@ -1079,13 +1079,13 @@ export default function SettingsPage() {
                 <Collapsible open={apparenceOpen} onOpenChange={setApparenceOpen}>
                   <div className="rounded-lg border border-white/10 overflow-hidden">
                     <CollapsibleTrigger asChild>
-                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white/[0.02] hover:bg-white/[0.04] transition-colors">
+                      <button className="w-full flex items-center justify-between px-4 py-3 bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors">
                         <div className="flex items-center gap-2.5">
                           <div className="w-1 h-6 rounded-full bg-violet-500" />
                           <Palette className="w-4 h-4 text-violet-400" />
-                          <span className="text-sm font-semibold text-slate-200">Apparence</span>
+                          <span className="text-sm font-semibold text-slate-800 dark:text-slate-200">Apparence</span>
                         </div>
-                        {apparenceOpen ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                        {apparenceOpen ? <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />}
                       </button>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -1114,7 +1114,7 @@ export default function SettingsPage() {
                                   className="w-7 h-7 rounded-full border border-white/20 bg-transparent cursor-pointer"
                                   title="Couleur personnalisee"
                                 />
-                                <span className="text-xs text-slate-500 font-mono ml-1">{cabinet.couleurPrimaire}</span>
+                                <span className="text-xs text-slate-400 dark:text-slate-500 font-mono ml-1">{cabinet.couleurPrimaire}</span>
                               </div>
                             </div>
 
@@ -1139,7 +1139,7 @@ export default function SettingsPage() {
                                   className="w-7 h-7 rounded-full border border-white/20 bg-transparent cursor-pointer"
                                   title="Couleur personnalisee"
                                 />
-                                <span className="text-xs text-slate-500 font-mono ml-1">{cabinet.couleurSecondaire}</span>
+                                <span className="text-xs text-slate-400 dark:text-slate-500 font-mono ml-1">{cabinet.couleurSecondaire}</span>
                               </div>
                             </div>
 
@@ -1170,7 +1170,7 @@ export default function SettingsPage() {
                               <div className="p-4 space-y-2">
                                 <div className="flex items-center gap-3">
                                   <div
-                                    className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                                    className="w-9 h-9 rounded-full flex items-center justify-center text-slate-900 dark:text-white text-xs font-bold shrink-0"
                                     style={{ backgroundColor: cabinet.couleurPrimaire }}
                                   >
                                     {getInitials(cabinet.nom)}
@@ -1204,11 +1204,11 @@ export default function SettingsPage() {
               </div>
 
               {/* Sticky save bar */}
-              <div className="sticky bottom-0 z-10 px-6 py-3 border-t border-white/10 bg-slate-900/80 backdrop-blur-lg flex items-center justify-between">
+              <div className="sticky bottom-0 z-10 px-6 py-3 border-t border-white/10 bg-gray-50 dark:bg-slate-900/80 backdrop-blur-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {showResetConfirm ? (
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-slate-400">Reinitialiser les valeurs ?</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Reinitialiser les valeurs ?</span>
                       <Button variant="destructive" size="sm" className="h-7 text-xs" onClick={() => { resetCabinet(); setShowResetConfirm(false); }}>
                         Confirmer
                       </Button>
@@ -1217,7 +1217,7 @@ export default function SettingsPage() {
                       </Button>
                     </div>
                   ) : (
-                    <Button variant="ghost" size="sm" onClick={() => setShowResetConfirm(true)} aria-label="Reinitialiser les informations du cabinet" className="gap-2 text-slate-400 hover:text-slate-200 h-8">
+                    <Button variant="ghost" size="sm" onClick={() => setShowResetConfirm(true)} aria-label="Reinitialiser les informations du cabinet" className="gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 h-8">
                       <RotateCcw className="w-3.5 h-3.5" />
                       Reinitialiser
                     </Button>
@@ -1225,11 +1225,11 @@ export default function SettingsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {lastSavedCabinet && (
-                    <span className="text-[10px] text-slate-500 hidden sm:inline">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
                       {relativeTime(lastSavedCabinet)}
                     </span>
                   )}
-                  <span className="text-xs text-slate-500 hidden sm:inline">Ctrl+S</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">Ctrl+S</span>
                   <Button
                     onClick={saveCabinet}
                     disabled={savingCabinet}
@@ -1250,34 +1250,34 @@ export default function SettingsPage() {
           <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-100">Configuration du scoring</h2>
-              <p className="text-sm text-slate-400 mt-1">Seuils de vigilance, malus de risque et frequences de revue.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Seuils de vigilance, malus de risque et frequences de revue.</p>
             </div>
 
             {/* Seuils */}
             <div>
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">Seuils de vigilance</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Seuils de vigilance</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-bas">Seuil SIMPLIFIEE (max)</Label>
                   <Input id="sc-bas" type="number" min={0} value={scoring.seuil_bas} onChange={(e) => updateScoring("seuil_bas", Number(e.target.value))} />
-                  <p className="text-[11px] text-slate-500">Score &le; ce seuil = vigilance SIMPLIFIEE</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Score &le; ce seuil = vigilance SIMPLIFIEE</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-haut">Seuil RENFORCEE (min)</Label>
                   <Input id="sc-haut" type="number" min={0} value={scoring.seuil_haut} onChange={(e) => updateScoring("seuil_haut", Number(e.target.value))} />
-                  <p className="text-[11px] text-slate-500">Score &ge; ce seuil = vigilance RENFORCEE</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Score &ge; ce seuil = vigilance RENFORCEE</p>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-slate-400 text-xs">STANDARD (auto)</Label>
-                  <p className="text-sm text-slate-300 pt-2">{scoring.seuil_bas + 1 <= scoring.seuil_haut - 1 ? `${scoring.seuil_bas + 1} \u2013 ${scoring.seuil_haut - 1}` : "Plage invalide"}</p>
-                  <p className="text-[11px] text-slate-500">Plage calculee automatiquement</p>
+                  <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">STANDARD (auto)</Label>
+                  <p className="text-sm text-slate-700 dark:text-slate-300 pt-2">{scoring.seuil_bas + 1 <= scoring.seuil_haut - 1 ? `${scoring.seuil_bas + 1} \u2013 ${scoring.seuil_haut - 1}` : "Plage invalide"}</p>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Plage calculee automatiquement</p>
                 </div>
               </div>
             </div>
 
             {/* Malus */}
             <div>
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">Malus (points ajoutes au score)</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Malus (points ajoutes au score)</h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-cash">Especes (cash)</Label>
@@ -1304,7 +1304,7 @@ export default function SettingsPage() {
 
             {/* Frequences de revue */}
             <div>
-              <h3 className="text-sm font-semibold text-slate-300 mb-3">Frequences de revue (mois)</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Frequences de revue (mois)</h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                 <div className="space-y-2">
                   <Label htmlFor="sc-rev-std">Revue STANDARD</Label>
@@ -1362,7 +1362,7 @@ export default function SettingsPage() {
           <div className="glass-card border border-white/10 rounded-xl p-6 space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-100">Configuration LCB-FT</h2>
-              <p className="text-sm text-slate-400 mt-1">Referent, formations et listes de pays a risque.</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Referent, formations et listes de pays a risque.</p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1409,7 +1409,7 @@ export default function SettingsPage() {
                 className="font-mono text-xs"
                 placeholder="AFGHANISTAN, IRAN, COREE DU NORD..."
               />
-              <p className="text-[11px] text-slate-500">Noms des pays separes par des virgules.</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">Noms des pays separes par des virgules.</p>
             </div>
 
             <div className="space-y-2">
@@ -1430,7 +1430,7 @@ export default function SettingsPage() {
                 className="font-mono text-xs"
                 placeholder="TURQUIE, EMIRATS ARABES UNIS..."
               />
-              <p className="text-[11px] text-slate-500">Pays sous surveillance renforcee (liste grise GAFI).</p>
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">Pays sous surveillance renforcee (liste grise GAFI).</p>
             </div>
 
             <div className="flex justify-end pt-2">

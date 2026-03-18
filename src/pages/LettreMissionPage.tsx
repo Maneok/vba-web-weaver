@@ -228,7 +228,7 @@ function LetterHistory({
     return (
       <div className="flex items-center justify-center py-20">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-        <span className="ml-2 text-slate-400 text-sm">Chargement...</span>
+        <span className="ml-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">Chargement...</span>
       </div>
     );
   }
@@ -240,14 +240,14 @@ function LetterHistory({
           <FileText className="w-8 h-8 text-blue-400" />
         </div>
         <div>
-          <p className="text-white font-medium">Aucune lettre de mission</p>
-          <p className="text-slate-500 text-sm mt-1">Commencez par creer votre premiere lettre dans l'onglet "Nouvelle lettre"</p>
+          <p className="text-slate-900 dark:text-white font-medium">Aucune lettre de mission</p>
+          <p className="text-slate-400 dark:text-slate-500 text-sm mt-1">Commencez par creer votre premiere lettre dans l'onglet "Nouvelle lettre"</p>
         </div>
         <div className="flex items-center justify-center gap-3 text-[10px] text-slate-600">
           <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> ~5 min par lettre</span>
-          <span className="w-px h-3 bg-white/[0.06]" />
+          <span className="w-px h-3 bg-gray-100 dark:bg-white/[0.06]" />
           <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> PDF + DOCX</span>
-          <span className="w-px h-3 bg-white/[0.06]" />
+          <span className="w-px h-3 bg-gray-100 dark:bg-white/[0.06]" />
           <span className="flex items-center gap-1"><Send className="w-3 h-3" /> Signature electronique</span>
         </div>
       </div>
@@ -256,8 +256,8 @@ function LetterHistory({
 
   // Status pills config
   const STATUS_PILLS = [
-    { value: "all", label: "Tous", color: "bg-white/[0.06] text-slate-300 border-white/[0.08]" },
-    { value: "brouillon", label: "Brouillons", color: "bg-slate-500/10 text-slate-400 border-slate-500/20" },
+    { value: "all", label: "Tous", color: "bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-gray-300 dark:border-white/[0.08]" },
+    { value: "brouillon", label: "Brouillons", color: "bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/20" },
     { value: "envoyee", label: "Envoyees", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
     { value: "signee", label: "Signees", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
     { value: "resiliee", label: "Resiliees", color: "bg-red-500/10 text-red-400 border-red-500/20" },
@@ -291,7 +291,7 @@ function LetterHistory({
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all ${
                 isActive
                   ? `${pill.color} ring-1 ring-white/10`
-                  : "bg-white/[0.02] text-slate-500 border-white/[0.06] hover:bg-white/[0.04]"
+                  : "bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500 border-gray-200 dark:border-white/[0.06] hover:bg-gray-50/80 dark:bg-white/[0.04]"
               }`}
             >
               {pill.label}
@@ -306,17 +306,17 @@ function LetterHistory({
       {/* Type filter + Search */}
       <div className="flex flex-col sm:flex-row gap-2">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher par client ou n° LM..."
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
-            className="pl-9 h-9 bg-white/[0.04] border-white/[0.08] text-white text-xs"
+            className="pl-9 h-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white text-xs"
           />
         </div>
         <Select value={filterType} onValueChange={setFilterType}>
-          <SelectTrigger className="w-full sm:w-[200px] h-9 bg-white/[0.04] border-white/[0.08] text-xs text-slate-300">
-            <Filter className="w-3 h-3 mr-1.5 text-slate-500" />
+          <SelectTrigger className="w-full sm:w-[200px] h-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-xs text-slate-700 dark:text-slate-300">
+            <Filter className="w-3 h-3 mr-1.5 text-slate-400 dark:text-slate-500" />
             <SelectValue placeholder="Type de mission" />
           </SelectTrigger>
           <SelectContent>
@@ -332,24 +332,24 @@ function LetterHistory({
       <div className="flex items-center justify-between">
         <p className="text-[10px] text-slate-600">{filtered.length} lettre{filtered.length > 1 ? "s" : ""}</p>
         {totalHonoraires > 0 && (
-          <p className="text-[10px] text-slate-500">
-            Total honoraires actifs : <span className="text-white font-medium">{formatEurCompact(totalHonoraires)}</span> HT
+          <p className="text-[10px] text-slate-400 dark:text-slate-500">
+            Total honoraires actifs : <span className="text-slate-900 dark:text-white font-medium">{formatEurCompact(totalHonoraires)}</span> HT
           </p>
         )}
       </div>
 
       {/* Table header (desktop) — sortable */}
       <div className="hidden sm:grid grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
-        <button onClick={() => toggleSort("client")} className="text-left hover:text-slate-400 transition-colors">
+        <button onClick={() => toggleSort("client")} className="text-left hover:text-slate-400 dark:text-slate-500 dark:text-slate-400 transition-colors">
           Client {sortBy === "client" ? (sortAsc ? "↑" : "↓") : ""}
         </button>
         <span>Numero</span>
         <span>Type de mission</span>
         <span>Honoraires</span>
-        <button onClick={() => toggleSort("date")} className="text-left hover:text-slate-400 transition-colors">
+        <button onClick={() => toggleSort("date")} className="text-left hover:text-slate-400 dark:text-slate-500 dark:text-slate-400 transition-colors">
           Date {sortBy === "date" ? (sortAsc ? "↑" : "↓") : ""}
         </button>
-        <button onClick={() => toggleSort("statut")} className="text-left hover:text-slate-400 transition-colors">
+        <button onClick={() => toggleSort("statut")} className="text-left hover:text-slate-400 dark:text-slate-500 dark:text-slate-400 transition-colors">
           Statut {sortBy === "statut" ? (sortAsc ? "↑" : "↓") : ""}
         </button>
         <span>Av.</span>
@@ -365,7 +365,7 @@ function LetterHistory({
           return (
           <div
             key={letter.id}
-            className={`group sm:grid sm:grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white/[0.02] border border-white/[0.06] hover:bg-white/[0.04] transition-colors ${rowCatColors ? `border-l-[3px] ${rowCatColors.border}` : ''}`}
+            className={`group sm:grid sm:grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors ${rowCatColors ? `border-l-[3px] ${rowCatColors.border}` : ''}`}
           >
             {/* Client */}
             <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
@@ -373,19 +373,19 @@ function LetterHistory({
                 <FileText className="w-4 h-4 text-blue-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-sm font-medium text-white truncate">{letter.raison_sociale}</p>
-                <p className="text-[10px] text-slate-500 sm:hidden">
+                <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{letter.raison_sociale}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 sm:hidden">
                   {letter.numero} · {new Date(letter.created_at).toLocaleDateString("fr-FR")}
                 </p>
               </div>
             </button>
 
             {/* Numero */}
-            <span className="hidden sm:block text-xs text-slate-400 font-mono truncate">{letter.numero}</span>
+            <span className="hidden sm:block text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono truncate">{letter.numero}</span>
 
             {/* Type de mission + mode comptable */}
             <div className="hidden sm:block">
-              <Badge className={`text-[9px] gap-1 ${rowCatColors ? rowCatColors.badge : 'bg-white/[0.04] border-white/[0.08] text-slate-300'}`}>
+              <Badge className={`text-[9px] gap-1 ${rowCatColors ? rowCatColors.badge : 'bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'}`}>
                 {getMissionLabel(letter)}
               </Badge>
               {modeComptable && ["TENUE", "SURVEILLANCE", "REVISION"].includes(modeComptable) && (
@@ -397,12 +397,12 @@ function LetterHistory({
             </div>
 
             {/* Honoraires HT */}
-            <span className="hidden sm:block text-[10px] text-slate-400 font-mono">
+            <span className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">
               {letter.honoraires_ht ? formatEurCompact(letter.honoraires_ht) : "—"}
             </span>
 
             {/* Date */}
-            <span className="hidden sm:block text-[10px] text-slate-500">
+            <span className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-500">
               {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
             </span>
 
@@ -424,7 +424,7 @@ function LetterHistory({
             <div className="hidden sm:flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
               <button
                 onClick={() => onEdit(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
+                className="p-1.5 rounded-md hover:bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors"
                 title={letter.statut === "brouillon" ? "Modifier" : "Voir"}
               >
                 <Edit3 className="w-3.5 h-3.5" />
@@ -432,7 +432,7 @@ function LetterHistory({
               {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
                 <button
                   onClick={() => openSignDialog(letter)}
-                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-blue-400 transition-colors"
+                  className="p-1.5 rounded-md hover:bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors"
                   title="Envoyer pour signature"
                 >
                   <Send className="w-3.5 h-3.5" />
@@ -441,7 +441,7 @@ function LetterHistory({
               {letter.statut === "signee" && (
                 <button
                   onClick={() => onCreateAvenant(letter)}
-                  className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-cyan-400 transition-colors"
+                  className="p-1.5 rounded-md hover:bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-cyan-400 transition-colors"
                   title="Creer un avenant"
                 >
                   <FilePlus2 className="w-3.5 h-3.5" />
@@ -449,21 +449,21 @@ function LetterHistory({
               )}
               <button
                 onClick={() => onDuplicate(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-emerald-400 transition-colors"
+                className="p-1.5 rounded-md hover:bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-emerald-400 transition-colors"
                 title="Dupliquer"
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => onDownloadPdf(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-purple-400 transition-colors"
+                className="p-1.5 rounded-md hover:bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-purple-400 transition-colors"
                 title="PDF"
               >
                 <FileDown className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => onArchive(letter)}
-                className="p-1.5 rounded-md hover:bg-white/[0.06] text-slate-500 hover:text-amber-400 transition-colors"
+                className="p-1.5 rounded-md hover:bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-amber-400 transition-colors"
                 title="Archiver"
               >
                 <Archive className="w-3.5 h-3.5" />
@@ -471,7 +471,7 @@ function LetterHistory({
             </div>
 
             {/* Mobile actions */}
-            <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-white/[0.04]">
+            <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-white/[0.04]">
               <LMStatusBadge status={letter.statut} />
               {avenantCount > 0 && (
                 <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
@@ -479,39 +479,39 @@ function LetterHistory({
                 </Badge>
               )}
               {letter.honoraires_ht > 0 && (
-                <span className="text-[9px] text-slate-500 font-mono">{formatEurCompact(letter.honoraires_ht)}</span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">{formatEurCompact(letter.honoraires_ht)}</span>
               )}
               <div className="flex-1" />
               {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
-                <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-500"><Send className="w-3.5 h-3.5" /></button>
+                <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><Send className="w-3.5 h-3.5" /></button>
               )}
               {letter.statut === "signee" && (
-                <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
               )}
-              <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
             </div>
 
             {/* Avenants list */}
             {avenantsByLetter[letter.id] && avenantsByLetter[letter.id].length > 0 && (
-              <div className="col-span-full mt-2 pt-2 border-t border-white/[0.04] space-y-1">
+              <div className="col-span-full mt-2 pt-2 border-t border-gray-100 dark:border-white/[0.04] space-y-1">
                 <p className="text-[10px] text-slate-600 uppercase tracking-wider mb-1">
                   {avenantsByLetter[letter.id].length} avenant{avenantsByLetter[letter.id].length > 1 ? "s" : ""}
                 </p>
                 {avenantsByLetter[letter.id].map((av) => (
                   <div
                     key={av.id}
-                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.01] border border-white/[0.04]"
+                    className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-white/[0.01] border border-gray-100 dark:border-white/[0.04]"
                   >
                     <FilePlus2 className="w-3 h-3 text-cyan-400/60 shrink-0" />
                     <span className="text-xs font-mono text-cyan-400/80">{av.numero}</span>
-                    <span className="text-xs text-slate-400 truncate flex-1">{av.objet}</span>
+                    <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate flex-1">{av.objet}</span>
                     <Badge variant="outline" className={`text-[9px] ${
                       av.status === "signee" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" :
                       av.status === "envoyee" ? "bg-blue-500/10 text-blue-400 border-blue-500/20" :
                       av.status === "archivee" ? "bg-purple-500/10 text-purple-400 border-purple-500/20" :
-                      "bg-slate-500/10 text-slate-400 border-slate-500/20"
+                      "bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/20"
                     }`}>
                       {av.status}
                     </Badge>
@@ -531,7 +531,7 @@ function LetterHistory({
       {filtered.length === 0 && letters.length > 0 && (
         <div className="text-center py-10 space-y-2">
           <Search className="w-8 h-8 text-slate-600 mx-auto" />
-          <p className="text-slate-400 text-sm">Aucun resultat pour ces filtres</p>
+          <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">Aucun resultat pour ces filtres</p>
           <button
             onClick={() => { setSearchQ(""); setFilterStatut("all"); setFilterType("all"); }}
             className="text-xs text-blue-400 hover:underline"
@@ -553,7 +553,7 @@ function LetterHistory({
               variant="outline"
               disabled={page === 0}
               onClick={() => setPage(page - 1)}
-              className="h-7 w-7 p-0 border-white/[0.06]"
+              className="h-7 w-7 p-0 border-gray-200 dark:border-white/[0.06]"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </Button>
@@ -564,7 +564,7 @@ function LetterHistory({
                 className={`w-7 h-7 rounded text-xs transition-colors ${
                   i === page
                     ? "bg-blue-500/20 text-blue-300"
-                    : "text-slate-500 hover:bg-white/[0.04]"
+                    : "text-slate-400 dark:text-slate-500 hover:bg-gray-50/80 dark:bg-white/[0.04]"
                 }`}
               >
                 {i + 1}
@@ -575,7 +575,7 @@ function LetterHistory({
               variant="outline"
               disabled={page >= totalPages - 1}
               onClick={() => setPage(page + 1)}
-              className="h-7 w-7 p-0 border-white/[0.06]"
+              className="h-7 w-7 p-0 border-gray-200 dark:border-white/[0.06]"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </Button>
@@ -599,13 +599,13 @@ function LetterHistory({
                 <p className="text-sm text-emerald-300">Lien de signature genere</p>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Lien a envoyer au client</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Lien a envoyer au client</Label>
                 <div className="flex gap-2">
-                  <Input value={signUrl} readOnly className="bg-white/[0.04] border-white/[0.08] text-xs font-mono" />
+                  <Input value={signUrl} readOnly className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-xs font-mono" />
                   <Button
                     size="sm"
                     variant="outline"
-                    className="shrink-0 gap-1 border-white/[0.06]"
+                    className="shrink-0 gap-1 border-gray-200 dark:border-white/[0.06]"
                     onClick={() => {
                       navigator.clipboard.writeText(signUrl);
                       toast.success("Lien copie dans le presse-papiers");
@@ -615,11 +615,11 @@ function LetterHistory({
                   </Button>
                 </div>
               </div>
-              <p className="text-[10px] text-slate-500">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500">
                 Le client pourra consulter la lettre de mission et la signer electroniquement via ce lien.
               </p>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-white/[0.06]">
+                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-gray-200 dark:border-white/[0.06]">
                   Fermer
                 </Button>
               </DialogFooter>
@@ -627,26 +627,26 @@ function LetterHistory({
           ) : (
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Email du client *</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Email du client *</Label>
                 <Input
                   type="email"
                   value={signEmail}
                   onChange={(e) => setSignEmail(e.target.value)}
                   placeholder="client@example.com"
-                  className="bg-white/[0.04] border-white/[0.08]"
+                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Nom du signataire</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nom du signataire</Label>
                 <Input
                   value={signClientNom}
                   onChange={(e) => setSignClientNom(e.target.value)}
                   placeholder="Nom du client"
-                  className="bg-white/[0.04] border-white/[0.08]"
+                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
                 />
               </div>
               <DialogFooter className="gap-2">
-                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-white/[0.06]">
+                <Button variant="outline" onClick={() => setSignTarget(null)} className="border-gray-200 dark:border-white/[0.06]">
                   Annuler
                 </Button>
                 <Button
@@ -1271,9 +1271,9 @@ export default function LettreMissionPage() {
     return (
       <div className="flex flex-col items-center justify-center py-20 space-y-4 animate-fade-in-up">
         <ShieldAlert className="w-12 h-12 text-red-400" />
-        <p className="text-white font-medium">Acces refuse</p>
-        <p className="text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
-        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-white/[0.06]">Retour</Button>
+        <p className="text-slate-900 dark:text-white font-medium">Acces refuse</p>
+        <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm text-center px-4">Vous n'avez pas les permissions pour creer une lettre de mission.</p>
+        <Button variant="outline" onClick={() => navigate("/bdd")} className="border-gray-200 dark:border-white/[0.06]">Retour</Button>
       </div>
     );
   }
@@ -1283,15 +1283,15 @@ export default function LettreMissionPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Lettres de mission</h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">Creez et gerez vos lettres de mission</p>
+          <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Lettres de mission</h1>
+          <p className="text-xs sm:text-sm text-slate-400 dark:text-slate-500 mt-1">Creez et gerez vos lettres de mission</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             onClick={handleExpress}
-            className={`gap-1.5 border-white/[0.06] text-xs ${expressMode ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "text-slate-400"}`}
+            className={`gap-1.5 border-gray-200 dark:border-white/[0.06] text-xs ${expressMode ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}
           >
             <Zap className="w-3.5 h-3.5" /> Express
           </Button>
@@ -1309,27 +1309,27 @@ export default function LettreMissionPage() {
         <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 animate-fade-in-up">
           <div className="min-w-0">
             <p className="text-sm font-medium text-blue-300">Reprendre le brouillon</p>
-            <p className="text-xs text-slate-400 truncate">
+            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate">
               {draftInfo.wizard_data?.raison_sociale || "Sans nom"} — Etape {(draftInfo.wizard_step || 0) + 1}/{LM_TOTAL_STEPS}
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
             <Button size="sm" onClick={resumeDraft} className="bg-blue-600 hover:bg-blue-700">Reprendre</Button>
-            <Button size="sm" variant="ghost" onClick={() => setShowDraftBanner(false)} className="text-slate-400">Nouveau</Button>
+            <Button size="sm" variant="ghost" onClick={() => setShowDraftBanner(false)} className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Nouveau</Button>
           </div>
         </div>
       )}
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-white/[0.04] border border-white/[0.06] w-full sm:w-auto">
+        <TabsList className="bg-gray-50/80 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.06] w-full sm:w-auto">
           <TabsTrigger value="wizard" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
             <FileText className="w-3.5 h-3.5" /> {isMobile ? "Nouvelle" : "Nouvelle lettre"}
           </TabsTrigger>
           <TabsTrigger value="history" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
             <FolderOpen className="w-3.5 h-3.5" /> Mes lettres
             {savedLetters.length > 0 && (
-              <Badge className="ml-1 bg-white/[0.06] text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
+              <Badge className="ml-1 bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400 text-[10px] px-1.5">{savedLetters.length}</Badge>
             )}
           </TabsTrigger>
           <TabsTrigger value="modeles" className="gap-1.5 flex-1 sm:flex-none data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
@@ -1348,7 +1348,7 @@ export default function LettreMissionPage() {
 
           {/* Step title + H) elapsed time */}
           <div className="flex items-center justify-between">
-            <h2 className="text-lg sm:text-xl font-bold text-white">{LM_STEP_TITLES[step]}</h2>
+            <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">{LM_STEP_TITLES[step]}</h2>
             <div className="flex items-center gap-3">
               {elapsed > 0 && (
                 <span className="text-[10px] text-slate-600 flex items-center gap-1">
@@ -1369,7 +1369,7 @@ export default function LettreMissionPage() {
             {/* Left: form */}
             <div className={`${!isMobile ? "flex-[3] min-w-0" : "w-full"}`}>
               <div
-                className={`rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6 transition-all duration-200 ${
+                className={`rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 sm:p-6 transition-all duration-200 ${
                   isMobile ? "pb-32" : ""
                 } ${
                   fieldsVisible
@@ -1388,7 +1388,7 @@ export default function LettreMissionPage() {
             {/* Right: summary panel (desktop only) */}
             {!isMobile && (
               <div className="flex-[2] min-w-[260px] max-w-[360px]">
-                <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-5">
+                <div className="rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-5">
                   <LMSummaryPanel data={data} />
                 </div>
               </div>
@@ -1403,17 +1403,17 @@ export default function LettreMissionPage() {
                 <LMSummaryPanel data={data} compact />
               </div>
               {/* Mobile: sticky bottom nav */}
-              <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-white/[0.06] p-3 pb-safe flex items-center justify-between z-50">
+              <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-gray-200 dark:border-white/[0.06] p-3 pb-safe flex items-center justify-between z-50">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handlePrevious}
                   disabled={step === 0}
-                  className="gap-1 border-white/[0.06]"
+                  className="gap-1 border-gray-200 dark:border-white/[0.06]"
                 >
                   <ChevronLeft className="w-4 h-4" /> Prec.
                 </Button>
-                <span className="text-xs text-slate-500 tabular-nums">{step + 1}/{LM_TOTAL_STEPS}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">{step + 1}/{LM_TOTAL_STEPS}</span>
                 {step < LM_TOTAL_STEPS - 1 ? (
                   <Button
                     size="sm"
@@ -1434,16 +1434,16 @@ export default function LettreMissionPage() {
                 variant="outline"
                 onClick={handlePrevious}
                 disabled={step === 0}
-                className="gap-1.5 border-white/[0.06] hover:bg-white/[0.04]"
+                className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-gray-50/80 dark:bg-white/[0.04]"
               >
                 <ChevronLeft className="w-4 h-4" /> Precedent
               </Button>
-              <span className="text-xs text-slate-500 tabular-nums">
+              <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
                 Etape {step + 1} / {LM_TOTAL_STEPS}
                 <span className="ml-2 text-[9px] text-slate-600">
-                  <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> prec.
+                  <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> prec.
                   {" · "}
-                  <kbd className="px-1 py-0.5 rounded bg-white/[0.04] text-slate-600 font-mono text-[8px]">Ctrl+⏎</kbd> suiv.
+                  <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-600 font-mono text-[8px]">Ctrl+⏎</kbd> suiv.
                 </span>
               </span>
               {step < LM_TOTAL_STEPS - 1 ? (
@@ -1463,7 +1463,7 @@ export default function LettreMissionPage() {
 
         {/* ─── MES LETTRES TAB ─── */}
         <TabsContent value="history" className="mt-4">
-          <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] p-4 sm:p-6">
+          <div className="rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 sm:p-6">
             <LetterHistory
               letters={savedLetters}
               loading={historyLoading}
@@ -1486,7 +1486,7 @@ export default function LettreMissionPage() {
               onBack={() => setActiveTab("wizard")}
             />
           ) : (
-            <div className="text-center py-20 text-slate-500 text-sm">
+            <div className="text-center py-20 text-slate-400 dark:text-slate-500 text-sm">
               Profil non initialisé. Reconnectez-vous.
             </div>
           )}

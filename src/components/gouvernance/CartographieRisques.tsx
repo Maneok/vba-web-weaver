@@ -31,64 +31,64 @@ export default function CartographieRisques() {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-emerald-400">{stats.simplifiee}</p>
-            <p className="text-xs text-slate-500 mt-1">Vigilance simplifiee</p>
-            {stats.total > 0 && <p className="text-[10px] text-slate-600">{Math.round(stats.simplifiee / stats.total * 100)}%</p>}
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Vigilance simplifiee</p>
+            {stats.total > 0 && <p className="text-[10px] text-slate-300 dark:text-slate-600">{Math.round(stats.simplifiee / stats.total * 100)}%</p>}
           </CardContent>
         </Card>
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-amber-400">{stats.standard}</p>
-            <p className="text-xs text-slate-500 mt-1">Vigilance standard</p>
-            {stats.total > 0 && <p className="text-[10px] text-slate-600">{Math.round(stats.standard / stats.total * 100)}%</p>}
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Vigilance standard</p>
+            {stats.total > 0 && <p className="text-[10px] text-slate-300 dark:text-slate-600">{Math.round(stats.standard / stats.total * 100)}%</p>}
           </CardContent>
         </Card>
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-red-400">{stats.renforcee}</p>
-            <p className="text-xs text-slate-500 mt-1">Vigilance renforcee</p>
-            {stats.total > 0 && <p className="text-[10px] text-slate-600">{Math.round(stats.renforcee / stats.total * 100)}%</p>}
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Vigilance renforcee</p>
+            {stats.total > 0 && <p className="text-[10px] text-slate-300 dark:text-slate-600">{Math.round(stats.renforcee / stats.total * 100)}%</p>}
           </CardContent>
         </Card>
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4 text-center">
             <p className="text-2xl font-bold text-blue-400">{stats.avgScore}</p>
-            <p className="text-xs text-slate-500 mt-1">Score moyen</p>
-            <p className="text-[10px] text-slate-600">/120</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Score moyen</p>
+            <p className="text-[10px] text-slate-300 dark:text-slate-600">/120</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Facteurs de risque */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-purple-500/15 flex items-center justify-center">
               <Shield className="w-5 h-5 text-purple-400" />
             </div>
             <div>
               <p className="text-lg font-bold">{stats.ppeCount}</p>
-              <p className="text-xs text-slate-500">Personnes Politiquement Exposees</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Personnes Politiquement Exposees</p>
             </div>
           </CardContent>
         </Card>
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4 flex items-center gap-3">
             <div className="w-10 h-10 rounded-lg bg-orange-500/15 flex items-center justify-center">
               <AlertTriangle className="w-5 h-5 text-orange-400" />
             </div>
             <div>
               <p className="text-lg font-bold">{stats.paysRisqueCount}</p>
-              <p className="text-xs text-slate-500">Pays a risque</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Pays a risque</p>
             </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Top 5 risques */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
             <TrendingUp className="w-5 h-5 text-red-400" />
@@ -97,9 +97,9 @@ export default function CartographieRisques() {
         </CardHeader>
         <CardContent>
           {stats.topRisques.length === 0 ? (
-            <p className="text-sm text-slate-500 text-center py-4">Aucun client enregistre</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-4">Aucun client enregistre</p>
           ) : (
-            <div className="rounded-md border border-white/[0.06] overflow-hidden">
+            <div className="rounded-md border border-gray-200 dark:border-white/[0.06] overflow-hidden">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -115,7 +115,7 @@ export default function CartographieRisques() {
                   {stats.topRisques.map(c => (
                     <TableRow key={c.ref}>
                       <TableCell className="font-medium">{c.raisonSociale}</TableCell>
-                      <TableCell className="text-slate-400 text-xs">{c.ref}</TableCell>
+                      <TableCell className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">{c.ref}</TableCell>
                       <TableCell>
                         <span className={`font-bold ${
                           c.scoreGlobal >= 61 ? "text-red-400" :
@@ -136,12 +136,12 @@ export default function CartographieRisques() {
                       <TableCell>
                         {c.ppe === "OUI" ? (
                           <Badge className="bg-purple-500/15 text-purple-400 text-xs">OUI</Badge>
-                        ) : <span className="text-xs text-slate-600">NON</span>}
+                        ) : <span className="text-xs text-slate-300 dark:text-slate-600">NON</span>}
                       </TableCell>
                       <TableCell>
                         {c.paysRisque === "OUI" ? (
                           <Badge className="bg-orange-500/15 text-orange-400 text-xs">OUI</Badge>
-                        ) : <span className="text-xs text-slate-600">NON</span>}
+                        ) : <span className="text-xs text-slate-300 dark:text-slate-600">NON</span>}
                       </TableCell>
                     </TableRow>
                   ))}

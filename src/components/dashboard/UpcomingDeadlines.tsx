@@ -52,7 +52,7 @@ export function UpcomingDeadlines({ deadlines, loading = false }: UpcomingDeadli
   }
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid">
+    <div className="bg-card rounded-2xl border border-border p-5 hover:border-gray-300 dark:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid">
       <h3 className="font-semibold text-sm flex items-center gap-2 mb-4">
         <CalendarClock className="w-4 h-4 text-primary" aria-hidden="true" />
         Prochaines échéances

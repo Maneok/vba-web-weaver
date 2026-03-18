@@ -639,14 +639,14 @@ export default function ModeleEditor({
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* ═══ OPT-2: Header ═══ */}
-      <div className="border-b border-white/[0.06] bg-white/[0.02] px-4 py-2.5 flex items-center gap-3 flex-wrap">
+      <div className="border-b border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] px-4 py-2.5 flex items-center gap-3 flex-wrap">
         {/* OPT-2: Breadcrumb */}
-        <button onClick={handleCancel} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-300 transition-colors">
+        <button onClick={handleCancel} className="flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors">
           <ArrowLeft className="h-3.5 w-3.5" />
           Modeles
         </button>
-        <ChevronRight className="h-3 w-3 text-slate-600" />
-        <span className="text-sm font-medium text-white truncate max-w-[200px]">{modele.nom}</span>
+        <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600" />
+        <span className="text-sm font-medium text-slate-900 dark:text-white truncate max-w-[200px]">{modele.nom}</span>
 
         {/* OPT-2/3: Mission type badge (read-only with tooltip) */}
         <Tooltip>
@@ -655,7 +655,7 @@ export default function ModeleEditor({
               <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-400">
                 {missionTypeConfig.shortLabel}
               </Badge>
-              <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 font-mono">
+              <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">
                 {missionTypeConfig.normeRef}
               </Badge>
             </div>
@@ -698,7 +698,7 @@ export default function ModeleEditor({
         <Button
           variant="ghost"
           size="sm"
-          className="lg:hidden h-7 w-7 p-0 text-slate-400"
+          className="lg:hidden h-7 w-7 p-0 text-slate-400 dark:text-slate-500 dark:text-slate-400"
           onClick={() => setShowRightPanel(!showRightPanel)}
         >
           <Info className="h-4 w-4" />
@@ -708,7 +708,7 @@ export default function ModeleEditor({
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 w-7 p-0 text-slate-400"
+          className="h-7 w-7 p-0 text-slate-400 dark:text-slate-500 dark:text-slate-400"
           onClick={() => setFullscreen(!fullscreen)}
           title={fullscreen ? "Quitter le plein ecran" : "Plein ecran"}
         >
@@ -716,7 +716,7 @@ export default function ModeleEditor({
         </Button>
 
         {/* OPT-2: Action buttons */}
-        <Button variant="outline" onClick={() => setShowPreview(true)} className="h-8 gap-1.5 text-xs border-white/[0.06] text-slate-300">
+        <Button variant="outline" onClick={() => setShowPreview(true)} className="h-8 gap-1.5 text-xs border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300">
           <Eye className="h-3.5 w-3.5" /> Previsualiser
         </Button>
         <Button onClick={handleSave} disabled={saving} className="h-8 gap-1.5 text-xs bg-blue-600 hover:bg-blue-700">
@@ -749,16 +749,16 @@ export default function ModeleEditor({
 
         {/* ═══ OPT-11-25: Sidebar ═══ */}
         {!fullscreen && (
-          <div className="w-[240px] border-r border-white/[0.06] flex flex-col min-h-0 shrink-0">
-            <div className="p-3 border-b border-white/[0.06] space-y-2">
-              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Sections</p>
+          <div className="w-[240px] border-r border-gray-200 dark:border-white/[0.06] flex flex-col min-h-0 shrink-0">
+            <div className="p-3 border-b border-gray-200 dark:border-white/[0.06] space-y-2">
+              <p className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sections</p>
               <div className="relative">
-                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-500" />
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-slate-400 dark:text-slate-500" />
                 <Input
                   value={sectionSearch}
                   onChange={(e) => setSectionSearch(e.target.value)}
                   placeholder="Filtrer..."
-                  className="h-7 pl-7 text-xs bg-white/[0.04] border-white/[0.08]"
+                  className="h-7 pl-7 text-xs bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
                 />
               </div>
             </div>
@@ -778,11 +778,11 @@ export default function ModeleEditor({
                           else next.add(group.label);
                           return next;
                         })}
-                        className="flex items-center gap-1.5 w-full px-2 py-1.5 text-[9px] font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors"
+                        className="flex items-center gap-1.5 w-full px-2 py-1.5 text-[9px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider hover:text-slate-700 dark:text-slate-300 transition-colors"
                       >
                         {isCollapsed ? <ChevronRight className="h-2.5 w-2.5" /> : <ChevronDown className="h-2.5 w-2.5" />}
                         {group.label}
-                        <span className="text-slate-600 ml-auto">{group.indices.length}</span>
+                        <span className="text-slate-300 dark:text-slate-600 ml-auto">{group.indices.length}</span>
                       </button>
 
                       {/* OPT-21: Collapsible content */}
@@ -810,20 +810,20 @@ export default function ModeleEditor({
                                 isSelected
                                   ? "bg-blue-500/15 border-l-2 border-l-blue-500 border border-blue-500/30"
                                   : dragOverIdx === idx
-                                  ? "bg-white/[0.06] border-l-2 border-l-transparent border border-dashed border-white/20"
-                                  : "hover:bg-white/[0.04] border-l-2 border-l-transparent border border-transparent"
+                                  ? "bg-gray-100 dark:bg-white/[0.06] border-l-2 border-l-transparent border border-dashed border-white/20"
+                                  : "hover:bg-gray-50/80 dark:bg-white/[0.04] border-l-2 border-l-transparent border border-transparent"
                               } ${isHidden ? "opacity-50" : ""}`}
                             >
                               {/* OPT-11: Drag handle */}
-                              <GripVertical className="h-3 w-3 text-slate-600 shrink-0 cursor-grab" />
+                              <GripVertical className="h-3 w-3 text-slate-300 dark:text-slate-600 shrink-0 cursor-grab" />
 
                               {/* OPT-11: Content indicator dot */}
                               <Circle className={`h-1.5 w-1.5 shrink-0 ${
-                                isHidden ? "text-slate-600" : isEmpty ? "text-slate-600" : "text-green-400 fill-green-400"
+                                isHidden ? "text-slate-300 dark:text-slate-600" : isEmpty ? "text-slate-300 dark:text-slate-600" : "text-green-400 fill-green-400"
                               }`} />
 
                               <div className="flex-1 min-w-0">
-                                <p className="text-[11px] font-medium text-slate-200 truncate">{section.titre}</p>
+                                <p className="text-[11px] font-medium text-slate-800 dark:text-slate-200 truncate">{section.titre}</p>
                                 <div className="flex items-center gap-1 mt-0.5">
                                   {/* OPT-11: CNOEC badge */}
                                   {section.cnoec_obligatoire && (
@@ -852,7 +852,7 @@ export default function ModeleEditor({
                                 <DropdownMenuTrigger asChild>
                                   <button
                                     onClick={(e) => e.stopPropagation()}
-                                    className="p-0.5 text-slate-600 hover:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+                                    className="p-0.5 text-slate-300 dark:text-slate-600 hover:text-slate-700 dark:text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
                                   >
                                     <MoreHorizontal className="h-3 w-3" />
                                   </button>
@@ -896,11 +896,11 @@ export default function ModeleEditor({
             </ScrollArea>
 
             {/* OPT-22: Progress bar */}
-            <div className="px-3 py-2 border-t border-white/[0.06]">
-              <div className="flex items-center justify-between text-[10px] text-slate-500 mb-1">
+            <div className="px-3 py-2 border-t border-gray-200 dark:border-white/[0.06]">
+              <div className="flex items-center justify-between text-[10px] text-slate-400 dark:text-slate-500 mb-1">
                 <span>{filledCount}/{visibleSections.length} sections remplies</span>
               </div>
-              <div className="w-full h-1 bg-white/[0.06] rounded-full overflow-hidden">
+              <div className="w-full h-1 bg-gray-100 dark:bg-white/[0.06] rounded-full overflow-hidden">
                 <div
                   className="h-full bg-blue-500 rounded-full transition-all duration-300"
                   style={{ width: `${visibleSections.length ? (filledCount / visibleSections.length) * 100 : 0}%` }}
@@ -909,16 +909,16 @@ export default function ModeleEditor({
             </div>
 
             {/* OPT-16/19: Footer buttons + counter */}
-            <div className="p-2 border-t border-white/[0.06] space-y-1">
+            <div className="p-2 border-t border-gray-200 dark:border-white/[0.06] space-y-1">
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full gap-1.5 text-xs border-white/[0.06]"
+                className="w-full gap-1.5 text-xs border-gray-200 dark:border-white/[0.06]"
                 onClick={() => setShowAddSection(true)}
               >
                 <Plus className="h-3 w-3" /> Ajouter une section
               </Button>
-              <div className="text-center text-[10px] text-slate-500">
+              <div className="text-center text-[10px] text-slate-400 dark:text-slate-500">
                 {visibleSections.length}/{sections.length} sections actives
               </div>
             </div>
@@ -928,8 +928,8 @@ export default function ModeleEditor({
         {/* ═══ OPT-26-40: Central Editor ═══ */}
         <div className="flex-1 flex flex-col min-h-0" style={{ minHeight: "500px" }}>
           <Tabs value={editorTab} onValueChange={setEditorTab} className="flex flex-col flex-1 min-h-0">
-            <div className="px-4 pt-3 border-b border-white/[0.06] flex items-center justify-between">
-              <TabsList className="bg-white/[0.04]">
+            <div className="px-4 pt-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
+              <TabsList className="bg-gray-50/80 dark:bg-white/[0.04]">
                 <TabsTrigger value="sections" className="text-xs data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-300">
                   Section
                 </TabsTrigger>
@@ -952,7 +952,7 @@ export default function ModeleEditor({
                       <Input
                         value={selectedSection.titre}
                         onChange={(e) => updateSection("titre", e.target.value)}
-                        className="bg-white/[0.04] border-white/[0.08] text-white font-medium"
+                        className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white font-medium"
                         disabled={!selectedSection.editable}
                       />
                       {selectedSection.cnoec_obligatoire && (
@@ -963,7 +963,7 @@ export default function ModeleEditor({
                     </div>
                     {/* OPT-26: Contextual help */}
                     {selectedSection.cnoec_warning && (
-                      <p className="text-[11px] text-slate-500 italic">{selectedSection.cnoec_warning}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 italic">{selectedSection.cnoec_warning}</p>
                     )}
                   </div>
 
@@ -995,14 +995,14 @@ export default function ModeleEditor({
                         {/* Variable insert dropdown */}
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px] border-white/[0.06] text-slate-400">
+                            <Button variant="outline" size="sm" className="h-7 gap-1 text-[10px] border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400">
                               <Variable className="h-3 w-3" /> Inserer une variable
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent className="w-56 max-h-[300px] overflow-auto">
                             {VARIABLE_GROUPS.map((group) => (
                               <div key={group.label}>
-                                <DropdownMenuLabel className="text-[10px] text-slate-500">{group.label}</DropdownMenuLabel>
+                                <DropdownMenuLabel className="text-[10px] text-slate-400 dark:text-slate-500">{group.label}</DropdownMenuLabel>
                                 {group.vars.map((v) => (
                                   <DropdownMenuItem
                                     key={v}
@@ -1021,21 +1021,21 @@ export default function ModeleEditor({
                         {/* OPT-31: Reset */}
                         <Button
                           variant="ghost" size="sm"
-                          className="h-7 gap-1 text-[10px] text-slate-500 hover:text-slate-300"
+                          className="h-7 gap-1 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300"
                           onClick={() => setShowResetDialog(true)}
                         >
                           <RotateCcw className="h-3 w-3" /> Reinitialiser
                         </Button>
 
                         {/* OPT-32: Copy */}
-                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-[10px] text-slate-500 hover:text-slate-300" onClick={copyContent}>
+                        <Button variant="ghost" size="sm" className="h-7 gap-1 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300" onClick={copyContent}>
                           <Copy className="h-3 w-3" /> Copier
                         </Button>
 
                         {/* OPT-36: Preview toggle */}
                         <Button
                           variant="ghost" size="sm"
-                          className={`h-7 gap-1 text-[10px] ${previewMode ? "text-blue-400" : "text-slate-500"}`}
+                          className={`h-7 gap-1 text-[10px] ${previewMode ? "text-blue-400" : "text-slate-400 dark:text-slate-500"}`}
                           onClick={() => setPreviewMode(!previewMode)}
                         >
                           {previewMode ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
@@ -1047,15 +1047,15 @@ export default function ModeleEditor({
                           <button
                             onClick={() => setFontSizeIdx(Math.max(0, fontSizeIdx - 1))}
                             disabled={fontSizeIdx === 0}
-                            className="p-1 text-slate-500 hover:text-slate-300 disabled:opacity-30"
+                            className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 disabled:opacity-30"
                           >
                             <MinusIcon className="h-3 w-3" />
                           </button>
-                          <span className="text-[9px] text-slate-500 w-5 text-center">{FONT_SIZES[fontSizeIdx]}</span>
+                          <span className="text-[9px] text-slate-400 dark:text-slate-500 w-5 text-center">{FONT_SIZES[fontSizeIdx]}</span>
                           <button
                             onClick={() => setFontSizeIdx(Math.min(FONT_SIZES.length - 1, fontSizeIdx + 1))}
                             disabled={fontSizeIdx === FONT_SIZES.length - 1}
-                            className="p-1 text-slate-500 hover:text-slate-300 disabled:opacity-30"
+                            className="p-1 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 disabled:opacity-30"
                           >
                             <PlusIcon className="h-3 w-3" />
                           </button>
@@ -1065,7 +1065,7 @@ export default function ModeleEditor({
                       {/* OPT-36: Preview or Textarea */}
                       {previewMode ? (
                         <div
-                          className="min-h-[150px] max-h-[500px] overflow-auto p-4 rounded-lg bg-white/[0.02] border border-white/[0.08] text-slate-300 leading-relaxed whitespace-pre-wrap"
+                          className="min-h-[150px] max-h-[500px] overflow-auto p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-wrap"
                           style={{ fontSize: `${FONT_SIZES[fontSizeIdx]}px` }}
                         >
                           {selectedSection.contenu.split(/(\{\{\w+\}\})/).map((part, i) => {
@@ -1090,14 +1090,14 @@ export default function ModeleEditor({
                           ref={textareaRef}
                           value={selectedSection.contenu}
                           onChange={(e) => updateSection("contenu", e.target.value)}
-                          className="font-mono bg-white/[0.04] border-white/[0.08] text-white min-h-[150px] max-h-[500px] resize-none"
+                          className="font-mono bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white min-h-[150px] max-h-[500px] resize-none"
                           style={{ fontSize: `${FONT_SIZES[fontSizeIdx]}px` }}
                           disabled={!selectedSection.editable}
                         />
                       )}
 
                       {/* OPT-30: Character count */}
-                      <div className="flex justify-end gap-3 text-[10px] text-slate-500">
+                      <div className="flex justify-end gap-3 text-[10px] text-slate-400 dark:text-slate-500">
                         <span>{selectedSection.contenu.length.toLocaleString("fr-FR")} caracteres</span>
                         <span>{wordCount(selectedSection.contenu)} mots</span>
                       </div>
@@ -1115,12 +1115,12 @@ export default function ModeleEditor({
                     </div>
                   )}
 
-                  <Separator className="bg-white/[0.06]" />
+                  <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
 
                   {/* OPT-28: Detected variables */}
                   {detectedVars.length > 0 && (
                     <div className="space-y-1.5">
-                      <Label className="text-xs text-slate-400">Variables detectees ({detectedVars.length})</Label>
+                      <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Variables detectees ({detectedVars.length})</Label>
                       <div className="flex flex-wrap gap-1.5">
                         {detectedVars.map((v) => (
                           <Badge key={v} variant="outline" className="text-[10px] font-mono border-purple-500/30 text-purple-400 cursor-pointer hover:bg-purple-500/10"
@@ -1133,7 +1133,7 @@ export default function ModeleEditor({
                   )}
                 </>
               ) : (
-                <div className="flex items-center justify-center h-full text-slate-500 text-sm">
+                <div className="flex items-center justify-center h-full text-slate-400 dark:text-slate-500 text-sm">
                   Selectionnez une section a editer
                 </div>
               )}
@@ -1142,10 +1142,10 @@ export default function ModeleEditor({
             {/* ── OPT-39: CGV tab ── */}
             <TabsContent value="cgv" className="flex-1 min-h-0 overflow-auto p-4 space-y-4 mt-0">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-400">Conditions Generales d'Intervention</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Conditions Generales d'Intervention</Label>
                 <Button
                   variant="ghost" size="sm"
-                  className="h-6 gap-1 text-[10px] text-slate-500 hover:text-slate-300"
+                  className="h-6 gap-1 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300"
                   onClick={() => {
                     setCgvContent(GRIMY_DEFAULT_CGV);
                     toast.success("CGV reinitialisees au texte GRIMY par defaut.");
@@ -1157,10 +1157,10 @@ export default function ModeleEditor({
               <Textarea
                 value={cgvContent}
                 onChange={(e) => setCgvContent(e.target.value)}
-                className="font-mono bg-white/[0.04] border-white/[0.08] text-white min-h-[500px] resize-none"
+                className="font-mono bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white min-h-[500px] resize-none"
                 style={{ fontSize: "9.5pt" }}
               />
-              <div className="flex justify-end text-[10px] text-slate-500">
+              <div className="flex justify-end text-[10px] text-slate-400 dark:text-slate-500">
                 <span>{cgvContent.length.toLocaleString("fr-FR")} caracteres</span>
               </div>
             </TabsContent>
@@ -1168,20 +1168,20 @@ export default function ModeleEditor({
             {/* ── OPT-40: Repartition tab ── */}
             <TabsContent value="repartition" className="flex-1 min-h-0 overflow-auto p-4 space-y-4 mt-0">
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-slate-400">Repartition des taches cabinet / client</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Repartition des taches cabinet / client</Label>
                 <div className="flex gap-2">
-                  <Button variant="ghost" size="sm" className="h-6 gap-1 text-[10px] text-slate-500 hover:text-slate-300"
+                  <Button variant="ghost" size="sm" className="h-6 gap-1 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300"
                     onClick={() => { setRepartition([...GRIMY_DEFAULT_REPARTITION]); toast.success("Repartition reinitialisee."); }}>
                     <RotateCcw className="h-3 w-3" /> Reinitialiser
                   </Button>
-                  <Button variant="outline" size="sm" className="h-6 gap-1 text-[10px] border-white/[0.06]" onClick={addTache}>
+                  <Button variant="outline" size="sm" className="h-6 gap-1 text-[10px] border-gray-200 dark:border-white/[0.06]" onClick={addTache}>
                     <Plus className="h-3 w-3" /> Ajouter
                   </Button>
                 </div>
               </div>
 
-              <div className="border border-white/[0.08] rounded-lg overflow-hidden">
-                <div className="grid grid-cols-[1fr_70px_70px_100px_36px] gap-0 bg-white/[0.04] px-3 py-2 text-[10px] font-medium text-slate-400 uppercase tracking-wider">
+              <div className="border border-gray-300 dark:border-white/[0.08] rounded-lg overflow-hidden">
+                <div className="grid grid-cols-[1fr_70px_70px_100px_36px] gap-0 bg-gray-50/80 dark:bg-white/[0.04] px-3 py-2 text-[10px] font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   <span>Tache</span>
                   <span className="text-center">Cabinet</span>
                   <span className="text-center">Client</span>
@@ -1189,11 +1189,11 @@ export default function ModeleEditor({
                   <span></span>
                 </div>
                 {repartition.map((t: any, idx: number) => (
-                  <div key={t.id || idx} className="grid grid-cols-[1fr_70px_70px_100px_36px] gap-0 px-3 py-1.5 border-t border-white/[0.06] items-center">
+                  <div key={t.id || idx} className="grid grid-cols-[1fr_70px_70px_100px_36px] gap-0 px-3 py-1.5 border-t border-gray-200 dark:border-white/[0.06] items-center">
                     <Input
                       value={t.label}
                       onChange={(e) => updateTache(idx, "label", e.target.value)}
-                      className="h-7 text-xs bg-transparent border-none px-0 text-white"
+                      className="h-7 text-xs bg-transparent border-none px-0 text-slate-900 dark:text-white"
                       placeholder="Description de la tache..."
                     />
                     <div className="flex justify-center">
@@ -1205,7 +1205,7 @@ export default function ModeleEditor({
                     <select
                       value={t.periodicite}
                       onChange={(e) => updateTache(idx, "periodicite", e.target.value)}
-                      className="h-7 text-xs bg-white/[0.04] border border-white/[0.08] rounded px-1 text-slate-300"
+                      className="h-7 text-xs bg-gray-50/80 dark:bg-white/[0.04] border border-gray-300 dark:border-white/[0.08] rounded px-1 text-slate-700 dark:text-slate-300"
                     >
                       <option value="Mensuel">M</option>
                       <option value="Trimestriel">T</option>
@@ -1213,7 +1213,7 @@ export default function ModeleEditor({
                       <option value="Permanent">P</option>
                       <option value="Non defini">ND</option>
                     </select>
-                    <button onClick={() => removeTache(idx)} className="p-1 text-slate-600 hover:text-red-400 transition-colors">
+                    <button onClick={() => removeTache(idx)} className="p-1 text-slate-300 dark:text-slate-600 hover:text-red-400 transition-colors">
                       <Trash2 className="h-3 w-3" />
                     </button>
                   </div>
@@ -1225,13 +1225,13 @@ export default function ModeleEditor({
 
         {/* ═══ OPT-41-50: Right Panel ═══ */}
         {!fullscreen && (
-          <div className={`w-[280px] border-l border-white/[0.06] flex flex-col min-h-0 shrink-0 overflow-auto ${
+          <div className={`w-[280px] border-l border-gray-200 dark:border-white/[0.06] flex flex-col min-h-0 shrink-0 overflow-auto ${
             showRightPanel ? "fixed right-0 top-0 bottom-0 z-50 bg-background shadow-2xl lg:static lg:shadow-none" : "hidden lg:flex"
           }`}>
             {/* Mobile close button */}
             {showRightPanel && (
-              <div className="lg:hidden flex items-center justify-between p-3 border-b border-white/[0.06]">
-                <span className="text-xs font-medium text-slate-400">Informations</span>
+              <div className="lg:hidden flex items-center justify-between p-3 border-b border-gray-200 dark:border-white/[0.06]">
+                <span className="text-xs font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Informations</span>
                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setShowRightPanel(false)}>
                   <X className="h-4 w-4" />
                 </Button>
@@ -1242,32 +1242,32 @@ export default function ModeleEditor({
               <div className="p-4 space-y-5">
                 {/* OPT-41: Modele info */}
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Informations</p>
+                  <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Informations</p>
                   <div className="space-y-1.5 text-[11px]">
-                    <div className="flex justify-between"><span className="text-slate-500">Nom</span><span className="text-slate-300 truncate ml-2">{modele.nom}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Type</span><span className="text-slate-300">{missionTypeConfig.shortLabel} · {missionTypeConfig.normeRef}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Source</span>
-                      <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400">
+                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Nom</span><span className="text-slate-700 dark:text-slate-300 truncate ml-2">{modele.nom}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Type</span><span className="text-slate-700 dark:text-slate-300">{missionTypeConfig.shortLabel} · {missionTypeConfig.normeRef}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Source</span>
+                      <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400">
                         {modele.source === "grimy" ? "GRIMY" : modele.source === "import_docx" ? "Import DOCX" : "Copie"}
                       </Badge>
                     </div>
-                    <div className="flex justify-between"><span className="text-slate-500">Cree le</span><span className="text-slate-300">{new Date(modele.created_at).toLocaleDateString("fr-FR")}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-500">Modifie le</span><span className="text-slate-300">{new Date(modele.updated_at).toLocaleDateString("fr-FR")}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Cree le</span><span className="text-slate-700 dark:text-slate-300">{new Date(modele.created_at).toLocaleDateString("fr-FR")}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Modifie le</span><span className="text-slate-700 dark:text-slate-300">{new Date(modele.updated_at).toLocaleDateString("fr-FR")}</span></div>
                     {typeof usedInCount === "number" && (
-                      <div className="flex justify-between"><span className="text-slate-500">Utilise dans</span><span className="text-slate-300">{usedInCount} lettre{usedInCount !== 1 ? "s" : ""}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Utilise dans</span><span className="text-slate-700 dark:text-slate-300">{usedInCount} lettre{usedInCount !== 1 ? "s" : ""}</span></div>
                     )}
                     {/* OPT-49: Original filename */}
                     {modele.source === "import_docx" && modele.original_filename && (
-                      <div className="flex justify-between"><span className="text-slate-500">Fichier</span><span className="text-slate-300 truncate ml-2 text-[10px]">{modele.original_filename}</span></div>
+                      <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Fichier</span><span className="text-slate-700 dark:text-slate-300 truncate ml-2 text-[10px]">{modele.original_filename}</span></div>
                     )}
                   </div>
                 </div>
 
-                <Separator className="bg-white/[0.06]" />
+                <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
 
                 {/* OPT-42: Conformite CNOEC */}
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Conformite CNOEC</p>
+                  <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Conformite CNOEC</p>
                   {cnoecResult.warnings.length === 0 ? (
                     <div className="flex items-center gap-2 p-2.5 rounded-lg bg-green-500/5 border border-green-500/20">
                       <ShieldCheck className="h-4 w-4 text-green-400" />
@@ -1293,16 +1293,16 @@ export default function ModeleEditor({
                       ))}
                     </div>
                   )}
-                  <div className="text-[10px] text-slate-500">
+                  <div className="text-[10px] text-slate-400 dark:text-slate-500">
                     CNOEC {cnoecCov.covered}/{cnoecCov.total} sections obligatoires
                   </div>
                 </div>
 
-                <Separator className="bg-white/[0.06]" />
+                <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
 
                 {/* OPT-44: Variables utilisees */}
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Variables utilisees ({allDetectedVars.length})</p>
+                  <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Variables utilisees ({allDetectedVars.length})</p>
                   <div className="flex flex-wrap gap-1">
                     {allDetectedVars.map((v) => (
                       <Badge key={v} variant="outline" className={`text-[9px] font-mono ${
@@ -1312,58 +1312,58 @@ export default function ModeleEditor({
                         {RESOLVED_VARS.has(v) && <CheckCircle2 className="h-2 w-2 ml-0.5" />}
                       </Badge>
                     ))}
-                    {allDetectedVars.length === 0 && <span className="text-[10px] text-slate-600 italic">Aucune variable</span>}
+                    {allDetectedVars.length === 0 && <span className="text-[10px] text-slate-300 dark:text-slate-600 italic">Aucune variable</span>}
                   </div>
                 </div>
 
-                <Separator className="bg-white/[0.06]" />
+                <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
 
                 {/* OPT-45: Checklist */}
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Checklist</p>
+                  <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Checklist</p>
                   <div className="space-y-1.5">
                     {checklist.map((item, i) => (
                       <div key={i} className="flex items-center gap-2 text-[11px]">
                         {item.done ? (
                           <CheckCircle2 className="h-3.5 w-3.5 text-green-400 shrink-0" />
                         ) : (
-                          <Circle className="h-3.5 w-3.5 text-slate-600 shrink-0" />
+                          <Circle className="h-3.5 w-3.5 text-slate-300 dark:text-slate-600 shrink-0" />
                         )}
-                        <span className={item.done ? "text-slate-300" : "text-slate-500"}>{item.label}</span>
+                        <span className={item.done ? "text-slate-700 dark:text-slate-300" : "text-slate-400 dark:text-slate-500"}>{item.label}</span>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                <Separator className="bg-white/[0.06]" />
+                <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
 
                 {/* OPT-50: Documentation link */}
                 <div className="space-y-2">
-                  <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Documentation</p>
-                  <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1.5">
+                  <p className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Documentation</p>
+                  <div className="p-2.5 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-1.5">
                     <div className="flex items-center gap-1.5">
                       <BookOpen className="h-3.5 w-3.5 text-blue-400" />
-                      <span className="text-[11px] text-slate-300 font-medium">{missionTypeConfig.normeRef}</span>
+                      <span className="text-[11px] text-slate-700 dark:text-slate-300 font-medium">{missionTypeConfig.normeRef}</span>
                     </div>
-                    <p className="text-[10px] text-slate-500">{missionTypeConfig.description}</p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">{missionTypeConfig.description}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
                       Forme du rapport : {missionTypeConfig.formeRapport}
                     </p>
-                    <p className="text-[10px] text-slate-500">
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
                       Referentiel : {missionTypeConfig.referentielApplicable}
                     </p>
                   </div>
                 </div>
 
-                <Separator className="bg-white/[0.06]" />
+                <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
 
                 {/* OPT-46/47/48: Action buttons */}
                 <div className="space-y-2">
-                  <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs border-white/[0.06]" onClick={exportJSON}>
+                  <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs border-gray-200 dark:border-white/[0.06]" onClick={exportJSON}>
                     <FileJson className="h-3.5 w-3.5" /> Exporter en JSON
                   </Button>
                   {onDuplicate && (
-                    <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs border-white/[0.06]"
+                    <Button variant="outline" size="sm" className="w-full gap-1.5 text-xs border-gray-200 dark:border-white/[0.06]"
                       onClick={() => onDuplicate(modele)}>
                       <Copy className="h-3.5 w-3.5" /> Dupliquer ce modele
                     </Button>
@@ -1376,7 +1376,7 @@ export default function ModeleEditor({
                     </Button>
                   )}
                   {modele.is_default && (
-                    <p className="text-[10px] text-slate-600 text-center italic">Modele par defaut — suppression desactivee</p>
+                    <p className="text-[10px] text-slate-300 dark:text-slate-600 text-center italic">Modele par defaut — suppression desactivee</p>
                   )}
                 </div>
               </div>
@@ -1410,21 +1410,21 @@ export default function ModeleEditor({
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Titre de la section</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Titre de la section</Label>
               <Input
                 value={newSectionTitle}
                 onChange={(e) => setNewSectionTitle(e.target.value)}
-                className="bg-white/[0.04] border-white/[0.08] text-white"
+                className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white"
                 placeholder="Ex: Clause de non-concurrence"
                 autoFocus
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Contenu initial (optionnel)</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Contenu initial (optionnel)</Label>
               <Textarea
                 value={newSectionContent}
                 onChange={(e) => setNewSectionContent(e.target.value)}
-                className="font-mono text-xs bg-white/[0.04] border-white/[0.08] text-white min-h-[100px] resize-none"
+                className="font-mono text-xs bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white min-h-[100px] resize-none"
                 placeholder="Saisissez le contenu..."
               />
             </div>
@@ -1474,7 +1474,7 @@ export default function ModeleEditor({
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="flex-1 min-h-0">
-            <pre className="text-xs text-slate-300 whitespace-pre-wrap font-mono p-4 leading-relaxed">
+            <pre className="text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap font-mono p-4 leading-relaxed">
               {previewText}
             </pre>
           </ScrollArea>

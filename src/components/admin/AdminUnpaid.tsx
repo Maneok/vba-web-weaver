@@ -93,14 +93,14 @@ export default function AdminUnpaid() {
     <div className="space-y-4">
       {unpaid.length === 0 ? (
         <div className="bg-white/5 border border-white/10 rounded-xl p-12 text-center">
-          <p className="text-slate-400 text-sm">Aucun impaye en cours</p>
+          <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">Aucun impaye en cours</p>
         </div>
       ) : (
         <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="text-left text-xs text-slate-500 border-b border-white/10">
+                <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-white/10">
                   <th className="px-4 py-3">Cabinet</th>
                   <th className="px-4 py-3">Admin</th>
                   <th className="px-4 py-3">Plan</th>
@@ -112,8 +112,8 @@ export default function AdminUnpaid() {
               </thead>
               <tbody>
                 {unpaid.map((cab) => (
-                  <tr key={cab.cabinet_id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                    <td className="px-4 py-3 text-slate-200 font-medium">{cab.cabinet_name}</td>
+                  <tr key={cab.cabinet_id} className="border-b border-white/5 hover:bg-white dark:bg-white/[0.02]">
+                    <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-medium">{cab.cabinet_name}</td>
                     <td className="px-4 py-3">
                       <a href={`mailto:${cab.admin_email}`} className="text-blue-400 hover:text-blue-300 hover:underline">
                         {cab.admin_email}
@@ -132,7 +132,7 @@ export default function AdminUnpaid() {
                         {cab.days_overdue}j
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-300">{(cab.monthly_amount / 100).toFixed(2)} &euro;/mois</td>
+                    <td className="px-4 py-3 text-slate-700 dark:text-slate-300">{(cab.monthly_amount / 100).toFixed(2)} &euro;/mois</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <button

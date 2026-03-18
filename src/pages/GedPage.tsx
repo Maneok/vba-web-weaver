@@ -98,8 +98,8 @@ function getFileIcon(fileName: string) {
   if (ext === "pdf") return <FileText className="w-4 h-4 text-red-400 shrink-0" />;
   if (ext === "html" || ext === "htm") return <FileCode className="w-4 h-4 text-blue-400 shrink-0" />;
   if (["png", "jpg", "jpeg", "gif", "webp", "svg"].includes(ext)) return <FileImage className="w-4 h-4 text-emerald-400 shrink-0" />;
-  if (ext === "txt") return <File className="w-4 h-4 text-slate-400 shrink-0" />;
-  return <File className="w-4 h-4 text-slate-500 shrink-0" />;
+  if (ext === "txt") return <File className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400 shrink-0" />;
+  return <File className="w-4 h-4 text-slate-400 dark:text-slate-500 shrink-0" />;
 }
 
 const getErrorMessage = (err: unknown, fallback: string) => {
@@ -581,8 +581,8 @@ export default function GedPage() {
     <div className="p-6 lg:p-8 max-w-[1400px] mx-auto space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">GED Intelligente</h1>
-        <p className="text-sm text-slate-400 mt-1">
+        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">GED Intelligente</h1>
+        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
           Gestion electronique des documents — Upload, versionning et alertes d'expiration
         </p>
       </div>
@@ -600,11 +600,11 @@ export default function GedPage() {
                   return (
                     <div key={doc.id} className="flex items-center gap-2 text-sm">
                       <Badge variant={status?.variant}>{status?.label}</Badge>
-                      <span className="font-medium text-slate-200">{doc.name}</span>
+                      <span className="font-medium text-slate-800 dark:text-slate-200">{doc.name}</span>
                       {doc.client_ref && (
-                        <span className="text-slate-400">({doc.client_ref})</span>
+                        <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">({doc.client_ref})</span>
                       )}
-                      <span className="text-slate-500">
+                      <span className="text-slate-400 dark:text-slate-500">
                         - {CATEGORIES.find((c) => c.value === doc.category)?.label}
                       </span>
                     </div>
@@ -623,16 +623,16 @@ export default function GedPage() {
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <FolderOpen className="w-5 h-5 text-blue-400" />
-            <h2 className="text-lg font-semibold text-white">Documents KYC par SIREN</h2>
+            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Documents KYC par SIREN</h2>
           </div>
           <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
             <Input
               placeholder="Rechercher SIREN ou fichier..."
               value={storageSearch}
               onChange={(e) => setStorageSearch(e.target.value)}
               aria-label="Rechercher par SIREN ou nom de fichier"
-              className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
+              className="pl-9 bg-white/5 border-white/10 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:text-slate-500"
             />
           </div>
         </div>
@@ -640,10 +640,10 @@ export default function GedPage() {
         {storageLoading ? (
           <div className="flex items-center justify-center py-10">
             <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-400 border-t-transparent" />
-            <span className="ml-3 text-sm text-slate-400">Chargement du stockage...</span>
+            <span className="ml-3 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Chargement du stockage...</span>
           </div>
         ) : filteredStorageFolders.length === 0 ? (
-          <div className="text-center py-10 text-slate-500">
+          <div className="text-center py-10 text-slate-400 dark:text-slate-500">
             <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">Aucun dossier SIREN trouve dans le bucket kyc-documents.</p>
           </div>
@@ -657,15 +657,15 @@ export default function GedPage() {
                   className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-white/5 transition-colors text-left group"
                 >
                   {folder.expanded ? (
-                    <ChevronDown className="w-4 h-4 text-slate-500" />
+                    <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   ) : (
-                    <ChevronRight className="w-4 h-4 text-slate-500" />
+                    <ChevronRight className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                   )}
                   <Building2 className="w-4 h-4 text-amber-400" />
-                  <span className="font-mono text-sm font-medium text-slate-200">
+                  <span className="font-mono text-sm font-medium text-slate-800 dark:text-slate-200">
                     {folder.siren}
                   </span>
-                  <span className="text-xs text-slate-500 ml-auto">
+                  <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">
                     {folder.files.length} fichier{folder.files.length > 1 ? "s" : ""}
                   </span>
                 </button>
@@ -679,10 +679,10 @@ export default function GedPage() {
                         className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-white/5 transition-colors group"
                       >
                         {getFileIcon(file.name)}
-                        <span className="text-sm text-slate-300 truncate flex-1">
+                        <span className="text-sm text-slate-700 dark:text-slate-300 truncate flex-1">
                           {file.name}
                         </span>
-                        <span className="text-xs text-slate-500 shrink-0">
+                        <span className="text-xs text-slate-400 dark:text-slate-500 shrink-0">
                           {file.metadata?.size
                             ? formatFileSize(file.metadata.size)
                             : "—"}
@@ -720,14 +720,14 @@ export default function GedPage() {
         className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all focus-visible:ring-2 focus-visible:ring-blue-400/50 focus-visible:border-blue-400 ${
           dragOver
             ? "border-blue-500 bg-blue-500/10 scale-[1.01] shadow-lg shadow-blue-500/10"
-            : "border-white/10 hover:border-blue-500/40 hover:bg-white/[0.02]"
+            : "border-white/10 hover:border-blue-500/40 hover:bg-white dark:bg-white/[0.02]"
         }`}
       >
-        <Upload className="w-10 h-10 mx-auto text-slate-500 mb-3" />
-        <p className="font-medium text-slate-300">
+        <Upload className="w-10 h-10 mx-auto text-slate-400 dark:text-slate-500 mb-3" />
+        <p className="font-medium text-slate-700 dark:text-slate-300">
           Glissez-deposez vos documents ici
         </p>
-        <p className="text-sm text-slate-500 mt-1">
+        <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
           ou cliquez pour selectionner des fichiers (PDF, images, documents)
         </p>
         <input
@@ -745,17 +745,17 @@ export default function GedPage() {
       {/* ============================================================ */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher par nom ou ref client..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             aria-label="Rechercher un document"
-            className="pl-9 bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
+            className="pl-9 bg-white/5 border-white/10 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:text-slate-500"
           />
         </div>
         <Select value={filterCategory} onValueChange={setFilterCategory}>
-          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200" aria-label="Filtrer par categorie">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-800 dark:text-slate-200" aria-label="Filtrer par categorie">
             <SelectValue placeholder="Categorie" />
           </SelectTrigger>
           <SelectContent>
@@ -766,7 +766,7 @@ export default function GedPage() {
           </SelectContent>
         </Select>
         <Select value={filterExpiration} onValueChange={setFilterExpiration}>
-          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-200" aria-label="Filtrer par expiration">
+          <SelectTrigger className="w-[180px] bg-white/5 border-white/10 text-slate-800 dark:text-slate-200" aria-label="Filtrer par expiration">
             <SelectValue placeholder="Expiration" />
           </SelectTrigger>
           <SelectContent>
@@ -775,7 +775,7 @@ export default function GedPage() {
             <SelectItem value="soon">Expire bientot (&lt;90j)</SelectItem>
           </SelectContent>
         </Select>
-        <div className="text-sm text-slate-400">
+        <div className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
           {filtered.length} document(s)
         </div>
       </div>
@@ -787,20 +787,20 @@ export default function GedPage() {
         <Table>
           <TableHeader>
             <TableRow className="border-white/5 hover:bg-transparent">
-              <TableHead scope="col" className="text-slate-400">Document</TableHead>
-              <TableHead scope="col" className="text-slate-400">Categorie</TableHead>
-              <TableHead scope="col" className="text-slate-400">Client</TableHead>
-              <TableHead scope="col" className="text-slate-400">Taille</TableHead>
-              <TableHead scope="col" className="text-slate-400">Version</TableHead>
-              <TableHead scope="col" className="text-slate-400">Expiration</TableHead>
-              <TableHead scope="col" className="text-slate-400">Modifie le</TableHead>
-              <TableHead scope="col" className="text-right text-slate-400">Actions</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Document</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Categorie</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Client</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Taille</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Version</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Expiration</TableHead>
+              <TableHead scope="col" className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Modifie le</TableHead>
+              <TableHead scope="col" className="text-right text-slate-400 dark:text-slate-500 dark:text-slate-400">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
-              <TableRow className="border-white/5 hover:bg-white/[0.02]">
-                <TableCell colSpan={8} className="text-center py-8 text-slate-500">
+              <TableRow className="border-white/5 hover:bg-white dark:bg-white/[0.02]">
+                <TableCell colSpan={8} className="text-center py-8 text-slate-400 dark:text-slate-500">
                   <FolderOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   {documents.length === 0
                     ? "Aucun document. Importez vos premiers fichiers ci-dessus."
@@ -811,26 +811,26 @@ export default function GedPage() {
               filtered.map((doc) => {
                 const expStatus = getExpirationStatus(doc.expiration_date);
                 return (
-                  <TableRow key={doc.id} className="border-white/5 hover:bg-white/[0.02]">
+                  <TableRow key={doc.id} className="border-white/5 hover:bg-white dark:bg-white/[0.02]">
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getFileIcon(doc.name)}
-                        <span className="font-medium text-sm text-slate-200 truncate max-w-[200px]" title={doc.name}>{doc.name}</span>
+                        <span className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate max-w-[200px]" title={doc.name}>{doc.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant="outline" className="text-xs border-white/10 text-slate-300">
+                      <Badge variant="outline" className="text-xs border-white/10 text-slate-700 dark:text-slate-300">
                         {CATEGORIES.find((c) => c.value === doc.category)?.label || doc.category}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-sm text-slate-400">{doc.client_ref || "-"}</TableCell>
-                    <TableCell className="text-sm text-slate-500">
+                    <TableCell className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{doc.client_ref || "-"}</TableCell>
+                    <TableCell className="text-sm text-slate-400 dark:text-slate-500">
                       {formatFileSize(doc.file_size || 0)}
                     </TableCell>
                     <TableCell>
                       <button
                         onClick={() => openVersionDialog(doc)}
-                        className="flex items-center gap-1 text-sm text-slate-400 hover:text-blue-400 transition-colors"
+                        className="flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400 transition-colors"
                       >
                         <History className="w-3.5 h-3.5" />
                         v{doc.current_version}
@@ -845,7 +845,7 @@ export default function GedPage() {
                         <span className="text-sm text-slate-600">-</span>
                       )}
                     </TableCell>
-                    <TableCell className="text-sm text-slate-500">
+                    <TableCell className="text-sm text-slate-400 dark:text-slate-500">
                       {format(parseISO(doc.updated_at), "dd/MM/yyyy", { locale: fr })}
                     </TableCell>
                     <TableCell>
@@ -853,7 +853,7 @@ export default function GedPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
+                          className="h-8 w-8 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                           onClick={() => downloadDocument(doc.file_path, doc.name)}
                           title="Telecharger"
                           aria-label={`Telecharger ${doc.name}`}
@@ -863,7 +863,7 @@ export default function GedPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                          className="h-8 w-8 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-white/5"
                           onClick={() => openVersionDialog(doc)}
                           title="Versions"
                           aria-label={`Historique des versions de ${doc.name}`}
@@ -873,7 +873,7 @@ export default function GedPage() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-slate-500 hover:text-red-400 hover:bg-red-500/10"
+                          className="h-8 w-8 text-slate-400 dark:text-slate-500 hover:text-red-400 hover:bg-red-500/10"
                           onClick={() => setDeleteTarget(doc)}
                           title="Supprimer"
                           aria-label={`Supprimer ${doc.name}`}
@@ -892,17 +892,17 @@ export default function GedPage() {
 
       {/* Upload Dialog */}
       <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-        <DialogContent className="bg-slate-900 border-white/10">
+        <DialogContent className="bg-gray-50 dark:bg-slate-900 border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-white">Importer {pendingFiles.length} document(s)</DialogTitle>
+            <DialogTitle className="text-slate-900 dark:text-white">Importer {pendingFiles.length} document(s)</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               {pendingFiles.map((file, i) => (
                 <div key={`${file.name}-${file.size}`} className="flex items-center gap-2 text-sm bg-white/5 rounded-lg p-2.5 border border-white/5">
                   {getFileIcon(file.name)}
-                  <span className="truncate text-slate-200">{file.name}</span>
-                  <span className="text-slate-500 ml-auto shrink-0">
+                  <span className="truncate text-slate-800 dark:text-slate-200">{file.name}</span>
+                  <span className="text-slate-400 dark:text-slate-500 ml-auto shrink-0">
                     {formatFileSize(file.size)}
                   </span>
                 </div>
@@ -910,9 +910,9 @@ export default function GedPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-300">Categorie</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Categorie</Label>
               <Select value={uploadCategory} onValueChange={setUploadCategory}>
-                <SelectTrigger className="bg-white/5 border-white/10 text-slate-200">
+                <SelectTrigger className="bg-white/5 border-white/10 text-slate-800 dark:text-slate-200">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -924,32 +924,32 @@ export default function GedPage() {
             </div>
 
             <div className="space-y-2">
-              <Label className="text-slate-300">Reference client (optionnel)</Label>
+              <Label className="text-slate-700 dark:text-slate-300">Reference client (optionnel)</Label>
               <Input
                 placeholder="ex: CLI-001"
                 value={uploadClientRef}
                 onChange={(e) => setUploadClientRef(e.target.value)}
-                className="bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
+                className="bg-white/5 border-white/10 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:text-slate-500"
               />
             </div>
 
             {EXPIRABLE_CATEGORIES.includes(uploadCategory) && (
               <div className="space-y-2">
-                <Label className="text-slate-300">Date d'expiration</Label>
+                <Label className="text-slate-700 dark:text-slate-300">Date d'expiration</Label>
                 <Input
                   type="date"
                   value={uploadExpiration}
                   onChange={(e) => setUploadExpiration(e.target.value)}
-                  className="bg-white/5 border-white/10 text-slate-200"
+                  className="bg-white/5 border-white/10 text-slate-800 dark:text-slate-200"
                 />
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-400 dark:text-slate-500">
                   Vous recevrez des alertes avant l'expiration du document
                 </p>
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setUploadDialogOpen(false)} className="border-white/10 text-slate-300 hover:bg-white/5">
+            <Button type="button" variant="outline" onClick={() => setUploadDialogOpen(false)} className="border-white/10 text-slate-700 dark:text-slate-300 hover:bg-white/5">
               Annuler
             </Button>
             <Button type="button" onClick={uploadFiles} disabled={uploading}>
@@ -963,9 +963,9 @@ export default function GedPage() {
 
       {/* Version Dialog */}
       <Dialog open={versionDialogOpen} onOpenChange={setVersionDialogOpen}>
-        <DialogContent className="max-w-lg bg-slate-900 border-white/10">
+        <DialogContent className="max-w-lg bg-gray-50 dark:bg-slate-900 border-white/10">
           <DialogHeader>
-            <DialogTitle className="text-white">
+            <DialogTitle className="text-slate-900 dark:text-white">
               Historique des versions — {selectedDoc?.name}
             </DialogTitle>
           </DialogHeader>
@@ -974,22 +974,22 @@ export default function GedPage() {
               {versions.map((v) => (
                 <div
                   key={v.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-white/5 bg-white/[0.02] text-sm"
+                  className="flex items-center gap-3 p-3 rounded-lg border border-white/5 bg-white dark:bg-white/[0.02] text-sm"
                 >
-                  <Badge variant="outline" className="border-white/10 text-slate-300">v{v.version_number}</Badge>
+                  <Badge variant="outline" className="border-white/10 text-slate-700 dark:text-slate-300">v{v.version_number}</Badge>
                   <div className="flex-1 min-w-0">
-                    <p className="text-slate-400">
+                    <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
                       {format(parseISO(v.created_at), "dd/MM/yyyy HH:mm", { locale: fr })}
                     </p>
-                    {v.comment && <p className="text-xs text-slate-500 mt-0.5">{v.comment}</p>}
+                    {v.comment && <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{v.comment}</p>}
                   </div>
-                  <span className="text-slate-500 text-xs shrink-0">
+                  <span className="text-slate-400 dark:text-slate-500 text-xs shrink-0">
                     {formatFileSize(v.file_size || 0)}
                   </span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-7 w-7 text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
+                    className="h-7 w-7 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"
                     onClick={() => downloadDocument(v.file_path, `v${v.version_number}_${selectedDoc?.name}`)}
                     aria-label={`Telecharger version ${v.version_number}`}
                   >
@@ -1000,18 +1000,18 @@ export default function GedPage() {
             </div>
 
             <div className="border-t border-white/5 pt-4 space-y-3">
-              <p className="text-sm font-medium text-slate-300">Ajouter une nouvelle version</p>
+              <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Ajouter une nouvelle version</p>
               <Input
                 type="file"
                 onChange={(e) => setNewVersionFile(e.target.files?.[0] || null)}
                 accept=".pdf,.png,.jpg,.jpeg,.doc,.docx,.xls,.xlsx"
-                className="bg-white/5 border-white/10 text-slate-200 file:text-slate-400"
+                className="bg-white/5 border-white/10 text-slate-800 dark:text-slate-200 file:text-slate-400 dark:text-slate-500 dark:text-slate-400"
               />
               <Input
                 placeholder="Commentaire (optionnel)"
                 value={versionComment}
                 onChange={(e) => setVersionComment(e.target.value)}
-                className="bg-white/5 border-white/10 text-slate-200 placeholder:text-slate-500"
+                className="bg-white/5 border-white/10 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 dark:text-slate-500"
               />
               <Button
                 type="button"

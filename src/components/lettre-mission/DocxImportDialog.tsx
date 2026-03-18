@@ -257,7 +257,7 @@ export default function DocxImportDialog({
             <div
               key={s}
               className={`w-2 h-2 rounded-full transition-colors ${
-                (["upload", "mapping", "confirm"].indexOf(step) >= i) ? "bg-blue-500" : "bg-white/[0.1]"
+                (["upload", "mapping", "confirm"].indexOf(step) >= i) ? "bg-blue-500" : "bg-gray-200 dark:bg-white/[0.1]"
               }`}
             />
           ))}
@@ -269,17 +269,17 @@ export default function DocxImportDialog({
             {loading ? (
               <div className="flex flex-col items-center gap-4 w-full max-w-xs">
                 <Loader2 className="h-10 w-10 animate-spin text-blue-400" />
-                <p className="text-sm text-slate-400">Analyse du document en cours...</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Analyse du document en cours...</p>
                 {/* OPT-28: Progress bar */}
                 <Progress value={parseProgress} className="w-full h-2" />
-                <p className="text-[10px] text-slate-500">{fileName}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">{fileName}</p>
               </div>
             ) : (
               <label
                 className={`flex flex-col items-center justify-center w-full h-52 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ${
                   dragOver
                     ? "border-blue-500 bg-blue-500/5 scale-[1.01]"
-                    : "border-blue-500/20 hover:border-blue-500/40 hover:bg-white/[0.02]"
+                    : "border-blue-500/20 hover:border-blue-500/40 hover:bg-white dark:bg-white/[0.02]"
                 }`}
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -291,10 +291,10 @@ export default function DocxImportDialog({
                 <div className="w-14 h-14 rounded-xl bg-blue-500/10 flex items-center justify-center mb-3">
                   <Upload className="h-7 w-7 text-blue-400" />
                 </div>
-                <p className="text-sm font-medium text-slate-300">
+                <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Glissez votre DOCX ici ou cliquez pour selectionner
                 </p>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
                   Formats acceptes : .docx, .doc
                 </p>
                 <input
@@ -314,7 +314,7 @@ export default function DocxImportDialog({
             {/* OPT-29: Confidence bar */}
             <div className="flex items-center gap-3">
               <Progress value={parsed.confidence} className="flex-1 h-2" />
-              <span className="text-sm font-medium whitespace-nowrap text-slate-300">
+              <span className="text-sm font-medium whitespace-nowrap text-slate-700 dark:text-slate-300">
                 {recognizedCount}/{ALL_SECTION_IDS.length} — {parsed.confidence}%
               </span>
             </div>
@@ -344,7 +344,7 @@ export default function DocxImportDialog({
                       setSections(filled);
                       toast.success("Sections completees depuis GRIMY.");
                     }}
-                    className="gap-1 text-xs border-white/[0.06] text-slate-300"
+                    className="gap-1 text-xs border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300"
                   >
                     <Sparkles className="h-3 w-3" />
                     Auto-completer
@@ -355,7 +355,7 @@ export default function DocxImportDialog({
 
             {/* OPT-32: Tabs for sections vs CGV */}
             <Tabs value={mappingTab} onValueChange={(v) => setMappingTab(v as "sections" | "cgv")}>
-              <TabsList className="bg-white/[0.03] border border-white/[0.06]">
+              <TabsList className="bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
                 <TabsTrigger value="sections" className="text-xs gap-1">
                   <FileText className="h-3 w-3" /> Sections ({sections.length})
                 </TabsTrigger>
@@ -381,13 +381,13 @@ export default function DocxImportDialog({
                           <div
                             key={`${section.id}-${idx}`}
                             className={`rounded-lg border p-3 space-y-2 ${
-                              isCustom ? "border-orange-500/20 bg-orange-500/5" : "border-white/[0.06] bg-white/[0.02]"
+                              isCustom ? "border-orange-500/20 bg-orange-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
-                                <FileText className="h-3.5 w-3.5 shrink-0 text-slate-500" />
-                                <span className="text-xs font-medium text-slate-300 truncate">
+                                <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
+                                <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
                                   {section.titre || "(Sans titre)"}
                                 </span>
                               </div>
@@ -402,14 +402,14 @@ export default function DocxImportDialog({
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <Label className="text-[10px] text-slate-500 shrink-0">
+                              <Label className="text-[10px] text-slate-400 dark:text-slate-500 shrink-0">
                                 Mapper vers :
                               </Label>
                               <Select
                                 value={section.id}
                                 onValueChange={(val) => handleSectionIdChange(realIdx, val)}
                               >
-                                <SelectTrigger className="h-7 text-xs bg-white/[0.04] border-white/[0.08]">
+                                <SelectTrigger className="h-7 text-xs bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -426,7 +426,7 @@ export default function DocxImportDialog({
                             </div>
                             {/* OPT-29: 2-line preview */}
                             {section.contenu && (
-                              <p className="text-[10px] text-slate-500 line-clamp-2 whitespace-pre-line pl-5">
+                              <p className="text-[10px] text-slate-400 dark:text-slate-500 line-clamp-2 whitespace-pre-line pl-5">
                                 {section.contenu.slice(0, 200)}
                                 {section.contenu.length > 200 ? "..." : ""}
                               </p>
@@ -440,20 +440,20 @@ export default function DocxImportDialog({
 
               {/* OPT-32: CGV tab */}
               <TabsContent value="cgv">
-                <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-3">
                   {cgvContent ? (
                     <div className="space-y-2">
                       <Badge className="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20">
                         CGV detectees dans le document
                       </Badge>
-                      <p className="text-xs text-slate-400 whitespace-pre-line line-clamp-10">
+                      <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 whitespace-pre-line line-clamp-10">
                         {cgvContent.slice(0, 1000)}
                         {cgvContent.length > 1000 ? "..." : ""}
                       </p>
                     </div>
                   ) : (
                     <div className="text-center py-6">
-                      <p className="text-xs text-slate-500">Aucune CGV detectee — les CGV GRIMY par defaut seront utilisees</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500">Aucune CGV detectee — les CGV GRIMY par defaut seront utilisees</p>
                     </div>
                   )}
                 </div>
@@ -467,26 +467,26 @@ export default function DocxImportDialog({
           <div className="flex-1 space-y-4 py-2">
             {/* OPT-33: Model name */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Nom du modele</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nom du modele</Label>
               <Input
                 value={modeleName}
                 onChange={(e) => setModeleName(e.target.value)}
                 placeholder="Mon modele importe"
-                className="bg-white/[0.04] border-white/[0.08]"
+                className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
               />
             </div>
 
             {/* OPT-34: Mission type */}
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Type de mission</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Type de mission</Label>
               <Select value={missionType} onValueChange={setMissionType}>
-                <SelectTrigger className="bg-white/[0.04] border-white/[0.08]">
+                <SelectTrigger className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {MISSION_CATEGORIES.map((cat) => (
                     <SelectGroup key={cat.category}>
-                      <SelectLabel className="text-[10px] text-slate-500">{cat.label}</SelectLabel>
+                      <SelectLabel className="text-[10px] text-slate-400 dark:text-slate-500">{cat.label}</SelectLabel>
                       {cat.missions.map((mId) => {
                         const config = (MISSION_TYPES as Record<string, any>)[mId];
                         if (!config) return null;
@@ -509,23 +509,23 @@ export default function DocxImportDialog({
                 onChange={(e) => setIsDefault(e.target.checked)}
                 className="rounded border-gray-300 accent-blue-500"
               />
-              <span className="text-sm text-slate-300">
+              <span className="text-sm text-slate-700 dark:text-slate-300">
                 Definir comme modele par defaut
               </span>
             </label>
 
             {/* OPT-35: Summary */}
-            <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2">
-              <p className="text-sm font-medium text-white">Resume de l'import</p>
+            <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 space-y-2">
+              <p className="text-sm font-medium text-slate-900 dark:text-white">Resume de l'import</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
-                <span className="text-slate-500">Sections :</span>
-                <span className="text-slate-300">{sections.length}</span>
-                <span className="text-slate-500">CNOEC couvertes :</span>
-                <span className="text-slate-300">{cnoecCovered}/{cnoecTotal}</span>
-                <span className="text-slate-500">CGV :</span>
-                <span className="text-slate-300">{cgvContent ? "Detectees" : "GRIMY par defaut"}</span>
-                <span className="text-slate-500">Source :</span>
-                <span className="text-slate-300 truncate">{fileName}</span>
+                <span className="text-slate-400 dark:text-slate-500">Sections :</span>
+                <span className="text-slate-700 dark:text-slate-300">{sections.length}</span>
+                <span className="text-slate-400 dark:text-slate-500">CNOEC couvertes :</span>
+                <span className="text-slate-700 dark:text-slate-300">{cnoecCovered}/{cnoecTotal}</span>
+                <span className="text-slate-400 dark:text-slate-500">CGV :</span>
+                <span className="text-slate-700 dark:text-slate-300">{cgvContent ? "Detectees" : "GRIMY par defaut"}</span>
+                <span className="text-slate-400 dark:text-slate-500">Source :</span>
+                <span className="text-slate-700 dark:text-slate-300 truncate">{fileName}</span>
               </div>
               {cnoecCovered < cnoecTotal && (
                 <div className="flex items-start gap-2 mt-2 text-xs text-orange-400">
@@ -546,7 +546,7 @@ export default function DocxImportDialog({
               <Button
                 variant="outline"
                 onClick={() => { reset(); setStep("upload"); }}
-                className="border-white/[0.06]"
+                className="border-gray-200 dark:border-white/[0.06]"
               >
                 Retour
               </Button>
@@ -560,7 +560,7 @@ export default function DocxImportDialog({
               <Button
                 variant="outline"
                 onClick={() => setStep("mapping")}
-                className="border-white/[0.06]"
+                className="border-gray-200 dark:border-white/[0.06]"
               >
                 Retour
               </Button>

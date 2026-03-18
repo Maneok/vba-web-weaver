@@ -50,7 +50,7 @@ const ROLE_COLORS: Record<Role, string> = {
   COLLABORATEUR: "text-emerald-300",
   CONTROLEUR: "text-purple-300",
   SECRETAIRE: "text-pink-300",
-  STAGIAIRE: "text-slate-400",
+  STAGIAIRE: "text-slate-400 dark:text-slate-500 dark:text-slate-400",
 };
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -82,7 +82,7 @@ interface RolePermission {
 
 function SkeletonMatrix() {
   return (
-    <div className="border border-white/[0.06] rounded-lg p-6 space-y-4">
+    <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg p-6 space-y-4">
       {Array.from({ length: 5 }).map((_, i) => (
         <div key={i} className="flex items-center gap-6">
           <Skeleton className="h-4 w-24" />
@@ -326,10 +326,10 @@ export default function RolesMatrix() {
   // #2 — Display error when no cabinet exists
   if (noCabinet) {
     return (
-      <div className="border border-white/[0.06] rounded-lg p-8 text-center space-y-3">
-        <ShieldCheck className="h-10 w-10 text-slate-500 mx-auto" />
-        <h3 className="text-lg font-semibold text-slate-200">Aucun cabinet configure</h3>
-        <p className="text-sm text-slate-400">
+      <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg p-8 text-center space-y-3">
+        <ShieldCheck className="h-10 w-10 text-slate-400 dark:text-slate-500 mx-auto" />
+        <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-200">Aucun cabinet configure</h3>
+        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
           La matrice des permissions necessite un cabinet. Veuillez d'abord creer votre cabinet dans les parametres.
         </p>
       </div>
@@ -343,36 +343,36 @@ export default function RolesMatrix() {
           <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-blue-400" /> Matrice des permissions
           </h2>
-          <p className="text-sm text-slate-400">Definissez les droits de chaque role. Les modifications sont sauvegardees automatiquement.</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Definissez les droits de chaque role. Les modifications sont sauvegardees automatiquement.</p>
         </div>
         <div className="flex items-center gap-4">
           <Button
             variant="outline"
             size="sm"
             onClick={() => setResetOpen(true)}
-            className="gap-2 border-white/10 text-slate-300 hover:bg-white/[0.04]"
+            className="gap-2 border-white/10 text-slate-700 dark:text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04]"
             aria-label="Reinitialiser les permissions"
           >
             <RotateCcw className="h-4 w-4" /> Reinitialiser
           </Button>
           <div className="flex items-center gap-2">
-            <Label htmlFor="expert-mode" className="text-sm text-slate-400">Mode expert</Label>
+            <Label htmlFor="expert-mode" className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Mode expert</Label>
             <Switch id="expert-mode" checked={expertMode} onCheckedChange={setExpertMode} />
           </div>
         </div>
       </div>
 
-      <div className="border border-white/[0.06] rounded-lg overflow-hidden">
+      <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full" role="grid">
             <thead>
-              <tr className="border-b border-white/[0.06] bg-white/[0.02]">
-                <th className="text-left px-4 py-3 text-sm font-medium text-slate-400 min-w-[180px]">Permission</th>
+              <tr className="border-b border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+                <th className="text-left px-4 py-3 text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400 min-w-[180px]">Permission</th>
                 {ALL_ROLES.map((role) => (
                   <th key={role} className="px-4 py-3 text-center">
                     <div className="flex flex-col items-center gap-1">
                       <span className={`text-sm font-semibold ${ROLE_COLORS[role]}`}>{ROLE_LABELS[role]}</span>
-                      <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700 px-1.5">
+                      <Badge variant="outline" className="text-[10px] text-slate-400 dark:text-slate-500 border-slate-700 px-1.5">
                         {grantedCounts[role]}/{ALL_PERMISSIONS.length}
                       </Badge>
                       {/* #7 — Tout accorder / Tout retirer buttons per role (except ADMIN) */}
@@ -415,7 +415,7 @@ export default function RolesMatrix() {
                 return (
                   <tr
                     key={perm}
-                    className={`border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors ${isExpert ? "bg-purple-500/[0.03]" : ""}`}
+                    className={`border-b border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02] transition-colors ${isExpert ? "bg-purple-500/[0.03]" : ""}`}
                     // #3 — Keyboard support for row-level checkbox toggle
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -429,13 +429,13 @@ export default function RolesMatrix() {
                   >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-slate-200">{PERMISSION_LABELS[perm]}</span>
+                        <span className="text-sm font-medium text-slate-800 dark:text-slate-200">{PERMISSION_LABELS[perm]}</span>
                         {isExpert && (
                           <Badge variant="outline" className="text-[9px] text-purple-400 border-purple-500/30 border-dashed px-1">expert</Badge>
                         )}
                         <Tooltip>
                           <TooltipTrigger>
-                            <Info className="h-3.5 w-3.5 text-slate-500 hover:text-slate-300 transition-colors" />
+                            <Info className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors" />
                           </TooltipTrigger>
                           <TooltipContent side="right" className="max-w-[250px]">
                             {PERMISSION_DESCRIPTIONS[perm]}
@@ -492,7 +492,7 @@ export default function RolesMatrix() {
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-6 text-xs text-slate-500 flex-wrap">
+      <div className="flex items-center gap-6 text-xs text-slate-400 dark:text-slate-500 flex-wrap">
         <div className="flex items-center gap-2">
           <div className="h-4 w-4 rounded border border-emerald-500 bg-emerald-500/20 flex items-center justify-center">
             <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="rgb(52, 211, 153)" strokeWidth="1.5" /></svg>

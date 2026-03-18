@@ -141,17 +141,17 @@ function ModeleCard({
   const activeSections = m.sections.length;
   const mtConfig = m.mission_type ? getMissionTypeConfig(m.mission_type) : null;
   const sourceLabel = m.source === "grimy" ? "GRIMY" : m.source === "import_docx" ? "Import DOCX" : "Copie";
-  const sourceColor = m.source === "grimy" ? "border-teal-500/30 text-teal-400" : m.source === "import_docx" ? "border-purple-500/30 text-purple-400" : "border-slate-500/30 text-slate-400";
+  const sourceColor = m.source === "grimy" ? "border-teal-500/30 text-teal-400" : m.source === "import_docx" ? "border-purple-500/30 text-purple-400" : "border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400";
 
   return (
     <Card
-      className={`bg-white/[0.02] border-white/[0.06] p-4 space-y-3 hover:border-white/[0.12] transition-colors ${
+      className={`bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-4 space-y-3 hover:border-white/[0.12] transition-colors ${
         m.is_default ? "border-l-[3px] border-l-emerald-500/60" : ""
       }`}
     >
       {/* OPT-6: Line 1 — Name + badges */}
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium text-white truncate">{m.nom}</p>
+        <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{m.nom}</p>
         <div className="flex items-center gap-1.5 shrink-0">
           {m.is_default && (
             <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[9px]">
@@ -173,7 +173,7 @@ function ModeleCard({
           );
         })()}
         {mtConfig && (
-          <Badge variant="outline" className="text-[8px] border-slate-500/30 text-slate-400 font-mono">
+          <Badge variant="outline" className="text-[8px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">
             {mtConfig.normeRef}
           </Badge>
         )}
@@ -194,10 +194,10 @@ function ModeleCard({
       {/* OPT-7: Line 2 — Description + metadata (hidden in compact) */}
       {!compact && (
         <>
-          <p className="text-xs text-slate-500 line-clamp-2">
+          <p className="text-xs text-slate-400 dark:text-slate-500 line-clamp-2">
             {m.description || mtConfig?.description || "Aucune description"}
           </p>
-          <div className="flex items-center gap-4 text-[10px] text-slate-500">
+          <div className="flex items-center gap-4 text-[10px] text-slate-400 dark:text-slate-500">
             <span>{activeSections} sections actives</span>
             <span>
               Modifie le{" "}
@@ -216,12 +216,12 @@ function ModeleCard({
       {/* OPT-8: Line 3 — Actions (hidden in compact) */}
       {!compact && (
         <>
-          <Separator className="bg-white/[0.06]" />
+          <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
           <div className="flex items-center gap-1.5">
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 gap-1 text-xs text-slate-400 hover:text-blue-400"
+              className="h-7 gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-blue-400"
               onClick={() => onEdit(m)}
               aria-label={`Editer ${m.nom}`}
             >
@@ -230,7 +230,7 @@ function ModeleCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 gap-1 text-xs text-slate-400 hover:text-emerald-400"
+              className="h-7 gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-emerald-400"
               onClick={() => onDuplicate(m)}
               disabled={actionLoading === `dup-${m.id}`}
               aria-label={`Dupliquer ${m.nom}`}
@@ -241,7 +241,7 @@ function ModeleCard({
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 gap-1 text-xs text-slate-400 hover:text-amber-400"
+                className="h-7 gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-amber-400"
                 onClick={() => onSetDefault(m)}
                 disabled={actionLoading === `def-${m.id}`}
                 aria-label={`Definir ${m.nom} par defaut`}
@@ -253,7 +253,7 @@ function ModeleCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 gap-1 text-xs text-slate-400 hover:text-purple-400"
+              className="h-7 gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-purple-400"
               onClick={() => onPreview(m)}
               aria-label={`Previsualiser ${m.nom}`}
             >
@@ -263,7 +263,7 @@ function ModeleCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 gap-1 text-xs text-slate-400 hover:text-cyan-400"
+              className="h-7 gap-1 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-cyan-400"
               onClick={() => onExport(m)}
               aria-label={`Exporter ${m.nom}`}
             >
@@ -273,7 +273,7 @@ function ModeleCard({
             <Button
               variant="ghost"
               size="sm"
-              className="h-7 text-xs text-slate-500 hover:text-red-400 disabled:opacity-30"
+              className="h-7 text-xs text-slate-400 dark:text-slate-500 hover:text-red-400 disabled:opacity-30"
               disabled={m.is_default || actionLoading === `del-${m.id}`}
               onClick={() => onDelete(m)}
               title={m.is_default ? "Le modele par defaut ne peut pas etre supprime" : "Supprimer"}
@@ -296,20 +296,20 @@ function ModeleGridSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {[1, 2, 3].map((i) => (
-        <Card key={i} className="bg-white/[0.02] border-white/[0.06] p-4 space-y-3">
-          <Skeleton className="h-5 w-3/4 bg-white/[0.06]" />
+        <Card key={i} className="bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] p-4 space-y-3">
+          <Skeleton className="h-5 w-3/4 bg-gray-100 dark:bg-white/[0.06]" />
           <div className="flex gap-1.5">
-            <Skeleton className="h-5 w-20 bg-white/[0.06]" />
-            <Skeleton className="h-5 w-16 bg-white/[0.06]" />
-            <Skeleton className="h-5 w-14 bg-white/[0.06]" />
+            <Skeleton className="h-5 w-20 bg-gray-100 dark:bg-white/[0.06]" />
+            <Skeleton className="h-5 w-16 bg-gray-100 dark:bg-white/[0.06]" />
+            <Skeleton className="h-5 w-14 bg-gray-100 dark:bg-white/[0.06]" />
           </div>
-          <Skeleton className="h-4 w-full bg-white/[0.06]" />
-          <Skeleton className="h-4 w-2/3 bg-white/[0.06]" />
-          <Separator className="bg-white/[0.06]" />
+          <Skeleton className="h-4 w-full bg-gray-100 dark:bg-white/[0.06]" />
+          <Skeleton className="h-4 w-2/3 bg-gray-100 dark:bg-white/[0.06]" />
+          <Separator className="bg-gray-100 dark:bg-white/[0.06]" />
           <div className="flex gap-2">
-            <Skeleton className="h-7 w-16 bg-white/[0.06]" />
-            <Skeleton className="h-7 w-20 bg-white/[0.06]" />
-            <Skeleton className="h-7 w-16 bg-white/[0.06]" />
+            <Skeleton className="h-7 w-16 bg-gray-100 dark:bg-white/[0.06]" />
+            <Skeleton className="h-7 w-20 bg-gray-100 dark:bg-white/[0.06]" />
+            <Skeleton className="h-7 w-16 bg-gray-100 dark:bg-white/[0.06]" />
           </div>
         </Card>
       ))}
@@ -605,7 +605,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
   // ── Editing mode ──
   if (editingModele) {
     return (
-      <div className="flex flex-col h-[calc(100vh-120px)] rounded-2xl border border-white/[0.06] bg-white/[0.02] overflow-hidden">
+      <div className="flex flex-col h-[calc(100vh-120px)] rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] overflow-hidden">
         <ModeleEditor
           modele={editingModele}
           onSave={handleSaveEditor}
@@ -628,17 +628,17 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
             variant="ghost"
             size="sm"
             onClick={onBack}
-            className="gap-1.5 text-slate-400 hover:text-white"
+            className="gap-1.5 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white"
             aria-label="Retour"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h2 className="text-lg font-bold text-white">Mes modeles de lettre de mission</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Mes modeles de lettre de mission</h2>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
               {modeles.length} modele{modeles.length > 1 ? "s" : ""} — {usedCategories} categorie{usedCategories > 1 ? "s" : ""} utilisee{usedCategories > 1 ? "s" : ""}
               {lastLoadTime && (
-                <span className="ml-2 text-slate-600">
+                <span className="ml-2 text-slate-300 dark:text-slate-600">
                   · Mis a jour {lastLoadTime.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
                 </span>
               )}
@@ -650,7 +650,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
           variant="ghost"
           size="sm"
           onClick={() => setCompact(!compact)}
-          className="gap-1.5 text-xs text-slate-400"
+          className="gap-1.5 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400"
           aria-label={compact ? "Vue etendue" : "Vue compacte"}
         >
           {compact ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
@@ -660,12 +660,12 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
 
       {/* OPT-12: Search */}
       <div className="relative">
-        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
         <Input
           placeholder="Rechercher un modele..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10 h-10 bg-white/[0.04] border-white/[0.08] text-white placeholder:text-slate-600"
+          className="pl-10 h-10 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white placeholder:text-slate-300 dark:text-slate-600"
         />
       </div>
 
@@ -673,8 +673,8 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       {loadError && !loading && (
         <div className="flex flex-col items-center gap-4 py-16">
           <AlertTriangle className="h-10 w-10 text-red-400" />
-          <p className="text-sm text-slate-400">Impossible de charger les modeles</p>
-          <Button variant="outline" onClick={loadModeles} className="gap-2 border-white/[0.06]">
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Impossible de charger les modeles</p>
+          <Button variant="outline" onClick={loadModeles} className="gap-2 border-gray-200 dark:border-white/[0.06]">
             <RefreshCw className="h-4 w-4" /> Reessayer
           </Button>
         </div>
@@ -686,14 +686,14 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       {/* OPT-13: Search results (flat list) */}
       {!loading && !loadError && isSearching && (
         <div className="space-y-3">
-          <p className="text-xs text-slate-500">{searchResults.length} resultat{searchResults.length > 1 ? "s" : ""} pour « {searchQuery} »</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500">{searchResults.length} resultat{searchResults.length > 1 ? "s" : ""} pour « {searchQuery} »</p>
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {searchResults.map((m) => {
               const mtConfig = m.mission_type ? getMissionTypeConfig(m.mission_type) : null;
               return (
                 <div key={m.id} className="relative">
                   {mtConfig && (
-                    <Badge className="absolute -top-2 left-3 z-10 text-[8px] bg-slate-500/10 text-slate-400 border-slate-500/20">
+                    <Badge className="absolute -top-2 left-3 z-10 text-[8px] bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/20">
                       {mtConfig.categoryLabel}
                     </Badge>
                   )}
@@ -714,7 +714,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
             })}
           </div>
           {searchResults.length === 0 && (
-            <div className="text-center py-10 text-sm text-slate-500">
+            <div className="text-center py-10 text-sm text-slate-400 dark:text-slate-500">
               Aucun modele ne correspond a votre recherche
             </div>
           )}
@@ -724,7 +724,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
       {/* ── Category Tabs (OPT-1-5) ── */}
       {!loading && !loadError && !isSearching && (
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MissionCategory)}>
-          <TabsList className="bg-white/[0.03] border border-white/[0.06] mb-4">
+          <TabsList className="bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] mb-4">
             {MISSION_CATEGORIES.map((cat) => (
               <TabsTrigger key={cat.category} value={cat.category} className="text-xs gap-1.5">
                 {CATEGORY_TAB_LABELS[cat.category]}
@@ -741,8 +741,8 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
                 {/* OPT-3: Subtitle + OPT-4: Action buttons */}
                 <div className="flex items-start justify-between mb-4 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-slate-300">{cat.label}</p>
-                    <p className="text-[10px] text-slate-500 mt-0.5">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{cat.label}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
                       {CATEGORY_SUBTITLES[cat.category]}
                     </p>
                   </div>
@@ -751,7 +751,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
                       variant="outline"
                       size="sm"
                       onClick={() => setShowImport(true)}
-                      className="gap-1.5 border-white/[0.06] text-slate-300"
+                      className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300"
                       aria-label="Importer un DOCX"
                     >
                       <Upload className="h-3.5 w-3.5" /> Importer DOCX
@@ -770,12 +770,12 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
                 {/* OPT-5: Empty state */}
                 {catModeles.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-white/[0.04] flex items-center justify-center">
-                      <FileText className="h-8 w-8 text-slate-500" />
+                    <div className="w-16 h-16 rounded-2xl bg-gray-50/80 dark:bg-white/[0.04] flex items-center justify-center">
+                      <FileText className="h-8 w-8 text-slate-400 dark:text-slate-500" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-slate-400">Aucun modele pour cette categorie</p>
-                      <p className="text-xs text-slate-500 mt-1">Creez un modele a partir du modele GRIMY ou importez votre DOCX existant</p>
+                      <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucun modele pour cette categorie</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Creez un modele a partir du modele GRIMY ou importez votre DOCX existant</p>
                     </div>
                     <Button
                       onClick={() => openQuickCreate(cat.category)}
@@ -839,7 +839,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
               <div
                 key={s}
                 className={`w-2 h-2 rounded-full transition-colors ${
-                  s <= createStep ? "bg-blue-500" : "bg-white/[0.1]"
+                  s <= createStep ? "bg-blue-500" : "bg-gray-200 dark:bg-white/[0.1]"
                 }`}
               />
             ))}
@@ -849,19 +849,19 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
           {createStep === 1 && (
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Type de mission *</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Type de mission *</Label>
                 <Select value={createMissionType} onValueChange={(val) => {
                   setCreateMissionType(val);
                   const config = getMissionTypeConfig(val);
                   setCreateNom(`${config.shortLabel} — Standard`);
                 }}>
-                  <SelectTrigger className="bg-white/[0.04] border-white/[0.08]">
+                  <SelectTrigger className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]">
                     <SelectValue placeholder="Choisir un type de mission" />
                   </SelectTrigger>
                   <SelectContent>
                     {MISSION_CATEGORIES.map((cat) => (
                       <SelectGroup key={cat.category}>
-                        <SelectLabel className="text-[10px] text-slate-500">{cat.label}</SelectLabel>
+                        <SelectLabel className="text-[10px] text-slate-400 dark:text-slate-500">{cat.label}</SelectLabel>
                         {cat.missions.map((mId) => {
                           const config = (MISSION_TYPES as Record<string, MissionTypeConfig>)[mId];
                           if (!config) return null;
@@ -878,10 +878,10 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
               </div>
 
               {createMtConfig && (
-                <div className="p-3 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-2">
-                  <p className="text-xs text-slate-400">{createMtConfig.description}</p>
+                <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-2">
+                  <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{createMtConfig.description}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 font-mono">
+                    <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">
                       {createMtConfig.normeRef}
                     </Badge>
                     {createMtConfig.honorairesSuccesAutorises ? (
@@ -903,12 +903,12 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
           {createStep === 2 && (
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Nom du modele *</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nom du modele *</Label>
                 <Input
                   value={createNom}
                   onChange={(e) => setCreateNom(e.target.value)}
                   placeholder="Ex: Modele presentation TPE"
-                  className="bg-white/[0.04] border-white/[0.08]"
+                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
                 />
                 {/* OPT-23: Uniqueness warning */}
                 {isNameDuplicate && (
@@ -917,20 +917,20 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
               </div>
 
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Description</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Description</Label>
                 <Textarea
                   value={createDescription}
                   onChange={(e) => setCreateDescription(e.target.value)}
                   placeholder="Decrivez l'usage de ce modele..."
-                  className="bg-white/[0.04] border-white/[0.08] min-h-[60px]"
+                  className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] min-h-[60px]"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs text-slate-400">Base du modele</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Base du modele</Label>
                 <div className="space-y-2">
                   <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    createSource === "grimy" ? "border-blue-500/30 bg-blue-500/5" : "border-white/[0.06] hover:border-white/[0.1]"
+                    createSource === "grimy" ? "border-blue-500/30 bg-blue-500/5" : "border-gray-200 dark:border-white/[0.06] hover:border-gray-300 dark:border-white/[0.1]"
                   }`}>
                     <input
                       type="radio"
@@ -940,12 +940,12 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
                       className="accent-blue-500"
                     />
                     <div>
-                      <span className="text-sm text-slate-300">Sections GRIMY adaptees au type</span>
-                      <span className="text-[10px] text-slate-500 block">Recommande — inclut toutes les sections CNOEC obligatoires</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">Sections GRIMY adaptees au type</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Recommande — inclut toutes les sections CNOEC obligatoires</span>
                     </div>
                   </label>
                   <label className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                    createSource === "empty" ? "border-blue-500/30 bg-blue-500/5" : "border-white/[0.06] hover:border-white/[0.1]"
+                    createSource === "empty" ? "border-blue-500/30 bg-blue-500/5" : "border-gray-200 dark:border-white/[0.06] hover:border-gray-300 dark:border-white/[0.1]"
                   }`}>
                     <input
                       type="radio"
@@ -955,8 +955,8 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
                       className="accent-blue-500"
                     />
                     <div>
-                      <span className="text-sm text-slate-300">Modele vide</span>
-                      <span className="text-[10px] text-slate-500 block">Commencer de zero</span>
+                      <span className="text-sm text-slate-700 dark:text-slate-300">Modele vide</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 block">Commencer de zero</span>
                     </div>
                   </label>
                 </div>
@@ -967,19 +967,19 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
           {/* OPT-18: Step 3 — Confirmation */}
           {createStep === 3 && (
             <div className="space-y-4 py-2">
-              <div className="p-4 rounded-xl bg-white/[0.02] border border-white/[0.06] space-y-3">
-                <p className="text-sm font-medium text-white">Resume</p>
+              <div className="p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-3">
+                <p className="text-sm font-medium text-slate-900 dark:text-white">Resume</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <span className="text-slate-500">Type :</span>
-                  <span className="text-slate-300">{createMtConfig?.shortLabel || "—"}</span>
-                  <span className="text-slate-500">Norme :</span>
-                  <span className="text-slate-300 font-mono">{createMtConfig?.normeRef || "—"}</span>
-                  <span className="text-slate-500">Nom :</span>
-                  <span className="text-white font-medium">{createNom || "—"}</span>
-                  <span className="text-slate-500">Base :</span>
-                  <span className="text-slate-300">{createSource === "grimy" ? "Sections GRIMY" : "Vide"}</span>
-                  <span className="text-slate-500">Sections :</span>
-                  <span className="text-slate-300">{createSections.length} section{createSections.length > 1 ? "s" : ""}</span>
+                  <span className="text-slate-400 dark:text-slate-500">Type :</span>
+                  <span className="text-slate-700 dark:text-slate-300">{createMtConfig?.shortLabel || "—"}</span>
+                  <span className="text-slate-400 dark:text-slate-500">Norme :</span>
+                  <span className="text-slate-700 dark:text-slate-300 font-mono">{createMtConfig?.normeRef || "—"}</span>
+                  <span className="text-slate-400 dark:text-slate-500">Nom :</span>
+                  <span className="text-slate-900 dark:text-white font-medium">{createNom || "—"}</span>
+                  <span className="text-slate-400 dark:text-slate-500">Base :</span>
+                  <span className="text-slate-700 dark:text-slate-300">{createSource === "grimy" ? "Sections GRIMY" : "Vide"}</span>
+                  <span className="text-slate-400 dark:text-slate-500">Sections :</span>
+                  <span className="text-slate-700 dark:text-slate-300">{createSections.length} section{createSections.length > 1 ? "s" : ""}</span>
                 </div>
                 {createSource === "grimy" && (
                   <Badge className="text-[9px] bg-green-500/10 text-green-400 border border-green-500/20">
@@ -992,12 +992,12 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
 
           <DialogFooter className="gap-2">
             {createStep > 1 && (
-              <Button variant="outline" onClick={() => setCreateStep(createStep - 1)} className="border-white/[0.06]">
+              <Button variant="outline" onClick={() => setCreateStep(createStep - 1)} className="border-gray-200 dark:border-white/[0.06]">
                 Retour
               </Button>
             )}
             {createStep === 1 && (
-              <Button variant="outline" onClick={() => setShowCreate(false)} className="border-white/[0.06]">
+              <Button variant="outline" onClick={() => setShowCreate(false)} className="border-gray-200 dark:border-white/[0.06]">
                 Annuler
               </Button>
             )}
@@ -1030,7 +1030,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
             <DialogTitle>Supprimer le modele</DialogTitle>
             <DialogDescription>Cette action est irreversible.</DialogDescription>
           </DialogHeader>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
             Supprimer le modele « {deleteTarget?.nom} » ? Les lettres deja generees ne seront pas affectees.
           </p>
           {/* OPT-50: Warning if modele is in use */}
@@ -1044,7 +1044,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="border-white/[0.06]" autoFocus>
+            <Button variant="outline" onClick={() => setDeleteTarget(null)} className="border-gray-200 dark:border-white/[0.06]" autoFocus>
               Annuler
             </Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
@@ -1069,13 +1069,13 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
               {previewModele?.sections.map((s, i) => (
                 <div key={`${s.id}-${i}`} className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500 font-mono">{String(s.ordre).padStart(2, "0")}</span>
-                    <span className="text-xs font-medium text-slate-300">{s.titre}</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{String(s.ordre).padStart(2, "0")}</span>
+                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{s.titre}</span>
                     {s.cnoec_obligatoire && (
                       <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-400">CNOEC</Badge>
                     )}
                   </div>
-                  <p className="text-xs text-slate-500 whitespace-pre-line pl-6 line-clamp-4">{s.contenu}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 whitespace-pre-line pl-6 line-clamp-4">{s.contenu}</p>
                 </div>
               ))}
             </div>

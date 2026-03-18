@@ -18,7 +18,7 @@ export function QuickActionsBar() {
       >
         <UserPlus className="w-3.5 h-3.5" />
         Client
-        <kbd className="ml-1 text-[9px] text-slate-500 border border-white/10 rounded px-1">N</kbd>
+        <kbd className="ml-1 text-[9px] text-slate-400 dark:text-slate-500 border border-white/10 rounded px-1">N</kbd>
       </Button>
       <Button
         size="sm"
@@ -30,7 +30,7 @@ export function QuickActionsBar() {
       >
         <AlertTriangle className="w-3.5 h-3.5" />
         Alerte
-        <kbd className="ml-1 text-[9px] text-slate-500 border border-white/10 rounded px-1">A</kbd>
+        <kbd className="ml-1 text-[9px] text-slate-400 dark:text-slate-500 border border-white/10 rounded px-1">A</kbd>
       </Button>
       <Button
         size="sm"
@@ -92,7 +92,7 @@ export function QuickActionsFAB() {
             >
               <span className="text-xs font-medium">{a.label}</span>
               <div className={`w-8 h-8 rounded-full ${a.color} flex items-center justify-center`}>
-                <a.icon className="w-4 h-4 text-white" />
+                <a.icon className="w-4 h-4 text-slate-900 dark:text-white" />
               </div>
             </button>
           ))}

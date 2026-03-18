@@ -88,7 +88,7 @@ export function AlertsPanel({ alertes, loading = false }: AlertsPanelProps) {
   });
 
   return (
-    <div className="bg-card rounded-2xl border border-border p-5 hover:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid">
+    <div className="bg-card rounded-2xl border border-border p-5 hover:border-gray-300 dark:border-white/[0.1] transition-colors duration-300 print:break-inside-avoid">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-sm flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 text-orange-500" aria-hidden="true" />
@@ -147,7 +147,7 @@ export function AlertsPanel({ alertes, loading = false }: AlertsPanelProps) {
             <button
               key={`${a.date}-${a.clientConcerne}-${i}`}
               role="listitem"
-              className="w-full flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/50 border border-transparent hover:border-white/[0.06] transition-all duration-200 text-left"
+              className="w-full flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-muted/50 border border-transparent hover:border-gray-200 dark:border-white/[0.06] transition-all duration-200 text-left"
               onClick={() => navigate("/registre")}
               aria-label={`Alerte ${a.clientConcerne} — ${a.categorie} — ${a.statut}`}
             >

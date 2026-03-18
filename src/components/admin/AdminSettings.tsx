@@ -176,11 +176,11 @@ export default function AdminSettings() {
       {/* Configuration */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-slate-200">Configuration GRIMY</h3>
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Configuration GRIMY</h3>
           <button
             onClick={handleSave}
             disabled={saving || !hasChanges}
-            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-45 transition-colors"
+            className="flex items-center gap-2 px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg disabled:opacity-45 transition-colors"
           >
             <Save className="h-3.5 w-3.5" /> {saving ? "Sauvegarde..." : "Sauvegarder"}
           </button>
@@ -188,12 +188,12 @@ export default function AdminSettings() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {configs.map((c) => (
             <div key={c.key}>
-              <label className="text-xs text-slate-400 mb-1 block">{c.label}</label>
+              <label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-1 block">{c.label}</label>
               <input
                 type={c.type}
                 value={c.value}
                 onChange={(e) => updateConfigValue(c.key, e.target.value)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50"
               />
             </div>
           ))}
@@ -203,7 +203,7 @@ export default function AdminSettings() {
       {/* Super-admins */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 flex items-center gap-2">
             <Shield className="h-4 w-4 text-blue-400" /> Super-admins
           </h3>
           <button
@@ -217,8 +217,8 @@ export default function AdminSettings() {
           {superAdmins.map((admin) => (
             <div key={admin.id} className="flex items-center justify-between py-2 border-b border-white/5">
               <div>
-                <p className="text-sm text-slate-200">{admin.full_name || admin.email}</p>
-                <p className="text-xs text-slate-500">{admin.email}</p>
+                <p className="text-sm text-slate-800 dark:text-slate-200">{admin.full_name || admin.email}</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{admin.email}</p>
               </div>
               {admin.id !== profile?.id && (
                 <button
@@ -230,13 +230,13 @@ export default function AdminSettings() {
               )}
             </div>
           ))}
-          {superAdmins.length === 0 && <p className="text-sm text-slate-500">Aucun super-admin</p>}
+          {superAdmins.length === 0 && <p className="text-sm text-slate-400 dark:text-slate-500">Aucun super-admin</p>}
         </div>
       </div>
 
       {/* Actions */}
       <div className="bg-white/5 border border-white/10 rounded-xl p-6">
-        <h3 className="text-sm font-semibold text-slate-200 mb-4">Actions</h3>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-4">Actions</h3>
         <div className="flex flex-wrap gap-3">
           <button
             onClick={handleMaintenance}
@@ -252,7 +252,7 @@ export default function AdminSettings() {
           </button>
           <button
             onClick={() => toast.info("Fonctionnalite informative uniquement")}
-            className="flex items-center gap-2 px-4 py-2.5 text-sm bg-slate-500/20 text-slate-300 rounded-lg hover:bg-slate-500/30 transition-colors"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm bg-slate-500/20 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-500/30 transition-colors"
           >
             <GitBranch className="h-4 w-4" /> Nettoyer les branches GitHub
           </button>
@@ -260,7 +260,7 @@ export default function AdminSettings() {
 
         {maintenanceResult && (
           <div className="mt-4 bg-black/30 border border-white/5 rounded-lg p-4 overflow-x-auto">
-            <p className="text-xs text-slate-400 mb-2">Resultat de la maintenance :</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mb-2">Resultat de la maintenance :</p>
             <pre className="text-xs text-emerald-300 whitespace-pre-wrap">{maintenanceResult}</pre>
           </div>
         )}
@@ -273,21 +273,21 @@ export default function AdminSettings() {
             <DialogTitle>Ajouter un super-admin</DialogTitle>
           </DialogHeader>
           <div>
-            <label className="text-sm text-slate-300">Email du nouvel admin :</label>
+            <label className="text-sm text-slate-700 dark:text-slate-300">Email du nouvel admin :</label>
             <input
               type="email"
               value={newAdminEmail}
               onChange={(e) => setNewAdminEmail(e.target.value)}
               placeholder="email@exemple.com"
-              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+              className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
             />
           </div>
           <DialogFooter>
-            <button onClick={() => setAddAdminDialog(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
+            <button onClick={() => setAddAdminDialog(false)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
             <button
               onClick={handleAddSuperAdmin}
               disabled={!newAdminEmail.trim()}
-              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg disabled:opacity-45"
+              className="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-slate-900 dark:text-white rounded-lg disabled:opacity-45"
             >
               Ajouter
             </button>
@@ -321,31 +321,31 @@ export default function AdminSettings() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-sm text-slate-300">Nom du cabinet :</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">Nom du cabinet :</label>
               <input
                 type="text"
                 value={newCabinetName}
                 onChange={(e) => setNewCabinetName(e.target.value)}
                 placeholder="Cabinet Dupont"
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-slate-300">SIREN (optionnel) :</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">SIREN (optionnel) :</label>
               <input
                 type="text"
                 value={newCabinetSiren}
                 onChange={(e) => setNewCabinetSiren(e.target.value)}
                 placeholder="123456789"
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
               />
             </div>
             <div>
-              <label className="text-sm text-slate-300">Plan :</label>
+              <label className="text-sm text-slate-700 dark:text-slate-300">Plan :</label>
               <select
                 value={newCabinetPlan}
                 onChange={(e) => setNewCabinetPlan(e.target.value)}
-                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200 mt-1"
+                className="w-full px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200 mt-1"
               >
                 <option value="solo">Solo</option>
                 <option value="cabinet">Cabinet</option>
@@ -354,11 +354,11 @@ export default function AdminSettings() {
             </div>
           </div>
           <DialogFooter>
-            <button onClick={() => setCreateCabinetDialog(false)} className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200">Annuler</button>
+            <button onClick={() => setCreateCabinetDialog(false)} className="px-4 py-2 text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200">Annuler</button>
             <button
               onClick={handleCreateCabinet}
               disabled={!newCabinetName.trim()}
-              className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg disabled:opacity-45"
+              className="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white rounded-lg disabled:opacity-45"
             >
               Creer
             </button>

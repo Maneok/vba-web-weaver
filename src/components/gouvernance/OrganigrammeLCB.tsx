@@ -41,19 +41,19 @@ interface OrgCardProps {
 function OrgCard({ collab, roleLabel, accent = "border-slate-700" }: OrgCardProps) {
   const expired = isFormationExpired(collab.derniereFormation);
   return (
-    <div className={`relative bg-white/[0.03] border ${accent} rounded-lg p-3 min-w-[180px] max-w-[220px]`}>
+    <div className={`relative bg-gray-50 dark:bg-white/[0.03] border ${accent} rounded-lg p-3 min-w-[180px] max-w-[220px]`}>
       <div className="flex items-center gap-2.5 mb-2">
         <div className="w-9 h-9 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
           {getInitials(collab.nom)}
         </div>
         <div className="min-w-0">
           <p className="text-sm font-medium truncate">{collab.nom}</p>
-          <p className="text-xs text-slate-400 truncate">{roleLabel}</p>
+          <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate">{roleLabel}</p>
         </div>
       </div>
       <div className="flex items-center gap-1.5">
-        <GraduationCap className="w-3 h-3 text-slate-500 shrink-0" />
-        <span className="text-xs text-slate-500">Formation :</span>
+        <GraduationCap className="w-3 h-3 text-slate-400 dark:text-slate-500 shrink-0" />
+        <span className="text-xs text-slate-400 dark:text-slate-500">Formation :</span>
         {expired ? (
           <Badge className="bg-red-500/15 text-red-400 text-[10px] px-1.5 py-0 gap-0.5">
             <AlertTriangle className="w-2.5 h-2.5" /> Expiree
@@ -65,7 +65,7 @@ function OrgCard({ collab, roleLabel, accent = "border-slate-700" }: OrgCardProp
         )}
       </div>
       {collab.derniereFormation && (
-        <p className="text-[10px] text-slate-600 mt-1 ml-4">
+        <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1 ml-4">
           {formatDate(collab.derniereFormation)}
         </p>
       )}
@@ -90,8 +90,8 @@ export default function OrganigrammeLCB() {
 
   if (collaborateurs.length === 0) {
     return (
-      <Card className="border-white/[0.06] bg-white/[0.02]">
-        <CardContent className="p-8 text-center text-slate-500">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+        <CardContent className="p-8 text-center text-slate-400 dark:text-slate-500">
           <Users className="w-10 h-10 mx-auto mb-3 opacity-40" />
           <p className="text-sm">Aucun collaborateur enregistre.</p>
           <p className="text-xs mt-1">Ajoutez des collaborateurs dans l'annuaire pour construire l'organigramme.</p>
@@ -101,7 +101,7 @@ export default function OrganigrammeLCB() {
   }
 
   return (
-    <Card className="border-white/[0.06] bg-white/[0.02]">
+    <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg font-semibold flex items-center gap-2">
           <Shield className="w-5 h-5 text-purple-400" />

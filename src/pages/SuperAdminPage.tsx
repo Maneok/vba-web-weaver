@@ -68,7 +68,7 @@ export default function SuperAdminPage() {
         </div>
         <div>
           <h1 className="text-xl font-bold text-slate-100">Super Admin GRIMY</h1>
-          <p className="text-sm text-slate-500">Gestion globale de la plateforme</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">Gestion globale de la plateforme</p>
         </div>
       </div>
 
@@ -84,13 +84,13 @@ export default function SuperAdminPage() {
               className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
                 isActive
                   ? "bg-blue-500/20 text-blue-300 shadow-sm"
-                  : "text-slate-400 hover:text-slate-200 hover:bg-white/5"
+                  : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-white/5"
               }`}
             >
               <Icon className="h-4 w-4" />
               <span className="hidden sm:inline">{tab.label}</span>
               {tab.id === "unpaid" && unpaidCount > 0 && (
-                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white min-w-[18px] text-center">
+                <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-slate-900 dark:text-white min-w-[18px] text-center">
                   {unpaidCount}
                 </span>
               )}

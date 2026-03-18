@@ -17,9 +17,9 @@ interface DashboardCockpitFiltersProps {
 
 const severityOptions: { value: SeverityFilter; label: string; activeClass: string; inactiveClass: string }[] = [
   { value: "all", label: "Tout", activeClass: "bg-primary text-primary-foreground", inactiveClass: "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground" },
-  { value: "critique", label: "Critique", activeClass: "bg-red-600 text-white", inactiveClass: "border-border text-red-500 hover:bg-red-500/10" },
-  { value: "warning", label: "Warning", activeClass: "bg-orange-500 text-white", inactiveClass: "border-border text-orange-500 hover:bg-orange-500/10" },
-  { value: "info", label: "Info", activeClass: "bg-blue-500 text-white", inactiveClass: "border-border text-blue-500 hover:bg-blue-500/10" },
+  { value: "critique", label: "Critique", activeClass: "bg-red-600 text-slate-900 dark:text-white", inactiveClass: "border-border text-red-500 hover:bg-red-500/10" },
+  { value: "warning", label: "Warning", activeClass: "bg-orange-500 text-slate-900 dark:text-white", inactiveClass: "border-border text-orange-500 hover:bg-orange-500/10" },
+  { value: "info", label: "Info", activeClass: "bg-blue-500 text-slate-900 dark:text-white", inactiveClass: "border-border text-blue-500 hover:bg-blue-500/10" },
 ];
 
 const categoryOptions: { value: CategoryFilter; label: string }[] = [

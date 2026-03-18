@@ -79,17 +79,17 @@ function Stepper({ current, total }: { current: number; total: number }) {
             <div
               className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition-colors ${
                 i < current
-                  ? "bg-emerald-500 text-white"
+                  ? "bg-emerald-500 text-slate-900 dark:text-white"
                   : i === current
-                  ? "bg-blue-600 text-white"
-                  : "bg-white/[0.06] text-slate-500"
+                  ? "bg-blue-600 text-slate-900 dark:text-white"
+                  : "bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500"
               }`}
             >
               {i < current ? <Check className="w-3.5 h-3.5" /> : i + 1}
             </div>
             <span
               className={`text-[10px] truncate hidden sm:inline ${
-                i === current ? "text-white font-medium" : "text-slate-500"
+                i === current ? "text-slate-900 dark:text-white font-medium" : "text-slate-400 dark:text-slate-500"
               }`}
             >
               {labels[i]}
@@ -98,7 +98,7 @@ function Stepper({ current, total }: { current: number; total: number }) {
           {i < total - 1 && (
             <div
               className={`flex-1 h-px mx-1.5 ${
-                i < current ? "bg-emerald-500" : "bg-white/[0.06]"
+                i < current ? "bg-emerald-500" : "bg-gray-100 dark:bg-white/[0.06]"
               }`}
             />
           )}
@@ -389,7 +389,7 @@ export default function AvenantDialog({
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
                     selectedTypes.includes(type.id)
                       ? "border-blue-500/30 bg-blue-500/5"
-                      : "border-white/[0.06] hover:bg-white/[0.02]"
+                      : "border-gray-200 dark:border-white/[0.06] hover:bg-white dark:bg-white/[0.02]"
                   }`}
                 >
                   <Checkbox
@@ -421,19 +421,19 @@ export default function AvenantDialog({
           <div className="space-y-5 pt-2">
             {/* Honoraires */}
             {selectedTypes.includes("honoraires") && (
-              <div className="space-y-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+              <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
                 <h3 className="text-sm font-semibold">Modification des honoraires</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-slate-400">Montant actuel (EUR HT)</Label>
+                    <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Montant actuel (EUR HT)</Label>
                     <Input
                       value={honorairesActuels}
                       readOnly
-                      className="mt-1 bg-white/[0.02] text-slate-500"
+                      className="mt-1 bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-400">Nouveau montant (EUR HT)</Label>
+                    <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nouveau montant (EUR HT)</Label>
                     <Input
                       type="number"
                       placeholder="Ex: 12000"
@@ -444,7 +444,7 @@ export default function AvenantDialog({
                   </div>
                 </div>
                 {nouveauHonoraires && Number(nouveauHonoraires) > 0 && (
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">
                     Variation : {((Number(nouveauHonoraires) - Number(honorairesActuels)) / Number(honorairesActuels) * 100).toFixed(1)}%
                   </p>
                 )}
@@ -453,16 +453,16 @@ export default function AvenantDialog({
 
             {/* Ajout missions */}
             {selectedTypes.includes("ajout_mission") && (
-              <div className="space-y-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+              <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
                 <h3 className="text-sm font-semibold">Missions a ajouter</h3>
                 {missionsDisponibles.length === 0 ? (
-                  <p className="text-xs text-slate-500">Toutes les missions sont deja actives.</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">Toutes les missions sont deja actives.</p>
                 ) : (
                   <div className="space-y-2">
                     {missionsDisponibles.map((m) => (
                       <label
                         key={m.section_id}
-                        className="flex items-center gap-3 p-2 rounded-md hover:bg-white/[0.02] cursor-pointer"
+                        className="flex items-center gap-3 p-2 rounded-md hover:bg-white dark:bg-white/[0.02] cursor-pointer"
                       >
                         <Checkbox
                           checked={missionsAjoutees.includes(m.label)}
@@ -470,7 +470,7 @@ export default function AvenantDialog({
                         />
                         <div>
                           <span className="text-sm">{m.label}</span>
-                          <p className="text-[10px] text-slate-500">{m.description}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500">{m.description}</p>
                         </div>
                       </label>
                     ))}
@@ -481,10 +481,10 @@ export default function AvenantDialog({
 
             {/* Retrait missions */}
             {selectedTypes.includes("retrait_mission") && (
-              <div className="space-y-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+              <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
                 <h3 className="text-sm font-semibold">Missions a retirer</h3>
                 {missionsActives.filter((m) => !(m as any).locked).length === 0 ? (
-                  <p className="text-xs text-slate-500">Aucune mission retirable.</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">Aucune mission retirable.</p>
                 ) : (
                   <div className="space-y-2">
                     {missionsActives
@@ -492,7 +492,7 @@ export default function AvenantDialog({
                       .map((m) => (
                         <label
                           key={m.section_id}
-                          className="flex items-center gap-3 p-2 rounded-md hover:bg-white/[0.02] cursor-pointer"
+                          className="flex items-center gap-3 p-2 rounded-md hover:bg-white dark:bg-white/[0.02] cursor-pointer"
                         >
                           <Checkbox
                             checked={missionsRetirees.includes(m.label)}
@@ -508,22 +508,22 @@ export default function AvenantDialog({
 
             {/* OPT-47: Changement responsable */}
             {selectedTypes.includes("changement_responsable") && (
-              <div className="space-y-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+              <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
                 <h3 className="text-sm font-semibold flex items-center gap-2">
                   <UserCog className="w-4 h-4 text-amber-400" />
                   Changement de responsable de dossier
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-slate-400">Responsable actuel</Label>
+                    <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Responsable actuel</Label>
                     <Input
                       value={ancienResponsable || responsableActuel}
                       onChange={(e) => setAncienResponsable(e.target.value)}
-                      className="mt-1 bg-white/[0.02] text-slate-500"
+                      className="mt-1 bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-400">Nouveau responsable</Label>
+                    <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nouveau responsable</Label>
                     <Input
                       placeholder="Nom du nouveau responsable"
                       value={nouveauResponsable}
@@ -537,7 +537,7 @@ export default function AvenantDialog({
 
             {/* Périmètre */}
             {selectedTypes.includes("perimetre") && (
-              <div className="space-y-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+              <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
                 <h3 className="text-sm font-semibold">Modification du perimetre</h3>
                 <Textarea
                   placeholder="Decrivez les modifications du perimetre..."
@@ -550,7 +550,7 @@ export default function AvenantDialog({
 
             {/* Autre */}
             {selectedTypes.includes("autre") && (
-              <div className="space-y-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+              <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
                 <h3 className="text-sm font-semibold">Autres modifications</h3>
                 <Textarea
                   placeholder="Decrivez les modifications..."
@@ -583,7 +583,7 @@ export default function AvenantDialog({
         {/* ─── STEP 3: Prévisualisation ─── */}
         {step === 2 && (
           <div className="space-y-4 pt-2">
-            <div className="p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+            <div className="p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
               <Textarea
                 value={previewText}
                 onChange={(e) => setPreviewText(e.target.value)}
@@ -632,24 +632,24 @@ export default function AvenantDialog({
               <Check className="w-5 h-5 text-emerald-400" />
               <div>
                 <p className="text-sm font-medium text-emerald-300">Avenant sauvegarde</p>
-                <p className="text-[11px] text-slate-400">
+                <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
                   {savedAvenant?.numero} — Statut : brouillon
                 </p>
               </div>
             </div>
 
             {/* Send for signature */}
-            <div className="space-y-3 p-4 rounded-xl border border-white/[0.06] bg-white/[0.01]">
+            <div className="space-y-3 p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/[0.01]">
               <h3 className="text-sm font-semibold flex items-center gap-2">
                 <Send className="w-4 h-4 text-blue-400" />
                 Envoyer pour signature
               </h3>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-slate-400 dark:text-slate-500">
                 Envoyez l'avenant au client pour signature electronique. Un lien securise sera genere.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs text-slate-400">Nom du signataire</Label>
+                  <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nom du signataire</Label>
                   <Input
                     placeholder="Jean DUPONT"
                     value={signatureNom}
@@ -658,7 +658,7 @@ export default function AvenantDialog({
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-slate-400">Email du signataire</Label>
+                  <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Email du signataire</Label>
                   <Input
                     type="email"
                     placeholder="client@example.com"

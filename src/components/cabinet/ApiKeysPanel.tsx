@@ -92,7 +92,7 @@ async function hashKey(key: string): Promise<string> {
 
 function SkeletonKeys() {
   return (
-    <div className="border border-white/[0.06] rounded-lg p-4 space-y-4">
+    <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg p-4 space-y-4">
       {Array.from({ length: 3 }).map((_, i) => (
         <div key={i} className="flex items-center gap-4">
           <div className="flex-1 space-y-2">
@@ -302,7 +302,7 @@ export default function ApiKeysPanel() {
           <h2 className="text-lg font-semibold text-slate-100 flex items-center gap-2">
             <Key className="h-5 w-5 text-blue-400" /> Cles API
           </h2>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
             {keys.length} cle{keys.length > 1 ? "s" : ""} · {activeKeyCount} active{activeKeyCount > 1 ? "s" : ""}
           </p>
         </div>
@@ -354,7 +354,7 @@ export default function ApiKeysPanel() {
                     <Input
                       readOnly
                       value={showKey ? newKeyValue : "\u2022".repeat(40)}
-                      className="font-mono text-xs bg-white/[0.03] border-white/[0.08]"
+                      className="font-mono text-xs bg-gray-50 dark:bg-white/[0.03] border-gray-300 dark:border-white/[0.08]"
                     />
                     <Button variant="ghost" size="sm" onClick={() => setShowKey(!showKey)} aria-label={showKey ? "Masquer la cle" : "Afficher la cle"}>
                       {showKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -383,12 +383,12 @@ export default function ApiKeysPanel() {
                     <Label>Permissions</Label>
                     <div className="grid grid-cols-2 gap-2">
                       {AVAILABLE_PERMISSIONS.map((perm) => (
-                        <label key={perm.value} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-white/[0.02] cursor-pointer">
+                        <label key={perm.value} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-white dark:bg-white/[0.02] cursor-pointer">
                           <Checkbox
                             checked={form.permissions.includes(perm.value)}
                             onCheckedChange={() => togglePermission(perm.value)}
                           />
-                          <span className="text-sm text-slate-300">{perm.label}</span>
+                          <span className="text-sm text-slate-700 dark:text-slate-300">{perm.label}</span>
                         </label>
                       ))}
                     </div>
@@ -417,12 +417,12 @@ export default function ApiKeysPanel() {
       {/* Search / Filter */}
       {keys.length > 0 && (
         <div className="relative max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
           <Input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Rechercher par nom ou permission..."
-            className="pl-9 bg-white/[0.03] border-white/[0.08]"
+            className="pl-9 bg-gray-50 dark:bg-white/[0.03] border-gray-300 dark:border-white/[0.08]"
             aria-label="Rechercher une cle API"
           />
         </div>
@@ -434,58 +434,58 @@ export default function ApiKeysPanel() {
             <Key className="h-8 w-8 text-blue-400" />
           </div>
           <div>
-            <p className="text-slate-300 font-medium">Aucune cle API generee</p>
-            <p className="text-sm text-slate-500 mt-1">Generez votre premiere cle pour acceder a l'API GRIMY.</p>
+            <p className="text-slate-700 dark:text-slate-300 font-medium">Aucune cle API generee</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">Generez votre premiere cle pour acceder a l'API GRIMY.</p>
           </div>
         </div>
       ) : filteredKeys.length === 0 ? (
-        <div className="text-center py-12 text-slate-500 space-y-3">
+        <div className="text-center py-12 text-slate-400 dark:text-slate-500 space-y-3">
           <Search className="h-6 w-6 mx-auto mb-2 opacity-50" />
           <p>Aucune cle ne correspond a votre recherche.</p>
           <Button
             variant="outline"
             size="sm"
             onClick={() => setSearchQuery("")}
-            className="gap-2 text-slate-400"
+            className="gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400"
           >
             <XCircle className="h-4 w-4" /> Effacer la recherche
           </Button>
         </div>
       ) : (
-        <div className="border border-white/[0.06] rounded-lg overflow-hidden">
+        <div className="border border-gray-200 dark:border-white/[0.06] rounded-lg overflow-hidden">
           <Table>
             <TableHeader>
-              <TableRow className="border-white/[0.06] bg-white/[0.02]">
-                <TableHead className="text-slate-400">Nom</TableHead>
-                <TableHead className="text-slate-400">Cle</TableHead>
-                <TableHead className="text-slate-400">Permissions</TableHead>
-                <TableHead className="text-slate-400">Expire le</TableHead>
-                <TableHead className="text-slate-400">Derniere utilisation</TableHead>
-                <TableHead className="text-slate-400">Statut</TableHead>
-                <TableHead className="text-slate-400 text-right">Actions</TableHead>
+              <TableRow className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Nom</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Cle</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Permissions</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Expire le</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Derniere utilisation</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Statut</TableHead>
+                <TableHead className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredKeys.map((k) => {
                 const expired = isExpired(k.expires_at);
                 return (
-                  <TableRow key={k.id} className={`border-white/[0.06] hover:bg-white/[0.02] ${!k.is_active ? "opacity-50" : ""}`}>
-                    <TableCell className="font-medium text-slate-200">{k.nom}</TableCell>
+                  <TableRow key={k.id} className={`border-gray-200 dark:border-white/[0.06] hover:bg-white dark:bg-white/[0.02] ${!k.is_active ? "opacity-50" : ""}`}>
+                    <TableCell className="font-medium text-slate-800 dark:text-slate-200">{k.nom}</TableCell>
                     <TableCell>
-                      <code className="text-xs text-slate-400 bg-white/[0.03] px-2 py-1 rounded font-mono">
+                      <code className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 bg-gray-50 dark:bg-white/[0.03] px-2 py-1 rounded font-mono">
                         {k.key_prefix}&bull;&bull;&bull;&bull;&bull;&bull;&bull;&bull;
                       </code>
                     </TableCell>
                     <TableCell>
                       {k.permissions.length === 0 ? (
-                        <span className="text-xs text-slate-500">Aucune</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">Aucune</span>
                       ) : (
-                        <span className="text-xs text-slate-400" title={k.permissions.map(getPermissionLabel).join(", ")}>
+                        <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" title={k.permissions.map(getPermissionLabel).join(", ")}>
                           {k.permissions.length} permission{k.permissions.length > 1 ? "s" : ""}
                         </span>
                       )}
                     </TableCell>
-                    <TableCell className={`text-xs ${expired ? "text-red-400" : "text-slate-400"}`}>
+                    <TableCell className={`text-xs ${expired ? "text-red-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>
                       <span className="flex items-center gap-1.5">
                         {k.expires_at ? formatDate(k.expires_at) : "Jamais"}
                         {expired && " (expiree)"}
@@ -496,7 +496,7 @@ export default function ApiKeysPanel() {
                         )}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-400">{formatDate(k.last_used_at) || <span className="text-slate-600">&mdash;</span>}</TableCell>
+                    <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{formatDate(k.last_used_at) || <span className="text-slate-300 dark:text-slate-600">&mdash;</span>}</TableCell>
                     <TableCell>
                       {!k.is_active ? (
                         <Badge className="bg-red-500/20 text-red-300 border-red-500/30">Revoquee</Badge>

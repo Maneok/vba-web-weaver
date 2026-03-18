@@ -31,7 +31,7 @@ interface AuditRow {
 
 const ACTION_COLORS: Record<string, string> = {
   CONNEXION: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  DECONNEXION: "bg-slate-500/10 text-slate-400 border-slate-500/20",
+  DECONNEXION: "bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/20",
   CREATION: "bg-blue-500/10 text-blue-400 border-blue-500/20",
   MODIFICATION: "bg-amber-500/10 text-amber-400 border-amber-500/20",
   SUPPRESSION: "bg-red-500/10 text-red-400 border-red-500/20",
@@ -84,7 +84,7 @@ function renderDiffView(oldData: Record<string, unknown> | null, newData: Record
     <div className="space-y-1 max-h-[400px] overflow-y-auto">
       {changes.map(c => (
         <div key={c.key} className={`text-xs font-mono px-2 py-1 rounded ${c.changed ? "bg-amber-500/5" : ""}`}>
-          <span className="text-slate-500">{c.key}: </span>
+          <span className="text-slate-400 dark:text-slate-500">{c.key}: </span>
           {c.changed ? (
             <>
               <span className="text-red-400 line-through">{c.old || "(vide)"}</span>
@@ -92,7 +92,7 @@ function renderDiffView(oldData: Record<string, unknown> | null, newData: Record
               <span className="text-emerald-400">{c.new_ || "(vide)"}</span>
             </>
           ) : (
-            <span className="text-slate-400">{c.new_}</span>
+            <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">{c.new_}</span>
           )}
         </div>
       ))}
@@ -199,11 +199,11 @@ export default function AuditTrailPage() {
       {/* Header */}
       <div className="flex items-center justify-between animate-fade-in-up">
         <div>
-          <h1 className="text-xl font-bold text-white flex items-center gap-2">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Shield className="w-5 h-5 text-blue-400" />
             Piste d'Audit
           </h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">
             Journal inalterable de toutes les actions — conforme aux exigences reglementaires
           </p>
         </div>
@@ -217,7 +217,7 @@ export default function AuditTrailPage() {
           <Button
             variant="outline"
             size="sm"
-            className="gap-1.5 border-white/[0.06] text-slate-400"
+            className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400"
             onClick={() => {
               exportAuditCSV(filtered);
               toast.success(`${filtered.length} entrees exportees en CSV`);
@@ -235,11 +235,11 @@ export default function AuditTrailPage() {
           { label: "Dernières 24h", value: stats.last24h, color: "text-emerald-400", icon: Calendar },
           { label: "7 derniers jours", value: stats.last7d, color: "text-purple-400", icon: Calendar },
           { label: "Modifications", value: stats.modifications, color: "text-amber-400", icon: Activity },
-          { label: "Connexions", value: stats.connexions, color: "text-slate-400", icon: User },
+          { label: "Connexions", value: stats.connexions, color: "text-slate-400 dark:text-slate-500 dark:text-slate-400", icon: User },
         ].map(s => (
           <div key={s.label} className="glass-card p-3 text-center">
             <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">{s.label}</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{s.label}</p>
           </div>
         ))}
       </div>
@@ -247,17 +247,17 @@ export default function AuditTrailPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 animate-fade-in-up">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher par action, email, table..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
             aria-label="Rechercher dans le journal d'audit"
-            className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
+            className="pl-9 bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
           />
         </div>
         <Select value={filterAction} onValueChange={v => { setFilterAction(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-[170px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par type d'action">
+          <SelectTrigger className="w-[170px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" aria-label="Filtrer par type d'action">
             <SelectValue placeholder="Type d'action" />
           </SelectTrigger>
           <SelectContent>
@@ -266,7 +266,7 @@ export default function AuditTrailPage() {
           </SelectContent>
         </Select>
         <Select value={filterUser} onValueChange={v => { setFilterUser(v); setCurrentPage(1); }}>
-          <SelectTrigger className="w-[200px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par utilisateur">
+          <SelectTrigger className="w-[200px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" aria-label="Filtrer par utilisateur">
             <SelectValue placeholder="Utilisateur" />
           </SelectTrigger>
           <SelectContent>
@@ -274,10 +274,10 @@ export default function AuditTrailPage() {
             {uniqueUsers.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateStart} max={dateEnd || undefined} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} aria-label="Date de debut du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
-        <Input type="date" value={dateEnd} min={dateStart || undefined} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} aria-label="Date de fin du filtre" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateStart} max={dateEnd || undefined} onChange={e => { setDateStart(e.target.value); setCurrentPage(1); }} aria-label="Date de debut du filtre" className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" />
+        <Input type="date" value={dateEnd} min={dateStart || undefined} onChange={e => { setDateEnd(e.target.value); setCurrentPage(1); }} aria-label="Date de fin du filtre" className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" />
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters}>
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" onClick={clearFilters}>
             <X className="w-3 h-3 mr-1" /> Effacer
           </Button>
         )}
@@ -293,10 +293,10 @@ export default function AuditTrailPage() {
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="border-white/[0.06] hover:bg-transparent">
-                  <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider w-[50px]">#</TableHead>
+                <TableRow className="border-gray-200 dark:border-white/[0.06] hover:bg-transparent">
+                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider w-[50px]">#</TableHead>
                   <TableHead
-                    className="text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none"
+                    className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none"
                     onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}
                   >
                     <span className="flex items-center gap-1">
@@ -304,36 +304,36 @@ export default function AuditTrailPage() {
                       <ArrowUpDown className={`w-3 h-3 ${sortDir ? "text-blue-400" : "text-slate-600"}`} />
                     </span>
                   </TableHead>
-                  <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Utilisateur</TableHead>
-                  <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Action</TableHead>
-                  <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Table</TableHead>
-                  <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">ID</TableHead>
-                  <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
-                  <TableHead className="text-slate-500 text-[11px] uppercase tracking-wider w-10"></TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Utilisateur</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Action</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Table</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">ID</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
+                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {paginated.map((entry) => (
-                  <TableRow key={entry.id} className="border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+                  <TableRow key={entry.id} className="border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02] transition-colors">
                     <TableCell className="text-xs font-mono text-slate-600">{entry.id}</TableCell>
-                    <TableCell className="text-xs font-mono text-slate-400 whitespace-nowrap">
+                    <TableCell className="text-xs font-mono text-slate-400 dark:text-slate-500 dark:text-slate-400 whitespace-nowrap">
                       {formatDateTimeFR(entry.created_at)}
                     </TableCell>
-                    <TableCell className="text-xs text-slate-300">{entry.user_email}</TableCell>
+                    <TableCell className="text-xs text-slate-700 dark:text-slate-300">{entry.user_email}</TableCell>
                     <TableCell>
                       <Badge
                         variant="outline"
-                        className={ACTION_COLORS[entry.action] || "bg-slate-500/10 text-slate-400 border-slate-500/20"}
+                        className={ACTION_COLORS[entry.action] || "bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/20"}
                       >
                         {entry.action}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-xs font-mono text-slate-500">{entry.table_name || "—"}</TableCell>
-                    <TableCell className="text-xs font-mono text-slate-500">{entry.record_id?.slice(0, 8) || "—"}</TableCell>
+                    <TableCell className="text-xs font-mono text-slate-400 dark:text-slate-500">{entry.table_name || "—"}</TableCell>
+                    <TableCell className="text-xs font-mono text-slate-400 dark:text-slate-500">{entry.record_id?.slice(0, 8) || "—"}</TableCell>
                     {/* OPT-25: Title tooltip on truncated JSON data */}
                     <TableCell className="text-xs max-w-[250px]">
                       <span
-                        className="block truncate text-slate-500 cursor-help"
+                        className="block truncate text-slate-400 dark:text-slate-500 cursor-help"
                         title={entry.new_data ? JSON.stringify(entry.new_data, null, 2) : undefined}
                       >
                         {entry.new_data ? JSON.stringify(entry.new_data).slice(0, 80) : "—"}
@@ -344,7 +344,7 @@ export default function AuditTrailPage() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 w-7 p-0 text-slate-500 hover:text-blue-400"
+                        className="h-7 w-7 p-0 text-slate-400 dark:text-slate-500 hover:text-blue-400"
                         onClick={() => setSelectedEntry(entry)}
                       >
                         <Eye className="w-3.5 h-3.5" />
@@ -354,7 +354,7 @@ export default function AuditTrailPage() {
                 ))}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-slate-500 py-12">
+                    <TableCell colSpan={8} className="text-center text-slate-400 dark:text-slate-500 py-12">
                       {hasFilters ? (
                         <div className="flex flex-col items-center gap-2">
                           <Filter className="w-6 h-6 text-slate-600" />
@@ -369,7 +369,7 @@ export default function AuditTrailPage() {
                             <Shield className="w-8 h-8 text-slate-600" />
                           </div>
                           <div>
-                            <p className="text-sm font-medium text-slate-400">Aucune entree dans le journal d'audit</p>
+                            <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune entree dans le journal d'audit</p>
                             <p className="text-xs text-slate-600 mt-1">
                               Les actions reglementaires seront enregistrees ici automatiquement.
                             </p>
@@ -385,8 +385,8 @@ export default function AuditTrailPage() {
 
           {/* Pagination */}
           {filtered.length > 0 && (
-            <div className="px-4 py-3 border-t border-white/[0.06] flex items-center justify-between">
-              <span className="text-xs text-slate-500">
+            <div className="px-4 py-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
+              <span className="text-xs text-slate-400 dark:text-slate-500">
                 {filtered.length} entree{filtered.length > 1 ? "s" : ""}
                 {filtered.length !== entries.length && ` sur ${entries.length}`}
               </span>
@@ -395,17 +395,17 @@ export default function AuditTrailPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 w-7 p-0 border-white/[0.08] text-slate-300"
+                    className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={safePage <= 1}
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
-                  <span className="text-xs text-slate-400">{safePage} / {totalPages}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{safePage} / {totalPages}</span>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-7 w-7 p-0 border-white/[0.08] text-slate-300"
+                    className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={safePage >= totalPages}
                   >
@@ -420,7 +420,7 @@ export default function AuditTrailPage() {
 
       {/* Detail dialog */}
       <Dialog open={!!selectedEntry} onOpenChange={(open) => { if (!open) setSelectedEntry(null); }}>
-        <DialogContent className="max-w-2xl bg-slate-900 border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08] text-slate-100 max-h-[90vh] overflow-y-auto">
           {selectedEntry && (
             <>
               <DialogHeader>
@@ -433,31 +433,31 @@ export default function AuditTrailPage() {
               <div className="space-y-4 mt-3">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Date / Heure</p>
-                    <p className="text-sm text-slate-300 font-mono">{formatDateTimeFR(selectedEntry.created_at)}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Date / Heure</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 font-mono">{formatDateTimeFR(selectedEntry.created_at)}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Utilisateur</p>
-                    <p className="text-sm text-slate-300">{selectedEntry.user_email}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Utilisateur</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300">{selectedEntry.user_email}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Action</p>
-                    <Badge className={ACTION_COLORS[selectedEntry.action] || "bg-slate-500/10 text-slate-400"}>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Action</p>
+                    <Badge className={ACTION_COLORS[selectedEntry.action] || "bg-slate-500/10 text-slate-400 dark:text-slate-500 dark:text-slate-400"}>
                       {selectedEntry.action}
                     </Badge>
                   </div>
                   <div>
-                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">Table</p>
-                    <p className="text-sm text-slate-300 font-mono">{selectedEntry.table_name || "—"}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Table</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 font-mono">{selectedEntry.table_name || "—"}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">ID Enregistrement</p>
-                    <p className="text-sm text-slate-300 font-mono">{selectedEntry.record_id || "—"}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">ID Enregistrement</p>
+                    <p className="text-sm text-slate-700 dark:text-slate-300 font-mono">{selectedEntry.record_id || "—"}</p>
                   </div>
                   {selectedEntry.user_agent && (
                     <div>
-                      <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-1">User Agent</p>
-                      <p className="text-xs text-slate-500 truncate">{selectedEntry.user_agent}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">User Agent</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{selectedEntry.user_agent}</p>
                     </div>
                   )}
                 </div>
@@ -465,8 +465,8 @@ export default function AuditTrailPage() {
                 {/* Diff view for modifications */}
                 {selectedEntry.action === "MODIFICATION" && (selectedEntry.old_data || selectedEntry.new_data) && (
                   <div>
-                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Modifications</p>
-                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Modifications</p>
+                    <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-3">
                       {renderDiffView(selectedEntry.old_data, selectedEntry.new_data)}
                     </div>
                   </div>
@@ -475,9 +475,9 @@ export default function AuditTrailPage() {
                 {/* Raw data for non-modifications */}
                 {selectedEntry.action !== "MODIFICATION" && selectedEntry.new_data && (
                   <div>
-                    <p className="text-[11px] text-slate-500 uppercase tracking-wider mb-2">Donnees</p>
-                    <div className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3 max-h-[300px] overflow-y-auto">
-                      <pre className="text-xs text-slate-400 font-mono whitespace-pre-wrap">
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-2">Donnees</p>
+                    <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-3 max-h-[300px] overflow-y-auto">
+                      <pre className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono whitespace-pre-wrap">
                         {JSON.stringify(selectedEntry.new_data, null, 2)}
                       </pre>
                     </div>

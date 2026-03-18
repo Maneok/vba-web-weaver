@@ -51,8 +51,8 @@ const ACTION_MAP: Record<string, ActionConfig> = {
   SCORING_CALCUL: { icon: Calculator, bgClass: "bg-blue-500/15", textClass: "text-blue-400", borderClass: "border-blue-500/30" },
   ALERTE_REGISTRE: { icon: AlertTriangle, bgClass: "bg-orange-500/15", textClass: "text-orange-400", borderClass: "border-orange-500/30" },
   DECLARATION_TRACFIN: { icon: Shield, bgClass: "bg-red-500/15", textClass: "text-red-400", borderClass: "border-red-500/30" },
-  CONNEXION: { icon: LogIn, bgClass: "bg-slate-500/15", textClass: "text-slate-400", borderClass: "border-slate-500/30" },
-  DECONNEXION: { icon: LogOut, bgClass: "bg-slate-500/15", textClass: "text-slate-400", borderClass: "border-slate-500/30" },
+  CONNEXION: { icon: LogIn, bgClass: "bg-slate-500/15", textClass: "text-slate-400 dark:text-slate-500 dark:text-slate-400", borderClass: "border-slate-500/30" },
+  DECONNEXION: { icon: LogOut, bgClass: "bg-slate-500/15", textClass: "text-slate-400 dark:text-slate-500 dark:text-slate-400", borderClass: "border-slate-500/30" },
   REVUE_PERIODIQUE: { icon: RefreshCw, bgClass: "bg-blue-500/15", textClass: "text-blue-400", borderClass: "border-blue-500/30" },
   CONTROLE_QUALITE: { icon: ClipboardCheck, bgClass: "bg-purple-500/15", textClass: "text-purple-400", borderClass: "border-purple-500/30" },
   LETTRE_MISSION: { icon: FileText, bgClass: "bg-blue-500/15", textClass: "text-blue-400", borderClass: "border-blue-500/30" },
@@ -61,7 +61,7 @@ const ACTION_MAP: Record<string, ActionConfig> = {
 const DEFAULT_ACTION: ActionConfig = {
   icon: Activity,
   bgClass: "bg-slate-500/15",
-  textClass: "text-slate-400",
+  textClass: "text-slate-400 dark:text-slate-500 dark:text-slate-400",
   borderClass: "border-slate-500/30",
 };
 
@@ -182,15 +182,15 @@ export default function LogsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 animate-fade-in-up">
         <div>
-          <h1 className="text-xl font-bold text-white">Journal des Actions</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="text-xl font-bold text-slate-900 dark:text-white">Journal des Actions</h1>
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">
             Historique automatique de toutes les actions effectuees
           </p>
         </div>
         <Button
           variant="outline"
           size="sm"
-          className="gap-1.5 border-white/[0.06]"
+          className="gap-1.5 border-gray-200 dark:border-white/[0.06]"
           aria-label="Exporter le journal en CSV"
           onClick={() => {
             const headers = ["Horodatage", "Utilisateur", "Action", "Reference", "Details"];
@@ -210,8 +210,8 @@ export default function LogsPage() {
             <ScrollText className="w-[18px] h-[18px] text-blue-400" />
           </div>
           <div>
-            <p className="text-xl font-bold text-white">{stats.total}</p>
-            <p className="text-[10px] text-slate-500">Total</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-white">{stats.total}</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">Total</p>
           </div>
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
@@ -220,7 +220,7 @@ export default function LogsPage() {
           </div>
           <div>
             <p className="text-xl font-bold text-emerald-400">{stats.last7d}</p>
-            <p className="text-[10px] text-slate-500">7 derniers j.</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">7 derniers j.</p>
           </div>
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
@@ -229,7 +229,7 @@ export default function LogsPage() {
           </div>
           <div>
             <p className="text-xl font-bold text-purple-400">{stats.last30d}</p>
-            <p className="text-[10px] text-slate-500">30 derniers j.</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">30 derniers j.</p>
           </div>
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
@@ -238,16 +238,16 @@ export default function LogsPage() {
           </div>
           <div>
             <p className="text-xl font-bold text-amber-400">{stats.last90d}</p>
-            <p className="text-[10px] text-slate-500">90 derniers j.</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">90 derniers j.</p>
           </div>
         </div>
         <div className="glass-card p-3 flex items-center gap-3">
           <div className="w-9 h-9 rounded-lg bg-slate-500/10 flex items-center justify-center">
-            <Activity className="w-[18px] h-[18px] text-slate-400" />
+            <Activity className="w-[18px] h-[18px] text-slate-400 dark:text-slate-500 dark:text-slate-400" />
           </div>
           <div>
-            <p className="text-xl font-bold text-white">{filtered.length}</p>
-            <p className="text-[10px] text-slate-500">Filtre actuel</p>
+            <p className="text-xl font-bold text-slate-900 dark:text-white">{filtered.length}</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">Filtre actuel</p>
           </div>
         </div>
       </div>
@@ -257,7 +257,7 @@ export default function LogsPage() {
         <div className="glass-card p-4 animate-fade-in-up">
           <div className="flex items-center gap-2 mb-3">
             <BarChart3 className="w-4 h-4 text-blue-400" />
-            <span className="text-xs font-semibold text-slate-300">Repartition des actions</span>
+            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">Repartition des actions</span>
           </div>
           <div className="space-y-1.5">
             {stats.topActions.map(([action, count]) => {
@@ -265,10 +265,10 @@ export default function LogsPage() {
               return (
                 <div key={action} className="flex items-center gap-3">
                   <span className={`text-[10px] font-medium w-[180px] truncate ${config.textClass}`}>{action}</span>
-                  <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+                  <div className="flex-1 h-1.5 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
                     <div className={`h-full rounded-full ${config.bgClass.replace("/15", "")} transition-all`} style={{ width: `${(count / stats.total) * 100}%` }} />
                   </div>
-                  <span className="text-[10px] text-slate-500 font-mono w-8 text-right">{count}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono w-8 text-right">{count}</span>
                 </div>
               );
             })}
@@ -279,17 +279,17 @@ export default function LogsPage() {
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3 animate-fade-in-up">
         <div className="relative flex-1 min-w-[200px] max-w-lg">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
           <Input
             placeholder="Rechercher par action, details, reference, utilisateur..."
             value={search}
             onChange={(e) => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
             aria-label="Rechercher dans le journal"
-            className="pl-9 bg-white/[0.03] border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
+            className="pl-9 bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] placeholder:text-slate-600 focus:border-blue-500/50"
           />
         </div>
         <Select value={filterAction} onValueChange={v => { setFilterAction(v); setVisibleCount(PAGE_SIZE); }}>
-          <SelectTrigger className="w-[180px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par type d'action">
+          <SelectTrigger className="w-[180px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" aria-label="Filtrer par type d'action">
             <SelectValue placeholder="Type d'action" />
           </SelectTrigger>
           <SelectContent>
@@ -298,7 +298,7 @@ export default function LogsPage() {
           </SelectContent>
         </Select>
         <Select value={filterUser} onValueChange={v => { setFilterUser(v); setVisibleCount(PAGE_SIZE); }}>
-          <SelectTrigger className="w-[160px] bg-white/[0.03] border-white/[0.06] text-slate-300" aria-label="Filtrer par utilisateur">
+          <SelectTrigger className="w-[160px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" aria-label="Filtrer par utilisateur">
             <SelectValue placeholder="Utilisateur" />
           </SelectTrigger>
           <SelectContent>
@@ -306,10 +306,10 @@ export default function LogsPage() {
             {uniqueUsers.map(u => <SelectItem key={u} value={u}>{u}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de debut" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
-        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de fin" className="w-[140px] bg-white/[0.03] border-white/[0.06] text-slate-300" />
+        <Input type="date" value={dateStart} onChange={e => { setDateStart(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de debut" className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" />
+        <Input type="date" value={dateEnd} onChange={e => { setDateEnd(e.target.value); setVisibleCount(PAGE_SIZE); }} aria-label="Date de fin" className="w-[140px] bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] text-slate-700 dark:text-slate-300" />
         {hasFilters && (
-          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400" onClick={clearFilters} aria-label="Effacer tous les filtres">
+          <Button variant="ghost" size="sm" className="h-8 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400" onClick={clearFilters} aria-label="Effacer tous les filtres">
             <X className="w-3 h-3 mr-1" /> Effacer
           </Button>
         )}
@@ -318,7 +318,7 @@ export default function LogsPage() {
       {/* Timeline grouped by day */}
       <div className="glass-card p-6 animate-fade-in-up">
         {visible.length === 0 ? (
-          <div className="text-center py-16 text-slate-500">
+          <div className="text-center py-16 text-slate-400 dark:text-slate-500">
             {hasFilters ? (
               <div className="flex flex-col items-center gap-2">
                 <Filter className="w-6 h-6 text-slate-600" />
@@ -333,7 +333,7 @@ export default function LogsPage() {
                   <ScrollText className="w-8 h-8 text-slate-600" />
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-slate-400">Aucune entree dans le journal</p>
+                  <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune entree dans le journal</p>
                   <p className="text-xs text-slate-600 mt-1">
                     Les actions effectuees dans l'application apparaitront ici automatiquement.
                   </p>
@@ -344,16 +344,16 @@ export default function LogsPage() {
         ) : (
           <div className="relative">
             {/* Vertical line */}
-            <div className="absolute left-5 top-0 bottom-0 w-px bg-white/[0.08]" />
+            <div className="absolute left-5 top-0 bottom-0 w-px bg-gray-200/50 dark:bg-white/[0.08]" />
 
             {groupedByDay.map((group, gi) => (
               <div key={gi}>
                 {/* Day header */}
                 <div className="relative flex items-center gap-3 mb-2 mt-4 first:mt-0">
-                  <div className="relative z-10 w-10 h-6 rounded-full bg-white/[0.06] flex items-center justify-center">
-                    <Calendar className="w-3 h-3 text-slate-500" />
+                  <div className="relative z-10 w-10 h-6 rounded-full bg-gray-100 dark:bg-white/[0.06] flex items-center justify-center">
+                    <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500" />
                   </div>
-                  <span className="text-xs font-semibold text-slate-400 capitalize">{group.label}</span>
+                  <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 capitalize">{group.label}</span>
                   <span className="text-[10px] text-slate-600">({group.logs.length})</span>
                 </div>
 
@@ -373,7 +373,7 @@ export default function LogsPage() {
                               {log.typeAction}
                             </span>
                             {log.refClient && (
-                              <span className="text-[11px] font-mono text-slate-500">{log.refClient}</span>
+                              <span className="text-[11px] font-mono text-slate-400 dark:text-slate-500">{log.refClient}</span>
                             )}
                             <span className="text-[11px] text-slate-600 ml-auto flex-shrink-0">
                               {formatHorodatage(log.horodatage)}
@@ -383,10 +383,10 @@ export default function LogsPage() {
                             <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-500/20 to-blue-600/20 flex items-center justify-center text-[8px] font-bold text-blue-400 flex-shrink-0">
                               {(log.utilisateur || "??").slice(0, 2).toUpperCase()}
                             </div>
-                            <span className="text-xs text-slate-400 truncate">{log.utilisateur}</span>
+                            <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate">{log.utilisateur}</span>
                           </div>
                           {log.details && (
-                            <p className="mt-1 text-xs text-slate-500 leading-relaxed truncate max-w-2xl">{log.details}</p>
+                            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500 leading-relaxed truncate max-w-2xl">{log.details}</p>
                           )}
                         </div>
                       </div>
@@ -403,7 +403,7 @@ export default function LogsPage() {
           <div className="mt-6 text-center">
             <button
               onClick={() => setVisibleCount((c) => c + PAGE_SIZE)}
-              className="px-6 py-2.5 text-sm font-medium rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 hover:bg-white/[0.08] hover:text-white transition-colors"
+              className="px-6 py-2.5 text-sm font-medium rounded-lg bg-gray-50/80 dark:bg-white/[0.04] border border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300 hover:bg-gray-200/50 dark:bg-white/[0.08] hover:text-white transition-colors"
               aria-label={`Charger ${filtered.length - visibleCount} entrees supplementaires`}
             >
               Charger plus ({filtered.length - visibleCount} restants)

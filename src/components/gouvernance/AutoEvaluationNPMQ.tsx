@@ -35,8 +35,8 @@ const REPONSE_COLORS = {
   OUI: "bg-emerald-500/15 text-emerald-400",
   NON: "bg-red-500/15 text-red-400",
   PARTIEL: "bg-amber-500/15 text-amber-400",
-  NA: "bg-slate-500/15 text-slate-400",
-  "": "bg-slate-500/15 text-slate-400",
+  NA: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400",
+  "": "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400",
 };
 
 export default function AutoEvaluationNPMQ() {
@@ -71,14 +71,14 @@ export default function AutoEvaluationNPMQ() {
   return (
     <div className="space-y-6">
       {/* Score global */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <BarChart3 className="w-6 h-6 text-blue-400" />
               <div>
                 <h3 className="text-lg font-semibold">Score de conformite</h3>
-                <p className="text-xs text-slate-500">{stats.answered}/{stats.total} questions repondues</p>
+                <p className="text-xs text-slate-400 dark:text-slate-500">{stats.answered}/{stats.total} questions repondues</p>
               </div>
             </div>
             <div className="text-right">
@@ -94,15 +94,15 @@ export default function AutoEvaluationNPMQ() {
           <div className="flex gap-4 mt-3">
             <div className="flex items-center gap-1.5 text-xs">
               <div className="w-2 h-2 rounded-full bg-emerald-400" />
-              <span className="text-slate-500">Conforme : {stats.oui}</span>
+              <span className="text-slate-400 dark:text-slate-500">Conforme : {stats.oui}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs">
               <div className="w-2 h-2 rounded-full bg-amber-400" />
-              <span className="text-slate-500">Partiel : {stats.partiel}</span>
+              <span className="text-slate-400 dark:text-slate-500">Partiel : {stats.partiel}</span>
             </div>
             <div className="flex items-center gap-1.5 text-xs">
               <div className="w-2 h-2 rounded-full bg-red-400" />
-              <span className="text-slate-500">Non conforme : {stats.non}</span>
+              <span className="text-slate-400 dark:text-slate-500">Non conforme : {stats.non}</span>
             </div>
           </div>
         </CardContent>
@@ -111,7 +111,7 @@ export default function AutoEvaluationNPMQ() {
       {/* Scores par categorie */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         {stats.catStats.map(cat => (
-          <Card key={cat.categorie} className="border-white/[0.06] bg-white/[0.02]">
+          <Card key={cat.categorie} className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
             <CardContent className="p-3 text-center">
               <p className={`text-xl font-bold ${
                 cat.pct >= 80 ? "text-emerald-400" :
@@ -119,15 +119,15 @@ export default function AutoEvaluationNPMQ() {
               }`}>
                 {cat.pct}%
               </p>
-              <p className="text-xs text-slate-500 mt-0.5">{cat.categorie}</p>
-              <p className="text-[10px] text-slate-600">{cat.oui}/{cat.total}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{cat.categorie}</p>
+              <p className="text-[10px] text-slate-300 dark:text-slate-600">{cat.oui}/{cat.total}</p>
             </CardContent>
           </Card>
         ))}
       </div>
 
       {/* Questions */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <ClipboardCheck className="w-5 h-5 text-blue-400" />
@@ -142,12 +142,12 @@ export default function AutoEvaluationNPMQ() {
                 <div key={q.id}>
                   {showCatHeader && (
                     <div className="flex items-center gap-2 mt-4 mb-2 first:mt-0">
-                      <div className="h-px flex-1 bg-slate-800" />
-                      <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{q.categorie}</span>
-                      <div className="h-px flex-1 bg-slate-800" />
+                      <div className="h-px flex-1 bg-gray-100 dark:bg-slate-800" />
+                      <span className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wider">{q.categorie}</span>
+                      <div className="h-px flex-1 bg-gray-100 dark:bg-slate-800" />
                     </div>
                   )}
-                  <div className="flex items-center justify-between py-2.5 px-3 rounded-md bg-white/[0.02] border border-white/[0.04] gap-4">
+                  <div className="flex items-center justify-between py-2.5 px-3 rounded-md bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04] gap-4">
                     <div className="flex items-center gap-2 min-w-0">
                       {q.reponse === "OUI" ? (
                         <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />

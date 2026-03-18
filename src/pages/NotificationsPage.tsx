@@ -155,7 +155,7 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-100">Notifications</h1>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
             {unreadCount > 0 ? `${unreadCount} non lue${unreadCount > 1 ? "s" : ""}` : "Tout est a jour"}
           </p>
         </div>
@@ -169,7 +169,7 @@ export default function NotificationsPage() {
 
       {/* Filters */}
       <div className="flex items-center gap-2">
-        <Filter className="h-4 w-4 text-slate-500" />
+        <Filter className="h-4 w-4 text-slate-400 dark:text-slate-500" />
         {filterButtons.map(f => (
           <button
             key={f.key}
@@ -178,7 +178,7 @@ export default function NotificationsPage() {
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               filter === f.key
                 ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04] border border-transparent"
+                : "text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 hover:bg-gray-50/80 dark:bg-white/[0.04] border border-transparent"
             }`}
           >
             {f.label}
@@ -187,11 +187,11 @@ export default function NotificationsPage() {
       </div>
 
       {/* List */}
-      <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] overflow-hidden" role="listbox" aria-label="Liste des notifications">
+      <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] overflow-hidden" role="listbox" aria-label="Liste des notifications">
         {fetchError && notifications.length === 0 ? (
           <div className="p-12 text-center">
             <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto mb-3" />
-            <p className="text-sm text-slate-400">Impossible de charger les notifications</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Impossible de charger les notifications</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={() => fetchNotifications(true)}>
               Reessayer
             </Button>
@@ -199,12 +199,12 @@ export default function NotificationsPage() {
         ) : loading && notifications.length === 0 ? (
           <div className="p-12 text-center">
             <div className="h-6 w-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-slate-500">Chargement des notifications...</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">Chargement des notifications...</p>
           </div>
         ) : notifications.length === 0 ? (
           <div className="p-12 text-center">
             <Bell className="h-10 w-10 text-slate-700 mx-auto mb-3" />
-            <p className="text-sm text-slate-400">Aucune notification</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucune notification</p>
             <p className="text-xs text-slate-600 mt-1">
               {filter !== "all" ? "Essayez un autre filtre" : "Vous n'avez aucune notification pour le moment"}
             </p>
@@ -223,15 +223,15 @@ export default function NotificationsPage() {
                     setSelectedId(selectedId === n.id ? null : n.id);
                   }
                 }}
-                className={`group flex items-start gap-4 px-5 py-4 border-b border-white/[0.04] hover:bg-white/[0.02] cursor-pointer transition-colors ${
+                className={`group flex items-start gap-4 px-5 py-4 border-b border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02] cursor-pointer transition-colors ${
                   !n.lue ? "bg-blue-500/[0.03]" : ""
-                } ${selectedId === n.id ? "bg-white/[0.04] ring-1 ring-blue-500/20" : ""}`}
+                } ${selectedId === n.id ? "bg-gray-50/80 dark:bg-white/[0.04] ring-1 ring-blue-500/20" : ""}`}
                 onClick={() => setSelectedId(selectedId === n.id ? null : n.id)}
               >
                 <div className="mt-0.5 shrink-0">{getNotifIcon(n.type)}</div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
-                    <p className={`text-sm ${!n.lue ? "font-semibold text-slate-100" : "font-medium text-slate-300"}`}>
+                    <p className={`text-sm ${!n.lue ? "font-semibold text-slate-100" : "font-medium text-slate-700 dark:text-slate-300"}`}>
                       {n.titre}
                     </p>
                     {!n.lue && (
@@ -239,13 +239,13 @@ export default function NotificationsPage() {
                     )}
                     {getTypeBadge(n.type)}
                   </div>
-                  <p className="text-xs text-slate-500 line-clamp-2">{n.message}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 line-clamp-2">{n.message}</p>
                   <p className="text-[10px] text-slate-600 mt-1.5">{timeAgo(n.created_at)}</p>
 
                   {/* Expanded detail */}
                   {selectedId === n.id && (
-                    <div className="mt-3 pt-3 border-t border-white/[0.06] space-y-2">
-                      <p className="text-xs text-slate-400">{n.message}</p>
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/[0.06] space-y-2">
+                      <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{n.message}</p>
                       <p className="text-[10px] text-slate-600">{formatDateTimeFR(n.created_at)}</p>
                       <div className="flex items-center gap-2 pt-1">
                         {!n.lue && (
@@ -265,11 +265,11 @@ export default function NotificationsPage() {
                 {!n.lue && selectedId !== n.id && (
                   <button
                     onClick={(e) => { e.stopPropagation(); markAsRead(n.id); }}
-                    className="opacity-0 group-hover:opacity-100 hover:opacity-100 shrink-0 p-1.5 rounded-lg hover:bg-white/[0.06] transition-all"
+                    className="opacity-0 group-hover:opacity-100 hover:opacity-100 shrink-0 p-1.5 rounded-lg hover:bg-gray-100 dark:bg-white/[0.06] transition-all"
                     aria-label="Marquer comme lu"
                     title="Marquer comme lu"
                   >
-                    <Check className="h-4 w-4 text-slate-500 hover:text-emerald-400" />
+                    <Check className="h-4 w-4 text-slate-400 dark:text-slate-500 hover:text-emerald-400" />
                   </button>
                 )}
               </div>
@@ -283,7 +283,7 @@ export default function NotificationsPage() {
                   size="sm"
                   onClick={() => setPage(p => p + 1)}
                   disabled={loading}
-                  className="text-xs text-slate-400"
+                  className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400"
                 >
                   {loading ? "Chargement..." : "Charger plus"}
                 </Button>

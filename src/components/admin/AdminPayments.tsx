@@ -100,7 +100,7 @@ export default function AdminPayments() {
               className={`px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                 statusFilter === f.value
                   ? "bg-blue-500/20 text-blue-300 border border-blue-500/30"
-                  : "bg-white/5 text-slate-400 border border-white/10 hover:bg-white/10"
+                  : "bg-white/5 text-slate-400 dark:text-slate-500 dark:text-slate-400 border border-white/10 hover:bg-white/10"
               }`}
             >
               {f.label}
@@ -110,7 +110,7 @@ export default function AdminPayments() {
         <select
           value={cabinetFilter}
           onChange={(e) => setCabinetFilter(e.target.value)}
-          className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-200"
+          className="px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-slate-800 dark:text-slate-200"
         >
           <option value="all">Tous les cabinets</option>
           {cabinets.map((c) => (
@@ -124,7 +124,7 @@ export default function AdminPayments() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-slate-500 border-b border-white/10">
+              <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-white/10">
                 <th className="px-4 py-3">Date</th>
                 <th className="px-4 py-3">Cabinet</th>
                 <th className="px-4 py-3">Montant</th>
@@ -134,24 +134,24 @@ export default function AdminPayments() {
             </thead>
             <tbody>
               {filtered.map((p) => (
-                <tr key={p.id} className="border-b border-white/5 hover:bg-white/[0.02]">
-                  <td className="px-4 py-3 text-slate-400">
+                <tr key={p.id} className="border-b border-white/5 hover:bg-white dark:bg-white/[0.02]">
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400">
                     {new Date(p.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
                   </td>
-                  <td className="px-4 py-3 text-slate-200">{p.cabinet_name}</td>
-                  <td className="px-4 py-3 text-slate-200 font-medium">
+                  <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{p.cabinet_name}</td>
+                  <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-medium">
                     {(p.amount / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} &euro;
                   </td>
                   <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[p.status] ?? "bg-slate-500/20 text-slate-300"}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${statusColors[p.status] ?? "bg-slate-500/20 text-slate-700 dark:text-slate-300"}`}>
                       {statusLabels[p.status] ?? p.status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-slate-400 truncate max-w-[250px]">{p.description || "-"}</td>
+                  <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate max-w-[250px]">{p.description || "-"}</td>
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-500">Aucun paiement trouve</td></tr>
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">Aucun paiement trouve</td></tr>
               )}
             </tbody>
           </table>
@@ -159,7 +159,7 @@ export default function AdminPayments() {
 
         {/* Total */}
         <div className="border-t border-white/10 px-4 py-3 flex justify-between items-center">
-          <span className="text-sm text-slate-400">{filtered.length} paiement(s)</span>
+          <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{filtered.length} paiement(s)</span>
           <span className="text-sm font-semibold text-emerald-400">
             Total : {(total / 100).toLocaleString("fr-FR", { minimumFractionDigits: 2 })} &euro;
           </span>

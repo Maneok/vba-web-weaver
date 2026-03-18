@@ -84,7 +84,7 @@ export const ScreeningBadge = React.memo(function ScreeningBadge({ status }: { s
     alert: { icon: AlertTriangle, color: "bg-red-500/15 text-red-400 border-red-500/20 animate-pulse", label: "Alerte" },
     loading: { icon: Loader2, color: "bg-blue-500/15 text-blue-400 border-blue-500/20", label: "..." },
     error: { icon: X, color: "bg-red-500/15 text-red-400 border-red-500/20", label: "Erreur" },
-    unavailable: { icon: WifiOff, color: "bg-slate-500/15 text-slate-400 border-slate-500/20", label: "N/A" },
+    unavailable: { icon: WifiOff, color: "bg-slate-500/15 text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-500/20", label: "N/A" },
   }[status];
 
   const Icon = config.icon;
@@ -103,15 +103,15 @@ export const MalusDetail = React.memo(function MalusDetail({ items }: { items: A
     <div className="space-y-2">
       {items.map((item, i) => (
         <div key={i} className="flex items-center gap-3 text-xs">
-          <span className="text-slate-300 w-24 shrink-0 truncate">{item.label}</span>
+          <span className="text-slate-700 dark:text-slate-300 w-24 shrink-0 truncate">{item.label}</span>
           <span className="text-red-400 font-mono tabular-nums w-10 text-right shrink-0">+{item.value}</span>
-          <div className="flex-1 h-2 rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
             <div
               className="h-full rounded-full bg-red-500/60 transition-all duration-500 ease-out"
               style={{ width: `${(item.value / maxVal) * 100}%` }}
             />
           </div>
-          <span className="text-slate-600 text-[10px] w-24 shrink-0 truncate text-right">{item.source}</span>
+          <span className="text-slate-300 dark:text-slate-600 text-[10px] w-24 shrink-0 truncate text-right">{item.source}</span>
         </div>
       ))}
     </div>

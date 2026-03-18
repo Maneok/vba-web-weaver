@@ -37,14 +37,14 @@ export function OnboardingStep2Responsable({ data, onChange, onNext, onBack, onS
           <UserCheck className="w-6 h-6 text-violet-400" />
         </div>
         <h2 className="text-2xl font-semibold">Responsable LCB-FT</h2>
-        <p className="text-slate-400 mt-1">
+        <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
           Le referent conformite de votre cabinet
         </p>
       </div>
 
       <div className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="resp-nom" className="text-sm text-slate-300">
+          <Label htmlFor="resp-nom" className="text-sm text-slate-700 dark:text-slate-300">
             Nom complet
           </Label>
           <Input
@@ -52,13 +52,13 @@ export function OnboardingStep2Responsable({ data, onChange, onNext, onBack, onS
             value={data.nom}
             onChange={(e) => onChange({ ...data, nom: e.target.value })}
             placeholder="Prenom Nom"
-            className="bg-white/[0.04] border-white/[0.08] focus:border-blue-500/50"
+            className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] focus:border-blue-500/50"
             autoFocus
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="resp-email" className="text-sm text-slate-300">
+          <Label htmlFor="resp-email" className="text-sm text-slate-700 dark:text-slate-300">
             Email professionnel
           </Label>
           <Input
@@ -67,13 +67,13 @@ export function OnboardingStep2Responsable({ data, onChange, onNext, onBack, onS
             value={data.email}
             onChange={(e) => onChange({ ...data, email: e.target.value })}
             placeholder="nom@cabinet.fr"
-            className="bg-white/[0.04] border-white/[0.08] focus:border-blue-500/50"
+            className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] focus:border-blue-500/50"
           />
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="resp-tel" className="text-sm text-slate-300">
-            Telephone <span className="text-slate-600">(optionnel)</span>
+          <Label htmlFor="resp-tel" className="text-sm text-slate-700 dark:text-slate-300">
+            Telephone <span className="text-slate-300 dark:text-slate-600">(optionnel)</span>
           </Label>
           <Input
             id="resp-tel"
@@ -81,17 +81,17 @@ export function OnboardingStep2Responsable({ data, onChange, onNext, onBack, onS
             value={data.telephone}
             onChange={(e) => onChange({ ...data, telephone: e.target.value })}
             placeholder="01 23 45 67 89"
-            className="bg-white/[0.04] border-white/[0.08] focus:border-blue-500/50"
+            className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] focus:border-blue-500/50"
           />
         </div>
 
         <div className="space-y-2">
-          <Label className="text-sm text-slate-300">Fonction</Label>
+          <Label className="text-sm text-slate-700 dark:text-slate-300">Fonction</Label>
           <Select
             value={data.fonction}
             onValueChange={(v) => onChange({ ...data, fonction: v })}
           >
-            <SelectTrigger className="bg-white/[0.04] border-white/[0.08]">
+            <SelectTrigger className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]">
               <SelectValue placeholder="Selectionnez une fonction" />
             </SelectTrigger>
             <SelectContent>
@@ -105,12 +105,12 @@ export function OnboardingStep2Responsable({ data, onChange, onNext, onBack, onS
 
       <div className="flex items-center justify-between pt-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-slate-400">
+          <Button variant="ghost" size="sm" onClick={onBack} className="gap-1 text-slate-400 dark:text-slate-500 dark:text-slate-400">
             <ArrowLeft className="w-4 h-4" /> Retour
           </Button>
           <button
             onClick={onSkip}
-            className="text-sm text-slate-500 hover:text-slate-300 transition-colors"
+            className="text-sm text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
           >
             Passer
           </button>

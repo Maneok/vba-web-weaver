@@ -34,16 +34,16 @@ export default class AppErrorBoundary extends React.Component<
             <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mx-auto">
               <AlertOctagon className="w-8 h-8 text-red-400" />
             </div>
-            <h1 className="text-2xl font-semibold text-white">Erreur d&apos;affichage</h1>
-            <p className="text-slate-400 text-sm">
+            <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Erreur d&apos;affichage</h1>
+            <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm">
               Une erreur inattendue est survenue. Veuillez recharger la page avec Ctrl+Maj+R (ou Cmd+Maj+R sur Mac).
             </p>
             {this.state.errorMessage ? (
               <details className="w-full max-w-lg">
-                <summary className="text-xs text-slate-500 cursor-pointer hover:text-slate-300 transition-colors">
+                <summary className="text-xs text-slate-400 dark:text-slate-500 cursor-pointer hover:text-slate-700 dark:text-slate-300 transition-colors">
                   Voir les details techniques
                 </summary>
-                <pre className="mt-2 text-xs text-left bg-black/30 border border-white/10 rounded p-3 overflow-auto text-slate-300">
+                <pre className="mt-2 text-xs text-left bg-black/30 border border-white/10 rounded p-3 overflow-auto text-slate-700 dark:text-slate-300">
                   {this.state.errorMessage}
                 </pre>
               </details>

@@ -168,14 +168,14 @@ export default function InvitePage() {
             <div className="space-y-6">
               <div className="rounded-lg border bg-slate-50 p-4 space-y-3">
                 <div className="flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-slate-500" />
+                  <Building2 className="w-5 h-5 text-slate-400 dark:text-slate-500" />
                   <div>
                     <p className="text-xs text-muted-foreground">Cabinet</p>
                     <p className="font-medium">{invitation.cabinet_name}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <UserPlus className="w-5 h-5 text-slate-500" />
+                  <UserPlus className="w-5 h-5 text-slate-400 dark:text-slate-500" />
                   <div>
                     <p className="text-xs text-muted-foreground">Role propose</p>
                     <p className="font-medium">{ROLE_LABELS[invitation.role] || invitation.role}</p>

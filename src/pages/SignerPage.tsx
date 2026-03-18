@@ -223,15 +223,15 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center">
-              <FileText className="w-4 h-4 text-white" />
+              <FileText className="w-4 h-4 text-slate-900 dark:text-white" />
             </div>
             <span className="text-xs font-semibold text-slate-600">GRIMY</span>
           </div>
-          <div className="text-center text-[10px] text-slate-400 space-y-1">
+          <div className="text-center text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400 space-y-1">
             <p>Signature electronique securisee — Conformite LCB-FT</p>
             <p>Article 1367 du Code civil — Reglement eIDAS</p>
           </div>
-          <div className="text-[10px] text-slate-400">
+          <div className="text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
             {new Date().getFullYear()} GRIMY
           </div>
         </div>
@@ -245,8 +245,8 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-3" />
-          <p className="text-sm text-slate-500">Chargement du document...</p>
-          <p className="text-[10px] text-slate-400 mt-1">Verification du lien de signature</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">Chargement du document...</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">Verification du lien de signature</p>
         </div>
       </div>
     );
@@ -262,7 +262,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
               <Clock className="w-8 h-8 text-amber-500" />
             </div>
             <h1 className="text-xl font-bold text-slate-800 mb-2">Lien expire</h1>
-            <p className="text-sm text-slate-500 mb-6">{errorMsg}</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 mb-6">{errorMsg}</p>
             <div className="p-4 rounded-xl bg-blue-50 border border-blue-200 text-xs text-blue-700">
               Contactez votre expert-comptable pour recevoir un nouveau lien de signature.
             </div>
@@ -283,7 +283,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
               <AlertTriangle className="w-8 h-8 text-red-500" />
             </div>
             <h1 className="text-xl font-bold text-slate-800 mb-2">Lien invalide</h1>
-            <p className="text-sm text-slate-500">{errorMsg}</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500">{errorMsg}</p>
           </div>
         </div>
         {renderFooter()}
@@ -301,7 +301,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
               <CheckCircle2 className="w-8 h-8 text-emerald-500" />
             </div>
             <h1 className="text-xl font-bold text-slate-800 mb-2">Document deja signe</h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-400 dark:text-slate-500">
               Ce document a ete signe{signer ? ` par ${signer}` : ""}{" "}
               {signedAt ? `le ${formatDate(signedAt)}` : ""}.
             </p>
@@ -323,8 +323,8 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
             <Shield className="absolute inset-0 m-auto w-8 h-8 text-emerald-600" />
           </div>
           <h2 className="text-lg font-bold text-slate-800 mb-1">Signature en cours</h2>
-          <p className="text-sm text-slate-500">Veuillez patienter, votre signature est en cours de traitement...</p>
-          <p className="text-[10px] text-slate-400 mt-2">Ne fermez pas cette page</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500">Veuillez patienter, votre signature est en cours de traitement...</p>
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-2">Ne fermez pas cette page</p>
         </div>
       </div>
     );
@@ -340,7 +340,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
               <CheckCircle2 className="w-10 h-10 text-emerald-500" />
             </div>
             <h1 className="text-2xl font-bold text-slate-800">Document signe avec succes</h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-400 dark:text-slate-500">
               Signe par <strong>{signerNom}</strong> le {formatDate(signedAt)}
             </p>
 
@@ -350,31 +350,31 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
                   <Shield className="w-4 h-4 text-blue-500" />
                   <h3 className="text-sm font-semibold text-slate-700">Certificat de signature</h3>
                   {certificate.certificate_id && (
-                    <span className="ml-auto text-[9px] font-mono text-slate-400">{certificate.certificate_id}</span>
+                    <span className="ml-auto text-[9px] font-mono text-slate-400 dark:text-slate-500 dark:text-slate-400">{certificate.certificate_id}</span>
                   )}
                 </div>
                 <div className="grid grid-cols-2 gap-y-2 text-xs">
-                  <span className="text-slate-400">Document</span>
+                  <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Document</span>
                   <span className="text-slate-700 font-mono">{certificate.document}</span>
-                  <span className="text-slate-400">Signataire</span>
+                  <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Signataire</span>
                   <span className="text-slate-700">{certificate.signer}</span>
                   {certificate.signer_qualite && (
                     <>
-                      <span className="text-slate-400">Qualite</span>
+                      <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Qualite</span>
                       <span className="text-slate-700">{certificate.signer_qualite}</span>
                     </>
                   )}
-                  <span className="text-slate-400">Email</span>
+                  <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Email</span>
                   <span className="text-slate-700">{certificate.email}</span>
-                  <span className="text-slate-400">Date</span>
+                  <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Date</span>
                   <span className="text-slate-700">{new Date(certificate.signed_at).toLocaleString("fr-FR")}</span>
-                  <span className="text-slate-400">Methode</span>
+                  <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Methode</span>
                   <span className="text-slate-700">{certificate.method}</span>
-                  <span className="text-slate-400">Base legale</span>
+                  <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Base legale</span>
                   <span className="text-slate-700">{certificate.legal_basis || "Article 1367 du Code civil"}</span>
                   {certificate.document_hash && (
                     <>
-                      <span className="text-slate-400">Empreinte</span>
+                      <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Empreinte</span>
                       <span className="text-slate-700 font-mono text-[10px] break-all">{certificate.document_hash}</span>
                     </>
                   )}
@@ -388,7 +388,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
                   href={certificateUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-slate-900 dark:text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   <Download className="w-4 h-4" /> Telecharger le certificat
                 </a>
@@ -424,18 +424,18 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-              <FileText className="w-5 h-5 text-white" />
+              <FileText className="w-5 h-5 text-slate-900 dark:text-white" />
             </div>
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-slate-800 truncate">
                 Lettre de Mission {instance?.numero || ""}
               </h1>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 truncate">
                 {instance?.raison_sociale} — {instance?.type_mission}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs text-slate-400 shrink-0">
+          <div className="flex items-center gap-2 text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 shrink-0">
             <Lock className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">Signature securisee</span>
           </div>
@@ -466,7 +466,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
                 <h2 className="text-lg font-bold text-slate-800">
                   Lettre de Mission n{"\u00B0"} {instance?.numero}
                 </h2>
-                <p className="text-xs text-slate-400 mt-1">
+                <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400 mt-1">
                   Creee le {instance?.created_at ? new Date(instance.created_at).toLocaleDateString("fr-FR") : "\u2014"}
                 </p>
               </div>
@@ -477,7 +477,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
                 {/* OPT-23: Print button */}
                 <button
                   onClick={handlePrint}
-                  className="p-2 rounded-lg hover:bg-slate-200 text-slate-400 transition-colors print:hidden"
+                  className="p-2 rounded-lg hover:bg-slate-200 text-slate-400 dark:text-slate-500 dark:text-slate-400 transition-colors print:hidden"
                   title="Imprimer"
                 >
                   <Printer className="w-4 h-4" />
@@ -499,14 +499,14 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
             className="w-full flex items-center justify-between p-4 text-left hover:bg-slate-50 transition-colors"
           >
             <div className="flex items-center gap-2">
-              <FileText className="w-4 h-4 text-slate-400" />
+              <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
               <span className="text-sm font-medium text-slate-700">Conditions generales d'intervention</span>
             </div>
-            {cgvOpen ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+            {cgvOpen ? <ChevronUp className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" />}
           </button>
           {cgvOpen && (
             <div className="px-4 pb-4 border-t border-slate-100">
-              <div className="mt-3 text-xs text-slate-500 leading-relaxed space-y-2 max-h-64 overflow-y-auto">
+              <div className="mt-3 text-xs text-slate-400 dark:text-slate-500 leading-relaxed space-y-2 max-h-64 overflow-y-auto">
                 <p>Les presentes conditions generales d'intervention regissent les rapports entre le cabinet d'expertise comptable et son client dans le cadre de la mission definie dans la lettre de mission.</p>
                 <p><strong>Obligations du professionnel :</strong> Le cabinet s'engage a accomplir la mission avec diligence et competence, conformement aux normes professionnelles applicables.</p>
                 <p><strong>Obligations du client :</strong> Le client s'engage a fournir l'ensemble des pieces et informations necessaires a l'execution de la mission dans les delais convenus.</p>
@@ -598,14 +598,14 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
             <Button
               onClick={handleSign}
               disabled={!accepted || !cgvAccepted || !signerNom.trim()}
-              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-white py-6 text-base font-semibold disabled:opacity-40"
+              className="w-full gap-2 bg-emerald-600 hover:bg-emerald-700 text-slate-900 dark:text-white py-6 text-base font-semibold disabled:opacity-40"
             >
               <CheckCircle2 className="w-5 h-5" />
               Signer electroniquement
             </Button>
 
             {/* Legal notice */}
-            <div className="flex items-start gap-2 text-[10px] text-slate-400 leading-relaxed">
+            <div className="flex items-start gap-2 text-[10px] text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed">
               <Clock className="w-3.5 h-3.5 shrink-0 mt-0.5" />
               <p>
                 En cliquant sur "Signer electroniquement", vous acceptez que votre signature

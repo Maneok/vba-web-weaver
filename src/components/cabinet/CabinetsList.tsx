@@ -114,7 +114,7 @@ function SkeletonCards() {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
       {Array.from({ length: 3 }).map((_, i) => (
-        <div key={i} className="rounded-xl border border-white/[0.06] p-5 space-y-4">
+        <div key={i} className="rounded-xl border border-gray-200 dark:border-white/[0.06] p-5 space-y-4">
           <div className="flex items-center gap-3">
             <Skeleton className="h-11 w-11 rounded-full" />
             <div className="flex-1 space-y-2">
@@ -484,7 +484,7 @@ export default function CabinetsList() {
     <>
       {/* Section: Identite */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
           <Building2 className="h-4 w-4 text-blue-400" />
           <span>Identite du cabinet</span>
         </div>
@@ -518,11 +518,11 @@ export default function CabinetsList() {
       </div>
 
       {/* Separator */}
-      <div className="border-t border-white/[0.06]" />
+      <div className="border-t border-gray-200 dark:border-white/[0.06]" />
 
       {/* Section: Contact */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
           <Mail className="h-4 w-4 text-emerald-400" />
           <span>Coordonnees</span>
         </div>
@@ -556,11 +556,11 @@ export default function CabinetsList() {
       </div>
 
       {/* Separator */}
-      <div className="border-t border-white/[0.06]" />
+      <div className="border-t border-gray-200 dark:border-white/[0.06]" />
 
       {/* Section: Apparence */}
       <div className="space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-300">
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
           <Palette className="h-4 w-4 text-violet-400" />
           <span>Apparence</span>
         </div>
@@ -618,7 +618,7 @@ export default function CabinetsList() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-lg font-semibold text-slate-100">Cabinets du reseau</h2>
-          <p className="text-sm text-slate-400">{cabinets.length} cabinet{cabinets.length > 1 ? "s" : ""} configures</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">{cabinets.length} cabinet{cabinets.length > 1 ? "s" : ""} configures</p>
         </div>
         <Dialog open={addOpen} onOpenChange={(open) => { setAddOpen(open); if (!open) resetFormState(); }}>
           <DialogTrigger asChild>
@@ -647,24 +647,24 @@ export default function CabinetsList() {
       {/* #11 – Stats summary bar */}
       {cabinets.length > 0 && (
         <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50/80 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.06]">
             <Building2 className="h-4 w-4 text-blue-400" />
-            <span className="text-sm text-slate-300 font-medium">{cabinets.length}</span>
-            <span className="text-sm text-slate-500">{pluralize(cabinets.length, "cabinet", "cabinets")}</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{cabinets.length}</span>
+            <span className="text-sm text-slate-400 dark:text-slate-500">{pluralize(cabinets.length, "cabinet", "cabinets")}</span>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+          <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50/80 dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.06]">
             <Users className="h-4 w-4 text-emerald-400" />
-            <span className="text-sm text-slate-300 font-medium">{totalMembres}</span>
-            <span className="text-sm text-slate-500">{pluralize(totalMembres, "collaborateur", "collaborateurs")}</span>
+            <span className="text-sm text-slate-700 dark:text-slate-300 font-medium">{totalMembres}</span>
+            <span className="text-sm text-slate-400 dark:text-slate-500">{pluralize(totalMembres, "collaborateur", "collaborateurs")}</span>
           </div>
           {/* #12 – Search input */}
           <div className="relative ml-auto">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
             <Input
               placeholder="Rechercher un cabinet..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 w-56 bg-white/[0.04] border-white/[0.06] text-sm"
+              className="pl-9 h-9 w-56 bg-gray-50/80 dark:bg-white/[0.04] border-gray-200 dark:border-white/[0.06] text-sm"
             />
           </div>
         </div>
@@ -678,8 +678,8 @@ export default function CabinetsList() {
             <Building2 className="h-10 w-10 text-blue-400 animate-pulse" />
           </div>
           <div>
-            <p className="text-lg text-slate-300 font-medium">Aucun cabinet configure</p>
-            <p className="text-sm text-slate-500 mt-1 max-w-sm mx-auto">
+            <p className="text-lg text-slate-700 dark:text-slate-300 font-medium">Aucun cabinet configure</p>
+            <p className="text-sm text-slate-400 dark:text-slate-500 mt-1 max-w-sm mx-auto">
               Commencez par ajouter votre premier cabinet pour organiser votre reseau professionnel.
             </p>
           </div>
@@ -689,15 +689,15 @@ export default function CabinetsList() {
         </div>
       ) : filteredCabinets.length === 0 ? (
         <div className="text-center py-12 space-y-3">
-          <Search className="h-8 w-8 text-slate-600 mx-auto" />
-          <p className="text-slate-400">Aucun cabinet ne correspond a "{searchQuery}"</p>
+          <Search className="h-8 w-8 text-slate-300 dark:text-slate-600 mx-auto" />
+          <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucun cabinet ne correspond a "{searchQuery}"</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {filteredCabinets.map((c) => (
             <Card
               key={c.id}
-              className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 bg-white/[0.02] border-white/[0.06] ${
+              className={`relative overflow-hidden transition-all duration-200 hover:shadow-lg hover:shadow-black/20 hover:-translate-y-0.5 bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] ${
                 c.is_principal ? "ring-1 ring-amber-500/20" : ""
               }`}
             >
@@ -725,7 +725,7 @@ export default function CabinetsList() {
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-slate-200 truncate">{c.nom}</h3>
+                        <h3 className="font-semibold text-slate-800 dark:text-slate-200 truncate">{c.nom}</h3>
                         {c.is_principal && (
                           <Badge className="bg-amber-500/20 text-amber-300 border-amber-500/30 gap-1 shrink-0 text-xs">
                             <Crown className="h-3 w-3" /> Principal
@@ -733,7 +733,7 @@ export default function CabinetsList() {
                         )}
                       </div>
                       {c.ville && (
-                        <span className="flex items-center gap-1 text-sm text-slate-500 mt-0.5">
+                        <span className="flex items-center gap-1 text-sm text-slate-400 dark:text-slate-500 mt-0.5">
                           <MapPin className="h-3 w-3" /> {c.ville}
                         </span>
                       )}
@@ -745,7 +745,7 @@ export default function CabinetsList() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-8 w-8 p-0 text-slate-400 hover:text-slate-200"
+                      className="h-8 w-8 p-0 text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"
                       onClick={() => openEdit(c)}
                       disabled={actionInProgress === c.id}
                       aria-label={`Modifier le cabinet ${c.nom}`}
@@ -771,43 +771,43 @@ export default function CabinetsList() {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                   {/* #7 – Email on card */}
                   {c.email && (
-                    <div className="flex items-center gap-2 text-slate-400 col-span-2 sm:col-span-1 truncate">
-                      <Mail className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                    <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 col-span-2 sm:col-span-1 truncate">
+                      <Mail className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
                       <span className="truncate">{c.email}</span>
                     </div>
                   )}
                   {/* #7 – Telephone on card */}
                   {c.telephone && (
-                    <div className="flex items-center gap-2 text-slate-400 col-span-2 sm:col-span-1">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                    <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400 col-span-2 sm:col-span-1">
+                      <Phone className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
                       <span>{c.telephone}</span>
                     </div>
                   )}
                   {/* #9 – SIRET formatted */}
                   {c.siret && (
-                    <div className="flex items-center gap-2 text-slate-400">
-                      <Hash className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                    <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                      <Hash className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
                       <span className="font-mono text-xs">{formatSiret(c.siret)}</span>
                     </div>
                   )}
                   {/* OEC */}
                   {c.numero_oec && (
-                    <div className="flex items-center gap-2 text-slate-400">
-                      <Info className="h-3.5 w-3.5 shrink-0 text-slate-500" />
+                    <div className="flex items-center gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                      <Info className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
                       <span className="text-xs">OEC {c.numero_oec}</span>
                     </div>
                   )}
                 </div>
 
                 {/* Footer: members + date */}
-                <div className="flex items-center justify-between pt-2 border-t border-white/[0.04]">
+                <div className="flex items-center justify-between pt-2 border-t border-gray-100 dark:border-white/[0.04]">
                   {/* #8 – Member count */}
-                  <Badge variant="outline" className="text-slate-400 border-slate-700/60 gap-1 text-xs">
+                  <Badge variant="outline" className="text-slate-400 dark:text-slate-500 dark:text-slate-400 border-slate-700/60 gap-1 text-xs">
                     <Users className="h-3 w-3" />
                     {c.membre_count} {pluralize(c.membre_count || 0, "membre", "membres")}
                   </Badge>
                   {/* #10 – Relative time */}
-                  <span className="flex items-center gap-1 text-xs text-slate-600">
+                  <span className="flex items-center gap-1 text-xs text-slate-300 dark:text-slate-600">
                     <CalendarDays className="h-3 w-3" />
                     {relativeTime(c.created_at)}
                   </span>

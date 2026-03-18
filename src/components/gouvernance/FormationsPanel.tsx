@@ -151,36 +151,36 @@ export default function FormationsPanel() {
     <div className="space-y-6">
       {/* KPIs */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2">
               <Users className="w-5 h-5 text-blue-400" />
-              <span className="text-sm text-slate-400">Collaborateurs formes</span>
+              <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Collaborateurs formes</span>
             </div>
             <p className="text-2xl font-bold">{kpis.formedCount}/{kpis.totalCollabs}</p>
             <Progress value={progressPct} className="mt-2 h-2" />
-            <p className="text-xs text-slate-500 mt-1">{progressPct}% formes cette annee</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{progressPct}% formes cette annee</p>
           </CardContent>
         </Card>
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2">
               <Calendar className="w-5 h-5 text-emerald-400" />
-              <span className="text-sm text-slate-400">Prochaine formation</span>
+              <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Prochaine formation</span>
             </div>
             <p className="text-lg font-semibold">
               {kpis.nextFormation ? formatDate(kpis.nextFormation.date) : "Aucune planifiee"}
             </p>
           </CardContent>
         </Card>
-        <Card className="border-white/[0.06] bg-white/[0.02]">
+        <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
           <CardContent className="p-4">
             <div className="flex items-center gap-3 mb-2">
               <Clock className="w-5 h-5 text-purple-400" />
-              <span className="text-sm text-slate-400">Heures totales</span>
+              <span className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Heures totales</span>
             </div>
             <p className="text-2xl font-bold">{kpis.totalHeures}h</p>
-            <p className="text-xs text-slate-500 mt-1">de formation cette annee</p>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">de formation cette annee</p>
           </CardContent>
         </Card>
       </div>
@@ -212,7 +212,7 @@ export default function FormationsPanel() {
       )}
 
       {/* Filtres + Tableau */}
-      <Card className="border-white/[0.06] bg-white/[0.02]">
+      <Card className="border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
         <CardHeader className="flex flex-row items-center justify-between pb-3">
           <CardTitle className="text-lg font-semibold flex items-center gap-2">
             <GraduationCap className="w-5 h-5 text-blue-400" />
@@ -226,7 +226,7 @@ export default function FormationsPanel() {
           {/* Filtres */}
           <div className="flex flex-wrap gap-3 mb-4">
             <div className="relative flex-1 min-w-[200px]">
-              <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-500" />
+              <Search className="absolute left-2.5 top-2.5 w-4 h-4 text-slate-400 dark:text-slate-500" />
               <Input
                 placeholder="Rechercher..."
                 value={search}
@@ -237,7 +237,7 @@ export default function FormationsPanel() {
             </div>
             <Select value={filterYear} onValueChange={setFilterYear}>
               <SelectTrigger className="w-[130px]">
-                <Filter className="w-3.5 h-3.5 mr-1.5 text-slate-500" />
+                <Filter className="w-3.5 h-3.5 mr-1.5 text-slate-400 dark:text-slate-500" />
                 <SelectValue placeholder="Annee" />
               </SelectTrigger>
               <SelectContent>
@@ -261,7 +261,7 @@ export default function FormationsPanel() {
           </div>
 
           {/* Tableau */}
-          <div className="rounded-md border border-white/[0.06] overflow-hidden">
+          <div className="rounded-md border border-gray-200 dark:border-white/[0.06] overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -277,7 +277,7 @@ export default function FormationsPanel() {
               <TableBody>
                 {filteredFormations.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-8 text-slate-500">
+                    <TableCell colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500">
                       <GraduationCap className="w-8 h-8 mx-auto mb-2 opacity-40" />
                       <p className="text-sm">Aucune formation enregistree</p>
                       {(search || filterYear !== "all" || filterCollab !== "all") && (
@@ -290,21 +290,21 @@ export default function FormationsPanel() {
                     <TableRow key={f.id}>
                       <TableCell className="font-medium">{f.collaborateur}</TableCell>
                       <TableCell>{formatDate(f.date)}</TableCell>
-                      <TableCell className="text-slate-400">{f.organisme || "---"}</TableCell>
+                      <TableCell className="text-slate-400 dark:text-slate-500 dark:text-slate-400">{f.organisme || "---"}</TableCell>
                       <TableCell>{f.duree_heures ? `${f.duree_heures}h` : "---"}</TableCell>
                       <TableCell>{f.theme || "---"}</TableCell>
                       <TableCell>
                         {f.attestation_url ? (
                           <Badge className="bg-emerald-500/15 text-emerald-400 text-xs">Oui</Badge>
                         ) : (
-                          <span className="text-xs text-slate-500">---</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">---</span>
                         )}
                       </TableCell>
                       <TableCell>
                         {f.quiz_score ? (
                           <Badge className="bg-blue-500/15 text-blue-400 text-xs">{f.quiz_score}</Badge>
                         ) : (
-                          <span className="text-xs text-slate-500">---</span>
+                          <span className="text-xs text-slate-400 dark:text-slate-500">---</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -330,7 +330,7 @@ export default function FormationsPanel() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Collaborateur *</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Collaborateur *</Label>
               <Select value={newFormation.collaborateur} onValueChange={v => setNewFormation(p => ({ ...p, collaborateur: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selectionner..." /></SelectTrigger>
                 <SelectContent>
@@ -342,28 +342,28 @@ export default function FormationsPanel() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Date *</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Date *</Label>
                 <Input type="date" value={newFormation.date} onChange={e => setNewFormation(p => ({ ...p, date: e.target.value }))} />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400">Duree (heures)</Label>
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Duree (heures)</Label>
                 <Input type="number" min="0" value={newFormation.duree_heures || ""} onChange={e => setNewFormation(p => ({ ...p, duree_heures: Number(e.target.value) || 0 }))} />
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Organisme</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Organisme</Label>
               <Input value={newFormation.organisme} onChange={e => setNewFormation(p => ({ ...p, organisme: e.target.value }))} placeholder="Ex: CNCC, CSOEC..." />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Theme</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Theme</Label>
               <Input value={newFormation.theme} onChange={e => setNewFormation(p => ({ ...p, theme: e.target.value }))} placeholder="Ex: LCB-FT, KYC, Gel des avoirs..." />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Score quiz</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Score quiz</Label>
               <Input value={newFormation.quiz_score} onChange={e => setNewFormation(p => ({ ...p, quiz_score: e.target.value }))} placeholder="Ex: 18/20" />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Notes</Label>
+              <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Notes</Label>
               <Textarea value={newFormation.notes} onChange={e => setNewFormation(p => ({ ...p, notes: e.target.value }))} rows={2} />
             </div>
             <div className="flex gap-2 justify-end">

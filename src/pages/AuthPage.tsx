@@ -144,16 +144,16 @@ export default function AuthPage() {
         {/* Logo */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 hover:scale-105 transition-all duration-300">
-            <Shield className="w-7 h-7 text-white" />
+            <Shield className="w-7 h-7 text-slate-900 dark:text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">GRIMY</h1>
-          <p className="text-sm text-slate-400">Conformité LAB pour professionnels assujettis</p>
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">GRIMY</h1>
+          <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Conformité LAB pour professionnels assujettis</p>
         </div>
 
-        <Card className="border-white/[0.08] bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/20">
+        <Card className="border-gray-300 dark:border-white/[0.08] bg-gray-50 dark:bg-white/[0.03] backdrop-blur-xl shadow-2xl shadow-black/20">
           <CardHeader className="pb-4">
             <CardTitle className="text-lg text-slate-100">Bienvenue</CardTitle>
-            <CardDescription className="text-slate-400">
+            <CardDescription className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
               Connectez-vous ou creez votre compte
             </CardDescription>
           </CardHeader>
@@ -171,7 +171,7 @@ export default function AuthPage() {
             )}
 
             <Tabs value={tab} onValueChange={(v) => { setTab(v as "login" | "register"); setError(null); }}>
-              <TabsList className="w-full mb-6 bg-white/[0.04]">
+              <TabsList className="w-full mb-6 bg-gray-50/80 dark:bg-white/[0.04]">
                 <TabsTrigger value="login" className="flex-1">Connexion</TabsTrigger>
                 <TabsTrigger value="register" className="flex-1">Inscription</TabsTrigger>
               </TabsList>
@@ -179,7 +179,7 @@ export default function AuthPage() {
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4" noValidate aria-label="Formulaire de connexion" aria-describedby={error ? "auth-error" : undefined}>
                   <div className="space-y-2">
-                    <Label htmlFor="login-email" className="text-slate-300">Email</Label>
+                    <Label htmlFor="login-email" className="text-slate-700 dark:text-slate-300">Email</Label>
                     <Input
                       id="login-email"
                       type="email"
@@ -190,11 +190,11 @@ export default function AuthPage() {
                       autoComplete="email"
                       aria-label="Adresse email de connexion"
                       aria-describedby={error ? "auth-error" : undefined}
-                      className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="login-password" className="text-slate-300">Mot de passe</Label>
+                    <Label htmlFor="login-password" className="text-slate-700 dark:text-slate-300">Mot de passe</Label>
                     <Input
                       id="login-password"
                       type="password"
@@ -205,7 +205,7 @@ export default function AuthPage() {
                       autoComplete="current-password"
                       aria-label="Mot de passe"
                       aria-describedby={error ? "auth-error" : undefined}
-                      className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading || googleLoading}>
@@ -218,7 +218,7 @@ export default function AuthPage() {
               <TabsContent value="register">
                 <form onSubmit={handleRegister} className="space-y-4" noValidate aria-label="Formulaire d'inscription" aria-describedby={error ? "auth-error" : undefined}>
                   <div className="space-y-2">
-                    <Label htmlFor="reg-name" className="text-slate-300">Nom complet</Label>
+                    <Label htmlFor="reg-name" className="text-slate-700 dark:text-slate-300">Nom complet</Label>
                     <Input
                       id="reg-name"
                       type="text"
@@ -227,11 +227,11 @@ export default function AuthPage() {
                       onChange={(e) => setRegName(e.target.value)}
                       required
                       autoComplete="name"
-                      className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reg-email" className="text-slate-300">Email</Label>
+                    <Label htmlFor="reg-email" className="text-slate-700 dark:text-slate-300">Email</Label>
                     <Input
                       id="reg-email"
                       type="email"
@@ -240,11 +240,11 @@ export default function AuthPage() {
                       onChange={(e) => setRegEmail(e.target.value)}
                       required
                       autoComplete="email"
-                      className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reg-password" className="text-slate-300">Mot de passe</Label>
+                    <Label htmlFor="reg-password" className="text-slate-700 dark:text-slate-300">Mot de passe</Label>
                     <Input
                       id="reg-password"
                       type="password"
@@ -254,11 +254,11 @@ export default function AuthPage() {
                       required
                       minLength={8}
                       autoComplete="new-password"
-                      className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="reg-cabinet" className="text-slate-300">Nom de la structure</Label>
+                    <Label htmlFor="reg-cabinet" className="text-slate-700 dark:text-slate-300">Nom de la structure</Label>
                     <Input
                       id="reg-cabinet"
                       type="text"
@@ -266,7 +266,7 @@ export default function AuthPage() {
                       value={regCabinet}
                       onChange={(e) => setRegCabinet(e.target.value)}
                       required
-                      className="bg-white/[0.04] border-white/[0.08] text-slate-100 placeholder:text-slate-500"
+                      className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-100 placeholder:text-slate-400 dark:text-slate-500"
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={loading}>
@@ -279,13 +279,13 @@ export default function AuthPage() {
 
             {/* Google OAuth separator + button */}
             <div className="relative my-5">
-              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/[0.08]" /></div>
-              <div className="relative flex justify-center text-xs"><span className="bg-white/[0.03] px-3 text-slate-500">ou</span></div>
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-white/[0.08]" /></div>
+              <div className="relative flex justify-center text-xs"><span className="bg-gray-50 dark:bg-white/[0.03] px-3 text-slate-400 dark:text-slate-500">ou</span></div>
             </div>
             <Button
               type="button"
               variant="outline"
-              className="w-full border-white/[0.08] bg-white/[0.04] text-slate-200 hover:bg-white/[0.08]"
+              className="w-full border-gray-300 dark:border-white/[0.08] bg-gray-50/80 dark:bg-white/[0.04] text-slate-800 dark:text-slate-200 hover:bg-gray-200/50 dark:bg-white/[0.08]"
               disabled={googleLoading || loading}
               onClick={async () => {
                 setGoogleLoading(true);
@@ -305,7 +305,7 @@ export default function AuthPage() {
         </Card>
 
         <div className="text-center space-y-2">
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-400 dark:text-slate-500">
             Plateforme securisee — Donnees chiffrees — Conformite LCB-FT
           </p>
           <Link to="/landing" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">

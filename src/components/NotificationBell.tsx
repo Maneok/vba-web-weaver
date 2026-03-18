@@ -124,22 +124,22 @@ export default function NotificationBell() {
           className="relative h-9 w-9 p-0"
           aria-label={`Notifications (${unreadCount} non lues)`}
         >
-          <Bell className="h-4 w-4 text-slate-400" />
+          <Bell className="h-4 w-4 text-slate-400 dark:text-slate-500 dark:text-slate-400" />
           {unreadCount > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-white flex items-center justify-center animate-pulse">
+            <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-red-500 text-[10px] font-bold text-slate-900 dark:text-white flex items-center justify-center animate-pulse">
               {Math.min(unreadCount, 9)}{unreadCount > 9 ? "+" : ""}
             </span>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-80 p-0 bg-slate-900 border-white/[0.08]">
-        <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-200">Notifications</h3>
+      <PopoverContent align="end" className="w-80 p-0 bg-gray-50 dark:bg-slate-900 border-gray-300 dark:border-white/[0.08]">
+        <div className="px-4 py-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
+          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200">Notifications</h3>
           <div className="flex items-center gap-2">
             {unreadCount > 1 && (
               <button
                 onClick={markAllAsRead}
-                className="flex items-center gap-1 text-[10px] text-slate-500 hover:text-slate-300 transition-colors"
+                className="flex items-center gap-1 text-[10px] text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
                 aria-label="Tout marquer comme lu"
               >
                 <CheckCheck className="h-3 w-3" /> Tout lire
@@ -157,35 +157,35 @@ export default function NotificationBell() {
           {loading && notifications.length === 0 ? (
             <div className="p-8 text-center" aria-live="polite">
               <div className="h-5 w-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-2" />
-              <p className="text-xs text-slate-500">Chargement...</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Chargement...</p>
             </div>
           ) : unreadCount === 0 ? (
             <div className="p-8 text-center">
               <Bell className="h-8 w-8 text-slate-700 mx-auto mb-2" />
-              <p className="text-sm text-slate-500">Aucune notification</p>
-              <p className="text-xs text-slate-600 mt-1">Tout est a jour</p>
+              <p className="text-sm text-slate-400 dark:text-slate-500">Aucune notification</p>
+              <p className="text-xs text-slate-300 dark:text-slate-600 mt-1">Tout est a jour</p>
             </div>
           ) : (
             notifications.map(n => (
               <div
                 key={n.id}
                 role="listitem"
-                className={`flex items-start gap-3 px-4 py-3 border-b border-white/[0.04] hover:bg-white/[0.02] group ${n.lien ? "cursor-pointer" : ""}`}
+                className={`flex items-start gap-3 px-4 py-3 border-b border-gray-100 dark:border-white/[0.04] hover:bg-white dark:bg-white/[0.02] group ${n.lien ? "cursor-pointer" : ""}`}
                 onClick={() => handleNotifClick(n)}
               >
                 <div className="mt-0.5 shrink-0">{getNotifIcon(n.type)}</div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-200">{n.titre}</p>
-                  <p className="text-xs text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
-                  <p className="text-[10px] text-slate-600 mt-1">{timeAgo(n.created_at)}</p>
+                  <p className="text-sm font-medium text-slate-800 dark:text-slate-200">{n.titre}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-2">{n.message}</p>
+                  <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">{timeAgo(n.created_at)}</p>
                 </div>
                 <button
                   onClick={(e) => markAsRead(n.id, e)}
-                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1 rounded hover:bg-white/[0.06]"
+                  className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-1 rounded hover:bg-gray-100 dark:bg-white/[0.06]"
                   aria-label="Marquer comme lu"
                   title="Marquer comme lu"
                 >
-                  <Check className="h-3.5 w-3.5 text-slate-500 hover:text-emerald-400" />
+                  <Check className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500 hover:text-emerald-400" />
                 </button>
               </div>
             ))

@@ -212,8 +212,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   if (nodes.length === 0 || (nodes.length === 1 && (!edges || edges.length === 0))) {
     return (
       <div className="flex flex-col items-center justify-center h-[400px] gap-4">
-        <div className="w-20 h-20 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center">
-          <svg className="w-10 h-10 text-slate-600" fill="none" viewBox="0 0 48 48" stroke="currentColor" strokeWidth="1.2">
+        <div className="w-20 h-20 rounded-2xl bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] flex items-center justify-center">
+          <svg className="w-10 h-10 text-slate-300 dark:text-slate-600" fill="none" viewBox="0 0 48 48" stroke="currentColor" strokeWidth="1.2">
             {/* Network nodes illustration */}
             <circle cx="24" cy="12" r="4" />
             <circle cx="12" cy="32" r="4" />
@@ -224,8 +224,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
           </svg>
         </div>
         <div className="text-center space-y-1.5">
-          <p className="text-slate-400 text-sm font-medium">Aucun reseau de direction detecte</p>
-          <p className="text-slate-600 text-xs max-w-[260px]">Les relations entre dirigeants et societes apparaitront ici apres le screening.</p>
+          <p className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-sm font-medium">Aucun reseau de direction detecte</p>
+          <p className="text-slate-300 dark:text-slate-600 text-xs max-w-[260px]">Les relations entre dirigeants et societes apparaitront ici apres le screening.</p>
         </div>
       </div>
     );
@@ -237,21 +237,21 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       <div className="absolute top-3 right-3 flex flex-col gap-1 z-10 print:hidden">
         <button
           onClick={handleZoomIn}
-          className="w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+          className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/[0.06] hover:bg-white/[0.12] border border-gray-300 dark:border-white/[0.08] flex items-center justify-center text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           aria-label="Zoomer"
         >
           <ZoomIn className="w-4 h-4" />
         </button>
         <button
           onClick={handleZoomOut}
-          className="w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+          className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/[0.06] hover:bg-white/[0.12] border border-gray-300 dark:border-white/[0.08] flex items-center justify-center text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           aria-label="Dezoomer"
         >
           <ZoomOut className="w-4 h-4" />
         </button>
         <button
           onClick={handleReset}
-          className="w-7 h-7 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] flex items-center justify-center text-slate-400 hover:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
+          className="w-7 h-7 rounded-lg bg-gray-100 dark:bg-white/[0.06] hover:bg-white/[0.12] border border-gray-300 dark:border-white/[0.08] flex items-center justify-center text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200 transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-blue-500"
           aria-label="Reinitialiser le zoom"
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -270,7 +270,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       />
 
       {/* C1: Legend */}
-      <div className="flex items-center gap-4 mt-2 px-2 text-[10px] text-slate-500 print:hidden">
+      <div className="flex items-center gap-4 mt-2 px-2 text-[10px] text-slate-400 dark:text-slate-500 print:hidden">
         <div className="flex items-center gap-1.5">
           <div className="w-3 h-3 rounded-full border-2 border-blue-500 bg-blue-500/30" />
           <span>Entreprise cible</span>
