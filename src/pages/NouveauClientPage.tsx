@@ -1773,7 +1773,7 @@ export default function NouveauClientPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">Nouveau Client</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Parcours d'entree en relation</p>
+          <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Parcours d'entree en relation</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Idee 18: KYC progress bar */}
@@ -1791,8 +1791,8 @@ export default function NouveauClientPage() {
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-72 bg-gray-50 dark:bg-slate-900 border-white/10">
-              <h4 className="text-xs font-semibold text-slate-300 mb-2">Champs obligatoires SPEC_O90</h4>
-              <p className="text-[10px] text-slate-500 mb-3">{specO90Kyc.filled}/{specO90Kyc.total} remplis</p>
+              <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Champs obligatoires SPEC_O90</h4>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 mb-3">{specO90Kyc.filled}/{specO90Kyc.total} remplis</p>
               {specO90Kyc.missing.length > 0 ? (
                 <ul className="space-y-1">
                   {specO90Kyc.missing.map(m => (
@@ -1863,8 +1863,8 @@ export default function NouveauClientPage() {
       <div className="glass-card p-4 shadow-lg" role="navigation" aria-label="Progression du formulaire">
         {/* #75: Estimated completion time */}
         <div className="flex items-center justify-end gap-1.5 mb-2">
-          <Clock className="w-3 h-3 text-slate-600" />
-          <span className="text-[9px] text-slate-600">
+          <Clock className="w-3 h-3 text-slate-300 dark:text-slate-600" />
+          <span className="text-[9px] text-slate-300 dark:text-slate-600">
             ~{[2, 3, 2, 3, 1, 2][step]} min restante(s) pour cette etape
           </span>
         </div>
@@ -1882,12 +1882,12 @@ export default function NouveauClientPage() {
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
                 i < step ? "bg-emerald-500 text-slate-900 dark:text-white shadow-lg shadow-emerald-500/20 scale-90" :
                 i === step ? "bg-blue-500 text-slate-900 dark:text-white ring-4 ring-blue-500/20 shadow-xl shadow-blue-500/30 scale-110" :
-                "bg-gray-100 dark:bg-white/[0.06] text-slate-500"
+                "bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500"
               }`}>
                 {i < step ? <Check className="w-4 h-4" /> : i + 1}
               </div>
               <span className={`text-xs font-medium hidden sm:inline transition-colors ${
-                i < step ? "text-emerald-400" : i === step ? "text-slate-200" : "text-slate-600"
+                i < step ? "text-emerald-400" : i === step ? "text-slate-800 dark:text-slate-200" : "text-slate-300 dark:text-slate-600"
               }`}>{label}</span>
               {i < STEP_LABELS.length - 1 && (
                 <div className={`w-8 lg:w-16 h-0.5 mx-2 rounded-full transition-colors duration-300 ${i < step ? "bg-emerald-500" : "bg-gray-100 dark:bg-white/[0.06]"}`} />
@@ -1913,13 +1913,13 @@ export default function NouveauClientPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-1">Recherche de l'entreprise</h2>
-                <p className="text-sm text-slate-500">Recherchez par SIREN, nom de societe ou dirigeant via l'API Pappers</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500">Recherchez par SIREN, nom de societe ou dirigeant via l'API Pappers</p>
               </div>
               {/* #5: Creation manuelle shortcut */}
               <Button
                 variant="outline"
                 size="sm"
-                className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30 transition-all duration-200 hover:scale-[1.02]"
+                className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 hover:border-blue-500/30 transition-all duration-200 hover:scale-[1.02]"
                 onClick={() => setStep(1)}
               >
                 <Plus className="w-3.5 h-3.5" /> Creation manuelle
@@ -1939,7 +1939,7 @@ export default function NouveauClientPage() {
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
                     searchMode === tab.value
                       ? "bg-blue-500/20 text-blue-400 shadow-sm"
-                      : "text-slate-500 hover:text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04]"
+                      : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04]"
                   }`}
                 >
                   <tab.icon className="w-3.5 h-3.5" /> {tab.label}
@@ -1949,7 +1949,7 @@ export default function NouveauClientPage() {
 
             <div className="flex gap-3">
               <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 dark:text-slate-500" />
                 <Input
                   value={searchQuery}
                   onChange={e => {
@@ -1984,7 +1984,7 @@ export default function NouveauClientPage() {
                   <button
                     onClick={() => { setSearchQuery(""); setSearchResults([]); setSearchError(""); }}
                     aria-label="Effacer la recherche"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 transition-colors"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300 transition-colors"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -1993,16 +1993,16 @@ export default function NouveauClientPage() {
                 {showSearchHistory && searchHistory.length > 0 && (
                   <div className="absolute top-full left-0 right-0 mt-1 z-20 bg-gray-50 dark:bg-slate-900 border border-gray-300 dark:border-white/[0.1] rounded-lg shadow-xl overflow-hidden">
                     <div className="px-3 py-2 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2">
-                      <History className="w-3 h-3 text-slate-500" />
-                      <span className="text-[10px] text-slate-500 uppercase tracking-wider">Recherches recentes</span>
+                      <History className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Recherches recentes</span>
                     </div>
                     {searchHistory.map((h, i) => (
                       <button
                         key={h}
                         onMouseDown={() => { setSearchQuery(h); setShowSearchHistory(false); }}
-                        className="w-full text-left px-3 py-2 text-sm text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors flex items-center gap-2"
+                        className="w-full text-left px-3 py-2 text-sm text-slate-700 dark:text-slate-300 hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors flex items-center gap-2"
                       >
-                        <Clock className="w-3 h-3 text-slate-600" /> {h}
+                        <Clock className="w-3 h-3 text-slate-300 dark:text-slate-600" /> {h}
                       </button>
                     ))}
                   </div>
@@ -2015,9 +2015,9 @@ export default function NouveauClientPage() {
               </Button>
             </div>
             {/* #8: Keyboard shortcut hint */}
-            <p className="text-[10px] text-slate-600 -mt-4 flex items-center gap-1.5">
-              <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-500 font-mono text-[9px]">Entree</kbd> pour rechercher
-              {searchMode === "siren" && <span className="text-slate-600 ml-2">Format: 9 chiffres</span>}
+            <p className="text-[10px] text-slate-300 dark:text-slate-600 -mt-4 flex items-center gap-1.5">
+              <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500 font-mono text-[9px]">Entree</kbd> pour rechercher
+              {searchMode === "siren" && <span className="text-slate-300 dark:text-slate-600 ml-2">Format: 9 chiffres</span>}
             </p>
 
             {/* #6: Loading skeleton cards */}
@@ -2077,9 +2077,9 @@ export default function NouveauClientPage() {
               <div className="space-y-2">
                 {/* #7: Result count badge */}
                 <div className="flex items-center gap-2">
-                  <Label className="text-xs text-slate-500">Resultats</Label>
+                  <Label className="text-xs text-slate-400 dark:text-slate-500">Resultats</Label>
                   <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">{searchResults.length}</Badge>
-                  <span className="text-[10px] text-slate-600">— selectionnez une entreprise</span>
+                  <span className="text-[10px] text-slate-300 dark:text-slate-600">— selectionnez une entreprise</span>
                 </div>
                 <div className="max-h-60 overflow-y-auto space-y-1.5">
                   {searchResults.map((r) => (
@@ -2095,14 +2095,14 @@ export default function NouveauClientPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           {/* #9: Highlight matching text */}
-                          <span className="font-medium text-sm text-slate-200">
+                          <span className="font-medium text-sm text-slate-800 dark:text-slate-200">
                             {highlightMatch(r.raison_sociale, searchQuery)}
                           </span>
-                          <span className="text-slate-500 ml-2 text-xs">({formatSiren(r.siren)})</span>
+                          <span className="text-slate-400 dark:text-slate-500 ml-2 text-xs">({formatSiren(r.siren)})</span>
                         </div>
                         {selectedResult?.siren === r.siren && <CheckCircle2 className="w-4 h-4 text-blue-400" />}
                       </div>
-                      <p className="text-xs text-slate-500 mt-1">{r.forme_juridique_raw} - {r.ville} - APE: {r.ape}</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">{r.forme_juridique_raw} - {r.ville} - APE: {r.ape}</p>
                     </button>
                   ))}
                 </div>
@@ -2113,7 +2113,7 @@ export default function NouveauClientPage() {
             {(screening.enterprise.loading || screening.enterprise.data || screeningRunning) && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-400">{screeningProgress.completedCount}/{screeningProgress.totalCount} APIs terminees</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{screeningProgress.completedCount}/{screeningProgress.totalCount} APIs terminees</span>
                   {screeningRunning && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400" />}
                 </div>
                 <Progress value={(screeningProgress.completedCount / screeningProgress.totalCount) * 100} className="h-2" />
@@ -2132,7 +2132,7 @@ export default function NouveauClientPage() {
                 {screeningRunning && !screeningTimedOut && (
                   <button
                     onClick={() => setStep(1)}
-                    className="text-xs text-slate-500 hover:text-blue-400 transition-colors mt-1"
+                    className="text-xs text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors mt-1"
                   >
                     Passer et completer plus tard &rarr;
                   </button>
@@ -2161,7 +2161,7 @@ export default function NouveauClientPage() {
                       <span className={`text-xs font-semibold ${
                         signal.severity === "red" ? "text-red-400" : signal.severity === "orange" ? "text-amber-400" : "text-blue-400"
                       }`}>{signal.message}</span>
-                      {signal.malus > 0 && <span className="text-[10px] text-slate-500 ml-2">(malus +{signal.malus})</span>}
+                      {signal.malus > 0 && <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-2">(malus +{signal.malus})</span>}
                     </div>
                   </div>
                 ))}
@@ -2196,8 +2196,8 @@ export default function NouveauClientPage() {
               <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2">
                   <User className="w-4 h-4 text-cyan-400" />
-                  <h3 className="text-sm font-semibold text-slate-300">Reseau dirigeants</h3>
-                  <span className="text-[10px] text-slate-500 ml-auto">
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Reseau dirigeants</h3>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">
                     {screening.network.data.totalCompanies ?? 0} societe(s), {screening.network.data.totalPersons ?? 0} personne(s) — cliquez un noeud pour plus d'infos
                   </span>
                 </div>
@@ -2228,19 +2228,19 @@ export default function NouveauClientPage() {
                   <span className="text-sm font-semibold text-emerald-400">Donnees recuperees</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div><span className="text-slate-500">Raison sociale</span><p className="text-slate-200 font-medium mt-0.5">{selectedResult.raison_sociale}</p></div>
-                  <div><span className="text-slate-500">SIREN</span><p className="text-slate-200 font-mono mt-0.5">{formatSiren(selectedResult.siren)}</p></div>
-                  <div><span className="text-slate-500">Forme</span><p className="text-slate-200 mt-0.5">{selectedResult.forme_juridique_raw}</p></div>
-                  <div><span className="text-slate-500">APE</span><p className="text-slate-200 mt-0.5">{selectedResult.ape} - {selectedResult.libelle_ape}</p></div>
-                  <div><span className="text-slate-500">Capital</span><p className="text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; const forme = (selectedResult.forme_juridique_raw || "").toUpperCase(); const isEI = forme.includes("INDIVIDUEL") || forme.includes("EI"); if (isEI && cap === 0) return "N/A"; return cap > 0 ? `${cap.toLocaleString()} EUR` : "Non renseigne"; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-500">({capitalSource})</span>}</p></div>
-                  <div><span className="text-slate-500">Dirigeant</span><p className="text-slate-200 mt-0.5">{form.dirigeant || selectedResult.dirigeant || "—"}</p></div>
-                  <div><span className="text-slate-500">Ville</span><p className="text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
-                  <div><span className="text-slate-500">Creation</span><p className="text-slate-200 mt-0.5">{selectedResult.date_creation ? formatDateFR(selectedResult.date_creation) : "—"}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Raison sociale</span><p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">{selectedResult.raison_sociale}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">SIREN</span><p className="text-slate-800 dark:text-slate-200 font-mono mt-0.5">{formatSiren(selectedResult.siren)}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Forme</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.forme_juridique_raw}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">APE</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.ape} - {selectedResult.libelle_ape}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Capital</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; const forme = (selectedResult.forme_juridique_raw || "").toUpperCase(); const isEI = forme.includes("INDIVIDUEL") || forme.includes("EI"); if (isEI && cap === 0) return "N/A"; return cap > 0 ? `${cap.toLocaleString()} EUR` : "Non renseigne"; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-400 dark:text-slate-500">({capitalSource})</span>}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Dirigeant</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{form.dirigeant || selectedResult.dirigeant || "—"}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Ville</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Creation</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.date_creation ? formatDateFR(selectedResult.date_creation) : "—"}</p></div>
                   {selectedEnterprise?.site_web && (
-                    <div><span className="text-slate-500">Site web</span><p className="mt-0.5"><a href={selectedEnterprise.site_web.startsWith("http") ? selectedEnterprise.site_web : `https://${selectedEnterprise.site_web}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-xs flex items-center gap-1">{selectedEnterprise.site_web} <ExternalLink className="w-3 h-3" /></a></p></div>
+                    <div><span className="text-slate-400 dark:text-slate-500">Site web</span><p className="mt-0.5"><a href={selectedEnterprise.site_web.startsWith("http") ? selectedEnterprise.site_web : `https://${selectedEnterprise.site_web}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-xs flex items-center gap-1">{selectedEnterprise.site_web} <ExternalLink className="w-3 h-3" /></a></p></div>
                   )}
                   {selectedEnterprise?.nombre_etablissements != null && selectedEnterprise.nombre_etablissements > 1 && (
-                    <div><span className="text-slate-500">Etablissements</span><p className="text-slate-200 mt-0.5">{selectedEnterprise.nombre_etablissements} etablissement(s)</p></div>
+                    <div><span className="text-slate-400 dark:text-slate-500">Etablissements</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedEnterprise.nombre_etablissements} etablissement(s)</p></div>
                   )}
                 </div>
                 {/* Etat administratif warning */}
@@ -2253,14 +2253,14 @@ export default function NouveauClientPage() {
                 {/* Dirigeants with qualite */}
                 {selectedEnterprise?.dirigeants && selectedEnterprise.dirigeants.length > 1 && (
                   <div className="mt-3 pt-3 border-t border-emerald-500/10">
-                    <span className="text-[10px] text-slate-500 uppercase">Dirigeants ({selectedEnterprise.dirigeants.length})</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Dirigeants ({selectedEnterprise.dirigeants.length})</span>
                     <div className="flex flex-wrap gap-2 mt-1">
                       {selectedEnterprise.dirigeants.slice(0, 6).map((d, i) => (
-                        <span key={`dir-${i}`} className="text-[11px] text-slate-300 bg-gray-50/80 dark:bg-white/[0.04] px-2 py-1 rounded">
+                        <span key={`dir-${i}`} className="text-[11px] text-slate-700 dark:text-slate-300 bg-gray-50/80 dark:bg-white/[0.04] px-2 py-1 rounded">
                           {d.prenom} {d.nom}{d.qualite ? ` — ${d.qualite}` : ""}
                         </span>
                       ))}
-                      {selectedEnterprise.dirigeants.length > 6 && <span className="text-[10px] text-slate-500 self-center">+{selectedEnterprise.dirigeants.length - 6}</span>}
+                      {selectedEnterprise.dirigeants.length > 6 && <span className="text-[10px] text-slate-400 dark:text-slate-500 self-center">+{selectedEnterprise.dirigeants.length - 6}</span>}
                     </div>
                   </div>
                 )}
@@ -2295,7 +2295,7 @@ export default function NouveauClientPage() {
                 const pct = Math.round((filled / reqFields.length) * 100);
                 return (
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-slate-500">{filled}/{reqFields.length} obligatoires</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">{filled}/{reqFields.length} obligatoires</span>
                     <Progress value={pct} className="w-20 h-1.5" />
                     <span className={`text-xs font-bold ${pct === 100 ? "text-emerald-400" : "text-amber-400"}`}>{pct}%</span>
                   </div>
@@ -2308,7 +2308,7 @@ export default function NouveauClientPage() {
               <div className="p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <CheckCircle2 className="w-4 h-4 text-blue-400" />
-                  <span className="text-xs text-slate-300">Completude KYC</span>
+                  <span className="text-xs text-slate-700 dark:text-slate-300">Completude KYC</span>
                 </div>
                 <div className="flex items-center gap-3">
                   {(() => {
@@ -2318,7 +2318,7 @@ export default function NouveauClientPage() {
                         <Progress value={kyc.percent} className="w-32 h-2" />
                         <span className={`text-sm font-bold ${kyc.percent >= 80 ? "text-emerald-400" : "text-amber-400"}`}>{kyc.percent}%</span>
                         {kyc.missing.length > 0 && (
-                          <span className="text-[10px] text-slate-500">Manque : {kyc.missing.join(", ")}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500">Manque : {kyc.missing.join(", ")}</span>
                         )}
                       </>
                     );
@@ -2383,14 +2383,14 @@ export default function NouveauClientPage() {
                       <SourceField label="SIRET" value={form.siret} onChange={v => set("siret", formatSiretInput(v))} placeholder="XXX XXX XXX XXXXX" source={autoFields.has("siret") ? "data.gouv" : undefined} autoFilled={autoFields.has("siret")} />
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <Label htmlFor="capital-social" className="text-[10px] text-slate-500 uppercase">Capital social {form.forme !== "ENTREPRISE INDIVIDUELLE" && <span className="text-red-400">*</span>}</Label>
-                          {capitalSource && form.capital > 0 && <Badge className={`text-[9px] border-0 ${capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-400"}`}>{capitalSource}</Badge>}
+                          <Label htmlFor="capital-social" className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Capital social {form.forme !== "ENTREPRISE INDIVIDUELLE" && <span className="text-red-400">*</span>}</Label>
+                          {capitalSource && form.capital > 0 && <Badge className={`text-[9px] border-0 ${capitalSource === "INPI" ? "bg-blue-500/20 text-blue-400" : "bg-slate-500/20 text-slate-500 dark:text-slate-400"}`}>{capitalSource}</Badge>}
                         </div>
                         <Input id="capital-social" type="number" min={0} value={form.capital || ""} onChange={e => set("capital", Number(e.target.value))} placeholder="A completer" className={`bg-gray-50 dark:bg-white/[0.03] mt-1 ${autoFields.has("capital") ? "bg-blue-500/[0.03]" : ""} ${form.capital === 0 ? "border-orange-500/50" : !form.capital ? "border-amber-500/50" : "border-emerald-500/30"}`} />
                         {(() => {
                           const f = form.forme.toUpperCase();
                           const isEI = f.includes("INDIVIDUEL") || f.includes("EI");
-                          if (isEI && !form.capital) return <p className="text-[10px] text-slate-500 mt-0.5">N/A (Entreprise individuelle)</p>;
+                          if (isEI && !form.capital) return <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">N/A (Entreprise individuelle)</p>;
                           if (form.capital === 0) return <p className="text-[10px] text-amber-400 mt-0.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Capital non disponible via les API — saisie manuelle requise</p>;
                           if (!form.capital) return <p className="text-[10px] text-amber-400 mt-0.5">Non renseigne — a completer</p>;
                           return null;
@@ -2406,7 +2406,7 @@ export default function NouveauClientPage() {
                                 <HelpCircle className="w-3 h-3" /> Qu'est-ce que le code APE ?
                               </button>
                             </PopoverTrigger>
-                            <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10 text-xs text-slate-300">
+                            <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10 text-xs text-slate-700 dark:text-slate-300">
                               Le code APE (Activite Principale Exercee) est attribue par l'INSEE. Il determine le score de risque sectoriel dans le calcul LCB-FT.
                             </PopoverContent>
                           </Popover>
@@ -2421,7 +2421,7 @@ export default function NouveauClientPage() {
                       {/* #26: Date picker */}
                       <div>
                         <SourceField label="Date de creation" value={form.dateCreation} onChange={v => set("dateCreation", v)} type="date" source={autoFields.has("dateCreation") ? "data.gouv" : undefined} autoFilled={autoFields.has("dateCreation")} />
-                        {form.dateCreation && <p className="text-[10px] text-slate-500 mt-0.5">{formatDateFR(form.dateCreation)}</p>}
+                        {form.dateCreation && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{formatDateFR(form.dateCreation)}</p>}
                       </div>
                       {form.dateClotureExercice && (
                         <SourceField label="Date de cloture" value={formatCloture(form.dateClotureExercice)} onChange={v => set("dateClotureExercice", v)} source="INPI" autoFilled />
@@ -2436,12 +2436,12 @@ export default function NouveauClientPage() {
                       <div className="mt-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-1.5">
-                            <Label className="text-[10px] text-slate-500 uppercase">Objet social</Label>
+                            <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Objet social</Label>
                             <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0">INPI</Badge>
                           </div>
-                          <span className="text-[9px] text-slate-600">{form.objetSocial.length} caracteres</span>
+                          <span className="text-[9px] text-slate-300 dark:text-slate-600">{form.objetSocial.length} caracteres</span>
                         </div>
-                        <p className="text-xs text-slate-300 mt-1 p-2 rounded bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">{form.objetSocial.slice(0, 300)}{form.objetSocial.length > 300 ? "..." : ""}</p>
+                        <p className="text-xs text-slate-700 dark:text-slate-300 mt-1 p-2 rounded bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">{form.objetSocial.slice(0, 300)}{form.objetSocial.length > 300 ? "..." : ""}</p>
                       </div>
                     )}
 
@@ -2482,7 +2482,7 @@ export default function NouveauClientPage() {
                     <FormField label="Email" value={form.mail} onChange={v => set("mail", v)} error={validationErrors.mail} placeholder="email@exemple.fr" isAuto={autoFields.has("mail")} needsCompletion={!!selectedResult && !form.mail} />
                     <div>
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-[10px] text-slate-500 uppercase">Site web</Label>
+                        <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Site web</Label>
                         {autoFields.has("siteWeb") && <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>}
                       </div>
                       <Input value={form.siteWeb} onChange={e => set("siteWeb", e.target.value)} placeholder="https://..." className="bg-gray-50 dark:bg-white/[0.03] mt-1 border-gray-200 dark:border-white/[0.06] focus:ring-2 focus:ring-blue-500/30" />
@@ -2538,12 +2538,12 @@ export default function NouveauClientPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-3 text-xs ml-6">
                   <div>
-                    <span className="text-slate-500">INPI :</span>
-                    <p className="text-slate-300 mt-0.5">{addressDivergence.inpi}</p>
+                    <span className="text-slate-400 dark:text-slate-500">INPI :</span>
+                    <p className="text-slate-700 dark:text-slate-300 mt-0.5">{addressDivergence.inpi}</p>
                   </div>
                   <div>
-                    <span className="text-slate-500">Annuaire :</span>
-                    <p className="text-slate-300 mt-0.5">{addressDivergence.annuaire}</p>
+                    <span className="text-slate-400 dark:text-slate-500">Annuaire :</span>
+                    <p className="text-slate-700 dark:text-slate-300 mt-0.5">{addressDivergence.annuaire}</p>
                   </div>
                 </div>
               </div>
@@ -2553,7 +2553,7 @@ export default function NouveauClientPage() {
             <div className="relative">
               <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-gray-300 dark:border-white/[0.08]" /></div>
               <div className="relative flex justify-center">
-                <span className="bg-[hsl(217,33%,12%)] px-4 text-xs text-slate-500 uppercase tracking-widest flex items-center gap-2">
+                <span className="bg-[hsl(217,33%,12%)] px-4 text-xs text-slate-400 dark:text-slate-500 uppercase tracking-widest flex items-center gap-2">
                   <ChevronDown className="w-3 h-3" /> Informations a completer <ChevronDown className="w-3 h-3" />
                 </span>
               </div>
@@ -2624,7 +2624,7 @@ export default function NouveauClientPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Beneficiaires effectifs</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Personnes detenant plus de 25% du capital ou des droits de vote</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Personnes detenant plus de 25% du capital ou des droits de vote</p>
               </div>
               <div className="flex items-center gap-2">
                 {beneficiaires.length > 0 && (
@@ -2686,7 +2686,7 @@ export default function NouveauClientPage() {
             })()}
 
             {beneficiaires.length === 0 && (
-              <div className="text-center py-12 text-slate-500">
+              <div className="text-center py-12 text-slate-400 dark:text-slate-500">
                 <User className="w-10 h-10 mx-auto mb-3 opacity-30" />
                 <p className="text-sm">Aucun beneficiaire effectif ajoute</p>
                 <p className="text-xs mt-1">Utilisez le bouton + Ajouter pour saisir manuellement</p>
@@ -2706,7 +2706,7 @@ export default function NouveauClientPage() {
               return (
                 <div className={`p-4 rounded-lg border ${overBudget ? "border-red-500/30 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-xs font-semibold text-slate-300">Repartition du capital</h3>
+                    <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Repartition du capital</h3>
                     <span className={`text-sm font-bold font-mono ${overBudget ? "text-red-400" : beSum === 100 ? "text-emerald-400" : "text-amber-400"}`}>
                       {beSum}%{overBudget && " — Depasse 100% !"}
                     </span>
@@ -2739,15 +2739,15 @@ export default function NouveauClientPage() {
                     <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-white dark:bg-white/[0.02] transition-colors" onClick={() => setCollapsedBE(prev => ({ ...prev, [i]: !prev[i] }))}>
                       <div className="flex items-center gap-3 min-w-0">
                         {/* #31: Drag handle placeholder */}
-                        <GripVertical className="w-4 h-4 text-slate-600 shrink-0 cursor-grab" />
+                        <GripVertical className="w-4 h-4 text-slate-300 dark:text-slate-600 shrink-0 cursor-grab" />
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs font-semibold text-slate-400 shrink-0">BE {i + 1}</span>
-                          <span className="text-sm text-slate-200 truncate">{b.prenom} {b.nom || "—"}</span>
+                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">BE {i + 1}</span>
+                          <span className="text-sm text-slate-800 dark:text-slate-200 truncate">{b.prenom} {b.nom || "—"}</span>
                           {/* #39: Sanctions check status */}
                           {status === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400 shrink-0" />}
                           {status === "clean" && <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                           {status === "match" && <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 animate-pulse" />}
-                          {status === "error" && <span className="text-[9px] text-slate-500 shrink-0">N/A</span>}
+                          {status === "error" && <span className="text-[9px] text-slate-400 dark:text-slate-500 shrink-0">N/A</span>}
                         </div>
                         {/* #33: Visual percentage bar */}
                         <div className="flex items-center gap-2 shrink-0 ml-auto mr-4">
@@ -2759,14 +2759,14 @@ export default function NouveauClientPage() {
                               style={{ width: `${Math.min(b.pourcentage, 100)}%` }}
                             />
                           </div>
-                          <span className="text-xs font-mono font-bold text-slate-300 w-10 text-right">{b.pourcentage}%</span>
+                          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{b.pourcentage}%</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); removeBeneficiaire(i); }} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 w-7 p-0 transition-all hover:scale-110">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
-                        <ChevronDown className={`w-4 h-4 text-slate-500 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`} />
+                        <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`} />
                       </div>
                     </div>
                     {/* #40: Collapsible details */}
@@ -2774,32 +2774,32 @@ export default function NouveauClientPage() {
                       <div className="px-4 pb-4 pt-1 border-t border-gray-100 dark:border-white/[0.04]">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                           <div>
-                            <Label htmlFor={`be-nom-${i}`} className="text-[10px] text-slate-500 uppercase">Nom</Label>
+                            <Label htmlFor={`be-nom-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Nom</Label>
                             <Input id={`be-nom-${i}`} value={b.nom} onChange={e => updateBeneficiaire(i, "nom", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="NOM" />
                           </div>
                           <div>
-                            <Label htmlFor={`be-prenom-${i}`} className="text-[10px] text-slate-500 uppercase">Prenom</Label>
+                            <Label htmlFor={`be-prenom-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Prenom</Label>
                             <Input id={`be-prenom-${i}`} value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="Prenom" />
                           </div>
                           {/* #35: Date picker for birth date */}
                           <div>
-                            <Label htmlFor={`be-datenaissance-${i}`} className="text-[10px] text-slate-500 uppercase">Date naissance</Label>
+                            <Label htmlFor={`be-datenaissance-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Date naissance</Label>
                             <Input id={`be-datenaissance-${i}`} type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
-                            {b.dateNaissance && <p className="text-[9px] text-slate-500 mt-0.5">{formatDateFR(b.dateNaissance)}</p>}
+                            {b.dateNaissance && <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{formatDateFR(b.dateNaissance)}</p>}
                           </div>
                           {/* #34: Nationality with common suggestions */}
                           <div>
-                            <Label htmlFor={`be-nationalite-${i}`} className="text-[10px] text-slate-500 uppercase">Nationalite</Label>
+                            <Label htmlFor={`be-nationalite-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Nationalite</Label>
                             <Input id={`be-nationalite-${i}`} value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list={`nat-list-${i}`} />
                             <datalist id={`nat-list-${i}`}>
                               {["FRANCAISE", "ALGERIENNE", "MAROCAINE", "TUNISIENNE", "PORTUGAISE", "ITALIENNE", "ESPAGNOLE", "ALLEMANDE", "BELGE", "BRITANNIQUE", "AMERICAINE", "CHINOISE", "RUSSE", "TURQUE", "LIBANAISE"].map(n => <option key={n} value={n} />)}
                             </datalist>
-                            <p className="text-[9px] text-slate-500 mt-0.5">{autoFields.has("siren") ? "Source: INPI / Annuaire" : "Source: Saisie manuelle"}</p>
+                            <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{autoFields.has("siren") ? "Source: INPI / Annuaire" : "Source: Saisie manuelle"}</p>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-4 mt-3">
                           <div>
-                            <Label className="text-[10px] text-slate-500">% parts — {b.pourcentage}%</Label>
+                            <Label className="text-[10px] text-slate-400 dark:text-slate-500">% parts — {b.pourcentage}%</Label>
                             <Slider
                               value={[b.pourcentage]}
                               onValueChange={([v]) => updateBeneficiaire(i, "pourcentage", v)}
@@ -2808,7 +2808,7 @@ export default function NouveauClientPage() {
                             />
                           </div>
                           <div>
-                            <Label className="text-[10px] text-slate-500">% votes — {b.pourcentageVotes ?? 0}%</Label>
+                            <Label className="text-[10px] text-slate-400 dark:text-slate-500">% votes — {b.pourcentageVotes ?? 0}%</Label>
                             <Slider
                               value={[b.pourcentageVotes ?? 0]}
                               onValueChange={([v]) => updateBeneficiaire(i, "pourcentageVotes", v)}
@@ -2833,12 +2833,12 @@ export default function NouveauClientPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Questionnaire LCB-FT</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Evaluation des facteurs de risque reglementaires</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Evaluation des facteurs de risque reglementaires</p>
               </div>
               <div className="flex items-center gap-3">
                 {/* #41: Progress indicator */}
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-500">{questions.filter(q => q.value !== "NON").length}/{questions.length}</span>
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500">{questions.filter(q => q.value !== "NON").length}/{questions.length}</span>
                   <Progress value={(questions.filter(q => q.value !== "NON").length / questions.length) * 100} className="w-16 h-1.5" />
                 </div>
                 {questions.filter(q => q.value === "OUI").length > 0 && (
@@ -2847,7 +2847,7 @@ export default function NouveauClientPage() {
                   </Badge>
                 )}
                 {/* #48: Running malus score */}
-                <Badge className={`text-[9px] border-0 font-mono ${extraMalus > 0 ? "bg-red-500/20 text-red-400" : "bg-gray-100 dark:bg-white/[0.06] text-slate-400"}`}>
+                <Badge className={`text-[9px] border-0 font-mono ${extraMalus > 0 ? "bg-red-500/20 text-red-400" : "bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400"}`}>
                   {extraMalus > 0 ? `+${extraMalus + risk.malus} pts` : "0 malus"}
                 </Badge>
               </div>
@@ -2855,8 +2855,8 @@ export default function NouveauClientPage() {
 
             {/* #43: Real-time risk level indicator */}
             <div className="flex items-center gap-3 p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]" role="status" aria-label={`Niveau de risque : ${risk.nivVigilance}, score ${adjustedScore} sur 100`}>
-              <BarChart3 className="w-4 h-4 text-slate-400" />
-              <span className="text-xs text-slate-400">Niveau de risque en temps reel :</span>
+              <BarChart3 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+              <span className="text-xs text-slate-500 dark:text-slate-400">Niveau de risque en temps reel :</span>
               <VigilanceBadge level={risk.nivVigilance} />
               <div className="flex-1 h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden" role="progressbar" aria-valuenow={adjustedScore} aria-valuemin={0} aria-valuemax={120}>
                 <div
@@ -2866,7 +2866,7 @@ export default function NouveauClientPage() {
                   style={{ width: `${Math.min((adjustedScore / 120) * 100, 100)}%` }}
                 />
               </div>
-              <span className="text-xs font-mono font-bold text-slate-300">{adjustedScore}/120</span>
+              <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">{adjustedScore}/120</span>
             </div>
 
             {/* #45: "Tout NON" shortcut */}
@@ -2874,7 +2874,7 @@ export default function NouveauClientPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="text-xs gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all"
+                className="text-xs gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all"
                 onClick={() => {
                   setQuestions(prev => prev.map(q => ({ ...q, value: "NON" as const, commentaire: q.value === "OUI" ? q.commentaire : "" })));
                   toast.success("Toutes les reponses ont ete mises a NON");
@@ -2914,15 +2914,15 @@ export default function NouveauClientPage() {
                           }`}>
                             <div className="flex items-start justify-between gap-4">
                               <div className="flex-1">
-                                <p className="text-sm text-slate-200"><span className="text-xs font-mono text-slate-500 mr-1.5">Q{qi + 1}</span>{q.question}</p>
+                                <p className="text-sm text-slate-800 dark:text-slate-200"><span className="text-xs font-mono text-slate-400 dark:text-slate-500 mr-1.5">Q{qi + 1}</span>{q.question}</p>
                                 {/* #46: Tooltip for regulatory reference */}
                                 <Popover>
                                   <PopoverTrigger asChild>
-                                    <button className="text-[10px] text-slate-500 mt-1 font-mono hover:text-blue-400 transition-colors flex items-center gap-1">
+                                    <button className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-mono hover:text-blue-400 transition-colors flex items-center gap-1">
                                       <BookOpen className="w-3 h-3" /> {q.reference}
                                     </button>
                                   </PopoverTrigger>
-                                  <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10 text-xs text-slate-300">
+                                  <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10 text-xs text-slate-700 dark:text-slate-300">
                                     Reference reglementaire : {q.reference}. Malus associe : +{q.malus} points sur le score global de risque.
                                   </PopoverContent>
                                 </Popover>
@@ -2936,7 +2936,7 @@ export default function NouveauClientPage() {
                                     className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
                                       q.value === val
                                         ? val === "OUI" ? "bg-red-500 text-slate-900 dark:text-white shadow-md shadow-red-500/20" : val === "NON" ? "bg-emerald-500 text-slate-900 dark:text-white shadow-md shadow-emerald-500/20" : "bg-slate-500 text-slate-900 dark:text-white"
-                                        : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 hover:bg-gray-200/50 dark:bg-white/[0.08]"
+                                        : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 hover:bg-gray-200/50 dark:bg-white/[0.08]"
                                     }`}
                                   >
                                     {val}
@@ -2965,7 +2965,7 @@ export default function NouveauClientPage() {
                                 <div className="flex items-center justify-between">
                                   {!q.commentaire && <p className="text-[10px] text-red-400">Commentaire obligatoire pour chaque reponse OUI</p>}
                                   {q.commentaire && <p className="text-[10px] text-emerald-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Commentaire renseigne</p>}
-                                  <span className="text-[9px] text-slate-600">{q.commentaire.length} car.</span>
+                                  <span className="text-[9px] text-slate-300 dark:text-slate-600">{q.commentaire.length} car.</span>
                                 </div>
                               </div>
                             )}
@@ -2993,8 +2993,8 @@ export default function NouveauClientPage() {
                       }`}>
                         <div className="flex items-start justify-between gap-4">
                           <div className="flex-1">
-                            <p className="text-sm text-slate-200">{q.question}</p>
-                            <p className="text-[10px] text-slate-500 mt-1 font-mono">{q.reference}</p>
+                            <p className="text-sm text-slate-800 dark:text-slate-200">{q.question}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-mono">{q.reference}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
                             {(["OUI", "NON", "N/A"] as const).map(val => (
@@ -3004,7 +3004,7 @@ export default function NouveauClientPage() {
                                 className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
                                   q.value === val
                                     ? val === "OUI" ? "bg-red-500 text-slate-900 dark:text-white shadow-md" : val === "NON" ? "bg-emerald-500 text-slate-900 dark:text-white shadow-md" : "bg-slate-500 text-slate-900 dark:text-white"
-                                    : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 hover:bg-gray-200/50 dark:bg-white/[0.08]"
+                                    : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 hover:bg-gray-200/50 dark:bg-white/[0.08]"
                                 }`}
                               >
                                 {val}
@@ -3040,7 +3040,7 @@ export default function NouveauClientPage() {
               {/* #53: Improved radar chart */}
               <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-lg">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-slate-300">Radar de risque 6 axes</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Radar de risque 6 axes</h3>
                   {/* #52: Score breakdown tooltip */}
                   <Popover>
                     <PopoverTrigger asChild>
@@ -3049,11 +3049,11 @@ export default function NouveauClientPage() {
                       </button>
                     </PopoverTrigger>
                     <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10">
-                      <h4 className="text-xs font-semibold text-slate-300 mb-2">Contribution de chaque facteur</h4>
+                      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Contribution de chaque facteur</h4>
                       <div className="space-y-1.5">
                         {radarData.map(d => (
                           <div key={d.subject} className="flex items-center justify-between text-xs">
-                            <span className="text-slate-400">{d.subject}</span>
+                            <span className="text-slate-500 dark:text-slate-400">{d.subject}</span>
                             <span className={`font-mono font-bold ${d.score >= 60 ? "text-red-400" : d.score >= 25 ? "text-amber-400" : "text-emerald-400"}`}>{d.score}</span>
                           </div>
                         ))}
@@ -3076,7 +3076,7 @@ export default function NouveauClientPage() {
               <div className="space-y-4">
                 {/* #51: Animated gauge with count-up */}
                 <div className="p-6 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] text-center shadow-lg">
-                  <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-3">Score Global</p>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Score Global</p>
                   <div className="relative w-40 h-40 mx-auto">
                     <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
                       <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
@@ -3092,14 +3092,14 @@ export default function NouveauClientPage() {
                     <div className="absolute inset-0 flex items-center justify-center flex-col">
                       {/* #51: Animated score reveal */}
                       <span className="text-4xl font-bold text-slate-900 dark:text-white tabular-nums">{animatedScore}</span>
-                      <span className="text-[10px] text-slate-500">/120</span>
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">/120</span>
                     </div>
                   </div>
                   <div className="mt-4">
                     <VigilanceBadge level={risk.nivVigilance} />
                   </div>
                   {/* #55: Risk level explanation */}
-                  <p className="text-[10px] text-slate-500 mt-2">
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
                     {risk.nivVigilance === "SIMPLIFIEE" && "Risque faible — mesures de vigilance allégées autorisées"}
                     {risk.nivVigilance === "STANDARD" && "Risque moyen — mesures de vigilance normales requises"}
                     {risk.nivVigilance === "RENFORCEE" && "Risque élevé — mesures de vigilance renforcées obligatoires (art. L.561-10 CMF)"}
@@ -3110,11 +3110,11 @@ export default function NouveauClientPage() {
                     if (avgScore === null) return null;
                     return (
                       <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-center gap-2">
-                        <span className="text-[10px] text-slate-500">Moyenne cabinet :</span>
-                        <span className="text-xs font-mono font-bold text-slate-400">{avgScore}/120</span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">Moyenne cabinet :</span>
+                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{avgScore}/120</span>
                         {adjustedScore > avgScore && <span className="text-[9px] text-amber-400">+{adjustedScore - avgScore} au-dessus</span>}
                         {adjustedScore < avgScore && <span className="text-[9px] text-emerald-400">{avgScore - adjustedScore} en-dessous</span>}
-                        {adjustedScore === avgScore && <span className="text-[9px] text-slate-500">= moyenne</span>}
+                        {adjustedScore === avgScore && <span className="text-[9px] text-slate-400 dark:text-slate-500">= moyenne</span>}
                       </div>
                     );
                   })()}
@@ -3122,7 +3122,7 @@ export default function NouveauClientPage() {
 
                 {/* Score breakdown */}
                 <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-                  <h3 className="text-xs font-semibold text-slate-300 mb-3">Decomposition</h3>
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">Decomposition</h3>
                   <div className="space-y-2">
                     {/* FIX 49: Score decomposition with visual bars */}
                     {[
@@ -3136,8 +3136,8 @@ export default function NouveauClientPage() {
                       <div key={item.label} className="space-y-1">
                         <div className="flex items-center justify-between">
                           <div>
-                            <span className="text-xs text-slate-300">{item.label}</span>
-                            <span className="text-[10px] text-slate-500 ml-2">{item.desc}</span>
+                            <span className="text-xs text-slate-700 dark:text-slate-300">{item.label}</span>
+                            <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-2">{item.desc}</span>
                           </div>
                           <span className={`text-sm font-bold font-mono tabular-nums ${
                             item.score >= 60 ? "text-red-400" : item.score >= 25 ? "text-amber-400" : "text-emerald-400"
@@ -3159,17 +3159,17 @@ export default function NouveauClientPage() {
                 {/* D35: Detailed malus breakdown */}
                 {questions.filter(q => q.value === "OUI").length > 0 && (
                   <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-                    <h3 className="text-xs font-semibold text-slate-300 mb-2">Detail des malus</h3>
+                    <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Detail des malus</h3>
                     <div className="space-y-1">
                       {questions.filter(q => q.value === "OUI").map(q => (
                         <div key={q.id} className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400 truncate mr-2">{q.question.slice(0, 60)}...</span>
+                          <span className="text-slate-500 dark:text-slate-400 truncate mr-2">{q.question.slice(0, 60)}...</span>
                           <span className="text-red-400 font-mono font-bold shrink-0">+{q.malus}</span>
                         </div>
                       ))}
                       {bodaccMalus > 0 && (
                         <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-400">BODACC (procedure collective)</span>
+                          <span className="text-slate-500 dark:text-slate-400">BODACC (procedure collective)</span>
                           <span className="text-red-400 font-mono font-bold">+{bodaccMalus}</span>
                         </div>
                       )}
@@ -3181,7 +3181,7 @@ export default function NouveauClientPage() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={`gap-1.5 border-gray-200 dark:border-white/[0.06] transition-all ${isSimulating ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"}`}
+                  className={`gap-1.5 border-gray-200 dark:border-white/[0.06] transition-all ${isSimulating ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"}`}
                   onClick={() => setIsSimulating(!isSimulating)}
                 >
                   <RefreshCw className="w-3.5 h-3.5" /> {isSimulating ? "Mode simulation actif" : "Simuler un changement"}
@@ -3194,11 +3194,11 @@ export default function NouveauClientPage() {
             <div className="p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4 text-blue-400" />
-                <span className="text-xs text-slate-300">Date butoir prochaine revue</span>
+                <span className="text-xs text-slate-700 dark:text-slate-300">Date butoir prochaine revue</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-200 font-mono">{formatDateFR(calculateDateButoir(risk.nivVigilance))}</span>
-                <span className="text-[10px] text-slate-500">
+                <span className="text-sm font-bold text-slate-800 dark:text-slate-200 font-mono">{formatDateFR(calculateDateButoir(risk.nivVigilance))}</span>
+                <span className="text-[10px] text-slate-400 dark:text-slate-500">
                   ({risk.nivVigilance === "SIMPLIFIEE" ? "+3 ans" : risk.nivVigilance === "STANDARD" ? "+2 ans" : "+1 an"})
                 </span>
               </div>
@@ -3213,7 +3213,7 @@ export default function NouveauClientPage() {
 
             {/* FIX 52: Improved decision section with shadows and transitions */}
             <div className="p-4 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] lg:col-span-2">
-              <h3 className="text-sm font-semibold text-slate-300 mb-4">Decision</h3>
+              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Decision</h3>
               <div className="grid grid-cols-3 gap-3">
                 <button
                   onClick={() => setDecision("ACCEPTER")}
@@ -3222,8 +3222,8 @@ export default function NouveauClientPage() {
                     decision === "ACCEPTER" ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-emerald-500/30 hover:bg-emerald-500/5"
                   }`}
                 >
-                  <Check className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-500"}`} />
-                  <p className={`text-sm font-semibold ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-400"}`}>Accepter</p>
+                  <Check className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-400 dark:text-slate-500"}`} />
+                  <p className={`text-sm font-semibold ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>Accepter</p>
                 </button>
                 <button
                   onClick={() => setDecision("ACCEPTER_RESERVE")}
@@ -3232,8 +3232,8 @@ export default function NouveauClientPage() {
                     decision === "ACCEPTER_RESERVE" ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-amber-500/30 hover:bg-amber-500/5"
                   }`}
                 >
-                  <AlertTriangle className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-500"}`} />
-                  <p className={`text-sm font-semibold ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-400"}`}>Accepter sous reserve</p>
+                  <AlertTriangle className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
+                  <p className={`text-sm font-semibold ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-500 dark:text-slate-400"}`}>Accepter sous reserve</p>
                 </button>
                 <button
                   onClick={() => setDecision("REFUSER")}
@@ -3242,8 +3242,8 @@ export default function NouveauClientPage() {
                     decision === "REFUSER" ? "border-red-500 bg-red-500/10 shadow-lg shadow-red-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-red-500/30 hover:bg-red-500/5"
                   }`}
                 >
-                  <X className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "REFUSER" ? "text-red-400" : "text-slate-500"}`} />
-                  <p className={`text-sm font-semibold ${decision === "REFUSER" ? "text-red-400" : "text-slate-400"}`}>Refuser</p>
+                  <X className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "REFUSER" ? "text-red-400" : "text-slate-400 dark:text-slate-500"}`} />
+                  <p className={`text-sm font-semibold ${decision === "REFUSER" ? "text-red-400" : "text-slate-500 dark:text-slate-400"}`}>Refuser</p>
                 </button>
               </div>
 
@@ -3258,7 +3258,7 @@ export default function NouveauClientPage() {
                     className={`bg-gray-50 dark:bg-white/[0.03] mt-1 focus:ring-2 focus:ring-red-500/30 ${!motifRefus ? "border-red-500/50" : "border-gray-200 dark:border-white/[0.06]"}`}
                   />
                   {!motifRefus && <p className="text-[10px] text-red-400 mt-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Le motif est obligatoire pour un refus</p>}
-                  <div className="flex justify-end mt-1"><span className="text-[9px] text-slate-600">{motifRefus.length} car.</span></div>
+                  <div className="flex justify-end mt-1"><span className="text-[9px] text-slate-300 dark:text-slate-600">{motifRefus.length} car.</span></div>
                 </div>
               )}
               {decision === "ACCEPTER_RESERVE" && (
@@ -3270,7 +3270,7 @@ export default function NouveauClientPage() {
                     placeholder="Indiquez les reserves et conditions d'acceptation..."
                     className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] mt-1 focus:ring-2 focus:ring-amber-500/30"
                   />
-                  <div className="flex justify-end mt-1"><span className="text-[9px] text-slate-600">{motifReserve.length} car.</span></div>
+                  <div className="flex justify-end mt-1"><span className="text-[9px] text-slate-300 dark:text-slate-600">{motifReserve.length} car.</span></div>
                 </div>
               )}
             </div>
@@ -3279,7 +3279,7 @@ export default function NouveauClientPage() {
             <Button
               variant="outline"
               size="sm"
-              className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all hover:scale-[1.02]"
+              className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all hover:scale-[1.02]"
               onClick={() => {
                 window.print();
                 toast.info("Impression du scoring lancee");
@@ -3297,7 +3297,7 @@ export default function NouveauClientPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Documents et finalisation</h2>
-                <p className="text-sm text-slate-500 mt-0.5">Verifiez les pieces collectees et uploadez les justificatifs manquants</p>
+                <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Verifiez les pieces collectees et uploadez les justificatifs manquants</p>
               </div>
               <div className="flex items-center gap-3">
                 {/* FIX 38: Refresh documents button */}
@@ -3331,7 +3331,7 @@ export default function NouveauClientPage() {
                   {(screening.inpi.loading || screening.documents.loading) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
                   <span className="ml-1">Rafraichir</span>
                 </Button>
-                <span className="text-xs text-slate-500">KYC</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">KYC</span>
                 <Progress value={kycCompleteness} className="w-28 h-2.5" />
                 <span className={`text-sm font-bold tabular-nums ${kycCompleteness === 100 ? "text-emerald-400" : kycCompleteness >= 60 ? "text-amber-400" : "text-red-400"}`}>{kycCompleteness}%</span>
               </div>
@@ -3342,9 +3342,9 @@ export default function NouveauClientPage() {
               <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:bg-white/[0.05] transition-colors">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
-                  <h3 className="text-sm font-semibold text-slate-300">Recapitulatif du dossier</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Recapitulatif du dossier</h3>
                 </div>
-                <ChevronDown className="w-4 h-4 text-slate-500" />
+                <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
                 <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
@@ -3363,8 +3363,8 @@ export default function NouveauClientPage() {
                       <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-white dark:bg-white/[0.02]">
                         <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${item.ok ? "bg-emerald-400" : "bg-orange-400"}`} />
                         <div className="min-w-0">
-                          <p className="text-[10px] text-slate-500">{item.label}</p>
-                          <p className="text-xs text-slate-200 truncate">{item.value || "—"}</p>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500">{item.label}</p>
+                          <p className="text-xs text-slate-800 dark:text-slate-200 truncate">{item.value || "—"}</p>
                         </div>
                       </div>
                     ))}
@@ -3508,7 +3508,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-blue-400" />
-                    <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Extrait Kbis / RNE</Label>
+                    <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Extrait Kbis / RNE</Label>
                   </div>
                   {allExtraits.map((doc, i) => {
                     const isHtml = doc.url?.includes(".html") || doc.label?.includes("RNE");
@@ -3520,11 +3520,11 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                             <FileText className="w-5 h-5 text-blue-400" />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-medium text-slate-200 truncate">{doc.label}</p>
+                            <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate">{doc.label}</p>
                             <div className="flex items-center gap-2 mt-1">
                               <Badge className="text-[9px] bg-blue-500/15 text-blue-400 border-0">{source}</Badge>
                               <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{isHtml ? "HTML" : "PDF"}</Badge>
-                              {doc.dateDepot && <span className="text-[9px] text-slate-500">{formatDateFR(doc.dateDepot)}</span>}
+                              {doc.dateDepot && <span className="text-[9px] text-slate-400 dark:text-slate-500">{formatDateFR(doc.dateDepot)}</span>}
                             </div>
                           </div>
                         </div>
@@ -3565,8 +3565,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 return (
                   <div className="p-4 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
                     <div className="flex items-center gap-2">
-                      <AlertTriangle className="w-4 h-4 text-slate-500" />
-                      <p className="text-sm text-slate-400">Aucun acte ou statut recupere automatiquement</p>
+                      <AlertTriangle className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Aucun acte ou statut recupere automatiquement</p>
                     </div>
                   </div>
                 );
@@ -3585,7 +3585,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 if (t === "Statuts") return "text-violet-400 bg-violet-500/10";
                 if (t === "PV AG") return "text-cyan-400 bg-cyan-500/10";
                 if (t.includes("Comptes")) return "text-amber-400 bg-amber-500/10";
-                return "text-slate-400 bg-gray-100 dark:bg-white/[0.06]";
+                return "text-slate-500 dark:text-slate-400 bg-gray-100 dark:bg-white/[0.06]";
               };
 
               return (
@@ -3593,8 +3593,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Documents collectes</Label>
-                      <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{storedDocs.length + linkDocs.length}</Badge>
+                      <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents collectes</Label>
+                      <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0">{storedDocs.length + linkDocs.length}</Badge>
                     </div>
                     {isLoading && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />}
                   </div>
@@ -3607,13 +3607,13 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           <FileText className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm text-slate-200 truncate max-w-[400px]">{doc.label}</p>
+                          <p className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-[400px]">{doc.label}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
                             <span className="text-[8px] text-emerald-500/70">PDF stocke</span>
-                            {doc.source && <span className="text-[8px] text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
-                            {doc.dateDepot && <span className="text-[8px] text-slate-500">{formatDateFR(doc.dateDepot)}</span>}
-                            {doc.dateCloture && <span className="text-[8px] text-slate-500">Cloture {formatDateFR(doc.dateCloture)}</span>}
+                            {doc.source && <span className="text-[8px] text-slate-400 dark:text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
+                            {doc.dateDepot && <span className="text-[8px] text-slate-400 dark:text-slate-500">{formatDateFR(doc.dateDepot)}</span>}
+                            {doc.dateCloture && <span className="text-[8px] text-slate-400 dark:text-slate-500">Cloture {formatDateFR(doc.dateCloture)}</span>}
                           </div>
                         </div>
                       </div>
@@ -3634,17 +3634,17 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           <ExternalLink className="w-4 h-4" />
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm text-slate-300 truncate max-w-[400px]">{doc.label}</p>
+                          <p className="text-sm text-slate-700 dark:text-slate-300 truncate max-w-[400px]">{doc.label}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
-                            <Badge className="text-[8px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
+                            <Badge className="text-[8px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
                             <span className="text-[8px] text-amber-400/70">Lien externe</span>
-                            {doc.source && <span className="text-[8px] text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
+                            {doc.source && <span className="text-[8px] text-slate-400 dark:text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
                           </div>
                         </div>
                       </div>
                       {doc.url && (
                         <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                          className="shrink-0 ml-2 text-[11px] font-medium bg-gray-100 dark:bg-white/[0.06] text-slate-300 hover:bg-gray-200 dark:bg-white/[0.1] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
+                          className="shrink-0 ml-2 text-[11px] font-medium bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 hover:bg-gray-200 dark:bg-white/[0.1] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
                           <ExternalLink className="w-3 h-3" /> Voir
                         </a>
                       )}
@@ -3659,17 +3659,17 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-amber-400" />
-                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
-                  <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.financials.length} exercice(s)</Badge>
+                  <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
+                  <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0">{screening.inpi.data.financials.length} exercice(s)</Badge>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-gray-50 dark:bg-white/[0.03]">
-                          <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
+                          <th className="text-left py-2.5 px-3 text-slate-400 dark:text-slate-500 font-medium">Indicateur</th>
                           {screening.inpi.data.financials.map((f, i) => (
-                            <th key={f.dateCloture || `fin-${i}`} className="text-right py-2.5 px-3 text-slate-400 font-medium">
+                            <th key={f.dateCloture || `fin-${i}`} className="text-right py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium">
                               {f.dateCloture ? formatDateFR(f.dateCloture) : `Exercice ${i + 1}`}
                             </th>
                           ))}
@@ -3688,12 +3688,12 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           if (!hasData) return null;
                           return (
                             <tr key={row.key} className="border-t border-gray-100 dark:border-white/[0.04] hover:bg-gray-50 dark:bg-white/[0.03] even:bg-gray-50/50 dark:bg-white/[0.01]">
-                              <td className="py-2 px-3 text-slate-400">{row.label}</td>
+                              <td className="py-2 px-3 text-slate-500 dark:text-slate-400">{row.label}</td>
                               {screening.inpi.data!.financials.map((f, i) => {
                                 const val = f[row.key];
                                 const isNeg = typeof val === "number" && val < 0;
                                 return (
-                                  <td key={f.dateCloture || `fin-${i}`} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
+                                  <td key={f.dateCloture || `fin-${i}`} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-800 dark:text-slate-200"}`}>
                                     {val != null ? (row.key === "effectif" ? val : `${typeof val === "number" ? val.toLocaleString("fr-FR") : val} \u20AC`) : "—"}
                                   </td>
                                 );
@@ -3725,8 +3725,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-slate-400" />
-                  <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
-                  <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{selectedEnterprise.finances.length} exercice(s)</Badge>
+                  <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Donnees financieres</Label>
+                  <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0">{selectedEnterprise.finances.length} exercice(s)</Badge>
                   <Badge className="text-[9px] bg-amber-500/15 text-amber-400 border-0">Annuaire Entreprises</Badge>
                 </div>
                 <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
@@ -3734,9 +3734,9 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                     <table className="w-full text-xs">
                       <thead>
                         <tr className="bg-gray-50 dark:bg-white/[0.03]">
-                          <th className="text-left py-2.5 px-3 text-slate-500 font-medium">Indicateur</th>
+                          <th className="text-left py-2.5 px-3 text-slate-400 dark:text-slate-500 font-medium">Indicateur</th>
                           {selectedEnterprise.finances.map((f, i) => (
-                            <th key={f.annee || `efin-${i}`} className="text-right py-2.5 px-3 text-slate-400 font-medium">{f.annee || `Exercice ${i + 1}`}</th>
+                            <th key={f.annee || `efin-${i}`} className="text-right py-2.5 px-3 text-slate-500 dark:text-slate-400 font-medium">{f.annee || `Exercice ${i + 1}`}</th>
                           ))}
                         </tr>
                       </thead>
@@ -3750,12 +3750,12 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           if (!hasData) return null;
                           return (
                             <tr key={row.key} className="border-t border-gray-100 dark:border-white/[0.04] hover:bg-gray-50 dark:bg-white/[0.03]">
-                              <td className="py-2 px-3 text-slate-400">{row.label}</td>
+                              <td className="py-2 px-3 text-slate-500 dark:text-slate-400">{row.label}</td>
                               {selectedEnterprise.finances!.map((f, i) => {
                                 const val = f[row.key];
                                 const isNeg = typeof val === "number" && val < 0;
                                 return (
-                                  <td key={f.annee || `efin-${i}`} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-200"}`}>
+                                  <td key={f.annee || `efin-${i}`} className={`text-right py-2 px-3 font-mono tabular-nums ${isNeg ? "text-red-400" : "text-slate-800 dark:text-slate-200"}`}>
                                     {val != null ? (row.key === "effectif" ? val : `${typeof val === "number" ? val.toLocaleString("fr-FR") : val} \u20AC`) : "—"}
                                   </td>
                                 );
@@ -3775,16 +3775,16 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               <Collapsible defaultOpen={recentDirigeantChange}>
                 <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:bg-white/[0.05] transition-colors">
                   <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-slate-400" />
-                    <h3 className="text-xs font-semibold text-slate-300">Historique INPI</h3>
-                    <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{inpiHistorique.length}</Badge>
+                    <Clock className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                    <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Historique INPI</h3>
+                    <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0">{inpiHistorique.length}</Badge>
                     {recentDirigeantChange && (
                       <Badge className="text-[9px] bg-red-500/20 text-red-400 border-0 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3" /> Dirigeant modifie
                       </Badge>
                     )}
                   </div>
-                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2">
                   <div className="relative pl-6 space-y-0">
@@ -3806,20 +3806,20 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           }`} />
                           <div className={`p-2 rounded-lg ${isRecent && isDirigeant ? "bg-red-500/5 border border-red-500/20" : "bg-white dark:bg-white/[0.02]"}`}>
                             <div className="flex items-center gap-2">
-                              <span className="text-[10px] text-slate-500 font-mono">{formatDateFR(evt.date)}</span>
+                              <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono">{formatDateFR(evt.date)}</span>
                               <Badge className={`text-[9px] border-0 ${
-                                isDirigeant ? "bg-red-500/20 text-red-400" : "bg-slate-500/20 text-slate-400"
+                                isDirigeant ? "bg-red-500/20 text-red-400" : "bg-slate-500/20 text-slate-500 dark:text-slate-400"
                               }`}>{evt.type}</Badge>
                             </div>
-                            <p className="text-xs text-slate-300 mt-1">{evt.description}</p>
-                            {evt.detail && <p className="text-[10px] text-slate-500 mt-0.5">{evt.detail}</p>}
+                            <p className="text-xs text-slate-700 dark:text-slate-300 mt-1">{evt.description}</p>
+                            {evt.detail && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{evt.detail}</p>}
                           </div>
                         </div>
                       );
                     })}
                   </div>
                   {inpiHistorique.length > 10 && (
-                    <p className="text-[10px] text-slate-500 text-center mt-2">+ {inpiHistorique.length - 10} evenement(s) anterieurs</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center mt-2">+ {inpiHistorique.length - 10} evenement(s) anterieurs</p>
                   )}
                 </CollapsibleContent>
               </Collapsible>
@@ -3830,22 +3830,22 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               <Collapsible>
                 <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:bg-white/[0.05] transition-colors">
                   <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-slate-400" />
-                    <h3 className="text-xs font-semibold text-slate-300">Etablissements</h3>
-                    <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-400 border-0">{screening.inpi.data.companyData.etablissements.length}</Badge>
+                    <Building2 className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                    <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Etablissements</h3>
+                    <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0">{screening.inpi.data.companyData.etablissements.length}</Badge>
                   </div>
-                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                  <ChevronDown className="w-4 h-4 text-slate-400 dark:text-slate-500" />
                 </CollapsibleTrigger>
                 <CollapsibleContent className="mt-2 space-y-1.5">
                   {screening.inpi.data.companyData.etablissements.map((e, i) => (
                     <div key={e.siret || `etab-${i}`} className="flex items-center justify-between p-2.5 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-100 dark:border-white/[0.04] text-xs">
                       <div className="flex items-center gap-2 min-w-0">
                         {e.estSiege && <Badge className="text-[8px] bg-blue-500/20 text-blue-400 border-0 shrink-0">Siege</Badge>}
-                        <span className="text-slate-300 truncate">{[e.adresse, e.codePostal, e.commune].filter(Boolean).join(", ")}</span>
+                        <span className="text-slate-700 dark:text-slate-300 truncate">{[e.adresse, e.codePostal, e.commune].filter(Boolean).join(", ")}</span>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 ml-2">
-                        {e.activite && <span className="text-[10px] text-slate-500 truncate max-w-[120px]">{e.activite}</span>}
-                        <span className="text-slate-600 font-mono">{e.siret}</span>
+                        {e.activite && <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate max-w-[120px]">{e.activite}</span>}
+                        <span className="text-slate-300 dark:text-slate-600 font-mono">{e.siret}</span>
                       </div>
                     </div>
                   ))}
@@ -3911,7 +3911,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-semibold text-slate-300">Checklist documentaire</h3>
+                      <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Checklist documentaire</h3>
                       <Badge className={`text-[9px] border-0 ${
                         risk.nivVigilance === "SIMPLIFIEE" ? "bg-emerald-500/20 text-emerald-400" :
                         risk.nivVigilance === "STANDARD" ? "bg-amber-500/20 text-amber-400" :
@@ -3963,10 +3963,10 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <Label className="text-xs font-semibold text-slate-300 uppercase tracking-wider">Documents uploades</Label>
+                    <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents uploades</Label>
                     <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{documents.filter(d => d.file).length} fichier(s)</Badge>
                   </div>
-                  <span className="text-[9px] text-slate-500">
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500">
                     Total : {(documents.filter(d => d.file).reduce((s, d) => s + (d.file?.size || 0), 0) / 1024 / 1024).toFixed(1)} Mo
                   </span>
                 </div>
@@ -3981,15 +3981,15 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           {isImage ? <Eye className="w-4 h-4 text-violet-400" /> : <FileText className="w-4 h-4 text-blue-400" />}
                         </div>
                         <div className="min-w-0">
-                          <span className="text-xs text-slate-300 truncate block">{doc.name}</span>
+                          <span className="text-xs text-slate-700 dark:text-slate-300 truncate block">{doc.name}</span>
                           <div className="flex items-center gap-2 mt-0.5">
-                            {doc.file && <span className="text-[9px] text-slate-500">{doc.file.size > 1024 * 1024 ? `${(doc.file.size / 1024 / 1024).toFixed(1)} Mo` : `${(doc.file.size / 1024).toFixed(0)} Ko`}</span>}
+                            {doc.file && <span className="text-[9px] text-slate-400 dark:text-slate-500">{doc.file.size > 1024 * 1024 ? `${(doc.file.size / 1024 / 1024).toFixed(1)} Mo` : `${(doc.file.size / 1024).toFixed(0)} Ko`}</span>}
                             <Badge className="text-[8px] bg-blue-500/15 text-blue-400 border-0 uppercase">{ext}</Badge>
                             <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">{doc.type}</Badge>
                           </div>
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-7 w-7 p-0 shrink-0">
+                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-400 dark:text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-7 w-7 p-0 shrink-0">
                         <Trash2 className="w-3 h-3" />
                       </Button>
                     </div>
@@ -4008,9 +4008,9 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   dragOver ? "border-blue-400 bg-blue-500/10" : "border-gray-300 dark:border-white/[0.08] hover:border-blue-500/30"
                 }`}
               >
-                <Upload className={`w-8 h-8 mx-auto mb-2 ${dragOver ? "text-blue-400" : "text-slate-600"}`} />
-                <p className="text-xs text-slate-400">Glissez ou cliquez pour ajouter des documents supplementaires</p>
-                <p className="text-[9px] text-slate-600 mt-1">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</p>
+                <Upload className={`w-8 h-8 mx-auto mb-2 ${dragOver ? "text-blue-400" : "text-slate-300 dark:text-slate-600"}`} />
+                <p className="text-xs text-slate-500 dark:text-slate-400">Glissez ou cliquez pour ajouter des documents supplementaires</p>
+                <p className="text-[9px] text-slate-300 dark:text-slate-600 mt-1">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</p>
                 <input type="file" multiple className="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx" onChange={e => handleFileUpload(e.target.files)} />
               </div>
             </label>
@@ -4095,7 +4095,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
           <Button
             variant="outline"
             size="sm"
-            className={`gap-1.5 shadow-lg border-gray-300 dark:border-white/[0.1] bg-gray-50 dark:bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-400 hover:text-blue-400"}`}
+            className={`gap-1.5 shadow-lg border-gray-300 dark:border-white/[0.1] bg-gray-50 dark:bg-slate-900/90 backdrop-blur-sm transition-all duration-200 hover:scale-105 ${draftSaved ? "text-emerald-400 border-emerald-500/30" : "text-slate-500 dark:text-slate-400 hover:text-blue-400"}`}
             onClick={() => {
               const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
               try { sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData)); } catch { /* storage full */ }
@@ -4113,12 +4113,12 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
       {/* FIX 47: Improved navigation buttons with step indicator + #80: Breadcrumb */}
       <div className="space-y-3">
         {/* #80: Breadcrumb navigation */}
-        <div className="flex items-center gap-1.5 text-[10px] text-slate-600">
-          <button onClick={() => navigate("/bdd")} className="hover:text-slate-400 transition-colors">Clients</button>
+        <div className="flex items-center gap-1.5 text-[10px] text-slate-300 dark:text-slate-600">
+          <button onClick={() => navigate("/bdd")} className="hover:text-slate-500 dark:text-slate-400 transition-colors">Clients</button>
           <ChevronRight className="w-3 h-3" />
-          <span className="text-slate-500">Nouveau</span>
+          <span className="text-slate-400 dark:text-slate-500">Nouveau</span>
           <ChevronRight className="w-3 h-3" />
-          <span className="text-slate-400">{STEP_LABELS[step]}</span>
+          <span className="text-slate-500 dark:text-slate-400">{STEP_LABELS[step]}</span>
         </div>
 
         <div className="flex items-center justify-between">
@@ -4133,10 +4133,10 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
 
           {/* #76: Navigation hints */}
           <div className="flex flex-col items-center">
-            <span className="text-[10px] text-slate-500 tabular-nums">Etape {step + 1} / {STEP_LABELS.length}</span>
-            <span className="text-[9px] text-slate-600">
-              <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> precedent
-              {" "}<kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-600 font-mono text-[8px]">Entree</kbd> suivant
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums">Etape {step + 1} / {STEP_LABELS.length}</span>
+            <span className="text-[9px] text-slate-300 dark:text-slate-600">
+              <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-300 dark:text-slate-600 font-mono text-[8px]">Esc</kbd> precedent
+              {" "}<kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-300 dark:text-slate-600 font-mono text-[8px]">Entree</kbd> suivant
             </span>
           </div>
 
@@ -4151,7 +4151,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                     toast.info("Etape passee — vous pourrez y revenir plus tard");
                     setStep(step + 1);
                   }}
-                  className="gap-1 text-xs text-slate-500 hover:text-slate-300"
+                  className="gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:text-slate-300"
                 >
                   Passer
                   <ArrowRight className="w-3 h-3" />
@@ -4232,8 +4232,8 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 <CheckCircle2 className="w-10 h-10 text-emerald-400" />
               </div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">Client cree avec succes</h2>
-              <p className="text-sm text-slate-400 mt-2">{form.raisonSociale} — {createdClientRef}</p>
-              <p className="text-xs text-slate-500 mt-1">Fiche LCB-FT generee automatiquement</p>
+              <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{form.raisonSociale} — {createdClientRef}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Fiche LCB-FT generee automatiquement</p>
               {/* FIX 45: Show document count in success modal */}
               <div className="flex items-center justify-center gap-3 mt-3">
                 <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full">
@@ -4268,7 +4268,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               <Button
                 onClick={() => navigate("/bdd")}
                 variant="ghost"
-                className="w-full gap-2 text-slate-400 hover:text-slate-200"
+                className="w-full gap-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:text-slate-200"
               >
                 <ArrowRight className="w-4 h-4" /> Retour a la base clients
               </Button>
@@ -4339,7 +4339,7 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
       <div className="px-4 py-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
         <div className="flex items-center gap-2">
           <MapIcon className="w-4 h-4 text-emerald-400" />
-          <h3 className="text-sm font-semibold text-slate-300">Localisation</h3>
+          <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Localisation</h3>
           {geoLoading && <Loader2 className="w-3 h-3 animate-spin text-blue-400" />}
         </div>
         <div className="flex items-center gap-2">
@@ -4444,7 +4444,7 @@ function SourceField({ label, value, onChange, type = "text", error, placeholder
     return (
       <div>
         <div className="flex items-center gap-1.5">
-          <Label className="text-[10px] text-slate-500 uppercase">
+          <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">
             {label}
             {/* #17: Red asterisk for required */}
             {required && !label.includes("*") && <span className="text-red-400 ml-0.5">*</span>}
@@ -4466,12 +4466,12 @@ function SourceField({ label, value, onChange, type = "text", error, placeholder
   return (
     <div>
       <div className="flex items-center gap-1.5">
-        <Label className="text-[10px] text-slate-500 uppercase">
+        <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">
           {label}
           {required && !label.includes("*") && <span className="text-red-400 ml-0.5">*</span>}
         </Label>
         {/* #30: Lock icon when auto-filled */}
-        {isLocked && <Lock className="w-3 h-3 text-slate-600" />}
+        {isLocked && <Lock className="w-3 h-3 text-slate-300 dark:text-slate-600" />}
         {source && !isEmpty && <Badge className="text-[9px] bg-blue-500/20 text-blue-400 border-0 gap-0.5">{autoFilled && <Sparkles className="w-2.5 h-2.5" />}{source}</Badge>}
       </div>
       <Input
@@ -4485,7 +4485,7 @@ function SourceField({ label, value, onChange, type = "text", error, placeholder
       />
       {/* #23: Inline validation errors + #94: Error styling */}
       {error && <p className="text-[10px] text-red-400 mt-0.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> {error}</p>}
-      {hint && <p className="text-[10px] text-slate-500 mt-0.5">{hint}</p>}
+      {hint && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{hint}</p>}
     </div>
   );
 }
@@ -4511,7 +4511,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
   // Idee 22: Source badge
   const sourceBadge = (() => {
     if (isAuto && !isEmpty && sourceType === "INPI") return <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">INPI</span>;
-    if (isAuto && !isEmpty && sourceType === "AnnuaireEntreprises") return <span className="text-[9px] bg-slate-500/20 text-slate-400 px-1.5 py-0.5 rounded-full font-medium">data.gouv</span>;
+    if (isAuto && !isEmpty && sourceType === "AnnuaireEntreprises") return <span className="text-[9px] bg-slate-500/20 text-slate-500 dark:text-slate-400 px-1.5 py-0.5 rounded-full font-medium">data.gouv</span>;
     if (isAuto && !isEmpty) return <span className="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded-full font-medium">Auto</span>;
     if (required && isEmpty) return <span className="text-[9px] bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded-full font-medium">A completer</span>;
     if (!isEmpty) return <span className="text-[9px] bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full font-medium">✓</span>;
@@ -4522,7 +4522,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
     return (
       <div>
         <div className="flex items-center gap-1.5">
-          <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
+          <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">{label}</Label>
           {sourceBadge}
         </div>
         <Select value={String(value)} onValueChange={onChange}>
@@ -4541,7 +4541,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
   return (
     <div>
       <div className="flex items-center gap-1.5">
-        <Label className="text-[10px] text-slate-500 uppercase">{label}</Label>
+        <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">{label}</Label>
         {sourceBadge}
       </div>
       <Input
@@ -4557,7 +4557,7 @@ function FormField({ label, value, onChange, type = "text", error, placeholder, 
       {error && <p className="text-[10px] text-red-400 mt-0.5 flex items-center gap-1"><AlertTriangle className="w-3 h-3 shrink-0" /> {error}</p>}
       {needsCompletion && !error && isEmpty && <p className="text-[10px] text-amber-400 mt-0.5">A completer</p>}
       {showOrange && !error && !needsCompletion && isEmpty && <p className="text-[10px] text-amber-400 mt-0.5">A completer manuellement</p>}
-      {hint && <p className="text-[10px] text-slate-500 mt-0.5">{hint}</p>}
+      {hint && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">{hint}</p>}
     </div>
   );
 }
