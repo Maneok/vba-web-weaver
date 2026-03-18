@@ -1,8 +1,10 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
-const PAPPERS_API_KEY = Deno.env.get("PAPPERS_API_KEY") ?? "";
+const PAPPERS_API_KEY = Deno.env.get("PAPPERS_API_KEY") ?? Deno.env.get("PAPPERS") ?? "";
 const PAPPERS_BASE = "https://api.pappers.fr/v2";
+
+console.log("[pappers-lookup] Init — API key present:", !!PAPPERS_API_KEY, "length:", PAPPERS_API_KEY.length);
 
 import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
 
@@ -143,16 +145,27 @@ function buildBeneficiairesDetails(befs: PappersCompany["beneficiaires_effectifs
 
 // ======= LEVEL 1: PAPPERS API =======
 async function searchPappersBySiren(siren: string): Promise<PappersCompany | null> {
-  if (!PAPPERS_API_KEY) return null;
+  if (!PAPPERS_API_KEY) {
+    console.error("[PAPPERS_DIAG] No API key configured (PAPPERS_API_KEY is empty)");
+    return null;
+  }
   try {
     const clean = siren.replace(/\s/g, "");
-    const res = await fetch(
-      `${PAPPERS_BASE}/entreprise?api_token=${PAPPERS_API_KEY}&siren=${clean}`,
-      { signal: AbortSignal.timeout(8000) }
-    );
-    if (!res.ok) return null;
+    const pappersUrl = `${PAPPERS_BASE}/entreprise?api_token=${PAPPERS_API_KEY}&siren=${clean}`;
+    const res = await fetch(pappersUrl, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      const body = await res.clone().text().catch(() => "");
+      console.error("[PAPPERS_DIAG]", JSON.stringify({
+        url: pappersUrl.replace(PAPPERS_API_KEY, "***"),
+        status: res.status,
+        body: body.slice(0, 300),
+      }));
+      return null;
+    }
+    console.log("[Pappers] SIREN lookup OK for", clean);
     return await res.json();
-  } catch {
+  } catch (err) {
+    console.error("[PAPPERS_DIAG] Exception:", (err as Error).message);
     return null;
   }
 }
@@ -160,14 +173,17 @@ async function searchPappersBySiren(siren: string): Promise<PappersCompany | nul
 async function searchPappersByName(nom: string): Promise<PappersCompany[]> {
   if (!PAPPERS_API_KEY) return [];
   try {
-    const res = await fetch(
-      `${PAPPERS_BASE}/recherche?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`,
-      { signal: AbortSignal.timeout(8000) }
-    );
-    if (!res.ok) return [];
+    const pappersUrl = `${PAPPERS_BASE}/recherche?api_token=${PAPPERS_API_KEY}&q=${encodeURIComponent(nom)}&par_page=5`;
+    const res = await fetch(pappersUrl, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) {
+      const body = await res.clone().text().catch(() => "");
+      console.error("[PAPPERS_DIAG] Name search failed:", JSON.stringify({ status: res.status, body: body.slice(0, 300) }));
+      return [];
+    }
     const data = await res.json();
     return data.resultats ?? [];
-  } catch {
+  } catch (err) {
+    console.error("[PAPPERS_DIAG] Name search exception:", (err as Error).message);
     return [];
   }
 }

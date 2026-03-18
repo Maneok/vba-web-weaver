@@ -77,27 +77,39 @@ async function getINPIToken(): Promise<string | null> {
 async function _refreshINPIToken(): Promise<string | null> {
   const username = Deno.env.get("INPI_USERNAME");
   const password = Deno.env.get("INPI_PASSWORD");
-  if (!username || !password) return null;
-
-  try {
-    const res = await fetch(`${INPI_BASE}/sso/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password }),
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!res.ok) { console.error(`[INPI] Auth failed: ${res.status}`); console.error("[INPI] Credentials check - username exists:", !!username, "password exists:", !!password); return null; }
-    const data = await res.json();
-    if (data.token) {
-      cachedToken = data.token;
-      tokenExpiry = Date.now() + 8 * 60 * 1000;
-      return data.token;
-    }
-    return null;
-  } catch (e) {
-    console.error("[INPI] Auth error:", (e as Error).message);
+  if (!username || !password) {
+    console.error("[INPI] Missing credentials - INPI_USERNAME:", !!username, "INPI_PASSWORD:", !!password);
     return null;
   }
+
+  // Try up to 2 times
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const res = await fetch(`${INPI_BASE}/sso/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+        signal: AbortSignal.timeout(10000),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.token) {
+          cachedToken = data.token;
+          tokenExpiry = Date.now() + 8 * 60 * 1000;
+          console.log(`[INPI] Auth OK (attempt ${attempt})`);
+          return data.token;
+        }
+      } else {
+        const errBody = await res.text().catch(() => "");
+        console.error(`[INPI] Auth failed attempt ${attempt}: HTTP ${res.status} — ${errBody.slice(0, 200)}`);
+        if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+      }
+    } catch (e) {
+      console.error(`[INPI] Auth error attempt ${attempt}:`, (e as Error).message);
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1000));
+    }
+  }
+  return null;
 }
 
 // ====== INPI Company Data Parsing ======
@@ -410,8 +422,8 @@ Deno.serve(async (req) => {
           sources.push("Pappers");
           console.log("[Pappers] Enrichment OK");
         }
-      } catch {
-        console.log("[Pappers] Enrichment failed");
+      } catch (err) {
+        console.error("[Pappers] Enrichment failed:", (err as Error).message);
       }
     }
 
@@ -702,7 +714,7 @@ Deno.serve(async (req) => {
                 })),
               }));
             }
-          } catch { /* Pappers unavailable */ }
+          } catch (err) { console.error("[Pappers] Name-search enrichment failed:", (err as Error).message); }
         }
         if (!capital && (r.capital ?? 0) > 0) { capital = r.capital; capitalSource = "data.gouv"; }
 
