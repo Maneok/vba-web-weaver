@@ -6,7 +6,6 @@ import {
   ShieldCheck,
   ClipboardCheck,
   AlertTriangle,
-  ScrollText,
   Settings,
   UserPlus,
   FolderOpen,
@@ -44,7 +43,6 @@ const PRINCIPAL_NAV: NavItem[] = [
 const CONFORMITE_NAV: NavItem[] = [
   { to: "/registre", label: "Registre LCB", icon: AlertTriangle, shortcut: "R" },
   { to: "/revue-maintien", label: "Revue & Maintien", icon: SearchCheck, shortcut: "M" },
-  { to: "/logs", label: "Journal d'audit", icon: ScrollText, shortcut: "J" },
   { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck, shortcut: "Q" },
 ];
 
