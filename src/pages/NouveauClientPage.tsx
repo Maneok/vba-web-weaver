@@ -1422,57 +1422,36 @@ export default function NouveauClientPage() {
       }
     }
 
-    // Upload manual documents to Supabase Storage + persist in documents_kyc
+    // FIX 14: Upload manual documents to Supabase storage + persist in documents_kyc
     const manualDocs = documents.filter(d => d.file);
     const docLinkUpdates: Record<string, string> = {};
     const cabinetId = session?.user?.user_metadata?.cabinet_id;
     if (manualDocs.length > 0) {
-      logger.info("[Upload] Starting upload of", manualDocs.length, "document(s)");
       const cleanSirenForStorage = form.siren?.replace(/\s/g, "") || ref;
+
       for (const doc of manualDocs) {
         if (!doc.file) continue;
         try {
           const ext = doc.file.name.split(".").pop() || "pdf";
           const safeType = doc.type.replace(/[^a-zA-Z0-9_-]/g, "_");
           const storagePath = `${cleanSirenForStorage}/${safeType}_${Date.now()}.${ext}`;
-
-          // Try primary bucket "documents-kyc", fallback to "kyc-documents"
-          let uploadErr: { message: string } | null = null;
-          let usedBucket = "documents-kyc";
-          const uploadResult = await supabase.storage
-            .from("documents-kyc")
+          const { error: uploadErr } = await supabase.storage
+            .from("kyc-documents")
             .upload(storagePath, doc.file, {
               contentType: doc.file.type || "application/octet-stream",
-              upsert: false,
+              upsert: true,
             });
-          uploadErr = uploadResult.error;
-
-          if (uploadErr?.message?.includes("Bucket not found") || uploadErr?.message?.includes("not found")) {
-            logger.warn("[Upload] Bucket 'documents-kyc' not found, falling back to 'kyc-documents'");
-            usedBucket = "kyc-documents";
-            const fallbackResult = await supabase.storage
-              .from("kyc-documents")
-              .upload(storagePath, doc.file, {
-                contentType: doc.file.type || "application/octet-stream",
-                upsert: true,
-              });
-            uploadErr = fallbackResult.error;
-          }
-
           if (uploadErr) {
-            logger.error(`[Upload] Failed for ${doc.name}:`, uploadErr.message);
+            logger.error(`[Submit] Upload failed for ${doc.name}:`, uploadErr.message);
           } else {
-            logger.debug(`[Upload] Uploaded ${doc.name} → ${usedBucket}/${storagePath}`);
-
-            // Get public URL
-            const { data: urlData } = supabase.storage.from(usedBucket).getPublicUrl(storagePath);
-            const publicUrl = urlData?.publicUrl || null;
-
-            // Generate signed URL for client record
+            logger.debug(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
+            // Generate signed URL for the uploaded document
             const { data: signedData } = await supabase.storage
-              .from(usedBucket)
+              .from("kyc-documents")
               .createSignedUrl(storagePath, 365 * 24 * 60 * 60); // 1 year
-            const signedUrl = signedData?.signedUrl;
+            const signedUrl = signedData?.signedUrl || "";
+
+            // Update document link on client
             if (signedUrl) {
               const typeUp = doc.type.toUpperCase();
               if (typeUp.includes("KBIS") || typeUp.includes("EXTRAIT")) docLinkUpdates.lien_kbis = signedUrl;
@@ -1480,50 +1459,56 @@ export default function NouveauClientPage() {
               else if (typeUp.includes("CNI") || typeUp.includes("IDENTITE") || typeUp.includes("PASSEPORT")) docLinkUpdates.lien_cni = signedUrl;
             }
 
-            // Persist in documents_kyc table
-            await supabase.from("documents_kyc").insert({
-              cabinet_id: cabinetId,
-              client_ref: ref,
-              siren: cleanSirenForStorage,
-              type: doc.type.toUpperCase(),
-              label: doc.name,
-              source: "UPLOAD_MANUEL",
-              storage_path: storagePath,
-              public_url: publicUrl,
-              file_size: doc.file.size,
-              mime_type: doc.file.type || "application/octet-stream",
-              status: "manual",
-            }).then(({ error: insertErr }) => {
-              if (insertErr) logger.warn("[Upload] documents_kyc insert failed:", insertErr.message);
-              else logger.debug("[Upload] documents_kyc row created for", doc.name);
-            });
+            // ★ Persist dans documents_kyc
+            if (cabinetId) {
+              await supabase.from("documents_kyc").insert({
+                cabinet_id: cabinetId,
+                client_ref: ref,
+                siren: cleanSirenForStorage,
+                type: doc.type.toUpperCase(),
+                label: doc.name,
+                source: "UPLOAD_MANUEL",
+                storage_path: storagePath,
+                public_url: signedUrl || null,
+                file_size: doc.file.size,
+                mime_type: doc.file.type || "application/octet-stream",
+                status: "manual",
+              }).catch(err => logger.warn("[Submit] documents_kyc insert failed:", err));
+            }
           }
         } catch (err: unknown) {
-          logger.error(`[Upload] Error for ${doc.name}:`, err);
+          logger.error(`[Submit] Upload error for ${doc.name}:`, err);
         }
       }
     }
 
-    // Also persist screening-fetched documents (INPI, Pappers) in documents_kyc
-    const screeningDocs = [
+    // Persist also auto-recovered docs (INPI, documents-fetch) in documents_kyc
+    const autoDocsToPersist = [
       ...(screening.inpi.data?.documents ?? []),
       ...(screening.documents.data?.documents ?? []),
-    ].filter(d => d.url && (d.storedInSupabase || d.status === "auto"));
-    for (const sd of screeningDocs) {
-      await supabase.from("documents_kyc").insert({
-        cabinet_id: cabinetId,
-        client_ref: ref,
-        siren: form.siren?.replace(/\s/g, "") || "",
-        type: (sd.type || "AUTRE").toUpperCase(),
-        label: sd.label || sd.type || "Document",
-        source: String(sd.source || "API").toUpperCase(),
-        storage_path: null,
-        public_url: sd.url,
-        file_size: null,
-        mime_type: sd.url?.endsWith(".pdf") ? "application/pdf" : "text/html",
-        status: sd.storedInSupabase ? "auto_stored" : "auto_link",
-        date_document: sd.dateDepot || sd.dateCloture || null,
-      }).catch(err => logger.warn("[Upload] documents_kyc insert (screening) failed:", err));
+    ].filter(d => d.url && (d.storedInSupabase || d.status === "auto" || d.status === "lien_direct"));
+
+    if (autoDocsToPersist.length > 0 && cabinetId) {
+      const cleanSiren = form.siren?.replace(/\s/g, "") || "";
+      const seenUrls = new Set<string>();
+      for (const doc of autoDocsToPersist) {
+        if (!doc.url || seenUrls.has(doc.url)) continue;
+        seenUrls.add(doc.url);
+        await supabase.from("documents_kyc").insert({
+          cabinet_id: cabinetId,
+          client_ref: ref,
+          siren: cleanSiren,
+          type: (doc.type || "AUTRE").toUpperCase(),
+          label: doc.label || doc.type || "Document auto",
+          source: (doc as any).source === "inpi" ? "INPI" : "API_AUTO",
+          storage_path: null,
+          public_url: doc.url,
+          file_size: null,
+          mime_type: "application/pdf",
+          status: "auto",
+          date_document: (doc as any).dateDepot || (doc as any).dateCloture || null,
+        }).catch(() => {}); // Non-blocking
+      }
     }
 
     // Update client record with manual upload URLs
@@ -1535,49 +1520,52 @@ export default function NouveauClientPage() {
       }
     }
 
-    // Track creation event in client_history
-    await supabase.from("client_history").insert({
-      cabinet_id: cabinetId,
-      client_ref: ref,
-      event_type: "CREATION",
-      event_date: new Date().toISOString(),
-      description: `Client ${form.raisonSociale} cree — Score ${adjustedScore}/120 — Vigilance ${risk.nivVigilance} — Decision: ${decision}`,
-      metadata: {
-        score: adjustedScore,
-        vigilance: risk.nivVigilance,
-        decision,
-        motifRefus: decision === "REFUSER" ? motifRefus : undefined,
-        motifReserve: decision === "ACCEPTER_RESERVE" ? motifReserve : undefined,
-        documentsCount: manualDocs.length + screeningDocs.length,
-        beCount: beneficiaires.length,
-        screeningComplete: !screeningRunning,
-        forme: form.forme,
-        mission: form.mission,
-        ape: form.ape,
-      },
-      user_email: session?.user?.email || null,
-    }).catch(err => logger.warn("[History] client_history insert failed:", err));
+    // ★ Track creation in client_history + audit_trail
+    try {
+      if (session?.user) {
+        // client_history
+        await supabase.from("client_history").insert({
+          cabinet_id: cabinetId,
+          client_ref: ref,
+          event_type: "CREATION",
+          description: `Client ${form.raisonSociale} créé — Score ${adjustedScore}/100 — Vigilance ${risk.nivVigilance} — Décision: ${decision}`,
+          metadata: {
+            score_global: adjustedScore,
+            niv_vigilance: risk.nivVigilance,
+            decision,
+            motif_refus: decision === "REFUSER" ? motifRefus : undefined,
+            beneficiaires_count: beneficiaires.length,
+            documents_uploaded: documents.filter(d => d.file).length,
+            documents_auto: autoDocsToPersist?.length || 0,
+            screening_complete: !screeningRunning,
+            data_sources: dataProvenance.map(p => p.source),
+          },
+          user_email: session.user.email,
+        }).catch(err => logger.warn("[Submit] client_history insert failed:", err));
 
-    // Audit trail for client creation
-    await supabase.from("audit_trail").insert({
-      cabinet_id: cabinetId,
-      user_id: session?.user?.id,
-      user_email: session?.user?.email,
-      action: "CREATE_CLIENT",
-      table_name: "clients",
-      record_id: ref,
-      new_data: {
-        raison_sociale: form.raisonSociale,
-        siren: form.siren,
-        forme: form.forme,
-        score_global: adjustedScore,
-        niv_vigilance: risk.nivVigilance,
-        decision,
-        beneficiaires_count: beneficiaires.length,
-        documents_count: manualDocs.length + screeningDocs.length,
-        mission: form.mission,
-      },
-    }).catch(err => logger.warn("[Audit] audit_trail insert failed:", err));
+        // audit_trail
+        await supabase.from("audit_trail").insert({
+          cabinet_id: cabinetId,
+          user_id: session.user.id,
+          user_email: session.user.email,
+          action: "CREATE_CLIENT",
+          table_name: "clients",
+          record_id: ref,
+          new_data: {
+            raison_sociale: form.raisonSociale,
+            siren: form.siren,
+            forme: form.forme,
+            score_global: adjustedScore,
+            niv_vigilance: risk.nivVigilance,
+            decision,
+            be_count: beneficiaires.length,
+            docs_count: documents.length,
+          },
+        }).catch(err => logger.warn("[Submit] audit_trail insert failed:", err));
+      }
+    } catch {
+      // Non-blocking — don't break client creation if history fails
+    }
 
     // #25: Refresh clients from Supabase after creation
     refreshClients().catch((e) => logger.warn("Client", "Refresh after creation failed:", e));
@@ -1939,7 +1927,7 @@ export default function NouveauClientPage() {
             </div>
 
             {/* #4: Search mode tabs with icons */}
-            <div className="flex gap-1 p-1 rounded-lg bg-white/[0.03] border border-white/[0.06] w-fit">
+            <div className="flex gap-1 p-1 rounded-full bg-white/[0.03] border border-white/[0.06] w-fit">
               {([
                 { value: "siren", icon: Hash, label: "SIREN" },
                 { value: "nom", icon: Building2, label: "Nom societe" },
@@ -1948,7 +1936,7 @@ export default function NouveauClientPage() {
                 <button
                   key={tab.value}
                   onClick={() => setSearchMode(tab.value)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all duration-200 ${
                     searchMode === tab.value
                       ? "bg-blue-500/20 text-blue-400 shadow-sm"
                       : "text-slate-500 hover:text-slate-300 hover:bg-white/[0.04]"
@@ -2945,7 +2933,7 @@ export default function NouveauClientPage() {
                                   <button
                                     key={val}
                                     onClick={() => updateQuestion(qi, "value", val)}
-                                    className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
+                                    className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
                                       q.value === val
                                         ? val === "OUI" ? "bg-red-500 text-white shadow-md shadow-red-500/20" : val === "NON" ? "bg-emerald-500 text-white shadow-md shadow-emerald-500/20" : "bg-slate-500 text-white"
                                         : "bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]"
@@ -3013,7 +3001,7 @@ export default function NouveauClientPage() {
                               <button
                                 key={val}
                                 onClick={() => updateQuestion(qi, "value", val)}
-                                className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
+                                className={`px-4 py-2 rounded-full text-xs font-semibold transition-all duration-200 hover:scale-105 active:scale-95 ${
                                   q.value === val
                                     ? val === "OUI" ? "bg-red-500 text-white shadow-md" : val === "NON" ? "bg-emerald-500 text-white shadow-md" : "bg-slate-500 text-white"
                                     : "bg-white/[0.04] text-slate-400 hover:bg-white/[0.08]"
