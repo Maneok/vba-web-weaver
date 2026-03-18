@@ -941,7 +941,9 @@ html {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
 }
 
-/* ── Sidebar item stagger entrance animation ── */
+/* ── Sidebar animations ── */
+
+/* OPT-47: Stagger entrance — items slide in from left */
 @keyframes sidebar-item-enter {
   from {
     opacity: 0;
@@ -954,6 +956,116 @@ html {
 }
 .sidebar-item-enter {
   animation: sidebar-item-enter 0.3s ease-out both;
+}
+
+/* OPT-48: Active bar slide-in from top */
+@keyframes sidebar-bar-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-50%) scaleY(0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(-50%) scaleY(1);
+  }
+}
+.sidebar-bar-enter {
+  animation: sidebar-bar-enter 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* OPT-49: Notification dot pulse */
+@keyframes sidebar-notif-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+}
+.sidebar-notif-pulse {
+  animation: sidebar-notif-pulse 2s ease-in-out infinite;
+}
+
+/* OPT-50: Badge count pop-in */
+@keyframes sidebar-badge-enter {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.sidebar-badge-enter {
+  animation: sidebar-badge-enter 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* OPT-51-60: Sidebar-specific refinements */
+
+/* OPT-51: Sidebar scrollbar — Firefox */
+nav[aria-label="Menu principal"] {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+nav[aria-label="Menu principal"]:hover {
+  scrollbar-color: rgba(148, 163, 184, 0.3) transparent;
+}
+.dark nav[aria-label="Menu principal"]:hover {
+  scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
+}
+
+/* OPT-52: Active item text — subtle text-shadow */
+.sidebar-item-enter[class*="text-blue-600"] span,
+.sidebar-item-enter[class*="text-blue-400"] span {
+  text-shadow: 0 0 20px rgba(59, 130, 246, 0.1);
+}
+.dark .sidebar-item-enter[class*="text-blue-400"] span {
+  text-shadow: 0 0 20px rgba(96, 165, 250, 0.15);
+}
+
+/* OPT-53: Sidebar link — remove default tap highlight on mobile */
+aside a, aside button {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* OPT-54: Section label — fade in with stagger */
+aside nav p[class*="uppercase"] {
+  animation: sidebar-item-enter 0.25s ease-out both;
+}
+
+/* OPT-55: Sidebar tooltip arrow refinement */
+aside [data-radix-popper-content-wrapper] {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.08));
+}
+.dark aside [data-radix-popper-content-wrapper] {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+/* OPT-56: Collapsed item — uniform spacing */
+aside .space-y-0\.5.flex-col > a,
+aside .space-y-0\.5.flex-col > div > a {
+  margin-bottom: 2px;
+}
+
+/* OPT-57: Hover brightness lift on sidebar icons */
+aside a:hover svg,
+aside button:hover svg {
+  filter: brightness(1.1);
+}
+
+/* OPT-58: Smooth bg transition on sidebar itself */
+aside {
+  transition-property: width, transform, background-color, border-color, box-shadow;
+}
+
+/* OPT-59: Profile section — subtle top gradient fade */
+aside > div:last-child {
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.01) 100%);
+}
+.dark aside > div:last-child {
+  background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.1) 100%);
+}
+
+/* OPT-60: Print — hide sidebar completely */
+@media print {
+  aside { display: none !important; }
 }
 
 /* Print styles */

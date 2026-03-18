@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -38,33 +38,51 @@ type NavItem = {
   to: string;
   label: string;
   icon: typeof LayoutDashboard;
+  shortcut?: string; /* OPT-12: keyboard shortcut hint */
 };
 
 /* ─── Navigation data ─── */
 
-const DASHBOARD: NavItem = { to: "/", label: "Dashboard", icon: LayoutDashboard };
+const DASHBOARD: NavItem = { to: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "D" };
 
 const PORTEFEUILLE: NavItem[] = [
-  { to: "/bdd", label: "Clients", icon: Users },
-  { to: "/lettre-mission", label: "Lettres de mission", icon: FileText },
-  { to: "/ged", label: "Documents", icon: FolderOpen },
+  { to: "/bdd", label: "Clients", icon: Users, shortcut: "B" },
+  { to: "/lettre-mission", label: "Lettres de mission", icon: FileText, shortcut: "L" },
+  { to: "/ged", label: "Documents", icon: FolderOpen, shortcut: "E" },
 ];
 
 const CONFORMITE: NavItem[] = [
-  { to: "/revue-maintien", label: "Revue periodique", icon: RefreshCw },
-  { to: "/registre", label: "Registre LCB", icon: Shield },
+  { to: "/revue-maintien", label: "Revue periodique", icon: RefreshCw, shortcut: "M" },
+  { to: "/registre", label: "Registre LCB", icon: Shield, shortcut: "R" },
 ];
 
 const PILOTAGE: NavItem[] = [
-  { to: "/gouvernance", label: "Gouvernance", icon: Building2 },
-  { to: "/controle", label: "Controle qualite", icon: CheckSquare },
+  { to: "/gouvernance", label: "Gouvernance", icon: Building2, shortcut: "G" },
+  { to: "/controle", label: "Controle qualite", icon: CheckSquare, shortcut: "Q" },
 ];
 
 const FOOTER_NAV: NavItem[] = [
-  { to: "/diagnostic", label: "Diagnostic 360", icon: Activity },
-  { to: "/parametres", label: "Parametres", icon: Settings },
-  { to: "/aide", label: "Aide", icon: HelpCircle },
+  { to: "/diagnostic", label: "Diagnostic 360", icon: Activity, shortcut: "3" },
+  { to: "/parametres", label: "Parametres", icon: Settings, shortcut: "P" },
+  { to: "/aide", label: "Aide", icon: HelpCircle, shortcut: "?" },
 ];
+
+const APP_VERSION = "1.0.0";
+
+/* OPT-46: Role badge colors */
+const ROLE_BADGE_COLORS: Record<string, string> = {
+  ADMIN: "bg-blue-500/15 text-blue-600 dark:bg-blue-500/20 dark:text-blue-400",
+  SUPERVISEUR: "bg-purple-500/15 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400",
+  COLLABORATEUR: "bg-emerald-500/15 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400",
+  STAGIAIRE: "bg-amber-500/15 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400",
+};
+
+const ROLE_SHORT_LABELS: Record<string, string> = {
+  ADMIN: "Admin",
+  SUPERVISEUR: "Superviseur",
+  COLLABORATEUR: "Collab.",
+  STAGIAIRE: "Stagiaire",
+};
 
 /* ─── Helpers ─── */
 
@@ -86,6 +104,17 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const navRef = useRef<HTMLElement>(null);
+
+  /* OPT-49: Track scroll to show subtle shadow under header */
+  const [isScrolled, setIsScrolled] = useState(false);
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const handler = () => setIsScrolled(nav.scrollTop > 4);
+    nav.addEventListener("scroll", handler, { passive: true });
+    return () => nav.removeEventListener("scroll", handler);
+  }, []);
 
   // Close sidebar on mobile when navigating
   useEffect(() => {
@@ -144,7 +173,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const hasAlerts = alertesEnCours > 0;
 
   /* ─── Check if item is active ─── */
-  const isActive = (to: string) => {
+  const isItemActive = (to: string) => {
     if (to === "/") return location.pathname === "/";
     return location.pathname === to || location.pathname.startsWith(to + "/");
   };
@@ -162,34 +191,54 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     const Icon = item.icon;
     const badge = badges[item.to];
     const hasBadge = badge !== undefined && badge > 0;
-    const active = isActive(item.to);
+    const active = isItemActive(item.to);
     const { isFooter, showAddButton, notificationDot, staggerIndex = 0 } = opts;
 
+    /* OPT-1: Build class list — h-10, rounded-lg */
+    /* OPT-2: transition-colors duration-150 for smooth hover */
+    /* OPT-3: focus-visible ring with blue tint */
+    /* OPT-4: active:scale-[0.98] click feedback */
+    /* OPT-5: sidebar-item-enter stagger animation */
     const itemClasses = [
       "group relative flex items-center h-10 rounded-lg",
-      "transition-colors duration-150",
+      "transition-all duration-150 ease-out",
       "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-offset-0",
       "active:scale-[0.98]",
       "sidebar-item-enter",
     ];
 
     if (collapsed) {
+      /* OPT-6: Collapsed items centered with fixed size */
       itemClasses.push("justify-center mx-auto w-10");
       if (active) {
-        itemClasses.push("bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400");
+        /* OPT-7: Active collapsed — blue bg + subtle shadow */
+        itemClasses.push(
+          "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400",
+          "shadow-sm shadow-blue-500/10 dark:shadow-blue-500/5",
+        );
       } else if (isFooter) {
+        /* OPT-8: Footer items — more muted */
         itemClasses.push("text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-600 dark:hover:text-slate-300");
       } else {
         itemClasses.push("text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white");
       }
     } else {
+      /* OPT-9: Expanded items — gap-3 for icon spacing */
       itemClasses.push("px-3 gap-3");
       if (active) {
-        itemClasses.push("bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400");
+        /* OPT-10: Active expanded — blue bg + left padding for bar + subtle glow */
+        itemClasses.push(
+          "bg-blue-50/80 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400",
+          "shadow-sm shadow-blue-500/5 dark:shadow-blue-400/5",
+        );
       } else if (isFooter) {
-        itemClasses.push("text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-600 dark:hover:text-slate-300");
+        itemClasses.push("text-slate-400 dark:text-slate-500 hover:bg-slate-100/80 dark:hover:bg-white/[0.06] hover:text-slate-600 dark:hover:text-slate-300");
       } else {
-        itemClasses.push("text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white");
+        /* OPT-11: Normal items — hover:translateY(-0.5px) micro-lift */
+        itemClasses.push(
+          "text-slate-600 dark:text-slate-400 hover:bg-slate-100/80 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white",
+          "hover:-translate-y-[0.5px]",
+        );
       }
     }
 
@@ -202,31 +251,42 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         className={itemClasses.join(" ")}
         style={{ animationDelay: `${staggerIndex * 30}ms` }}
       >
-        {/* OPT-24: Active indicator bar */}
+        {/* OPT-12: Active indicator bar — gradient blue */}
         {active && !collapsed && (
-          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-blue-500 transition-all duration-200" />
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-gradient-to-b from-blue-400 to-blue-600 dark:from-blue-400 dark:to-blue-500 sidebar-bar-enter" />
         )}
 
-        {/* Icon wrapper */}
-        <span className="relative shrink-0">
+        {/* OPT-13: Icon wrapper with hover circle bg */}
+        <span className="relative shrink-0 flex items-center justify-center w-6 h-6 rounded-md transition-colors duration-150 group-hover:bg-slate-200/50 dark:group-hover:bg-white/[0.04]">
           <Icon
-            className="w-5 h-5 transition-transform duration-150 group-hover:scale-105"
+            className={[
+              "w-[18px] h-[18px] transition-all duration-150",
+              "group-hover:scale-105",
+              active ? "text-blue-600 dark:text-blue-400" : "",
+            ].join(" ")}
             strokeWidth={1.5}
           />
-          {/* OPT-41: Notification dot for Registre */}
+          {/* OPT-14: Notification dot with pulse animation */}
           {notificationDot && hasAlerts && (
-            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-slate-50 dark:ring-[#0B1120]" />
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-slate-50 dark:ring-[#0B1120] sidebar-notif-pulse" />
           )}
         </span>
 
         {/* Text + badges (expanded only) */}
         {!collapsed && (
           <>
-            <span className="text-sm font-medium truncate transition-opacity duration-150">
+            {/* OPT-15: Text — tracking-[0.01em] for readability + semibold when active */}
+            <span
+              className={[
+                "text-sm truncate transition-opacity duration-150 tracking-[0.01em]",
+                active ? "font-semibold" : "font-medium",
+              ].join(" ")}
+              title={item.label}
+            >
               {item.label}
             </span>
 
-            {/* OPT-26: Inline [+] button for Clients */}
+            {/* OPT-16: Inline [+] button for Clients — with hover grow */}
             {showAddButton && (
               <button
                 onClick={(e) => {
@@ -234,17 +294,24 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   e.stopPropagation();
                   navigate("/nouveau-client");
                 }}
-                className="ml-auto text-[11px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 dark:bg-blue-500/15 dark:text-blue-400 dark:hover:bg-blue-500/25 transition-colors cursor-pointer flex items-center gap-0.5"
+                className="ml-auto text-[11px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 hover:scale-105 dark:bg-blue-500/15 dark:text-blue-400 dark:hover:bg-blue-500/25 transition-all duration-150 cursor-pointer flex items-center gap-0.5"
                 aria-label="Nouveau client"
               >
-                <Plus className="w-3 h-3" />
+                <Plus className="w-3 h-3" strokeWidth={2} />
               </button>
             )}
 
-            {/* OPT-25: Badge counter */}
+            {/* OPT-17: Badge counter — rounded-full with subtle border */}
             {hasBadge && !showAddButton && (
-              <span className="min-w-[20px] h-5 px-1.5 text-[11px] font-semibold rounded-full bg-slate-200 dark:bg-white/[0.08] text-slate-600 dark:text-slate-300 flex items-center justify-center ml-auto animate-count-up">
+              <span className="min-w-[20px] h-5 px-1.5 text-[11px] font-semibold rounded-full bg-slate-200/80 dark:bg-white/[0.08] text-slate-600 dark:text-slate-300 border border-slate-300/30 dark:border-white/[0.04] flex items-center justify-center ml-auto sidebar-badge-enter">
                 {badge}
+              </span>
+            )}
+
+            {/* OPT-18: Keyboard shortcut hint on hover */}
+            {!hasBadge && !showAddButton && item.shortcut && (
+              <span className="ml-auto text-[10px] text-slate-300 dark:text-slate-600 font-mono opacity-0 group-hover:opacity-100 transition-opacity duration-200 select-none">
+                Alt+{item.shortcut}
               </span>
             )}
           </>
@@ -252,14 +319,20 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       </NavLink>
     );
 
-    // OPT-28: Tooltip in collapsed mode only
+    /* OPT-19: Tooltip in collapsed mode only — show badge count */
     if (collapsed) {
       return (
-        <Tooltip key={item.to} delayDuration={100}>
+        <Tooltip key={item.to} delayDuration={80}>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium text-sm">
-            {item.label}
-            {hasBadge && <span className="ml-2 text-xs opacity-70">({badge})</span>}
+          <TooltipContent
+            side="right"
+            sideOffset={8}
+            className="font-medium text-sm px-3 py-1.5 shadow-lg"
+          >
+            <span>{item.label}</span>
+            {hasBadge && (
+              <span className="ml-2 text-[11px] opacity-60">({badge})</span>
+            )}
           </TooltipContent>
         </Tooltip>
       );
@@ -271,16 +344,19 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   /* ─── Section label ─── */
   const renderSectionLabel = (label: string) => {
     if (collapsed) {
+      /* OPT-20: Collapsed separator — subtle dotted line */
       return (
         <div
           role="separator"
           aria-hidden="true"
-          className="mx-3 my-2 border-t border-slate-200 dark:border-white/[0.06] transition-opacity duration-200"
+          className="mx-4 my-3 border-t border-dashed border-slate-200/70 dark:border-white/[0.05] transition-opacity duration-200"
         />
       );
     }
+    /* OPT-21: Section label — uppercase, tiny, with left dot accent */
     return (
-      <p className="px-3 mb-1 mt-6 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500 pointer-events-none select-none transition-opacity duration-200">
+      <p className="flex items-center gap-1.5 px-3 mb-1.5 mt-7 text-[10px] font-semibold uppercase tracking-[0.1em] text-slate-400/80 dark:text-slate-500/80 pointer-events-none select-none transition-opacity duration-200">
+        <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
         {label}
       </p>
     );
@@ -291,10 +367,10 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
   return (
     <TooltipProvider>
-      {/* OPT: Mobile overlay backdrop */}
+      {/* OPT-22: Mobile overlay — gradient backdrop instead of solid */}
       {!collapsed && (
         <div
-          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-30 bg-gradient-to-r from-black/60 to-black/40 backdrop-blur-sm lg:hidden transition-opacity duration-300"
           onClick={onToggle}
           aria-hidden="true"
         />
@@ -303,9 +379,16 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       <aside
         className={[
           "fixed inset-y-0 left-0 z-40 flex flex-col",
-          "bg-slate-50 dark:bg-[#0B1120]",
-          "border-r border-slate-200 dark:border-white/[0.06]",
-          "transition-all duration-300 ease-in-out",
+          /* OPT-23: Sidebar bg — subtle gradient top-to-bottom */
+          "bg-gradient-to-b from-slate-50 via-white to-slate-50/80",
+          "dark:from-[#0B1120] dark:via-[#0d1526] dark:to-[#0B1120]",
+          /* OPT-24: Border right + subtle inner shadow for depth */
+          "border-r border-slate-200/80 dark:border-white/[0.06]",
+          "shadow-[1px_0_8px_-3px_rgba(0,0,0,0.06)] dark:shadow-[1px_0_8px_-3px_rgba(0,0,0,0.3)]",
+          /* OPT-25: Backdrop blur for glass effect */
+          "backdrop-blur-xl",
+          /* OPT-26: Smooth transition with custom easing */
+          "transition-all duration-300 ease-[cubic-bezier(0.25,0.46,0.45,0.94)]",
           collapsed
             ? "-translate-x-full lg:translate-x-0 lg:w-[72px]"
             : "translate-x-0 w-[260px]",
@@ -313,62 +396,91 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       >
         {/* ═══ Header ═══ */}
         <div
-          className={`h-16 flex items-center shrink-0 border-b border-slate-200 dark:border-white/[0.06] ${
-            collapsed ? "px-3 justify-center" : "px-4 justify-between"
-          }`}
+          className={[
+            "h-16 flex items-center shrink-0",
+            /* OPT-27: Header border with scroll-aware shadow */
+            "border-b border-slate-200/60 dark:border-white/[0.06]",
+            isScrolled ? "shadow-sm shadow-black/[0.03] dark:shadow-black/20" : "",
+            "transition-shadow duration-200",
+            collapsed ? "px-3 justify-center" : "px-4 justify-between",
+          ].join(" ")}
         >
-          {/* OPT-50: Cabinet name / initials */}
           {collapsed ? (
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-sm">
-              {getCabinetInitials(cabinetName)}
-            </div>
+            /* OPT-28: Collapsed logo — gradient circle with glow + hover scale */
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow-md shadow-blue-500/20 dark:shadow-blue-500/10 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 cursor-default">
+                  {getCabinetInitials(cabinetName)}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                Cabinet {cabinetName}
+              </TooltipContent>
+            </Tooltip>
           ) : (
-            <div className="flex flex-col min-w-0">
-              <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                Cabinet
-              </span>
-              <span className="text-sm font-semibold text-slate-800 dark:text-white truncate">
-                {cabinetName}
-              </span>
+            /* OPT-29: Expanded header — cabinet name with hover bg */
+            <div className="flex items-center gap-2.5 min-w-0 px-1 py-1 -mx-1 rounded-lg hover:bg-slate-100/60 dark:hover:bg-white/[0.03] transition-colors duration-150 cursor-default">
+              {/* OPT-30: Mini gradient square before cabinet name */}
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/15">
+                {getCabinetInitials(cabinetName)}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-[9px] uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500 leading-tight">
+                  Cabinet
+                </span>
+                <span className="text-[13px] font-semibold text-slate-800 dark:text-white truncate leading-tight">
+                  {cabinetName}
+                </span>
+              </div>
             </div>
           )}
 
-          {/* OPT-36: Toggle collapse/expand */}
+          {/* OPT-31: Toggle collapse — chevron with rotation */}
           {!collapsed && (
-            <button
-              onClick={onToggle}
-              aria-label="Reduire le menu"
-              className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-white/[0.06] hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
-            >
-              <ChevronsLeft className="w-4 h-4 transition-transform duration-300" />
-            </button>
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggle}
+                  aria-label="Reduire le menu"
+                  className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:bg-slate-200/70 dark:hover:bg-white/[0.06] hover:text-slate-600 dark:hover:text-slate-300 transition-all duration-200 hover:shadow-sm"
+                >
+                  <ChevronsLeft className="w-4 h-4 transition-transform duration-300" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" sideOffset={8}>
+                Reduire <kbd className="ml-1.5 text-[10px] font-mono bg-slate-100 dark:bg-white/[0.06] px-1 py-0.5 rounded border border-slate-200 dark:border-white/[0.1]">Ctrl+B</kbd>
+              </TooltipContent>
+            </Tooltip>
           )}
+          {/* OPT-32: Collapsed expand button — floating circle with shadow */}
           {collapsed && (
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
                 <button
                   onClick={onToggle}
                   aria-label="Deplier le menu"
-                  className="absolute -right-3 top-5 w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/[0.1] flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 shadow-sm transition-colors z-50"
+                  className="absolute -right-3 top-5 w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/[0.1] flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 shadow-md shadow-black/10 dark:shadow-black/30 hover:shadow-lg transition-all duration-200 z-50"
                 >
                   <ChevronsRight className="w-3 h-3 transition-transform duration-300" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent side="right">Deplier</TooltipContent>
+              <TooltipContent side="right" sideOffset={8}>Deplier</TooltipContent>
             </Tooltip>
           )}
         </div>
 
         {/* ═══ Scrollable navigation ═══ */}
         <nav
+          ref={navRef}
           aria-label="Menu principal"
           className={[
             "flex-1 overflow-y-auto px-3 py-4",
-            "[&::-webkit-scrollbar]:w-1",
+            /* OPT-33: Subtle thin scrollbar, visible only on hover */
+            "[&::-webkit-scrollbar]:w-[3px]",
             "[&::-webkit-scrollbar-thumb]:rounded-full",
             "[&::-webkit-scrollbar-thumb]:bg-transparent",
-            "hover:[&::-webkit-scrollbar-thumb]:bg-slate-300",
-            "dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/[0.1]",
+            "hover:[&::-webkit-scrollbar-thumb]:bg-slate-300/60",
+            "dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/[0.08]",
             "[&::-webkit-scrollbar-track]:bg-transparent",
           ].join(" ")}
         >
@@ -408,82 +520,117 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           </div>
         </nav>
 
-        {/* ═══ Footer (fixed at bottom) ═══ */}
-        <div className="mt-auto shrink-0 border-t border-slate-200 dark:border-white/[0.06] px-3 pt-2 pb-3">
-          {/* Footer nav items (Diagnostic, Parametres, Aide) */}
+        {/* ═══ Footer (pinned at bottom) ═══ */}
+        <div className="mt-auto shrink-0 border-t border-slate-200/60 dark:border-white/[0.06] px-3 pt-2 pb-3">
+          {/* OPT-34: Footer nav items — muted style */}
           <div className={`space-y-0.5 ${collapsed ? "flex flex-col items-center space-y-0.5" : ""}`}>
             {FOOTER_NAV.map((item) => renderItem(item, { isFooter: true }))}
           </div>
 
           {/* ── User profile ── */}
           <div
-            className={`mt-3 pt-3 border-t border-slate-200 dark:border-white/[0.06] ${
+            className={`mt-3 pt-3 border-t border-slate-200/60 dark:border-white/[0.06] ${
               collapsed ? "flex flex-col items-center gap-2" : ""
             }`}
           >
             {collapsed ? (
               <>
-                {/* OPT-34: Collapsed — initials only */}
+                {/* OPT-35: Collapsed — avatar with gradient ring */}
                 <Tooltip delayDuration={100}>
                   <TooltipTrigger asChild>
-                    <div className="w-8 h-8 rounded-full bg-blue-500/10 dark:bg-blue-500/15 text-blue-500 dark:text-blue-400 text-xs font-semibold flex items-center justify-center cursor-default">
-                      {userInitials}
+                    <div className="relative">
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/20 dark:from-blue-500/25 dark:to-indigo-500/25 p-[2px]">
+                        <div className="w-full h-full rounded-full bg-slate-50 dark:bg-[#0B1120] text-blue-600 dark:text-blue-400 text-[11px] font-bold flex items-center justify-center">
+                          {userInitials}
+                        </div>
+                      </div>
+                      {/* OPT-36: Online status dot */}
+                      <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-slate-50 dark:border-[#0B1120] sidebar-notif-pulse" />
                     </div>
                   </TooltipTrigger>
-                  <TooltipContent side="right">
-                    {profile?.full_name || "Utilisateur"}
+                  <TooltipContent side="right" sideOffset={8}>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-semibold">{profile?.full_name || "Utilisateur"}</span>
+                      {profile?.role && (
+                        <span className="text-[10px] opacity-60">{ROLE_SHORT_LABELS[profile.role] || profile.role}</span>
+                      )}
+                    </div>
                   </TooltipContent>
                 </Tooltip>
 
-                {/* OPT-35: Collapsed logout */}
+                {/* OPT-37: Collapsed logout */}
                 <Tooltip delayDuration={100}>
                   <TooltipTrigger asChild>
                     <button
                       onClick={handleSignOut}
                       aria-label="Deconnexion"
-                      className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/10 transition-colors"
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-all duration-200"
                     >
-                      <LogOut className="w-5 h-5" strokeWidth={1.5} />
+                      <LogOut className="w-[18px] h-[18px] transition-transform duration-200 group-hover:-translate-x-0.5" strokeWidth={1.5} />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">Deconnexion</TooltipContent>
+                  <TooltipContent side="right" sideOffset={8}>Deconnexion</TooltipContent>
                 </Tooltip>
               </>
             ) : (
-              /* OPT-33: Expanded — full profile block */
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 dark:bg-blue-500/15 text-blue-500 dark:text-blue-400 text-xs font-semibold flex items-center justify-center shrink-0">
-                  {userInitials}
+              /* OPT-38: Expanded — full profile block with hover bg */
+              <div className="flex items-center gap-3 px-2 py-2 -mx-1 rounded-lg hover:bg-slate-100/60 dark:hover:bg-white/[0.03] transition-colors duration-150 group/profile">
+                {/* OPT-39: Avatar with gradient ring + status dot */}
+                <div className="relative shrink-0">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/20 dark:from-blue-500/25 dark:to-indigo-500/25 p-[2px]">
+                    <div className="w-full h-full rounded-full bg-white dark:bg-[#0B1120] text-blue-600 dark:text-blue-400 text-xs font-bold flex items-center justify-center">
+                      {userInitials}
+                    </div>
+                  </div>
+                  {/* OPT-40: Online status dot */}
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-emerald-400 border-2 border-white dark:border-[#0B1120] sidebar-notif-pulse" />
                 </div>
+
                 <div className="min-w-0 flex-1">
+                  {/* OPT-41: Name with stronger weight */}
                   <p
-                    className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate"
+                    className="text-[13px] font-semibold text-slate-700 dark:text-slate-200 truncate leading-tight"
                     title={profile?.full_name || undefined}
                   >
                     {profile?.full_name}
                   </p>
-                  <p
-                    className="text-[11px] text-slate-400 dark:text-slate-500 truncate"
-                    title={profile?.email || undefined}
-                  >
-                    {profile?.email}
-                  </p>
+                  {/* OPT-42: Role badge instead of email — more useful */}
+                  {profile?.role && (
+                    <span className={`inline-block mt-0.5 text-[9px] font-medium px-1.5 py-[1px] rounded-full ${ROLE_BADGE_COLORS[profile.role] || "bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400"}`}>
+                      {ROLE_SHORT_LABELS[profile.role] || profile.role}
+                    </span>
+                  )}
                 </div>
-                {/* OPT-35: Logout button */}
-                <Tooltip delayDuration={100}>
+
+                {/* OPT-43: Logout button — slide-left icon on hover */}
+                <Tooltip delayDuration={200}>
                   <TooltipTrigger asChild>
                     <button
                       onClick={handleSignOut}
                       aria-label="Deconnexion"
-                      className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors shrink-0 p-1 rounded-md hover:bg-red-500/10 dark:hover:bg-red-500/10"
+                      className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 shrink-0 p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-500/10 opacity-0 group-hover/profile:opacity-100"
                     >
-                      <LogOut className="w-4 h-4" strokeWidth={1.5} />
+                      <LogOut className="w-4 h-4 transition-transform duration-200 hover:-translate-x-0.5" strokeWidth={1.5} />
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="right">Deconnexion</TooltipContent>
+                  <TooltipContent side="right" sideOffset={8}>Deconnexion</TooltipContent>
                 </Tooltip>
               </div>
             )}
+          </div>
+
+          {/* OPT-44: Version + trust footer */}
+          <div className={`mt-2 text-center select-none ${collapsed ? "px-0.5" : "px-2"}`}>
+            {!collapsed && (
+              /* OPT-45: Compliance trust line */
+              <p className="text-[9px] text-slate-400/70 dark:text-slate-600/70 mb-0.5 tracking-wide">
+                Conforme LCB-FT · Art. L.561-2
+              </p>
+            )}
+            {/* OPT-46: Version number */}
+            <p className="text-[9px] text-slate-400/50 dark:text-slate-600/50 font-mono">
+              {collapsed ? `v${APP_VERSION}` : `GRIMY v${APP_VERSION}-beta`}
+            </p>
           </div>
         </div>
       </aside>
