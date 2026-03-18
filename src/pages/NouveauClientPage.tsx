@@ -275,6 +275,25 @@ export default function NouveauClientPage() {
           }
         }
       } catch { /* storage full */ }
+      // BUG 25 FIX: Also persist draft in Supabase for cross-device access
+      if (form.siren) {
+        const cleanSiren = form.siren.replace(/\s/g, "");
+        if (cleanSiren.length === 9) {
+          supabase.auth.getSession().then(({ data: { session } }) => {
+            if (!session) return;
+            const cabinetId = session.user?.user_metadata?.cabinet_id;
+            if (!cabinetId) return;
+            supabase.from("brouillons").upsert({
+              siren: cleanSiren,
+              cabinet_id: cabinetId,
+              user_id: session.user.id,
+              step,
+              data: draftData,
+              updated_at: new Date().toISOString(),
+            }, { onConflict: "siren,cabinet_id" }).catch(() => {}); // Non-blocking
+          }).catch(() => {});
+        }
+      }
     }
   }, [step, form, beneficiaires, questions, decision, motifRefus, motifReserve]);
 
@@ -569,7 +588,7 @@ export default function NouveauClientPage() {
     // Start 30s timeout for screening
     setScreeningTimedOut(false);
     if (screeningTimeoutRef.current) clearTimeout(screeningTimeoutRef.current);
-    screeningTimeoutRef.current = setTimeout(() => setScreeningTimedOut(true), 30000);
+    screeningTimeoutRef.current = setTimeout(() => setScreeningTimedOut(true), 45000);
     const dirigeants = enterprise.dirigeants ?? [];
     const raisonSociale = enterprise.raison_sociale;
     const ville = enterprise.ville;
@@ -1392,14 +1411,25 @@ export default function NouveauClientPage() {
     if (gelAvoirsAlert.length > 0) {
       newClient.nivVigilance = "RENFORCEE";
       newClient.scoreGlobal = Math.max(newClient.scoreGlobal, 100);
+      // BUG 49 FIX: Recalculate date butoir for RENFORCEE
+      newClient.dateButoir = calculateDateButoir("RENFORCEE");
+      newClient.etatPilotage = getPilotageStatus(newClient.dateButoir) as EtatPilotage;
     }
 
     // CORRECTION 7: Apply AML structural malus
     const amlMalus = amlSignals.reduce((sum, s) => sum + s.malus, 0);
     if (amlMalus > 0) {
       newClient.scoreGlobal = Math.min(newClient.scoreGlobal + amlMalus, 100);
-      if (newClient.scoreGlobal >= 60) newClient.nivVigilance = "RENFORCEE";
-      else if (newClient.scoreGlobal >= 25) newClient.nivVigilance = "STANDARD";
+      if (newClient.scoreGlobal >= 60) {
+        newClient.nivVigilance = "RENFORCEE";
+        // BUG 49 FIX: Recalculate date butoir
+        newClient.dateButoir = calculateDateButoir("RENFORCEE");
+        newClient.etatPilotage = getPilotageStatus(newClient.dateButoir) as EtatPilotage;
+      } else if (newClient.scoreGlobal >= 25) {
+        newClient.nivVigilance = "STANDARD";
+        newClient.dateButoir = calculateDateButoir("STANDARD");
+        newClient.etatPilotage = getPilotageStatus(newClient.dateButoir) as EtatPilotage;
+      }
     }
 
     await addClient(newClient);
@@ -3209,6 +3239,11 @@ export default function NouveauClientPage() {
             {/* Screening summary at scoring step */}
             {(screening.sanctions.data || screening.bodacc.data || screening.google.data || screening.news.data) && (
               <div className="lg:col-span-2">
+                {form.raisonSociale.length < 4 && screening.news.data?.articles?.length > 0 && (
+                  <div className="text-[10px] text-amber-600 dark:text-amber-400 mb-1">
+                    ⚠️ Le nom est très court — certains articles peuvent ne pas concerner cette entreprise
+                  </div>
+                )}
                 <ScreeningPanel screening={screening} compact />
               </div>
             )}
