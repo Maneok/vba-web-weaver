@@ -194,7 +194,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
 
       {/* A) Incompatibility warning */}
       {hasConflict && (
-        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake" role="alert">
+        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake wizard-alert" role="alert">
           <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
           <p className="text-xs text-red-300">
             <strong>Missions incompatibles :</strong> La tenue comptable et la mission de surveillance ne peuvent pas etre combinees.
@@ -204,7 +204,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
 
       {/* Hidden sections info */}
       {hiddenCount > 0 && (
-        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-500/5 border border-gray-200 dark:border-white/[0.06] text-xs text-slate-400 dark:text-slate-500">
+        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/60 dark:border-white/[0.05] text-xs text-slate-400 dark:text-slate-500">
           <EyeOff className="w-3.5 h-3.5 shrink-0" />
           {hiddenCount} section{hiddenCount > 1 ? "s masquées" : " masquée"} (non applicable pour {mtConfig.shortLabel})
         </div>
@@ -232,8 +232,8 @@ export default function LMStep2Missions({ data, onChange }: Props) {
               key={mission.section_id}
               className={`rounded-xl border-2 transition-all duration-200 ${
                 mission.selected
-                  ? "bg-gray-50/80 dark:bg-white/[0.04] border-blue-500/20"
-                  : "bg-white/[0.01] border-gray-100 dark:border-white/[0.04] hover:border-gray-300 dark:border-white/[0.08]"
+                  ? "wizard-select-card wizard-select-active"
+                  : "wizard-select-card"
               }`}
             >
               <button
@@ -246,19 +246,19 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 }`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                  mission.selected ? "bg-blue-500/15 text-blue-400" : "bg-gray-50/80 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500"
+                  mission.selected ? "bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400" : "bg-gray-50 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500"
                 }`}>
                   {icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${mission.selected ? "text-slate-900 dark:text-white" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>
+                  <p className={`text-sm font-semibold ${mission.selected ? "text-slate-800 dark:text-white" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>
                     {mission.label}
                   </p>
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{mission.description}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {isLocked && (
-                    <Badge variant="outline" className="text-[9px] border-amber-500/30 text-amber-400 gap-1">
+                    <Badge variant="outline" className="text-[9px] border-amber-200 dark:border-amber-500/30 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-500/10 gap-1">
                       <Lock className="w-3 h-3" /> Obligatoire
                     </Badge>
                   )}
@@ -283,7 +283,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                     <label
                       key={opt.id}
                       className={`flex items-center gap-3 p-2.5 rounded-lg transition-colors ${
-                        isLocked ? "cursor-default opacity-60" : "cursor-pointer hover:bg-gray-50 dark:bg-white/[0.03] active:bg-gray-100 dark:bg-white/[0.05]"
+                        isLocked ? "cursor-default opacity-60" : "cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.03]"
                       }`}
                     >
                       <Checkbox
@@ -304,7 +304,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
       </div>
 
       <div className="flex justify-center">
-        <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 px-4 py-1.5">
+        <Badge className="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 px-4 py-1.5">
           {totalSelected} mission{totalSelected > 1 ? "s" : ""} selectionnee{totalSelected > 1 ? "s" : ""}
         </Badge>
       </div>

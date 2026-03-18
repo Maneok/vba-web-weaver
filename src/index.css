@@ -598,6 +598,176 @@ tbody tr:nth-child(even) {
   animation: step-fade-in var(--duration-fast) ease-out;
 }
 
+/* ── WIZARD LM: Visual refinements ── */
+
+/* Wizard step card with soft relief */
+@keyframes wizard-card-enter {
+  from { opacity: 0; transform: translateY(8px) scale(0.995); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.wizard-card-enter {
+  animation: wizard-card-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Soft glow pulse for active elements */
+@keyframes soft-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+  50% { box-shadow: 0 0 20px -4px rgba(99, 102, 241, 0.12); }
+}
+.animate-soft-glow {
+  animation: soft-glow 3s ease-in-out infinite;
+}
+
+/* Progress connector fill animation */
+@keyframes connector-fill {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+/* Subtle float for selected items */
+@keyframes subtle-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-1px); }
+}
+
+/* Smooth number counter */
+@keyframes count-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-count-up {
+  animation: count-up 0.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Wizard relief cards */
+@layer components {
+  .wizard-card {
+    @apply rounded-2xl border bg-white dark:bg-white/[0.02];
+    border-color: rgba(0, 0, 0, 0.06);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.04),
+      0 4px 12px -2px rgba(0, 0, 0, 0.03),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transition: box-shadow 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
+  }
+  .dark .wizard-card {
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.2),
+      0 4px 12px -2px rgba(0, 0, 0, 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+  .wizard-card:hover {
+    border-color: rgba(0, 0, 0, 0.1);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.05),
+      0 8px 24px -4px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    transform: translateY(-1px);
+  }
+  .dark .wizard-card:hover {
+    border-color: rgba(255, 255, 255, 0.1);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.3),
+      0 8px 24px -4px rgba(0, 0, 0, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  /* Selection card with color accent */
+  .wizard-select-card {
+    @apply rounded-xl border-2 transition-all duration-200 cursor-pointer;
+    border-color: rgba(0, 0, 0, 0.06);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  }
+  .dark .wizard-select-card {
+    border-color: rgba(255, 255, 255, 0.06);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+  .wizard-select-card:hover:not(.wizard-select-active) {
+    border-color: rgba(0, 0, 0, 0.12);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+  }
+  .dark .wizard-select-card:hover:not(.wizard-select-active) {
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .wizard-select-active {
+    border-color: hsl(var(--primary) / 0.4) !important;
+    box-shadow:
+      0 0 0 3px hsl(var(--primary) / 0.08),
+      0 2px 8px -2px hsl(var(--primary) / 0.15),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.04), hsl(var(--primary) / 0.02));
+  }
+  .dark .wizard-select-active {
+    box-shadow:
+      0 0 0 3px hsl(var(--primary) / 0.12),
+      0 2px 8px -2px hsl(var(--primary) / 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.05));
+  }
+
+  /* Soft alert banners */
+  .wizard-alert {
+    @apply rounded-xl p-3.5;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  .dark .wizard-alert {
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  /* Wizard input with inner shadow */
+  .wizard-input {
+    @apply bg-gray-50/60 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.08] rounded-xl text-slate-900 dark:text-white;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  .dark .wizard-input {
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  }
+  .wizard-input:focus, .wizard-input:focus-within {
+    border-color: hsl(var(--primary) / 0.4);
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.04), 0 0 0 3px hsl(var(--primary) / 0.08);
+  }
+
+  /* Progress step glow */
+  .wizard-step-active {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.12), 0 2px 8px -2px hsl(var(--primary) / 0.2);
+  }
+  .dark .wizard-step-active {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15), 0 2px 8px -2px hsl(var(--primary) / 0.25);
+  }
+
+  /* Wizard nav button */
+  .wizard-nav-btn {
+    @apply rounded-xl font-medium transition-all duration-200;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  }
+  .wizard-nav-btn:hover:not(:disabled) {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transform: translateY(-1px);
+  }
+  .wizard-nav-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Wizard section header */
+  .wizard-section-title {
+    @apply text-sm font-semibold tracking-tight;
+    color: hsl(222 47% 20%);
+  }
+  .dark .wizard-section-title {
+    color: hsl(210 20% 82%);
+  }
+
+  /* Wizard badge — softer with subtle shadow */
+  .wizard-badge {
+    @apply text-[10px] font-medium px-2.5 py-1 rounded-lg;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  }
+}
+
 /* OPT-12: Subtle pulsing dot for live status indicators */
 @keyframes status-pulse {
   0%, 100% { opacity: 1; }

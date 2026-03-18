@@ -57,8 +57,8 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
     setFieldErrors((prev) => ({ ...prev, [field]: error }));
   };
 
-  const inputCls = "bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white";
-  const errorCls = "bg-gray-50/80 dark:bg-white/[0.04] border-red-500/40 text-slate-900 dark:text-white ring-1 ring-red-500/20";
+  const inputCls = "wizard-input";
+  const errorCls = "wizard-input border-red-400/60 dark:border-red-400/40 ring-1 ring-red-400/20";
 
   return (
     <div className="space-y-8">
@@ -77,10 +77,10 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
               onChange({ honoraires_ht: Number(raw) || 0 });
             }}
             onBlur={() => validateField("honoraires_ht", data.honoraires_ht)}
-            className={`${fieldErrors.honoraires_ht ? errorCls : inputCls} text-center text-4xl font-bold h-16`}
+            className={`${fieldErrors.honoraires_ht ? errorCls : inputCls} text-center text-4xl font-bold h-16 rounded-2xl`}
             placeholder="0"
           />
-          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 dark:text-slate-500">€ HT / an</span>
+          <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-slate-400 dark:text-slate-500 font-medium">€ HT / an</span>
         </div>
         {fieldErrors.honoraires_ht && (
           <p className="text-xs text-red-400 animate-shake" role="alert">{fieldErrors.honoraires_ht}</p>
@@ -134,8 +134,8 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 onClick={() => onChange({ taux_tva: rate })}
                 className={`px-3.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   active
-                    ? "border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm shadow-blue-500/10"
-                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-white/[0.12] hover:bg-gray-50/80 dark:bg-white/[0.04]"
+                    ? "wizard-select-card wizard-select-active text-blue-600 dark:text-blue-400"
+                    : "wizard-select-card text-slate-500 dark:text-slate-400"
                 }`}
               >
                 {rate === 0 ? "Exonere" : `${rate}%`}
@@ -147,7 +147,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Fréquence facturation ── */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Frequence de facturation</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Frequence de facturation</p>
         <div className="grid grid-cols-3 gap-3">
           {FREQUENCES.map((f) => {
             const active = data.frequence_facturation === f.value;
@@ -157,11 +157,11 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 onClick={() => onChange({ frequence_facturation: f.value })}
                 className={`p-3 rounded-xl border-2 text-center transition-all duration-200 ${
                   active
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-white/[0.12]"
+                    ? "wizard-select-card wizard-select-active"
+                    : "wizard-select-card"
                 }`}
               >
-                <p className={`text-sm font-semibold ${active ? "text-blue-300" : "text-slate-700 dark:text-slate-300"}`}>{f.label}</p>
+                <p className={`text-sm font-semibold ${active ? "text-blue-600 dark:text-blue-400" : "text-slate-700 dark:text-slate-300"}`}>{f.label}</p>
               </button>
             );
           })}
@@ -175,7 +175,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Mode de paiement ── */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Mode de paiement</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Mode de paiement</p>
         <div className="grid grid-cols-3 gap-3">
           {MODES_PAIEMENT.map(({ value, label }) => {
             const active = data.mode_paiement === value;
@@ -186,12 +186,12 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 onClick={() => onChange({ mode_paiement: value })}
                 className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 ${
                   active
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-white/[0.12]"
+                    ? "wizard-select-card wizard-select-active"
+                    : "wizard-select-card"
                 }`}
               >
-                <div className={`${active ? "text-blue-400" : "text-slate-400 dark:text-slate-500"}`}>{icon}</div>
-                <p className={`text-xs font-medium ${active ? "text-blue-300" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>{label}</p>
+                <div className={`${active ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}>{icon}</div>
+                <p className={`text-xs font-medium ${active ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>{label}</p>
               </button>
             );
           })}
@@ -200,7 +200,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── SEPA fields ── */}
       {data.mode_paiement === "prelevement" && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl wizard-card">
           <div className="space-y-1.5">
             <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">IBAN</Label>
             <Input
@@ -238,8 +238,8 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 onClick={() => onChange({ echeance_jours: d })}
                 className={`px-3.5 py-2 rounded-lg border text-xs font-medium transition-all ${
                   active
-                    ? "border-blue-500 bg-blue-500/10 text-blue-300 shadow-sm shadow-blue-500/10"
-                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:border-white/[0.12] hover:bg-gray-50/80 dark:bg-white/[0.04]"
+                    ? "wizard-select-card wizard-select-active text-blue-600 dark:text-blue-400"
+                    : "wizard-select-card text-slate-500 dark:text-slate-400"
                 }`}
               >
                 {d}j
@@ -267,10 +267,10 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── OPT-11: Honoraires de succès ── */}
       {mtConfig.honorairesSuccesAutorises && (
-        <div className="space-y-3 p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+        <div className="space-y-3 p-4 rounded-xl wizard-card">
           <div className="flex items-center gap-2">
             <Trophy className="w-4 h-4 text-amber-400" />
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Honoraires complementaires de succes</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Honoraires complementaires de succes</p>
           </div>
           <label className="flex items-center gap-3 cursor-pointer">
             <Checkbox
@@ -306,10 +306,10 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── OPT-12: Récapitulatif total ── */}
       {data.honoraires_ht > 0 && (
-        <div className="flex items-center justify-between p-4 rounded-xl bg-blue-500/5 border border-blue-500/15">
+        <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-r from-blue-50/80 to-indigo-50/60 dark:from-blue-500/[0.06] dark:to-indigo-500/[0.04] border border-blue-200/40 dark:border-blue-500/15">
           <div className="flex items-center gap-2">
             <Calculator className="w-4 h-4 text-blue-400" />
-            <span className="text-sm text-slate-700 dark:text-slate-300">Total honoraires annuels estimes</span>
+            <span className="text-sm text-slate-800 dark:text-slate-200">Total honoraires annuels estimes</span>
           </div>
           <span className="text-lg font-bold text-slate-900 dark:text-white">{formatEur(data.honoraires_ht)} HT</span>
         </div>

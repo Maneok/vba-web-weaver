@@ -1295,11 +1295,11 @@ export default function LettreMissionPage() {
             variant="outline"
             size="sm"
             onClick={handleExpress}
-            className={`gap-1.5 border-gray-200 dark:border-white/[0.06] text-xs ${expressMode ? "bg-amber-500/10 text-amber-400 border-amber-500/20" : "text-slate-400 dark:text-slate-400"}`}
+            className={`gap-1.5 border-gray-200 dark:border-white/[0.06] text-xs ${expressMode ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/20" : "text-slate-400 dark:text-slate-400"}`}
           >
             <Zap className="w-3.5 h-3.5" /> Express
           </Button>
-          <Button onClick={handleReset} className="gap-1.5 bg-blue-600 hover:bg-blue-700" size={isMobile ? "sm" : "default"}>
+          <Button onClick={handleReset} className="gap-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm shadow-blue-500/15" size={isMobile ? "sm" : "default"}>
             <Plus className="w-4 h-4" /> {!isMobile && "Nouvelle"}
           </Button>
         </div>
@@ -1310,7 +1310,7 @@ export default function LettreMissionPage() {
 
       {/* Draft resume banner */}
       {showDraftBanner && draftInfo && (
-        <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 animate-fade-in-up">
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50/60 dark:from-blue-500/10 dark:to-indigo-500/5 border border-blue-200/60 dark:border-blue-500/20 rounded-xl p-3 sm:p-4 flex items-center justify-between gap-3 animate-fade-in-up">
           <div className="min-w-0">
             <p className="text-sm font-medium text-blue-300">Reprendre le brouillon</p>
             <p className="text-xs text-slate-400 dark:text-slate-400 truncate">
@@ -1318,7 +1318,7 @@ export default function LettreMissionPage() {
             </p>
           </div>
           <div className="flex gap-2 shrink-0">
-            <Button size="sm" onClick={resumeDraft} className="bg-blue-600 hover:bg-blue-700">Reprendre</Button>
+            <Button size="sm" onClick={resumeDraft} className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm">Reprendre</Button>
             <Button size="sm" variant="ghost" onClick={() => setShowDraftBanner(false)} className="text-slate-400 dark:text-slate-400">Nouveau</Button>
           </div>
         </div>
@@ -1373,14 +1373,12 @@ export default function LettreMissionPage() {
             {/* Left: form */}
             <div className={`${!isMobile ? "flex-[3] min-w-0" : "w-full"}`}>
               <div
-                className={`rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 sm:p-6 transition-all duration-200 ${
+                className={`wizard-card p-4 sm:p-6 transition-all duration-300 ease-out ${
                   isMobile ? "pb-32" : ""
                 } ${
                   fieldsVisible
-                    ? "opacity-100 translate-y-0"
-                    : stepDirection === "right"
-                    ? "opacity-0 translate-x-6"
-                    : "opacity-0 -translate-x-6"
+                    ? "opacity-100 translate-y-0 scale-100"
+                    : "opacity-0 translate-y-2 scale-[0.998]"
                 }`}
                 onTouchStart={handleTouchStart}
                 onTouchEnd={handleTouchEnd}
@@ -1392,7 +1390,7 @@ export default function LettreMissionPage() {
             {/* Right: summary panel (desktop only) */}
             {!isMobile && (
               <div className="flex-[2] min-w-[260px] max-w-[360px]">
-                <div className="rounded-2xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-5">
+                <div className="wizard-card p-5">
                   <LMSummaryPanel data={data} />
                 </div>
               </div>
@@ -1407,7 +1405,7 @@ export default function LettreMissionPage() {
                 <LMSummaryPanel data={data} compact />
               </div>
               {/* Mobile: sticky bottom nav */}
-              <div className="fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-lg border-t border-gray-200 dark:border-white/[0.06] p-3 pb-safe flex items-center justify-between z-50">
+              <div className="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-gray-950/95 backdrop-blur-xl border-t border-gray-200/80 dark:border-white/[0.06] shadow-[0_-4px_16px_rgba(0,0,0,0.04)] dark:shadow-[0_-4px_16px_rgba(0,0,0,0.2)] p-3 pb-safe flex items-center justify-between z-50">
                 <Button
                   variant="outline"
                   size="sm"
@@ -1417,13 +1415,13 @@ export default function LettreMissionPage() {
                 >
                   <ChevronLeft className="w-4 h-4" /> Prec.
                 </Button>
-                <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">{step + 1}/{LM_TOTAL_STEPS}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums font-medium">{step + 1}/{LM_TOTAL_STEPS}</span>
                 {step < LM_TOTAL_STEPS - 1 ? (
                   <Button
                     size="sm"
                     onClick={handleNext}
                     disabled={nextDisabled}
-                    className="gap-1 bg-blue-600 hover:bg-blue-700 disabled:opacity-40"
+                    className="gap-1 wizard-nav-btn bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm shadow-blue-500/20 disabled:opacity-40"
                   >
                     Suivant <ChevronRight className="w-4 h-4" />
                   </Button>
@@ -1438,23 +1436,23 @@ export default function LettreMissionPage() {
                 variant="outline"
                 onClick={handlePrevious}
                 disabled={step === 0}
-                className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.04]"
+                className="gap-1.5 wizard-nav-btn border-gray-200 dark:border-white/[0.06] hover:bg-gray-50 dark:hover:bg-white/[0.04]"
               >
                 <ChevronLeft className="w-4 h-4" /> Precedent
               </Button>
               <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">
                 Etape {step + 1} / {LM_TOTAL_STEPS}
                 <span className="ml-2 text-[9px] text-slate-600">
-                  <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-600 font-mono text-[8px]">Esc</kbd> prec.
+                  <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-500 font-mono text-[8px]">Esc</kbd> prec.
                   {" · "}
-                  <kbd className="px-1 py-0.5 rounded bg-gray-50/80 dark:bg-white/[0.04] text-slate-600 font-mono text-[8px]">Ctrl+⏎</kbd> suiv.
+                  <kbd className="px-1 py-0.5 rounded bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-500 font-mono text-[8px]">Ctrl+⏎</kbd> suiv.
                 </span>
               </span>
               {step < LM_TOTAL_STEPS - 1 ? (
                 <Button
                   onClick={handleNext}
                   disabled={nextDisabled}
-                  className="gap-1.5 bg-blue-600 hover:bg-blue-700 shadow-md shadow-blue-500/10 disabled:opacity-40"
+                  className="gap-1.5 wizard-nav-btn bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-md shadow-blue-500/20 disabled:opacity-40"
                 >
                   Suivant <ChevronRight className="w-4 h-4" />
                 </Button>

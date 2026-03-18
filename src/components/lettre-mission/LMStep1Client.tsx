@@ -152,7 +152,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
               inputMode="search"
               autoComplete="off"
               autoFocus
-              className="pl-10 h-12 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white placeholder:text-slate-300 dark:text-slate-600 text-base"
+              className="pl-10 h-12 wizard-input text-base"
             />
           </div>
 
@@ -162,10 +162,10 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 key={c.ref}
                 onClick={() => selectClient(c)}
                 aria-label={`Selectionner ${c.raisonSociale}`}
-                className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-100 dark:hover:bg-white/[0.05] hover:border-white/[0.12] active:scale-[0.99] transition-all duration-150 text-left"
+                className="w-full flex items-center gap-3 p-3.5 rounded-xl wizard-card active:scale-[0.995] text-left group/client"
               >
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${
-                  c.forme === "ENTREPRISE INDIVIDUELLE" ? "bg-purple-500/15" : "bg-blue-500/15"
+                  c.forme === "ENTREPRISE INDIVIDUELLE" ? "bg-purple-50 dark:bg-purple-500/10" : "bg-blue-50 dark:bg-blue-500/10"
                 }`}>
                   {c.forme === "ENTREPRISE INDIVIDUELLE"
                     ? <User className="w-4 h-4 text-purple-400" />
@@ -175,7 +175,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                   <p className="text-sm font-medium text-slate-900 dark:text-white truncate" title={c.raisonSociale}>{c.raisonSociale}</p>
                   <p className="text-xs text-slate-400 dark:text-slate-500">{c.siren} · {c.forme}</p>
                 </div>
-                <Badge variant="outline" className={`text-[10px] shrink-0 ${vigilanceColor(c.nivVigilance)}`}>
+                <Badge variant="outline" className={`text-[10px] shrink-0 wizard-badge ${vigilanceColor(c.nivVigilance)}`}>
                   {c.nivVigilance}
                 </Badge>
               </button>
@@ -189,7 +189,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
           <Button
             variant="outline"
-            className="w-full gap-2 border-dashed border-gray-300 dark:border-white/[0.08] text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/5 hover:border-blue-500/20 h-11"
+            className="w-full gap-2 border-dashed border-gray-200 dark:border-white/[0.06] text-slate-400 hover:text-blue-500 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 hover:border-blue-200 dark:hover:border-blue-500/20 h-11"
             onClick={() => navigate("/nouveau-client")}
             aria-label="Creer un nouveau client"
           >
@@ -200,10 +200,10 @@ export default function LMStep1Client({ data, onChange }: Props) {
         <>
           {/* Screening banners */}
           {screeningStatus === "missing" && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
+            <div className="flex items-start gap-3 p-3 rounded-xl wizard-alert bg-red-50/80 dark:bg-red-500/[0.06] border border-red-200/60 dark:border-red-500/15" role="alert">
               <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-red-300">Dossier LCB-FT manquant</p>
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">Dossier LCB-FT manquant</p>
                 <p className="text-xs text-red-400/70 mt-0.5">Ce client n'a pas de dossier LCB-FT. Completez le parcours client d'abord.</p>
                 <Button
                   variant="outline"
@@ -217,10 +217,10 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
           {screeningStatus === "expired" && (
-            <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
+            <div className="flex items-start gap-3 p-3 rounded-xl wizard-alert bg-amber-50/80 dark:bg-amber-500/[0.06] border border-amber-200/60 dark:border-amber-500/15" role="alert">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-amber-300">Dossier LCB-FT perime</p>
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Dossier LCB-FT perime</p>
                 <p className="text-xs text-amber-400/70 mt-0.5">Le dossier LCB-FT de ce client date de plus d'un an. Mettez-le a jour avant de generer la lettre.</p>
                 <Button
                   variant="outline"
@@ -236,10 +236,10 @@ export default function LMStep1Client({ data, onChange }: Props) {
 
           {/* Risk alerts */}
           {selectedClient && selectedClient.scoreGlobal >= 70 && (
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-red-500/10 border border-red-500/20" role="alert">
+            <div className="flex items-start gap-3 p-4 rounded-xl wizard-alert bg-red-50/80 dark:bg-red-500/[0.06] border border-red-200/60 dark:border-red-500/15" role="alert">
               <ShieldAlert className="w-5 h-5 text-red-400 shrink-0 mt-0.5" />
               <div className="space-y-1.5">
-                <p className="text-sm font-medium text-red-300">
+                <p className="text-sm font-medium text-red-600 dark:text-red-400">
                   Attention — Ce client presente un risque eleve (score {selectedClient.scoreGlobal}/100)
                 </p>
                 <p className="text-xs text-red-400/80">
@@ -256,25 +256,25 @@ export default function LMStep1Client({ data, onChange }: Props) {
           )}
 
           {selectedClient && selectedClient.scoreGlobal >= 50 && selectedClient.scoreGlobal < 70 && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
+            <div className="flex items-center gap-3 p-3 rounded-xl wizard-alert bg-amber-50/80 dark:bg-amber-500/[0.06] border border-amber-200/60 dark:border-amber-500/15" role="alert">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-              <p className="text-xs text-amber-300">
+              <p className="text-xs text-amber-600 dark:text-amber-400">
                 Ce client presente un risque moyen (score {selectedClient.scoreGlobal}/100). Revue des diligences de vigilance recommandee.
               </p>
             </div>
           )}
 
           {selectedClient && selectedClient.scoreGlobal >= 60 && selectedClient.scoreGlobal < 70 && (
-            <div className="flex items-center gap-3 p-3 rounded-xl bg-orange-500/10 border border-orange-500/20">
+            <div className="flex items-center gap-3 p-3 rounded-xl wizard-alert bg-orange-50/80 dark:bg-orange-500/[0.06] border border-orange-200/60 dark:border-orange-500/15">
               <AlertTriangle className="w-5 h-5 text-orange-400 shrink-0" />
-              <p className="text-xs text-orange-300">
+              <p className="text-xs text-orange-600 dark:text-orange-400">
                 Client a <strong>vigilance renforcee</strong> — envisagez un complement d'honoraires
               </p>
             </div>
           )}
 
           {/* Selected client card */}
-          <div className="relative p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/15">
+          <div className="relative p-4 rounded-xl bg-gradient-to-br from-emerald-50/80 to-emerald-50/40 dark:from-emerald-500/[0.06] dark:to-emerald-500/[0.02] border border-emerald-200/60 dark:border-emerald-500/15" style={{ boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.5), 0 1px 4px rgba(0,0,0,0.03)' }}>
             <button
               onClick={clearClient}
               aria-label="Deselectionner le client"
@@ -309,10 +309,10 @@ export default function LMStep1Client({ data, onChange }: Props) {
           {/* Active LM warning + import */}
           {previousLM && (
             <div className="space-y-2">
-              <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20" role="alert">
+              <div className="flex items-start gap-3 p-3 rounded-xl wizard-alert bg-amber-50/80 dark:bg-amber-500/[0.06] border border-amber-200/60 dark:border-amber-500/15" role="alert">
                 <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-amber-300">Ce client a deja une lettre de mission active</p>
+                  <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Ce client a deja une lettre de mission active</p>
                   <p className="text-[10px] text-amber-400/70 mt-0.5">
                     {previousLM.numero} — {previousLM.statut === "signee" ? "Signee" : "Envoyee"}. Souhaitez-vous creer un avenant plutot qu'une nouvelle LM ?
                   </p>
@@ -328,11 +328,11 @@ export default function LMStep1Client({ data, onChange }: Props) {
               </div>
               <button
                 onClick={importPreviousLM}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-blue-500/15 bg-blue-500/5 hover:bg-blue-500/10 transition-colors text-left"
+                className="w-full flex items-center gap-3 p-3 rounded-xl border border-blue-100 dark:border-blue-500/15 bg-blue-50/60 dark:bg-blue-500/[0.04] hover:bg-blue-50 dark:hover:bg-blue-500/[0.08] transition-colors text-left"
               >
                 <History className="w-5 h-5 text-blue-400 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-blue-300">Reprendre les parametres de la LM precedente</p>
+                  <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Reprendre les parametres de la LM precedente</p>
                   <p className="text-[10px] text-blue-400/60 mt-0.5">{previousLM.numero} — {previousLM.statut === "signee" ? "Signee" : "Envoyee"}</p>
                 </div>
               </button>

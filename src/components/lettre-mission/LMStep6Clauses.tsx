@@ -22,10 +22,10 @@ export default function LMStep6Clauses({ data, onChange }: Props) {
   return (
     <div className="space-y-6">
       {/* Mission description info */}
-      <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 space-y-2">
+      <div className="wizard-card p-4 space-y-2">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-blue-400" />
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Cadre de la mission — {mtConfig.shortLabel}</p>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Cadre de la mission — {mtConfig.shortLabel}</p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="text-[9px] border-blue-500/30 text-blue-400">{mtConfig.normeRef}</Badge>
@@ -37,11 +37,11 @@ export default function LMStep6Clauses({ data, onChange }: Props) {
       {/* Honoraires de succes badge */}
       <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-white/[0.06]">
         {mtConfig.honorairesSuccesAutorises ? (
-          <Badge className="text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 gap-1">
+          <Badge className="text-[10px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 gap-1">
             <CheckCircle2 className="w-3 h-3" /> Honoraires de succes autorises
           </Badge>
         ) : (
-          <Badge className="text-[10px] bg-red-500/10 text-red-400 border border-red-500/20 gap-1">
+          <Badge className="text-[10px] bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/20 gap-1">
             <XCircle className="w-3 h-3" /> Honoraires de succes interdits (art. 24 ord. 1945)
           </Badge>
         )}
@@ -49,32 +49,32 @@ export default function LMStep6Clauses({ data, onChange }: Props) {
 
       {/* Clauses obligatoires */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Clauses obligatoires</p>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-          <span className="text-sm text-slate-700 dark:text-slate-300">LCB-FT</span>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Clauses obligatoires</p>
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-150 dark:border-white/[0.05] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <span className="text-sm text-slate-800 dark:text-slate-200">LCB-FT</span>
           <Switch checked={data.clause_lcbft} disabled />
         </div>
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-          <span className="text-sm text-slate-700 dark:text-slate-300">Travail dissimule</span>
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-150 dark:border-white/[0.05] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
+          <span className="text-sm text-slate-800 dark:text-slate-200">Travail dissimule</span>
           <Switch checked={data.clause_travail_dissimule} disabled />
         </div>
       </div>
 
       {/* Clauses optionnelles */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Clauses optionnelles</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Clauses optionnelles</p>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-150 dark:border-white/[0.05] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           <div>
-            <span className="text-sm text-slate-700 dark:text-slate-300">RGPD</span>
+            <span className="text-sm text-slate-800 dark:text-slate-200">RGPD</span>
             <p className="text-[10px] text-slate-400 dark:text-slate-500">Protection des donnees personnelles</p>
           </div>
           <Switch checked={data.clause_rgpd} onCheckedChange={(v) => onChange({ clause_rgpd: v })} />
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-150 dark:border-white/[0.05] shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
           <div>
-            <span className="text-sm text-slate-700 dark:text-slate-300">Conciliation CROEC</span>
+            <span className="text-sm text-slate-800 dark:text-slate-200">Conciliation CROEC</span>
             <p className="text-[10px] text-slate-400 dark:text-slate-500">Clause de conciliation aupres du Conseil Regional</p>
           </div>
           <Switch checked={true} disabled />
@@ -83,7 +83,7 @@ export default function LMStep6Clauses({ data, onChange }: Props) {
 
       {/* Nature et limites */}
       {mtConfig.natureLimiteText && (
-        <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-1.5">
+        <div className="wizard-card p-3 space-y-1.5">
           <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Nature et limites de la mission</p>
           <p className="text-[11px] text-slate-400 dark:text-slate-400 leading-relaxed line-clamp-3">{mtConfig.natureLimiteText.split('\n')[0]}</p>
         </div>
@@ -95,19 +95,19 @@ export default function LMStep6Clauses({ data, onChange }: Props) {
         <Textarea
           value={data.clauses_supplementaires}
           onChange={(e) => onChange({ clauses_supplementaires: e.target.value })}
-          className={`${inputCls} min-h-[80px]`}
+          className="wizard-input min-h-[80px]"
           placeholder="Clauses additionnelles..."
         />
       </div>
 
       {/* CGV compact */}
-      <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
+      <div className="wizard-card overflow-hidden">
         <button
           type="button"
           onClick={() => setShowCgv(!showCgv)}
           className="w-full flex items-center justify-between p-4 text-left hover:bg-white dark:hover:bg-white/[0.02] transition-colors"
         >
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Conditions Generales d'Intervention</p>
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Conditions Generales d'Intervention</p>
           <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform ${showCgv ? "rotate-180" : ""}`} />
         </button>
         <div className={`overflow-hidden transition-all duration-200 ${showCgv ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"}`}>
@@ -121,9 +121,9 @@ export default function LMStep6Clauses({ data, onChange }: Props) {
               <div className="mt-3 space-y-1.5">
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Clauses specifiques ({mtConfig.shortLabel})</p>
                 {mtConfig.cgvSpecificClauses.map((clause, i) => (
-                  <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-amber-500/5 border border-amber-500/10">
+                  <div key={i} className="flex items-start gap-2 p-2 rounded-lg bg-amber-50/60 dark:bg-amber-500/[0.04] border border-amber-200/60 dark:border-amber-500/10">
                     <Info className="w-3 h-3 text-amber-400 shrink-0 mt-0.5" />
-                    <p className="text-[10px] text-amber-300/80">{clause}</p>
+                    <p className="text-[10px] text-amber-700 dark:text-amber-300/80">{clause}</p>
                   </div>
                 ))}
               </div>

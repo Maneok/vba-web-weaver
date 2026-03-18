@@ -23,14 +23,29 @@ const STEP_DESCRIPTIONS = [
 export default function LMProgressBar({ currentStep, onStepClick, missionCategory }: Props) {
   const remainingSec = LM_STEP_DURATIONS.slice(currentStep).reduce((a, b) => a + b, 0);
   const remainingMin = Math.ceil(remainingSec / 60);
-
-  // Category accent color
   const catColors = missionCategory ? getCategoryColorClasses(missionCategory) : null;
+  const progress = ((currentStep) / (LM_TOTAL_STEPS - 1)) * 100;
 
   return (
-    <div className="w-full space-y-2">
-      {/* Clickable step bar */}
-      <div className="flex items-center w-full">
+    <div className="w-full space-y-3">
+      {/* Continuous progress bar */}
+      <div className="relative h-1 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
+          style={{
+            width: `${progress}%`,
+            background: catColors
+              ? undefined
+              : 'linear-gradient(90deg, hsl(var(--primary) / 0.6), hsl(var(--primary)))',
+            backgroundColor: catColors ? undefined : undefined,
+          }}
+        >
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-500 dark:from-blue-500 dark:via-indigo-500 dark:to-blue-400" />
+        </div>
+      </div>
+
+      {/* Clickable step pills */}
+      <div className="flex items-center justify-between w-full">
         {Array.from({ length: LM_TOTAL_STEPS }, (_, i) => {
           const isCompleted = i < currentStep;
           const isCurrent = i === currentStep;
@@ -44,54 +59,53 @@ export default function LMProgressBar({ currentStep, onStepClick, missionCategor
                     onClick={() => isClickable && onStepClick?.(i)}
                     disabled={!isClickable}
                     className={`
-                      flex items-center gap-1.5 sm:gap-2 px-1.5 sm:px-2.5 py-1.5 rounded-lg transition-all duration-200
-                      ${isCurrent ? (catColors ? `${catColors.bg} ${catColors.border} border` : 'bg-blue-500/15 border border-blue-500/30') : ''}
-                      ${isCompleted ? 'cursor-pointer hover:bg-gray-100 dark:bg-white/[0.06]' : ''}
-                      ${!isClickable ? 'cursor-not-allowed opacity-40' : ''}
+                      flex items-center gap-1 sm:gap-1.5 px-1 sm:px-2 py-1 rounded-lg transition-all duration-300
+                      ${isCurrent ? 'wizard-step-active bg-white dark:bg-white/[0.06]' : ''}
+                      ${isCompleted ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.04]' : ''}
+                      ${!isClickable ? 'cursor-not-allowed opacity-30' : ''}
                     `}
-                    aria-label={`Étape ${i + 1}: ${STEP_DESCRIPTIONS[i]}`}
+                    aria-label={`Etape ${i + 1}: ${STEP_DESCRIPTIONS[i]}`}
                     aria-current={isCurrent ? 'step' : undefined}
                   >
                     <span className={`
-                      flex items-center justify-center w-6 h-6 sm:w-7 sm:h-7 rounded-full text-xs font-medium border-2 transition-all duration-200
+                      flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 rounded-full text-[10px] sm:text-xs font-semibold transition-all duration-300
                       ${isCurrent
-                        ? (catColors ? `${catColors.border} ${catColors.text}` : 'border-blue-400 text-blue-400 bg-blue-500/10')
+                        ? 'bg-gradient-to-br from-blue-500 to-indigo-500 text-white shadow-sm shadow-blue-500/25'
                         : ''}
                       ${isCompleted
-                        ? (catColors ? `border-transparent ${catColors.badge}` : 'border-transparent bg-emerald-500/20 text-emerald-400')
+                        ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-500 dark:text-blue-400'
                         : ''}
-                      ${!isClickable ? 'border-gray-300 dark:border-white/[0.08] text-slate-300 dark:text-slate-600' : ''}
+                      ${!isClickable ? 'bg-gray-100 dark:bg-white/[0.04] text-gray-300 dark:text-slate-600' : ''}
                     `}>
                       {isCompleted ? (
-                        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="3">
+                        <svg className="w-2.5 h-2.5 sm:w-3 sm:h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                           <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                         </svg>
                       ) : (
                         i + 1
                       )}
                     </span>
-                    <span className={`hidden sm:inline text-xs ${
-                      isCurrent ? (catColors ? catColors.text : 'text-blue-300 font-medium') :
-                      isCompleted ? 'text-slate-400 dark:text-slate-500 dark:text-slate-400' :
+                    <span className={`hidden lg:inline text-[11px] ${
+                      isCurrent ? 'text-slate-800 dark:text-white font-medium' :
+                      isCompleted ? 'text-slate-500 dark:text-slate-400' :
                       'text-slate-300 dark:text-slate-600'
                     }`}>
                       {LM_STEP_LABELS[i]}
                     </span>
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="text-xs">
-                  Étape {i + 1} : {STEP_DESCRIPTIONS[i]}
+                <TooltipContent side="bottom" className="text-xs font-medium">
+                  {STEP_DESCRIPTIONS[i]}
                 </TooltipContent>
               </Tooltip>
 
-              {/* Connector */}
+              {/* Connector dot */}
               {i < LM_TOTAL_STEPS - 1 && (
-                <div className={`
-                  hidden sm:block flex-1 h-0.5 mx-1 rounded-full transition-colors duration-300
-                  ${i < currentStep
-                    ? (catColors ? catColors.badge.split(' ')[0] : 'bg-emerald-400/40')
-                    : 'bg-gray-100 dark:bg-white/[0.06]'}
-                `} />
+                <div className="hidden sm:block flex-1 mx-0.5">
+                  <div className={`h-px rounded-full transition-colors duration-500 ${
+                    i < currentStep ? 'bg-blue-200 dark:bg-blue-500/30' : 'bg-gray-100 dark:bg-white/[0.04]'
+                  }`} />
+                </div>
               )}
             </div>
           );
@@ -99,10 +113,10 @@ export default function LMProgressBar({ currentStep, onStepClick, missionCategor
       </div>
 
       {/* Time estimate */}
-      <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center">
+      <p className="text-[10px] text-slate-400 dark:text-slate-500 text-center tracking-wide">
         {currentStep < LM_TOTAL_STEPS - 1
-          ? `Environ ${remainingMin} min restante${remainingMin > 1 ? "s" : ""}`
-          : "Dernière étape"}
+          ? `~${remainingMin} min restante${remainingMin > 1 ? "s" : ""}`
+          : "Derniere etape"}
       </p>
     </div>
   );

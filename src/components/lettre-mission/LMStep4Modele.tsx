@@ -74,7 +74,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
     setFieldErrors((prev) => ({ ...prev, [field]: error }));
   };
 
-  const inputCls = "bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white";
+  const inputCls = "wizard-input";
   const clientInfoFilled = data.dirigeant && data.adresse && data.cp && data.ville;
 
   return (
@@ -82,7 +82,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
       {/* Modele selection */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+          <FileText className="w-4 h-4 text-blue-400 dark:text-blue-400" />
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Modele de lettre</p>
         </div>
         {modelesLoading ? (
@@ -142,7 +142,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
 
       {/* Duree et renouvellement */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Duree et renouvellement</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Duree et renouvellement</p>
         <div className="grid grid-cols-3 gap-3">
           {DUREES.map((d) => {
             const active = data.duree === d.value;
@@ -150,20 +150,20 @@ export default function LMStep4Modele({ data, onChange }: Props) {
               <button
                 key={d.value}
                 onClick={() => onChange({ duree: d.value })}
-                className={`p-4 rounded-xl border-2 text-center transition-all duration-200 ${
+                className={`p-4 rounded-xl text-center transition-all duration-200 ${
                   active
-                    ? "border-blue-500 bg-blue-500/10"
-                    : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-white/[0.12]"
+                    ? "wizard-select-card wizard-select-active"
+                    : "wizard-select-card"
                 }`}
               >
-                <p className={`text-lg font-bold ${active ? "text-blue-300" : "text-slate-700 dark:text-slate-300"}`}>{d.label}</p>
+                <p className={`text-lg font-bold ${active ? "text-blue-600 dark:text-blue-400" : "text-slate-700 dark:text-slate-300"}`}>{d.label}</p>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">{d.description}</p>
               </button>
             );
           })}
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-150 dark:border-white/[0.06] shadow-sm shadow-gray-100/50 dark:shadow-none">
           <div>
             <p className="text-sm text-slate-700 dark:text-slate-300">Tacite reconduction</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500">Renouvellement automatique a echeance</p>
@@ -213,7 +213,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
 
       {/* Intervenants */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Intervenants</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Intervenants</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Associe signataire *</Label>
@@ -246,14 +246,14 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         </div>
         {data.referent_lcb && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-            <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px]">LCB</Badge>
+            <Badge className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-[9px]">LCB</Badge>
             <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Referent : {data.referent_lcb}</span>
           </div>
         )}
       </div>
 
       {/* Client info (collapsible) */}
-      <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
+      <div className="wizard-card overflow-hidden">
         <button
           type="button"
           onClick={() => setShowClientInfo(!showClientInfo)}
@@ -262,7 +262,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
           <div className="flex items-center gap-3">
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Informations client</p>
             {clientInfoFilled && !showClientInfo && (
-              <Badge className="bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] gap-1">
+              <Badge className="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 text-[9px] gap-1">
                 <CheckCircle2 className="w-3 h-3" /> Auto
               </Badge>
             )}

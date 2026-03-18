@@ -311,7 +311,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
     <div className="space-y-8">
       {/* Success animation */}
       <div className="flex flex-col items-center gap-3 py-4">
-        <div className="w-16 h-16 rounded-full bg-emerald-500/15 flex items-center justify-center animate-bounce-once">
+        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-500/15 dark:to-emerald-500/10 flex items-center justify-center animate-bounce-once">
           <CheckCircle2 className="w-8 h-8 text-emerald-400" />
         </div>
         <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
@@ -325,7 +325,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           onClick={handlePDF}
           disabled={!!generating}
           aria-label="Telecharger en PDF"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-blue-500/30 hover:bg-blue-500/5 transition-all duration-200 disabled:opacity-45 hover:shadow-lg hover:shadow-blue-500/5"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-blue-300 dark:hover:border-blue-500/30 hover:bg-blue-50/50 dark:hover:bg-blue-500/5 disabled:opacity-45 hover:shadow-md hover:shadow-blue-100/50 dark:hover:shadow-blue-500/10"
         >
           {generating === "pdf" ? <Loader2 className="w-6 h-6 text-blue-400 animate-spin" /> : <FileDown className="w-6 h-6 text-blue-400" />}
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Telecharger PDF</span>
@@ -335,7 +335,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
           onClick={handleDOCX}
           disabled={!!generating}
           aria-label="Telecharger en DOCX"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-purple-500/30 hover:bg-purple-500/5 transition-all duration-200 disabled:opacity-45 hover:shadow-lg hover:shadow-purple-500/5"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-purple-300 dark:hover:border-purple-500/30 hover:bg-purple-50/50 dark:hover:bg-purple-500/5 disabled:opacity-45 hover:shadow-md hover:shadow-purple-100/50 dark:hover:shadow-purple-500/10"
         >
           {generating === "docx" ? <Loader2 className="w-6 h-6 text-purple-400 animate-spin" /> : <FileText className="w-6 h-6 text-purple-400" />}
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Telecharger DOCX</span>
@@ -344,7 +344,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <button
           onClick={() => setShowEmail(!showEmail)}
           aria-label="Envoyer par email"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:border-emerald-500/30 hover:bg-emerald-500/5 transition-all duration-200 hover:shadow-lg hover:shadow-emerald-500/5"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-emerald-300 dark:hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/5 hover:shadow-md hover:shadow-emerald-100/50 dark:hover:shadow-emerald-500/10"
         >
           <Send className="w-6 h-6 text-emerald-400" />
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Envoyer par email</span>
@@ -376,7 +376,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
         <div className="space-y-2">
           <div className="flex items-center gap-2">
             <Paperclip className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Annexes jointes ({annexes.length})</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Annexes jointes ({annexes.length})</p>
           </div>
           <div className="space-y-1">
             {annexes.map((id) => (
@@ -390,14 +390,14 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
       )}
 
       {/* ── D) Signature tactile (collapsible) ── */}
-      <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] overflow-hidden">
+      <div className="wizard-card overflow-hidden">
         <button
           type="button"
           onClick={() => setShowSignature(!showSignature)}
           className="w-full flex items-center justify-between p-4 text-left hover:bg-white dark:bg-white/[0.02] transition-colors"
         >
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Signature</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Signature</p>
             {data.signature_expert && (
               <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px]">OK</Badge>
             )}
@@ -444,14 +444,14 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
       {/* ── C) Statut workflow (5 etats) ── */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Statut</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Statut</p>
         <div className="flex flex-wrap gap-2">
           {LM_STATUTS.map((s) => (
             <button
               key={s.value}
               onClick={() => onChange({ statut: s.value })}
               className={`px-4 py-2 rounded-lg border text-sm font-medium transition-all duration-200 ${
-                data.statut === s.value ? s.color : "bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500"
+                data.statut === s.value ? s.color : "bg-white dark:bg-white/[0.02] border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 hover:border-gray-300 dark:hover:border-white/[0.1] transition-all duration-200"
               }`}
             >
               {s.label}
@@ -462,7 +462,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
       {/* ── Save + Reset ── */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button onClick={handleSave} className="flex-1 bg-blue-600 hover:bg-blue-700 h-11 gap-2" aria-label="Sauvegarder la lettre de mission">
+        <Button onClick={handleSave} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md shadow-blue-500/20 h-11 gap-2" aria-label="Sauvegarder la lettre de mission">
           <CheckCircle2 className="w-4 h-4" /> Sauvegarder
         </Button>
         <Button variant="outline" onClick={onReset} className="gap-2 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white" aria-label="Commencer une nouvelle lettre de mission">
