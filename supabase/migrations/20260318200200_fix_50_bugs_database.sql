@@ -91,17 +91,24 @@ BEGIN
 END $$;
 
 -- ============================================================
--- BUG 14 — Ajouter des colonnes date typées (en parallèle des text)
+-- BUG 14 — Colonnes date typées via immutable function
 -- ============================================================
+CREATE OR REPLACE FUNCTION parse_iso_date(val text)
+RETURNS date
+LANGUAGE sql
+IMMUTABLE
+AS $$
+  SELECT CASE
+    WHEN val ~ '^\d{4}-\d{2}-\d{2}' THEN val::date
+    ELSE NULL
+  END;
+$$;
+
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS date_butoir_parsed date
-  GENERATED ALWAYS AS (
-    CASE WHEN date_butoir ~ '^\d{4}-\d{2}-\d{2}' THEN date_butoir::date ELSE NULL END
-  ) STORED;
+  GENERATED ALWAYS AS (parse_iso_date(date_butoir)) STORED;
 
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS date_creation_parsed date
-  GENERATED ALWAYS AS (
-    CASE WHEN date_creation ~ '^\d{4}-\d{2}-\d{2}' THEN date_creation::date ELSE NULL END
-  ) STORED;
+  GENERATED ALWAYS AS (parse_iso_date(date_creation)) STORED;
 
 -- Index sur les colonnes computed
 CREATE INDEX IF NOT EXISTS idx_clients_butoir_parsed ON clients(date_butoir_parsed);
