@@ -13,7 +13,10 @@ import {
   type RevueStats,
   type RevueFilters,
 } from "@/lib/revueMaintien";
-import { calculateRiskScore, calculateNextReviewDate } from "@/lib/riskEngine";
+import {
+  calculateRiskScore, calculateNextReviewDate, calculateReviewDueDate,
+  isReviewDue, daysUntilReview, VIGILANCE_THRESHOLDS,
+} from "@/lib/riskEngine";
 import { useScoringData } from "@/hooks/useScoringData";
 import {
   searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces,
@@ -40,7 +43,7 @@ import {
 import {
   RefreshCw, Search, ClipboardCheck, AlertTriangle, Clock, ShieldAlert,
   CalendarClock, Loader2, CheckCircle2, Download, Eye, ChevronLeft,
-  ChevronRight, Building2, Shield, ArrowRight, XCircle,
+  ChevronRight, Building2, Shield, ArrowRight, XCircle, FileDown, Save,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { MissionType, VigilanceLevel } from "@/lib/types";
@@ -159,6 +162,15 @@ function KpiCard({ label, value, icon: Icon, color, bgColor }: {
     </div>
   );
 }
+
+// OPT-11: Review type label by vigilance
+const REVIEW_TYPE_LABEL: Record<string, string> = {
+  SIMPLIFIEE: "Bisannuelle (2 ans)",
+  STANDARD: "Annuelle (1 an)",
+  RENFORCEE: "Semestrielle (6 mois)",
+};
+
+const DRAFT_KEY = "draft_revue_maintien";
 
 const PAGE_SIZE = 20;
 
@@ -615,15 +627,69 @@ export default function RevueMaintienPage() {
     if (mode === "wizard") window.scrollTo({ top: 0, behavior: "smooth" });
   }, [wizardStep, mode]);
 
+  // OPT-49: Draft auto-save to sessionStorage
+  useEffect(() => {
+    if (mode === "wizard" && clientData && selectedRevue) {
+      const draft = {
+        revueId: selectedRevue.id,
+        wizardStep,
+        editForm,
+        questions: questions.map(q => ({ id: q.id, value: q.value })),
+        decision,
+        observations,
+        beChecked,
+        docsChecked,
+      };
+      try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft)); } catch {}
+    }
+  }, [mode, wizardStep, editForm, questions, decision, observations, beChecked, docsChecked, clientData, selectedRevue]);
+
+  // Restore draft on wizard open
+  useEffect(() => {
+    if (mode === "wizard" && selectedRevue && clientData) {
+      try {
+        const raw = sessionStorage.getItem(DRAFT_KEY);
+        if (raw) {
+          const draft = JSON.parse(raw);
+          if (draft.revueId === selectedRevue.id) {
+            if (draft.wizardStep > 0) setWizardStep(draft.wizardStep);
+            if (draft.editForm) setEditForm(prev => ({ ...prev, ...draft.editForm }));
+            if (draft.questions) {
+              setQuestions(prev => prev.map(q => {
+                const saved = draft.questions.find((s: any) => s.id === q.id);
+                return saved ? { ...q, value: saved.value } : q;
+              }));
+            }
+            if (draft.decision) setDecision(draft.decision);
+            if (draft.observations) setObservations(draft.observations);
+            if (draft.beChecked) setBeChecked(draft.beChecked);
+            if (draft.docsChecked) setDocsChecked(draft.docsChecked);
+          }
+        }
+      } catch {}
+    }
+  }, [mode, selectedRevue?.id, clientData]);
+
   // ═══════════════════════════════════════════════════════════════════
   // RENDER — WIZARD MODE
   // ═══════════════════════════════════════════════════════════════════
   if (mode === "wizard") {
     return (
       <div className="space-y-6 p-1">
+        {/* OPT-50: Progress counter bar */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <div className="flex-1 h-1.5 rounded-full bg-muted/50 overflow-hidden">
+            <div
+              className="h-full bg-blue-500 rounded-full transition-all duration-500"
+              style={{ width: `${((wizardStep + 1) / REVUE_STEPS.length) * 100}%` }}
+            />
+          </div>
+          <span>Etape {wizardStep + 1}/{REVUE_STEPS.length}</span>
+        </div>
+
         {/* Header with back button */}
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={() => setMode("list")}>
+          <Button variant="ghost" size="sm" onClick={() => { setMode("list"); try { sessionStorage.removeItem(DRAFT_KEY); } catch {} }}>
             <ChevronLeft className="h-4 w-4 mr-1" /> Retour a la liste
           </Button>
           <div className="flex-1">
@@ -634,6 +700,9 @@ export default function RevueMaintienPage() {
               {clientData?.ref} · SIREN {clientData?.siren}
               {selectedRevue && (
                 <> · Type : {REVUE_TYPE_LABELS[selectedRevue.type]?.label || selectedRevue.type}</>
+              )}
+              {clientData?.niv_vigilance && (
+                <> · {REVIEW_TYPE_LABEL[clientData.niv_vigilance] || "Annuelle"}</>
               )}
             </p>
           </div>
@@ -666,47 +735,73 @@ export default function RevueMaintienPage() {
         ) : (
           <>
             {/* ─── STEP 1: Selection (summary) ────────────────── */}
-            {wizardStep === 0 && clientData && (
-              <div className="space-y-4">
-                <div className="rounded-xl border bg-card p-6 space-y-4">
-                  <h2 className="text-lg font-semibold">Dossier selectionne</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div>
-                      <span className="text-xs text-muted-foreground">Raison sociale</span>
-                      <p className="font-medium">{clientData.raison_sociale}</p>
+            {wizardStep === 0 && clientData && (() => {
+              const days = daysUntilReview(
+                (clientData.niv_vigilance || "STANDARD") as VigilanceLevel,
+                clientData.date_derniere_revue || "",
+                clientData.date_creation || ""
+              );
+              return (
+                <div className="space-y-4">
+                  <div className="rounded-xl border bg-card p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-semibold">Dossier selectionne</h2>
+                      {/* OPT-4: Days remaining/overdue badge */}
+                      {days <= 0 ? (
+                        <Badge className="bg-red-500/15 text-red-400 border-red-500/30 text-xs">{Math.abs(days)} jour(s) de retard</Badge>
+                      ) : days <= 30 ? (
+                        <Badge className="bg-amber-500/15 text-amber-400 border-amber-500/30 text-xs">Dans {days} jour(s)</Badge>
+                      ) : (
+                        <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 text-xs">Dans {days} jour(s)</Badge>
+                      )}
                     </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">SIREN</span>
-                      <p className="font-medium font-mono">{clientData.siren}</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <span className="text-xs text-muted-foreground">Raison sociale</span>
+                        <p className="font-medium">{clientData.raison_sociale}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">SIREN</span>
+                        <p className="font-medium font-mono">{clientData.siren}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Forme juridique</span>
+                        <p className="font-medium">{clientData.forme}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Mission</span>
+                        <p className="font-medium">{clientData.mission}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Score actuel</span>
+                        <div className="mt-1 flex items-center gap-2">
+                          <ScoreBadge score={scoreBefore} />
+                          <span className="text-[10px] text-muted-foreground">/100</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Vigilance</span>
+                        <div className="mt-1"><VigilBadge level={vigilanceBefore} /></div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Date butoir</span>
+                        <p className="font-medium">{clientData.date_butoir || "—"}</p>
+                      </div>
+                      <div>
+                        <span className="text-xs text-muted-foreground">Derniere revue</span>
+                        <p className="font-medium">{clientData.date_derniere_revue || "Jamais"}</p>
+                      </div>
                     </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Forme juridique</span>
-                      <p className="font-medium">{clientData.forme}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Mission</span>
-                      <p className="font-medium">{clientData.mission}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Score actuel</span>
-                      <div className="mt-1"><ScoreBadge score={scoreBefore} /></div>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Vigilance</span>
-                      <div className="mt-1"><VigilBadge level={vigilanceBefore} /></div>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Date butoir</span>
-                      <p className="font-medium">{clientData.date_butoir || "—"}</p>
-                    </div>
-                    <div>
-                      <span className="text-xs text-muted-foreground">Derniere revue</span>
-                      <p className="font-medium">{clientData.date_derniere_revue || "Jamais"}</p>
+                    {/* OPT-11: Review type */}
+                    <div className="flex items-center gap-2 pt-2 border-t border-border/50">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Periodicite de revue :</span>
+                      <Badge variant="outline" className="text-xs">{REVIEW_TYPE_LABEL[clientData.niv_vigilance] || "Annuelle (1 an)"}</Badge>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* ─── STEP 2: Informations ───────────────────────── */}
             {wizardStep === 1 && clientData && (
@@ -720,11 +815,29 @@ export default function RevueMaintienPage() {
                 </div>
 
                 {changesDetected.length > 0 && (
-                  <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
-                    <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
-                    <span className="text-sm text-amber-400">
-                      Changements detectes : {changesDetected.join(", ")}
-                    </span>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      <AlertTriangle className="h-4 w-4 text-amber-400 shrink-0" />
+                      <span className="text-sm text-amber-400">
+                        {changesDetected.length} changement(s) detecte(s) : {changesDetected.join(", ")}
+                      </span>
+                    </div>
+                    {/* OPT-18: Dirigeant change alert */}
+                    {changesDetected.includes("Dirigeant") && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 animate-pulse">
+                        <ShieldAlert className="h-4 w-4 text-red-400 shrink-0" />
+                        <span className="text-sm text-red-400 font-medium">
+                          Changement de dirigeant detecte — verification accrue requise
+                        </span>
+                      </div>
+                    )}
+                    {/* OPT-19: Address change */}
+                    {changesDetected.includes("Adresse") && (
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-orange-500/10 border border-orange-500/30">
+                        <Building2 className="h-4 w-4 text-orange-400 shrink-0" />
+                        <span className="text-sm text-orange-400">Nouveau siege social detecte</span>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -847,30 +960,52 @@ export default function RevueMaintienPage() {
                   </div>
                 </div>
 
-                {/* Questions */}
+                {/* Questions — OPT-36: highlight changed, OPT-38: malus display */}
                 <div className="space-y-3">
-                  {questions.map((q, idx) => (
-                    <div key={q.id} className="rounded-lg border bg-card p-4 flex items-start gap-4">
-                      <div className="flex-1">
-                        <p className="text-sm font-medium">{q.question}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{q.reference}</p>
+                  {questions.map((q, idx) => {
+                    const originalValue = clientData ? ({
+                      ppe: clientData.ppe, paysRisque: clientData.pays_risque,
+                      atypique: clientData.atypique, distanciel: clientData.distanciel,
+                      cash: clientData.cash, pression: clientData.pression,
+                    } as Record<string, string>)[q.id] || "NON" : "NON";
+                    const changed = q.value !== originalValue;
+                    return (
+                      <div key={q.id} className={`rounded-lg border p-4 flex items-start gap-4 transition-colors ${
+                        changed ? "bg-amber-500/[0.07] border-amber-500/30" : "bg-card"
+                      }`}>
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-medium">{q.question}</p>
+                            {changed && <Badge className="text-[9px] bg-amber-500/15 text-amber-400 border-amber-500/30">Modifie</Badge>}
+                          </div>
+                          <div className="flex items-center gap-3 mt-0.5">
+                            <p className="text-xs text-muted-foreground">{q.reference}</p>
+                            <span className="text-[10px] text-red-400/70">+{q.malus} pts si OUI</span>
+                          </div>
+                        </div>
+                        <RadioGroup
+                          value={q.value}
+                          onValueChange={(v) => {
+                            setQuestions(prev => prev.map((qq, i) => i === idx ? { ...qq, value: v as "OUI" | "NON" } : qq));
+                            // OPT-40: Toast on vigilance threshold crossing
+                            if (v === "OUI" && (q.id === "ppe" || q.id === "atypique")) {
+                              toast.warning("Passage automatique en vigilance RENFORCEE");
+                            }
+                          }}
+                          className="flex gap-3"
+                        >
+                          <div className="flex items-center gap-1">
+                            <RadioGroupItem value="OUI" id={`${q.id}-oui`} />
+                            <Label htmlFor={`${q.id}-oui`} className="text-sm cursor-pointer">Oui</Label>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <RadioGroupItem value="NON" id={`${q.id}-non`} />
+                            <Label htmlFor={`${q.id}-non`} className="text-sm cursor-pointer">Non</Label>
+                          </div>
+                        </RadioGroup>
                       </div>
-                      <RadioGroup
-                        value={q.value}
-                        onValueChange={(v) => setQuestions(prev => prev.map((qq, i) => i === idx ? { ...qq, value: v as "OUI" | "NON" } : qq))}
-                        className="flex gap-3"
-                      >
-                        <div className="flex items-center gap-1">
-                          <RadioGroupItem value="OUI" id={`${q.id}-oui`} />
-                          <Label htmlFor={`${q.id}-oui`} className="text-sm cursor-pointer">Oui</Label>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <RadioGroupItem value="NON" id={`${q.id}-non`} />
-                          <Label htmlFor={`${q.id}-non`} className="text-sm cursor-pointer">Non</Label>
-                        </div>
-                      </RadioGroup>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -948,6 +1083,22 @@ export default function RevueMaintienPage() {
                     <p className="font-semibold text-sm">FIN DE RELATION</p>
                     <p className="text-xs text-muted-foreground mt-1">Recommandation de fin de relation</p>
                   </button>
+                </div>
+
+                {/* OPT-44: Next review date */}
+                <div className="rounded-xl border bg-card p-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-xs text-muted-foreground">Prochaine revue</span>
+                    <p className="font-medium text-sm mt-0.5">
+                      {calculateNextReviewDate(
+                        decision === "vigilance_renforcee" ? "RENFORCEE" : scoreAfter.nivVigilance,
+                        new Date().toISOString().split("T")[0]
+                      )}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-xs">
+                    {REVIEW_TYPE_LABEL[decision === "vigilance_renforcee" ? "RENFORCEE" : scoreAfter.nivVigilance] || "Annuelle"}
+                  </Badge>
                 </div>
 
                 {/* Observations */}

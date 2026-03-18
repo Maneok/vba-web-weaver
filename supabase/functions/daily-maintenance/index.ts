@@ -137,6 +137,61 @@ Deno.serve(async (req) => {
     result.upcoming_reviews = { error: (err as Error).message };
   }
 
+  // === Auto-créer les revues de maintien pour les dossiers éligibles ===
+  try {
+    const { data: activeClients } = await supabase
+      .from("clients")
+      .select("id, ref, raison_sociale, cabinet_id, niv_vigilance, date_derniere_revue, date_creation_ligne, score_global")
+      .eq("statut", "ACTIF");
+
+    if (activeClients) {
+      let createdCount = 0;
+      for (const client of activeClients) {
+        const { data: isDue } = await supabase.rpc("is_review_due", {
+          p_vigilance: client.niv_vigilance || "STANDARD",
+          p_derniere_revue: client.date_derniere_revue || "",
+          p_date_creation: client.date_creation_ligne || "",
+        });
+
+        if (isDue) {
+          // Check no existing pending review
+          const { data: existingRevue } = await supabase
+            .from("revue_maintien")
+            .select("id")
+            .eq("client_id", client.id)
+            .in("status", ["a_faire", "en_cours"])
+            .limit(1);
+
+          if (!existingRevue || existingRevue.length === 0) {
+            await supabase.from("revue_maintien").insert({
+              cabinet_id: client.cabinet_id,
+              client_id: client.id,
+              type: client.niv_vigilance === "RENFORCEE" ? "risque_eleve" : "annuelle",
+              status: "a_faire",
+              date_echeance: new Date().toISOString().split("T")[0],
+              score_risque_avant: client.score_global || 0,
+              vigilance_avant: client.niv_vigilance || "STANDARD",
+            });
+
+            await supabase.from("notifications").insert({
+              cabinet_id: client.cabinet_id,
+              type: "REVUE_DUE",
+              titre: `Revue de maintien requise : ${client.raison_sociale}`,
+              message: `La revue de maintien du client ${client.raison_sociale} (${client.ref}) est à réaliser. Vigilance : ${client.niv_vigilance}.`,
+              client_ref: client.ref,
+              priority: client.niv_vigilance === "RENFORCEE" ? "HAUTE" : "NORMAL",
+            }).then(() => {}).catch(() => {});
+
+            createdCount++;
+          }
+        }
+      }
+      result.auto_reviews = { created: createdCount };
+    }
+  } catch (err) {
+    result.auto_reviews = { error: (err as Error).message };
+  }
+
   // === Suspension des trials expirés ===
   try {
     const { data: expiredTrials } = await supabase

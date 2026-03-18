@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Tooltip,
   TooltipContent,
@@ -81,10 +82,38 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const alertesEnCours = useMemo(() => alertes.filter((a) => a.statut === "EN COURS").length, [alertes]);
   const retardCount = useMemo(() => clients.filter((c) => c.etatPilotage === "RETARD").length, [clients]);
 
+  // Count clients with overdue reviews
+  const [reviewCount, setReviewCount] = useState(0);
+  useEffect(() => {
+    if (!profile?.cabinet_id) return;
+    supabase.from("clients")
+      .select("niv_vigilance, date_derniere_revue, date_creation_ligne")
+      .eq("cabinet_id", profile.cabinet_id)
+      .eq("statut", "ACTIF")
+      .then(({ data }) => {
+        if (!data) return;
+        const count = data.filter(c => {
+          const vig = c.niv_vigilance || "STANDARD";
+          const derniere = c.date_derniere_revue || "";
+          const creation = c.date_creation_ligne || "";
+          const base = [derniere, creation].filter(Boolean).sort().pop() || new Date().toISOString().split("T")[0];
+          const baseDate = new Date(base);
+          switch (vig) {
+            case "SIMPLIFIEE": baseDate.setFullYear(baseDate.getFullYear() + 2); break;
+            case "STANDARD": baseDate.setFullYear(baseDate.getFullYear() + 1); break;
+            case "RENFORCEE": baseDate.setMonth(baseDate.getMonth() + 6); break;
+          }
+          return baseDate <= new Date();
+        }).length;
+        setReviewCount(count);
+      });
+  }, [profile?.cabinet_id, clients]);
+
   const badges: Record<string, { count: number; color: string }> = {
     "/": { count: retardCount, color: "bg-amber-400" },
     "/bdd": { count: clients.length, color: "bg-blue-400" },
     "/registre": { count: alertesEnCours, color: "bg-red-400" },
+    "/revue-maintien": { count: reviewCount, color: "bg-red-400" },
   };
 
   const cabinetName = profile?.full_name?.split(" ").pop() || "LCB-FT";

@@ -162,9 +162,9 @@ export const MISSION_FREQUENCE: Record<string, string> = {
 export function calculateDateButoir(nivVigilance: VigilanceLevel): string {
   const d = new Date();
   switch (nivVigilance) {
-    case "SIMPLIFIEE": d.setFullYear(d.getFullYear() + 3); break;
-    case "STANDARD": d.setFullYear(d.getFullYear() + 2); break;
-    case "RENFORCEE": d.setFullYear(d.getFullYear() + 1); break;
+    case "SIMPLIFIEE": d.setFullYear(d.getFullYear() + 2); break;
+    case "STANDARD": d.setFullYear(d.getFullYear() + 1); break;
+    case "RENFORCEE": d.setMonth(d.getMonth() + 6); break;
   }
   return d.toISOString().split("T")[0];
 }
@@ -442,11 +442,64 @@ export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview
   if (isNaN(d.getTime())) d = new Date();
   // Use UTC methods to avoid timezone-dependent date shifts
   switch (nivVigilance) {
-    case "SIMPLIFIEE": d.setUTCFullYear(d.getUTCFullYear() + 3); break;
+    case "SIMPLIFIEE": d.setUTCFullYear(d.getUTCFullYear() + 2); break;
     case "STANDARD": d.setUTCFullYear(d.getUTCFullYear() + 1); break;
     case "RENFORCEE": d.setUTCMonth(d.getUTCMonth() + 6); break;
   }
   return d.toISOString().split("T")[0];
+}
+
+/**
+ * Calcule la date à laquelle la revue est DUE pour un client donné.
+ * Point de départ = max(date_derniere_revue, date_creation_ligne)
+ * Délai = 2 ans (SIMPLIFIEE), 1 an (STANDARD), 6 mois (RENFORCEE)
+ */
+export function calculateReviewDueDate(
+  nivVigilance: VigilanceLevel,
+  dateDerniereRevue: string,
+  dateCreationLigne: string
+): string {
+  const revue = dateDerniereRevue ? new Date(dateDerniereRevue) : null;
+  const creation = dateCreationLigne ? new Date(dateCreationLigne) : null;
+
+  let baseDate: Date;
+  if (revue && !isNaN(revue.getTime()) && creation && !isNaN(creation.getTime())) {
+    baseDate = revue > creation ? new Date(revue) : new Date(creation);
+  } else if (revue && !isNaN(revue.getTime())) {
+    baseDate = new Date(revue);
+  } else if (creation && !isNaN(creation.getTime())) {
+    baseDate = new Date(creation);
+  } else {
+    baseDate = new Date();
+  }
+
+  switch (nivVigilance) {
+    case "SIMPLIFIEE": baseDate.setFullYear(baseDate.getFullYear() + 2); break;
+    case "STANDARD": baseDate.setFullYear(baseDate.getFullYear() + 1); break;
+    case "RENFORCEE": baseDate.setMonth(baseDate.getMonth() + 6); break;
+  }
+  return baseDate.toISOString().split("T")[0];
+}
+
+/** Détermine si un client est éligible pour une revue (date de revue arrivée ou dépassée). */
+export function isReviewDue(
+  nivVigilance: VigilanceLevel,
+  dateDerniereRevue: string,
+  dateCreationLigne: string
+): boolean {
+  const dueDate = calculateReviewDueDate(nivVigilance, dateDerniereRevue, dateCreationLigne);
+  return new Date(dueDate) <= new Date();
+}
+
+/** Calcule le nombre de jours restants avant la prochaine revue. Négatif = en retard. */
+export function daysUntilReview(
+  nivVigilance: VigilanceLevel,
+  dateDerniereRevue: string,
+  dateCreationLigne: string
+): number {
+  const dueDate = calculateReviewDueDate(nivVigilance, dateDerniereRevue, dateCreationLigne);
+  const diff = new Date(dueDate).getTime() - Date.now();
+  return Math.ceil(diff / (24 * 60 * 60 * 1000));
 }
 
 // OPT-3: Cache Date.now() to avoid multiple Date object creations
@@ -474,9 +527,9 @@ export function isRiskCountry(nationality: string): boolean {
 
 // ====== B3: Vigilance thresholds as exportable constant ======
 export const VIGILANCE_THRESHOLDS = {
-  SIMPLIFIEE: { max: 30, label: "Simplifiée", color: "emerald" },
-  STANDARD: { max: 60, label: "Standard", color: "amber" },
-  RENFORCEE: { max: 100, label: "Renforcée", color: "red" },
+  SIMPLIFIEE: { max: 30, label: "Simplifiée", color: "emerald", reviewMonths: 24 },
+  STANDARD: { max: 60, label: "Standard", color: "amber", reviewMonths: 12 },
+  RENFORCEE: { max: 100, label: "Renforcée", color: "red", reviewMonths: 6 },
 } as const;
 
 // ====== B2: Screening malus ======
