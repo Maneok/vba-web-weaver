@@ -14,7 +14,6 @@ import {
   HelpCircle,
   LogOut,
   ChevronsLeft,
-  ChevronsRight,
   Plus,
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
@@ -406,15 +405,19 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           ].join(" ")}
         >
           {collapsed ? (
-            /* OPT-28: Collapsed logo — gradient circle with glow + hover scale */
+            /* Collapsed logo — click to expand sidebar */
             <Tooltip delayDuration={100}>
               <TooltipTrigger asChild>
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow-md shadow-blue-500/20 dark:shadow-blue-500/10 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 cursor-default">
+                <button
+                  onClick={onToggle}
+                  aria-label="Deplier le menu"
+                  className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow-md shadow-blue-500/20 dark:shadow-blue-500/10 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 cursor-pointer"
+                >
                   {getCabinetInitials(cabinetName)}
-                </div>
+                </button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
-                Cabinet {cabinetName}
+                Deplier le menu
               </TooltipContent>
             </Tooltip>
           ) : (
@@ -450,21 +453,6 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
               <TooltipContent side="right" sideOffset={8}>
                 Reduire <kbd className="ml-1.5 text-[10px] font-mono bg-slate-100 dark:bg-white/[0.06] px-1 py-0.5 rounded border border-slate-200 dark:border-white/[0.1]">Ctrl+B</kbd>
               </TooltipContent>
-            </Tooltip>
-          )}
-          {/* OPT-32: Collapsed expand button — floating circle with shadow */}
-          {collapsed && (
-            <Tooltip delayDuration={100}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={onToggle}
-                  aria-label="Deplier le menu"
-                  className="absolute -right-3 top-5 w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/[0.1] flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 shadow-md shadow-black/10 dark:shadow-black/30 hover:shadow-lg transition-all duration-200 z-50"
-                >
-                  <ChevronsRight className="w-3 h-3 transition-transform duration-300" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right" sideOffset={8}>Deplier</TooltipContent>
             </Tooltip>
           )}
         </div>
