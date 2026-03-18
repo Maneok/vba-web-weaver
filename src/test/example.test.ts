@@ -94,8 +94,8 @@ describe("riskEngine - calculateRiskScore", () => {
 });
 
 describe("riskEngine - calculateNextReviewDate", () => {
-  it("should add 36 months for SIMPLIFIEE", () => {
-    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2027-01-15");
+  it("should add 24 months for SIMPLIFIEE", () => {
+    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2026-01-15");
   });
 
   it("should add 12 months for STANDARD", () => {

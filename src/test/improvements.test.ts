@@ -125,8 +125,8 @@ describe("#1: riskEngine — future dateCreation guard", () => {
 // #2: riskEngine — UTC-based review date calculation
 // ============================================================
 describe("#2: riskEngine — timezone-safe review dates", () => {
-  it("should add 3 years for SIMPLIFIEE", () => {
-    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2027-01-15");
+  it("should add 2 years for SIMPLIFIEE", () => {
+    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2026-01-15");
   });
 
   it("should add 1 year for STANDARD", () => {

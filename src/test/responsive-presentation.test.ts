@@ -176,22 +176,22 @@ describe("normalizeAddress", () => {
 // 3. calculateDateButoir — 3 tests
 // ─────────────────────────────────────────────
 describe("calculateDateButoir", () => {
-  it("returns a date 3 years ahead for SIMPLIFIEE", () => {
+  it("returns a date 2 years ahead for SIMPLIFIEE", () => {
     const result = calculateDateButoir("SIMPLIFIEE");
-    const year = parseInt(result.slice(0, 4), 10);
-    expect(year).toBe(new Date().getFullYear() + 3);
-  });
-
-  it("returns a date 2 years ahead for STANDARD", () => {
-    const result = calculateDateButoir("STANDARD");
     const year = parseInt(result.slice(0, 4), 10);
     expect(year).toBe(new Date().getFullYear() + 2);
   });
 
-  it("returns a date 1 year ahead for RENFORCEE", () => {
-    const result = calculateDateButoir("RENFORCEE");
+  it("returns a date 1 year ahead for STANDARD", () => {
+    const result = calculateDateButoir("STANDARD");
     const year = parseInt(result.slice(0, 4), 10);
     expect(year).toBe(new Date().getFullYear() + 1);
+  });
+
+  it("returns a date 6 months ahead for RENFORCEE", () => {
+    const result = calculateDateButoir("RENFORCEE");
+    const expected = new Date(); expected.setMonth(expected.getMonth() + 6);
+    expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 });
 

@@ -531,6 +531,7 @@ export default function RevueMaintienPage() {
       }).then(() => {}).catch(() => {});
 
       toast.success("Revue de maintien validee");
+      try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
       setMode("list");
       loadData();
     } catch (err: any) {
@@ -626,6 +627,13 @@ export default function RevueMaintienPage() {
   useEffect(() => {
     if (mode === "wizard") window.scrollTo({ top: 0, behavior: "smooth" });
   }, [wizardStep, mode]);
+
+  // OPT-24: Auto-launch screening when entering step 3
+  useEffect(() => {
+    if (mode === "wizard" && wizardStep === 2 && clientData?.siren && !screeningLaunched) {
+      launchScreening();
+    }
+  }, [mode, wizardStep, clientData?.siren, screeningLaunched]);
 
   // OPT-49: Draft auto-save to sessionStorage
   useEffect(() => {
@@ -896,11 +904,10 @@ export default function RevueMaintienPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h2 className="text-lg font-semibold">Verification BE & Screening</h2>
-                  {!screeningLaunched && (
-                    <Button onClick={launchScreening}>
-                      <Shield className="h-4 w-4 mr-2" /> Lancer le screening
-                    </Button>
-                  )}
+                  <Button onClick={launchScreening} disabled={screeningLaunched} variant={screeningLaunched ? "outline" : "default"}>
+                    {screeningLaunched ? <CheckCircle2 className="h-4 w-4 mr-2 text-emerald-400" /> : <Shield className="h-4 w-4 mr-2" />}
+                    {screeningLaunched ? "Screening lance" : "Lancer le screening"}
+                  </Button>
                 </div>
 
                 {/* BE section */}
@@ -1015,7 +1022,7 @@ export default function RevueMaintienPage() {
               <div className="space-y-4">
                 <h2 className="text-lg font-semibold">Decision de maintien</h2>
 
-                {/* Score summary */}
+                {/* OPT-41: Complete summary */}
                 <div className="rounded-xl border bg-card p-6 space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
@@ -1034,6 +1041,42 @@ export default function RevueMaintienPage() {
                       <span className="text-xs text-muted-foreground">Vigilance apres</span>
                       <div className="mt-1"><VigilBadge level={scoreAfter.nivVigilance} /></div>
                     </div>
+                  </div>
+                  {/* Summary row */}
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    {changesDetected.length > 0 && (
+                      <Badge variant="outline" className="bg-amber-500/10 text-amber-400 border-amber-500/30">
+                        {changesDetected.length} changement(s) detecte(s)
+                      </Badge>
+                    )}
+                    {screeningLaunched && screening.sanctions?.data && (
+                      <Badge variant="outline" className={
+                        screening.sanctions.data.hasCriticalMatch
+                          ? "bg-red-500/10 text-red-400 border-red-500/30"
+                          : "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                      }>
+                        Screening : {screening.sanctions.data.hasCriticalMatch ? "ALERTE" : "RAS"}
+                      </Badge>
+                    )}
+                    {questions.filter(q => {
+                      const orig = ({
+                        ppe: clientData?.ppe, paysRisque: clientData?.pays_risque,
+                        atypique: clientData?.atypique, distanciel: clientData?.distanciel,
+                        cash: clientData?.cash, pression: clientData?.pression,
+                      } as Record<string, string | undefined>)[q.id] || "NON";
+                      return q.value !== orig;
+                    }).length > 0 && (
+                      <Badge variant="outline" className="bg-blue-500/10 text-blue-400 border-blue-500/30">
+                        {questions.filter(q => {
+                          const orig = ({
+                            ppe: clientData?.ppe, paysRisque: clientData?.pays_risque,
+                            atypique: clientData?.atypique, distanciel: clientData?.distanciel,
+                            cash: clientData?.cash, pression: clientData?.pression,
+                          } as Record<string, string | undefined>)[q.id] || "NON";
+                          return q.value !== orig;
+                        }).length} reponse(s) modifiee(s)
+                      </Badge>
+                    )}
                   </div>
                   {delta !== 0 && (
                     <div className={`flex items-center gap-2 p-3 rounded-lg ${delta > 0 ? "bg-red-500/10 border border-red-500/20" : "bg-emerald-500/10 border border-emerald-500/20"}`}>
@@ -1179,21 +1222,24 @@ export default function RevueMaintienPage() {
         </div>
       </div>
 
-      {/* KPI Cards */}
+      {/* KPI Cards — OPT-8: 5 counters */}
       {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <KpiCard label="A faire" value={stats.total_a_faire} icon={ClipboardCheck}
             color={stats.total_a_faire > 0 ? "text-amber-500" : "text-muted-foreground"}
             bgColor={stats.total_a_faire > 0 ? "bg-amber-500/10" : "bg-muted/50"} />
+          <KpiCard label="En retard" value={stats.en_retard} icon={Clock}
+            color={stats.en_retard > 0 ? "text-red-600 font-bold" : "text-muted-foreground"}
+            bgColor={stats.en_retard > 0 ? "bg-red-600/10" : "bg-muted/50"} />
           <KpiCard label="Risque eleve" value={stats.risque_eleve} icon={ShieldAlert}
             color={stats.risque_eleve > 0 ? "text-red-500" : "text-muted-foreground"}
             bgColor={stats.risque_eleve > 0 ? "bg-red-500/10" : "bg-muted/50"} />
           <KpiCard label="KYC expires" value={stats.kyc_expires} icon={AlertTriangle}
             color={stats.kyc_expires > 0 ? "text-red-500" : "text-muted-foreground"}
             bgColor={stats.kyc_expires > 0 ? "bg-red-500/10" : "bg-muted/50"} />
-          <KpiCard label="En retard" value={stats.en_retard} icon={Clock}
-            color={stats.en_retard > 0 ? "text-red-600 font-bold" : "text-muted-foreground"}
-            bgColor={stats.en_retard > 0 ? "bg-red-600/10" : "bg-muted/50"} />
+          <KpiCard label="Completees ce mois" value={stats.completees_ce_mois} icon={CheckCircle2}
+            color={stats.completees_ce_mois > 0 ? "text-emerald-500" : "text-muted-foreground"}
+            bgColor={stats.completees_ce_mois > 0 ? "bg-emerald-500/10" : "bg-muted/50"} />
         </div>
       )}
 

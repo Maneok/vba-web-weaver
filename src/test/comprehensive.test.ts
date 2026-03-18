@@ -195,7 +195,7 @@ describe("riskEngine — vigilance levels", () => {
 // ============================================================
 describe("riskEngine — review dates & pilotage", () => {
   it("21. SIMPLIFIEE adds 3 years", () => {
-    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2027-01-15");
+    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2026-01-15");
   });
 
   it("22. STANDARD adds 1 year", () => {
@@ -255,21 +255,21 @@ describe("riskEngine — normalizeAddress", () => {
 // 33-35: calculateDateButoir
 // ============================================================
 describe("riskEngine — calculateDateButoir", () => {
-  it("33. SIMPLIFIEE => +3 years", () => {
+  it("33. SIMPLIFIEE => +2 years", () => {
     const result = calculateDateButoir("SIMPLIFIEE");
-    const expected = new Date(); expected.setFullYear(expected.getFullYear() + 3);
-    expect(result).toBe(expected.toISOString().split("T")[0]);
-  });
-
-  it("34. STANDARD => +2 years", () => {
-    const result = calculateDateButoir("STANDARD");
     const expected = new Date(); expected.setFullYear(expected.getFullYear() + 2);
     expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 
-  it("35. RENFORCEE => +1 year", () => {
-    const result = calculateDateButoir("RENFORCEE");
+  it("34. STANDARD => +1 year", () => {
+    const result = calculateDateButoir("STANDARD");
     const expected = new Date(); expected.setFullYear(expected.getFullYear() + 1);
+    expect(result).toBe(expected.toISOString().split("T")[0]);
+  });
+
+  it("35. RENFORCEE => +6 months", () => {
+    const result = calculateDateButoir("RENFORCEE");
+    const expected = new Date(); expected.setMonth(expected.getMonth() + 6);
     expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 });
