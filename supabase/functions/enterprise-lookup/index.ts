@@ -342,6 +342,21 @@ async function geocodeAddress(adresse: string, codePostal: string, ville: string
   return noGps;
 }
 
+// ====== Retry wrapper for unreliable APIs ======
+async function fetchWithRetry(url: string, options: RequestInit, retries = 1): Promise<Response> {
+  for (let i = 0; i <= retries; i++) {
+    try {
+      const res = await fetch(url, { ...options, signal: AbortSignal.timeout(10000) });
+      if (res.ok || res.status < 500) return res;
+      if (i < retries) await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    } catch (err) {
+      if (i === retries) throw err;
+      await new Promise(r => setTimeout(r, 1000 * (i + 1)));
+    }
+  }
+  throw new Error("Max retries exceeded");
+}
+
 Deno.serve(async (req) => {
   const optRes = handleCorsOptions(req);
   if (optRes) return optRes;
@@ -362,43 +377,68 @@ Deno.serve(async (req) => {
     const pappersKey = Deno.env.get("PAPPERS");
     const sources: string[] = [];
 
-    // ====== PHASE 1: INPI (source principale) ======
+    // ====== PARALLEL FETCH: INPI + Pappers + Annuaire ======
     let inpiResult: any = null;
+    let pappersData: any = null;
+    let annuaireResults: any[] = [];
+    let annuaireGps: { latitude: number | null; longitude: number | null } = { latitude: null, longitude: null };
+
     if (isSirenMode && siren9) {
-      const token = await getINPIToken();
-      if (token) {
+      // Pre-fetch INPI token (needed before INPI company call)
+      const tokenPromise = getINPIToken();
+
+      // Launch Pappers + Annuaire in parallel while token resolves
+      const pappersPromise = pappersKey
+        ? fetchWithRetry(
+            `https://api.pappers.fr/v2/entreprise?api_token=${encodeURIComponent(pappersKey)}&siren=${siren9}`,
+            { signal: AbortSignal.timeout(6000) },
+          ).then(async (res) => {
+            if (res.ok) {
+              const data = await res.json();
+              console.log("[Pappers] Enrichment OK");
+              return data;
+            }
+            return null;
+          }).catch((err) => { console.error("[Pappers] Enrichment failed:", (err as Error).message); return null; })
+        : Promise.resolve(null);
+
+      const annuairePromise = fetchWithRetry(
+        `https://recherche-entreprises.api.gouv.fr/search?q=${siren9}`,
+        { signal: AbortSignal.timeout(8000) },
+      ).then(async (res) => {
+        if (res.ok) {
+          const data = await res.json();
+          console.log(`[Annuaire] ${(data.results ?? []).length} result(s)`);
+          return data.results ?? [];
+        }
+        return [];
+      }).catch(() => { console.log("[Annuaire] Failed"); return []; });
+
+      // INPI: wait for token, then fetch company
+      const inpiPromise = tokenPromise.then(async (token) => {
+        if (!token) return null;
         try {
           console.log(`[INPI] GET /companies/${siren9}`);
-          const res = await fetch(`${INPI_BASE}/companies/${siren9}`, {
+          const res = await fetchWithRetry(`${INPI_BASE}/companies/${siren9}`, {
             headers: { Authorization: `Bearer ${token}` },
             signal: AbortSignal.timeout(10000),
           });
           if (res.ok) {
-            // P6-7: Guard against non-JSON INPI response
             let raw: any;
             try { raw = await res.json(); } catch { raw = null; }
-            if (!raw) { console.error("[INPI] Non-JSON response"); }
-            inpiResult = raw ? parseINPICompany(raw) : null;
-            if (inpiResult) {
-              sources.push("INPI");
-              console.log(`[INPI] Company parsed: ${inpiResult.denomination} (${inpiResult.type})`);
-
-              // Get siret from etablissements
-              const siegeEtab = inpiResult.etablissements?.find((e: any) => e.est_siege);
-              const siret = siegeEtab?.siret ?? raw.etablissements?.[0]?.siret ?? "";
-
-              // Get APE from raw
-              const ape = raw.activitePrincipale ?? inpiResult.activitePrincipale ?? "";
-              const libelleApe = raw.libelleActivitePrincipale ?? "";
-
-              inpiResult.siret = siret;
-              inpiResult.siren = siren9;
-              inpiResult.ape = ape;
-              inpiResult.libelleApe = libelleApe;
-              // P6-9: Also extract tranche effectif description, not just code
-              inpiResult.effectif = raw.trancheEffectifSalarie ?? (raw.effectifsMinEntreprise ? `${raw.effectifsMinEntreprise}-${raw.effectifsMaxEntreprise ?? "?"}` : "");
-              inpiResult.dateCreation = raw.dateCreation ?? inpiResult.dateImmatriculation ?? "";
+            if (!raw) { console.error("[INPI] Non-JSON response"); return null; }
+            const parsed = parseINPICompany(raw);
+            if (parsed) {
+              console.log(`[INPI] Company parsed: ${parsed.denomination} (${parsed.type})`);
+              const siegeEtab = parsed.etablissements?.find((e: any) => e.est_siege);
+              parsed.siret = siegeEtab?.siret ?? raw.etablissements?.[0]?.siret ?? "";
+              parsed.siren = siren9;
+              parsed.ape = raw.activitePrincipale ?? parsed.activitePrincipale ?? "";
+              parsed.libelleApe = raw.libelleActivitePrincipale ?? "";
+              parsed.effectif = raw.trancheEffectifSalarie ?? (raw.effectifsMinEntreprise ? `${raw.effectifsMinEntreprise}-${raw.effectifsMaxEntreprise ?? "?"}` : "");
+              parsed.dateCreation = raw.dateCreation ?? parsed.dateImmatriculation ?? "";
             }
+            return parsed;
           } else {
             console.error(`[INPI] companies/${siren9}: ${res.status}`);
             if (res.status === 401) { cachedToken = null; tokenExpiry = 0; }
@@ -406,50 +446,36 @@ Deno.serve(async (req) => {
         } catch (e) {
           console.error("[INPI] Company fetch error:", (e as Error).message);
         }
-      }
-    }
+        return null;
+      });
 
-    // ====== PHASE 2: Pappers enrichment ======
-    let pappersData: any = null;
-    if (pappersKey && siren9) {
-      try {
-        const pRes = await fetch(
-          `https://api.pappers.fr/v2/entreprise?api_token=${encodeURIComponent(pappersKey)}&siren=${siren9}`,
-          { signal: AbortSignal.timeout(6000) }
-        );
-        if (pRes.ok) {
-          pappersData = await pRes.json();
-          sources.push("Pappers");
-          console.log("[Pappers] Enrichment OK");
-        }
-      } catch (err) {
-        console.error("[Pappers] Enrichment failed:", (err as Error).message);
-      }
-    }
+      // Await all three in parallel
+      const [inpiSettled, pappersSettled, annuaireSettled] = await Promise.allSettled([
+        inpiPromise, pappersPromise, annuairePromise,
+      ]);
 
-    // ====== PHASE 3: Annuaire Entreprises (fallback, name search, or GPS enrichment) ======
-    let annuaireResults: any[] = [];
-    let annuaireGps: { latitude: number | null; longitude: number | null } = { latitude: null, longitude: null };
-    if (true) { // Always call Annuaire: as fallback, for name search, or for GPS data
-      try {
-        let url: string;
-        if (isSirenMode) {
-          url = `https://recherche-entreprises.api.gouv.fr/search?q=${siren9}`;
-        } else {
-          url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&page=1&per_page=5`;
+      inpiResult = inpiSettled.status === "fulfilled" ? inpiSettled.value : null;
+      pappersData = pappersSettled.status === "fulfilled" ? pappersSettled.value : null;
+      annuaireResults = annuaireSettled.status === "fulfilled" ? annuaireSettled.value : [];
+
+      if (inpiResult) sources.push("INPI");
+      if (pappersData) sources.push("Pappers");
+      if (annuaireResults.length > 0) {
+        sources.push("AnnuaireEntreprises");
+        const firstSiege = annuaireResults[0]?.siege;
+        if (firstSiege?.latitude != null && firstSiege?.longitude != null) {
+          annuaireGps = { latitude: parseFloat(firstSiege.latitude), longitude: parseFloat(firstSiege.longitude) };
         }
-        const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+      }
+    } else {
+      // Name search mode: only Annuaire
+      try {
+        const url = `https://recherche-entreprises.api.gouv.fr/search?q=${encodeURIComponent(query)}&page=1&per_page=5`;
+        const res = await fetchWithRetry(url, { signal: AbortSignal.timeout(8000) });
         if (res.ok) {
           const data = await res.json();
           annuaireResults = data.results ?? [];
-          if (annuaireResults.length > 0) {
-            if (!sources.includes("AnnuaireEntreprises")) sources.push("AnnuaireEntreprises");
-            // Extract GPS from first matching result
-            const firstSiege = annuaireResults[0]?.siege;
-            if (firstSiege?.latitude != null && firstSiege?.longitude != null) {
-              annuaireGps = { latitude: parseFloat(firstSiege.latitude), longitude: parseFloat(firstSiege.longitude) };
-            }
-          }
+          if (annuaireResults.length > 0) sources.push("AnnuaireEntreprises");
           console.log(`[Annuaire] ${annuaireResults.length} result(s)`);
         }
       } catch {
