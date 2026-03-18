@@ -1,4 +1,14 @@
 import { getCorsHeaders, handleCorsOptions } from "../_shared/cors.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const CACHE_SIREN = "GEL_AVOIRS_GLOBAL";
+const CACHE_API = "gel_avoirs";
+const CACHE_CABINET = "00000000-0000-0000-0000-000000000000";
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 
 Deno.serve(async (req) => {
   const optRes = handleCorsOptions(req);
@@ -18,42 +28,83 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Fetch latest DG Trésor gel d'avoirs list (new endpoint since 2025-01-21)
-    const res = await fetch(
-      "https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1/publication/derniere-publication-fichier-json",
-      {
-        headers: { "User-Agent": "GRIMY-LCB-Compliance/1.0" },
-        signal: AbortSignal.timeout(30000),
+    // ── Fetch list (with 24h cache) ──────────────────────────────
+    let items: any[];
+    let publicationDate: string | null;
+
+    // Check cache first
+    const { data: cached } = await supabase
+      .from("api_cache")
+      .select("response_data, cached_at")
+      .eq("siren", CACHE_SIREN)
+      .eq("api_name", CACHE_API)
+      .gt("expires_at", new Date().toISOString())
+      .single();
+
+    if (cached?.response_data?.items) {
+      items = cached.response_data.items;
+      publicationDate = cached.response_data.publicationDate ?? null;
+      console.log(`[gel-avoirs] Cache hit — ${items.length} entries, cached at ${cached.cached_at}`);
+    } else {
+      // Fetch from DG Trésor
+      const res = await fetch(
+        "https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1/publication/derniere-publication-fichier-json",
+        {
+          headers: { "User-Agent": "GRIMY-LCB-Compliance/1.0" },
+          signal: AbortSignal.timeout(30000),
+        }
+      );
+
+      if (!res.ok) {
+        return new Response(
+          JSON.stringify({
+            matches: [],
+            checked: true,
+            status: "unavailable",
+            error: `API DG Trésor HTTP ${res.status}`,
+          }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-    );
 
-    if (!res.ok) {
-      return new Response(
-        JSON.stringify({
-          matches: [],
-          checked: true,
-          status: "unavailable",
-          error: `API DG Trésor HTTP ${res.status}`,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      let data: any;
+      try {
+        data = await res.json();
+      } catch {
+        return new Response(
+          JSON.stringify({ matches: [], checked: true, status: "unavailable", error: "Reponse API DG Tresor non-JSON" }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const publications = data.Publications ?? data.publications ?? {};
+      items = publications.PublicationDetail ?? publications.publicationDetail ?? [];
+      publicationDate = publications.DatePublication ?? publications.datePublication ?? null;
+
+      console.log(`[gel-avoirs] Cache miss — fetched ${items.length} entries from DG Trésor`);
+
+      // Store in cache (fire-and-forget to keep response fast)
+      const now = new Date();
+      supabase
+        .from("api_cache")
+        .upsert(
+          {
+            siren: CACHE_SIREN,
+            api_name: CACHE_API,
+            cabinet_id: CACHE_CABINET,
+            response_data: { items, publicationDate },
+            cached_at: now.toISOString(),
+            expires_at: new Date(now.getTime() + CACHE_TTL_MS).toISOString(),
+          },
+          { onConflict: "siren,api_name,cabinet_id" }
+        )
+        .then(({ error }) => {
+          if (error) console.error("[gel-avoirs] Cache write error:", error.message);
+          else console.log("[gel-avoirs] Cache updated");
+        });
     }
 
-    let data: any;
-    try {
-      data = await res.json();
-    } catch {
-      return new Response(
-        JSON.stringify({ matches: [], checked: true, status: "unavailable", error: "Reponse API DG Tresor non-JSON" }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const publications = data.Publications ?? data.publications ?? {};
-    const items: any[] = publications.PublicationDetail ?? publications.publicationDetail ?? [];
-    const publicationDate = publications.DatePublication ?? publications.datePublication ?? null;
-
-    // Build search terms
+    // ── Matching ─────────────────────────────────────────────────
     const searchTerms: string[] = [];
     if (nom) {
       const fullName = `${prenom ?? ""} ${nom}`.trim().toLowerCase();
