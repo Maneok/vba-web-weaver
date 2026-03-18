@@ -59,9 +59,20 @@ export function initTheme() {
   const resolved = stored === "system"
     ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
     : stored;
+
+  // Disable transitions during initial load to prevent flash
+  document.documentElement.classList.add("no-transitions");
+
   if (resolved === "dark") {
     document.documentElement.classList.add("dark");
   } else {
     document.documentElement.classList.remove("dark");
   }
+
+  // Re-enable transitions after initial paint
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      document.documentElement.classList.remove("no-transitions");
+    });
+  });
 }

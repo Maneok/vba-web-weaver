@@ -224,11 +224,14 @@
 
   /* OPT-2: Glass card effect — unified duration tokens */
   .glass-card {
-    @apply bg-card/80 backdrop-blur-xl border border-white/[0.06] rounded-xl shadow-xl shadow-black/20;
+    @apply bg-card/80 backdrop-blur-xl border border-gray-200 dark:border-white/[0.06] rounded-xl shadow-lg dark:shadow-xl shadow-black/5 dark:shadow-black/20;
     transition: border-color var(--duration-normal) ease, box-shadow var(--duration-normal) ease;
   }
   .glass-card:hover {
-    @apply border-white/[0.12];
+    @apply border-gray-300 dark:border-white/[0.12];
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.1);
+  }
+  .dark .glass-card:hover {
     box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.35);
   }
 
@@ -263,7 +266,7 @@
 
   /* Section divider */
   .section-divider {
-    @apply border-t border-white/[0.04] my-2;
+    @apply border-t border-gray-200 dark:border-white/[0.04] my-2;
   }
 }
 
@@ -323,10 +326,14 @@
   100% { background-position: 200% 0; }
 }
 .skeleton-shimmer {
-  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%);
+  background: linear-gradient(90deg, transparent 25%, rgba(0,0,0,0.04) 50%, transparent 75%);
   background-size: 200% 100%;
   animation: shimmer 1.8s ease-in-out infinite;
   will-change: background-position;
+}
+.dark .skeleton-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%);
+  background-size: 200% 100%;
 }
 
 /* Progress bar */
@@ -385,31 +392,54 @@ thead th {
   position: relative;
 }
 
-/* Better table striping for dark theme */
+/* Better table striping — adaptive light/dark */
 tbody tr:nth-child(even) {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+.dark tbody tr:nth-child(even) {
   background-color: rgba(255, 255, 255, 0.01);
 }
 
-/* OPT-8: Toast — position + dark theme alignment */
+/* OPT-8: Toast — position + adaptive light/dark */
 [data-sonner-toaster] {
   --offset: 16px !important;
 }
 [data-sonner-toast] {
+  --normal-bg: hsl(0 0% 100%) !important;
+  --normal-border: hsl(214 32% 91%) !important;
+  --normal-text: hsl(222 47% 11%) !important;
+}
+[data-sonner-toast][data-type="success"] {
+  --success-bg: hsl(142 71% 45% / 0.08) !important;
+  --success-border: hsl(142 71% 45% / 0.3) !important;
+  --success-text: hsl(142 71% 30%) !important;
+}
+[data-sonner-toast][data-type="error"] {
+  --error-bg: hsl(0 84% 60% / 0.08) !important;
+  --error-border: hsl(0 84% 60% / 0.3) !important;
+  --error-text: hsl(0 84% 40%) !important;
+}
+[data-sonner-toast][data-type="warning"] {
+  --warning-bg: hsl(38 92% 50% / 0.08) !important;
+  --warning-border: hsl(38 92% 50% / 0.3) !important;
+  --warning-text: hsl(38 92% 30%) !important;
+}
+.dark [data-sonner-toast] {
   --normal-bg: hsl(217 33% 17%) !important;
   --normal-border: hsl(217 33% 22%) !important;
   --normal-text: hsl(213 31% 91%) !important;
 }
-[data-sonner-toast][data-type="success"] {
+.dark [data-sonner-toast][data-type="success"] {
   --success-bg: hsl(142 71% 45% / 0.12) !important;
   --success-border: hsl(142 71% 45% / 0.25) !important;
   --success-text: hsl(142 71% 65%) !important;
 }
-[data-sonner-toast][data-type="error"] {
+.dark [data-sonner-toast][data-type="error"] {
   --error-bg: hsl(0 84% 60% / 0.12) !important;
   --error-border: hsl(0 84% 60% / 0.25) !important;
   --error-text: hsl(0 84% 72%) !important;
 }
-[data-sonner-toast][data-type="warning"] {
+.dark [data-sonner-toast][data-type="warning"] {
   --warning-bg: hsl(38 92% 50% / 0.12) !important;
   --warning-border: hsl(38 92% 50% / 0.25) !important;
   --warning-text: hsl(38 92% 65%) !important;
@@ -521,6 +551,10 @@ tbody tr:nth-child(even) {
 }
 .interactive-card:hover {
   transform: translateY(-1px);
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.08);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+.dark .interactive-card:hover {
   box-shadow: 0 8px 24px -8px rgba(0, 0, 0, 0.3);
   border-color: rgba(255, 255, 255, 0.1);
 }
@@ -576,7 +610,7 @@ tbody tr:nth-child(even) {
 /* OPT-13: Better input base styling layer */
 @layer components {
   .input-grimy {
-    @apply bg-white/[0.04] border border-white/[0.08] rounded-lg text-white placeholder:text-slate-500 transition-colors;
+    @apply bg-white dark:bg-white/[0.04] border border-gray-300 dark:border-white/[0.08] rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 transition-colors;
   }
   .input-grimy:focus-within {
     @apply border-blue-500/50 ring-1 ring-blue-500/20;
@@ -586,20 +620,34 @@ tbody tr:nth-child(even) {
 /* OPT-14: Badge semantic hierarchy */
 @layer components {
   .badge-meta {
-    @apply bg-white/[0.04] border-0 text-slate-500 text-[10px] px-1.5 py-0.5 rounded-md;
+    @apply bg-gray-100 dark:bg-white/[0.04] border-0 text-gray-500 dark:text-slate-500 text-[10px] px-1.5 py-0.5 rounded-md;
   }
   .badge-info {
-    @apply bg-blue-500/10 border border-blue-500/20 text-blue-400 text-[10px] px-2 py-0.5 rounded-md;
+    @apply bg-blue-50 dark:bg-blue-500/10 border border-blue-200 dark:border-blue-500/20 text-blue-600 dark:text-blue-400 text-[10px] px-2 py-0.5 rounded-md;
   }
   .badge-success {
-    @apply bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[10px] px-2 py-0.5 rounded-md;
+    @apply bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-[10px] px-2 py-0.5 rounded-md;
   }
   .badge-warning {
-    @apply bg-amber-500/10 border border-amber-500/20 text-amber-400 text-[10px] px-2 py-0.5 rounded-md;
+    @apply bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-500/20 text-amber-600 dark:text-amber-400 text-[10px] px-2 py-0.5 rounded-md;
   }
   .badge-danger {
-    @apply bg-red-500/10 border border-red-500/20 text-red-400 text-[10px] px-2 py-0.5 rounded-md;
+    @apply bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-red-600 dark:text-red-400 text-[10px] px-2 py-0.5 rounded-md;
   }
+}
+
+/* Smooth theme transition */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
+}
+
+/* Disable transitions during initial load to prevent flash */
+.no-transitions *,
+.no-transitions *::before,
+.no-transitions *::after {
+  transition: none !important;
 }
 
 /* OPT-47: Custom text selection color for brand consistency */
