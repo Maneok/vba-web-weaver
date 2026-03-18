@@ -95,7 +95,7 @@ function LetterHistory({
   const [searchQ, setSearchQ] = useState("");
   const [filterStatut, setFilterStatut] = useState("all");
   const [filterType, setFilterType] = useState("all");
-  const [sortBy, setSortBy] = useState<"date" | "client" | "statut">("date");
+  const [sortBy, setSortBy] = useState<"date" | "client" | "status">("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [page, setPage] = useState(0);
 
@@ -132,7 +132,7 @@ function LetterHistory({
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = { all: letters.length };
     for (const l of letters) {
-      const s = l.statut || "brouillon";
+      const s = l.status || "brouillon";
       counts[s] = (counts[s] || 0) + 1;
     }
     return counts;
@@ -141,7 +141,7 @@ function LetterHistory({
   // Total honoraires
   const totalHonoraires = useMemo(() => {
     return letters
-      .filter((l) => l.statut === "signee" || l.statut === "envoyee")
+      .filter((l) => l.status === "signee" || l.status === "envoyee")
       .reduce((sum, l) => sum + (l.honoraires_ht || 0), 0);
   }, [letters]);
 
@@ -150,7 +150,7 @@ function LetterHistory({
 
     // Filter by statut
     if (filterStatut !== "all") {
-      result = result.filter((l) => l.statut === filterStatut);
+      result = result.filter((l) => l.status === filterStatut);
     }
 
     // Filter by mission type
@@ -178,7 +178,7 @@ function LetterHistory({
       let cmp = 0;
       if (sortBy === "date") cmp = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
       else if (sortBy === "client") cmp = a.raison_sociale.localeCompare(b.raison_sociale);
-      else if (sortBy === "statut") cmp = (a.statut || "").localeCompare(b.statut || "");
+      else if (sortBy === "status") cmp = (a.status || "").localeCompare(b.status || "");
       return sortAsc ? cmp : -cmp;
     });
 
@@ -221,7 +221,7 @@ function LetterHistory({
   const formatEurCompact = (n: number) =>
     new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
 
-  const toggleSort = (col: "date" | "client" | "statut") => {
+  const toggleSort = (col: "date" | "client" | "status") => {
     if (sortBy === col) setSortAsc(!sortAsc);
     else { setSortBy(col); setSortAsc(false); }
   };
@@ -351,8 +351,8 @@ function LetterHistory({
         <button onClick={() => toggleSort("date")} className="text-left hover:text-slate-400 dark:text-slate-400 transition-colors">
           Date {sortBy === "date" ? (sortAsc ? "↑" : "↓") : ""}
         </button>
-        <button onClick={() => toggleSort("statut")} className="text-left hover:text-slate-400 dark:text-slate-400 transition-colors">
-          Statut {sortBy === "statut" ? (sortAsc ? "↑" : "↓") : ""}
+        <button onClick={() => toggleSort("status")} className="text-left hover:text-slate-400 dark:text-slate-400 transition-colors">
+          Statut {sortBy === "status" ? (sortAsc ? "↑" : "↓") : ""}
         </button>
         <span>Av.</span>
         <span className="text-right">Actions</span>
@@ -410,7 +410,7 @@ function LetterHistory({
 
             {/* Statut */}
             <div className="hidden sm:block">
-              <LMStatusBadge status={letter.statut} showTooltip />
+              <LMStatusBadge status={letter.status} showTooltip />
             </div>
 
             {/* Avenants count */}
@@ -427,11 +427,11 @@ function LetterHistory({
               <button
                 onClick={() => onEdit(letter)}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors"
-                title={letter.statut === "brouillon" ? "Modifier" : "Voir"}
+                title={letter.status === "brouillon" ? "Modifier" : "Voir"}
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
-              {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
+              {(letter.status === "brouillon" || letter.status === "envoyee") && (
                 <button
                   onClick={() => openSignDialog(letter)}
                   className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors"
@@ -440,7 +440,7 @@ function LetterHistory({
                   <Send className="w-3.5 h-3.5" />
                 </button>
               )}
-              {letter.statut === "signee" && (
+              {letter.status === "signee" && (
                 <button
                   onClick={() => onCreateAvenant(letter)}
                   className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-cyan-400 transition-colors"
@@ -474,7 +474,7 @@ function LetterHistory({
 
             {/* Mobile actions */}
             <div className="flex sm:hidden items-center gap-1.5 mt-2 pt-2 border-t border-gray-100 dark:border-white/[0.04]">
-              <LMStatusBadge status={letter.statut} />
+              <LMStatusBadge status={letter.status} />
               {avenantCount > 0 && (
                 <Badge variant="outline" className="text-[9px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
                   {avenantCount} av.
@@ -484,10 +484,10 @@ function LetterHistory({
                 <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">{formatEurCompact(letter.honoraires_ht)}</span>
               )}
               <div className="flex-1" />
-              {(letter.statut === "brouillon" || letter.statut === "envoyee") && (
+              {(letter.status === "brouillon" || letter.status === "envoyee") && (
                 <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><Send className="w-3.5 h-3.5" /></button>
               )}
-              {letter.statut === "signee" && (
+              {letter.status === "signee" && (
                 <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
               )}
               <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
@@ -676,7 +676,7 @@ function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
     const now = new Date();
     const in60Days = new Date(); in60Days.setDate(in60Days.getDate() + 60);
     return letters.filter((l) => {
-      if (l.statut !== "signee") return false;
+      if (l.status !== "signee") return false;
       const wd = l.wizard_data;
       if (!wd?.date_debut || !wd?.duree) return false;
       const start = new Date(wd.date_debut);
@@ -859,7 +859,7 @@ export default function LettreMissionPage() {
       const { data: drafts } = await supabase
         .from("lettres_mission")
         .select("id, wizard_data, wizard_step, created_at")
-        .or("statut.eq.brouillon,status.eq.brouillon")
+        .eq("status", "brouillon")
         .order("updated_at", { ascending: false })
         .limit(1);
       if (cancelled) return;
@@ -899,7 +899,7 @@ export default function LettreMissionPage() {
         .from("lettres_mission")
         .select("id")
         .eq("client_ref", data.client_id)
-        .not("statut", "eq", "archivee")
+        .not("status", "eq", "archivee")
         .then(({ data: existing }) => {
           if (existing && existing.length > 0) {
             toast.warning("Ce client a deja une lettre de mission active");
@@ -922,39 +922,40 @@ export default function LettreMissionPage() {
       const { data: authData } = await supabase.auth.getUser();
       if (!authData?.user) return;
       const payload = {
-        data: currentData,
         wizard_data: currentData,
         wizard_step: currentStep,
+        client_ref: currentData.client_ref || null,
+        raison_sociale: currentData.raison_sociale || null,
+        type_mission: currentData.type_mission || null,
         updated_at: new Date().toISOString(),
       };
       if (lmIdRef.current) {
         const { error: updErr } = await supabase.from("lettres_mission").update(payload).eq("id", lmIdRef.current);
-        if (updErr) throw updErr;
+        if (updErr) console.error("LM auto-save update failed:", updErr.message, updErr.details, updErr.hint);
       } else {
         const cabId = profileCabinetRef.current;
         if (!cabId) return;
-        const { data: ins } = await supabase
+        const { data: ins, error: insErr } = await supabase
           .from("lettres_mission")
           .insert({
             user_id: authData.user.id,
             cabinet_id: cabId,
-            client_ref: currentData.client_ref,
-            raison_sociale: currentData.raison_sociale,
-            type_mission: currentData.type_mission,
-            statut: "brouillon",
+            client_ref: currentData.client_ref || null,
+            raison_sociale: currentData.raison_sociale || null,
+            type_mission: currentData.type_mission || null,
             status: "brouillon",
-            data: currentData,
             wizard_data: currentData,
             wizard_step: currentStep,
             numero: incrementCounter(),
           })
           .select("id")
           .maybeSingle();
+        if (insErr) console.error("LM auto-save insert failed:", insErr.message, insErr.details, insErr.hint);
         if (ins) setLmId(ins.id);
       }
       setLastSaved(new Date());
     } catch (e) {
-      logger.warn("LM", "Auto-save failed:", e);
+      console.error("LM auto-save failed:", e);
     }
   }, []);
 
@@ -981,13 +982,13 @@ export default function LettreMissionPage() {
             client_ref: r.client_ref || "",
             raison_sociale: r.raison_sociale || r.wizard_data?.raison_sociale || "—",
             type_mission: r.type_mission || r.wizard_data?.type_mission || "—",
-            statut: r.statut || r.status || "brouillon",
+            status: r.status || "brouillon",
             created_at: r.created_at,
             updated_at: r.updated_at,
-            wizard_data: r.wizard_data || r.data || {},
-            duration_seconds: r.wizard_data?.duration_seconds || r.data?.duration_seconds || 0,
-            honoraires_ht: r.wizard_data?.honoraires_ht || r.data?.honoraires_ht || 0,
-            missions_count: (r.wizard_data?.missions_selected || r.data?.missions_selected)?.filter((m: any) => m.selected)?.length || 0,
+            wizard_data: r.wizard_data || {},
+            duration_seconds: r.wizard_data?.duration_seconds || 0,
+            honoraires_ht: r.wizard_data?.honoraires_ht || 0,
+            missions_count: r.wizard_data?.missions_selected?.filter((m: any) => m.selected)?.length || 0,
           }))
         );
       }
@@ -1022,7 +1023,7 @@ export default function LettreMissionPage() {
   // Load avenants when letters change
   useEffect(() => {
     const signedOrSent = savedLetters
-      .filter((l) => l.statut === "signee" || l.statut === "envoyee")
+      .filter((l) => l.status === "signee" || l.status === "envoyee")
       .map((l) => l.id);
     loadAvenants(signedOrSent);
   }, [savedLetters]);
@@ -1034,7 +1035,7 @@ export default function LettreMissionPage() {
       modele_id: "",
       client_ref: letter.client_ref,
       numero: letter.numero,
-      status: letter.statut as LMInstance["status"],
+      status: letter.status as LMInstance["status"],
       sections_snapshot: [],
       cgv_snapshot: "",
       repartition_snapshot: [],
@@ -1053,7 +1054,7 @@ export default function LettreMissionPage() {
   const handleAvenantCreated = async (avenant: LMAvenant) => {
     // Reload avenants
     const signedOrSent = savedLetters
-      .filter((l) => l.statut === "signee" || l.statut === "envoyee")
+      .filter((l) => l.status === "signee" || l.status === "envoyee")
       .map((l) => l.id);
     await loadAvenants(signedOrSent);
   };
@@ -1111,14 +1112,12 @@ export default function LettreMissionPage() {
 
     const sanitized = sanitizeWizardData(finalData);
     const { data: authData } = await supabase.auth.getUser();
-    const effectiveStatut = sanitized.statut || "brouillon";
+    const effectiveStatus = sanitized.statut || "brouillon";
     const payload = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,
       type_mission: sanitized.type_mission,
-      statut: effectiveStatut,
-      status: effectiveStatut,
-      data: sanitized,
+      status: effectiveStatus,
       wizard_data: sanitized,
       wizard_step: step,
       numero: sanitized.numero_lettre || incrementCounter(),
@@ -1128,10 +1127,10 @@ export default function LettreMissionPage() {
       if (error) throw error;
     } else {
       if (!profile?.cabinet_id) {
-        toast.error("Impossible de sauvegarder : profil non initialise. Reconnectez-vous.");
+        toast.error("Impossible de sauvegarder : profil non initialisé. Reconnectez-vous.");
         return;
       }
-      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, data: sanitized, user_id: authData?.user?.id, cabinet_id: profile.cabinet_id }).select("id").maybeSingle();
+      const { data: ins, error } = await supabase.from("lettres_mission").insert({ ...payload, user_id: authData?.user?.id, cabinet_id: profile.cabinet_id }).select("id").maybeSingle();
       if (error) throw error;
       if (ins) setLmId(ins.id);
     }
@@ -1141,14 +1140,15 @@ export default function LettreMissionPage() {
       action: "LETTRE_MISSION_SAVE",
       table_name: "lettres_mission",
       record_id: lmId || undefined,
-      new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, statut: sanitized.statut, duration_seconds: duration },
+      new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, status: effectiveStatus, duration_seconds: duration },
     }).catch((e) => logger.warn("LM", "Audit log failed:", e));
     sessionStorage.removeItem("lm_wizard_draft");
     setLastSaved(new Date());
     await loadSavedLetters();
    } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Erreur lors de la sauvegarde";
-    toast.error(msg);
+    console.error("LM save failed:", err);
+    toast.error("Erreur de sauvegarde : " + msg);
    }
   };
 
@@ -1194,7 +1194,7 @@ export default function LettreMissionPage() {
   // G) Archive
   const handleArchive = async (letter: SavedLetter) => {
     try {
-      const { error } = await supabase.from("lettres_mission").update({ statut: "archivee", status: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
+      const { error } = await supabase.from("lettres_mission").update({ status: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
       if (error) throw error;
       toast.success("Lettre archivee");
       await loadSavedLetters();

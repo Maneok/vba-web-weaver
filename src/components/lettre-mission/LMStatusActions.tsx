@@ -52,7 +52,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
   const [tokens, setTokens] = useState<SignatureToken[]>([]);
   const [loadingTokens, setLoadingTokens] = useState(false);
 
-  const currentStatus = (instance.statut || "brouillon") as LMStatus;
+  const currentStatus = (instance.status || "brouillon") as LMStatus;
   const allowed = STATUS_TRANSITIONS[currentStatus] || [];
 
   // Load signature tokens for envoyee/signee instances

@@ -24,7 +24,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
   const { clients } = useAppState();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
-  const [previousLM, setPreviousLM] = useState<{ id: string; wizard_data: Record<string, unknown>; numero: string; statut: string } | null>(null);
+  const [previousLM, setPreviousLM] = useState<{ id: string; wizard_data: Record<string, unknown>; numero: string; status: string } | null>(null);
   const [screeningStatus, setScreeningStatus] = useState<"ok" | "expired" | "missing" | null>(null);
 
   const filtered = useMemo(() => {
@@ -53,9 +53,9 @@ export default function LMStep1Client({ data, onChange }: Props) {
     // Previous LM
     supabase
       .from("lettres_mission")
-      .select("id, wizard_data, numero, statut")
+      .select("id, wizard_data, numero, status")
       .eq("client_ref", data.client_id)
-      .in("statut", ["signee", "envoyee"])
+      .in("status", ["signee", "envoyee"])
       .order("updated_at", { ascending: false })
       .limit(1)
       .then(({ data: rows }) => {
@@ -314,7 +314,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-amber-600 dark:text-amber-400">Ce client a deja une lettre de mission active</p>
                   <p className="text-[10px] text-amber-400/70 mt-0.5">
-                    {previousLM.numero} — {previousLM.statut === "signee" ? "Signee" : "Envoyee"}. Souhaitez-vous creer un avenant plutot qu'une nouvelle LM ?
+                    {previousLM.numero} — {previousLM.status === "signee" ? "Signee" : "Envoyee"}. Souhaitez-vous creer un avenant plutot qu'une nouvelle LM ?
                   </p>
                   <Button
                     variant="outline"
@@ -333,7 +333,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 <History className="w-5 h-5 text-blue-400 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Reprendre les parametres de la LM precedente</p>
-                  <p className="text-[10px] text-blue-400/60 mt-0.5">{previousLM.numero} — {previousLM.statut === "signee" ? "Signee" : "Envoyee"}</p>
+                  <p className="text-[10px] text-blue-400/60 mt-0.5">{previousLM.numero} — {previousLM.status === "signee" ? "Signee" : "Envoyee"}</p>
                 </div>
               </button>
             </div>

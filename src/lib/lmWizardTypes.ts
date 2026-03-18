@@ -200,7 +200,7 @@ export interface SavedLetter {
   client_ref: string;
   raison_sociale: string;
   type_mission: string;
-  statut: string;
+  status: string;
   created_at: string;
   updated_at: string;
   wizard_data: LMWizardData;
