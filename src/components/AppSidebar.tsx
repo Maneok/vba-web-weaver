@@ -130,14 +130,22 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         end={item.to === "/"}
         aria-label={collapsed ? item.label : undefined}
         className={({ isActive }) =>
-          `group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-            isActive
-              ? "bg-blue-500/10 dark:bg-blue-500/15 text-blue-600 dark:text-blue-200 border-l-[3px] border-blue-500 dark:border-blue-400 pl-[9px]"
-              : "text-slate-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
+          `group relative flex items-center text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+            collapsed
+              ? `justify-center rounded-xl p-2.5 mx-auto ${
+                  isActive
+                    ? "bg-blue-500/12 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                    : "text-slate-400 dark:text-slate-500 hover:bg-gray-100/80 dark:hover:bg-white/[0.04] hover:text-slate-600 dark:hover:text-slate-300"
+                }`
+              : `gap-3 rounded-lg px-3 py-2.5 ${
+                  isActive
+                    ? "bg-blue-500/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 border-l-[3px] border-blue-500 dark:border-blue-400 pl-[9px]"
+                    : "text-slate-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
+                }`
           }`
         }
       >
-        <Icon className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+        <Icon className={`shrink-0 transition-all duration-200 group-hover:scale-110 ${collapsed ? "h-[18px] w-[18px]" : "h-4 w-4"}`} />
         {!collapsed && (
           <>
             <span className="truncate animate-fade-in-up">{item.label}</span>
@@ -177,17 +185,17 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const renderSection = (items: NavItem[], label: string, isFirst = false) => (
     <div>
       {!isFirst && collapsed && (
-        <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-gray-200 dark:border-slate-800/50" />
+        <div role="separator" aria-hidden="true" className="mx-4 my-2.5 border-t border-gray-200/60 dark:border-white/[0.04]" />
       )}
       {!isFirst && !collapsed && (
-        <div role="separator" aria-hidden="true" className="mt-2 border-t border-gray-200 dark:border-slate-800/50" />
+        <div role="separator" aria-hidden="true" className="mt-2 border-t border-gray-200/60 dark:border-white/[0.04]" />
       )}
       {!collapsed && (
         <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
           {label}
         </p>
       )}
-      <div className="space-y-0.5">
+      <div className={collapsed ? "space-y-1 flex flex-col items-center" : "space-y-0.5"}>
         {items.map((item) => renderNavLinkItem(item))}
       </div>
     </div>
@@ -197,9 +205,13 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     <button
       onClick={() => navigate("/nouveau-client")}
       aria-label="Nouveau Client"
-      className="w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold bg-gradient-to-r from-emerald-500/10 dark:from-emerald-500/20 to-teal-500/10 dark:to-teal-500/15 text-emerald-600 dark:text-emerald-400 hover:from-emerald-500/20 dark:hover:from-emerald-500/30 hover:to-teal-500/15 dark:hover:to-teal-500/25 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400"
+      className={`flex items-center text-sm font-semibold text-emerald-600 dark:text-emerald-400 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
+        collapsed
+          ? "justify-center rounded-xl p-2.5 mx-auto hover:bg-emerald-500/8 dark:hover:bg-emerald-500/8"
+          : "w-full gap-3 rounded-lg px-3 py-2.5 bg-gradient-to-r from-emerald-500/8 dark:from-emerald-500/10 to-teal-500/5 dark:to-teal-500/8 hover:from-emerald-500/15 dark:hover:from-emerald-500/20 hover:to-teal-500/10 dark:hover:to-teal-500/15"
+      }`}
     >
-      <UserPlus className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+      <UserPlus className={`shrink-0 transition-transform duration-200 group-hover:scale-110 ${collapsed ? "h-[18px] w-[18px]" : "h-4 w-4"}`} />
       {!collapsed && <span>Nouveau Client</span>}
     </button>
   );
@@ -215,12 +227,12 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         />
       )}
       <aside
-        className={`fixed inset-y-0 left-0 z-40 border-r border-gray-200 dark:border-white/[0.06] bg-white dark:bg-slate-950/95 backdrop-blur-xl transition-all duration-300 flex flex-col ${
+        className={`fixed inset-y-0 left-0 z-40 border-r border-gray-200/60 dark:border-white/[0.04] bg-white/95 dark:bg-slate-950/90 backdrop-blur-xl transition-all duration-300 flex flex-col ${
           collapsed ? "-translate-x-full lg:translate-x-0 lg:w-[72px]" : "translate-x-0 w-[260px]"
         }`}
       >
         {/* Header */}
-        <div className="h-16 px-4 flex items-center justify-between border-b border-gray-200 dark:border-white/[0.06]">
+        <div className={`h-16 flex items-center border-b border-gray-200/60 dark:border-white/[0.04] ${collapsed ? "px-2 justify-center" : "px-4 justify-between"}`}>
           <button
             onClick={onToggle}
             aria-label="Reduire ou etendre le menu lateral"
@@ -269,9 +281,9 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           {profile?.is_super_admin && (
             <div>
               {collapsed ? (
-                <div role="separator" aria-hidden="true" className="mx-3 my-2 border-t border-gray-200 dark:border-slate-800/50" />
+                <div role="separator" aria-hidden="true" className="mx-4 my-2.5 border-t border-gray-200/60 dark:border-white/[0.04]" />
               ) : (
-                <div role="separator" aria-hidden="true" className="mt-2 border-t border-gray-200 dark:border-slate-800/50" />
+                <div role="separator" aria-hidden="true" className="mt-2 border-t border-gray-200/60 dark:border-white/[0.04]" />
               )}
               {!collapsed && (
                 <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
@@ -288,7 +300,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         </nav>
 
         {/* User info + logout + version */}
-        <div className="border-t border-gray-200 dark:border-white/[0.06] p-3">
+        <div className="border-t border-gray-200/60 dark:border-white/[0.04] p-3">
           {/* OPT-19: Title tooltip on truncated user info */}
           {profile && !collapsed && (
             <div className="mb-2 px-3">
@@ -305,9 +317,11 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 <button
                   onClick={handleSignOut}
                   aria-label="Deconnexion"
-                  className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 dark:text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
+                  className={`group flex items-center text-sm text-slate-400 dark:text-slate-500 hover:bg-red-500/8 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 ${
+                    collapsed ? "justify-center rounded-xl p-2.5 mx-auto" : "w-full gap-3 rounded-lg px-3 py-2.5"
+                  }`}
                 >
-                  <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />
+                  <LogOut className={`shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110 ${collapsed ? "h-[18px] w-[18px]" : "h-4 w-4"}`} />
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right">Deconnexion</TooltipContent>
@@ -316,7 +330,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             <button
               onClick={handleSignOut}
               aria-label="Deconnexion"
-              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 dark:text-slate-400 hover:bg-red-500/10 hover:text-red-300 transition-all duration-200"
+              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 dark:text-slate-500 hover:bg-red-500/8 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200"
             >
               <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />
               <span>Deconnexion</span>
@@ -330,7 +344,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                 Conforme LCB-FT · Art. L.561-2 CMF
               </p>
             )}
-            <p className="text-[10px] text-slate-700">
+            <p className="text-[10px] text-slate-400 dark:text-slate-600">
               GRIMY v{APP_VERSION}-beta
             </p>
           </div>
