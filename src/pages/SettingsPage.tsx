@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { recalculateAllCabinetScores, clearScoringCache } from "@/lib/riskEngine";
 
 /** Retry dynamic import up to 2 times with a reload on final failure (handles stale deployments) */
 function lazyRetry<T extends { default: React.ComponentType<unknown> }>(
@@ -366,6 +367,7 @@ export default function SettingsPage() {
   const [savingCabinet, setSavingCabinet] = useState(false);
   const [savingScoring, setSavingScoring] = useState(false);
   const [savingLcbft, setSavingLcbft] = useState(false);
+  const [recalculating, setRecalculating] = useState(false);
   const [savedCabinet, setSavedCabinet] = useState(false);
   const [savedScoring, setSavedScoring] = useState(false);
   const [savedLcbft, setSavedLcbft] = useState(false);
@@ -603,7 +605,19 @@ export default function SettingsPage() {
         setSavedScoring(true);
         const t = setTimeout(() => { setSavedScoring(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
         savedTimersRef.current.push(t);
-        toast.success("Configuration scoring enregistree");
+        clearScoringCache();
+        // Auto-recalculate all client scores with new parameters
+        if (cabinetId) {
+          const recalcResult = await recalculateAllCabinetScores(cabinetId);
+          if (recalcResult.success) {
+            toast.success(`Configuration scoring enregistree — ${recalcResult.updated_count} dossier(s) recalcule(s)`);
+          } else {
+            toast.success("Configuration scoring enregistree");
+            toast.warning("Le recalcul automatique des scores n'est pas disponible. Utilisez le bouton 'Recalculer' ci-dessous.");
+          }
+        } else {
+          toast.success("Configuration scoring enregistree");
+        }
       }
     } catch (err) {
       logger.error("Settings", "Erreur sauvegarde scoring:", err);
@@ -1307,7 +1321,34 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="flex justify-end pt-2">
+            {/* Warning: unsaved changes */}
+            {dirtyScoring && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="text-xs text-amber-400">Les modifications ne seront appliquees aux dossiers existants qu'apres sauvegarde</span>
+              </div>
+            )}
+
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  if (!cabinetId) { toast.error("Cabinet non identifie"); return; }
+                  setRecalculating(true);
+                  const result = await recalculateAllCabinetScores(cabinetId);
+                  setRecalculating(false);
+                  if (result.success) {
+                    toast.success(`${result.updated_count} dossier(s) recalcule(s) avec les parametres actuels`);
+                  } else {
+                    toast.error("Erreur lors du recalcul des scores. La fonction RPC n'est peut-etre pas encore deployee.");
+                  }
+                }}
+                disabled={recalculating || !cabinetId}
+                className="gap-2"
+              >
+                {recalculating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                Recalculer tous les scores
+              </Button>
               <Button onClick={saveScoring} disabled={savingScoring} aria-label="Enregistrer la configuration du scoring" className="gap-2">
                 {savingScoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                 Enregistrer

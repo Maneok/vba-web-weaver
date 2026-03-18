@@ -113,6 +113,33 @@ export function clearScoringCache(): void {
   scoringCache = null;
 }
 
+/**
+ * Appelle la RPC PostgreSQL pour recalculer les scores de TOUS les clients du cabinet.
+ * Utilisé quand les paramètres de scoring changent (ref_activites, ref_missions, etc.)
+ */
+export async function recalculateAllCabinetScores(cabinetId: string): Promise<{ success: boolean; updated_count: number }> {
+  try {
+    const { data, error } = await supabase.rpc("recalculate_cabinet_scores", { p_cabinet_id: cabinetId });
+    if (error) {
+      // RPC may not exist yet — graceful degradation
+      if (error.message?.includes("does not exist") || error.code === "42883") {
+        logger.warn("RiskEngine", "RPC recalculate_cabinet_scores not found — skipping server-side recalc");
+        return { success: false, updated_count: 0 };
+      }
+      logger.error("RiskEngine", "RPC recalculate_cabinet_scores failed:", error.message);
+      return { success: false, updated_count: 0 };
+    }
+    // Invalidate scoring cache so new data is loaded
+    clearScoringCache();
+    const count = typeof data === "object" && data !== null ? (data as any).updated_count ?? 0 : typeof data === "number" ? data : 0;
+    logger.info("RiskEngine", `Scores recalculated: ${count} clients updated`);
+    return { success: true, updated_count: count };
+  } catch (err) {
+    logger.error("RiskEngine", "Failed to recalculate scores:", err);
+    return { success: false, updated_count: 0 };
+  }
+}
+
 // ====== CASH-INTENSIVE APE CODES (Idée 4) ======
 export const APE_CASH: string[] = [
   "56.10A", "56.10C", "56.30Z", "47.26Z", "10.71C",
