@@ -28,13 +28,13 @@
   /* === MODE LIGHT === */
   :root {
     --background: 0 0% 98%;
-    --foreground: 222 47% 11%;
+    --foreground: 222.2 84% 4.9%;     /* très sombre */
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 222.2 84% 4.9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 222.2 84% 4.9%;
 
     --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
@@ -42,8 +42,8 @@
     --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
 
     --accent: 210 40% 96%;
     --accent-foreground: 222 47% 11%;
@@ -673,6 +673,102 @@ html {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* ============================================
+   FIX : Contraste textes en mode light
+   Certains éléments gardent des couleurs dark
+   ============================================ */
+
+/* En mode light (quand .dark n'est PAS sur html) */
+:root:not(.dark) {
+  color-scheme: light;
+}
+
+:root:not(.dark) body {
+  color: #1e293b; /* slate-800 */
+}
+
+/* Fix tabs / navigation horizontale */
+:root:not(.dark) [role="tablist"] button,
+:root:not(.dark) [role="tablist"] a,
+:root:not(.dark) [data-state="active"],
+:root:not(.dark) [data-state="inactive"] {
+  color: #334155; /* slate-700 */
+}
+
+:root:not(.dark) [data-state="active"] {
+  color: #1e40af; /* blue-800 */
+  border-color: #3b82f6; /* blue-500 */
+}
+
+/* Fix titres de pages */
+:root:not(.dark) h1,
+:root:not(.dark) h2,
+:root:not(.dark) h3 {
+  color: #0f172a; /* slate-900 */
+}
+
+/* Fix labels de formulaire */
+:root:not(.dark) label {
+  color: #334155; /* slate-700 */
+}
+
+/* Fix placeholders */
+:root:not(.dark) input::placeholder,
+:root:not(.dark) textarea::placeholder {
+  color: #94a3b8; /* slate-400 */
+}
+
+/* Fix select / dropdown — le contenu du dropdown */
+:root:not(.dark) [role="listbox"],
+:root:not(.dark) [role="option"],
+:root:not(.dark) [data-radix-popper-content-wrapper] {
+  background-color: #ffffff;
+  color: #1e293b; /* slate-800 */
+  border-color: #e2e8f0; /* slate-200 */
+}
+
+:root:not(.dark) [role="option"]:hover,
+:root:not(.dark) [data-highlighted] {
+  background-color: #f1f5f9; /* slate-100 */
+}
+
+/* Fix select trigger (le bouton qui ouvre le dropdown) */
+:root:not(.dark) [role="combobox"],
+:root:not(.dark) button[aria-haspopup="listbox"] {
+  color: #1e293b;
+  background-color: #ffffff;
+  border-color: #d1d5db; /* gray-300 */
+}
+
+/* Fix badges en mode light — s'assurer qu'ils sont lisibles */
+:root:not(.dark) .bg-blue-500\/10 { background-color: rgba(59, 130, 246, 0.1); }
+:root:not(.dark) .bg-emerald-500\/10 { background-color: rgba(16, 185, 129, 0.1); }
+:root:not(.dark) .bg-red-500\/10 { background-color: rgba(239, 68, 68, 0.1); }
+:root:not(.dark) .bg-amber-500\/10 { background-color: rgba(245, 158, 11, 0.1); }
+
+/* Fix description/subtitle text */
+:root:not(.dark) p {
+  color: #475569; /* slate-600 — par défaut pour les paragraphes */
+}
+
+/* Fix breadcrumb */
+:root:not(.dark) nav a,
+:root:not(.dark) nav span {
+  color: #64748b; /* slate-500 */
+}
+
+/* Fix cards / panels qui ont un fond transparent */
+:root:not(.dark) .border-gray-200 {
+  border-color: #e5e7eb;
+}
+
+/* Fix popover / dropdown menu fond */
+:root:not(.dark) [data-radix-popper-content-wrapper] > div {
+  background-color: #ffffff !important;
+  border: 1px solid #e2e8f0 !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
 }
 
 /* Print styles */
