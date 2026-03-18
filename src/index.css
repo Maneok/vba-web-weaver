@@ -941,6 +941,21 @@ html {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1) !important;
 }
 
+/* ── Sidebar item stagger entrance animation ── */
+@keyframes sidebar-item-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.sidebar-item-enter {
+  animation: sidebar-item-enter 0.3s ease-out both;
+}
+
 /* Print styles */
 @media print {
   .no-print { display: none !important; }

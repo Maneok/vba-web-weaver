@@ -3,19 +3,19 @@ import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
-  ShieldCheck,
-  ClipboardCheck,
-  AlertTriangle,
-  Settings,
-  UserPlus,
-  FolderOpen,
-  Activity,
   FileText,
-  LogOut,
-  HelpCircle,
-  ChevronLeft,
+  FolderOpen,
+  RefreshCw,
   Shield,
-  SearchCheck,
+  Building2,
+  CheckSquare,
+  Activity,
+  Settings,
+  HelpCircle,
+  LogOut,
+  ChevronsLeft,
+  ChevronsRight,
+  Plus,
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
@@ -27,37 +27,59 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+/* ─── Types ─── */
+
 interface AppSidebarProps {
   collapsed: boolean;
   onToggle: () => void;
 }
 
-const APP_VERSION = "1.0.0";
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+};
 
-type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; shortcut: string };
+/* ─── Navigation data ─── */
 
-const PRINCIPAL_NAV: NavItem[] = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "D" },
-  { to: "/bdd", label: "Base Clients", icon: Users, shortcut: "B" },
+const DASHBOARD: NavItem = { to: "/", label: "Dashboard", icon: LayoutDashboard };
+
+const PORTEFEUILLE: NavItem[] = [
+  { to: "/bdd", label: "Clients", icon: Users },
+  { to: "/lettre-mission", label: "Lettres de mission", icon: FileText },
+  { to: "/ged", label: "Documents", icon: FolderOpen },
 ];
 
-const CONFORMITE_NAV: NavItem[] = [
-  { to: "/registre", label: "Registre LCB", icon: AlertTriangle, shortcut: "R" },
-  { to: "/revue-maintien", label: "Revue & Maintien", icon: SearchCheck, shortcut: "M" },
-  { to: "/controle", label: "Controle Qualite", icon: ClipboardCheck, shortcut: "Q" },
+const CONFORMITE: NavItem[] = [
+  { to: "/revue-maintien", label: "Revue periodique", icon: RefreshCw },
+  { to: "/registre", label: "Registre LCB", icon: Shield },
 ];
 
-const OUTILS_NAV: NavItem[] = [
-  { to: "/lettre-mission", label: "Lettre de Mission", icon: FileText, shortcut: "L" },
-  { to: "/ged", label: "Documents / GED", icon: FolderOpen, shortcut: "E" },
-  { to: "/diagnostic", label: "Diagnostic 360", icon: Activity, shortcut: "3" },
-  { to: "/gouvernance", label: "Gouvernance", icon: ShieldCheck, shortcut: "G" },
+const PILOTAGE: NavItem[] = [
+  { to: "/gouvernance", label: "Gouvernance", icon: Building2 },
+  { to: "/controle", label: "Controle qualite", icon: CheckSquare },
 ];
 
-const SYSTEME_NAV: NavItem[] = [
-  { to: "/parametres", label: "Parametres", icon: Settings, shortcut: "P" },
-  { to: "/aide", label: "Aide", icon: HelpCircle, shortcut: "?" },
+const FOOTER_NAV: NavItem[] = [
+  { to: "/diagnostic", label: "Diagnostic 360", icon: Activity },
+  { to: "/parametres", label: "Parametres", icon: Settings },
+  { to: "/aide", label: "Aide", icon: HelpCircle },
 ];
+
+/* ─── Helpers ─── */
+
+function getInitials(name: string | undefined | null): string {
+  if (!name?.trim()) return "U";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+function getCabinetInitials(name: string): string {
+  return name.slice(0, 2).toUpperCase();
+}
+
+/* ─── Component ─── */
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   const { alertes, clients } = useAppState();
@@ -67,10 +89,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
 
   // Close sidebar on mobile when navigating
   useEffect(() => {
-    const isMobile = window.innerWidth < 1024;
-    if (isMobile && !collapsed) {
-      onToggle();
-    }
+    if (window.innerWidth < 1024 && !collapsed) onToggle();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
@@ -79,49 +98,100 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     navigate("/auth", { replace: true });
   };
 
-  const alertesEnCours = useMemo(() => alertes.filter((a) => a.statut === "EN COURS").length, [alertes]);
-  const retardCount = useMemo(() => clients.filter((c) => c.etatPilotage === "RETARD").length, [clients]);
+  const alertesEnCours = useMemo(
+    () => alertes.filter((a) => a.statut === "EN COURS").length,
+    [alertes],
+  );
 
   // Count clients with overdue reviews
   const [reviewCount, setReviewCount] = useState(0);
   useEffect(() => {
     if (!profile?.cabinet_id) return;
-    supabase.from("clients")
+    supabase
+      .from("clients")
       .select("niv_vigilance, date_derniere_revue, date_creation_ligne")
       .eq("cabinet_id", profile.cabinet_id)
       .eq("statut", "ACTIF")
       .then(({ data }) => {
         if (!data) return;
-        const count = data.filter(c => {
+        const count = data.filter((c) => {
           const vig = c.niv_vigilance || "STANDARD";
-          const derniere = c.date_derniere_revue || "";
-          const creation = c.date_creation_ligne || "";
-          const base = [derniere, creation].filter(Boolean).sort().pop() || new Date().toISOString().split("T")[0];
-          const baseDate = new Date(base);
+          const base =
+            [c.date_derniere_revue, c.date_creation_ligne]
+              .filter(Boolean)
+              .sort()
+              .pop() || new Date().toISOString().split("T")[0];
+          const d = new Date(base);
           switch (vig) {
-            case "SIMPLIFIEE": baseDate.setFullYear(baseDate.getFullYear() + 2); break;
-            case "STANDARD": baseDate.setFullYear(baseDate.getFullYear() + 1); break;
-            case "RENFORCEE": baseDate.setMonth(baseDate.getMonth() + 6); break;
+            case "SIMPLIFIEE": d.setFullYear(d.getFullYear() + 2); break;
+            case "STANDARD": d.setFullYear(d.getFullYear() + 1); break;
+            case "RENFORCEE": d.setMonth(d.getMonth() + 6); break;
           }
-          return baseDate <= new Date();
+          return d <= new Date();
         }).length;
         setReviewCount(count);
       });
   }, [profile?.cabinet_id, clients]);
 
-  const badges: Record<string, { count: number; color: string }> = {
-    "/": { count: retardCount, color: "bg-amber-400" },
-    "/bdd": { count: clients.length, color: "bg-blue-400" },
-    "/registre": { count: alertesEnCours, color: "bg-red-400" },
-    "/revue-maintien": { count: reviewCount, color: "bg-red-400" },
+  /* Badge counts */
+  const badges: Record<string, number> = {
+    "/bdd": clients.length,
+    "/registre": alertesEnCours,
   };
 
-  const cabinetName = profile?.full_name?.split(" ").pop() || "LCB-FT";
+  const cabinetName = profile?.full_name?.split(" ").pop() || "GRIMY";
+  const userInitials = getInitials(profile?.full_name);
+  const hasAlerts = alertesEnCours > 0;
 
-  const renderNavLinkItem = (item: NavItem) => {
+  /* ─── Check if item is active ─── */
+  const isActive = (to: string) => {
+    if (to === "/") return location.pathname === "/";
+    return location.pathname === to || location.pathname.startsWith(to + "/");
+  };
+
+  /* ─── Render single nav item ─── */
+  const renderItem = (
+    item: NavItem,
+    opts: {
+      isFooter?: boolean;
+      showAddButton?: boolean;
+      notificationDot?: boolean;
+      staggerIndex?: number;
+    } = {},
+  ) => {
     const Icon = item.icon;
     const badge = badges[item.to];
-    const hasBadge = badge && badge.count > 0;
+    const hasBadge = badge !== undefined && badge > 0;
+    const active = isActive(item.to);
+    const { isFooter, showAddButton, notificationDot, staggerIndex = 0 } = opts;
+
+    const itemClasses = [
+      "group relative flex items-center h-10 rounded-lg",
+      "transition-colors duration-150",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500/30 focus-visible:ring-offset-0",
+      "active:scale-[0.98]",
+      "sidebar-item-enter",
+    ];
+
+    if (collapsed) {
+      itemClasses.push("justify-center mx-auto w-10");
+      if (active) {
+        itemClasses.push("bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400");
+      } else if (isFooter) {
+        itemClasses.push("text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-600 dark:hover:text-slate-300");
+      } else {
+        itemClasses.push("text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white");
+      }
+    } else {
+      itemClasses.push("px-3 gap-3");
+      if (active) {
+        itemClasses.push("bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400");
+      } else if (isFooter) {
+        itemClasses.push("text-slate-400 dark:text-slate-500 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-600 dark:hover:text-slate-300");
+      } else {
+        itemClasses.push("text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/[0.06] hover:text-slate-900 dark:hover:text-white");
+      }
+    }
 
     const link = (
       <NavLink
@@ -129,51 +199,67 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
         to={item.to}
         end={item.to === "/"}
         aria-label={collapsed ? item.label : undefined}
-        className={({ isActive }) =>
-          `group relative flex items-center text-sm transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
-            collapsed
-              ? `justify-center rounded-xl p-2.5 mx-auto ${
-                  isActive
-                    ? "bg-blue-500/12 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
-                    : "text-slate-400 dark:text-slate-500 hover:bg-gray-100/80 dark:hover:bg-white/[0.04] hover:text-slate-600 dark:hover:text-slate-300"
-                }`
-              : `gap-3 rounded-lg px-3 py-2.5 ${
-                  isActive
-                    ? "bg-blue-500/10 dark:bg-blue-500/10 text-blue-600 dark:text-blue-300 border-l-[3px] border-blue-500 dark:border-blue-400 pl-[9px]"
-                    : "text-slate-500 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-white/[0.04] hover:text-slate-800 dark:hover:text-slate-200 border-l-[3px] border-transparent pl-[9px]"
-                }`
-          }`
-        }
+        className={itemClasses.join(" ")}
+        style={{ animationDelay: `${staggerIndex * 30}ms` }}
       >
-        <Icon className={`shrink-0 transition-all duration-200 group-hover:scale-110 ${collapsed ? "h-[18px] w-[18px]" : "h-4 w-4"}`} />
+        {/* OPT-24: Active indicator bar */}
+        {active && !collapsed && (
+          <span className="absolute left-0 top-1/2 -translate-y-1/2 w-[3px] h-5 rounded-full bg-blue-500 transition-all duration-200" />
+        )}
+
+        {/* Icon wrapper */}
+        <span className="relative shrink-0">
+          <Icon
+            className="w-5 h-5 transition-transform duration-150 group-hover:scale-105"
+            strokeWidth={1.5}
+          />
+          {/* OPT-41: Notification dot for Registre */}
+          {notificationDot && hasAlerts && (
+            <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-red-500 ring-2 ring-slate-50 dark:ring-[#0B1120]" />
+          )}
+        </span>
+
+        {/* Text + badges (expanded only) */}
         {!collapsed && (
           <>
-            <span className="truncate animate-fade-in-up">{item.label}</span>
-            {hasBadge && (
-              <span className="ml-auto rounded-full bg-blue-500/10 dark:bg-blue-500/20 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-200">
-                {badge.count}
+            <span className="text-sm font-medium truncate transition-opacity duration-150">
+              {item.label}
+            </span>
+
+            {/* OPT-26: Inline [+] button for Clients */}
+            {showAddButton && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate("/nouveau-client");
+                }}
+                className="ml-auto text-[11px] px-2 py-0.5 rounded-md bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 dark:bg-blue-500/15 dark:text-blue-400 dark:hover:bg-blue-500/25 transition-colors cursor-pointer flex items-center gap-0.5"
+                aria-label="Nouveau client"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            )}
+
+            {/* OPT-25: Badge counter */}
+            {hasBadge && !showAddButton && (
+              <span className="min-w-[20px] h-5 px-1.5 text-[11px] font-semibold rounded-full bg-slate-200 dark:bg-white/[0.08] text-slate-600 dark:text-slate-300 flex items-center justify-center ml-auto animate-count-up">
+                {badge}
               </span>
             )}
-            <span className="ml-auto text-[10px] text-slate-300 dark:text-slate-600 font-mono opacity-0 group-hover:opacity-100 transition-opacity">
-              {hasBadge ? "" : `Alt+${item.shortcut}`}
-            </span>
           </>
-        )}
-        {collapsed && hasBadge && (
-          <span className={`absolute top-1.5 right-1.5 h-2 w-2 rounded-full ${badge.color} ring-2 ring-white dark:ring-slate-950`} />
         )}
       </NavLink>
     );
 
+    // OPT-28: Tooltip in collapsed mode only
     if (collapsed) {
       return (
-        <Tooltip key={item.to} delayDuration={200}>
+        <Tooltip key={item.to} delayDuration={100}>
           <TooltipTrigger asChild>{link}</TooltipTrigger>
-          <TooltipContent side="right" className="font-medium">
+          <TooltipContent side="right" className="font-medium text-sm">
             {item.label}
-            {hasBadge && (
-              <span className="ml-2 text-xs opacity-70">({badge.count})</span>
-            )}
+            {hasBadge && <span className="ml-2 text-xs opacity-70">({badge})</span>}
           </TooltipContent>
         </Tooltip>
       );
@@ -182,43 +268,30 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     return link;
   };
 
-  const renderSection = (items: NavItem[], label: string, isFirst = false) => (
-    <div>
-      {!isFirst && collapsed && (
-        <div role="separator" aria-hidden="true" className="mx-4 my-2.5 border-t border-gray-200/60 dark:border-white/[0.04]" />
-      )}
-      {!isFirst && !collapsed && (
-        <div role="separator" aria-hidden="true" className="mt-2 border-t border-gray-200/60 dark:border-white/[0.04]" />
-      )}
-      {!collapsed && (
-        <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
-          {label}
-        </p>
-      )}
-      <div className={collapsed ? "space-y-1 flex flex-col items-center" : "space-y-0.5"}>
-        {items.map((item) => renderNavLinkItem(item))}
-      </div>
-    </div>
-  );
+  /* ─── Section label ─── */
+  const renderSectionLabel = (label: string) => {
+    if (collapsed) {
+      return (
+        <div
+          role="separator"
+          aria-hidden="true"
+          className="mx-3 my-2 border-t border-slate-200 dark:border-white/[0.06] transition-opacity duration-200"
+        />
+      );
+    }
+    return (
+      <p className="px-3 mb-1 mt-6 text-[10px] font-semibold uppercase tracking-[0.08em] text-slate-400 dark:text-slate-500 pointer-events-none select-none transition-opacity duration-200">
+        {label}
+      </p>
+    );
+  };
 
-  const nouveauClientBtn = (
-    <button
-      onClick={() => navigate("/nouveau-client")}
-      aria-label="Nouveau Client"
-      className={`flex items-center text-sm font-semibold text-emerald-600 dark:text-emerald-400 transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${
-        collapsed
-          ? "justify-center rounded-xl p-2.5 mx-auto hover:bg-emerald-500/8 dark:hover:bg-emerald-500/8"
-          : "w-full gap-3 rounded-lg px-3 py-2.5 bg-gradient-to-r from-emerald-500/8 dark:from-emerald-500/10 to-teal-500/5 dark:to-teal-500/8 hover:from-emerald-500/15 dark:hover:from-emerald-500/20 hover:to-teal-500/10 dark:hover:to-teal-500/15"
-      }`}
-    >
-      <UserPlus className={`shrink-0 transition-transform duration-200 group-hover:scale-110 ${collapsed ? "h-[18px] w-[18px]" : "h-4 w-4"}`} />
-      {!collapsed && <span>Nouveau Client</span>}
-    </button>
-  );
+  /* ─── Stagger counter ─── */
+  let staggerIdx = 0;
 
   return (
     <TooltipProvider>
-      {/* Mobile overlay backdrop */}
+      {/* OPT: Mobile overlay backdrop */}
       {!collapsed && (
         <div
           className="fixed inset-0 z-30 bg-black/60 backdrop-blur-sm lg:hidden"
@@ -226,127 +299,191 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
           aria-hidden="true"
         />
       )}
+
       <aside
-        className={`fixed inset-y-0 left-0 z-40 border-r border-gray-200/60 dark:border-white/[0.04] bg-white/95 dark:bg-slate-950/90 backdrop-blur-xl transition-all duration-300 flex flex-col ${
-          collapsed ? "-translate-x-full lg:translate-x-0 lg:w-[72px]" : "translate-x-0 w-[260px]"
-        }`}
+        className={[
+          "fixed inset-y-0 left-0 z-40 flex flex-col",
+          "bg-slate-50 dark:bg-[#0B1120]",
+          "border-r border-slate-200 dark:border-white/[0.06]",
+          "transition-all duration-300 ease-in-out",
+          collapsed
+            ? "-translate-x-full lg:translate-x-0 lg:w-[72px]"
+            : "translate-x-0 w-[260px]",
+        ].join(" ")}
       >
-        {/* Header */}
-        <div className={`h-16 flex items-center border-b border-gray-200/60 dark:border-white/[0.04] ${collapsed ? "px-2 justify-center" : "px-4 justify-between"}`}>
-          <button
-            onClick={onToggle}
-            aria-label="Reduire ou etendre le menu lateral"
-            className="flex items-center gap-2 text-left text-sm font-semibold tracking-wide text-slate-800 dark:text-slate-100 hover:text-slate-900 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
-          >
-            {collapsed ? (
-              <span className="text-blue-400 font-bold">LCB</span>
-            ) : (
-              <span>
-                Cabinet{" "}
-                <span className="text-blue-400">{cabinetName}</span>
+        {/* ═══ Header ═══ */}
+        <div
+          className={`h-16 flex items-center shrink-0 border-b border-slate-200 dark:border-white/[0.06] ${
+            collapsed ? "px-3 justify-center" : "px-4 justify-between"
+          }`}
+        >
+          {/* OPT-50: Cabinet name / initials */}
+          {collapsed ? (
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-sm">
+              {getCabinetInitials(cabinetName)}
+            </div>
+          ) : (
+            <div className="flex flex-col min-w-0">
+              <span className="text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
+                Cabinet
               </span>
-            )}
-          </button>
+              <span className="text-sm font-semibold text-slate-800 dark:text-white truncate">
+                {cabinetName}
+              </span>
+            </div>
+          )}
+
+          {/* OPT-36: Toggle collapse/expand */}
           {!collapsed && (
             <button
               onClick={onToggle}
               aria-label="Reduire le menu"
-              className="p-1 rounded-md text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors"
+              className="w-6 h-6 rounded-md flex items-center justify-center text-slate-400 dark:text-slate-500 hover:bg-slate-200 dark:hover:bg-white/[0.06] hover:text-slate-600 dark:hover:text-slate-300 transition-colors"
             >
-              <ChevronLeft className="h-4 w-4 transition-transform duration-300" />
+              <ChevronsLeft className="w-4 h-4 transition-transform duration-300" />
             </button>
+          )}
+          {collapsed && (
+            <Tooltip delayDuration={100}>
+              <TooltipTrigger asChild>
+                <button
+                  onClick={onToggle}
+                  aria-label="Deplier le menu"
+                  className="absolute -right-3 top-5 w-6 h-6 rounded-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-white/[0.1] flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 shadow-sm transition-colors z-50"
+                >
+                  <ChevronsRight className="w-3 h-3 transition-transform duration-300" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Deplier</TooltipContent>
+            </Tooltip>
           )}
         </div>
 
-        {/* Navigation */}
-        <nav aria-label="Menu principal" className="flex-1 overflow-y-auto p-3">
-          {renderSection(PRINCIPAL_NAV, "Principal", true)}
+        {/* ═══ Scrollable navigation ═══ */}
+        <nav
+          aria-label="Menu principal"
+          className={[
+            "flex-1 overflow-y-auto px-3 py-4",
+            "[&::-webkit-scrollbar]:w-1",
+            "[&::-webkit-scrollbar-thumb]:rounded-full",
+            "[&::-webkit-scrollbar-thumb]:bg-transparent",
+            "hover:[&::-webkit-scrollbar-thumb]:bg-slate-300",
+            "dark:hover:[&::-webkit-scrollbar-thumb]:bg-white/[0.1]",
+            "[&::-webkit-scrollbar-track]:bg-transparent",
+          ].join(" ")}
+        >
+          {/* Dashboard (standalone) */}
+          <div className={collapsed ? "flex flex-col items-center" : ""}>
+            {renderItem(DASHBOARD, { staggerIndex: staggerIdx++ })}
+          </div>
 
-          {/* Nouveau Client button */}
-          <div className="mt-1.5 space-y-0.5">
-            {collapsed ? (
-              <Tooltip delayDuration={200}>
-                <TooltipTrigger asChild>{nouveauClientBtn}</TooltipTrigger>
-                <TooltipContent side="right">Nouveau Client</TooltipContent>
-              </Tooltip>
-            ) : (
-              nouveauClientBtn
+          {/* ── PORTEFEUILLE ── */}
+          {renderSectionLabel("Portefeuille")}
+          <div className={`space-y-0.5 ${collapsed ? "flex flex-col items-center space-y-0.5" : ""}`}>
+            {PORTEFEUILLE.map((item) =>
+              renderItem(item, {
+                showAddButton: item.to === "/bdd",
+                staggerIndex: staggerIdx++,
+              }),
             )}
           </div>
 
-          {renderSection(CONFORMITE_NAV, "Conformite")}
-          {renderSection(OUTILS_NAV, "Outils")}
+          {/* ── CONFORMITE LCB-FT ── */}
+          {renderSectionLabel("Conformite LCB-FT")}
+          <div className={`space-y-0.5 ${collapsed ? "flex flex-col items-center space-y-0.5" : ""}`}>
+            {CONFORMITE.map((item) =>
+              renderItem(item, {
+                notificationDot: item.to === "/registre",
+                staggerIndex: staggerIdx++,
+              }),
+            )}
+          </div>
 
-          {/* Super Admin link */}
-          {profile?.is_super_admin && (
-            <div>
-              {collapsed ? (
-                <div role="separator" aria-hidden="true" className="mx-4 my-2.5 border-t border-gray-200/60 dark:border-white/[0.04]" />
-              ) : (
-                <div role="separator" aria-hidden="true" className="mt-2 border-t border-gray-200/60 dark:border-white/[0.04]" />
-              )}
-              {!collapsed && (
-                <p className="px-4 pt-4 pb-1 text-[10px] uppercase tracking-widest text-slate-400 dark:text-slate-500">
-                  Administration
-                </p>
-              )}
-              <div className="space-y-0.5">
-                {renderNavLinkItem({ to: "/super-admin", label: "Super Admin", icon: Shield, shortcut: "S" })}
-              </div>
-            </div>
-          )}
-
-          {renderSection(SYSTEME_NAV, "Systeme")}
+          {/* ── PILOTAGE CABINET ── */}
+          {renderSectionLabel("Pilotage cabinet")}
+          <div className={`space-y-0.5 ${collapsed ? "flex flex-col items-center space-y-0.5" : ""}`}>
+            {PILOTAGE.map((item) =>
+              renderItem(item, { staggerIndex: staggerIdx++ }),
+            )}
+          </div>
         </nav>
 
-        {/* User info + logout + version */}
-        <div className="border-t border-gray-200/60 dark:border-white/[0.04] p-3">
-          {/* OPT-19: Title tooltip on truncated user info */}
-          {profile && !collapsed && (
-            <div className="mb-2 px-3">
-              <p className="text-sm font-medium text-slate-800 dark:text-slate-200 truncate" title={profile.full_name || undefined}>
-                {profile.full_name}
-              </p>
-              <p className="text-xs text-slate-400 dark:text-slate-500 truncate" title={profile.email || undefined}>{profile.email}</p>
-            </div>
-          )}
+        {/* ═══ Footer (fixed at bottom) ═══ */}
+        <div className="mt-auto shrink-0 border-t border-slate-200 dark:border-white/[0.06] px-3 pt-2 pb-3">
+          {/* Footer nav items (Diagnostic, Parametres, Aide) */}
+          <div className={`space-y-0.5 ${collapsed ? "flex flex-col items-center space-y-0.5" : ""}`}>
+            {FOOTER_NAV.map((item) => renderItem(item, { isFooter: true }))}
+          </div>
 
-          {collapsed ? (
-            <Tooltip delayDuration={200}>
-              <TooltipTrigger asChild>
-                <button
-                  onClick={handleSignOut}
-                  aria-label="Deconnexion"
-                  className={`group flex items-center text-sm text-slate-400 dark:text-slate-500 hover:bg-red-500/8 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200 ${
-                    collapsed ? "justify-center rounded-xl p-2.5 mx-auto" : "w-full gap-3 rounded-lg px-3 py-2.5"
-                  }`}
-                >
-                  <LogOut className={`shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110 ${collapsed ? "h-[18px] w-[18px]" : "h-4 w-4"}`} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">Deconnexion</TooltipContent>
-            </Tooltip>
-          ) : (
-            <button
-              onClick={handleSignOut}
-              aria-label="Deconnexion"
-              className="group w-full flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-slate-400 dark:text-slate-500 hover:bg-red-500/8 hover:text-red-500 dark:hover:text-red-400 transition-all duration-200"
-            >
-              <LogOut className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:-translate-x-0.5 group-hover:scale-110" />
-              <span>Deconnexion</span>
-            </button>
-          )}
+          {/* ── User profile ── */}
+          <div
+            className={`mt-3 pt-3 border-t border-slate-200 dark:border-white/[0.06] ${
+              collapsed ? "flex flex-col items-center gap-2" : ""
+            }`}
+          >
+            {collapsed ? (
+              <>
+                {/* OPT-34: Collapsed — initials only */}
+                <Tooltip delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <div className="w-8 h-8 rounded-full bg-blue-500/10 dark:bg-blue-500/15 text-blue-500 dark:text-blue-400 text-xs font-semibold flex items-center justify-center cursor-default">
+                      {userInitials}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    {profile?.full_name || "Utilisateur"}
+                  </TooltipContent>
+                </Tooltip>
 
-          {/* Trust footer + version */}
-          <div className={`mt-2 text-center select-none ${collapsed ? "px-1" : "px-3"}`}>
-            {!collapsed && (
-              <p className="text-[10px] text-slate-400 dark:text-slate-600 mb-0.5">
-                Conforme LCB-FT · Art. L.561-2 CMF
-              </p>
+                {/* OPT-35: Collapsed logout */}
+                <Tooltip delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={handleSignOut}
+                      aria-label="Deconnexion"
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-500/10 dark:hover:bg-red-500/10 transition-colors"
+                    >
+                      <LogOut className="w-5 h-5" strokeWidth={1.5} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Deconnexion</TooltipContent>
+                </Tooltip>
+              </>
+            ) : (
+              /* OPT-33: Expanded — full profile block */
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-500/10 dark:bg-blue-500/15 text-blue-500 dark:text-blue-400 text-xs font-semibold flex items-center justify-center shrink-0">
+                  {userInitials}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p
+                    className="text-sm font-medium text-slate-700 dark:text-slate-300 truncate"
+                    title={profile?.full_name || undefined}
+                  >
+                    {profile?.full_name}
+                  </p>
+                  <p
+                    className="text-[11px] text-slate-400 dark:text-slate-500 truncate"
+                    title={profile?.email || undefined}
+                  >
+                    {profile?.email}
+                  </p>
+                </div>
+                {/* OPT-35: Logout button */}
+                <Tooltip delayDuration={100}>
+                  <TooltipTrigger asChild>
+                    <button
+                      onClick={handleSignOut}
+                      aria-label="Deconnexion"
+                      className="text-slate-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors shrink-0 p-1 rounded-md hover:bg-red-500/10 dark:hover:bg-red-500/10"
+                    >
+                      <LogOut className="w-4 h-4" strokeWidth={1.5} />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Deconnexion</TooltipContent>
+                </Tooltip>
+              </div>
             )}
-            <p className="text-[10px] text-slate-400 dark:text-slate-600">
-              GRIMY v{APP_VERSION}-beta
-            </p>
           </div>
         </div>
       </aside>
