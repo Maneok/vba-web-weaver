@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useTransition } from "react";
 import { Outlet, useLocation, useNavigate, NavLink } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import NotificationBell from "./NotificationBell";
+import { ThemeToggle } from "./ThemeToggle";
 import SubscriptionBanner from "./SubscriptionBanner";
 
 import { ArrowLeft, ChevronRight, Keyboard, LayoutDashboard, LogOut, Menu, ScrollText, Settings, User, Users } from "lucide-react";
@@ -232,6 +233,7 @@ export default function AppLayout() {
             </time>
             <div className="hidden sm:block w-px h-5 bg-white/[0.06]" />
 
+            <ThemeToggle />
             <NotificationBell />
 
             <DropdownMenu>
