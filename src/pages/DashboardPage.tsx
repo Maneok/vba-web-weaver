@@ -332,7 +332,7 @@ export default function DashboardPage() {
         const { data, error } = await (supabase as any)
           .from("lettres_mission")
           .select("id, statut, honoraires_annuels")
-          .neq("statut", "brouillon");
+          .neq("statut", "resiliee");
         if (cancelled || error) return;
         const missions = data || [];
         let ca = 0;

@@ -61,6 +61,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     if (userRef.current) {
+      // Clear active session
+      supabase.from("active_sessions").delete()
+        .eq("user_id", userRef.current.id)
+        .then(({ error }) => { if (error) logger.warn("[Auth] active_sessions cleanup failed:", error.message); })
+        .catch(() => {});
       await logAudit({ action: "DECONNEXION" }).catch((e) => logger.warn("Auth", "Logout audit failed:", e));
     }
     await supabase.auth.signOut();
@@ -74,7 +79,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Session timeout after 15 minutes of inactivity (conformité LCB-FT)
   useSessionTimeout(
     useCallback(() => {
-      toast.warning("Session expirée après 15 minutes d'inactivité");
+      toast.warning("Session expiree apres 30 minutes d'inactivite");
       handleSignOut();
     }, [handleSignOut]),
     !!session
@@ -153,6 +158,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Only log audit + login history on actual sign-in (not page refresh)
         if (p && signedInRef.current) {
           logAudit({ action: "CONNEXION" }).catch((err) => logger.debug("Auth", "audit log failed:", err));
+          // Track active session
+          supabase.from("active_sessions").upsert({
+            user_id: user.id,
+            cabinet_id: p.cabinet_id,
+            last_activity: new Date().toISOString(),
+            device_info: navigator.userAgent?.slice(0, 200),
+            client_type: "web",
+          }, { onConflict: "user_id" })
+            .then(({ error }) => { if (error) logger.warn("[Auth] active_sessions upsert failed:", error.message); })
+            .catch(() => {});
           supabase.from("login_history").insert({
             user_id: user.id,
             cabinet_id: p.cabinet_id,

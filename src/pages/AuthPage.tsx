@@ -41,6 +41,10 @@ export default function AuthPage() {
 
   useDocumentTitle("Connexion");
 
+  // Rate limiting
+  const [loginAttempts, setLoginAttempts] = useState(0);
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+
   // Login state
   const [loginEmail, setLoginEmail] = useState(prefillEmail);
   const [loginPassword, setLoginPassword] = useState("");
@@ -83,14 +87,32 @@ export default function AuthPage() {
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    // Rate limit check
+    if (lockedUntil && Date.now() < lockedUntil) {
+      const remainSec = Math.ceil((lockedUntil - Date.now()) / 1000);
+      setError(`Trop de tentatives. Reessayez dans ${remainSec}s`);
+      return;
+    }
+
     setLoading(true);
     try {
       await signInWithEmail(loginEmail, loginPassword);
+      setLoginAttempts(0);
       // Don't navigate here — the useEffect above will redirect
       // once AuthContext picks up the session change
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Erreur de connexion";
       setError(translateError(msg));
+      setLoginAttempts(prev => {
+        const next = prev + 1;
+        if (next >= 5) {
+          setLockedUntil(Date.now() + 60000);
+          setError("Trop de tentatives. Compte verrouille pour 60 secondes.");
+          return 0;
+        }
+        return next;
+      });
     } finally {
       setLoading(false);
     }

@@ -1,9 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
 import { toast } from "sonner";
 
-const TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes (conformité LCB-FT)
-const WARNING_MS = TIMEOUT_MS - 2 * 60 * 1000; // Avertissement 2 min avant
-const EVENTS = ["mousedown", "keydown", "scroll", "touchstart"] as const;
+const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes (conformité LCB-FT)
+const WARNING_MS = TIMEOUT_MS - 5 * 60 * 1000; // Avertissement 5 min avant
+const EVENTS = ["mousedown", "keydown", "scroll", "touchstart", "mousemove"] as const;
 const MAX_SESSION_MS = 8 * 60 * 60 * 1000; // 8 hours absolute max
 
 export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {
@@ -43,7 +43,7 @@ export function useSessionTimeout(onTimeout: () => void, enabled: boolean) {
     if (effectiveWarning < remaining) {
       warningRef.current = setTimeout(() => {
         warnedRef.current = true;
-        toast.warning("Votre session expire dans 2 minutes. Bougez la souris pour rester connecte.");
+        toast.warning("Votre session expire dans 5 minutes. Bougez la souris pour rester connecte.");
       }, effectiveWarning);
     }
 

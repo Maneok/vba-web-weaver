@@ -51,7 +51,7 @@ Deno.serve(async (req) => {
         "https://gels-avoirs.dgtresor.gouv.fr/ApiPublic/api/v1/publication/derniere-publication-fichier-json",
         {
           headers: { "User-Agent": "GRIMY-LCB-Compliance/1.0" },
-          signal: AbortSignal.timeout(30000),
+          signal: AbortSignal.timeout(25000),
         }
       );
 
