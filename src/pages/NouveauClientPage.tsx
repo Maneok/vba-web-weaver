@@ -1245,6 +1245,9 @@ export default function NouveauClientPage() {
     setIsSubmitting(true);
 
     try {
+    // Get session for cabinet_id, user_id, user_email
+    const { data: { session } } = await supabase.auth.getSession();
+
     // FIX 21: Validate motifRefus when decision is REFUSER
     if (decision === "REFUSER" && !motifRefus.trim()) {
       toast.error("Le motif de refus est obligatoire");
@@ -1419,10 +1422,12 @@ export default function NouveauClientPage() {
       }
     }
 
-    // FIX 14: Upload manual documents to Supabase storage + update client liens
+    // Upload manual documents to Supabase Storage + persist in documents_kyc
     const manualDocs = documents.filter(d => d.file);
     const docLinkUpdates: Record<string, string> = {};
+    const cabinetId = session?.user?.user_metadata?.cabinet_id;
     if (manualDocs.length > 0) {
+      logger.info("[Upload] Starting upload of", manualDocs.length, "document(s)");
       const cleanSirenForStorage = form.siren?.replace(/\s/g, "") || ref;
       for (const doc of manualDocs) {
         if (!doc.file) continue;
@@ -1430,19 +1435,42 @@ export default function NouveauClientPage() {
           const ext = doc.file.name.split(".").pop() || "pdf";
           const safeType = doc.type.replace(/[^a-zA-Z0-9_-]/g, "_");
           const storagePath = `${cleanSirenForStorage}/${safeType}_${Date.now()}.${ext}`;
-          const { error: uploadErr } = await supabase.storage
-            .from("kyc-documents")
+
+          // Try primary bucket "documents-kyc", fallback to "kyc-documents"
+          let uploadErr: { message: string } | null = null;
+          let usedBucket = "documents-kyc";
+          const uploadResult = await supabase.storage
+            .from("documents-kyc")
             .upload(storagePath, doc.file, {
               contentType: doc.file.type || "application/octet-stream",
-              upsert: true,
+              upsert: false,
             });
-          if (uploadErr) {
-            logger.error(`[Submit] Upload failed for ${doc.name}:`, uploadErr.message);
-          } else {
-            logger.debug(`[Submit] Uploaded ${doc.name} → ${storagePath}`);
-            // Generate signed URL for the uploaded document
-            const { data: signedData } = await supabase.storage
+          uploadErr = uploadResult.error;
+
+          if (uploadErr?.message?.includes("Bucket not found") || uploadErr?.message?.includes("not found")) {
+            logger.warn("[Upload] Bucket 'documents-kyc' not found, falling back to 'kyc-documents'");
+            usedBucket = "kyc-documents";
+            const fallbackResult = await supabase.storage
               .from("kyc-documents")
+              .upload(storagePath, doc.file, {
+                contentType: doc.file.type || "application/octet-stream",
+                upsert: true,
+              });
+            uploadErr = fallbackResult.error;
+          }
+
+          if (uploadErr) {
+            logger.error(`[Upload] Failed for ${doc.name}:`, uploadErr.message);
+          } else {
+            logger.debug(`[Upload] Uploaded ${doc.name} → ${usedBucket}/${storagePath}`);
+
+            // Get public URL
+            const { data: urlData } = supabase.storage.from(usedBucket).getPublicUrl(storagePath);
+            const publicUrl = urlData?.publicUrl || null;
+
+            // Generate signed URL for client record
+            const { data: signedData } = await supabase.storage
+              .from(usedBucket)
               .createSignedUrl(storagePath, 365 * 24 * 60 * 60); // 1 year
             const signedUrl = signedData?.signedUrl;
             if (signedUrl) {
@@ -1451,14 +1479,54 @@ export default function NouveauClientPage() {
               else if (typeUp.includes("STATUT")) docLinkUpdates.lien_statuts = signedUrl;
               else if (typeUp.includes("CNI") || typeUp.includes("IDENTITE") || typeUp.includes("PASSEPORT")) docLinkUpdates.lien_cni = signedUrl;
             }
+
+            // Persist in documents_kyc table
+            await supabase.from("documents_kyc").insert({
+              cabinet_id: cabinetId,
+              client_ref: ref,
+              siren: cleanSirenForStorage,
+              type: doc.type.toUpperCase(),
+              label: doc.name,
+              source: "UPLOAD_MANUEL",
+              storage_path: storagePath,
+              public_url: publicUrl,
+              file_size: doc.file.size,
+              mime_type: doc.file.type || "application/octet-stream",
+              status: "manual",
+            }).then(({ error: insertErr }) => {
+              if (insertErr) logger.warn("[Upload] documents_kyc insert failed:", insertErr.message);
+              else logger.debug("[Upload] documents_kyc row created for", doc.name);
+            });
           }
         } catch (err: unknown) {
-          logger.error(`[Submit] Upload error for ${doc.name}:`, err);
+          logger.error(`[Upload] Error for ${doc.name}:`, err);
         }
       }
     }
 
-    // Update client record with manual upload URLs (overrides pending-upload placeholders)
+    // Also persist screening-fetched documents (INPI, Pappers) in documents_kyc
+    const screeningDocs = [
+      ...(screening.inpi.data?.documents ?? []),
+      ...(screening.documents.data?.documents ?? []),
+    ].filter(d => d.url && (d.storedInSupabase || d.status === "auto"));
+    for (const sd of screeningDocs) {
+      await supabase.from("documents_kyc").insert({
+        cabinet_id: cabinetId,
+        client_ref: ref,
+        siren: form.siren?.replace(/\s/g, "") || "",
+        type: (sd.type || "AUTRE").toUpperCase(),
+        label: sd.label || sd.type || "Document",
+        source: String(sd.source || "API").toUpperCase(),
+        storage_path: null,
+        public_url: sd.url,
+        file_size: null,
+        mime_type: sd.url?.endsWith(".pdf") ? "application/pdf" : "text/html",
+        status: sd.storedInSupabase ? "auto_stored" : "auto_link",
+        date_document: sd.dateDepot || sd.dateCloture || null,
+      }).catch(err => logger.warn("[Upload] documents_kyc insert (screening) failed:", err));
+    }
+
+    // Update client record with manual upload URLs
     if (Object.keys(docLinkUpdates).length > 0) {
       try {
         await clientsService.updateByRef(ref, docLinkUpdates);
@@ -1466,6 +1534,50 @@ export default function NouveauClientPage() {
         logger.warn("Submit", "Failed to update document links after upload");
       }
     }
+
+    // Track creation event in client_history
+    await supabase.from("client_history").insert({
+      cabinet_id: cabinetId,
+      client_ref: ref,
+      event_type: "CREATION",
+      event_date: new Date().toISOString(),
+      description: `Client ${form.raisonSociale} cree — Score ${adjustedScore}/120 — Vigilance ${risk.nivVigilance} — Decision: ${decision}`,
+      metadata: {
+        score: adjustedScore,
+        vigilance: risk.nivVigilance,
+        decision,
+        motifRefus: decision === "REFUSER" ? motifRefus : undefined,
+        motifReserve: decision === "ACCEPTER_RESERVE" ? motifReserve : undefined,
+        documentsCount: manualDocs.length + screeningDocs.length,
+        beCount: beneficiaires.length,
+        screeningComplete: !screeningRunning,
+        forme: form.forme,
+        mission: form.mission,
+        ape: form.ape,
+      },
+      user_email: session?.user?.email || null,
+    }).catch(err => logger.warn("[History] client_history insert failed:", err));
+
+    // Audit trail for client creation
+    await supabase.from("audit_trail").insert({
+      cabinet_id: cabinetId,
+      user_id: session?.user?.id,
+      user_email: session?.user?.email,
+      action: "CREATE_CLIENT",
+      table_name: "clients",
+      record_id: ref,
+      new_data: {
+        raison_sociale: form.raisonSociale,
+        siren: form.siren,
+        forme: form.forme,
+        score_global: adjustedScore,
+        niv_vigilance: risk.nivVigilance,
+        decision,
+        beneficiaires_count: beneficiaires.length,
+        documents_count: manualDocs.length + screeningDocs.length,
+        mission: form.mission,
+      },
+    }).catch(err => logger.warn("[Audit] audit_trail insert failed:", err));
 
     // #25: Refresh clients from Supabase after creation
     refreshClients().catch((e) => logger.warn("Client", "Refresh after creation failed:", e));
