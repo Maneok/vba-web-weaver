@@ -1,5 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { formatDateFr } from "./dateUtils";
 import { MISSION_TYPES, getMissionTypeConfig } from "./lettreMissionTypes";
 import type { MissionTypeConfig, MissionCategory } from "./lettreMissionTypes";
 
@@ -948,7 +949,7 @@ export async function importModeleFromJson(json: string, cabinetId: string): Pro
   return createModele({
     cabinet_id: cabinetId,
     nom: `Import — ${parsed.nom}`,
-    description: parsed.description || `Importé le ${new Date().toLocaleDateString("fr-FR")}`,
+    description: parsed.description || `Importé le ${formatDateFr(new Date())}`,
     mission_type: parsed.mission_type || "presentation",
     sections: parsed.sections,
     cgv_content: parsed.cgv_content || GRIMY_DEFAULT_CGV,

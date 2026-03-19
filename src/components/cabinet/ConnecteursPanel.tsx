@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plug, Plus, Wifi, WifiOff, AlertTriangle, Trash2, Zap, Activity, RefreshCw } from "lucide-react";
+import { formatDateTimeFr } from "@/lib/dateUtils";
 
 interface Connecteur {
   id: string;
@@ -279,7 +280,7 @@ export default function ConnecteursPanel() {
 
   const formatDate = (d: string | null) => {
     if (!d) return null;
-    return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return formatDateTimeFr(d);
   };
 
   const getDescription = (connecteur: Connecteur): string | null => {

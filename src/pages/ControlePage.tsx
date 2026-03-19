@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { controlesService } from "@/lib/supabaseService";
-import { formatDateFR, timeAgo } from "@/lib/dateUtils";
+import { formatDateFR, formatDateFr, timeAgo } from "@/lib/dateUtils";
 import { downloadCSV } from "@/lib/csvUtils";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -879,7 +879,7 @@ export default function ControlePage() {
     const maxTotal = Math.max(...entries.map(([, d]) => d.total), 1);
     return entries.map(([month, data]) => ({
       month,
-      label: new Date(month + "-01").toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }),
+      label: formatDateFr(month + "-01", "month"),
       ...data,
       rate: data.total > 0 ? Math.round((data.conformes / data.total) * 100) : 0,
       maxTotal,

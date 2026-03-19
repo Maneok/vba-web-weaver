@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface Notification {
   id: string;
@@ -49,7 +50,7 @@ function formatTimeAgo(dateStr: string): string {
   if (diffMin < 60) return `il y a ${diffMin} min`;
   if (diffH < 24) return `il y a ${diffH} h`;
   if (diffDays === 1) return "hier";
-  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
+  return formatDateFr(date, "dayMonth");
 }
 
 export default function DashboardNotificationCenter({

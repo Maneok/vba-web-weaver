@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import { useDebounce } from "@/hooks/useDebounce";
 import { useAppState } from "@/lib/AppContext";
 import { COMPETENCE_LEVELS } from "@/lib/constants";
+import { formatDateFr } from "@/lib/dateUtils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -590,7 +591,7 @@ export default function CollaborateursList() {
         escapeCSVField(cab?.nom || ""),
         escapeCSVField(compLevel?.label || "Non defini"),
         escapeCSVField(formBadge.label),
-        escapeCSVField(new Date(m.date_ajout).toLocaleDateString("fr-FR")),
+        escapeCSVField(formatDateFr(m.date_ajout, "short")),
       ].join(",");
     }).join("\n");
     const bom = "\uFEFF";
@@ -863,7 +864,7 @@ export default function CollaborateursList() {
                       </TooltipTrigger>
                       <TooltipContent>
                         {m.derniere_formation
-                          ? `Derniere formation : ${new Date(m.derniere_formation).toLocaleDateString("fr-FR")}`
+                          ? `Derniere formation : ${formatDateFr(m.derniere_formation, "short")}`
                           : "Aucune date de formation renseignee"}
                       </TooltipContent>
                     </Tooltip>
@@ -877,7 +878,7 @@ export default function CollaborateursList() {
                     )}
                   </TableCell>
                   <TableCell className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
-                    {new Date(m.date_ajout).toLocaleDateString("fr-FR")}
+                    {formatDateFr(m.date_ajout, "short")}
                   </TableCell>
                   <TableCell className="text-right">
                     {!isSelf && (

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { formatDateFr } from "@/lib/dateUtils";
 import {
   ShieldAlert, Clock, AlertTriangle, Search, ClipboardCheck,
   FileText, Filter,
@@ -218,7 +219,7 @@ export default function LMRevueEspace() {
                   <Clock className="w-3 h-3 text-slate-300 dark:text-slate-600" />
                   <span className="text-[10px] text-slate-400 dark:text-slate-500">
                     {client.dateDerniereRevue
-                      ? new Date(client.dateDerniereRevue).toLocaleDateString("fr-FR")
+                      ? formatDateFr(client.dateDerniereRevue, "short")
                       : "Jamais"}
                   </span>
                   {days !== null && (

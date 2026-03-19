@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Building2, CreditCard, Users, AlertTriangle, TrendingUp, UserCheck, FolderOpen, Wrench } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface AdminStats {
   total_cabinets: number;
@@ -43,7 +44,7 @@ function formatRelative(dateStr: string | null): string {
   if (diffHours < 24) return `il y a ${diffHours}h`;
   if (diffDays === 1) return "Hier";
   if (diffDays < 30) return `il y a ${diffDays}j`;
-  return date.toLocaleDateString("fr-FR");
+  return formatDateFr(dateStr, "short");
 }
 
 const statusColors: Record<string, string> = {
@@ -143,7 +144,7 @@ export default function AdminOverview() {
             <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} allowDecimals={false} />
             <Tooltip
               contentStyle={{ background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#e2e8f0" }}
-              labelFormatter={(val) => new Date(val).toLocaleDateString("fr-FR")}
+              labelFormatter={(val) => formatDateFr(val)}
             />
             <Bar dataKey="count" fill="#3b82f6" radius={[4, 4, 0, 0]} name="Inscriptions" />
           </BarChart>

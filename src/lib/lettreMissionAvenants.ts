@@ -4,6 +4,7 @@
 // ──────────────────────────────────────────────
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
+import { formatDateFr } from "./dateUtils";
 import type { LMInstance } from "@/lib/lettreMissionEngine";
 
 // ──────────────────────────────────────────────
@@ -261,16 +262,8 @@ export function generateAvenantContent(
   originalInstance: LMInstance,
   modifications: AvenantModifications
 ): string {
-  const dateLmOrigine = new Date(originalInstance.created_at).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
-  const dateJour = new Date().toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  const dateLmOrigine = formatDateFr(originalInstance.created_at);
+  const dateJour = formatDateFr(new Date());
 
   const clientName = originalInstance.variables_resolved?.raison_sociale ?? "";
   const lines: string[] = [];

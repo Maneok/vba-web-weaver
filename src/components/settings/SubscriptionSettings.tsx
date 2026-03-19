@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatDateFr } from "@/lib/dateUtils";
 import { toast } from "sonner";
 import {
   Crown,
@@ -113,11 +114,7 @@ const PLANS = [
 /* ---------- helpers ---------- */
 
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  return formatDateFr(iso, "short");
 }
 
 function formatCurrency(amount: number): string {

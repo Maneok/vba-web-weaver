@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { formatDateFr } from "@/lib/dateUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,11 +30,7 @@ interface DeclarationSoupcon {
 
 function formatDate(dateStr: string) {
   if (!dateStr) return "---";
-  try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
+  return formatDateFr(dateStr, "short");
 }
 
 const DECISION_COLORS = {

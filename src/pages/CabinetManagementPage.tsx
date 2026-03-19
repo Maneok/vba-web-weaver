@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Building2, Users, ShieldCheck, Settings2, Plug, Key, Crown, ChevronRight, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { formatDateTimeFr } from "@/lib/dateUtils";
 
 const CabinetsList = lazy(() => import("@/components/cabinet/CabinetsList"));
 const CollaborateursList = lazy(() => import("@/components/cabinet/CollaborateursList"));
@@ -116,15 +117,7 @@ export default function CabinetManagementPage() {
     }
   }, [activeSection]);
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
+  const formatDate = (dateStr: string) => formatDateTimeFr(dateStr);
 
   const renderContent = () => {
     switch (activeSection) {

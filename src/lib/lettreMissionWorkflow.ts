@@ -4,6 +4,7 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
+import { formatDateFr } from "@/lib/dateUtils";
 
 // ── Types ──
 
@@ -266,7 +267,7 @@ export async function checkReconductions(cabinetId: string): Promise<number> {
         cabinet_id: cabinetId,
         instance_id: letter.id,
         type: "reconduction_3mois",
-        message: `La lettre de mission de ${letter.raison_sociale || letter.client_ref} arrive a echeance le ${cloture.toLocaleDateString("fr-FR")}. Reconduction tacite dans 3 mois.`,
+        message: `La lettre de mission de ${letter.raison_sociale || letter.client_ref} arrive a echeance le ${formatDateFr(cloture)}. Reconduction tacite dans 3 mois.`,
         severity: "info",
         due_date: diff3m.toISOString().slice(0, 10),
       });
@@ -278,7 +279,7 @@ export async function checkReconductions(cabinetId: string): Promise<number> {
         cabinet_id: cabinetId,
         instance_id: letter.id,
         type: "reconduction_1mois",
-        message: `Dernier rappel : la lettre de mission de ${letter.raison_sociale || letter.client_ref} se reconduit automatiquement le ${cloture.toLocaleDateString("fr-FR")}.`,
+        message: `Dernier rappel : la lettre de mission de ${letter.raison_sociale || letter.client_ref} se reconduit automatiquement le ${formatDateFr(cloture)}.`,
         severity: "critical",
         due_date: diff1m.toISOString().slice(0, 10),
       });

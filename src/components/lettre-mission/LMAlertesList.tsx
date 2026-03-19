@@ -6,6 +6,7 @@ import {
   ExternalLink, Filter, RefreshCw, ChevronDown, ChevronUp, EyeOff,
   Bell,
 } from "lucide-react";
+import { formatDateFr } from "@/lib/dateUtils";
 import {
   getAlertes, resolveAlerte, dismissAlerte, runAllChecks,
   getUnresolvedAlertesCount,
@@ -493,14 +494,14 @@ export default function LMAlertesList({
                     </Badge>
                     {alerte.due_date && (
                       <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                        Echeance : {new Date(alerte.due_date).toLocaleDateString("fr-FR")}
+                        Echeance : {formatDateFr(alerte.due_date, "short")}
                       </span>
                     )}
                   </div>
                   <p className="text-sm text-slate-800 dark:text-slate-200 mt-1">{alerte.message}</p>
                   {alerte.is_resolved && alerte.resolved_at && (
                     <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">
-                      Resolue le {new Date(alerte.resolved_at).toLocaleDateString("fr-FR")}
+                      Resolue le {formatDateFr(alerte.resolved_at, "short")}
                     </p>
                   )}
                 </div>

@@ -14,17 +14,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Search, BookOpen, Plus, AlertTriangle, Download, FileWarning, X, ChevronLeft, ChevronRight, ArrowUpDown, FileX2, Check } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateFr } from "@/lib/dateUtils";
 import { ALERT_CATEGORIES as CATEGORIES, DEFAULT_ASSOCIES, DEFAULT_SUPERVISEURS } from "@/lib/constants";
 
 const PAGE_SIZE = 20;
 
 function formatDateFR(dateStr: string | undefined): string {
-  if (!dateStr) return "—";
-  try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
+  return formatDateFr(dateStr, "short");
 }
 
 function getCategoryBadgeClasses(categorie: string): string {

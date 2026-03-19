@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { Client } from "@/lib/types";
 import type { TemplateSection } from "@/lib/lettreMissionTemplate";
 import { replaceTemplateVariables } from "@/lib/lettreMissionTemplate";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface CabinetInfo {
   nom: string;
@@ -122,7 +123,7 @@ export default function LettreMissionA4Preview({
   const variables = useMemo(() => {
     if (!client) return {};
     const formule = genre === "Mme" ? "Madame" : "Monsieur";
-    const dateStr = now.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    const dateStr = formatDateFr(now);
     // Fix #9 — date de validité edge case (Dec 31 → next year correctly)
     const validite = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
     // If the source date was Feb 29, the target year may not have it — JS auto-adjusts
@@ -141,7 +142,7 @@ export default function LettreMissionA4Preview({
       niv_vigilance: client.nivVigilance || "STANDARD", ppe: client.ppe || "NON",
       date_revue: client.dateDerniereRevue || "", date_butoir: client.dateButoir || "",
       date_du_jour: dateStr, date_cloture: exerciceFin,
-      date_validite: validite.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }),
+      date_validite: formatDateFr(validite),
       nom_cabinet: cabinet.nom, ville_cabinet: cabinet.ville,
       objet_contrat: objetContrat,
     } as Record<string, string>;
@@ -489,7 +490,7 @@ export default function LettreMissionA4Preview({
             <span>Cette lettre est valable jusqu'au <strong>{(() => {
               // Fix #9: properly handle Dec 31 and leap year edge cases
               const d = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
-              return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+              return formatDateFr(d);
             })()}</strong></span>
             {status === "signee" && <span style={{ background: "#38a169", color: "#fff", padding: "2px 10px", borderRadius: 12, fontSize: 11, fontWeight: 600 }}>SIGN{"\u00C9"}E</span>}
           </div>

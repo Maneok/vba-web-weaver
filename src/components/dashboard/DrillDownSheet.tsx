@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/sheet";
 import { Badge } from "@/components/ui/badge";
 import type { Client, AlerteRegistre } from "@/lib/types";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface DrillDownSheetProps {
   open: boolean;
@@ -99,7 +100,7 @@ export function DrillDownSheet({ open, onClose, type, clients, alertes }: DrillD
               .map((c) => {
                 const butoir = new Date(c.dateButoir);
                 const daysOverdue = isNaN(butoir.getTime()) ? 0 : Math.ceil((now.getTime() - butoir.getTime()) / (1000 * 60 * 60 * 24));
-                const fmtDate = isNaN(butoir.getTime()) ? c.dateButoir : butoir.toLocaleDateString("fr-FR");
+                const fmtDate = isNaN(butoir.getTime()) ? c.dateButoir : formatDateFr(butoir);
                 return (
                   <button
                     key={c.ref}

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Label } from "@/components/ui/label";
 import { Copy, Edit2, Trash2, Star, Plus, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateFr } from "@/lib/dateUtils";
 
 export interface TemplateBlock {
   id: string;
@@ -225,7 +226,7 @@ export default function TemplateManager({ onLoadTemplate }: TemplateManagerProps
               <p className="text-sm text-muted-foreground mb-3">{tpl.description}</p>
               <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
                 <span>{tpl.blocks.length} blocs</span>
-                <span>Modifie le {new Date(tpl.updatedAt).toLocaleDateString("fr-FR")}</span>
+                <span>Modifie le {formatDateFr(tpl.updatedAt, "short")}</span>
               </div>
               <div className="flex flex-wrap gap-2">
                 {onLoadTemplate && (

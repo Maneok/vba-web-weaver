@@ -16,7 +16,7 @@ import {
   getFormeJuridiqueLabel,
 } from "@/lib/kycService";
 // OPT-48: Use shared formatDateFR from dateUtils instead of kycService duplicate
-import { formatDateFR } from "@/lib/dateUtils";
+import { formatDateFR, formatDateFr } from "@/lib/dateUtils";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
@@ -3466,7 +3466,7 @@ export default function NouveauClientPage() {
               // Fallback: generate a Fiche Entreprise from enterprise-lookup data when INPI is unavailable
               if (allExtraits.length === 0 && !isLoading && selectedEnterprise) {
                 const ent = selectedEnterprise;
-                const today = new Date().toLocaleDateString("fr-FR");
+                const today = formatDateFr(new Date(), "short");
                 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
                 const dirigeantsHtml = (ent.dirigeants ?? []).map(d =>
                   `<div class="field"><span class="label">${esc(d.qualite || "Dirigeant")}</span><span class="value">${esc(d.prenom || "")} ${esc(d.nom || "")}</span></div>`

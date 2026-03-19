@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { validateIBAN } from "@/lib/ibanValidator";
 import { logger } from "@/lib/logger";
+import { formatDateFr } from "@/lib/dateUtils";
 
 // ====== TYPES ======
 
@@ -133,7 +134,7 @@ function formatDateDisplay(dateStr: string | null): string {
   if (!dateStr) return "—";
   const d = parseFrenchDate(dateStr);
   if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return formatDateFr(d, "short");
 }
 
 // ====== COMPONENT ======

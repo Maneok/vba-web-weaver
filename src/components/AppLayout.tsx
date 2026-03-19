@@ -9,6 +9,7 @@ import { ArrowLeft, Home, Keyboard, LayoutDashboard, LogOut, Menu, ScrollText, S
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppState } from "@/lib/AppContext";
 import { ROLE_LABELS } from "@/lib/auth/types";
+import { formatDateFr } from "@/lib/dateUtils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,12 +47,9 @@ function getUserInitials(name: string | undefined | null): string {
 /** Format date as "Jeu. 19 mars 2026" */
 function formatHeaderDate(date: Date): string {
   const dayName = date.toLocaleDateString("fr-FR", { weekday: "short" });
-  const day = date.getDate();
-  const month = date.toLocaleDateString("fr-FR", { month: "long" });
-  const year = date.getFullYear();
   // Capitalize first letter: "jeu." → "Jeu."
   const capitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-  return `${capitalized} ${day} ${month} ${year}`;
+  return `${capitalized} ${formatDateFr(date)}`;
 }
 
 export default function AppLayout() {

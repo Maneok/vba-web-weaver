@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import type { Client } from "./types";
+import { formatDateFr } from "./dateUtils";
 
 const LM_LAB_TEXTES: Record<string, { titre: string; corps: string }> = {
   SIMPLIFIEE: {
@@ -62,7 +63,7 @@ export function generateLettreMission(client: Client) {
   doc.setFont("helvetica", "normal");
   doc.text("Cabinet d'Expertise Comptable", W / 2, 22, { align: "center" });
   doc.setFontSize(8);
-  doc.text(`Ref. ${client.ref} — ${new Date().toLocaleDateString("fr-FR")}`, W / 2, 29, { align: "center" });
+  doc.text(`Ref. ${client.ref} — ${formatDateFr(new Date())}`, W / 2, 29, { align: "center" });
   doc.setTextColor(0, 0, 0);
   y = 45;
 
@@ -168,7 +169,7 @@ export function generateLettreMission(client: Client) {
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
   doc.text("Fait en deux exemplaires,", marginL, y); y += 5;
-  doc.text(`A __________________, le ${new Date().toLocaleDateString("fr-FR")}`, marginL, y); y += 15;
+  doc.text(`A __________________, le ${formatDateFr(new Date())}`, marginL, y); y += 15;
 
   doc.setFont("helvetica", "bold");
   doc.text("Pour le cabinet", marginL, y);

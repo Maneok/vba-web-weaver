@@ -1,5 +1,6 @@
 import { AUTORISATION_LIASSE } from "../../lib/lettreMissionAnnexes";
 import type { Client } from "../../lib/types";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface AutorisationLiasseProps {
   client: Client;
@@ -21,7 +22,7 @@ export default function AutorisationLiasse({
     .replace(/\{\{associe\}\}/g, associe ?? "")
     .replace(/\{\{fin_exercice\}\}/g, "31/12/" + new Date().getFullYear())
     .replace(/\{\{ville\}\}/g, client?.ville ?? "")
-    .replace(/\{\{date\}\}/g, new Date().toLocaleDateString("fr-FR"));
+    .replace(/\{\{date\}\}/g, formatDateFr(new Date(), "short"));
 
   return (
     <div className="border border-slate-600 rounded-lg">

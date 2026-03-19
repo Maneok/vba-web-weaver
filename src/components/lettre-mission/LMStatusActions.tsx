@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { formatDateFr, formatDateTimeFr } from "@/lib/dateUtils";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
@@ -334,7 +335,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
               </a>
             </div>
             <p className="text-[10px] text-slate-300 dark:text-slate-600">
-              Envoye a {latestToken.client_email} — Expire le {new Date(latestToken.expires_at).toLocaleDateString("fr-FR")}
+              Envoye a {latestToken.client_email} — Expire le {formatDateFr(latestToken.expires_at, "short")}
             </p>
           </div>
         )}
@@ -347,9 +348,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
               <span className="text-emerald-400 font-medium">Signe electroniquement</span>
             </div>
             <p className="text-[10px] text-slate-400 dark:text-slate-500">
-              Par {latestToken.client_nom} le {new Date(latestToken.signed_at).toLocaleDateString("fr-FR", {
-                day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit",
-              })}
+              Par {latestToken.client_nom} le {formatDateTimeFr(latestToken.signed_at)}
               {latestToken.signer_ip && ` — IP: ${latestToken.signer_ip}`}
             </p>
             {latestToken.document_hash && (

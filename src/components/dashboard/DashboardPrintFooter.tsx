@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface DashboardPrintFooterProps {
   cabinetName: string;
@@ -10,7 +11,7 @@ export default function DashboardPrintFooter({
   const { formattedDate, formattedTime } = useMemo(() => {
     const now = new Date();
     return {
-      formattedDate: now.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }),
+      formattedDate: formatDateFr(now, "short"),
       formattedTime: now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
     };
   }, []);

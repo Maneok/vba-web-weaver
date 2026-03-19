@@ -13,6 +13,7 @@ import {
   FileText, CheckCircle2, AlertTriangle, Clock, Loader2,
   Shield, Download, Lock, Printer, ChevronDown, ChevronUp, XCircle,
 } from "lucide-react";
+import { formatDateTimeFr, formatDateFr } from "@/lib/dateUtils";
 
 // OPT-16: 7 states (added expired + signing)
 type PageState = "loading" | "error" | "expired" | "already_signed" | "view" | "signing" | "signed";
@@ -127,11 +128,7 @@ export default function SignerPage() {
   const handlePrint = () => window.print();
 
   // OPT-26: Date/time display helper
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("fr-FR", {
-      day: "numeric", month: "long", year: "numeric",
-      hour: "2-digit", minute: "2-digit",
-    });
+  const formatDate = (iso: string) => formatDateTimeFr(iso);
 
   // ── Render sections from wizard_data ──
   const renderDocumentContent = () => {
@@ -367,7 +364,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
                   <span className="text-slate-400 dark:text-slate-400">Email</span>
                   <span className="text-slate-700">{certificate.email}</span>
                   <span className="text-slate-400 dark:text-slate-400">Date</span>
-                  <span className="text-slate-700">{new Date(certificate.signed_at).toLocaleString("fr-FR")}</span>
+                  <span className="text-slate-700">{formatDateTimeFr(certificate.signed_at)}</span>
                   <span className="text-slate-400 dark:text-slate-400">Methode</span>
                   <span className="text-slate-700">{certificate.method}</span>
                   <span className="text-slate-400 dark:text-slate-400">Base legale</span>
@@ -467,7 +464,7 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
                   Lettre de Mission n{"\u00B0"} {instance?.numero}
                 </h2>
                 <p className="text-xs text-slate-400 dark:text-slate-400 mt-1">
-                  Creee le {instance?.created_at ? new Date(instance.created_at).toLocaleDateString("fr-FR") : "\u2014"}
+                  Creee le {instance?.created_at ? formatDateFr(instance.created_at) : "\u2014"}
                 </p>
               </div>
               <div className="flex items-center gap-2">

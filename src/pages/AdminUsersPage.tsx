@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatDateFr } from "@/lib/dateUtils";
 import { toast } from "sonner";
 import { UserPlus, Shield, UserCheck, UserX, Users, Copy } from "lucide-react";
 
@@ -394,7 +395,7 @@ export default function AdminUsersPage() {
                   </Badge>
                 </TableCell>
                 <TableCell className="text-xs">
-                  {new Date(u.created_at).toLocaleDateString("fr-FR")}
+                  {formatDateFr(u.created_at)}
                 </TableCell>
                 <TableCell className="text-right">
                   {u.id !== profile?.id && (

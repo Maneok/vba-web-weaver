@@ -1,6 +1,7 @@
 /**
  * Audit trail helpers for compliance reporting.
  */
+import { formatDateTimeFr } from "../dateUtils";
 
 export interface AuditEntry {
   id?: string;
@@ -15,10 +16,7 @@ export interface AuditEntry {
 /** Format an audit entry for display */
 export function formatAuditEntry(entry: AuditEntry): string {
   const date = entry.timestamp
-    ? new Date(entry.timestamp).toLocaleString("fr-FR", {
-        day: "2-digit", month: "2-digit", year: "numeric",
-        hour: "2-digit", minute: "2-digit",
-      })
+    ? formatDateTimeFr(entry.timestamp)
     : "Date inconnue";
 
   return `[${date}] ${entry.user} — ${entry.action}: ${entry.details}`;

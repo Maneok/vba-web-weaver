@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { formatDateFr } from "@/lib/dateUtils";
 import {
   Select,
   SelectContent,
@@ -382,7 +383,7 @@ export default function RevueDialog({ revue, open, onOpenChange, onCompleted }: 
           {historique.map((h) => (
             <div key={h.id} className="flex items-center justify-between p-2.5 rounded-lg bg-muted/40 text-sm">
               <span className="text-muted-foreground">
-                {h.completed_at ? new Date(h.completed_at).toLocaleDateString("fr-FR") : "—"}
+                {h.completed_at ? formatDateFr(h.completed_at) : "—"}
               </span>
               <span className={`font-medium ${
                 (h.score_risque_apres ?? 0) >= 70 ? 'text-red-500' : (h.score_risque_apres ?? 0) >= 50 ? 'text-orange-500' : 'text-green-500'

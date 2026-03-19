@@ -1,6 +1,7 @@
 /**
  * Notification building and formatting utilities.
  */
+import { formatDateFr } from "../dateUtils";
 
 export interface AppNotification {
   id: string;
@@ -97,7 +98,7 @@ export function formatNotificationMessage(notification: AppNotification): {
   if (diffMin < 1) displayTime = "A l'instant";
   else if (diffMin < 60) displayTime = `Il y a ${diffMin} min`;
   else if (diffH < 24) displayTime = `Il y a ${diffH}h`;
-  else displayTime = new Date(notification.timestamp).toLocaleDateString("fr-FR");
+  else displayTime = formatDateFr(notification.timestamp, "short");
 
   const typeLabels: Record<string, string> = {
     info: "Information",

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, ChevronRight, Filter } from "lucide-react";
 import type { AlerteRegistre } from "@/lib/types";
+import { formatDateFr } from "@/lib/dateUtils";
 
 type AlertFilter = "all" | "open" | "closed";
 
@@ -30,13 +31,7 @@ function priorityIndicator(priorite: string | undefined) {
 
 function formatDate(d: string | null | undefined): string {
   if (!d) return "\u2014";
-  try {
-    const date = new Date(d);
-    if (isNaN(date.getTime())) return d;
-    return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" });
-  } catch {
-    return d;
-  }
+  return formatDateFr(d, "dayMonth");
 }
 
 function isAlertOpen(a: AlerteRegistre): boolean {

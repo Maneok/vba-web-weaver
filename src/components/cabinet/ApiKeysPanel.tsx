@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { formatDateFr } from "@/lib/dateUtils";
 import { Key, Plus, Copy, Trash2, Eye, EyeOff, AlertTriangle, Search, Ban, XCircle, Clock } from "lucide-react";
 
 interface ApiKey {
@@ -264,7 +265,7 @@ export default function ApiKeysPanel() {
 
   const formatDate = (d: string | null) => {
     if (!d) return null;
-    return new Date(d).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return formatDateFr(d, "short");
   };
 
   const isExpired = (d: string | null) => {

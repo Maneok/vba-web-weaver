@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { formatDateFr } from "@/lib/dateUtils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
@@ -200,12 +201,7 @@ function ModeleCard({
           <div className="flex items-center gap-4 text-[10px] text-slate-400 dark:text-slate-500">
             <span>{activeSections} sections actives</span>
             <span>
-              Modifie le{" "}
-              {new Date(m.updated_at).toLocaleDateString("fr-FR", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-              })}
+              Modifie le {formatDateFr(m.updated_at, "short")}
             </span>
             {/* OPT-10: Usage count */}
             <span>Utilise dans {usageCount} lettre{usageCount > 1 ? "s" : ""}</span>

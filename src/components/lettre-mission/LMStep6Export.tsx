@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { sanitizeWizardData } from "@/lib/lmValidation";
 import { DEFAULT_TEMPLATE } from "@/lib/lettreMissionTemplate";
 import { buildVariablesMap, resolveModeleSections } from "@/lib/lettreMissionEngine";
+import { formatDateFr } from "@/lib/dateUtils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -213,7 +214,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
     const client = buildClientFromWizardData(sanitized);
     const lm = {
       numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
-      date: new Date().toLocaleDateString("fr-FR"),
+      date: formatDateFr(new Date(), "short"),
       client,
       cabinet: cabinetInfo,
       options: {

@@ -11,6 +11,7 @@ import type {
 import { DEFAULT_LM_OPTIONS } from "@/types/lettreMission";
 import { replaceVariables } from "@/lib/lettreMissionVariables";
 import { renderLettreMissionPdf } from "@/lib/lettreMissionPdf";
+import { formatDateFr } from "./dateUtils";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 import { supabase } from "@/integrations/supabase/client";
@@ -286,11 +287,7 @@ export function generateLettreMission(
   options: LettreMissionOptions = DEFAULT_LM_OPTIONS
 ): LettreMission {
   const numero = incrementCounter();
-  const date = new Date().toLocaleDateString("fr-FR", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-  });
+  const date = formatDateFr(new Date());
 
   const blocs: LettreMissionBloc[] = template.blocs
     .filter((b) => b.visible)
@@ -467,7 +464,7 @@ function resolveVariablesInText(text: string, vars: Record<string, string>): str
 export function buildVariablesMap(wizardData: Record<string, unknown>): Record<string, string> {
   const d = wizardData;
   const now = new Date();
-  const fmt = (dt: Date) => dt.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const fmt = (dt: Date) => formatDateFr(dt);
   const year = now.getFullYear();
 
   // Get mission type config for dynamic values

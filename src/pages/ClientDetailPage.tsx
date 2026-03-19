@@ -14,6 +14,7 @@ import {
   INITIAL_SCREENING, type ScreeningState, type EnterpriseResult,
 } from "@/lib/kycService";
 import { logger } from "@/lib/logger";
+import { formatDateFr } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
 import { getRevuesByClient, type RevueMaintien, REVUE_TYPE_LABELS } from "@/lib/revueMaintien";
 import ScreeningPanel from "@/components/ScreeningPanel";
@@ -1250,7 +1251,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <span className="text-sm text-slate-800 dark:text-slate-200 font-medium">{clientLM.numero}</span>
                   <span className="block text-xs text-slate-400 dark:text-slate-500">
                     {clientLM.mission_type || "Présentation"} · Statut : {clientLM.status}
-                    {clientLM.signed_at && ` · Signée le ${new Date(clientLM.signed_at).toLocaleDateString("fr-FR")}`}
+                    {clientLM.signed_at && ` · Signée le ${formatDateFr(clientLM.signed_at)}`}
                   </span>
                 </div>
                 <Button
@@ -1291,8 +1292,8 @@ function ClientDetailContent({ client }: { client: Client }) {
                       <Badge className={`text-[9px] bg-${typeInfo.color}-500/10 text-${typeInfo.color}-400 border-0`}>{typeInfo.label}</Badge>
                       <span className="text-xs text-slate-400 dark:text-slate-400">
                         {rev.status === 'completee' && rev.completed_at
-                          ? `Complétée le ${new Date(rev.completed_at).toLocaleDateString("fr-FR")}`
-                          : `Échéance : ${new Date(rev.date_echeance).toLocaleDateString("fr-FR")}`}
+                          ? `Complétée le ${formatDateFr(rev.completed_at)}`
+                          : `Échéance : ${formatDateFr(rev.date_echeance)}`}
                       </span>
                       {rev.score_risque_avant != null && (
                         <span className="text-xs text-slate-400 dark:text-slate-500">
@@ -1331,7 +1332,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                     <span className="text-sm text-slate-800 dark:text-slate-200">{av.numero || "Avenant"}</span>
                     <span className="text-xs text-slate-400 dark:text-slate-500">{av.objet}</span>
                     {av.date_effet && (
-                      <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">Effet : {new Date(av.date_effet).toLocaleDateString("fr-FR")}</span>
+                      <span className="text-xs text-slate-400 dark:text-slate-500 ml-auto">Effet : {formatDateFr(av.date_effet)}</span>
                     )}
                     <Badge variant="outline" className="text-[9px]">{av.status}</Badge>
                   </div>

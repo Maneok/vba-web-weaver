@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import { logger } from "@/lib/logger";
+import { formatDateFr } from "./dateUtils";
 import type { LettreMission, CabinetConfig, LettreMissionOptions, EditorSectionSnapshot } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
@@ -1709,7 +1710,7 @@ export function generatePdfFromInstance(instance: {
     doc.setFontSize(8);
     doc.setTextColor(NAVY.r, NAVY.g, NAVY.b);
     doc.text(instance.numero, MARGIN_L, y);
-    doc.text(new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }), MARGIN_R, y, { align: "right" });
+    doc.text(formatDateFr(new Date()), MARGIN_R, y, { align: "right" });
     y += 10;
 
     // Title

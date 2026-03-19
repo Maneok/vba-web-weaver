@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { formatDateFr } from "@/lib/dateUtils";
 import {
   Search, ScrollText, UserPlus, Calculator, AlertTriangle, Shield,
   LogIn, LogOut, RefreshCw, ClipboardCheck, FileText, Activity,
@@ -122,7 +123,7 @@ export default function LogsPage() {
     try {
       const d = new Date(dateStr);
       if (isNaN(d.getTime())) return "Date inconnue";
-      return d.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+      return formatDateFr(d);
     } catch { return dateStr; }
   }, [today, yesterday]);
 

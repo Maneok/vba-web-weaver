@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { supabase } from "@/integrations/supabase/client";
+import { formatDateTimeFr } from "@/lib/dateUtils";
 import { logger } from "@/lib/logger";
 import { recalculateAllCabinetScores, clearScoringCache } from "@/lib/riskEngine";
 
@@ -167,10 +168,7 @@ function validateLcbft(l: LcbftConfig): ValidationErrors {
 }
 
 function formatTimestamp(iso: string): string {
-  if (!iso) return "—";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return iso;
-  return d.toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+  return formatDateTimeFr(iso) || iso;
 }
 
 /* ---------- InfoTip ---------- */

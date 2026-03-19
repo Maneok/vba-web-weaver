@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import type { Client } from "./types";
+import { formatDateFr } from "./dateUtils";
 
 export function generateFicheAcceptation(client: Client) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -44,7 +45,7 @@ export function generateFicheAcceptation(client: Client) {
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.setTextColor(100, 100, 100);
-  doc.text(`Générée le ${new Date().toLocaleDateString("fr-FR")} — Réf. ${client.ref}`, W / 2, y, { align: "center" });
+  doc.text(`Générée le ${formatDateFr(new Date())} — Réf. ${client.ref}`, W / 2, y, { align: "center" });
   doc.setTextColor(0, 0, 0);
   y += 10;
 

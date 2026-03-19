@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { formatDateFr } from "@/lib/dateUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,11 +30,7 @@ interface LectureEntry {
 
 function formatDate(dateStr: string) {
   if (!dateStr) return "---";
-  try {
-    return new Date(dateStr).toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
-  } catch {
-    return dateStr;
-  }
+  return formatDateFr(dateStr);
 }
 
 function daysSince(dateStr: string): string {

@@ -7,6 +7,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { logAudit } from "@/lib/auth/auditTrail";
 import { logger } from "@/lib/logger";
+import { formatDateFr } from "@/lib/dateUtils";
 import { toast } from "sonner";
 import {
   LM_STEP_TITLES,
@@ -380,7 +381,7 @@ const LetterHistory = React.memo(function LetterHistory({
               <div className="min-w-0">
                 <p className="text-sm font-medium text-slate-900 dark:text-white truncate">{letter.raison_sociale}</p>
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 sm:hidden">
-                  {letter.numero} · {new Date(letter.created_at).toLocaleDateString("fr-FR")}
+                  {letter.numero} · {formatDateFr(letter.created_at, "short")}
                 </p>
               </div>
             </button>
@@ -408,7 +409,7 @@ const LetterHistory = React.memo(function LetterHistory({
 
             {/* Date */}
             <span className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-500">
-              {new Date(letter.updated_at).toLocaleDateString("fr-FR")}
+              {formatDateFr(letter.updated_at, "short")}
             </span>
 
             {/* Statut */}
@@ -521,7 +522,7 @@ const LetterHistory = React.memo(function LetterHistory({
                       {av.status}
                     </Badge>
                     <span className="text-[10px] text-slate-600">
-                      {new Date(av.created_at).toLocaleDateString("fr-FR")}
+                      {formatDateFr(av.created_at, "short")}
                     </span>
                   </div>
                 ))}
@@ -1252,7 +1253,7 @@ export default function LettreMissionPage() {
       const wd = letter.wizard_data;
       const client = buildClientFromWizardData(wd as LMWizardData);
       await renderLettreMissionPdf({
-        numero: letter.numero, date: new Date(letter.created_at).toLocaleDateString("fr-FR"),
+        numero: letter.numero, date: formatDateFr(letter.created_at),
         client,
         cabinet: cabinetInfo,
         options: {

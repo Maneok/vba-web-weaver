@@ -6,6 +6,7 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { analyzeCockpit } from "@/lib/cockpitEngine";
+import { formatDateFr } from "@/lib/dateUtils";
 import {
   RefreshCw, Loader2, Users, Shield, AlertTriangle, FileText,
   GripVertical, TrendingUp, BarChart3, Bell,
@@ -415,7 +416,7 @@ export default function DashboardPage() {
   const userName = profile?.full_name || user?.email?.split("@")[0] || "Utilisateur";
   const cabinetName = profile?.cabinet_id ? "Cabinet" : "GRIMY";
   const showOnboarding = !isLoading && clients.length === 0 && !isOnboardingComplete();
-  const printDate = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const printDate = formatDateFr(new Date());
   const dateStr = useMemo(() => DATE_LONG.format(new Date()), []);
 
   // ── Widget content map (memoized) ─────────────────────────

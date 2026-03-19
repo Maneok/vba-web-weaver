@@ -18,6 +18,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import { logger } from "@/lib/logger";
+import { formatDateFr } from "./dateUtils";
 import type { LettreMission } from "@/types/lettreMission";
 import type { Client } from "@/lib/types";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
@@ -784,7 +785,7 @@ export async function generateDocxFromInstance(instance: {
     children.push(
       new Paragraph({ spacing: { after: 80 }, children: [
         new TextRun({ text: instance.numero, bold: true, size: 20 }),
-        new TextRun({ text: `     ${new Date().toLocaleDateString("fr-FR")}`, size: 18, color: "888888" }),
+        new TextRun({ text: `     ${formatDateFr(new Date())}`, size: 18, color: "888888" }),
       ]}),
     );
 

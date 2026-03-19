@@ -1,5 +1,6 @@
 import { ATTESTATION_TRAVAIL_DISSIMULE } from "../../lib/lettreMissionAnnexes";
 import type { Client } from "../../lib/types";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface AttestationTravailDissimuleProps {
   client: Client;
@@ -10,7 +11,7 @@ export default function AttestationTravailDissimule({
 }: AttestationTravailDissimuleProps) {
   const texte = (ATTESTATION_TRAVAIL_DISSIMULE?.texte ?? "")
     .replace(/\{\{ville\}\}/g, client?.ville ?? "")
-    .replace(/\{\{date\}\}/g, new Date().toLocaleDateString("fr-FR"))
+    .replace(/\{\{date\}\}/g, formatDateFr(new Date(), "short"))
     .replace(/\{\{dirigeant\}\}/g, client?.dirigeant ?? "")
     .replace(/\{\{qualite_dirigeant\}\}/g, "Représentant légal");
 

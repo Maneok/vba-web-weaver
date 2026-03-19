@@ -16,6 +16,7 @@ import {
   Filter, X, ArrowUpDown, Eye, Calendar, User, Activity,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDateTimeFr } from "@/lib/dateUtils";
 
 interface AuditRow {
   id: number;
@@ -42,12 +43,7 @@ const ACTION_COLORS: Record<string, string> = {
 const PAGE_SIZE = 50;
 
 function formatDateTimeFR(dateStr: string) {
-  try {
-    return new Date(dateStr).toLocaleString("fr-FR", {
-      day: "2-digit", month: "2-digit", year: "numeric",
-      hour: "2-digit", minute: "2-digit", second: "2-digit",
-    });
-  } catch { return dateStr; }
+  return formatDateTimeFr(dateStr) || dateStr;
 }
 
 function exportAuditCSV(entries: AuditRow[]) {

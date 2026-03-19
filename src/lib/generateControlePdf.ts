@@ -1,5 +1,6 @@
 import jsPDF from "jspdf";
 import type { Client, ControleQualite } from "./types";
+import { formatDateFr } from "./dateUtils";
 
 // ── safe text to avoid jsPDF crash on undefined/null + truncate overflow ──
 function safe(val: unknown, maxLen = 0): string {
@@ -42,8 +43,8 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
   const marginR = 195;
   const contentW = marginR - marginL;
   let y = 15;
-  const dateStr = new Date().toLocaleDateString("fr-FR");
-  const moisStr = new Date().toLocaleDateString("fr-FR", { month: "long", year: "numeric" });
+  const dateStr = formatDateFr(new Date(), "short");
+  const moisStr = formatDateFr(new Date(), "month");
 
   // === HEADER ===
   doc.setFillColor(30, 58, 95);
@@ -248,7 +249,7 @@ export function generateRapportControle(echantillon: Client[], controles?: Contr
       for (const nc of ncControles) {
         y = pageGuard(doc, y, 8);
         let fmtEch = "—";
-        if (nc.dateEcheance) { const d = new Date(nc.dateEcheance); fmtEch = isNaN(d.getTime()) ? nc.dateEcheance : d.toLocaleDateString("fr-FR"); }
+        if (nc.dateEcheance) { const d = new Date(nc.dateEcheance); fmtEch = isNaN(d.getTime()) ? nc.dateEcheance : formatDateFr(d, "short"); }
         const suiviLabel: Record<string, string> = { A_TRAITER: "A traiter", EN_COURS: "En cours", RESOLU: "Resolu", CLOTURE: "Cloture" };
         const acRow = [
           safe(nc.dossierAudite, 25),
@@ -309,7 +310,7 @@ export function generateSingleControlePdf(c: ControleQualite) {
   const marginR = 195;
   const contentW = marginR - marginL;
   let y = 15;
-  const dateStr = new Date().toLocaleDateString("fr-FR");
+  const dateStr = formatDateFr(new Date(), "short");
 
   // Header
   doc.setFillColor(30, 58, 95);
@@ -425,7 +426,7 @@ export function generateSingleControlePdf(c: ControleQualite) {
     y += actLines.length * 4 + 3;
     if (c.dateEcheance) {
       try {
-        doc.text(`Echeance: ${new Date(c.dateEcheance).toLocaleDateString("fr-FR")}`, marginL + 3, y);
+        doc.text(`Echeance: ${formatDateFr(c.dateEcheance, "short")}`, marginL + 3, y);
       } catch {
         doc.text(`Echeance: ${c.dateEcheance}`, marginL + 3, y);
       }

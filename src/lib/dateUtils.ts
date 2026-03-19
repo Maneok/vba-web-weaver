@@ -3,6 +3,95 @@
  * Replaces duplicate implementations scattered across the codebase.
  */
 
+/**
+ * Formate une date en français.
+ * Formats disponibles :
+ * - "long"    → "19 mars 2027"
+ * - "short"   → "19/03/2027"
+ * - "relative"→ "il y a 3 jours" / "dans 5 jours"
+ * - "month"   → "mars 2027"
+ * - "dayMonth"→ "19 mars"
+ */
+export function formatDateFr(
+  date: string | Date | null | undefined,
+  format: "long" | "short" | "relative" | "month" | "dayMonth" = "long"
+): string {
+  if (!date) return "—";
+
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
+
+  const locale = "fr-FR";
+
+  switch (format) {
+    case "long":
+      return d.toLocaleDateString(locale, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+
+    case "short":
+      return d.toLocaleDateString(locale, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+
+    case "month":
+      return d.toLocaleDateString(locale, {
+        month: "long",
+        year: "numeric",
+      });
+
+    case "dayMonth":
+      return d.toLocaleDateString(locale, {
+        day: "numeric",
+        month: "long",
+      });
+
+    case "relative": {
+      const now = new Date();
+      const diffMs = d.getTime() - now.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+      if (diffDays === 0) return "aujourd'hui";
+      if (diffDays === 1) return "demain";
+      if (diffDays === -1) return "hier";
+      if (diffDays > 1 && diffDays <= 30) return `dans ${diffDays} jours`;
+      if (diffDays < -1 && diffDays >= -30) return `il y a ${Math.abs(diffDays)} jours`;
+      return d.toLocaleDateString(locale, {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      });
+    }
+
+    default:
+      return d.toLocaleDateString(locale);
+  }
+}
+
+/**
+ * Formate une date+heure en français.
+ * Ex : "19 mars 2027 à 14h30"
+ */
+export function formatDateTimeFr(date: string | Date | null | undefined): string {
+  if (!date) return "—";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (isNaN(d.getTime())) return "—";
+
+  const datePart = d.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+  const hours = d.getHours().toString().padStart(2, "0");
+  const minutes = d.getMinutes().toString().padStart(2, "0");
+
+  return `${datePart} à ${hours}h${minutes}`;
+}
+
 // D1: Handle more formats: "YYYY-MM" (no day), "DD/MM/YYYY", ISO timestamps
 export function formatDateFR(dateStr: string | null | undefined): string {
   if (!dateStr) return "\u2014";

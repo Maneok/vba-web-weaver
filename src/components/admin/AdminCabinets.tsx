@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface Cabinet {
   id: string;
@@ -57,7 +58,7 @@ function formatRelative(dateStr: string | null): string {
   if (diffHours < 24) return `il y a ${diffHours}h`;
   if (diffDays === 1) return "Hier";
   if (diffDays < 30) return `il y a ${diffDays}j`;
-  return date.toLocaleDateString("fr-FR");
+  return formatDateFr(dateStr, "short");
 }
 
 export default function AdminCabinets() {

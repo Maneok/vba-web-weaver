@@ -4,6 +4,7 @@ import { Megaphone, Plus, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { formatDateTimeFr } from "@/lib/dateUtils";
 
 interface Broadcast {
   id: string;
@@ -79,13 +80,7 @@ export default function AdminBroadcasts() {
   }
 
   function formatDate(dateStr: string): string {
-    return new Date(dateStr).toLocaleDateString("fr-FR", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return formatDateTimeFr(dateStr);
   }
 
   if (loading) {

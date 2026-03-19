@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { formatDateFr } from "@/lib/dateUtils";
 
 interface Payment {
   id: string;
@@ -136,7 +137,7 @@ export default function AdminPayments() {
               {filtered.map((p) => (
                 <tr key={p.id} className="border-b border-white/5 hover:bg-white dark:bg-white/[0.02]">
                   <td className="px-4 py-3 text-slate-400 dark:text-slate-500 dark:text-slate-400">
-                    {new Date(p.created_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" })}
+                    {formatDateFr(p.created_at)}
                   </td>
                   <td className="px-4 py-3 text-slate-800 dark:text-slate-200">{p.cabinet_name}</td>
                   <td className="px-4 py-3 text-slate-800 dark:text-slate-200 font-medium">

@@ -1,5 +1,6 @@
 import type { Client } from "@/lib/types";
 import type { CabinetConfig, LettreMissionOptions } from "@/types/lettreMission";
+import { formatDateFr } from "./dateUtils";
 
 /** Escape regex metacharacters to prevent ReDoS */
 function escapeRegex(str: string): string {
@@ -130,8 +131,7 @@ const CABINET_VARIABLE_MAP: Record<string, (cab: CabinetConfig) => string> = {
 
 function getDateVariables(): Record<string, string> {
   const now = new Date();
-  const fmt = (d: Date) =>
-    d.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const fmt = (d: Date) => formatDateFr(d);
   const year = now.getFullYear();
   const startOfYear = new Date(year, 0, 1);
   const endOfYear = new Date(year, 11, 31);

@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
+import { formatDateFr } from "@/lib/dateUtils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Tooltip,
@@ -1251,8 +1252,8 @@ export default function ModeleEditor({
                         {modele.source === "grimy" ? "GRIMY" : modele.source === "import_docx" ? "Import DOCX" : "Copie"}
                       </Badge>
                     </div>
-                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Cree le</span><span className="text-slate-700 dark:text-slate-300">{new Date(modele.created_at).toLocaleDateString("fr-FR")}</span></div>
-                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Modifie le</span><span className="text-slate-700 dark:text-slate-300">{new Date(modele.updated_at).toLocaleDateString("fr-FR")}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Cree le</span><span className="text-slate-700 dark:text-slate-300">{formatDateFr(modele.created_at, "short")}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Modifie le</span><span className="text-slate-700 dark:text-slate-300">{formatDateFr(modele.updated_at, "short")}</span></div>
                     {typeof usedInCount === "number" && (
                       <div className="flex justify-between"><span className="text-slate-400 dark:text-slate-500">Utilise dans</span><span className="text-slate-700 dark:text-slate-300">{usedInCount} lettre{usedInCount !== 1 ? "s" : ""}</span></div>
                     )}
