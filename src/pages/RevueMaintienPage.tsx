@@ -41,9 +41,13 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
 import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   RefreshCw, Search, ClipboardCheck, AlertTriangle, Clock, ShieldAlert,
   CalendarClock, Loader2, CheckCircle2, Download, Eye, ChevronLeft,
   ChevronRight, Building2, Shield, ArrowRight, XCircle, FileDown, Save,
+  MoreHorizontal, X, Home,
 } from "lucide-react";
 import { toast } from "sonner";
 import type { MissionType, VigilanceLevel } from "@/lib/types";
@@ -122,43 +126,123 @@ function ScoreBadge({ score }: { score: number }) {
   return <Badge variant="outline" className={color}>{score}</Badge>;
 }
 
+// OPT-26: Score circle for table
+function ScoreCircle({ score }: { score: number }) {
+  const bg = score >= 60 ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
+    : score >= 26 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
+    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400";
+  return (
+    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${bg}`}>
+      {score}
+    </div>
+  );
+}
+
 function VigilBadge({ level }: { level: string }) {
   const styles: Record<string, string> = {
-    SIMPLIFIEE: "bg-emerald-500/15 text-emerald-400",
-    STANDARD: "bg-amber-500/15 text-amber-400",
-    RENFORCEE: "bg-red-500/15 text-red-400",
+    SIMPLIFIEE: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
+    STANDARD: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
+    RENFORCEE: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
   };
-  return <Badge variant="outline" className={styles[level] || "bg-slate-500/15 text-slate-400 dark:text-slate-400"}>{level || "—"}</Badge>;
+  return (
+    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${styles[level] || "bg-slate-100 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400"}`}>
+      {level || "—"}
+    </span>
+  );
 }
 
+// OPT-28: Status badge compact
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    a_faire: "bg-amber-500/15 text-amber-400 border-amber-500/30",
-    en_cours: "bg-blue-500/15 text-blue-400 border-blue-500/30",
-    completee: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    reportee: "bg-slate-500/15 text-slate-400 dark:text-slate-400 border-slate-500/30",
+    a_faire: "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400",
+    en_cours: "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    completee: "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+    reportee: "bg-slate-100 dark:bg-slate-500/10 text-slate-500 dark:text-slate-400",
   };
-  return <Badge variant="outline" className={styles[status] || ""}>{STATUS_LABELS[status] || status}</Badge>;
-}
-
-function EcheanceBadge({ date, status }: { date: string; status: string }) {
-  if (status === "completee") return <span className="text-sm text-muted-foreground">{date}</span>;
-  const today = new Date().toISOString().split("T")[0];
-  const diff = (new Date(date).getTime() - new Date(today).getTime()) / 86400000;
-  const color = diff < 0 ? "text-red-400 font-semibold" : diff < 7 ? "text-amber-400 font-medium" : "text-muted-foreground";
-  return <span className={`text-sm ${color}`}>{date}{diff < 0 ? " (en retard)" : ""}</span>;
-}
-
-function KpiCard({ label, value, icon: Icon, color, bgColor }: {
-  label: string; value: number; icon: typeof ClipboardCheck; color: string; bgColor: string;
-}) {
   return (
-    <div className={`rounded-xl border p-4 ${bgColor}`}>
+    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${styles[status] || ""}`}>
+      {STATUS_LABELS[status] || status}
+    </span>
+  );
+}
+
+// OPT-29: Echeance with conditional colors
+function EcheanceBadge({ date, status }: { date: string; status: string }) {
+  if (status === "completee") return <span className="text-xs text-slate-400 dark:text-slate-500">{date}</span>;
+  const today = new Date().toISOString().split("T")[0];
+  const diff = Math.round((new Date(date).getTime() - new Date(today).getTime()) / 86400000);
+  if (diff < 0) return (
+    <span className="text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
+      <AlertTriangle className="w-3 h-3" />{date}
+    </span>
+  );
+  if (diff <= 7) return (
+    <span className="text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
+      <AlertTriangle className="w-3 h-3" />{date}
+    </span>
+  );
+  if (diff <= 30) return <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{date}</span>;
+  return <span className="text-xs text-slate-500 dark:text-slate-400">{date}</span>;
+}
+
+// OPT-7-16: KPI Card redesigned
+function KpiCard({ label, value, icon: Icon, variant, onClick }: {
+  label: string; value: number; icon: typeof ClipboardCheck;
+  variant: "blue" | "red" | "emerald" | "neutral";
+  onClick?: () => void;
+}) {
+  const hasValue = value > 0;
+  const borderLeft = variant === "blue" && hasValue ? "border-l-[3px] border-l-blue-500"
+    : variant === "red" && hasValue ? "border-l-[3px] border-l-red-500"
+    : variant === "emerald" && hasValue ? "border-l-[3px] border-l-emerald-500"
+    : "";
+  const valueColor = !hasValue ? "text-slate-300 dark:text-slate-600"
+    : variant === "blue" ? "text-blue-600 dark:text-blue-400"
+    : variant === "red" ? "text-red-600 dark:text-red-400"
+    : variant === "emerald" ? "text-emerald-600 dark:text-emerald-400"
+    : "text-slate-700 dark:text-slate-300";
+  return (
+    <div
+      onClick={onClick}
+      className={`rounded-lg border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] py-3 px-4 hover:border-slate-300 dark:hover:border-white/[0.1] transition-colors cursor-pointer ${borderLeft}`}
+    >
       <div className="flex items-center justify-between">
-        <span className="text-sm text-muted-foreground">{label}</span>
-        <Icon className={`h-5 w-5 ${color}`} />
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">{label}</span>
+        <Icon className="w-4 h-4 text-slate-400 dark:text-slate-500" />
       </div>
-      <p className={`text-3xl font-bold mt-2 ${color}`}>{value}</p>
+      <p className={`text-xl font-bold mt-1 ${valueColor}`}>{value}</p>
+    </div>
+  );
+}
+
+// OPT-25: Client avatar initials
+function ClientAvatar({ name }: { name: string }) {
+  const initials = (name || "?").split(" ").map(w => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+  return (
+    <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-white/[0.06] flex items-center justify-center text-[10px] font-semibold text-slate-500 dark:text-slate-400 shrink-0">
+      {initials}
+    </div>
+  );
+}
+
+// OPT-38: Skeleton row for loading
+function SkeletonRow() {
+  return (
+    <TableRow>
+      {Array.from({ length: 7 }).map((_, i) => (
+        <TableCell key={i}>
+          <div className="h-4 bg-slate-100 dark:bg-white/[0.04] rounded animate-pulse" style={{ width: i === 0 ? "60%" : "40%" }} />
+        </TableCell>
+      ))}
+    </TableRow>
+  );
+}
+
+function SkeletonKpi() {
+  return (
+    <div className="rounded-lg border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] py-3 px-4">
+      <div className="h-3 w-16 bg-slate-100 dark:bg-white/[0.04] rounded animate-pulse" />
+      <div className="h-6 w-10 bg-slate-100 dark:bg-white/[0.04] rounded animate-pulse mt-2" />
     </div>
   );
 }
@@ -1199,179 +1283,277 @@ export default function RevueMaintienPage() {
   }
 
   // ═══════════════════════════════════════════════════════════════════
+  // OPT-19: Tab counts
+  // ═══════════════════════════════════════════════════════════════════
+  const tabCounts = useMemo(() => {
+    const counts: Record<string, number> = { tous: sortedRevues.length };
+    STATUS_PILLS.forEach(p => {
+      if (p.value !== "tous") counts[p.value] = revues.filter(r => r.status === p.value).length;
+    });
+    // Use total from unfiltered stats if available
+    if (stats) counts.tous = stats.total_a_faire + (stats.completees_ce_mois || 0) + revues.filter(r => r.status === "en_cours" || r.status === "reportee").length;
+    counts.tous = sortedRevues.length;
+    return counts;
+  }, [sortedRevues, revues, stats]);
+
+  // OPT-22: Tab animation state
+  const [tabAnimating, setTabAnimating] = useState(false);
+  const handleTabChange = (value: string) => {
+    setTabAnimating(true);
+    setFilterStatus(value);
+    setTimeout(() => setTabAnimating(false), 150);
+  };
+
+  // OPT-15: KPI card click → filter
+  const handleKpiClick = (status: string) => {
+    setFilterStatus(status);
+  };
+
   // RENDER — LIST MODE
   // ═══════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-6 p-1">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div className="space-y-5 p-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+      {/* OPT-6: Breadcrumb */}
+      <div className="text-xs text-slate-400 dark:text-slate-500 mb-1 flex items-center gap-1">
+        <Home className="w-3 h-3" /> Accueil <span>/</span> Revue periodique
+      </div>
+
+      {/* OPT-1-5: Header */}
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Revue & Maintien de mission</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Suivi des diligences de vigilance et maintien des relations d'affaires
-          </p>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Revue periodique</h1>
+          <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Suivi des diligences de vigilance</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleExportCsv} disabled={sortedRevues.length === 0}>
-            <Download className="h-4 w-4 mr-2" /> Exporter CSV
-          </Button>
-          <Button onClick={handleGenerate} disabled={generating}>
-            {generating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+          <button
+            onClick={handleExportCsv}
+            disabled={sortedRevues.length === 0}
+            className="border border-slate-200 dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04] rounded-lg px-3 h-9 text-sm inline-flex items-center gap-2 transition-colors disabled:opacity-50"
+          >
+            <Download className="h-4 w-4" /> Exporter CSV
+          </button>
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 h-9 text-sm font-medium inline-flex items-center gap-2 transition-colors disabled:opacity-50"
+          >
+            {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
             Generer les revues a faire
-          </Button>
+          </button>
         </div>
       </div>
 
-      {/* KPI Cards — OPT-8: 5 counters */}
-      {stats && (
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
-          <KpiCard label="A faire" value={stats.total_a_faire} icon={ClipboardCheck}
-            color={stats.total_a_faire > 0 ? "text-amber-500" : "text-muted-foreground"}
-            bgColor={stats.total_a_faire > 0 ? "bg-amber-500/10" : "bg-muted/50"} />
-          <KpiCard label="En retard" value={stats.en_retard} icon={Clock}
-            color={stats.en_retard > 0 ? "text-red-600 font-bold" : "text-muted-foreground"}
-            bgColor={stats.en_retard > 0 ? "bg-red-600/10" : "bg-muted/50"} />
-          <KpiCard label="Risque eleve" value={stats.risque_eleve} icon={ShieldAlert}
-            color={stats.risque_eleve > 0 ? "text-red-500" : "text-muted-foreground"}
-            bgColor={stats.risque_eleve > 0 ? "bg-red-500/10" : "bg-muted/50"} />
-          <KpiCard label="KYC expires" value={stats.kyc_expires} icon={AlertTriangle}
-            color={stats.kyc_expires > 0 ? "text-red-500" : "text-muted-foreground"}
-            bgColor={stats.kyc_expires > 0 ? "bg-red-500/10" : "bg-muted/50"} />
-          <KpiCard label="Completees ce mois" value={stats.completees_ce_mois} icon={CheckCircle2}
-            color={stats.completees_ce_mois > 0 ? "text-emerald-500" : "text-muted-foreground"}
-            bgColor={stats.completees_ce_mois > 0 ? "bg-emerald-500/10" : "bg-muted/50"} />
+      {/* OPT-7-16: KPI Cards */}
+      {loading ? (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {Array.from({ length: 5 }).map((_, i) => <SkeletonKpi key={i} />)}
+        </div>
+      ) : stats && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          <KpiCard label="A faire" value={stats.total_a_faire} icon={ClipboardCheck} variant="blue" onClick={() => handleKpiClick("a_faire")} />
+          <KpiCard label="En retard" value={stats.en_retard} icon={Clock} variant="red" onClick={() => handleKpiClick("a_faire")} />
+          <KpiCard label="Risque eleve" value={stats.risque_eleve} icon={ShieldAlert} variant="red" onClick={() => handleKpiClick("tous")} />
+          <KpiCard label="KYC expires" value={stats.kyc_expires} icon={AlertTriangle} variant="red" onClick={() => handleKpiClick("tous")} />
+          <KpiCard label="Completees ce mois" value={stats.completees_ce_mois} icon={CheckCircle2} variant="emerald" onClick={() => handleKpiClick("completee")} />
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div>
-          <Label className="text-xs text-muted-foreground mb-1 block">Statut</Label>
-          <div className="flex gap-1">
-            {STATUS_PILLS.map(pill => (
+      {/* OPT-17-24: Filters — tabs left, dropdowns + search right */}
+      <div className="flex items-center justify-between gap-4 mt-4 mb-4 flex-wrap">
+        {/* Tabs */}
+        <div className="flex items-center gap-4">
+          {STATUS_PILLS.map(pill => {
+            const isActive = filterStatus === pill.value;
+            const count = tabCounts[pill.value] ?? 0;
+            return (
               <button
                 key={pill.value}
-                onClick={() => setFilterStatus(pill.value)}
-                className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
-                  filterStatus === pill.value
-                    ? "bg-blue-500/20 text-blue-400 border-blue-500/40 font-medium"
-                    : "bg-muted/40 text-muted-foreground border-border hover:bg-muted/80"
+                onClick={() => handleTabChange(pill.value)}
+                className={`text-sm pb-1 transition-colors ${
+                  isActive
+                    ? "font-medium text-blue-600 dark:text-blue-400 border-b-2 border-blue-500"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-300"
                 }`}
               >
-                {pill.label}
+                {pill.label} <span className="text-slate-400 dark:text-slate-500">({count})</span>
               </button>
-            ))}
-          </div>
+            );
+          })}
         </div>
-        <div className="w-full sm:w-48">
-          <Label className="text-xs text-muted-foreground mb-1 block">Type</Label>
-          <Select value={filterType} onValueChange={setFilterType}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="tous">Tous</SelectItem>
-              <SelectItem value="annuelle">Annuelle</SelectItem>
-              <SelectItem value="risque_eleve">Risque eleve</SelectItem>
-              <SelectItem value="kyc_expiration">KYC expire</SelectItem>
-              <SelectItem value="changement_situation">Changement situation</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="w-full sm:w-48">
-          <Label className="text-xs text-muted-foreground mb-1 block">Niveau de risque</Label>
-          <Select value={filterRisk} onValueChange={setFilterRisk}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="tous">Tous</SelectItem>
-              <SelectItem value="eleve">Eleve (≥60)</SelectItem>
-              <SelectItem value="moyen">Moyen (30-59)</SelectItem>
-              <SelectItem value="faible">Faible (&lt;30)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex-1 min-w-[200px]">
-          <Label className="text-xs text-muted-foreground mb-1 block">Recherche client</Label>
+
+        {/* Dropdowns + search */}
+        <div className="flex items-center gap-2">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Nom ou reference..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9" />
+            <Select value={filterType} onValueChange={setFilterType}>
+              <SelectTrigger className="h-8 text-xs rounded-md w-[140px]"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tous">Tous types</SelectItem>
+                <SelectItem value="annuelle">Annuelle</SelectItem>
+                <SelectItem value="risque_eleve">Risque eleve</SelectItem>
+                <SelectItem value="kyc_expiration">KYC expire</SelectItem>
+                <SelectItem value="changement_situation">Changement</SelectItem>
+              </SelectContent>
+            </Select>
+            {filterType !== "tous" && (
+              <button onClick={() => setFilterType("tous")} className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                <X className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <Select value={filterRisk} onValueChange={setFilterRisk}>
+              <SelectTrigger className="h-8 text-xs rounded-md w-[130px]"><SelectValue placeholder="Risque" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="tous">Tous risques</SelectItem>
+                <SelectItem value="eleve">Eleve (≥60)</SelectItem>
+                <SelectItem value="moyen">Moyen (30-59)</SelectItem>
+                <SelectItem value="faible">Faible (&lt;30)</SelectItem>
+              </SelectContent>
+            </Select>
+            {filterRisk !== "tous" && (
+              <button onClick={() => setFilterRisk("tous")} className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+                <X className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
+              </button>
+            )}
+          </div>
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Input
+              placeholder="Nom ou reference..."
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="h-8 text-xs max-w-[200px] rounded-md pl-8"
+            />
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="rounded-lg border bg-card">
+      {/* OPT-34: Table card wrapper */}
+      <div className="rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] overflow-hidden shadow-sm dark:shadow-none">
         <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Client</TableHead>
-              <TableHead className="w-[80px]">Score</TableHead>
-              <TableHead>Vigilance</TableHead>
-              <TableHead>Type</TableHead>
-              <TableHead>Echeance</TableHead>
-              <TableHead>Statut</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+          {/* OPT-32-33: Sticky header */}
+          <TableHeader className="sticky top-0 z-10">
+            <TableRow className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-100 dark:border-white/[0.04]">
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Client</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 w-[70px]">Score</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Vigilance</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden lg:table-cell">Type</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden lg:table-cell">Echeance</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Statut</TableHead>
+              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
+            {/* OPT-38: Loading skeleton */}
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={7} className="text-center py-12">
-                  <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
-                </TableCell>
-              </TableRow>
+              <>
+                <SkeletonRow />
+                <SkeletonRow />
+                <SkeletonRow />
+              </>
             ) : sortedRevues.length === 0 ? (
+              /* OPT-35: Empty state */
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12">
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-                    <span>Aucune revue a faire. Cliquez sur « Generer les revues » pour verifier.</span>
+                <TableCell colSpan={7} className="text-center py-16">
+                  <div className="flex flex-col items-center gap-3">
+                    <CheckCircle2 className="h-12 w-12 text-emerald-500" />
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Toutes les revues sont a jour</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500">Aucune revue ne correspond aux filtres selectionnes</p>
+                    <button
+                      onClick={() => { setFilterStatus("completee"); }}
+                      className="mt-2 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Voir l'historique
+                    </button>
                   </div>
                 </TableCell>
               </TableRow>
             ) : (
-              visibleRevues.map(revue => {
-                const score = revue.score_risque_avant ?? revue.client_score ?? 0;
-                return (
-                  <TableRow key={revue.id} className={getRowClassName(revue)}>
-                    <TableCell>
-                      <div>
-                        <span className="font-medium">{revue.client_nom || "—"}</span>
-                        <span className="block text-xs text-muted-foreground">{revue.client_ref}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell><ScoreBadge score={score} /></TableCell>
-                    <TableCell>
-                      <VigilBadge level={revue.vigilance_avant || revue.client_vigilance || ""} />
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="secondary" className="text-xs">{REVUE_TYPE_LABELS[revue.type]?.label || revue.type}</Badge>
-                    </TableCell>
-                    <TableCell><EcheanceBadge date={revue.date_echeance} status={revue.status} /></TableCell>
-                    <TableCell><StatusBadge status={revue.status} /></TableCell>
-                    <TableCell>
-                      <div className="flex justify-end gap-1">
-                        {(revue.status === "a_faire" || revue.status === "en_cours") && (
-                          <>
-                            <Button size="sm" variant="default" className="h-7 text-xs" onClick={() => openWizard(revue)}>
-                              <ClipboardCheck className="h-3 w-3 mr-1" /> Revue
-                            </Button>
-                            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setReporterRevueItem(revue)}>
-                              <CalendarClock className="h-3 w-3 mr-1" /> Reporter
-                            </Button>
-                          </>
-                        )}
-                        <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => navigate(`/client/${revue.client_ref}`)}>
-                          <Eye className="h-3 w-3 mr-1" /> Dossier
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+              <>
+                {/* OPT-22: Tab fade animation */}
+                <tr className="hidden"><td><div className={tabAnimating ? "opacity-0" : "opacity-100 transition-opacity duration-150"} /></td></tr>
+                {visibleRevues.map(revue => {
+                  const score = revue.score_risque_avant ?? revue.client_score ?? 0;
+                  const isActionable = revue.status === "a_faire" || revue.status === "en_cours";
+                  return (
+                    <TableRow
+                      key={revue.id}
+                      className={`hover:bg-slate-50 dark:hover:bg-white/[0.025] border-b border-slate-100 dark:border-white/[0.04] transition-colors ${
+                        tabAnimating ? "animate-in fade-in duration-150" : ""
+                      } ${getRowClassName(revue)}`}
+                    >
+                      {/* OPT-25: Client with avatar */}
+                      <TableCell>
+                        <div className="flex items-center gap-2.5">
+                          <ClientAvatar name={revue.client_nom || ""} />
+                          <div>
+                            <span className="font-medium text-sm text-slate-900 dark:text-white">{revue.client_nom || "—"}</span>
+                            <span className="block text-[11px] text-slate-400">{revue.client_ref}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      {/* OPT-26: Score circle */}
+                      <TableCell><ScoreCircle score={score} /></TableCell>
+                      {/* OPT-27: Vigilance badge */}
+                      <TableCell>
+                        <VigilBadge level={revue.vigilance_avant || revue.client_vigilance || ""} />
+                      </TableCell>
+                      {/* OPT-37: Hidden on mobile */}
+                      <TableCell className="hidden lg:table-cell">
+                        <span className="text-xs text-slate-500 dark:text-slate-400">{REVUE_TYPE_LABELS[revue.type]?.label || revue.type}</span>
+                      </TableCell>
+                      {/* OPT-29: Echeance */}
+                      <TableCell className="hidden lg:table-cell"><EcheanceBadge date={revue.date_echeance} status={revue.status} /></TableCell>
+                      {/* OPT-28: Status */}
+                      <TableCell><StatusBadge status={revue.status} /></TableCell>
+                      {/* OPT-30: Actions — button + dropdown */}
+                      <TableCell>
+                        <div className="flex justify-end items-center gap-1">
+                          {isActionable && (
+                            <button
+                              onClick={() => openWizard(revue)}
+                              className="text-xs px-2.5 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            >
+                              Revue
+                            </button>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <button className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors text-slate-400">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              <DropdownMenuItem onClick={() => navigate(`/client/${revue.client_ref}`)}>
+                                <Eye className="h-3.5 w-3.5 mr-2" /> Voir le dossier
+                              </DropdownMenuItem>
+                              {isActionable && (
+                                <DropdownMenuItem onClick={() => setReporterRevueItem(revue)}>
+                                  <CalendarClock className="h-3.5 w-3.5 mr-2" /> Reporter
+                                </DropdownMenuItem>
+                              )}
+                              {isActionable && (
+                                <DropdownMenuItem onClick={() => {
+                                  completeRevue(revue.id, { maintien: true, observations: "Marquee completee manuellement" })
+                                    .then(() => { toast.success("Revue marquee completee"); loadData(); })
+                                    .catch(() => toast.error("Erreur"));
+                                }}>
+                                  <CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Marquer completee
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </>
             )}
           </TableBody>
         </Table>
         {hasMore && !loading && (
-          <div className="flex justify-center py-4 border-t">
+          <div className="flex justify-center py-4 border-t border-slate-100 dark:border-white/[0.04]">
             <Button variant="outline" size="sm" onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}>
               Voir plus ({sortedRevues.length - visibleCount} restantes)
             </Button>
