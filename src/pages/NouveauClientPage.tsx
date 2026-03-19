@@ -9,7 +9,7 @@ import { calculateRiskScore, calculateNextReviewDate, calculateDateButoir, getPi
 import { useScoringData } from "@/hooks/useScoringData";
 import { searchPappers, checkGelAvoirs, type PappersResult } from "@/lib/pappersService";
 import {
-  searchEnterprise, checkSanctions, checkBodacc, verifyGooglePlaces, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
+  searchEnterprise, checkSanctions, checkBodacc, checkNews, analyzeNetwork, fetchDocuments, fetchInpiDocuments,
   INITIAL_SCREENING, createInitialScreening, type ScreeningState, type EnterpriseResult, type Dirigeant, type BeneficiaireEffectif,
   type InpiCompanyData, type InpiFinancials, type DataProvenance, type AmlSignal,
   computeKycCompleteness, detectAmlSignals, pickPrincipalDirigeant,
@@ -197,6 +197,8 @@ export default function NouveauClientPage() {
 
   // Screening timeout (30s) — show prominent skip button
   const [screeningTimedOut, setScreeningTimedOut] = useState(false);
+  // GPS fallback from enterprise-lookup (used when Google Places found=false)
+  const [enterpriseGps, setEnterpriseGps] = useState<{ lat: number | null; lng: number | null }>({ lat: null, lng: null });
   const screeningTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // OPT: Dedup guard to prevent duplicate screening launches on rapid clicks
   const lastScreenedSirenRef = useRef<string | null>(null);
@@ -617,10 +619,16 @@ export default function NouveauClientPage() {
       if (data.hasProcedureCollective) toast.warning("Procedure collective detectee (BODACC)");
     }).catch(() => setScreening(prev => ({ ...prev, bodacc: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0bodacc } })));
 
-    // Google Places
+    // Google Places — pass enterprise GPS as fallback for map display
     const t0google = Date.now();
     setScreening(prev => ({ ...prev, google: { loading: true, data: null, error: null } }));
-    verifyGooglePlaces(raisonSociale, ville).then(data => {
+    const entLat = (enterprise as Record<string, unknown>).latitude as number | null ?? null;
+    const entLng = (enterprise as Record<string, unknown>).longitude as number | null ?? null;
+    setEnterpriseGps({ lat: entLat, lng: entLng });
+    supabase.functions.invoke("google-places-verify", {
+      body: { raison_sociale: raisonSociale, ville, latitude: entLat, longitude: entLng },
+    }).then(({ data, error }) => {
+      if (error) throw error;
       setScreening(prev => ({ ...prev, google: { loading: false, data, error: null, timeMs: Date.now() - t0google } }));
     }).catch(() => setScreening(prev => ({ ...prev, google: { loading: false, data: null, error: "Service indisponible", timeMs: Date.now() - t0google } })));
 
@@ -2214,8 +2222,8 @@ export default function NouveauClientPage() {
             {/* Map embed — OpenStreetMap with Nominatim geocoding fallback (#9-11) */}
             {(screening.google.data || form.adresse) && (
               <MapSection
-                lat={screening.google.data?.place?.lat ?? null}
-                lng={screening.google.data?.place?.lng ?? null}
+                lat={screening.google.data?.place?.lat ?? screening.google.data?.fallbackGps?.lat ?? enterpriseGps.lat ?? null}
+                lng={screening.google.data?.place?.lng ?? screening.google.data?.fallbackGps?.lng ?? enterpriseGps.lng ?? null}
                 adresse={form.adresse}
                 cp={form.cp}
                 ville={form.ville}
