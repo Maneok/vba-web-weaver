@@ -48,6 +48,8 @@ import {
   Map as MapIcon, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
+  ZoomIn, ZoomOut, Maximize, Mail, QrCode, Filter, SortAsc, SortDesc, CheckSquare, Square,
+  Pencil, ImageIcon, Inbox,
 } from "lucide-react";
 
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
@@ -178,9 +180,26 @@ export default function NouveauClientPage() {
   // FIX 37: Drag-over highlight per upload zone
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
   // OPT: Preview modal for documents (PDF/HTML inline preview)
-  const [previewDoc, setPreviewDoc] = useState<{ url: string; label: string } | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; label: string; index?: number } | null>(null);
   // OPT: Upload progress simulation
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  // R2: Zoom level for preview modal
+  const [previewZoom, setPreviewZoom] = useState(100);
+  // R2: Document sort/filter
+  const [docSortMode, setDocSortMode] = useState<"date" | "type">("date");
+  const [docFilterType, setDocFilterType] = useState<string>("Tous");
+  const [docSearchQuery, setDocSearchQuery] = useState("");
+  // R2: Multi-select for batch download
+  const [selectedDocIndices, setSelectedDocIndices] = useState<Set<number>>(new Set());
+  // R2: Confetti state for 100% KYC
+  const [showConfetti, setShowConfetti] = useState(false);
+  const prevKycRef = useRef(0);
+  // R2: Per-file upload progress
+  const [fileUploadProgress, setFileUploadProgress] = useState<Record<string, number>>({});
+  // R2: Image previews for uploaded files
+  const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+  // R2: Last generation timestamp
+  const [lastGeneration, setLastGeneration] = useState<{ type: string; date: Date } | null>(null);
 
   // Draft banner state
   const [draftBanner, setDraftBanner] = useState<{ restoredAt: Date } | null>(null);
@@ -272,6 +291,30 @@ export default function NouveauClientPage() {
     }, 800);
     return () => clearTimeout(timer);
   }, [step, kycCompleteness]);
+
+  // R2-47: Confetti animation when KYC reaches 100%
+  useEffect(() => {
+    if (kycCompleteness === 100 && prevKycRef.current < 100 && step === 5) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2000);
+    }
+    prevKycRef.current = kycCompleteness;
+  }, [kycCompleteness, step]);
+
+  // R2-23: Generate image previews for uploaded files
+  useEffect(() => {
+    documents.forEach(doc => {
+      if (!doc.file) return;
+      const ext = doc.name.split(".").pop()?.toLowerCase() || "";
+      if (!["jpg", "jpeg", "png", "gif", "webp"].includes(ext)) return;
+      if (imagePreviews[doc.name]) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreviews(prev => ({ ...prev, [doc.name]: e.target?.result as string }));
+      };
+      reader.readAsDataURL(doc.file);
+    });
+  }, [documents]);
 
   // #1: Cycle placeholder text
   useEffect(() => {
@@ -1286,12 +1329,49 @@ export default function NouveauClientPage() {
       }
       validFiles.push(f);
     }
-    const newDocs: UploadedDoc[] = validFiles.map(f => {
-      const lower = f.name.toLowerCase();
-      const detectedType = Object.entries(typeMap).find(([k]) => lower.includes(k))?.[1] || "Autre";
-      return { name: f.name, type: detectedType, file: f };
-    });
-    if (newDocs.length > 0) setDocuments(prev => [...prev, ...newDocs]);
+    // R2-29: Compress large images before adding
+    const processFile = async (f: File): Promise<File> => {
+      const ext = f.name.split(".").pop()?.toLowerCase() || "";
+      if (["jpg", "jpeg", "png", "webp"].includes(ext) && f.size > 5 * 1024 * 1024) {
+        try {
+          const bitmap = await createImageBitmap(f);
+          const canvas = document.createElement("canvas");
+          const scale = Math.min(1, 2048 / Math.max(bitmap.width, bitmap.height));
+          canvas.width = bitmap.width * scale;
+          canvas.height = bitmap.height * scale;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+            const blob = await new Promise<Blob>((res) => canvas.toBlob(b => res(b!), "image/jpeg", 0.85));
+            toast.info(`Image compressée : ${(f.size / 1024 / 1024).toFixed(1)} Mo → ${(blob.size / 1024 / 1024).toFixed(1)} Mo`);
+            return new File([blob], f.name.replace(/\.\w+$/, ".jpg"), { type: "image/jpeg" });
+          }
+        } catch { /* fallback to original */ }
+      }
+      return f;
+    };
+    // R2-27: Per-file progress tracking
+    const processAll = async () => {
+      const newDocs: UploadedDoc[] = [];
+      for (const f of validFiles) {
+        setFileUploadProgress(prev => ({ ...prev, [f.name]: 0 }));
+        const processed = await processFile(f);
+        const lower = processed.name.toLowerCase();
+        const detectedType = Object.entries(typeMap).find(([k]) => lower.includes(k))?.[1] || "Autre";
+        newDocs.push({ name: processed.name, type: detectedType, file: processed });
+        // Simulate progress for each file
+        setFileUploadProgress(prev => ({ ...prev, [f.name]: 50 }));
+        await new Promise(r => setTimeout(r, 100));
+        setFileUploadProgress(prev => ({ ...prev, [f.name]: 100 }));
+      }
+      if (newDocs.length > 0) {
+        setDocuments(prev => [...prev, ...newDocs]);
+        toast.success(`${newDocs.length} fichier(s) ajouté(s)`);
+      }
+      // Clear progress after a delay
+      setTimeout(() => setFileUploadProgress({}), 800);
+    };
+    processAll();
   }, [ALLOWED_EXTENSIONS]);
 
   const handleDrop = (e: React.DragEvent) => {

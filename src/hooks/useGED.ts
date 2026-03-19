@@ -10,6 +10,8 @@ import {
   type SirenFolder,
   type GEDStats,
 } from '@/services/gedService';
+import { logAudit, fetchAuditLog, type AuditEntry } from '@/services/gedAuditService';
+import { supabase } from '@/integrations/supabase/client';
 
 export function useGED(cabinetId: string) {
   // ── Core state ──────────────────────────────────────────────────
@@ -27,6 +29,10 @@ export function useGED(cabinetId: string) {
   const [sortColumn, setSortColumn] = useState<string>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'incomplete' | 'alert'>('all');
+
+  // ── Audit ─────────────────────────────────────────────────────
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   // ── Load folders ────────────────────────────────────────────────
   const refreshFolders = useCallback(async () => {
@@ -142,6 +148,52 @@ export function useGED(cabinetId: string) {
     return result;
   }, [documents, activeCategory, sortColumn, sortDirection]);
 
+  // ── Audit helper ───────────────────────────────────────────────
+  const fireAudit = useCallback(
+    (action: string, documentId: string | null, details?: Record<string, unknown>) => {
+      if (!cabinetId || !selectedSiren) return;
+      supabase.auth.getUser().then(({ data: { user } }) => {
+        if (!user) return;
+        logAudit({
+          documentId,
+          cabinetId,
+          siren: selectedSiren,
+          action,
+          actorId: user.id,
+          actorName: user.email || 'Utilisateur',
+          details,
+        }).catch(() => {});
+      });
+    },
+    [cabinetId, selectedSiren],
+  );
+
+  const refreshAuditLog = useCallback(async () => {
+    if (!cabinetId || !selectedSiren) {
+      setAuditEntries([]);
+      return;
+    }
+    setAuditLoading(true);
+    try {
+      const folder = folders.find(f => f.client_ref === selectedSiren);
+      const entries = await fetchAuditLog({
+        siren: folder?.siren || selectedSiren,
+        cabinetId,
+        limit: 50,
+      });
+      setAuditEntries(entries);
+    } catch {
+      setAuditEntries([]);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, [cabinetId, selectedSiren, folders]);
+
+  // Load audit log when siren changes
+  useEffect(() => {
+    refreshAuditLog();
+  }, [selectedSiren, refreshAuditLog]);
+
   // ── Actions ─────────────────────────────────────────────────────
 
   const handleSelectSiren = useCallback((clientRef: string) => {
@@ -157,8 +209,9 @@ export function useGED(cabinetId: string) {
 
       setUploading(true);
       try {
-        await uploadDocument(file, selectedSiren, category, cabinetId);
+        const doc = await uploadDocument(file, selectedSiren, category, cabinetId);
         toast.success(`"${file.name}" importé avec succès`);
+        fireAudit('upload', doc.id, { document_name: file.name, category });
         // Refresh the current folder's documents + global folders
         const docs = await fetchDocumentsByClientRef(selectedSiren, cabinetId);
         setDocuments(docs);
@@ -171,16 +224,16 @@ export function useGED(cabinetId: string) {
         setUploading(false);
       }
     },
-    [selectedSiren, cabinetId],
+    [selectedSiren, cabinetId, fireAudit],
   );
 
   const handleDelete = useCallback(
     async (docId: string) => {
-      if (!window.confirm('Supprimer ce document ? Cette action est irréversible.')) return;
-
       try {
+        const doc = documents.find(d => d.id === docId);
         await deleteDocument(docId);
         toast.success('Document supprimé');
+        fireAudit('delete', docId, { document_name: doc?.name });
         // Refresh
         setDocuments(prev => prev.filter(d => d.id !== docId));
         const updatedFolders = await fetchSirenFolders(cabinetId);
@@ -190,7 +243,7 @@ export function useGED(cabinetId: string) {
         toast.error(msg);
       }
     },
-    [cabinetId],
+    [cabinetId, documents, fireAudit],
   );
 
   return {
@@ -222,5 +275,11 @@ export function useGED(cabinetId: string) {
     handleUpload,
     handleDelete,
     refreshFolders,
+
+    // Audit
+    auditEntries,
+    auditLoading,
+    refreshAuditLog,
+    fireAudit,
   };
 }

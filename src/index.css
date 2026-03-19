@@ -1123,6 +1123,105 @@ aside > div:last-child {
   animation: upload-bounce 1.5s ease-in-out infinite;
 }
 
+/* Confetti animation for 100% KYC */
+@keyframes confetti-pop {
+  0% { opacity: 0; transform: translateY(0) scale(0); }
+  20% { opacity: 1; transform: translateY(-10px) scale(1.2); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.5); }
+}
+.confetti-particle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  animation: confetti-pop 1.2s ease-out forwards;
+  pointer-events: none;
+}
+
+/* Progress ring animation for KYC percentage */
+@keyframes progress-ring-fill {
+  from { stroke-dashoffset: 251; }
+}
+.progress-ring-circle {
+  transition: stroke-dashoffset 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+  transform: rotate(-90deg);
+  transform-origin: center;
+}
+
+/* Slide-up animation for new uploads */
+@keyframes slide-up-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slide-up-in 0.3s ease-out forwards;
+}
+
+/* Skeleton loading shimmer */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(148,163,184,0.08) 25%, rgba(148,163,184,0.15) 50%, rgba(148,163,184,0.08) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+.dark .skeleton-shimmer {
+  background: linear-gradient(90deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 75%);
+  background-size: 200% 100%;
+}
+
+/* New badge pulse for recently fetched docs */
+@keyframes badge-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.animate-badge-pulse {
+  animation: badge-pulse 2s ease-in-out infinite;
+}
+
+/* Timeline vertical connector */
+.doc-timeline-connector {
+  position: relative;
+}
+.doc-timeline-connector::before {
+  content: '';
+  position: absolute;
+  left: 20px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(59,130,246,0.3), rgba(16,185,129,0.3));
+}
+
+/* Image preview thumbnail */
+.upload-thumbnail {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid rgba(148,163,184,0.2);
+}
+
+/* Zoom controls in modal */
+.zoom-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+.zoom-btn:hover {
+  background: rgba(59,130,246,0.1);
+  color: #3b82f6;
+}
+
 /* Print styles */
 @media print {
   .no-print, .print\\:hidden { display: none !important; }
