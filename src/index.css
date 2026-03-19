@@ -345,11 +345,12 @@
   animation: progress-indeterminate 1.5s ease-in-out infinite;
 }
 
-/* OPT-5: Focus ring — rounded, follows element's own border-radius */
+/* OPT-5: Focus ring — supprimé. Les composants shadcn/ui gèrent
+   leur propre focus ring arrondi via ring-2/ring-ring (box-shadow).
+   On neutralise juste l'outline natif du navigateur pour les éléments
+   qui n'ont pas de ring Tailwind. */
 *:focus-visible {
-  outline: 2px solid hsl(217 91% 60% / 0.5);
-  outline-offset: 2px;
-  border-radius: inherit;
+  outline: none;
 }
 
 /* OPT-6: Disabled state — clear visual hierarchy */
