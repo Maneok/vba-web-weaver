@@ -41,6 +41,20 @@ const FORMES_JURIDIQUES: Record<string, string> = {
   "2900": "ENTREPRISE INDIVIDUELLE",
 };
 
+const QUALITE_LABELS: Record<string, string> = {
+  "10": "Directeur général", "11": "Président du CA",
+  "12": "Membre du CA", "13": "DG délégué",
+  "17": "Gérant", "20": "Commissaire aux comptes",
+  "27": "Membre du CS", "29": "Président du directoire",
+  "30": "Membre du directoire", "40": "Membre",
+  "50": "Président de SAS", "53": "Directeur général de SAS",
+  "55": "Associé de SNC", "65": "Administrateur",
+  "70": "Gérant non associé", "71": "Co-gérant", "73": "Gérant",
+  "75": "Gérant associé", "76": "Associé-gérant",
+  "80": "Liquidateur", "90": "Représentant en France",
+  "99": "Président du CA/CS",
+};
+
 function buildAddress(siege: any): string {
   const parts: string[] = [];
   if (siege.numero_voie) parts.push(siege.numero_voie);
@@ -136,10 +150,11 @@ function parseINPICompany(raw: any): any {
         const desc = p.individu?.descriptionPersonne ?? {};
         const prenoms = desc.prenoms ?? [];
         const prenom = Array.isArray(prenoms) ? (prenoms[0] ?? "") : String(prenoms);
+        const roleCode = p.roleEntreprise ?? p.roleEnEntreprise ?? "";
         return {
           nom: (desc.nom ?? p.individu?.nom ?? "").toUpperCase(),
           prenom,
-          qualite: p.roleEntreprise ?? p.roleEnEntreprise ?? "",
+          qualite: QUALITE_LABELS[roleCode] ?? roleCode,
           date_naissance: desc.dateDeNaissance ?? "",
           nationalite: desc.nationalite ?? "",
         };
@@ -163,13 +178,35 @@ function parseINPICompany(raw: any): any {
           nationalite: desc.nationalite ?? "",
           pourcentage_parts: p.pourcentageDetentionCapital ?? 0,
           pourcentage_votes: p.pourcentageDetentionDroitVote ?? 0,
-          role: p.roleEntreprise ?? "",
+          role: QUALITE_LABELS[p.roleEntreprise ?? ""] ?? p.roleEntreprise ?? "",
+          source: "INPI",
+        };
+      });
+
+    // Parse BE personnes morales (sociétés actionnaires/associées)
+    const beneficiairesPM = pouvoirs
+      .filter((p: any) => p.typeDePersonne === "PERSONNE_MORALE")
+      .filter((p: any) => {
+        const pct = p.pourcentageDetentionCapital ?? p.pourcentageDetentionDroitVote ?? 0;
+        return pct > 0 || p.roleEntreprise === "AS" || p.beneficiaireEffectif === true;
+      })
+      .map((p: any) => {
+        const pmData = p.personneMorale ?? {};
+        return {
+          type: "personne_morale",
+          denomination: (pmData.denomination ?? "").toUpperCase(),
+          siren: (pmData.siren ?? "").replace(/\s/g, ""),
+          formeJuridique: pmData.formeJuridique ?? "",
+          pourcentage_parts: p.pourcentageDetentionCapital ?? 0,
+          pourcentage_votes: p.pourcentageDetentionDroitVote ?? 0,
+          role: QUALITE_LABELS[p.roleEntreprise ?? ""] ?? p.roleEntreprise ?? "AS",
           source: "INPI",
         };
       });
 
     console.log("[INPI BE] Pouvoirs total:", pouvoirs.length,
-      "| Dont BE:", beneficiaires.length,
+      "| Dont BE PP:", beneficiaires.length,
+      "| BE PM:", beneficiairesPM.length,
       "| Dirigeants:", dirigeants.length);
 
     // Fallback: if no BE declared, deduce from structure
@@ -210,6 +247,7 @@ function parseINPICompany(raw: any): any {
       commune: (adresse.commune ?? "").toUpperCase(),
       dirigeants,
       beneficiaires,
+      beneficiairesPM,
       objetSocial: description.objet ?? description.objetSocial ?? "",
       duree: description.duree ?? "",
       dateClotureExercice: description.dateClotureExerciceSocial ?? "",
@@ -656,6 +694,7 @@ Deno.serve(async (req) => {
         email,
         site_web: siteWeb,
         beneficiaires_effectifs: beneficiaires,
+        beneficiaires_pm: inpiResult?.beneficiairesPM ?? [],
         finances,
         representants,
         nombre_etablissements: inpiResult?.etablissements?.length ?? pappersData?.nombre_etablissements ?? 1,
