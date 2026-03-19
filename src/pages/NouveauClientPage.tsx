@@ -35,6 +35,7 @@ import { Progress } from "@/components/ui/progress";
 import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tooltip as TooltipRoot, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { ScoreGauge, VigilanceBadge } from "@/components/RiskBadges";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -46,7 +47,7 @@ import {
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
   Map as MapIcon, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer,
-  ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen,
+  ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
 } from "lucide-react";
 
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
@@ -162,6 +163,10 @@ export default function NouveauClientPage() {
   const [generatingPdf, setGeneratingPdf] = useState<string | null>(null);
   // FIX 37: Drag-over highlight per upload zone
   const [dragOverZone, setDragOverZone] = useState<string | null>(null);
+  // OPT: Preview modal for documents (PDF/HTML inline preview)
+  const [previewDoc, setPreviewDoc] = useState<{ url: string; label: string } | null>(null);
+  // OPT: Upload progress simulation
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
   // Draft banner state
   const [draftBanner, setDraftBanner] = useState<{ restoredAt: Date } | null>(null);
@@ -580,6 +585,32 @@ export default function NouveauClientPage() {
       screeningTimeoutRef.current = null;
     }
   }, [screeningRunning]);
+
+  // Item 50: Confetti when screening completes with 0 critical alerts
+  const confettiFiredRef = useRef(false);
+  useEffect(() => {
+    if (confettiFiredRef.current) return;
+    if (screeningRunning) return;
+    if (screeningProgress.completedCount < screeningProgress.totalCount) return;
+    const keys = ["enterprise", "sanctions", "bodacc", "google", "news", "network"] as const;
+    const hasAlert = keys.some(k => {
+      const s = screening[k].data?.status;
+      return s && String(s).toUpperCase() === "ALERTE";
+    });
+    if (hasAlert || gelAvoirsAlert.length > 0) return;
+    confettiFiredRef.current = true;
+    const colors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4"];
+    for (let i = 0; i < 40; i++) {
+      const el = document.createElement("div");
+      el.className = "confetti-piece";
+      el.style.left = `${Math.random() * 100}vw`;
+      el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      el.style.animationDelay = `${Math.random() * 1.5}s`;
+      el.style.animationDuration = `${2 + Math.random() * 2}s`;
+      document.body.appendChild(el);
+      setTimeout(() => el.remove(), 5000);
+    }
+  }, [screeningRunning, screeningProgress, screening, gelAvoirsAlert]);
 
   // Launch parallel screening checks
   const launchScreening = (enterprise: EnterpriseResult) => {
@@ -1808,7 +1839,24 @@ export default function NouveauClientPage() {
   const vigilanceColor = risk.nivVigilance === "SIMPLIFIEE" ? "#10b981" : risk.nivVigilance === "STANDARD" ? "#f59e0b" : "#ef4444";
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-[1200px] mx-auto space-y-4 sm:space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-[1200px] mx-auto space-y-4 sm:space-y-6 scroll-mt-16">
+      {/* Item 49: Sticky header with client name and score during scroll */}
+      {step > 0 && form.raisonSociale && (
+        <div className="sticky top-0 z-30 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-2 bg-white/80 dark:bg-slate-950/80 backdrop-blur-md border-b border-gray-200/50 dark:border-white/[0.04] print:hidden">
+          <div className="flex items-center justify-between max-w-[1200px] mx-auto">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="text-sm font-semibold text-slate-700 dark:text-slate-300 truncate">{form.raisonSociale}</span>
+              {form.siren && <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono shrink-0">{form.siren}</span>}
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <ScoreGauge score={adjustedScore} />
+              <VigilanceBadge level={risk.nivVigilance} />
+              <span className="text-[10px] text-slate-400 dark:text-slate-500">Etape {step + 1}/{STEP_LABELS.length}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
@@ -2182,7 +2230,7 @@ export default function NouveauClientPage() {
 
             {/* Screening Panel */}
             {(screening.enterprise.loading || screening.enterprise.data || screening.sanctions.loading || screening.sanctions.data) && (
-              <ScreeningPanel screening={screening} />
+              <ScreeningPanel screening={screening} gelAvoirsAlert={gelAvoirsAlert} beneficiairesCount={{ pp: beneficiaires.length, pm: 0 }} />
             )}
 
             {/* CORRECTION 7: AML Structural Signals */}
@@ -2232,20 +2280,41 @@ export default function NouveauClientPage() {
             )}
 
             {/* Network Graph preview (Probleme 9) */}
-            {screening.network.data && screening.network.data.nodes?.length > 0 && (
+            {screening.network.data && screening.network.data.nodes?.length > 0 && (() => {
+              // BUG FIX: Deduplicate — remove company nodes that share a label with a person node
+              const personLabels = new Set(
+                (screening.network.data.nodes as any[])
+                  .filter(n => n.type === "person")
+                  .map(n => (n.label ?? "").toUpperCase())
+              );
+              const deduped = (screening.network.data.nodes as any[]).filter(n => {
+                if (n.type === "company" && !n.isSource && personLabels.has((n.label ?? "").toUpperCase())) return false;
+                return true;
+              });
+              const dedupedIds = new Set(deduped.map(n => n.id));
+              const dedupedEdges = (screening.network.data.edges ?? []).filter(e => dedupedIds.has(e.source) && dedupedIds.has(e.target));
+              const totalCompanies = deduped.filter(n => n.type === "company").length;
+              const totalPersons = deduped.filter(n => n.type === "person").length;
+              return (
               <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2">
                   <User className="w-4 h-4 text-cyan-400" />
                   <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Reseau dirigeants</h3>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">
-                    {screening.network.data.totalCompanies ?? 0} societe(s), {screening.network.data.totalPersons ?? 0} personne(s) — cliquez un noeud pour plus d'infos
+                    {totalCompanies} societe(s), {totalPersons} personne(s) — double-cliquez un noeud pour rechercher
                   </span>
                 </div>
                 <div className="p-2">
                   <NetworkGraph
-                    nodes={screening.network.data.nodes}
-                    edges={screening.network.data.edges ?? []}
+                    nodes={deduped}
+                    edges={dedupedEdges}
                     height={350}
+                    onNodeDoubleClick={(n) => {
+                      if (n.type === "company" && n.siren && !n.isSource) {
+                        setQuery(n.siren);
+                        handleSearch(n.siren);
+                      }
+                    }}
                   />
                 </div>
                 {(screening.network.data.alertes?.length ?? 0) > 0 && (
@@ -2259,7 +2328,8 @@ export default function NouveauClientPage() {
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
 
             {selectedResult && (
               <div className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
@@ -2268,14 +2338,19 @@ export default function NouveauClientPage() {
                   <span className="text-sm font-semibold text-emerald-400">Donnees recuperees</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-                  <div><span className="text-slate-400 dark:text-slate-500">Raison sociale</span><p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">{selectedResult.raison_sociale}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Raison sociale</span><p className="text-slate-800 dark:text-slate-200 font-medium mt-0.5">{selectedResult.raison_sociale || "—"}</p></div>
                   <div><span className="text-slate-400 dark:text-slate-500">SIREN</span><p className="text-slate-800 dark:text-slate-200 font-mono mt-0.5">{formatSiren(selectedResult.siren)}</p></div>
-                  <div><span className="text-slate-400 dark:text-slate-500">Forme</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.forme_juridique_raw}</p></div>
-                  <div><span className="text-slate-400 dark:text-slate-500">APE</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.ape} - {selectedResult.libelle_ape}</p></div>
-                  <div><span className="text-slate-400 dark:text-slate-500">Capital</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; const forme = (selectedResult.forme_juridique_raw || "").toUpperCase(); const isEI = forme.includes("INDIVIDUEL") || forme.includes("EI"); if (isEI && cap === 0) return "N/A"; return cap > 0 ? `${cap.toLocaleString()} EUR` : "Non renseigne"; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-400 dark:text-slate-500">({capitalSource})</span>}</p></div>
-                  <div><span className="text-slate-400 dark:text-slate-500">Dirigeant</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{form.dirigeant || selectedResult.dirigeant || "—"}</p></div>
-                  <div><span className="text-slate-400 dark:text-slate-500">Ville</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.ville}</p></div>
-                  <div><span className="text-slate-400 dark:text-slate-500">Creation</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.date_creation ? formatDateFR(selectedResult.date_creation) : "—"}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Forme</span><p className="mt-0.5">{(() => {
+                    const forme = (selectedResult.forme_juridique_raw || "").toUpperCase();
+                    const colors: Record<string, string> = { SCI: "bg-blue-500/15 text-blue-400", SAS: "bg-violet-500/15 text-violet-400", SASU: "bg-violet-500/15 text-violet-400", SARL: "bg-emerald-500/15 text-emerald-400", EURL: "bg-emerald-500/15 text-emerald-400", SA: "bg-orange-500/15 text-orange-400", SNC: "bg-cyan-500/15 text-cyan-400" };
+                    const key = Object.keys(colors).find(k => forme.includes(k));
+                    return key ? <Badge className={`${colors[key]} border-0 text-[10px]`}>{selectedResult.forme_juridique_raw}</Badge> : <span className="text-slate-800 dark:text-slate-200">{selectedResult.forme_juridique_raw || "—"}</span>;
+                  })()}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">APE</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.ape ? `${selectedResult.ape} - ${selectedResult.libelle_ape}` : "—"}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Capital</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{(() => { const cap = selectedEnterprise?.capital || selectedResult.capital || 0; const forme = (selectedResult.forme_juridique_raw || "").toUpperCase(); const isEI = forme.includes("INDIVIDUEL") || forme.includes("EI"); if (isEI && cap === 0) return "N/A"; return cap > 0 ? `${cap.toLocaleString("fr-FR")} \u20AC` : <span className="text-slate-500">—</span>; })()} {capitalSource && (selectedEnterprise?.capital || selectedResult.capital || 0) > 0 && <span className="text-[10px] text-slate-400 dark:text-slate-500">({capitalSource})</span>}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Dirigeant</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{form.dirigeant || selectedResult.dirigeant || <span className="text-slate-500">—</span>}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Ville</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.ville || <span className="text-slate-500">—</span>}</p></div>
+                  <div><span className="text-slate-400 dark:text-slate-500">Creation</span><p className="text-slate-800 dark:text-slate-200 mt-0.5">{selectedResult.date_creation ? formatDateFR(selectedResult.date_creation) : <span className="text-slate-500">—</span>}</p></div>
                   {selectedEnterprise?.site_web && (
                     <div><span className="text-slate-400 dark:text-slate-500">Site web</span><p className="mt-0.5"><a href={selectedEnterprise.site_web.startsWith("http") ? selectedEnterprise.site_web : `https://${selectedEnterprise.site_web}`} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline text-xs flex items-center gap-1">{selectedEnterprise.site_web} <ExternalLink className="w-3 h-3" /></a></p></div>
                   )}
@@ -2291,17 +2366,32 @@ export default function NouveauClientPage() {
                   </div>
                 )}
                 {/* Dirigeants with qualite */}
-                {selectedEnterprise?.dirigeants && selectedEnterprise.dirigeants.length > 1 && (
+                {selectedEnterprise?.dirigeants && selectedEnterprise.dirigeants.length > 0 && (
                   <div className="mt-3 pt-3 border-t border-emerald-500/10">
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Dirigeants ({selectedEnterprise.dirigeants.length})</span>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {selectedEnterprise.dirigeants.slice(0, 6).map((d, i) => (
-                        <span key={`dir-${i}`} className="text-[11px] text-slate-700 dark:text-slate-300 bg-gray-50/80 dark:bg-white/[0.04] px-2 py-1 rounded">
-                          {d.prenom} {d.nom}{d.qualite ? ` — ${d.qualite}` : ""}
-                        </span>
-                      ))}
-                      {selectedEnterprise.dirigeants.length > 6 && <span className="text-[10px] text-slate-400 dark:text-slate-500 self-center">+{selectedEnterprise.dirigeants.length - 6}</span>}
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Dirigeants ({selectedEnterprise.dirigeants.length})</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                      {selectedEnterprise.dirigeants.slice(0, 6).map((d, i) => {
+                        const isPPE = screening.sanctions.data?.matches?.some(m => m.isPPE && (m.person || "").toUpperCase().includes((d.nom || "").toUpperCase()));
+                        return (
+                          <div key={`dir-${i}`} className="flex items-center gap-2.5 p-2 rounded-lg bg-gray-50/80 dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.04]">
+                            <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-white/[0.06] flex items-center justify-center shrink-0">
+                              <User className="w-3.5 h-3.5 text-slate-400" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-[11px] font-semibold text-slate-800 dark:text-slate-200 truncate">{d.prenom} {d.nom}</span>
+                                {isPPE && <Badge className="bg-red-500/20 text-red-400 border-0 text-[8px] px-1 py-0">PPE</Badge>}
+                              </div>
+                              {d.date_naissance && <p className="text-[9px] text-slate-400 dark:text-slate-500">Ne(e) {d.date_naissance}</p>}
+                            </div>
+                            {d.qualite && (
+                              <Badge className="bg-blue-500/10 text-blue-400 border-0 text-[9px] shrink-0">{d.qualite}</Badge>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
+                    {selectedEnterprise.dirigeants.length > 6 && <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1">+{selectedEnterprise.dirigeants.length - 6} autre(s)</p>}
                   </div>
                 )}
                 {dataSource !== "pappers" && (
@@ -3252,7 +3342,7 @@ export default function NouveauClientPage() {
                     ⚠️ Le nom est très court — certains articles peuvent ne pas concerner cette entreprise
                   </div>
                 )}
-                <ScreeningPanel screening={screening} compact />
+                <ScreeningPanel screening={screening} compact gelAvoirsAlert={gelAvoirsAlert} beneficiairesCount={{ pp: beneficiaires.length, pm: 0 }} />
               </div>
             )}
 
@@ -3343,8 +3433,19 @@ export default function NouveauClientPage() {
               <div>
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Documents et finalisation</h2>
                 <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Verifiez les pieces collectees et uploadez les justificatifs manquants</p>
+                {/* OPT-50: Estimated time remaining */}
+                {kycCompleteness < 100 && (
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    ~{Math.max(1, Math.ceil((100 - kycCompleteness) / 25))} min restante{Math.ceil((100 - kycCompleteness) / 25) > 1 ? "s" : ""}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-3">
+                {/* Item 48: Print button */}
+                <Button variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-300 h-7 px-2 print:hidden" onClick={() => window.print()}>
+                  <Printer className="w-3 h-3 mr-1" /> Imprimer
+                </Button>
                 {/* FIX 38: Refresh documents button */}
                 <Button
                   variant="ghost"
@@ -3373,18 +3474,23 @@ export default function NouveauClientPage() {
                     }
                   }}
                 >
-                  {(screening.inpi.loading || screening.documents.loading) ? <Loader2 className="w-3 h-3 animate-spin" /> : <Search className="w-3 h-3" />}
+                  {(screening.inpi.loading || screening.documents.loading) ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
                   <span className="ml-1">Rafraichir</span>
                 </Button>
                 <span className="text-xs text-slate-400 dark:text-slate-500">KYC</span>
-                <Progress value={kycCompleteness} className="w-28 h-2.5" />
-                <span className={`text-sm font-bold tabular-nums ${kycCompleteness === 100 ? "text-emerald-400" : kycCompleteness >= 60 ? "text-amber-400" : "text-red-400"}`}>{kycCompleteness}%</span>
+                <Progress value={kycCompleteness} className={`w-28 h-2.5 ${kycCompleteness >= 80 ? "progress-gradient-green" : kycCompleteness >= 50 ? "progress-gradient-orange" : "progress-gradient-red"}`} />
+                <span className={`text-sm font-bold tabular-nums animate-count-up ${kycCompleteness === 100 ? "text-emerald-400" : kycCompleteness >= 60 ? "text-amber-400" : "text-red-400"}`}>{kycCompleteness}%</span>
               </div>
             </div>
 
-            {/* Recapitulatif compact */}
-            <Collapsible>
-              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:bg-white/[0.05] transition-colors">
+            {/* OPT-46: Section 1 — Recapitulatif */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-5 h-5 rounded-full bg-blue-500/15 text-blue-500 text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
+              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Recapitulatif</span>
+              {form.raisonSociale && form.siren && decision && <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0 ml-auto">Complet</Badge>}
+            </div>
+            <Collapsible defaultOpen>
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-colors">
                 <div className="flex items-center gap-2">
                   <FileText className="w-4 h-4 text-blue-400" />
                   <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Recapitulatif du dossier</h3>
@@ -3393,6 +3499,14 @@ export default function NouveauClientPage() {
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
                 <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                  {/* OPT-37: Mini score gauge at the top */}
+                  <div className="flex items-center gap-4 mb-3 pb-3 border-b border-gray-100 dark:border-white/[0.04]">
+                    <ScoreGauge score={adjustedScore} size="sm" />
+                    <div>
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Score global : {adjustedScore}/100</p>
+                      <VigilanceBadge niveau={risk.nivVigilance} />
+                    </div>
+                  </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {[
                       { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale },
@@ -3400,16 +3514,19 @@ export default function NouveauClientPage() {
                       { label: "Forme juridique", value: form.forme, ok: !!form.forme },
                       { label: "Adresse", value: [form.adresse, form.cp, form.ville].filter(Boolean).join(", "), ok: !!(form.adresse && form.cp && form.ville) },
                       { label: "Dirigeant", value: form.dirigeant, ok: !!form.dirigeant },
-                      { label: "Score / Vigilance", value: `${adjustedScore}/100 — ${risk.nivVigilance}`, ok: true },
-                      { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0 },
-                      { label: "Decision", value: decision || "—", ok: !!decision },
+                      { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0, icon: "users" as const },
+                      { label: "Decision", value: decision ? (decision === "ACCEPTER" ? "Accepte" : decision === "ACCEPTER_RESERVE" ? "Accepte avec reserve" : "Refuse") : "—", ok: !!decision },
+                      { label: "Date decision", value: decision ? formatDateFr(new Date(), "long") : "—", ok: !!decision },
                       { label: "Docs manuels", value: `${documents.length} fichier(s)`, ok: documents.length > 0 },
                     ].map(item => (
-                      <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-white dark:bg-white/[0.02]">
+                      <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-gray-50/50 dark:bg-white/[0.02] animate-fade-in-up">
                         <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${item.ok ? "bg-emerald-400" : "bg-orange-400"}`} />
                         <div className="min-w-0">
                           <p className="text-[10px] text-slate-400 dark:text-slate-500">{item.label}</p>
-                          <p className="text-xs text-slate-800 dark:text-slate-200 truncate">{item.value || "—"}</p>
+                          <p className="text-xs text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
+                            {(item as any).icon === "users" && <Users className="w-3 h-3 text-blue-400" />}
+                            {item.value || "—"}
+                          </p>
                         </div>
                       </div>
                     ))}
@@ -3417,6 +3534,9 @@ export default function NouveauClientPage() {
                 </div>
               </CollapsibleContent>
             </Collapsible>
+
+            {/* OPT-47: Gradient separator */}
+            <hr className="section-gradient-hr" />
 
             {/* FIX 56: Show INPI/document fetch errors */}
             {screening.inpi.error && !screening.inpi.loading && (
@@ -3446,6 +3566,11 @@ export default function NouveauClientPage() {
               </div>
             )}
 
+            {/* OPT-46: Section 2 — Documents */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-500 text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
+              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Documents</span>
+            </div>
             {/* SECTION 1: Extrait RNE / Kbis — affiché en premier car c'est le doc le plus important */}
             {(() => {
               // FIX P4-24+46: Deduplicate KBIS/RBE extraits from both sources
@@ -3574,10 +3699,18 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                           </div>
                         </div>
                         {doc.url && (
-                          <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                            className="shrink-0 ml-3 text-xs font-medium bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
-                            <ExternalLink className="w-3.5 h-3.5" /> {isHtml ? "Ouvrir" : "Telecharger"}
-                          </a>
+                          <div className="flex items-center gap-1.5 shrink-0 ml-3">
+                            <button
+                              onClick={() => setPreviewDoc({ url: doc.url!, label: doc.label || "Extrait Kbis / RNE" })}
+                              className="text-xs font-medium bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
+                              <Eye className="w-3.5 h-3.5" /> {isHtml ? "Ouvrir" : "Voir"}
+                            </button>
+                            <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                              className="text-xs text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors"
+                              title="Ouvrir dans un nouvel onglet">
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
                         )}
                       </div>
                     );
@@ -4400,10 +4533,11 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
       </div>
       {geoLat && geoLng && (
         <iframe
-          src={`https://www.openstreetmap.org/export/embed.html?bbox=${geoLng - 0.005}%2C${geoLat - 0.005}%2C${geoLng + 0.005}%2C${geoLat + 0.005}&layer=mapnik&marker=${geoLat}%2C${geoLng}`}
-          width="100%" height="250" style={{ border: 0 }} loading="lazy"
+          src={`https://www.openstreetmap.org/export/embed.html?bbox=${geoLng - 0.003}%2C${geoLat - 0.003}%2C${geoLng + 0.003}%2C${geoLat + 0.003}&layer=mapnik&marker=${geoLat}%2C${geoLng}`}
+          width="100%" height="300" style={{ border: 0 }} loading="lazy"
           sandbox="allow-scripts allow-same-origin"
           referrerPolicy="no-referrer"
+          className="rounded-b-lg"
         />
       )}
     </div>

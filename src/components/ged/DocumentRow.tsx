@@ -9,6 +9,7 @@ interface DocumentRowProps {
   onPreview: (doc: GEDDocument) => void;
   onDownload: (doc: GEDDocument) => void;
   onDelete: (doc: GEDDocument) => void;
+  prefixCell?: React.ReactNode;
 }
 
 function getFileIcon(name: string) {
@@ -43,12 +44,13 @@ function getExpirationBadge(expiration: string | null) {
   return { text: "Valide", className: "bg-emerald-500/15 text-emerald-500" };
 }
 
-export default function DocumentRow({ doc, onPreview, onDownload, onDelete }: DocumentRowProps) {
+export default function DocumentRow({ doc, onPreview, onDownload, onDelete, prefixCell }: DocumentRowProps) {
   const Icon = getFileIcon(doc.name);
   const expBadge = getExpirationBadge(doc.expiration);
 
   return (
     <tr className="group border-b border-border/50 hover:bg-accent/30 transition-colors">
+      {prefixCell && <td className="py-2.5 px-3">{prefixCell}</td>}
       <td className="py-2.5 px-3">
         <div className="flex items-center gap-2 min-w-0">
           <Icon className="h-4 w-4 text-muted-foreground shrink-0" />

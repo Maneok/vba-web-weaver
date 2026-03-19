@@ -1057,16 +1057,103 @@ aside > div:last-child {
   background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.1) 100%);
 }
 
+/* ── Step 6 Document preview modal ── */
+@keyframes modal-backdrop-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modal-content-in {
+  from { opacity: 0; transform: scale(0.95) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+.animate-modal-backdrop {
+  animation: modal-backdrop-in 0.2s ease-out forwards;
+}
+.animate-modal-content {
+  animation: modal-content-in 0.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Dashed border animation on drag hover */
+@keyframes dash-march {
+  to { stroke-dashoffset: -12; }
+}
+.animate-dash-border {
+  background-image: url("data:image/svg+xml,%3csvg width='100%25' height='100%25' xmlns='http://www.w3.org/2000/svg'%3e%3crect width='100%25' height='100%25' fill='none' rx='12' ry='12' stroke='%233b82f6' stroke-width='2' stroke-dasharray='8%2c 6' stroke-dashoffset='0' stroke-linecap='round'/%3e%3c/svg%3e");
+  animation: dash-march 0.6s linear infinite;
+}
+
+/* KYC progress gradient bar */
+.progress-gradient-green [data-indicator] {
+  background: linear-gradient(90deg, #22c55e, #10b981) !important;
+}
+.progress-gradient-orange [data-indicator] {
+  background: linear-gradient(90deg, #f59e0b, #f97316) !important;
+}
+.progress-gradient-red [data-indicator] {
+  background: linear-gradient(90deg, #ef4444, #dc2626) !important;
+}
+
+/* Section gradient separator */
+.section-gradient-hr {
+  border: none;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.3), transparent);
+  margin: 1.5rem 0;
+}
+.dark .section-gradient-hr {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+
+/* Check bounce animation for KYC found items */
+@keyframes check-pop {
+  0% { transform: scale(0.5); opacity: 0; }
+  60% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-check-pop {
+  animation: check-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Upload icon bounce */
+@keyframes upload-bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+.animate-upload-bounce {
+  animation: upload-bounce 1.5s ease-in-out infinite;
+}
+
 /* Print styles */
 @media print {
-  .no-print { display: none !important; }
+  .no-print, .print\\:hidden { display: none !important; }
   .glass-card { border: 1px solid #ddd; box-shadow: none; backdrop-filter: none; background: white; }
   body { background: white; color: black; }
-  /* Hide sidebar and header in print */
+  /* Hide sidebar, header, navigation buttons in print */
   aside { display: none !important; }
   header { display: none !important; }
+  button { display: none !important; }
+  /* Show all collapsible content */
+  [data-state="closed"] > [data-radix-collapsible-content] { display: block !important; height: auto !important; }
   table { page-break-inside: avoid; }
   tr { page-break-inside: avoid; }
   .animate-fade-in-up { animation: none !important; }
   [class*="lg:pl-"] { padding-left: 0 !important; }
+  /* Item 48: Sticky header hidden in print */
+  .sticky { position: static !important; }
+}
+
+/* Item 50: Confetti keyframes */
+@keyframes confetti-fall {
+  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+.confetti-piece {
+  position: fixed;
+  top: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  animation: confetti-fall 3s ease-out forwards;
+  z-index: 9999;
+  pointer-events: none;
 }

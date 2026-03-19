@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper, MapPin, Shield, FileText, Users, Eye, Building2, BookOpen, ChevronDown, LayoutList, List, Snowflake } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper, MapPin, Shield, FileText, Users, Eye, Building2, BookOpen, ChevronDown, LayoutList, List, Snowflake, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -42,20 +42,22 @@ const OK_LABELS: Record<string, string> = {
   inpi: "Donnees recuperees",
   inpi_docs: "PDFs recuperes",
   gelAvoirs: "Aucune correspondance",
+  beneficiaires: "BE identifies",
 };
 
 const ATTENTION_LABELS: Record<string, string> = {
   enterprise: "Donnees partielles",
   sanctions: "Alerte a verifier",
   bodacc: "Annonces detectees",
-  google: "Non reference Google Maps",
-  localisation: "Non reference",
+  google: "Adresse verifiee via BAN",
+  localisation: "Adresse verifiee via BAN",
   news: "Articles a verifier",
   network: "Mandats multiples",
   documents: "Documents partiels",
   inpi: "Donnees partielles",
   inpi_docs: "Disponible en ligne",
   gelAvoirs: "Correspondance(s) trouvee(s)",
+  beneficiaires: "Aucun BE declare",
 };
 
 function StatusBadge({ status, loading, tooltip, rowKey }: { status: Status | null; loading: boolean; tooltip?: string; rowKey?: string }) {
@@ -115,6 +117,7 @@ interface Props {
   screening: ScreeningState;
   compact?: boolean;
   gelAvoirsAlert?: string[];
+  beneficiairesCount?: { pp: number; pm: number };
 }
 
 const TOOLTIPS: Record<string, string> = {
@@ -143,7 +146,7 @@ const SECTION_ICONS: Record<string, React.ReactNode> = {
   gelAvoirs: <Snowflake className="w-4 h-4 text-sky-400" />,
 };
 
-export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: Props) {
+export default function ScreeningPanel({ screening, compact, gelAvoirsAlert, beneficiairesCount }: Props) {
   const [isCompactView, setIsCompactView] = useState(compact ?? false);
 
   // Merge enterprise + INPI data status
@@ -170,6 +173,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
     detail?: string;
     alertes?: string[];
     errorMsg?: string | null;
+    timeMs?: number;
   }> = [
     {
       key: "enterprise",
@@ -181,6 +185,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
         ? `INPI${screening.enterprise.data ? " + Annuaire" : ""}`
         : undefined,
       errorMsg: enterpriseError ? String(screening.enterprise.error || screening.inpi.error || "Service indisponible") : null,
+      timeMs: (screening.enterprise as any).timeMs ?? (screening.inpi as any).timeMs,
     },
     {
       key: "sanctions",
@@ -191,6 +196,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
       detail: screening.sanctions.data ? `${screening.sanctions.data.checked} personne(s) verifiee(s)` : undefined,
       alertes: screening.sanctions.data?.matches?.map(m => m.details).filter(Boolean),
       errorMsg: screening.sanctions.error,
+      timeMs: (screening.sanctions as any).timeMs,
     },
     {
       key: "inpi_docs",
@@ -203,6 +209,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
         : inpiDocsTotal > 0
           ? `${inpiDocsTotal} document(s) — disponible(s) en ligne`
           : (screening.inpi.data || screening.documents.data) ? "Aucun document" : undefined,
+      timeMs: (screening.inpi as any).timeMs ?? (screening.documents as any).timeMs,
     },
     {
       key: "bodacc",
@@ -217,6 +224,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
         : undefined,
       alertes: screening.bodacc.data?.alertes,
       errorMsg: screening.bodacc.error,
+      timeMs: (screening.bodacc as any).timeMs,
     },
     {
       key: "localisation",
@@ -231,6 +239,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
           : undefined,
       alertes: screening.google.data?.alertes,
       errorMsg: screening.google.error,
+      timeMs: (screening.google as any).timeMs,
     },
     {
       key: "news",
@@ -245,6 +254,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
         : undefined,
       alertes: screening.news.data?.alertes,
       errorMsg: screening.news.error,
+      timeMs: (screening.news as any).timeMs,
     },
     {
       key: "network",
@@ -257,7 +267,18 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
         : undefined,
       alertes: screening.network.data?.alertes?.map((a: unknown) => typeof a === "object" && a !== null && "message" in a ? (a as { message: string }).message : String(a ?? "")).filter(Boolean),
       errorMsg: screening.network.error,
+      timeMs: (screening.network as any).timeMs,
     },
+    // Item 20: Beneficiaires effectifs
+    ...(beneficiairesCount !== undefined ? [{
+      key: "beneficiaires",
+      icon: <UserCheck className="w-4 h-4 text-purple-400" />,
+      label: "Beneficiaires effectifs",
+      status: (beneficiairesCount.pp + beneficiairesCount.pm) > 0 ? "OK" as Status : "ATTENTION" as Status,
+      loading: false,
+      detail: `${beneficiairesCount.pp} PP${beneficiairesCount.pm > 0 ? ` + ${beneficiairesCount.pm} PM` : ""}`,
+      errorMsg: null,
+    }] : []),
     // A7: Gel des avoirs section
     ...(gelAvoirsAlert !== undefined ? [{
       key: "gelAvoirs",
@@ -304,6 +325,10 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
           <div className="flex items-center justify-between text-[11px] mb-1.5">
             <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
               Screening {anyLoading ? "en cours" : "complete"} — <span className="font-mono tabular-nums">{completedChecks}/{totalChecks}</span> verifications
+              {!anyLoading && completedChecks === totalChecks && (() => {
+                const maxTime = Math.max(...rows.map(r => r.timeMs ?? 0));
+                return maxTime > 0 ? <span className="text-slate-500 ml-1">en {(maxTime / 1000).toFixed(1)}s</span> : null;
+              })()}
             </span>
             {alertCount > 0 ? (
               <span className="text-red-400 font-semibold">{alertCount} alerte(s) critique(s)</span>
@@ -364,6 +389,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                   <StatusIcon status={row.status} loading={row.loading} />
                   {row.icon}
                   <span className="text-xs text-slate-700 dark:text-slate-300">{row.label}</span>
+                  {row.timeMs != null && !row.loading && <span className="text-[9px] text-slate-500 font-mono tabular-nums">{(row.timeMs / 1000).toFixed(1)}s</span>}
                 </div>
                 <StatusBadge status={row.status} loading={row.loading} tooltip={TOOLTIPS[row.key]} rowKey={row.key} />
               </div>
@@ -383,6 +409,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert }: P
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {row.timeMs != null && !row.loading && <span className="text-[9px] text-slate-500 font-mono tabular-nums">{(row.timeMs / 1000).toFixed(1)}s</span>}
                     {row.detail && !row.loading && (
                       <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.detail}</span>
                     )}
