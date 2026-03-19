@@ -3514,23 +3514,23 @@ export default function NouveauClientPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {[
-                      { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale },
-                      { label: "SIREN", value: form.siren, ok: !!form.siren },
-                      { label: "Forme juridique", value: form.forme, ok: !!form.forme },
-                      { label: "Adresse", value: [form.adresse, form.cp, form.ville].filter(Boolean).join(", "), ok: !!(form.adresse && form.cp && form.ville) },
-                      { label: "Dirigeant", value: form.dirigeant, ok: !!form.dirigeant },
-                      { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0, icon: "users" as const },
-                      { label: "Decision", value: decision ? (decision === "ACCEPTER" ? "Accepte" : decision === "ACCEPTER_RESERVE" ? "Accepte avec reserve" : "Refuse") : "—", ok: !!decision },
-                      { label: "Date decision", value: decision ? formatDateFr(new Date(), "long") : "—", ok: !!decision },
-                      { label: "Docs manuels", value: `${documents.length} fichier(s)`, ok: documents.length > 0 },
-                    ].map(item => (
+                    {([
+                      { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale, icon: "" },
+                      { label: "SIREN", value: form.siren, ok: !!form.siren, icon: "" },
+                      { label: "Forme juridique", value: form.forme, ok: !!form.forme, icon: "" },
+                      { label: "Adresse", value: [form.adresse, form.cp, form.ville].filter(Boolean).join(", "), ok: !!(form.adresse && form.cp && form.ville), icon: "" },
+                      { label: "Dirigeant", value: form.dirigeant, ok: !!form.dirigeant, icon: "" },
+                      { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0, icon: "users" },
+                      { label: "Decision", value: decision ? (decision === "ACCEPTER" ? "Accepte" : decision === "ACCEPTER_RESERVE" ? "Accepte avec reserve" : "Refuse") : "—", ok: !!decision, icon: "" },
+                      { label: "Date decision", value: decision ? formatDateFr(new Date(), "long") : "—", ok: !!decision, icon: "" },
+                      { label: "Docs manuels", value: `${documents.length} fichier(s)`, ok: documents.length > 0, icon: "" },
+                    ]).map(item => (
                       <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-gray-50/50 dark:bg-white/[0.02] animate-fade-in-up">
                         <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${item.ok ? "bg-emerald-400" : "bg-orange-400"}`} />
                         <div className="min-w-0">
                           <p className="text-[10px] text-slate-400 dark:text-slate-500">{item.label}</p>
                           <p className="text-xs text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
-                            {(item as any).icon === "users" && <Users className="w-3 h-3 text-blue-400" />}
+                            {item.icon === "users" && <Users className="w-3 h-3 text-blue-400" />}
                             {item.value || "—"}
                           </p>
                         </div>
@@ -3758,7 +3758,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
 
               // OPT-2: Clean labels — remove prefixes, underscores, normalize
               const cleanLabel = (label: string) => {
-                let cleaned = label
+                const cleaned = label
                   .replace(/^KENSHO-_?/i, "")
                   .replace(/^PV_AGE$/i, "PV Assemblee Generale")
                   .replace(/^PV_AG$/i, "PV Assemblee Generale")
