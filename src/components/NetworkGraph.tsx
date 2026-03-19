@@ -92,6 +92,12 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .force("center", d3.forceCenter(width / 2, height / 2))
       .force("collision", d3.forceCollide().radius(50));
 
+    // Pre-calculate all positions silently before rendering
+    simulation.stop();
+    for (let i = 0; i < 300; i++) simulation.tick();
+    // Freeze all nodes at their final positions
+    simNodes.forEach(n => { n.fx = (n as any).x; n.fy = (n as any).y; });
+
     // #6: Role-based edge coloring
     const roleColor = (label: string): string => {
       const l = (label ?? "").toLowerCase();
@@ -170,35 +176,28 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .attr("fill-opacity", 0.7)
       .attr("text-anchor", "middle");
 
-    // Nodes
+    // Edges — position once with final coordinates
+    link
+      .attr("x1", (d: any) => d.source.x)
+      .attr("y1", (d: any) => d.source.y)
+      .attr("x2", (d: any) => d.target.x)
+      .attr("y2", (d: any) => d.target.y);
+
+    linkLabel
+      .attr("x", (d: any) => (d.source.x + d.target.x) / 2)
+      .attr("y", (d: any) => (d.source.y + d.target.y) / 2 - 4);
+
+    // Nodes — positioned at their final coordinates, no drag
     const node = g.append("g")
       .selectAll("g")
       .data(simNodes)
       .join("g")
       .style("cursor", "pointer")
-      // #9: Fade-in + scale animation
+      // #9: Fade-in + scale animation (positions are final, only opacity/scale animate)
       .style("opacity", 0)
-      .attr("transform", (d: any) => `translate(${d.x},${d.y}) scale(0.5)`)
-      .call(d3.drag<SVGGElement, any>()
-        .on("start", (event, d) => {
-          if (!event.active) simulation.alphaTarget(0.3).restart();
-          d.fx = d.x;
-          d.fy = d.y;
-        })
-        .on("drag", (event, d) => {
-          d.fx = event.x;
-          d.fy = event.y;
-        })
-        .on("end", (event, d) => {
-          if (!event.active) simulation.alphaTarget(0);
-          if (!d.isSource) {
-            d.fx = null;
-            d.fy = null;
-          }
-        })
-      );
+      .attr("transform", (d: any) => `translate(${d.x},${d.y}) scale(0.5)`);
 
-    // #9: Animate in
+    // #9: Animate in (fade + scale only, positions stay fixed)
     node.transition().duration(400).delay((_d, i) => i * 60)
       .style("opacity", 1)
       .attr("transform", (d: any) => `translate(${d.x},${d.y}) scale(1)`);
@@ -307,51 +306,35 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .attr("text-anchor", "middle")
       .attr("dy", (d: any) => nodeSize(d) + 25);
 
-    simulation.on("tick", () => {
-      link
-        .attr("x1", (d: any) => d.source.x)
-        .attr("y1", (d: any) => d.source.y)
-        .attr("x2", (d: any) => d.target.x)
-        .attr("y2", (d: any) => d.target.y);
-
-      linkLabel
-        .attr("x", (d: any) => (d.source.x + d.target.x) / 2)
-        .attr("y", (d: any) => (d.source.y + d.target.y) / 2 - 4);
-
-      node.attr("transform", (d: any) => `translate(${d.x},${d.y})`);
-    });
-
-    // #12: Auto-fit zoom after stabilization
-    simulation.on("end", () => {
+    // #12: Auto-fit zoom immediately (positions are already final)
+    {
       const nodePositions = simNodes.map(n => ({ x: (n as any).x ?? 0, y: (n as any).y ?? 0 }));
-      if (nodePositions.length < 2) return;
-      const xs = nodePositions.map(p => p.x);
-      const ys = nodePositions.map(p => p.y);
-      const x0 = Math.min(...xs) - 60;
-      const y0 = Math.min(...ys) - 60;
-      const x1 = Math.max(...xs) + 60;
-      const y1 = Math.max(...ys) + 60;
-      const bw = x1 - x0;
-      const bh = y1 - y0;
-      if (bw <= 0 || bh <= 0) return;
-      const scale = Math.min(width / bw, height / bh, 1.5) * 0.85;
-      const tx = (width - bw * scale) / 2 - x0 * scale;
-      const ty = (height - bh * scale) / 2 - y0 * scale;
-      svg.transition().duration(600)
-        .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
-    });
+      if (nodePositions.length >= 2) {
+        const xs = nodePositions.map(p => p.x);
+        const ys = nodePositions.map(p => p.y);
+        const x0 = Math.min(...xs) - 60;
+        const y0 = Math.min(...ys) - 60;
+        const x1 = Math.max(...xs) + 60;
+        const y1 = Math.max(...ys) + 60;
+        const bw = x1 - x0;
+        const bh = y1 - y0;
+        if (bw > 0 && bh > 0) {
+          const scale = Math.min(width / bw, height / bh, 1.5) * 0.85;
+          const tx = (width - bw * scale) / 2 - x0 * scale;
+          const ty = (height - bh * scale) / 2 - y0 * scale;
+          svg.transition().duration(600)
+            .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+        }
+      }
+    }
 
     return () => {
-      simulation.stop();
-      simulation.on("tick", null);
-      simulation.on("end", null);
       node.on("click", null);
       node.on("dblclick", null);
       node.on("mouseenter", null);
       node.on("mouseleave", null);
       link.on("mouseenter", null);
       link.on("mouseleave", null);
-      node.on(".drag", null);
       svg.on(".zoom", null);
       svg.selectAll("*").remove();
     };
