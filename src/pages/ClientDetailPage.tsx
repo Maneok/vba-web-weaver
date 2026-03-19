@@ -1447,12 +1447,43 @@ function DocumentsTab({
   /* #13 — Recently uploaded tracking with timestamp */
   const [recentUploads, setRecentUploads] = useState<Record<string, number>>({});
 
+  /* GED documents from the documents table */
+  const [gedDocuments, setGedDocuments] = useState<any[]>([]);
+  const [gedLoading, setGedLoading] = useState(false);
+  const { profile } = useAuth();
+
+  useEffect(() => {
+    if (!(client as any).id) return;
+    const cabinetId = (profile as any)?.cabinet_id;
+    if (!cabinetId) return;
+    setGedLoading(true);
+    supabase
+      .from('documents')
+      .select('*')
+      .eq('client_id', (client as any).id)
+      .eq('cabinet_id', cabinetId)
+      .order('created_at', { ascending: false })
+      .then(({ data, error }) => {
+        if (!error && data) setGedDocuments(data);
+        setGedLoading(false);
+      });
+  }, [(client as any).id, (profile as any)?.cabinet_id]);
+
   /* #14 — KYC completeness percentage calculation */
-  const kycDocs = DOC_CATEGORIES.map(cat => ({
-    ...cat,
-    linked: cat.field === "iban" ? !!client.iban : !!client[cat.field],
-    url: cat.field === "iban" ? undefined : client[cat.field],
-  }));
+  const CATEGORY_MAP: Record<string, string> = {
+    'KBIS': 'kbis', 'Statuts': 'statuts', 'CNI': 'cni_dirigeant', 'RIB': 'rib'
+  };
+  const kycDocs = DOC_CATEGORIES.map(cat => {
+    const gedCat = CATEGORY_MAP[cat.type];
+    const gedDoc = gedDocuments.find(d => d.category === gedCat);
+    const legacyLinked = cat.field === "iban" ? !!client.iban : !!client[cat.field];
+    return {
+      ...cat,
+      linked: !!gedDoc || legacyLinked,
+      gedDocument: gedDoc || null,
+      url: gedDoc?.file_path || (cat.field === "iban" ? undefined : client[cat.field]),
+    };
+  });
   const kycCompleteness = Math.round((kycDocs.filter(d => d.linked).length / kycDocs.length) * 100);
 
   /* #15 — Expiration date helpers */
@@ -1529,22 +1560,78 @@ function DocumentsTab({
       setPreviews(prev => ({ ...prev, [cat.type]: "pdf" }));
     }
 
-    /* #24 — Simulate upload delay for UX */
-    await new Promise(resolve => setTimeout(resolve, 800));
+    /* #24 — Upload to Supabase Storage + documents table */
+    try {
+      const cabinetId = (profile as any)?.cabinet_id;
+      const userId = (profile as any)?.id;
+      if (!cabinetId || !userId) {
+        toast.error("Erreur : profil incomplet");
+        setUploading(prev => ({ ...prev, [cat.type]: false }));
+        return;
+      }
 
-    /* #25 — Update client record to mark document as present */
-    if (cat.field === "iban") {
-      // RIB — would normally extract IBAN via OCR; for now mark as uploaded
-      toast.success(`${cat.type} depose avec succes — Lancez l'OCR pour extraire l'IBAN`);
-    } else {
-      updateClient(client.ref, { [cat.field]: `uploaded://${file.name}` });
-      toast.success(`${cat.type} depose avec succes`);
+      const categoryMap: Record<string, string> = {
+        'KBIS': 'kbis', 'Statuts': 'statuts', 'CNI': 'cni_dirigeant', 'RIB': 'rib'
+      };
+      const gedCategory = categoryMap[cat.type] || 'autre';
+      const storagePath = `${cabinetId}/${client.ref}/${gedCategory}/${file.name}`;
+
+      // 1. Upload to Supabase Storage
+      const { error: storageError } = await supabase.storage
+        .from('documents')
+        .upload(storagePath, file, { upsert: true });
+
+      if (storageError) {
+        toast.error(`Erreur upload : ${storageError.message}`);
+        setUploading(prev => ({ ...prev, [cat.type]: false }));
+        return;
+      }
+
+      // 2. Insert into documents table
+      const { error: dbError } = await supabase.from('documents').insert({
+        user_id: userId,
+        client_ref: client.ref,
+        client_id: (client as any).id || null,
+        cabinet_id: cabinetId,
+        siren: client.siren?.replace(/\s/g, '') || null,
+        name: file.name,
+        file_path: storagePath,
+        file_size: file.size,
+        mime_type: file.type || 'application/octet-stream',
+        category: gedCategory,
+      });
+
+      if (dbError) {
+        toast.error(`Erreur sauvegarde : ${dbError.message}`);
+        setUploading(prev => ({ ...prev, [cat.type]: false }));
+        return;
+      }
+
+      // 3. Update legacy field (backwards compatibility)
+      if (cat.field === "iban") {
+        toast.success(`${cat.type} importé — Lancez l'OCR pour extraire l'IBAN`);
+      } else {
+        updateClient(client.ref, { [cat.field]: `storage://${storagePath}` });
+        toast.success(`${cat.type} importé dans la GED`);
+      }
+
+      // 4. Refresh GED documents list
+      const { data: refreshed } = await supabase
+        .from('documents')
+        .select('*')
+        .eq('client_id', (client as any).id)
+        .eq('cabinet_id', cabinetId)
+        .order('created_at', { ascending: false });
+      if (refreshed) setGedDocuments(refreshed);
+
+    } catch (err) {
+      toast.error(`Erreur : ${err instanceof Error ? err.message : 'Inconnu'}`);
     }
 
     /* #26 — Track recent upload timestamp for "new" badge */
     setRecentUploads(prev => ({ ...prev, [cat.type]: Date.now() }));
     setUploading(prev => ({ ...prev, [cat.type]: false }));
-  }, [client.ref, updateClient]);
+  }, [client.ref, client.siren, (client as any).id, profile, updateClient]);
 
   /* #27 — Handle file input change (click-based upload) */
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>, cat: DocCategory) => {
@@ -1646,8 +1733,8 @@ function DocumentsTab({
               </Button>
             )}
             {/* #35 — Quick GED link button */}
-            <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate("/ged")}>
-              <Upload className="w-3.5 h-3.5" /> GED
+            <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate(`/ged?client_ref=${client.ref}&siren=${client.siren || ''}`)}>
+              <Upload className="w-3.5 h-3.5" /> GED {gedDocuments.length > 0 ? `(${gedDocuments.length})` : ''}
             </Button>
           </div>
         </div>
@@ -1812,7 +1899,23 @@ function DocumentsTab({
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={(e) => { e.stopPropagation(); window.open(doc.url!, "_blank"); }}
+                          onClick={async (e) => {
+                            e.stopPropagation();
+                            if (doc.gedDocument?.file_path) {
+                              try {
+                                const { data } = await supabase.storage.from('documents').createSignedUrl(doc.gedDocument.file_path, 3600);
+                                if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                              } catch { toast.error("Erreur preview"); }
+                            } else if (doc.url?.startsWith('storage://')) {
+                              try {
+                                const path = doc.url.replace('storage://', '');
+                                const { data } = await supabase.storage.from('documents').createSignedUrl(path, 3600);
+                                if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                              } catch { toast.error("Erreur preview"); }
+                            } else {
+                              window.open(doc.url!, "_blank");
+                            }
+                          }}
                           className="w-6 h-6 rounded-md bg-gray-100 dark:bg-white/[0.06] hover:bg-blue-500/20 flex items-center justify-center transition-colors"
                           aria-label={`Ouvrir ${doc.type}`}
                         >
@@ -1853,6 +1956,40 @@ function DocumentsTab({
         })}
       </div>
 
+      {/* ═══ ADDITIONAL GED DOCUMENTS (beyond KYC base) ═══ */}
+      {gedDocuments.filter(d => !['kbis', 'statuts', 'cni_dirigeant', 'rib'].includes(d.category)).length > 0 && (
+        <div className="glass-card p-4">
+          <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2">
+            <FolderOpen className="w-4 h-4 text-blue-400" />
+            Autres documents GED ({gedDocuments.filter(d => !['kbis', 'statuts', 'cni_dirigeant', 'rib'].includes(d.category)).length})
+          </h4>
+          <div className="space-y-1.5">
+            {gedDocuments
+              .filter(d => !['kbis', 'statuts', 'cni_dirigeant', 'rib'].includes(d.category))
+              .map(doc => (
+                <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                    <span className="text-sm truncate">{doc.name}</span>
+                    <Badge variant="outline" className="text-[10px] shrink-0">{doc.category}</Badge>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button variant="ghost" size="icon" className="h-7 w-7"
+                      onClick={async () => {
+                        try {
+                          const { data } = await supabase.storage.from('documents').createSignedUrl(doc.file_path, 3600);
+                          if (data?.signedUrl) window.open(data.signedUrl, '_blank');
+                        } catch { toast.error("Erreur preview"); }
+                      }}>
+                      <Eye className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* ═══ OCR SECTION ═══ */}
       {kycDocs.some(d => !d.linked) && (
         <div className="glass-card p-5">
@@ -1864,7 +2001,7 @@ function DocumentsTab({
           <p className="text-xs text-slate-400 dark:text-slate-500 mb-3">
             Utilisez l'OCR pour extraire automatiquement les informations de vos documents (SIREN, IBAN, identite...)
           </p>
-          <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate("/ged")}>
+          <Button variant="outline" size="sm" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-indigo-500/10 hover:text-indigo-400 hover:border-indigo-500/30 transition-all" onClick={() => navigate(`/ged?client_ref=${client.ref}&siren=${client.siren || ''}`)}>
             <ScanLine className="w-3.5 h-3.5" /> Ouvrir la GED pour l'OCR
           </Button>
         </div>

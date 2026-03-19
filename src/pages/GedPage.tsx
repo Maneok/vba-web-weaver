@@ -16,7 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useGED } from "@/hooks/useGED";
 import {
   GEDKpiCards,
@@ -52,6 +52,10 @@ export default function GedPage() {
   const navigate = useNavigate();
   useDocumentTitle("Documents");
 
+  const [searchParams] = useSearchParams();
+  const preselectedRef = searchParams.get('client_ref') || searchParams.get('client') || '';
+  const preselectedSiren = searchParams.get('siren') || '';
+
   const cabinetId = profile?.cabinet_id || "";
   const userName = profile?.full_name || profile?.email || "";
 
@@ -78,7 +82,7 @@ export default function GedPage() {
     auditLoading,
     refreshAuditLog,
     fireAudit,
-  } = useGED(cabinetId);
+  } = useGED(cabinetId, preselectedRef || preselectedSiren || undefined);
 
   // Local UI state
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);

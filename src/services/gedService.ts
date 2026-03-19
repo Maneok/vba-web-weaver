@@ -14,6 +14,7 @@ export interface GEDDocument {
   file_path: string;
   mime_type: string | null;
   client_ref: string | null;
+  client_id?: string | null;
   created_at: string;
   updated_at: string;
   user_id: string;
@@ -22,12 +23,15 @@ export interface GEDDocument {
   client_name?: string;
   /** Resolved from client_ref join — may be null */
   siren?: string;
+  niv_vigilance?: string;
 }
 
 export interface SirenFolder {
   siren: string;
   client_name: string;
   client_ref: string;
+  client_id?: string;
+  niv_vigilance?: string;
   documents: GEDDocument[];
   total_docs: number;
   required_docs: number; // 9 docs KYC standard
@@ -81,16 +85,18 @@ export async function fetchSirenFolders(cabinetId: string): Promise<SirenFolder[
     // Fetch clients to resolve names and SIRENs
     const { data: clients } = await supabase
       .from('clients')
-      .select('ref, raison_sociale, siren')
+      .select('id, ref, raison_sociale, siren, niv_vigilance')
       .eq('cabinet_id', cabinetId);
 
-    const clientMap = new Map<string, { name: string; siren: string }>();
+    const clientMap = new Map<string, { id: string; name: string; siren: string; niv_vigilance: string }>();
     if (clients) {
       for (const c of clients) {
         if (c.ref) {
           clientMap.set(c.ref, {
+            id: c.id,
             name: (c as Record<string, unknown>).raison_sociale as string ?? c.ref,
             siren: (c as Record<string, unknown>).siren as string ?? '',
+            niv_vigilance: (c as Record<string, unknown>).niv_vigilance as string ?? 'STANDARD',
           });
         }
       }
@@ -122,6 +128,8 @@ export async function fetchSirenFolders(cabinetId: string): Promise<SirenFolder[
         siren,
         client_name: clientName,
         client_ref: ref,
+        client_id: client?.id,
+        niv_vigilance: client?.niv_vigilance,
         documents: groupDocs,
         total_docs: groupDocs.length,
         required_docs: REQUIRED_DOCS,
@@ -164,6 +172,29 @@ export async function fetchDocumentsByClientRef(clientRef: string, cabinetId: st
   }
 }
 
+// ── Fetch documents pour un client_id ───────────────────────────
+
+export async function fetchDocumentsByClientId(clientId: string, cabinetId: string): Promise<GEDDocument[]> {
+  try {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('*')
+      .eq('client_id', clientId)
+      .eq('cabinet_id', cabinetId)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      logger.error('GED', 'fetchDocumentsByClientId', error);
+      throw new Error(error.message);
+    }
+
+    return (data as GEDDocument[]) ?? [];
+  } catch (err) {
+    logger.error('GED', 'fetchDocumentsByClientId exception', err);
+    throw err;
+  }
+}
+
 // ── Stats calculées côté client ────────────────────────────────────
 
 export function getGEDStats(folders: SirenFolder[]): GEDStats {
@@ -197,6 +228,8 @@ export async function uploadDocument(
   clientRef: string,
   category: string,
   cabinetId: string,
+  clientId?: string,
+  siren?: string,
 ): Promise<GEDDocument> {
   try {
     const { data: { user } } = await supabase.auth.getUser();
@@ -235,6 +268,8 @@ export async function uploadDocument(
         user_id: user.id,
         cabinet_id: cabinetId,
         client_ref: clientRef,
+        client_id: clientId || null,
+        siren: siren || null,
         name: file.name,
         file_path: storagePath,
         file_size: file.size,

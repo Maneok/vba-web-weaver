@@ -13,7 +13,7 @@ import {
 import { logAudit, fetchAuditLog, type AuditEntry } from '@/services/gedAuditService';
 import { supabase } from '@/integrations/supabase/client';
 
-export function useGED(cabinetId: string) {
+export function useGED(cabinetId: string, preselectedClientRef?: string) {
   // ── Core state ──────────────────────────────────────────────────
   const [folders, setFolders] = useState<SirenFolder[]>([]);
   const [selectedSiren, setSelectedSiren] = useState<string | null>(null);
@@ -61,6 +61,19 @@ export function useGED(cabinetId: string) {
     refreshFolders();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cabinetId]);
+
+  // ── Pre-select folder from URL param ──────────────────────────
+  useEffect(() => {
+    if (preselectedClientRef && folders.length > 0 && selectedSiren !== preselectedClientRef) {
+      const found = folders.find(f =>
+        f.client_ref === preselectedClientRef || f.siren === preselectedClientRef
+      );
+      if (found) {
+        setSelectedSiren(found.client_ref);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [preselectedClientRef, folders]);
 
   // ── Load documents when selectedSiren changes ──────────────────
   useEffect(() => {
@@ -209,7 +222,12 @@ export function useGED(cabinetId: string) {
 
       setUploading(true);
       try {
-        const doc = await uploadDocument(file, selectedSiren, category, cabinetId);
+        const folder = folders.find(f => f.client_ref === selectedSiren);
+        const doc = await uploadDocument(
+          file, selectedSiren, category, cabinetId,
+          folder?.client_id,
+          folder?.siren,
+        );
         toast.success(`"${file.name}" importé avec succès`);
         fireAudit('upload', doc.id, { document_name: file.name, category });
         // Refresh the current folder's documents + global folders
@@ -224,7 +242,7 @@ export function useGED(cabinetId: string) {
         setUploading(false);
       }
     },
-    [selectedSiren, cabinetId, fireAudit],
+    [selectedSiren, cabinetId, folders, fireAudit],
   );
 
   const handleDelete = useCallback(
