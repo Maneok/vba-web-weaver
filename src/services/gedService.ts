@@ -19,6 +19,11 @@ export interface GEDDocument {
   updated_at: string;
   user_id: string;
   cabinet_id: string | null;
+  label?: string | null;
+  description?: string | null;
+  validation_status?: string;
+  tags?: string[];
+  notes?: string;
   /** Resolved from client_ref join — may be null if no client match */
   client_name?: string;
   /** Resolved from client_ref join — may be null */
@@ -395,6 +400,94 @@ export function getKycCompletionStatus(existingCategories: string[], vigilanceLe
     rate: required.length > 0 ? Math.round((present.length / required.length) * 100) : 0,
   };
 }
+
+// ── Rename document (#101) ──────────────────────────────────────────
+
+export async function renameDocument(
+  docId: string,
+  newName: string,
+  oldName: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .update({ name: newName })
+    .eq('id', docId);
+  if (error) {
+    logger.error('GED', 'renameDocument', error);
+    throw new Error(error.message);
+  }
+}
+
+// ── Update single field (#102, #103, #109, #110) ────────────────────
+
+export async function updateDocumentField(
+  docId: string,
+  field: string,
+  value: unknown,
+): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .update({ [field]: value })
+    .eq('id', docId);
+  if (error) {
+    logger.error('GED', `updateDocumentField(${field})`, error);
+    throw new Error(error.message);
+  }
+}
+
+// ── Bulk update category (#106) ─────────────────────────────────────
+
+export async function bulkUpdateCategory(
+  docIds: string[],
+  newCategory: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .update({ category: newCategory })
+    .in('id', docIds);
+  if (error) {
+    logger.error('GED', 'bulkUpdateCategory', error);
+    throw new Error(error.message);
+  }
+}
+
+// ── Rename all docs to norm (#104) ──────────────────────────────────
+
+export async function renameAllToNorm(
+  clientRef: string,
+  cabinetId: string,
+  siren: string,
+): Promise<number> {
+  const docs = await fetchDocumentsByClientRef(clientRef, cabinetId);
+  let count = 0;
+  for (const doc of docs) {
+    const ext = doc.name.split('.').pop() || 'pdf';
+    const label = CATEGORY_LABELS_SHORT[doc.category] || 'DOC';
+    const date = doc.created_at.split('T')[0];
+    const normalized = `${siren}_${label}_${date}_v${doc.current_version}.${ext}`;
+    if (normalized !== doc.name) {
+      await renameDocument(doc.id, normalized, doc.name);
+      count++;
+    }
+  }
+  return count;
+}
+
+const CATEGORY_LABELS_SHORT: Record<string, string> = {
+  kbis: 'KBIS',
+  cni_dirigeant: 'CNI',
+  justificatif_domicile: 'JUSTIF_DOMICILE',
+  rib: 'RIB',
+  statuts: 'STATUTS',
+  attestation_vigilance: 'ATTESTATION',
+  liste_beneficiaires_effectifs: 'BE',
+  declaration_source_fonds: 'SOURCE_FONDS',
+  justificatif_patrimoine: 'PATRIMOINE',
+  contrat: 'CONTRAT',
+  pv_assemblee: 'PV',
+  bilan: 'BILAN',
+  autre: 'DOC',
+};
 
 // ── URL signée ─────────────────────────────────────────────────────
 

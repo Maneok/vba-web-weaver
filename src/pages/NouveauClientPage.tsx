@@ -100,14 +100,21 @@ interface UploadedDoc {
   url?: string;
 }
 
-/** Dedup beneficiaires by nom+prenom — removes homonymes, keeps the most complete entry */
+/** Dedup beneficiaires by nom + first prenom (NFD-normalized) — removes empties & homonymes, keeps the most complete entry */
 function dedupBeneficiaires(list: Beneficiaire[]): Beneficiaire[] {
   const seen = new Map<string, Beneficiaire>();
   for (const b of list) {
-    const key = `${(b.nom || "").toUpperCase()}-${(b.prenom || "").toUpperCase()}`;
-    if (key === "-") { seen.set(`empty-${seen.size}`, b); continue; }
+    const normNom = (b.nom || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+    const firstPrenom = (b.prenom || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim().split(/\s+/)[0] || "";
+    if (!normNom && !firstPrenom) continue; // Skip empty entries
+    const key = `${normNom}-${firstPrenom}`;
     const existing = seen.get(key);
-    if (!existing || (!existing.dateNaissance && b.dateNaissance) || (!existing.pourcentage && b.pourcentage)) {
+    if (existing) {
+      const dominated = b.pourcentage > existing.pourcentage ||
+        (b.pourcentage === existing.pourcentage && b.prenom.length > existing.prenom.length) ||
+        (b.pourcentage === existing.pourcentage && !existing.dateNaissance && b.dateNaissance);
+      if (dominated) seen.set(key, { ...b, prenom: b.prenom.length > existing.prenom.length ? b.prenom : existing.prenom });
+    } else {
       seen.set(key, b);
     }
   }
@@ -825,19 +832,25 @@ export default function NouveauClientPage() {
               };
             });
 
-            // Deduplicate: by nom+prenom (uppercase), keep the version with the most info
+            // Deduplicate: by nom + first prenom (NFD-normalized), keep the version with the most info
+            const beKey = (nom: string, prenom: string) => {
+              const n = (nom || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+              const p = (prenom || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim().split(/\s+/)[0] || "";
+              return `${n}-${p}`;
+            };
             const deduped = new Map<string, typeof enrichedBE[0]>();
             for (const be of enrichedBE) {
-              const key = `${(be.nom ?? "").toUpperCase()}-${(be.prenom ?? "").toUpperCase()}`;
+              if (!(be.nom || "").trim()) continue; // Skip empty entries
+              const key = beKey(be.nom, be.prenom);
               const existing = deduped.get(key);
-              if (!existing || (!existing.dateNaissance && be.dateNaissance)) {
-                deduped.set(key, be);
+              if (!existing || (!existing.dateNaissance && be.dateNaissance) || (be.pourcentage > existing.pourcentage)) {
+                deduped.set(key, { ...be, prenom: (existing && existing.prenom.length > be.prenom.length) ? existing.prenom : be.prenom });
               }
             }
 
-            // Merge with previous, avoiding duplicates (by nom+prenom)
-            const existingKeys = new Set(prev.map(b => `${(b.nom ?? "").toUpperCase()}-${(b.prenom ?? "").toUpperCase()}`));
-            const newBE = Array.from(deduped.values()).filter(b => !existingKeys.has(`${b.nom.toUpperCase()}-${(b.prenom ?? "").toUpperCase()}`));
+            // Merge with previous, avoiding duplicates (by nom + first prenom)
+            const existingKeys = new Set(prev.map(b => beKey(b.nom, b.prenom)));
+            const newBE = Array.from(deduped.values()).filter(b => !existingKeys.has(beKey(b.nom, b.prenom)));
 
             // Also update existing entries that lack dateNaissance
             const dedupByNom = new Map<string, typeof enrichedBE[0]>();
@@ -858,7 +871,7 @@ export default function NouveauClientPage() {
             if (prev.length > 0 && prev.some(b => b.pourcentage > 0)) return prev; // Don't overwrite if already filled
             const existing = new Set(prev.map(b => b.nom.toUpperCase()));
             const dirBE = inpi.dirigeants
-              .filter((d: any) => !existing.has((d.nom || "").toUpperCase()))
+              .filter((d: any) => (d.nom || "").trim().length >= 2 && !existing.has((d.nom || "").toUpperCase()))
               .map((d: any) => ({
                 nom: d.nom || "",
                 prenom: d.prenom || "",
@@ -1243,15 +1256,19 @@ export default function NouveauClientPage() {
       } else {
         // Plusieurs dirigeants possibles (SAS, SARL, etc.) → pre-remplir avec % a 0 pour saisie manuelle
         const dirigeantsList = entData?.dirigeants ?? [];
-        if (dirigeantsList.length > 0) {
-          setBeneficiaires(dirigeantsList.map((d: any) => ({
-            nom: d.nom || "",
-            prenom: d.prenom || "",
-            dateNaissance: d.date_naissance || "",
-            nationalite: d.nationalite || "Francaise",
-            pourcentage: 0,
-            pourcentageVotes: 0,
-          })));
+        const hasRealBE = beneficiaires.some(b => b.pourcentage > 0);
+        if (dirigeantsList.length > 0 && !hasRealBE) {
+          setBeneficiaires(dedupBeneficiaires(dirigeantsList
+            .filter((d: any) => (d.nom || "").trim().length >= 2)
+            .map((d: any) => ({
+              nom: d.nom || "",
+              prenom: d.prenom || "",
+              dateNaissance: d.date_naissance || "",
+              nationalite: d.nationalite || "Francaise",
+              pourcentage: 0,
+              pourcentageVotes: 0,
+            }))
+          ));
         }
       }
     }
