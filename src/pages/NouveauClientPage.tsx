@@ -3585,38 +3585,92 @@ export default function NouveauClientPage() {
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2">
                 <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-                  {/* OPT-37: Mini score gauge at the top */}
+                  {/* R2-37: Score gauge + vigilance at top */}
                   <div className="flex items-center gap-4 mb-3 pb-3 border-b border-gray-100 dark:border-white/[0.04]">
-                    <ScoreGauge score={adjustedScore} size="sm" />
+                    {/* R2-48: Progress ring around score */}
+                    <div className="relative w-14 h-14 shrink-0">
+                      <svg className="w-14 h-14" viewBox="0 0 80 80">
+                        <circle cx="40" cy="40" r="35" fill="none" stroke="currentColor" strokeWidth="4" className="text-gray-200 dark:text-white/[0.06]" />
+                        <circle cx="40" cy="40" r="35" fill="none" strokeWidth="4" strokeLinecap="round"
+                          className="progress-ring-circle"
+                          style={{ stroke: vigilanceColor, strokeDasharray: 220, strokeDashoffset: 220 - (220 * Math.min(adjustedScore, 100) / 100) }}
+                        />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-slate-700 dark:text-slate-200">{adjustedScore}</span>
+                    </div>
                     <div>
-                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Score global : {adjustedScore}/100</p>
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">Score global : {adjustedScore}/120</p>
                       <VigilanceBadge niveau={risk.nivVigilance} />
                     </div>
+                    {/* R2-40: Edit button to go back to scoring */}
+                    <button onClick={() => setStep(4)} className="ml-auto text-[10px] text-slate-400 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded hover:bg-blue-500/10 transition-colors">
+                      <Pencil className="w-3 h-3" /> Modifier
+                    </button>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {([
-                      { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale, icon: "" },
-                      { label: "SIREN", value: form.siren, ok: !!form.siren, icon: "" },
-                      { label: "Forme juridique", value: form.forme, ok: !!form.forme, icon: "" },
-                      { label: "Adresse", value: [form.adresse, form.cp, form.ville].filter(Boolean).join(", "), ok: !!(form.adresse && form.cp && form.ville), icon: "" },
-                      { label: "Dirigeant", value: form.dirigeant, ok: !!form.dirigeant, icon: "" },
-                      { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0, icon: "users" },
-                      { label: "Decision", value: decision ? (decision === "ACCEPTER" ? "Accepte" : decision === "ACCEPTER_RESERVE" ? "Accepte avec reserve" : "Refuse") : "—", ok: !!decision, icon: "" },
-                      { label: "Date decision", value: decision ? formatDateFr(new Date(), "long") : "—", ok: !!decision, icon: "" },
-                      { label: "Docs manuels", value: `${documents.length} fichier(s)`, ok: documents.length > 0, icon: "" },
+                      { label: "Raison sociale", value: form.raisonSociale, ok: !!form.raisonSociale, icon: "", step: 1 },
+                      { label: "SIREN", value: form.siren, ok: !!form.siren, icon: "", step: 1 },
+                      { label: "Forme juridique", value: form.forme, ok: !!form.forme, icon: "", step: 1 },
+                      { label: "Adresse", value: [form.adresse, form.cp, form.ville].filter(Boolean).join(", "), ok: !!(form.adresse && form.cp && form.ville), icon: "", step: 1 },
+                      { label: "Dirigeant", value: form.dirigeant, ok: !!form.dirigeant, icon: "", step: 1 },
+                      { label: "Beneficiaires", value: `${beneficiaires.length} BE`, ok: beneficiaires.length > 0, icon: "users", step: 2 },
+                      { label: "Decision", value: decision ? (decision === "ACCEPTER" ? "Accepte" : decision === "ACCEPTER_RESERVE" ? "Accepte avec reserve" : "Refuse") : "—", ok: !!decision, icon: "", step: 4 },
+                      { label: "Date decision", value: decision ? formatDateFr(new Date(), "long") : "—", ok: !!decision, icon: "", step: 4 },
+                      { label: "Docs manuels", value: `${documents.length} fichier(s)`, ok: documents.length > 0, icon: "", step: 5 },
                     ]).map(item => (
-                      <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-gray-50/50 dark:bg-white/[0.02] animate-fade-in-up">
+                      <div key={item.label} className="flex items-start gap-2 p-2 rounded bg-gray-50/50 dark:bg-white/[0.02] animate-fade-in-up group/recap">
                         <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${item.ok ? "bg-emerald-400" : "bg-orange-400"}`} />
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <p className="text-[10px] text-slate-400 dark:text-slate-500">{item.label}</p>
                           <p className="text-xs text-slate-800 dark:text-slate-200 truncate flex items-center gap-1">
                             {item.icon === "users" && <Users className="w-3 h-3 text-blue-400" />}
                             {item.value || "—"}
                           </p>
                         </div>
+                        {/* R2-40: Discrete edit button per info */}
+                        <button onClick={() => setStep(item.step)} className="opacity-0 group-hover/recap:opacity-100 text-slate-300 hover:text-blue-400 transition-all p-0.5 rounded">
+                          <Pencil className="w-2.5 h-2.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
+                  {/* R2-37: Mini-cards for dirigeants */}
+                  {(selectedEnterprise?.dirigeants ?? []).length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.04]">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Dirigeants</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(selectedEnterprise?.dirigeants ?? []).slice(0, 5).map((d, i) => {
+                          const isPPE = screening.sanctions.data?.matches?.some(m => m.isPPE && (m.person || "").toUpperCase().includes((d.nom || "").toUpperCase()));
+                          return (
+                            <div key={i} className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.04] text-[10px]">
+                              <User className="w-3 h-3 text-slate-400" />
+                              <span className="text-slate-700 dark:text-slate-300">{d.prenom} {d.nom}</span>
+                              {d.qualite && <span className="text-slate-400">({d.qualite})</span>}
+                              {isPPE && <Badge className="text-[7px] bg-red-500/20 text-red-400 border-0 px-1">PPE</Badge>}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                  {/* R2-38: Mini-cards for BE with percentage bars */}
+                  {beneficiaires.length > 0 && (
+                    <div className="mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.04]">
+                      <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5">Beneficiaires effectifs</p>
+                      <div className="space-y-1">
+                        {beneficiaires.slice(0, 5).map((b, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[10px]">
+                            <span className="text-slate-700 dark:text-slate-300 w-32 truncate">{b.prenom} {b.nom}</span>
+                            <div className="flex-1 h-1.5 bg-gray-100 dark:bg-white/[0.04] rounded-full overflow-hidden">
+                              <div className="h-full bg-blue-400 rounded-full transition-all" style={{ width: `${Math.min(b.pourcentage, 100)}%` }} />
+                            </div>
+                            <span className="text-slate-500 tabular-nums w-8 text-right">{b.pourcentage}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </CollapsibleContent>
             </Collapsible>
@@ -3888,71 +3942,218 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
 
               // OPT-3: Group all docs by category
               const allVisibleDocs = [...storedDocs, ...linkDocs];
-              const grouped: Record<string, typeof allVisibleDocs> = {};
-              allVisibleDocs.forEach(doc => {
+
+              // R2-9: Sort by date (most recent first) or by type
+              const sortedDocs = [...allVisibleDocs].sort((a, b) => {
+                if (docSortMode === "date") {
+                  const da = a.dateDepot || a.dateCloture || "";
+                  const db = b.dateDepot || b.dateCloture || "";
+                  return db.localeCompare(da);
+                }
+                return (a.type || "").localeCompare(b.type || "");
+              });
+
+              // R2-11: Filter by type pills
+              const typeCategories = ["Tous", ...new Set(allVisibleDocs.map(d => getCategory(d.type)))];
+              const filteredDocs = docFilterType === "Tous" ? sortedDocs : sortedDocs.filter(d => getCategory(d.type) === docFilterType);
+
+              // R2-12: Search in document names
+              const searchedDocs = docSearchQuery.trim()
+                ? filteredDocs.filter(d => cleanLabel(d.label).toLowerCase().includes(docSearchQuery.toLowerCase()))
+                : filteredDocs;
+
+              // Build flat index for navigation in preview modal
+              const allPreviewableDocs = searchedDocs.filter(d => d.url).map(d => ({ url: d.url!, label: cleanLabel(d.label) }));
+
+              // R2-3: Group by category for display
+              const grouped: Record<string, typeof searchedDocs> = {};
+              searchedDocs.forEach(doc => {
                 const cat = getCategory(doc.type);
                 if (!grouped[cat]) grouped[cat] = [];
                 grouped[cat].push(doc);
               });
               const categoryOrder = ["Actes constitutifs", "Decisions", "Cessions", "Comptes", "Autres"];
 
+              // R2-22: Check for newer version duplicates
+              const typeLatestDate: Record<string, string> = {};
+              allVisibleDocs.forEach(d => {
+                const t = d.type.toLowerCase();
+                const dt = d.dateDepot || d.dateCloture || "";
+                if (!typeLatestDate[t] || dt > typeLatestDate[t]) typeLatestDate[t] = dt;
+              });
+
               return (
                 <div className="space-y-2">
-                  <div className="flex items-center justify-between">
+                  {/* R2-9/10/11/12/13/14: Toolbar */}
+                  <div className="flex items-center justify-between flex-wrap gap-2">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents collectes ({storedDocs.length + linkDocs.length})</Label>
+                      <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents collectes ({allVisibleDocs.length})</Label>
                     </div>
-                    {isLoading && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />}
+                    <div className="flex items-center gap-1.5">
+                      {/* R2-12: Search */}
+                      <div className="relative">
+                        <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text" value={docSearchQuery} onChange={e => setDocSearchQuery(e.target.value)}
+                          placeholder="Rechercher..."
+                          className="text-[10px] pl-6 pr-2 py-1 rounded-md bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] w-32 focus:w-44 transition-all focus:ring-1 focus:ring-blue-500/30 outline-none text-slate-700 dark:text-slate-300"
+                        />
+                      </div>
+                      {/* R2-10: Sort toggle */}
+                      <button onClick={() => setDocSortMode(m => m === "date" ? "type" : "date")}
+                        className="text-[10px] text-slate-400 hover:text-blue-400 px-2 py-1 rounded-md hover:bg-blue-500/10 transition-colors flex items-center gap-1">
+                        {docSortMode === "date" ? <SortDesc className="w-3 h-3" /> : <SortAsc className="w-3 h-3" />}
+                        {docSortMode === "date" ? "Par date" : "Par type"}
+                      </button>
+                      {/* R2-14: Select all / deselect */}
+                      {allVisibleDocs.length > 1 && (
+                        <button onClick={() => {
+                          if (selectedDocIndices.size === allVisibleDocs.length) setSelectedDocIndices(new Set());
+                          else setSelectedDocIndices(new Set(allVisibleDocs.map((_, i) => i)));
+                        }}
+                          className="text-[10px] text-slate-400 hover:text-blue-400 px-2 py-1 rounded-md hover:bg-blue-500/10 transition-colors flex items-center gap-1">
+                          {selectedDocIndices.size === allVisibleDocs.length ? <CheckSquare className="w-3 h-3" /> : <Square className="w-3 h-3" />}
+                          {selectedDocIndices.size > 0 ? `${selectedDocIndices.size} sel.` : "Selectionner"}
+                        </button>
+                      )}
+                      {isLoading && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />}
+                    </div>
                   </div>
 
-                  {/* OPT-3: Grouped by category */}
-                  {categoryOrder.filter(cat => grouped[cat]?.length).map(cat => (
-                    <div key={cat} className="space-y-1.5">
-                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-2">{cat}</p>
-                      {grouped[cat].map((doc, i) => {
-                        const isStored = doc.storedInSupabase;
-                        const fb = formatBadge(doc.url);
-                        return (
-                          <div key={`doc-${cat}-${i}`} className={`flex items-center justify-between p-3 rounded-xl border animate-fade-in-up transition-colors group ${
-                            isStored ? "border-emerald-500/15 bg-emerald-500/[0.03] hover:bg-emerald-500/[0.06]" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:hover:bg-white/[0.04]"
-                          }`} style={{ animationDelay: `${i * 50}ms` }}>
-                            <div className="flex items-center gap-3 min-w-0">
-                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${fileTypeColor(doc.url)}`}>
-                                <FileText className="w-4 h-4" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-[400px]">{cleanLabel(doc.label)}</p>
-                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                                  <Badge className={`text-[8px] border-0 px-1.5 ${isStored ? "bg-emerald-500/15 text-emerald-400" : "bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400"}`}>{typeLabel(doc.type)}</Badge>
-                                  <Badge className={`text-[8px] border-0 px-1.5 ${fb.cls}`}>{fb.label}</Badge>
-                                  {isStored && <span className="text-[8px] text-emerald-500/70">Stocke</span>}
-                                  {!isStored && doc.url && <span className="text-[8px] text-amber-400/70">Lien externe</span>}
-                                  {doc.source && <span className="text-[8px] text-slate-400 dark:text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
-                                  {doc.dateDepot && <span className="text-[8px] text-slate-400 dark:text-slate-500">{formatDateFr(doc.dateDepot, "long")}</span>}
-                                  {doc.dateCloture && <span className="text-[8px] text-slate-400 dark:text-slate-500">Cloture {formatDateFr(doc.dateCloture, "long")}</span>}
+                  {/* R2-11: Type filter pills */}
+                  {typeCategories.length > 2 && (
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {typeCategories.map(cat => (
+                        <button key={cat} onClick={() => setDocFilterType(cat)}
+                          className={`text-[10px] px-2.5 py-1 rounded-full transition-colors ${
+                            docFilterType === cat ? "bg-blue-500/15 text-blue-400 font-medium" : "bg-gray-100 dark:bg-white/[0.04] text-slate-500 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-white/[0.08]"
+                          }`}>{cat}</button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* R2-13: Batch download selected */}
+                  {selectedDocIndices.size > 0 && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-blue-500/5 border border-blue-500/20">
+                      <span className="text-[10px] text-blue-400">{selectedDocIndices.size} document(s) selectionne(s)</span>
+                      <button onClick={() => {
+                        const urls = Array.from(selectedDocIndices).map(i => allVisibleDocs[i]?.url).filter(Boolean);
+                        urls.forEach((url, j) => setTimeout(() => { const a = document.createElement("a"); a.href = url!; a.target = "_blank"; a.rel = "noopener noreferrer"; a.click(); }, j * 300));
+                        toast.success(`Ouverture de ${urls.length} document(s)`);
+                      }} className="text-[10px] font-medium text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-500/10 hover:bg-blue-500/20 transition-colors flex items-center gap-1">
+                        <Download className="w-3 h-3" /> Telecharger
+                      </button>
+                    </div>
+                  )}
+
+                  {/* R2-50: Skeleton loading */}
+                  {isLoading && allVisibleDocs.length === 0 && (
+                    <div className="space-y-2">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="flex items-center gap-3 p-3 rounded-xl border border-gray-200 dark:border-white/[0.06]">
+                          <div className="w-9 h-9 rounded-lg skeleton-shimmer" />
+                          <div className="flex-1 space-y-1.5">
+                            <div className="h-3 w-48 skeleton-shimmer" />
+                            <div className="h-2 w-32 skeleton-shimmer" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* R2-21: Timeline + grouped docs */}
+                  <div className={allVisibleDocs.length > 2 ? "doc-timeline-connector" : ""}>
+                    {categoryOrder.filter(cat => grouped[cat]?.length).map(cat => (
+                      <div key={cat} className="space-y-1.5">
+                        <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-2">{cat}</p>
+                        {grouped[cat].map((doc, i) => {
+                          const isStored = doc.storedInSupabase;
+                          const fb = formatBadge(doc.url);
+                          const globalIdx = allVisibleDocs.indexOf(doc);
+                          const isSelected = selectedDocIndices.has(globalIdx);
+                          const docDate = doc.dateDepot || doc.dateCloture || "";
+                          const isLatest = docDate && typeLatestDate[doc.type.toLowerCase()] === docDate;
+                          // R2-17: "Nouveau" badge for docs fetched recently (check if dateDepot is within 24h)
+                          const isNew = docDate && (Date.now() - new Date(docDate).getTime()) < 86400000;
+                          // R2-18: "Signe" badge for signed docs
+                          const isSigned = doc.label?.toLowerCase().includes("sign") || doc.type?.toLowerCase().includes("cession");
+                          // R2-19: "Original" badge for Kbis
+                          const isOriginal = doc.type?.toLowerCase() === "kbis";
+                          // R2-16: Auto numbering
+                          const docNum = searchedDocs.indexOf(doc) + 1;
+                          // R2-20: Freshness indicator
+                          const fetchedAgo = docDate ? (() => {
+                            const diff = Date.now() - new Date(docDate).getTime();
+                            if (diff < 3600000) return `il y a ${Math.round(diff / 60000)} min`;
+                            if (diff < 86400000) return `il y a ${Math.round(diff / 3600000)}h`;
+                            return formatDateFr(docDate, "long");
+                          })() : null;
+
+                          const previewIdx = allPreviewableDocs.findIndex(p => p.url === doc.url);
+
+                          return (
+                            <div key={`doc-${cat}-${i}`} className={`flex items-center justify-between p-3 rounded-xl border animate-slide-up transition-colors group ${
+                              isSelected ? "border-blue-500/30 bg-blue-500/5" :
+                              isStored ? "border-emerald-500/15 bg-emerald-500/[0.03] hover:bg-emerald-500/[0.06]" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:hover:bg-white/[0.04]"
+                            }`} style={{ animationDelay: `${i * 50}ms` }}>
+                              {/* R2-13: Checkbox for multi-select */}
+                              <button onClick={() => setSelectedDocIndices(prev => {
+                                const next = new Set(prev);
+                                if (next.has(globalIdx)) next.delete(globalIdx); else next.add(globalIdx);
+                                return next;
+                              })} className="mr-2 shrink-0 text-slate-400 hover:text-blue-400">
+                                {isSelected ? <CheckSquare className="w-4 h-4 text-blue-400" /> : <Square className="w-4 h-4" />}
+                              </button>
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                {/* R2-1: Thumbnail / icon */}
+                                <button onClick={() => doc.url && setPreviewDoc({ url: doc.url, label: cleanLabel(doc.label), index: previewIdx })}
+                                  className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 cursor-pointer hover:ring-2 hover:ring-blue-500/30 transition-all ${fileTypeColor(doc.url)}`}>
+                                  <FileText className="w-4 h-4" />
+                                </button>
+                                <div className="min-w-0">
+                                  {/* R2-16: Numbered label */}
+                                  <p className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-[350px]">
+                                    <span className="text-[10px] text-slate-400 mr-1">{docNum}.</span>
+                                    {cleanLabel(doc.label)}
+                                  </p>
+                                  <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                    <Badge className={`text-[8px] border-0 px-1.5 ${isStored ? "bg-emerald-500/15 text-emerald-400" : "bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400"}`}>{typeLabel(doc.type)}</Badge>
+                                    <Badge className={`text-[8px] border-0 px-1.5 ${fb.cls}`}>{fb.label}</Badge>
+                                    {/* R2-17/18/19: Status badges */}
+                                    {isNew && <Badge className="text-[7px] bg-blue-500/20 text-blue-400 border-0 px-1 animate-badge-pulse">Nouveau</Badge>}
+                                    {isSigned && <Badge className="text-[7px] bg-emerald-500/20 text-emerald-400 border-0 px-1">Signe</Badge>}
+                                    {isOriginal && <Badge className="text-[7px] bg-amber-500/20 text-amber-500 border-0 px-1">Original</Badge>}
+                                    {/* R2-22: Newer version indicator */}
+                                    {isLatest && allVisibleDocs.filter(d => d.type.toLowerCase() === doc.type.toLowerCase()).length > 1 && (
+                                      <Badge className="text-[7px] bg-violet-500/20 text-violet-400 border-0 px-1">Plus recent</Badge>
+                                    )}
+                                    {doc.source && <span className="text-[8px] text-slate-400 dark:text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
+                                    {/* R2-20: Freshness indicator */}
+                                    {fetchedAgo && <span className="text-[8px] text-slate-400 dark:text-slate-500">{fetchedAgo}</span>}
+                                  </div>
                                 </div>
                               </div>
+                              {doc.url && (
+                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                  <button
+                                    onClick={() => setPreviewDoc({ url: doc.url!, label: cleanLabel(doc.label), index: previewIdx })}
+                                    className="text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
+                                    <Eye className="w-3 h-3" /> Voir
+                                  </button>
+                                  <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                                    className="text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors opacity-60 group-hover:opacity-100"
+                                    title="Ouvrir dans un nouvel onglet">
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                </div>
+                              )}
                             </div>
-                            {doc.url && (
-                              <div className="flex items-center gap-1 shrink-0 ml-2">
-                                <button
-                                  onClick={() => setPreviewDoc({ url: doc.url!, label: cleanLabel(doc.label) })}
-                                  className="text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
-                                  <Eye className="w-3 h-3" /> Voir
-                                </button>
-                                <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                                  className="text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors opacity-60 group-hover:opacity-100"
-                                  title="Ouvrir dans un nouvel onglet">
-                                  <ExternalLink className="w-3 h-3" />
-                                </a>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               );
             })()}
@@ -4236,52 +4437,104 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                       <span className={`text-sm font-bold animate-count-up ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
                     </div>
                   </div>
-                  {/* OPT-19: Checklist grid 2x2 on desktop for compactness */}
+                  {/* R2-19: Checklist grid 2x2 */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {results.map(item => (
-                      <TooltipRoot key={item.key}>
-                        <TooltipTrigger asChild>
-                          <label className={`p-2.5 rounded-lg border text-center transition-colors cursor-pointer ${
-                            item.found ? "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10" : "border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10"
-                          }`}>
-                            {/* OPT-20: Animated check icon when found */}
-                            {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5 animate-check-pop" /> : <Upload className="w-4 h-4 text-orange-400 mx-auto mb-0.5" />}
-                            <p className={`text-[11px] font-medium leading-tight ${item.found ? "text-emerald-400" : "text-orange-400"}`}>{item.label}</p>
-                            {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere automatiquement</p>}
-                            {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
-                            {!item.found && <p className="text-[8px] text-orange-400 mt-0.5">Cliquez pour uploader</p>}
-                            {!item.found && (
-                              <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => {
-                                if (e.target.files && e.target.files.length > 0) {
-                                  const f = e.target.files[0];
-                                  if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier trop volumineux (max 10 Mo)`); return; }
-                                  setDocuments(prev => [...prev, { name: f.name, type: item.key, file: f }]);
-                                  toast.success(`${item.label} uploade`);
+                    {results.map(item => {
+                      // R2-33: Obligation level
+                      const obligationLevel = item.manual ? "recommande" : "obligatoire";
+                      // R2-35: Expiration check for Kbis (3 months)
+                      const kbisExpiry = item.key === "KBIS" && item.hasPdf ? (() => {
+                        const kbisDoc = [...(screening.inpi.data?.documents ?? []), ...(screening.documents.data?.documents ?? [])].find(d => d.type?.toUpperCase().includes("KBIS") && d.dateDepot);
+                        if (!kbisDoc?.dateDepot) return null;
+                        const expDate = new Date(kbisDoc.dateDepot);
+                        expDate.setMonth(expDate.getMonth() + 3);
+                        return { expired: expDate < new Date(), date: expDate };
+                      })() : null;
+
+                      return (
+                        <TooltipRoot key={item.key}>
+                          <TooltipTrigger asChild>
+                            <label
+                              className={`p-2.5 rounded-lg border text-center transition-colors cursor-pointer relative ${
+                                item.found
+                                  ? (kbisExpiry?.expired ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10" : "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10")
+                                  : "border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10"
+                              }`}
+                              onClick={e => {
+                                // R2-31: Click on found item = scroll to matching doc
+                                if (item.found && item.hasPdf) {
+                                  e.preventDefault();
+                                  const docEl = document.querySelector(`[aria-label="Etape 6 : Documents et finalisation"] .doc-timeline-connector`);
+                                  if (docEl) docEl.scrollIntoView({ behavior: "smooth", block: "center" });
                                 }
-                              }} />
-                            )}
-                          </label>
-                        </TooltipTrigger>
-                        {/* OPT-25: Tooltip per checklist item */}
-                        <TooltipContent side="top" className="text-xs max-w-[200px]">
-                          {item.found
-                            ? (item.hasPdf ? "Recupere automatiquement via INPI" : "Upload manuel present")
-                            : (item.manual ? "En attente d'upload manuel" : "Recuperation automatique non disponible — upload requis")}
-                        </TooltipContent>
-                      </TooltipRoot>
-                    ))}
+                              }}
+                            >
+                              {/* R2-33: Obligation badge */}
+                              <span className={`absolute top-1 right-1 text-[7px] px-1 py-0.5 rounded ${
+                                obligationLevel === "obligatoire" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
+                              }`}>{obligationLevel === "obligatoire" ? "Requis" : "Recommande"}</span>
+                              {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5 animate-check-pop" /> : <Upload className="w-4 h-4 text-orange-400 mx-auto mb-0.5" />}
+                              <p className={`text-[11px] font-medium leading-tight ${item.found ? (kbisExpiry?.expired ? "text-red-400" : "text-emerald-400") : "text-orange-400"}`}>{item.label}</p>
+                              {item.hasPdf && !kbisExpiry?.expired && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere automatiquement</p>}
+                              {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
+                              {!item.found && <p className="text-[8px] text-orange-400 mt-0.5">Cliquez pour uploader</p>}
+                              {/* R2-35: Expiration date for Kbis */}
+                              {kbisExpiry && (
+                                <p className={`text-[8px] mt-0.5 ${kbisExpiry.expired ? "text-red-400 font-medium" : "text-slate-400"}`}>
+                                  {kbisExpiry.expired ? `Expire le ${formatDateFr(kbisExpiry.date, "short")}` : `Valide jusqu'au ${formatDateFr(kbisExpiry.date, "short")}`}
+                                </p>
+                              )}
+                              {/* R2-36: Alert for expired CNI */}
+                              {item.key === "CNI" && item.found && form.dateCreation && (() => {
+                                // Rough check: if dateCreation > 10 years, CNI might be expired
+                                return null; // CNI expiry requires actual CNI date, skip
+                              })()}
+                              {!item.found && (
+                                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    const f = e.target.files[0];
+                                    if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier trop volumineux (max 10 Mo)`); return; }
+                                    setDocuments(prev => [...prev, { name: f.name, type: item.key, file: f }]);
+                                    toast.success(`${item.label} uploade`);
+                                  }
+                                }} />
+                              )}
+                            </label>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-[250px]">
+                            {item.found
+                              ? (item.hasPdf ? "Recupere automatiquement via INPI" : "Upload manuel present")
+                              : (item.manual ? "En attente d'upload manuel" : "Recuperation automatique non disponible — upload requis")}
+                            {kbisExpiry && (kbisExpiry.expired ? " — PERIME, veuillez re-uploader" : ` — valide 3 mois`)}
+                          </TooltipContent>
+                        </TooltipRoot>
+                      );
+                    })}
                   </div>
+                  {/* R2-47: Confetti animation when 100% */}
                   {foundCount === vigilanceDocChecklist.length && (
-                    <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center gap-2 animate-fade-in-up">
+                    <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center gap-2 animate-fade-in-up relative overflow-hidden">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-check-pop" />
                       <span className="text-sm font-semibold text-emerald-400">Dossier documentaire complet</span>
+                      {/* R2-47: Confetti particles */}
+                      {showConfetti && (
+                        <>
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <span key={i} className="confetti-particle" style={{
+                              left: `${10 + Math.random() * 80}%`, top: `${40 + Math.random() * 20}%`,
+                              backgroundColor: ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"][i % 5],
+                              animationDelay: `${i * 0.08}s`,
+                            }} />
+                          ))}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
               );
             })()}
 
-            {/* Uploaded documents summary */}
+            {/* R2-23/25/27/30: Uploaded documents summary with previews */}
             {documents.filter(d => d.file).length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
@@ -4290,27 +4543,58 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                     <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents uploades</Label>
                     <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{documents.filter(d => d.file).length} fichier(s)</Badge>
                   </div>
+                  {/* R2-30: Total weight */}
                   <span className="text-[9px] text-slate-400 dark:text-slate-500">
-                    Total : {(documents.filter(d => d.file).reduce((s, d) => s + (d.file?.size || 0), 0) / 1024 / 1024).toFixed(1)} Mo
+                    {documents.filter(d => d.file).length} fichiers — {(documents.filter(d => d.file).reduce((s, d) => s + (d.file?.size || 0), 0) / 1024 / 1024).toFixed(1)} Mo
                   </span>
                 </div>
                 {documents.filter(d => d.file).map((doc, i) => {
                   const docIdx = documents.findIndex(d => d === doc);
                   const ext = doc.name.split(".").pop()?.toLowerCase() || "";
                   const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
+                  const preview = imagePreviews[doc.name];
+                  // R2-27: Per-file upload progress
+                  const progress = fileUploadProgress[doc.name];
+                  // R2-25: Suggested rename
+                  const suggestedName = (() => {
+                    if (doc.type === "CNI" && form.dirigeant && doc.name.startsWith("IMG")) {
+                      return `CNI_${form.dirigeant.replace(/\s+/g, "_").toUpperCase()}.${ext}`;
+                    }
+                    return null;
+                  })();
                   return (
-                    <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                    <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10 animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${isImage ? "bg-violet-500/10" : "bg-blue-500/10"}`}>
-                          {isImage ? <Eye className="w-4 h-4 text-violet-400" /> : <FileText className="w-4 h-4 text-blue-400" />}
-                        </div>
+                        {/* R2-23: Image thumbnail preview */}
+                        {isImage && preview ? (
+                          <img src={preview} alt="" className="upload-thumbnail shrink-0" />
+                        ) : (
+                          <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${isImage ? "bg-violet-500/10" : ext === "pdf" ? "bg-red-500/10" : "bg-blue-500/10"}`}>
+                            {isImage ? <ImageIcon className="w-4 h-4 text-violet-400" /> : <FileText className={`w-4 h-4 ${ext === "pdf" ? "text-red-400" : "text-blue-400"}`} />}
+                          </div>
+                        )}
                         <div className="min-w-0">
                           <span className="text-xs text-slate-700 dark:text-slate-300 truncate block">{doc.name}</span>
+                          {/* R2-25: Rename suggestion */}
+                          {suggestedName && (
+                            <button onClick={() => {
+                              setDocuments(prev => prev.map((d, idx) => idx === docIdx ? { ...d, name: suggestedName } : d));
+                              toast.info(`Renomme en ${suggestedName}`);
+                            }} className="text-[8px] text-blue-400 hover:text-blue-300 mt-0.5 flex items-center gap-0.5">
+                              <Sparkles className="w-2.5 h-2.5" /> Renommer en {suggestedName}
+                            </button>
+                          )}
                           <div className="flex items-center gap-2 mt-0.5">
                             {doc.file && <span className="text-[9px] text-slate-400 dark:text-slate-500">{doc.file.size > 1024 * 1024 ? `${(doc.file.size / 1024 / 1024).toFixed(1)} Mo` : `${(doc.file.size / 1024).toFixed(0)} Ko`}</span>}
-                            <Badge className="text-[8px] bg-blue-500/15 text-blue-400 border-0 uppercase">{ext}</Badge>
+                            <Badge className={`text-[8px] border-0 uppercase ${ext === "pdf" ? "bg-red-500/15 text-red-400" : isImage ? "bg-green-500/15 text-green-400" : "bg-blue-500/15 text-blue-400"}`}>{ext}</Badge>
                             <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">{doc.type}</Badge>
                           </div>
+                          {/* R2-27: Per-file progress bar */}
+                          {progress !== undefined && progress < 100 && (
+                            <div className="w-24 mt-1">
+                              <Progress value={progress} className="h-1 progress-gradient-green" />
+                            </div>
+                          )}
                         </div>
                       </div>
                       <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-400 dark:text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-7 w-7 p-0 shrink-0">
@@ -4364,9 +4648,21 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
             {/* OPT-47: Gradient separator */}
             <hr className="section-gradient-hr" />
 
-            {/* Generate buttons + batch download — OPT-40/41/42/43 */}
+            {/* R2: Section 5 — Generation & Export */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-5 h-5 rounded-full bg-rose-500/15 text-rose-500 text-[10px] font-bold flex items-center justify-center shrink-0">5</span>
+              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Generation & Export</span>
+            </div>
+
+            {/* R2-45: Last generation info */}
+            {lastGeneration && (
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1 mb-1">
+                <History className="w-3 h-3" /> Derniere generation : {lastGeneration.type} le {formatDateFr(lastGeneration.date, "long")} a {lastGeneration.date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+
             <div className="flex flex-wrap gap-3">
-              {/* OPT-41: Generer fiche LCB-FT — blue primary, FileText icon */}
+              {/* R2-41: Generer fiche LCB-FT — blue primary */}
               <Button
                 size="lg"
                 className="gap-2.5 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 text-sm px-5 py-3"
@@ -4377,14 +4673,15 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   setGeneratingPdf("fiche");
                   try {
                     generateFicheAcceptation(tempClient);
-                    toast.success("Fiche LCB-FT generee");
+                    toast.success("Fiche LCB-FT generee (PDF)");
+                    setLastGeneration({ type: "Fiche LCB-FT", date: new Date() });
                   } catch { toast.error("Erreur lors de la generation de la fiche"); }
                   finally { setGeneratingPdf(null); }
                 }}
               >
                 {generatingPdf === "fiche" ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />} Generer fiche LCB-FT
               </Button>
-              {/* OPT-42: Generer lettre de mission — secondary, FileSignature icon */}
+              {/* R2-42: Generer lettre de mission */}
               <Button
                 size="lg"
                 variant="outline"
@@ -4396,14 +4693,15 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   setGeneratingPdf("lettre");
                   try {
                     generateLettreMission(tempClient);
-                    toast.success("Lettre de mission generee");
+                    toast.success("Lettre de mission generee (PDF)");
+                    setLastGeneration({ type: "Lettre de mission", date: new Date() });
                   } catch { toast.error("Erreur lors de la generation de la lettre"); }
                   finally { setGeneratingPdf(null); }
                 }}
               >
                 {generatingPdf === "lettre" ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSignature className="w-5 h-5" />} Generer lettre de mission
               </Button>
-              {/* OPT-43: Tout telecharger — with file counter */}
+              {/* R2-43: Tout telecharger — with file counter */}
               {(() => {
                 const rawStoredDocs = [
                   ...(screening.inpi.data?.documents ?? []),
@@ -4423,14 +4721,14 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                     variant="outline"
                     className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 text-sm px-5 py-3"
                     onClick={() => {
-                      allStoredDocs.forEach((doc, i) => {
+                      allStoredDocs.forEach((doc, j) => {
                         setTimeout(() => {
                           const a = document.createElement("a");
                           a.href = doc.url!;
                           a.target = "_blank";
                           a.rel = "noopener noreferrer";
                           a.click();
-                        }, i * 300);
+                        }, j * 300);
                       });
                       toast.success(`Ouverture de ${allStoredDocs.length} document(s)`);
                     }}
@@ -4439,65 +4737,130 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   </Button>
                 );
               })()}
+              {/* R2-46: Send to client by email */}
+              {form.mail && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/30 text-sm px-5 py-3"
+                  onClick={() => {
+                    const subject = encodeURIComponent(`Documents ${form.raisonSociale} — Dossier LCB-FT`);
+                    const body = encodeURIComponent(`Bonjour,\n\nVeuillez trouver ci-joint les documents relatifs au dossier ${form.raisonSociale} (SIREN ${form.siren}).\n\nCordialement,`);
+                    window.open(`mailto:${form.mail}?subject=${subject}&body=${body}`, "_blank");
+                    toast.info("Client mail ouvert");
+                  }}
+                >
+                  <Mail className="w-5 h-5" /> Envoyer au client
+                </Button>
+              )}
             </div>
           </div>
         )}
       </div>
 
-      {/* OPT-11-18: Document preview modal */}
-      {previewDoc && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center animate-modal-backdrop"
-          style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
-          onClick={e => { if (e.target === e.currentTarget) setPreviewDoc(null); }}
-          onKeyDown={e => { if (e.key === "Escape") setPreviewDoc(null); }}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Previsualisation du document"
-        >
-          <div className="animate-modal-content bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-white/[0.1] flex flex-col" style={{ width: "min(80vw, 900px)", height: "80vh", maxHeight: "85vh" }}>
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-white/[0.06] shrink-0">
-              <div className="flex items-center gap-2 min-w-0">
-                <FileText className="w-4 h-4 text-blue-400 shrink-0" />
-                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{previewDoc.label}</h3>
+      {/* R2-1-8: Enhanced document preview modal with navigation, zoom, fullscreen */}
+      {previewDoc && (() => {
+        // Build navigable list from all previewable docs in step 5
+        const allInpiDocs = (screening.inpi.data?.documents ?? []).filter(d => d.url && d.type?.toLowerCase() !== "kbis");
+        const allFetchDocs = (screening.documents.data?.documents ?? []).filter(d => d.url && d.type?.toLowerCase() !== "kbis" && d.status !== "manquant" && !d.needsAuth);
+        const kbisDocs = [
+          ...(screening.inpi.data?.documents ?? []).filter(d => d.type?.toLowerCase() === "kbis" && d.url),
+          ...(screening.documents.data?.documents ?? []).filter(d => (d.type?.toLowerCase() === "kbis" || d.type?.toLowerCase() === "extrait rbe") && d.url),
+        ];
+        const navDocs = [...kbisDocs, ...allInpiDocs, ...allFetchDocs]
+          .filter((d, i, arr) => arr.findIndex(x => x.url === d.url) === i)
+          .map(d => ({ url: d.url!, label: d.label || d.type || "Document" }));
+        const currentIdx = previewDoc.index !== undefined ? previewDoc.index : navDocs.findIndex(d => d.url === previewDoc.url);
+        const canPrev = currentIdx > 0;
+        const canNext = currentIdx < navDocs.length - 1 && currentIdx >= 0;
+        const goToDoc = (idx: number) => {
+          if (idx >= 0 && idx < navDocs.length) {
+            setPreviewDoc({ ...navDocs[idx], index: idx });
+            setPreviewZoom(100);
+          }
+        };
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center animate-modal-backdrop"
+            style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+            onClick={e => { if (e.target === e.currentTarget) setPreviewDoc(null); }}
+            onKeyDown={e => {
+              if (e.key === "Escape") { setPreviewDoc(null); setPreviewZoom(100); }
+              if (e.key === "ArrowLeft" && canPrev) goToDoc(currentIdx - 1);
+              if (e.key === "ArrowRight" && canNext) goToDoc(currentIdx + 1);
+            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Previsualisation du document"
+            tabIndex={0}
+            ref={el => el?.focus()}
+          >
+            <div className="animate-modal-content bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-white/[0.1] flex flex-col" style={{ width: "min(80vw, 900px)", height: "80vh", maxHeight: "85vh" }}>
+              {/* Modal header */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-white/[0.06] shrink-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <FileText className="w-4 h-4 text-blue-400 shrink-0" />
+                  <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{previewDoc.label}</h3>
+                  {/* R2-4: Counter "2/7" */}
+                  {navDocs.length > 1 && currentIdx >= 0 && (
+                    <span className="text-[10px] text-slate-400 bg-gray-100 dark:bg-white/[0.06] px-1.5 py-0.5 rounded-full tabular-nums shrink-0">{currentIdx + 1}/{navDocs.length}</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  {/* R2-7: Zoom controls */}
+                  <button onClick={() => setPreviewZoom(z => Math.max(50, z - 25))} className="zoom-btn text-slate-500" title="Zoom -"><ZoomOut className="w-3.5 h-3.5" /></button>
+                  <span className="text-[10px] text-slate-400 tabular-nums w-8 text-center">{previewZoom}%</span>
+                  <button onClick={() => setPreviewZoom(z => Math.min(200, z + 25))} className="zoom-btn text-slate-500" title="Zoom +"><ZoomIn className="w-3.5 h-3.5" /></button>
+                  {/* R2-8: Fullscreen */}
+                  <button onClick={() => {
+                    const iframe = document.querySelector<HTMLIFrameElement>('[data-preview-iframe]');
+                    if (iframe) iframe.requestFullscreen?.();
+                  }} className="zoom-btn text-slate-500" title="Plein ecran"><Maximize className="w-3.5 h-3.5" /></button>
+                  <div className="w-px h-5 bg-gray-200 dark:bg-white/[0.06] mx-1" />
+                  <a href={previewDoc.url} target="_blank" rel="noopener noreferrer"
+                    className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-colors">
+                    <ExternalLink className="w-3.5 h-3.5" /> Nouvel onglet
+                  </a>
+                  <a href={previewDoc.url} download
+                    className="text-xs text-slate-500 hover:text-emerald-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-colors">
+                    <Download className="w-3.5 h-3.5" /> Telecharger
+                  </a>
+                  <button onClick={() => { setPreviewDoc(null); setPreviewZoom(100); }}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <a
-                  href={previewDoc.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-colors"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" /> Nouvel onglet
-                </a>
-                <a
-                  href={previewDoc.url}
-                  download
-                  className="text-xs text-slate-500 hover:text-emerald-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-colors"
-                >
-                  <Download className="w-3.5 h-3.5" /> Telecharger
-                </a>
-                <button
-                  onClick={() => setPreviewDoc(null)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+              {/* Modal content — iframe preview with zoom */}
+              <div className="flex-1 overflow-auto rounded-b-2xl bg-gray-50 dark:bg-slate-950 relative">
+                <div style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: "top center", width: `${10000 / previewZoom}%`, height: `${10000 / previewZoom}%` }}>
+                  <iframe
+                    data-preview-iframe
+                    src={previewDoc.url}
+                    title={previewDoc.label}
+                    className="w-full h-full border-0"
+                    sandbox="allow-same-origin allow-scripts"
+                  />
+                </div>
               </div>
-            </div>
-            {/* Modal content — iframe preview */}
-            <div className="flex-1 overflow-hidden rounded-b-2xl bg-gray-50 dark:bg-slate-950">
-              <iframe
-                src={previewDoc.url}
-                title={previewDoc.label}
-                className="w-full h-full border-0"
-                sandbox="allow-same-origin allow-scripts"
-              />
+              {/* R2-5: Navigation prev/next buttons */}
+              {navDocs.length > 1 && (
+                <div className="flex items-center justify-between px-5 py-2.5 border-t border-gray-200 dark:border-white/[0.06] shrink-0">
+                  <button disabled={!canPrev} onClick={() => goToDoc(currentIdx - 1)}
+                    className={`text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${canPrev ? "text-slate-600 dark:text-slate-300 hover:bg-blue-500/10 hover:text-blue-400" : "text-slate-300 dark:text-slate-600 cursor-not-allowed"}`}>
+                    <ChevronLeft className="w-3.5 h-3.5" /> Precedent
+                  </button>
+                  <span className="text-[10px] text-slate-400">Fleches ← → pour naviguer</span>
+                  <button disabled={!canNext} onClick={() => goToDoc(currentIdx + 1)}
+                    className={`text-xs flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${canNext ? "text-slate-600 dark:text-slate-300 hover:bg-blue-500/10 hover:text-blue-400" : "text-slate-300 dark:text-slate-600 cursor-not-allowed"}`}>
+                    Suivant <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* #74: Floating save draft button — positioned top-right to avoid blocking navigation */}
       {step > 0 && hasUnsavedChanges && (
