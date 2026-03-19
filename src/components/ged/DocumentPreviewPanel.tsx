@@ -19,6 +19,7 @@ interface DocumentPreviewPanelProps {
   onDownload?: (doc: GEDDocument) => void;
   onReplace?: (doc: GEDDocument) => void;
   onDelete?: (doc: GEDDocument) => void;
+  children?: React.ReactNode;
 }
 
 function isImage(name: string): boolean {
@@ -46,6 +47,7 @@ export default function DocumentPreviewPanel({
   onDownload,
   onReplace,
   onDelete,
+  children,
 }: DocumentPreviewPanelProps) {
   if (!doc) return null;
 
@@ -115,6 +117,9 @@ export default function DocumentPreviewPanel({
             </div>
           )}
         </div>
+
+        {/* Extra content (validation, tags, notes) */}
+        {children}
 
         {/* Actions */}
         <SheetFooter className="mt-4 flex-row gap-2">
