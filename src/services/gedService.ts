@@ -301,6 +301,84 @@ export async function deleteDocument(docId: string): Promise<void> {
   }
 }
 
+// ── Validation workflow ──────────────────────────────────────────────
+
+export async function validateDocument(docId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .update({
+      validation_status: 'validated',
+      validated_by: userId,
+      validated_at: new Date().toISOString(),
+      rejection_reason: null,
+    })
+    .eq('id', docId);
+  if (error) {
+    logger.error('GED', 'validateDocument', error);
+    throw new Error(error.message);
+  }
+}
+
+export async function rejectDocument(docId: string, userId: string, reason: string): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .update({
+      validation_status: 'rejected',
+      validated_by: userId,
+      validated_at: new Date().toISOString(),
+      rejection_reason: reason || null,
+    })
+    .eq('id', docId);
+  if (error) {
+    logger.error('GED', 'rejectDocument', error);
+    throw new Error(error.message);
+  }
+}
+
+// ── Checklist KYC ───────────────────────────────────────────────────
+
+const KYC_REQUIRED_DOCS: Record<string, string[]> = {
+  allegee: ['kbis', 'cni_dirigeant'],
+  normale: [
+    'kbis', 'cni_dirigeant', 'justificatif_domicile', 'rib',
+    'statuts', 'attestation_vigilance', 'liste_beneficiaires_effectifs',
+  ],
+  renforcee: [
+    'kbis', 'cni_dirigeant', 'justificatif_domicile', 'rib',
+    'statuts', 'attestation_vigilance', 'liste_beneficiaires_effectifs',
+    'declaration_source_fonds', 'justificatif_patrimoine',
+  ],
+};
+
+// Map DB vigilance values to checklist levels
+const VIGILANCE_MAP: Record<string, string> = {
+  SIMPLIFIEE: 'allegee',
+  STANDARD: 'normale',
+  RENFORCEE: 'renforcee',
+};
+
+export function mapVigilanceLevel(dbValue: string | null): 'allegee' | 'normale' | 'renforcee' {
+  if (!dbValue) return 'normale';
+  return (VIGILANCE_MAP[dbValue.toUpperCase()] ?? 'normale') as 'allegee' | 'normale' | 'renforcee';
+}
+
+export function getRequiredDocs(vigilanceLevel: 'allegee' | 'normale' | 'renforcee'): string[] {
+  return KYC_REQUIRED_DOCS[vigilanceLevel] ?? KYC_REQUIRED_DOCS.normale;
+}
+
+export function getKycCompletionStatus(existingCategories: string[], vigilanceLevel: string) {
+  const level = VIGILANCE_MAP[vigilanceLevel.toUpperCase()] ?? vigilanceLevel;
+  const required = getRequiredDocs(level as 'allegee' | 'normale' | 'renforcee');
+  const existingLower = existingCategories.map(c => c.toLowerCase());
+  const present = required.filter(cat => existingLower.includes(cat));
+  return {
+    total: required.length,
+    completed: present.length,
+    missing: required.filter(cat => !existingLower.includes(cat)),
+    rate: required.length > 0 ? Math.round((present.length / required.length) * 100) : 0,
+  };
+}
+
 // ── URL signée ─────────────────────────────────────────────────────
 
 export async function getSignedUrl(filePath: string): Promise<string> {

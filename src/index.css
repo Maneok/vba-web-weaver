@@ -1141,19 +1141,3 @@ aside > div:last-child {
   /* Item 48: Sticky header hidden in print */
   .sticky { position: static !important; }
 }
-
-/* Item 50: Confetti keyframes */
-@keyframes confetti-fall {
-  0% { transform: translateY(-10vh) rotate(0deg); opacity: 1; }
-  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-}
-.confetti-piece {
-  position: fixed;
-  top: 0;
-  width: 8px;
-  height: 8px;
-  border-radius: 2px;
-  animation: confetti-fall 3s ease-out forwards;
-  z-index: 9999;
-  pointer-events: none;
-}

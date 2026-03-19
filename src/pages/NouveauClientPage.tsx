@@ -98,6 +98,20 @@ interface UploadedDoc {
   url?: string;
 }
 
+/** Dedup beneficiaires by nom+prenom — removes homonymes, keeps the most complete entry */
+function dedupBeneficiaires(list: Beneficiaire[]): Beneficiaire[] {
+  const seen = new Map<string, Beneficiaire>();
+  for (const b of list) {
+    const key = `${(b.nom || "").toUpperCase()}-${(b.prenom || "").toUpperCase()}`;
+    if (key === "-") { seen.set(`empty-${seen.size}`, b); continue; }
+    const existing = seen.get(key);
+    if (!existing || (!existing.dateNaissance && b.dateNaissance) || (!existing.pourcentage && b.pourcentage)) {
+      seen.set(key, b);
+    }
+  }
+  return Array.from(seen.values());
+}
+
 export default function NouveauClientPage() {
   const navigate = useNavigate();
   const { clients, addClient, refreshClients, isOnline } = useAppState();
@@ -244,6 +258,20 @@ export default function NouveauClientPage() {
     const t = setTimeout(() => setFieldsVisible(true), 50);
     return () => clearTimeout(t);
   }, [step]);
+
+  // OPT-48: Auto-scroll to first incomplete section on step 6
+  useEffect(() => {
+    if (step !== 5) return;
+    const timer = setTimeout(() => {
+      // Find the first section that needs attention by checking KYC completeness
+      if (kycCompleteness < 100) {
+        // Scroll to the checklist section (section 3) if docs are incomplete
+        const checklistEl = document.querySelector('[aria-label="Etape 6 : Documents et finalisation"] .grid.grid-cols-1');
+        if (checklistEl) checklistEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [step, kycCompleteness]);
 
   // #1: Cycle placeholder text
   useEffect(() => {
@@ -586,32 +614,6 @@ export default function NouveauClientPage() {
     }
   }, [screeningRunning]);
 
-  // Item 50: Confetti when screening completes with 0 critical alerts
-  const confettiFiredRef = useRef(false);
-  useEffect(() => {
-    if (confettiFiredRef.current) return;
-    if (screeningRunning) return;
-    if (screeningProgress.completedCount < screeningProgress.totalCount) return;
-    const keys = ["enterprise", "sanctions", "bodacc", "google", "news", "network"] as const;
-    const hasAlert = keys.some(k => {
-      const s = screening[k].data?.status;
-      return s && String(s).toUpperCase() === "ALERTE";
-    });
-    if (hasAlert || gelAvoirsAlert.length > 0) return;
-    confettiFiredRef.current = true;
-    const colors = ["#10b981", "#3b82f6", "#8b5cf6", "#f59e0b", "#ec4899", "#06b6d4"];
-    for (let i = 0; i < 40; i++) {
-      const el = document.createElement("div");
-      el.className = "confetti-piece";
-      el.style.left = `${Math.random() * 100}vw`;
-      el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-      el.style.animationDelay = `${Math.random() * 1.5}s`;
-      el.style.animationDuration = `${2 + Math.random() * 2}s`;
-      document.body.appendChild(el);
-      setTimeout(() => el.remove(), 5000);
-    }
-  }, [screeningRunning, screeningProgress, screening, gelAvoirsAlert]);
-
   // Launch parallel screening checks
   const launchScreening = (enterprise: EnterpriseResult) => {
     // OPT: Dedup — skip if same SIREN already screened
@@ -756,24 +758,26 @@ export default function NouveauClientPage() {
               };
             });
 
-            // Deduplicate: by nom (uppercase), keep the version with the most info
+            // Deduplicate: by nom+prenom (uppercase), keep the version with the most info
             const deduped = new Map<string, typeof enrichedBE[0]>();
             for (const be of enrichedBE) {
-              const key = (be.nom ?? "").toUpperCase();
+              const key = `${(be.nom ?? "").toUpperCase()}-${(be.prenom ?? "").toUpperCase()}`;
               const existing = deduped.get(key);
-              if (!existing || (!existing.prenom && be.prenom) || (!existing.dateNaissance && be.dateNaissance)) {
+              if (!existing || (!existing.dateNaissance && be.dateNaissance)) {
                 deduped.set(key, be);
               }
             }
 
-            // Merge with previous, avoiding duplicates
-            const existingNoms = new Set(prev.map(b => (b.nom ?? "").toUpperCase()));
-            const newBE = Array.from(deduped.values()).filter(b => !existingNoms.has(b.nom.toUpperCase()));
+            // Merge with previous, avoiding duplicates (by nom+prenom)
+            const existingKeys = new Set(prev.map(b => `${(b.nom ?? "").toUpperCase()}-${(b.prenom ?? "").toUpperCase()}`));
+            const newBE = Array.from(deduped.values()).filter(b => !existingKeys.has(`${b.nom.toUpperCase()}-${(b.prenom ?? "").toUpperCase()}`));
 
-            // Also update existing entries that lack prenom
+            // Also update existing entries that lack dateNaissance
+            const dedupByNom = new Map<string, typeof enrichedBE[0]>();
+            for (const be of deduped.values()) dedupByNom.set((be.nom ?? "").toUpperCase(), be);
             const updated = prev.map(b => {
               if (!b.prenom) {
-                const match = deduped.get(b.nom.toUpperCase());
+                const match = dedupByNom.get(b.nom.toUpperCase());
                 if (match?.prenom) return { ...b, prenom: match.prenom, dateNaissance: b.dateNaissance || match.dateNaissance, nationalite: b.nationalite || match.nationalite };
               }
               return b;
@@ -1116,7 +1120,7 @@ export default function NouveauClientPage() {
         pourcentage: b.pourcentage_parts || 0,
         pourcentageVotes: b.pourcentage_votes || 0,
       }));
-      setBeneficiaires(parsed);
+      setBeneficiaires(dedupBeneficiaires(parsed));
     } else if (result.beneficiaires_details && result.beneficiaires_details.length > 0) {
       const parsed: Beneficiaire[] = result.beneficiaires_details.map(b => ({
         nom: b.nom || "",
@@ -1126,7 +1130,7 @@ export default function NouveauClientPage() {
         pourcentage: b.pourcentage_parts || 0,
         pourcentageVotes: b.pourcentage_votes || 0,
       }));
-      setBeneficiaires(parsed);
+      setBeneficiaires(dedupBeneficiaires(parsed));
     } else if (result.beneficiaires_effectifs) {
       const parts = result.beneficiaires_effectifs.split(/[,/]/).map(s => s.trim()).filter(Boolean);
       const parsed: Beneficiaire[] = parts.map(p => {
@@ -1143,7 +1147,7 @@ export default function NouveauClientPage() {
         }
         return { nom: p, prenom: "", dateNaissance: "", nationalite: "Francaise", pourcentage: 0 };
       });
-      setBeneficiaires(parsed);
+      setBeneficiaires(dedupBeneficiaires(parsed));
     }
 
     // FIX 2: Fallback BE — deduce from legal form when no BE found
@@ -1196,6 +1200,8 @@ export default function NouveauClientPage() {
       setDocuments(prev => [...prev.filter(d => !d.fromPappers), ...pDocs]);
     }
   };
+
+
 
   // Step 3: beneficiaires management
   const addBeneficiaire = () => {
@@ -3694,7 +3700,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                             <div className="flex items-center gap-2 mt-1">
                               <Badge className="text-[9px] bg-blue-500/15 text-blue-400 border-0">{source}</Badge>
                               <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{isHtml ? "HTML" : "PDF"}</Badge>
-                              {doc.dateDepot && <span className="text-[9px] text-slate-400 dark:text-slate-500">{formatDateFR(doc.dateDepot)}</span>}
+                              {doc.dateDepot && <span className="text-[9px] text-slate-400 dark:text-slate-500">{formatDateFr(doc.dateDepot, "long")}</span>}
                             </div>
                           </div>
                         </div>
@@ -3750,6 +3756,26 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 );
               }
 
+              // OPT-2: Clean labels — remove prefixes, underscores, normalize
+              const cleanLabel = (label: string) => {
+                let cleaned = label
+                  .replace(/^KENSHO-_?/i, "")
+                  .replace(/^PV_AGE$/i, "PV Assemblee Generale")
+                  .replace(/^PV_AG$/i, "PV Assemblee Generale")
+                  .replace(/^ACTE_DE_CESSION_SIGNE$/i, "Acte de cession")
+                  .replace(/_/g, " ");
+                // Capitalize first letter
+                return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+              };
+              // OPT-3: Group by category
+              const getCategory = (t: string) => {
+                const tl = t.toLowerCase();
+                if (tl.includes("statut") || tl.includes("kbis") || tl.includes("extrait")) return "Actes constitutifs";
+                if (tl.includes("pv") || tl.includes("decision") || tl.includes("ag")) return "Decisions";
+                if (tl.includes("cession") || tl.includes("acte")) return "Cessions";
+                if (tl.includes("comptes") || tl.includes("bilan")) return "Comptes";
+                return "Autres";
+              };
               // Map doc types to readable labels
               const typeLabel = (t: string) => {
                 const map: Record<string, string> = {
@@ -3758,6 +3784,13 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 };
                 return map[t] || t;
               };
+              // OPT-6: Icon color by file type (PDF=red, HTML=blue, Image=green)
+              const fileTypeColor = (url?: string) => {
+                if (!url) return "text-slate-500 dark:text-slate-400 bg-gray-100 dark:bg-white/[0.06]";
+                if (url.includes(".html") || url.includes("text/html")) return "text-blue-400 bg-blue-500/10";
+                if (url.includes(".png") || url.includes(".jpg") || url.includes(".jpeg")) return "text-green-400 bg-green-500/10";
+                return "text-red-400 bg-red-500/10"; // PDF default
+              };
               // Icon color by type
               const typeColor = (t: string) => {
                 if (t === "Statuts") return "text-violet-400 bg-violet-500/10";
@@ -3765,67 +3798,79 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 if (t.includes("Comptes")) return "text-amber-400 bg-amber-500/10";
                 return "text-slate-500 dark:text-slate-400 bg-gray-100 dark:bg-white/[0.06]";
               };
+              // OPT-7: Badge color for file format
+              const formatBadge = (url?: string) => {
+                if (!url) return { label: "?", cls: "bg-gray-100 dark:bg-white/[0.06] text-slate-400" };
+                if (url.includes(".html") || url.includes("text/html")) return { label: "HTML", cls: "bg-blue-500/15 text-blue-400" };
+                if (url.includes(".png") || url.includes(".jpg")) return { label: "IMG", cls: "bg-green-500/15 text-green-400" };
+                return { label: "PDF", cls: "bg-red-500/15 text-red-400" };
+              };
+
+              // OPT-3: Group all docs by category
+              const allVisibleDocs = [...storedDocs, ...linkDocs];
+              const grouped: Record<string, typeof allVisibleDocs> = {};
+              allVisibleDocs.forEach(doc => {
+                const cat = getCategory(doc.type);
+                if (!grouped[cat]) grouped[cat] = [];
+                grouped[cat].push(doc);
+              });
+              const categoryOrder = ["Actes constitutifs", "Decisions", "Cessions", "Comptes", "Autres"];
 
               return (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                      <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents collectes</Label>
-                      <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0">{storedDocs.length + linkDocs.length}</Badge>
+                      <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents collectes ({storedDocs.length + linkDocs.length})</Label>
                     </div>
                     {isLoading && <Loader2 className="w-3.5 h-3.5 text-blue-400 animate-spin" />}
                   </div>
 
-                  {/* Stored PDFs */}
-                  {storedDocs.map((doc, i) => (
-                    <div key={`stored-${i}`} className="flex items-center justify-between p-3 rounded-xl border border-emerald-500/15 bg-emerald-500/[0.03] hover:bg-emerald-500/[0.06] transition-colors group">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${typeColor(doc.type)}`}>
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-[400px]">{doc.label}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
-                            <span className="text-[8px] text-emerald-500/70">PDF stocke</span>
-                            {doc.source && <span className="text-[8px] text-slate-400 dark:text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
-                            {doc.dateDepot && <span className="text-[8px] text-slate-400 dark:text-slate-500">{formatDateFR(doc.dateDepot)}</span>}
-                            {doc.dateCloture && <span className="text-[8px] text-slate-400 dark:text-slate-500">Cloture {formatDateFR(doc.dateCloture)}</span>}
+                  {/* OPT-3: Grouped by category */}
+                  {categoryOrder.filter(cat => grouped[cat]?.length).map(cat => (
+                    <div key={cat} className="space-y-1.5">
+                      <p className="text-[10px] font-medium text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-2">{cat}</p>
+                      {grouped[cat].map((doc, i) => {
+                        const isStored = doc.storedInSupabase;
+                        const fb = formatBadge(doc.url);
+                        return (
+                          <div key={`doc-${cat}-${i}`} className={`flex items-center justify-between p-3 rounded-xl border animate-fade-in-up transition-colors group ${
+                            isStored ? "border-emerald-500/15 bg-emerald-500/[0.03] hover:bg-emerald-500/[0.06]" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:hover:bg-white/[0.04]"
+                          }`} style={{ animationDelay: `${i * 50}ms` }}>
+                            <div className="flex items-center gap-3 min-w-0">
+                              <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${fileTypeColor(doc.url)}`}>
+                                <FileText className="w-4 h-4" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-sm text-slate-800 dark:text-slate-200 truncate max-w-[400px]">{cleanLabel(doc.label)}</p>
+                                <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                                  <Badge className={`text-[8px] border-0 px-1.5 ${isStored ? "bg-emerald-500/15 text-emerald-400" : "bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400"}`}>{typeLabel(doc.type)}</Badge>
+                                  <Badge className={`text-[8px] border-0 px-1.5 ${fb.cls}`}>{fb.label}</Badge>
+                                  {isStored && <span className="text-[8px] text-emerald-500/70">Stocke</span>}
+                                  {!isStored && doc.url && <span className="text-[8px] text-amber-400/70">Lien externe</span>}
+                                  {doc.source && <span className="text-[8px] text-slate-400 dark:text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
+                                  {doc.dateDepot && <span className="text-[8px] text-slate-400 dark:text-slate-500">{formatDateFr(doc.dateDepot, "long")}</span>}
+                                  {doc.dateCloture && <span className="text-[8px] text-slate-400 dark:text-slate-500">Cloture {formatDateFr(doc.dateCloture, "long")}</span>}
+                                </div>
+                              </div>
+                            </div>
+                            {doc.url && (
+                              <div className="flex items-center gap-1 shrink-0 ml-2">
+                                <button
+                                  onClick={() => setPreviewDoc({ url: doc.url!, label: cleanLabel(doc.label) })}
+                                  className="text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
+                                  <Eye className="w-3 h-3" /> Voir
+                                </button>
+                                <a href={doc.url} target="_blank" rel="noopener noreferrer"
+                                  className="text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors opacity-60 group-hover:opacity-100"
+                                  title="Ouvrir dans un nouvel onglet">
+                                  <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      </div>
-                      {doc.url && (
-                        <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                          className="shrink-0 ml-2 text-[11px] font-medium bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
-                          <FileDown className="w-3 h-3" /> Ouvrir
-                        </a>
-                      )}
-                    </div>
-                  ))}
-
-                  {/* Link-only docs */}
-                  {linkDocs.map((doc, i) => (
-                    <div key={`link-${i}`} className="flex items-center justify-between p-3 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:bg-gray-50/80 dark:bg-white/[0.04] transition-colors group">
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${typeColor(doc.type)}`}>
-                          <ExternalLink className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-sm text-slate-700 dark:text-slate-300 truncate max-w-[400px]">{doc.label}</p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <Badge className="text-[8px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0 px-1.5">{typeLabel(doc.type)}</Badge>
-                            <span className="text-[8px] text-amber-400/70">Lien externe</span>
-                            {doc.source && <span className="text-[8px] text-slate-400 dark:text-slate-500">{String(doc.source).toLowerCase() === "pappers" ? "Pappers" : "INPI"}</span>}
-                          </div>
-                        </div>
-                      </div>
-                      {doc.url && (
-                        <a href={doc.url} target="_blank" rel="noopener noreferrer"
-                          className="shrink-0 ml-2 text-[11px] font-medium bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 hover:bg-gray-200 dark:bg-white/[0.1] px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors opacity-80 group-hover:opacity-100">
-                          <ExternalLink className="w-3 h-3" /> Voir
-                        </a>
-                      )}
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
@@ -4031,6 +4076,14 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </Collapsible>
             )}
 
+            {/* OPT-47: Gradient separator */}
+            <hr className="section-gradient-hr" />
+
+            {/* OPT-46: Section 3 — Checklist */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-5 h-5 rounded-full bg-amber-500/15 text-amber-500 text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
+              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Checklist</span>
+            </div>
             {/* SECTION 2: Checklist documentaire dynamique (Idee 30) */}
             {(() => {
               // FIX 29: Deduplicate documents from both sources before checklist matching
@@ -4095,39 +4148,52 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                         risk.nivVigilance === "STANDARD" ? "bg-amber-500/20 text-amber-400" :
                         "bg-red-500/20 text-red-400"
                       }`}>{vigilanceDocChecklist.length} documents requis</Badge>
+                      {pct === 100 && <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">Complet</Badge>}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Progress value={pct} className="w-24 h-2" />
-                      <span className={`text-sm font-bold ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
+                      {/* OPT-23: Progress bar with gradient */}
+                      <Progress value={pct} className={`w-24 h-2 ${pct >= 80 ? "progress-gradient-green" : pct >= 50 ? "progress-gradient-orange" : "progress-gradient-red"}`} />
+                      <span className={`text-sm font-bold animate-count-up ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
                     </div>
                   </div>
-                  {/* FIX 41: Responsive checklist grid with better mobile layout */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {/* OPT-19: Checklist grid 2x2 on desktop for compactness */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {results.map(item => (
-                      <label key={item.key} className={`p-2.5 rounded-lg border text-center transition-colors cursor-pointer ${
-                        item.found ? "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10" : "border-red-500/20 bg-red-500/5 hover:bg-red-500/10"
-                      }`}>
-                        {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5" /> : <Upload className="w-4 h-4 text-red-400 mx-auto mb-0.5" />}
-                        <p className={`text-[11px] font-medium leading-tight ${item.found ? "text-emerald-400" : "text-red-400"}`}>{item.label}</p>
-                        {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere</p>}
-                        {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
-                        {!item.found && <p className="text-[8px] text-red-400 mt-0.5">Cliquez pour uploader</p>}
-                        {!item.found && (
-                          <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => {
-                            if (e.target.files && e.target.files.length > 0) {
-                              const f = e.target.files[0];
-                              if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier trop volumineux (max 10 Mo)`); return; }
-                              setDocuments(prev => [...prev, { name: f.name, type: item.key, file: f }]);
-                              toast.success(`${item.label} uploade`);
-                            }
-                          }} />
-                        )}
-                      </label>
+                      <TooltipRoot key={item.key}>
+                        <TooltipTrigger asChild>
+                          <label className={`p-2.5 rounded-lg border text-center transition-colors cursor-pointer ${
+                            item.found ? "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10" : "border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10"
+                          }`}>
+                            {/* OPT-20: Animated check icon when found */}
+                            {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5 animate-check-pop" /> : <Upload className="w-4 h-4 text-orange-400 mx-auto mb-0.5" />}
+                            <p className={`text-[11px] font-medium leading-tight ${item.found ? "text-emerald-400" : "text-orange-400"}`}>{item.label}</p>
+                            {item.hasPdf && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere automatiquement</p>}
+                            {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
+                            {!item.found && <p className="text-[8px] text-orange-400 mt-0.5">Cliquez pour uploader</p>}
+                            {!item.found && (
+                              <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => {
+                                if (e.target.files && e.target.files.length > 0) {
+                                  const f = e.target.files[0];
+                                  if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier trop volumineux (max 10 Mo)`); return; }
+                                  setDocuments(prev => [...prev, { name: f.name, type: item.key, file: f }]);
+                                  toast.success(`${item.label} uploade`);
+                                }
+                              }} />
+                            )}
+                          </label>
+                        </TooltipTrigger>
+                        {/* OPT-25: Tooltip per checklist item */}
+                        <TooltipContent side="top" className="text-xs max-w-[200px]">
+                          {item.found
+                            ? (item.hasPdf ? "Recupere automatiquement via INPI" : "Upload manuel present")
+                            : (item.manual ? "En attente d'upload manuel" : "Recuperation automatique non disponible — upload requis")}
+                        </TooltipContent>
+                      </TooltipRoot>
                     ))}
                   </div>
                   {foundCount === vigilanceDocChecklist.length && (
-                    <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center gap-2 animate-fade-in-up">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-check-pop" />
                       <span className="text-sm font-semibold text-emerald-400">Dossier documentaire complet</span>
                     </div>
                   )}
@@ -4176,27 +4242,54 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </div>
             )}
 
-            {/* General upload zone for additional documents */}
+            {/* OPT-47: Gradient separator */}
+            <hr className="section-gradient-hr" />
+
+            {/* OPT-46: Section 4 — Upload */}
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-5 h-5 rounded-full bg-violet-500/15 text-violet-500 text-[10px] font-bold flex items-center justify-center shrink-0">4</span>
+              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Upload</span>
+            </div>
+
+            {/* General upload zone for additional documents — OPT-26/27/28/29/30 */}
             <label className="block">
               <div
                 onDragOver={e => { e.preventDefault(); setDragOver(true); }}
                 onDragLeave={() => setDragOver(false)}
-                onDrop={handleDrop}
-                className={`border border-dashed rounded-lg p-6 text-center cursor-pointer transition-all ${
-                  dragOver ? "border-blue-400 bg-blue-500/10" : "border-gray-300 dark:border-white/[0.08] hover:border-blue-500/30"
-                }`}
+                onDrop={e => { handleDrop(e); setUploadProgress(0); const t = setInterval(() => setUploadProgress(p => { if (p !== null && p >= 100) { clearInterval(t); setTimeout(() => setUploadProgress(null), 500); return 100; } return (p ?? 0) + 20; }), 100); }}
+                className={`border-2 border-dashed rounded-xl text-center cursor-pointer transition-all ${
+                  dragOver ? "border-blue-400 bg-blue-500/10 animate-dash-border min-h-[140px]" : "border-gray-300 dark:border-white/[0.08] hover:border-blue-500/30 min-h-[120px]"
+                } flex flex-col items-center justify-center p-8`}
               >
-                <Upload className={`w-8 h-8 mx-auto mb-2 ${dragOver ? "text-blue-400" : "text-slate-300 dark:text-slate-600"}`} />
-                <p className="text-xs text-slate-500 dark:text-slate-400">Glissez ou cliquez pour ajouter des documents supplementaires</p>
-                <p className="text-[9px] text-slate-300 dark:text-slate-600 mt-1">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</p>
-                <input type="file" multiple className="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx" onChange={e => handleFileUpload(e.target.files)} />
+                <Upload className={`w-10 h-10 mb-3 ${dragOver ? "text-blue-400 animate-upload-bounce" : "text-slate-300 dark:text-slate-600"}`} />
+                <p className="text-sm font-medium text-slate-600 dark:text-slate-400">Glissez ou cliquez pour ajouter des documents supplementaires</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1.5">PDF, JPG, PNG, DOCX — max 10 Mo par fichier</p>
+                {/* OPT-30: Upload progress bar */}
+                {uploadProgress !== null && (
+                  <div className="w-48 mt-3">
+                    <Progress value={uploadProgress} className="h-1.5 progress-gradient-green" />
+                    <p className="text-[9px] text-emerald-400 mt-1">Upload en cours...</p>
+                  </div>
+                )}
+                <input type="file" multiple className="hidden" accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx" onChange={e => {
+                  handleFileUpload(e.target.files);
+                  if (e.target.files && e.target.files.length > 0) {
+                    setUploadProgress(0);
+                    const t = setInterval(() => setUploadProgress(p => { if (p !== null && p >= 100) { clearInterval(t); setTimeout(() => setUploadProgress(null), 500); return 100; } return (p ?? 0) + 20; }), 100);
+                  }
+                }} />
               </div>
             </label>
 
-            {/* Generate buttons + batch download */}
+            {/* OPT-47: Gradient separator */}
+            <hr className="section-gradient-hr" />
+
+            {/* Generate buttons + batch download — OPT-40/41/42/43 */}
             <div className="flex flex-wrap gap-3">
+              {/* OPT-41: Generer fiche LCB-FT — blue primary, FileText icon */}
               <Button
-                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white shadow-md"
+                size="lg"
+                className="gap-2.5 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 text-sm px-5 py-3"
                 disabled={generatingPdf === "fiche"}
                 onClick={() => {
                   const tempClient = buildTempClient();
@@ -4209,11 +4302,13 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   finally { setGeneratingPdf(null); }
                 }}
               >
-                {generatingPdf === "fiche" ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Generer fiche LCB-FT (PDF)
+                {generatingPdf === "fiche" ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />} Generer fiche LCB-FT
               </Button>
+              {/* OPT-42: Generer lettre de mission — secondary, FileSignature icon */}
               <Button
+                size="lg"
                 variant="outline"
-                className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400"
+                className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 text-sm px-5 py-3"
                 disabled={generatingPdf === "lettre"}
                 onClick={() => {
                   const tempClient = buildTempClient();
@@ -4226,9 +4321,9 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   finally { setGeneratingPdf(null); }
                 }}
               >
-                {generatingPdf === "lettre" ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileDown className="w-4 h-4" />} Generer lettre de mission (PDF)
+                {generatingPdf === "lettre" ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSignature className="w-5 h-5" />} Generer lettre de mission
               </Button>
-              {/* FIX 39+P4-25: Batch download all stored documents, deduplicated */}
+              {/* OPT-43: Tout telecharger — with file counter */}
               {(() => {
                 const rawStoredDocs = [
                   ...(screening.inpi.data?.documents ?? []),
@@ -4240,11 +4335,13 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   seenUrls.add(d.url);
                   return true;
                 });
+                const totalFiles = allStoredDocs.length + documents.filter(d => d.file).length;
                 if (allStoredDocs.length < 2) return null;
                 return (
                   <Button
+                    size="lg"
                     variant="outline"
-                    className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400"
+                    className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 text-sm px-5 py-3"
                     onClick={() => {
                       allStoredDocs.forEach((doc, i) => {
                         setTimeout(() => {
@@ -4258,7 +4355,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                       toast.success(`Ouverture de ${allStoredDocs.length} document(s)`);
                     }}
                   >
-                    <FileDown className="w-4 h-4" /> Tout telecharger ({allStoredDocs.length})
+                    <Download className="w-5 h-5" /> Tout telecharger ({totalFiles} fichiers)
                   </Button>
                 );
               })()}
@@ -4266,6 +4363,61 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
           </div>
         )}
       </div>
+
+      {/* OPT-11-18: Document preview modal */}
+      {previewDoc && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center animate-modal-backdrop"
+          style={{ backgroundColor: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)" }}
+          onClick={e => { if (e.target === e.currentTarget) setPreviewDoc(null); }}
+          onKeyDown={e => { if (e.key === "Escape") setPreviewDoc(null); }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Previsualisation du document"
+        >
+          <div className="animate-modal-content bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-white/[0.1] flex flex-col" style={{ width: "min(80vw, 900px)", height: "80vh", maxHeight: "85vh" }}>
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 dark:border-white/[0.06] shrink-0">
+              <div className="flex items-center gap-2 min-w-0">
+                <FileText className="w-4 h-4 text-blue-400 shrink-0" />
+                <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-200 truncate">{previewDoc.label}</h3>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href={previewDoc.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-slate-500 hover:text-blue-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-blue-500/10 transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" /> Nouvel onglet
+                </a>
+                <a
+                  href={previewDoc.url}
+                  download
+                  className="text-xs text-slate-500 hover:text-emerald-400 flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                >
+                  <Download className="w-3.5 h-3.5" /> Telecharger
+                </a>
+                <button
+                  onClick={() => setPreviewDoc(null)}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+            {/* Modal content — iframe preview */}
+            <div className="flex-1 overflow-hidden rounded-b-2xl bg-gray-50 dark:bg-slate-950">
+              <iframe
+                src={previewDoc.url}
+                title={previewDoc.label}
+                className="w-full h-full border-0"
+                sandbox="allow-same-origin allow-scripts"
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* #74: Floating save draft button — positioned top-right to avoid blocking navigation */}
       {step > 0 && hasUnsavedChanges && (
@@ -4534,8 +4686,9 @@ function MapSection({ lat, lng, adresse, cp, ville, raisonSociale }: {
       {geoLat && geoLng && (
         <iframe
           src={`https://www.openstreetmap.org/export/embed.html?bbox=${geoLng - 0.003}%2C${geoLat - 0.003}%2C${geoLng + 0.003}%2C${geoLat + 0.003}&layer=mapnik&marker=${geoLat}%2C${geoLng}`}
-          width="100%" height="300" style={{ border: 0 }} loading="lazy"
+          width="100%" height="300" style={{ border: 0, pointerEvents: "none" }} loading="lazy"
           sandbox="allow-scripts allow-same-origin"
+          scrolling="no"
           referrerPolicy="no-referrer"
           className="rounded-b-lg"
         />
