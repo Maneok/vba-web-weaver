@@ -163,7 +163,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
           })}
         </div>
 
-        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-150 dark:border-white/[0.06] shadow-sm shadow-gray-100/50 dark:shadow-none">
+        <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-sm shadow-gray-100/50 dark:shadow-none">
           <div>
             <p className="text-sm text-slate-700 dark:text-slate-300">Tacite reconduction</p>
             <p className="text-[10px] text-slate-400 dark:text-slate-500">Renouvellement automatique a echeance</p>

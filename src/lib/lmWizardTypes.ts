@@ -214,7 +214,7 @@ export function computeAnnexes(data: LMWizardData): string[] {
   const annexes: string[] = [];
   // Always
   annexes.push("cgv_cabinet");
-  annexes.push("clause_travail_dissimule");
+  if (data.clause_travail_dissimule !== false) annexes.push("clause_travail_dissimule");
 
   // Social missions → annexe repartition travaux sociaux
   if (data.missions_selected.some((m) => m.section_id === "social" && m.selected)) {
@@ -256,8 +256,10 @@ export interface HonorairesData {
 /** H) Format duration */
 export function formatDuration(seconds: number): string {
   if (seconds <= 0) return "—";
-  const min = Math.floor(seconds / 60);
-  const sec = seconds % 60;
-  if (min === 0) return `${sec}s`;
-  return `${min} min ${sec > 0 ? `${sec} s` : ""}`.trim();
+  const h = Math.floor(seconds / 3600);
+  const min = Math.floor(seconds / 60) % 60;
+  const sec = Math.floor(seconds % 60);
+  if (h === 0 && min === 0) return `${sec}s`;
+  if (h === 0) return `${min} min ${sec > 0 ? `${sec} s` : ""}`.trim();
+  return `${h}h ${min > 0 ? `${min} min ` : ""}${sec > 0 ? `${sec} s` : ""}`.trim();
 }

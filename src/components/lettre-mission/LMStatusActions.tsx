@@ -312,13 +312,13 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
                 size="sm"
                 variant="ghost"
                 className="h-6 w-6 p-0 text-slate-400 dark:text-slate-500 hover:text-blue-400"
-                onClick={() => copyToClipboard(`https://vba-web-weaver.vercel.app/signer?token=${latestToken.token}`)}
+                onClick={() => copyToClipboard(`${window.location.origin}/signer?token=${latestToken.token}`)}
                 title="Copier le lien"
               >
                 <Copy className="w-3 h-3" />
               </Button>
               <a
-                href={`https://vba-web-weaver.vercel.app/signer?token=${latestToken.token}`}
+                href={`${window.location.origin}/signer?token=${latestToken.token}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="h-6 w-6 p-0 flex items-center justify-center rounded text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-gray-100 dark:bg-white/[0.06] transition-colors"

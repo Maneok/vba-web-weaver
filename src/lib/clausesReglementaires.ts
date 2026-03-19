@@ -1,3 +1,4 @@
+// NOTE: Currently unused — regulatory clauses are defined in lettreMissionVariables.ts VIGILANCE_TEXTES
 // Bibliothèque de clauses réglementaires LCB-FT
 
 export interface ClauseReglementaire {

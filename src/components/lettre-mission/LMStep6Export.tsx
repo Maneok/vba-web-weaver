@@ -21,6 +21,7 @@ interface Props {
   onChange: (updates: Partial<LMWizardData>) => void;
   onSave: () => Promise<void>;
   onReset: () => void;
+  saving?: boolean;
 }
 
 // ── D) Tactile signature canvas ──
@@ -45,7 +46,7 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
       ctx.lineWidth = 2;
-      ctx.strokeStyle = "#e2e8f0";
+      ctx.strokeStyle = "#334155";
       initializedRef.current = true;
     }
 
@@ -138,7 +139,7 @@ function SignatureCanvas({ value, onSave }: { value: string; onSave: (dataUrl: s
   );
 }
 
-export default function LMStep6Export({ data, onChange, onSave, onReset }: Props) {
+export default function LMStep6Export({ data, onChange, onSave, onReset, saving }: Props) {
   const { profile } = useAuth();
   const [showSignature, setShowSignature] = useState(false);
   const [emailTo, setEmailTo] = useState(data.email || "");
@@ -154,11 +155,15 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
   // E) Compute annexes
   const annexes = useMemo(() => computeAnnexes(data), [data]);
+  const prevAnnexesRef = useRef<string>("");
   useEffect(() => {
-    if (JSON.stringify(data.annexes) !== JSON.stringify(annexes)) {
-      onChange({ annexes });
+    const computed = computeAnnexes(data);
+    const key = computed.join(",");
+    if (key !== prevAnnexesRef.current) {
+      prevAnnexesRef.current = key;
+      onChange({ annexes: computed });
     }
-  }, [annexes, data.annexes, onChange]);
+  }, [data.missions_selected, data.type_mission, data.mission_type_id, data.clause_travail_dissimule]);
 
   const withLock = useCallback(async (key: string, fn: () => Promise<void>) => {
     if (lockRef.current) return;
@@ -300,6 +305,10 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
   const handleSignatureUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Image trop volumineuse (max 2 Mo)");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
       onChange({ signature_expert: ev.target?.result as string });
@@ -343,8 +352,9 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
         <button
           onClick={() => setShowEmail(!showEmail)}
+          disabled={!!generating}
           aria-label="Envoyer par email"
-          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-emerald-300 dark:hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/5 hover:shadow-md hover:shadow-emerald-100/50 dark:hover:shadow-emerald-500/10"
+          className="flex flex-col items-center gap-3 p-5 rounded-xl wizard-select-card hover:border-emerald-300 dark:hover:border-emerald-500/30 hover:bg-emerald-50/50 dark:hover:bg-emerald-500/5 disabled:opacity-45 hover:shadow-md hover:shadow-emerald-100/50 dark:hover:shadow-emerald-500/10"
         >
           <Send className="w-6 h-6 text-emerald-400" />
           <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Envoyer par email</span>
@@ -462,8 +472,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset }: Props
 
       {/* ── Save + Reset ── */}
       <div className="flex flex-col sm:flex-row gap-3">
-        <Button onClick={handleSave} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md shadow-blue-500/20 h-11 gap-2" aria-label="Sauvegarder la lettre de mission">
-          <CheckCircle2 className="w-4 h-4" /> Sauvegarder
+        <Button onClick={handleSave} disabled={saving} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md shadow-blue-500/20 h-11 gap-2 disabled:opacity-50" aria-label="Sauvegarder la lettre de mission">
+          {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Sauvegarder
         </Button>
         <Button variant="outline" onClick={onReset} className="gap-2 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white" aria-label="Commencer une nouvelle lettre de mission">
           <RotateCcw className="w-4 h-4" /> Nouvelle lettre

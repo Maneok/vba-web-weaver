@@ -29,19 +29,19 @@ export default function LMProgressBar({ currentStep, onStepClick, missionCategor
   return (
     <div className="w-full space-y-3">
       {/* Continuous progress bar */}
-      <div className="relative h-1 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
+      <div
+        className="relative h-1 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden"
+        role="progressbar"
+        aria-valuenow={Math.round(progress)}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      >
         <div
-          className="absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out"
-          style={{
-            width: `${progress}%`,
-            background: catColors
-              ? undefined
-              : 'linear-gradient(90deg, hsl(var(--primary) / 0.6), hsl(var(--primary)))',
-            backgroundColor: catColors ? undefined : undefined,
-          }}
-        >
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-500 dark:from-blue-500 dark:via-indigo-500 dark:to-blue-400" />
-        </div>
+          className={`absolute inset-y-0 left-0 rounded-full transition-all duration-500 ease-out ${
+            catColors ? catColors.bg : "bg-gradient-to-r from-blue-400 via-indigo-400 to-blue-500 dark:from-blue-500 dark:via-indigo-500 dark:to-blue-400"
+          }`}
+          style={{ width: `${progress}%` }}
+        />
       </div>
 
       {/* Clickable step pills */}

@@ -351,7 +351,7 @@ describe("#10: lettreMissionEngine — counter overflow", () => {
     const { incrementCounter, resetCounter } = await import("../lib/lettreMissionEngine");
     resetCounter(9999);
     const result = incrementCounter();
-    expect(result).toMatch(/^LM-\d{4}-001$/);
+    expect(result).toMatch(/^LM-\d{4}-0001$/);
   });
 
   it("should generate sequential numbers normally", async () => {
@@ -359,8 +359,8 @@ describe("#10: lettreMissionEngine — counter overflow", () => {
     resetCounter(0);
     const first = incrementCounter();
     const second = incrementCounter();
-    expect(first).toMatch(/^LM-\d{4}-001$/);
-    expect(second).toMatch(/^LM-\d{4}-002$/);
+    expect(first).toMatch(/^LM-\d{4}-0001$/);
+    expect(second).toMatch(/^LM-\d{4}-0002$/);
   });
 });
 

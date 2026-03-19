@@ -6,12 +6,14 @@ import { describe, it, expect, beforeEach } from "vitest";
 
 // ── Imports ──
 import {
+  validateStep0,
   validateStep1,
   validateStep2,
   validateStep3,
   validateStep4,
   validateStep5,
   validateStep6,
+  validateStep7,
   sanitizeText,
   sanitizeWizardData,
   VALIDATORS,
@@ -46,20 +48,20 @@ import { GRIMY_DEFAULT_SECTIONS, GRIMY_DEFAULT_CGV, GRIMY_DEFAULT_REPARTITION, v
 // 1. Validation — Step 1 (Client)
 // ══════════════════════════════════════════════
 
-describe("Step 1 — Client validation", () => {
+describe("Step 0 — Client selection", () => {
   it("01: rejects empty client_id", () => {
-    const errors = validateStep1({ client_id: "", type_mission: "TENUE" });
+    const errors = validateStep0({ client_id: "" });
     expect(errors.some((e) => e.field === "client_id")).toBe(true);
   });
 
-  it("02: rejects empty type_mission", () => {
-    const errors = validateStep1({ client_id: "c1", type_mission: "" });
-    expect(errors.some((e) => e.field === "type_mission")).toBe(true);
+  it("02: rejects empty mission_type_id (step 1)", () => {
+    const errors = validateStep1({ mission_type_id: "" });
+    expect(errors.some((e) => e.field === "mission_type_id")).toBe(true);
   });
 
-  it("03: valid step 1 passes", () => {
-    const errors = validateStep1({ client_id: "c1", type_mission: "TENUE" });
-    expect(errors).toHaveLength(0);
+  it("03: valid step 0 + step 1 passes", () => {
+    expect(validateStep0({ client_id: "c1" })).toHaveLength(0);
+    expect(validateStep1({ mission_type_id: "presentation" })).toHaveLength(0);
   });
 });
 
@@ -104,43 +106,39 @@ describe("Step 2 — Missions validation", () => {
 // 3. Validation — Step 3 (Details)
 // ══════════════════════════════════════════════
 
-describe("Step 3 — Details validation", () => {
+describe("Step 3 — Modele/duree validation", () => {
   const validStep3 = {
-    dirigeant: "Jean Dupont",
-    adresse: "12 rue de Paris",
-    cp: "75001",
-    ville: "Paris",
     associe_signataire: "M. Martin",
-    email: "test@example.com",
+    date_debut: "2026-01-01",
   };
 
   it("08: valid step 3 passes", () => {
     expect(validateStep3(validStep3)).toHaveLength(0);
   });
 
-  it("09: rejects invalid postal code (4 digits)", () => {
-    const errors = validateStep3({ ...validStep3, cp: "7500" });
-    expect(errors.some((e) => e.field === "cp")).toBe(true);
+  it("09: rejects missing associe_signataire", () => {
+    const errors = validateStep3({ ...validStep3, associe_signataire: "" });
+    expect(errors.some((e) => e.field === "associe_signataire")).toBe(true);
   });
 
-  it("10: rejects invalid postal code (letters)", () => {
-    const errors = validateStep3({ ...validStep3, cp: "ABCDE" });
-    expect(errors.some((e) => e.field === "cp")).toBe(true);
+  it("10: rejects missing date_debut", () => {
+    const errors = validateStep3({ ...validStep3, date_debut: "" });
+    expect(errors.some((e) => e.field === "date_debut")).toBe(true);
   });
 
-  it("11: rejects invalid email", () => {
-    const errors = validateStep3({ ...validStep3, email: "not-an-email" });
-    expect(errors.some((e) => e.field === "email")).toBe(true);
+  it("11: rejects invalid date_debut", () => {
+    const errors = validateStep3({ ...validStep3, date_debut: "not-a-date" });
+    expect(errors.some((e) => e.field === "date_debut")).toBe(true);
   });
 
-  it("12: accepts empty email (optional)", () => {
-    const errors = validateStep3({ ...validStep3, email: "" });
-    expect(errors.some((e) => e.field === "email")).toBe(false);
+  it("12: accepts valid ISO date", () => {
+    const errors = validateStep3({ ...validStep3, date_debut: "2026-06-15" });
+    expect(errors).toHaveLength(0);
   });
 
-  it("13: rejects missing dirigeant", () => {
-    const errors = validateStep3({ ...validStep3, dirigeant: "" });
-    expect(errors.some((e) => e.field === "dirigeant")).toBe(true);
+  it("13: rejects when both fields missing", () => {
+    const errors = validateStep3({});
+    expect(errors.length).toBeGreaterThanOrEqual(2);
   });
 });
 
@@ -204,9 +202,9 @@ describe("Steps 5 & 6 — always valid", () => {
     expect(validateStep6()).toHaveLength(0);
   });
 
-  it("22: VALIDATORS map has all 6 steps", () => {
-    expect(Object.keys(VALIDATORS)).toHaveLength(6);
-    for (let i = 0; i < 6; i++) {
+  it("22: VALIDATORS map has all 8 steps", () => {
+    expect(Object.keys(VALIDATORS)).toHaveLength(8);
+    for (let i = 0; i < 8; i++) {
       expect(typeof VALIDATORS[i]).toBe("function");
     }
   });
@@ -254,8 +252,8 @@ describe("Sanitization", () => {
 // ══════════════════════════════════════════════
 
 describe("Wizard types coherence", () => {
-  it("28: LM_TOTAL_STEPS equals 6", () => {
-    expect(LM_TOTAL_STEPS).toBe(6);
+  it("28: LM_TOTAL_STEPS equals 8", () => {
+    expect(LM_TOTAL_STEPS).toBe(8);
   });
 
   it("29: step labels match total steps", () => {
@@ -360,22 +358,22 @@ describe("formatDuration", () => {
 describe("LM Counter", () => {
   beforeEach(() => resetCounter(0));
 
-  it("44: incrementCounter produces LM-YYYY-001 format", () => {
+  it("44: incrementCounter produces LM-YYYY-0001 format", () => {
     const num = incrementCounter();
     const year = new Date().getFullYear();
-    expect(num).toBe(`LM-${year}-001`);
+    expect(num).toBe(`LM-${year}-0001`);
   });
 
   it("45: incrementCounter increments sequentially", () => {
-    incrementCounter(); // 001
-    const second = incrementCounter(); // 002
-    expect(second).toMatch(/-002$/);
+    incrementCounter(); // 0001
+    const second = incrementCounter(); // 0002
+    expect(second).toMatch(/-0002$/);
   });
 
   it("46: resetCounter resets to given value", () => {
     resetCounter(99);
     const next = incrementCounter();
-    expect(next).toMatch(/-100$/);
+    expect(next).toMatch(/-0100$/);
   });
 });
 

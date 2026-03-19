@@ -15,8 +15,10 @@ interface Props {
 }
 
 function formatMontant(value: string): string {
-  const num = value.replace(/[^\d]/g, "");
-  return num.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  const num = value.replace(/[^\d.,]/g, "").replace(",", ".");
+  const [intPart, decPart] = num.split(".");
+  const formatted = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return decPart !== undefined ? `${formatted}.${decPart}` : formatted;
 }
 
 function formatIBAN(value: string): string {
@@ -109,10 +111,10 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
       {/* ── Slider optionnel ── */}
       <div className="px-2">
         <Slider
-          value={[Math.min(data.honoraires_ht, 50000)]}
+          value={[data.honoraires_ht]}
           onValueChange={([v]) => onChange({ honoraires_ht: v })}
           min={0}
-          max={50000}
+          max={Math.max(50000, data.honoraires_ht || 0)}
           step={100}
           className="w-full"
         />

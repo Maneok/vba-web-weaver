@@ -256,7 +256,8 @@ class LMPdfBuilder {
     // En-tête: logo à gauche, coordonnées à droite
     if (cab?.logo) {
       try {
-        this.doc.addImage(cab.logo, "PNG", MARGIN_L, MARGIN_TOP, 25, 25);
+        const fmt = cab.logo.startsWith("data:image/jpeg") || cab.logo.startsWith("data:image/jpg") ? "JPEG" : "PNG";
+        this.doc.addImage(cab.logo, fmt, MARGIN_L, MARGIN_TOP, 25, 25);
       } catch (err) { logger.warn("PDF", "Invalid logo image:", err); }
     }
 
@@ -380,7 +381,7 @@ class LMPdfBuilder {
       ["SIREN", s(cli?.siren)],
       ["Capital social", capitalDisplay],
       ["Date de création", s(cli?.dateCreation)],
-      ["Date de clôture", "31/12"],
+      ["Date de clôture", s(opts?.exerciceFin) || "31/12"], // TODO: use client.dateCloture when available on Client type
       ["Téléphone", s(cli?.tel)],
       ["Email", s(cli?.mail)],
       ["Expert-comptable responsable", s(cli?.associe)],

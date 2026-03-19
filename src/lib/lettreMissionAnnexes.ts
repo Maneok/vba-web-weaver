@@ -88,7 +88,7 @@ export const ATTESTATION_TRAVAIL_DISSIMULE = {
 
 Le client reconnaît que le non-respect de ces obligations l'expose aux sanctions prévues par les articles L.8222-2 et suivants du Code du travail, notamment la solidarité financière en cas de recours à un cocontractant en situation de travail dissimulé.
 
-Fait à {{ville}}, le {{date}}
+Fait à {{ville}}, le {{date_jour}}
 
 {{dirigeant}}
 {{qualite_dirigeant}}
@@ -102,13 +102,13 @@ Signature :`,
 export const MANDAT_SEPA = {
   titre: "MANDAT DE PRÉLÈVEMENT SEPA",
   creancier: {
-    nom: "COMPTADEC",
-    ics: "FR67ZZZ4906200",
-    adresse: "158 RUE DU ROUET, 13008 MARSEILLE",
+    nom: "{{cabinet_nom}}",
+    ics: "{{cabinet_ics}}",
+    adresse: "{{cabinet_adresse}}",
   },
   rum: "RUM-{{ref_client}}-{{annee}}",
   typePrelevement: "Récurrent" as const,
-  texteAutorisation: `En signant ce formulaire de mandat, vous autorisez COMPTADEC à envoyer des instructions à votre banque pour débiter votre compte, et votre banque à débiter votre compte conformément aux instructions de COMPTADEC.
+  texteAutorisation: `En signant ce formulaire de mandat, vous autorisez {{cabinet_nom}} à envoyer des instructions à votre banque pour débiter votre compte, et votre banque à débiter votre compte conformément aux instructions de {{cabinet_nom}}.
 
 Vous bénéficiez du droit d'être remboursé par votre banque selon les conditions décrites dans la convention que vous avez passée avec elle. Toute demande de remboursement doit être présentée :
 - dans les 8 semaines suivant la date de débit de votre compte pour un prélèvement autorisé ;
@@ -134,7 +134,7 @@ export const AUTORISATION_LIASSE = {
 
 AUTORISE
 
-le cabinet COMPTADEC, représenté par {{associe}}, expert-comptable inscrit au Tableau de l'Ordre des Experts-Comptables de la région Provence-Alpes-Côte d'Azur, à :
+le cabinet {{cabinet_nom}}, représenté par {{associe}}, expert-comptable inscrit au Tableau de l'Ordre des Experts-Comptables de la région Provence-Alpes-Côte d'Azur, à :
 
 1. Transmettre par voie dématérialisée via la plateforme jedeclare.com (procédure EDI-TDFC) la liasse fiscale et les déclarations de résultats de la société auprès de la Direction Générale des Finances Publiques (DGFiP) ;
 
@@ -153,7 +153,7 @@ Le cabinet ne saurait être tenu responsable des conséquences résultant :
 - De dysfonctionnements des systèmes de télétransmission de l'administration fiscale ou de la plateforme jedeclare.com ;
 - Du non-respect par le client du délai de vérification ci-dessus.
 
-Fait à {{ville}}, le {{date}}
+Fait à {{ville}}, le {{date_jour}}
 
 {{dirigeant}}
 {{qualite_dirigeant}}

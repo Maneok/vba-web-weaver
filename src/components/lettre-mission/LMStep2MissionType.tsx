@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { MISSION_TYPES, MISSION_CATEGORIES, getMissionTypeConfig, getCategoryColorClasses } from "@/lib/lettreMissionTypes";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Eye, CheckSquare, CheckCircle2, XCircle, Info } from "lucide-react";
+import { BookOpen, Eye, CheckSquare, CheckCircle2, XCircle } from "lucide-react";
 
 interface Props {
   data: LMWizardData;

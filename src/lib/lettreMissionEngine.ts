@@ -45,7 +45,7 @@ export function incrementCounter(): string {
   // Guard overflow — restart at 1 if exceeds 9999
   if (count > 9999) count = 1;
   try { sessionStorage.setItem(LM_COUNTER_KEY, JSON.stringify({ year, count })); } catch (err) { logger.warn("LM", "Failed to save counter:", err); }
-  return `LM-${year}-${String(count).padStart(3, "0")}`;
+  return `LM-${year}-${String(count).padStart(4, "0")}`;
 }
 
 /**
@@ -409,10 +409,10 @@ export async function getNextLmNumero(cabinetId: string): Promise<string> {
     const match = lastNumero.match(/LM-\d{4}-(\d+)/);
     if (match) {
       const next = parseInt(match[1], 10) + 1;
-      return `${prefix}${String(next).padStart(3, "0")}`;
+      return `${prefix}${String(next).padStart(4, "0")}`;
     }
   }
-  return `${prefix}001`;
+  return `${prefix}0001`;
 }
 
 // ──────────────────────────────────────────────
@@ -488,9 +488,10 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     ape: String(d.ape ?? ""),
     email: String(d.email ?? ""),
     telephone: String(d.telephone ?? ""),
+    qualite_dirigeant: String(d.qualite_dirigeant ?? "Gérant"),
     iban: String(d.iban ?? ""),
     bic: String(d.bic ?? ""),
-    adresse_complete: `${d.adresse ?? ""}, ${d.cp ?? ""} ${d.ville ?? ""}`.trim(),
+    adresse_complete: [d.adresse, [d.cp, d.ville].filter(Boolean).join(" ")].filter(Boolean).join(", "),
     // Mission
     associe: String(d.associe_signataire ?? ""),
     responsable_mission: String(d.associe_signataire ?? ""),
@@ -502,7 +503,7 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     frequence: String(d.frequence_facturation ?? ""),
     honoraires: Number(d.honoraires_ht ?? 0).toLocaleString("fr-FR"),
     hono: `${Number(d.honoraires_ht ?? 0).toLocaleString("fr-FR")} € HT`,
-    honoraires_ttc: (Number(d.honoraires_ht ?? 0) * 1.2).toLocaleString("fr-FR"),
+    honoraires_ttc: (Number(d.honoraires_ht ?? 0) * (1 + (Number(d.taux_tva ?? 20)) / 100)).toLocaleString("fr-FR"),
     // Dates
     date_du_jour: fmt(now),
     date_jour: fmt(now),
@@ -512,9 +513,10 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     date_fin_mission: fmt(new Date(year, 11, 31)),
     date_cloture: String(d.date_cloture ?? fmt(new Date(year, 11, 31))),
     date_debut: String(d.date_debut ?? fmt(now)),
+    date_cgv: fmt(now),
     // Options
-    formule_politesse: "Monsieur",
-    genre: "M.",
+    formule_politesse: d.genre === "F" ? "Madame" : "Monsieur",
+    genre: d.genre === "F" ? "Mme" : "M.",
     periodicite: String(d.frequence_facturation ?? "MENSUEL"),
     // Dynamic from mission type config
     referentiel_comptable: mtConfig.referentielApplicable,
@@ -523,7 +525,7 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     type_mission_label: mtConfig.label,
     indice_revision: "Indice INSEE prix services comptables",
     delai_mise_en_demeure: "30 jours",
-    // Cabinet (filled later from profile if available)
+    // Filled by caller from profile data
     nom_cabinet: "",
     cabinet_nom: "",
     ville_cabinet: "",

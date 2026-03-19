@@ -42,7 +42,7 @@ export default function LMStatusBadge({ status, size = "sm", showTooltip, dateLa
   const badge = (
     <Badge
       variant="outline"
-      className={`${info.bgClass} ${sizeClasses} gap-1 inline-flex items-center ${overdue ? "ring-1 ring-red-500/30 animate-pulse" : ""}`}
+      className={`${info.bgClass} ${sizeClasses} gap-1 inline-flex items-center ${overdue ? "ring-1 ring-red-500/30" : ""}`}
       aria-label={`Statut : ${info.label}`}
     >
       {icon}

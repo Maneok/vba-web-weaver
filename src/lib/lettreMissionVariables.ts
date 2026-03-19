@@ -107,7 +107,7 @@ const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   delai_mise_en_demeure: () => "30 jours",
   code_postal: (c) => c.cp,
   adresse_complete: (c) => `${c.adresse}, ${c.cp} ${c.ville}`,
-  honoraires_ttc: (c) => ((c.honoraires ?? 0) * 1.2).toLocaleString("fr-FR"),
+  honoraires_ttc: (c) => ((c.honoraires ?? 0) * (1 + (((c as any).taux_tva ?? 20) / 100))).toLocaleString("fr-FR"),
   hono: (c) => `${c.honoraires?.toLocaleString("fr-FR") ?? "0"} € HT`,
   honoraires_juridique: (c) => `${c.juridique?.toLocaleString("fr-FR") ?? "0"} € HT`,
   telephone: (c) => c.tel,
@@ -138,6 +138,7 @@ function getDateVariables(): Record<string, string> {
     annee: String(year),
     date_debut_mission: fmt(startOfYear),
     date_fin_mission: fmt(endOfYear),
+    date_cgv: fmt(now),
   };
 }
 
@@ -220,7 +221,10 @@ export function replaceVariables(
   );
 
   // Final pass: replace any remaining unresolved {{variables}} with empty string
-  result = result.replace(/\{\{\w+\}\}/g, "");
+  result = result.replace(/\{\{(\w+)\}\}/g, (match, varName) => {
+    console.warn(`LM template: unresolved variable {{${varName}}}`);
+    return "";
+  });
 
   return result;
 }

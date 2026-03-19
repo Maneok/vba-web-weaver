@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
 import { supabase } from "@/integrations/supabase/client";
@@ -38,7 +38,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
     );
   }, [clients, search]);
 
-  const selectedClient = clients.find((c) => c.ref === data.client_id);
+  const selectedClient = useMemo(() => clients.find((c) => c.ref === data.client_id), [clients, data.client_id]);
+  const riskToastShown = useRef(false);
 
   // Check for previous signed LM + Screening check
   useEffect(() => {
@@ -76,7 +77,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
         setScreeningStatus(revueDate < oneYearAgo ? "expired" : "ok");
       }
 
-      if (selectedClient.scoreGlobal > 60) {
+      if (selectedClient.scoreGlobal > 60 && !riskToastShown.current) {
+        riskToastShown.current = true;
         toast.warning("Client a vigilance renforcee — envisagez un complement d'honoraires", { duration: 5000 });
       }
     }
@@ -113,7 +115,9 @@ export default function LMStep1Client({ data, onChange }: Props) {
       client_id: "", client_ref: "", raison_sociale: "", siren: "",
       forme_juridique: "", dirigeant: "", adresse: "", cp: "", ville: "",
       capital: "", ape: "", email: "", telephone: "", iban: "", bic: "",
+      qualite_dirigeant: "", type_mission: "", mission_type_id: "",
     });
+    riskToastShown.current = false;
     setSearch("");
   };
 
@@ -255,7 +259,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
             </div>
           )}
 
-          {selectedClient && selectedClient.scoreGlobal >= 50 && selectedClient.scoreGlobal < 70 && (
+          {selectedClient && selectedClient.scoreGlobal >= 50 && selectedClient.scoreGlobal < 60 && (
             <div className="flex items-center gap-3 p-3 rounded-xl wizard-alert bg-amber-50/80 dark:bg-amber-500/[0.06] border border-amber-200/60 dark:border-amber-500/15" role="alert">
               <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
               <p className="text-xs text-amber-600 dark:text-amber-400">

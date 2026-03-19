@@ -42,6 +42,7 @@ export function validateStep2(data: Record<string, unknown>): ValidationError[] 
 export function validateStep3(data: Record<string, unknown>): ValidationError[] {
   const errors: ValidationError[] = [];
   if (!data.associe_signataire) errors.push({ field: "associe_signataire", message: "Associe signataire requis" });
+  if (!data.date_debut) errors.push({ field: "date_debut", message: "La date de debut est requise" });
   if (data.date_debut) {
     const dateDebut = new Date(String(data.date_debut));
     if (isNaN(dateDebut.getTime())) errors.push({ field: "date_debut", message: "Date de debut invalide" });

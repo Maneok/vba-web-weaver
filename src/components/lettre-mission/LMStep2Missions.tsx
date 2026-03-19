@@ -251,7 +251,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                   {icon}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${mission.selected ? "text-slate-800 dark:text-white" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>
+                  <p className={`text-sm font-semibold ${mission.selected ? "text-slate-800 dark:text-white" : "text-slate-400 dark:text-slate-400"}`}>
                     {mission.label}
                   </p>
                   <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">{mission.description}</p>
@@ -276,7 +276,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
               </button>
 
               <div className={`overflow-hidden transition-all duration-200 ${
-                mission.selected ? "max-h-[400px] opacity-100" : "max-h-0 opacity-0"
+                mission.selected ? "max-h-[400px] overflow-y-auto opacity-100" : "max-h-0 opacity-0"
               }`}>
                 <div className="px-4 pb-4 pt-1 space-y-1 border-t border-gray-100 dark:border-white/[0.04]">
                   {mission.sous_options.map((opt) => (

@@ -66,7 +66,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
       <LettreMissionA4Preview
         sections={DEFAULT_TEMPLATE}
         client={client as Client}
-        genre="M"
+        genre={data.genre || "M"}
         missions={missions}
         honoraires={honoraires}
         cabinet={cabinet}
