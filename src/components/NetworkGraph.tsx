@@ -21,6 +21,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   onNodeDoubleClickRef.current = onNodeDoubleClick;
   const [, setForceUpdate] = useState(0);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; node?: NetworkNode; edge?: NetworkEdge } | null>(null);
+  const prevDataSignatureRef = useRef<string>("");
 
   const handleZoomIn = useCallback(() => {
     if (!svgRef.current || !zoomRef.current) return;
@@ -39,6 +40,11 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
   useEffect(() => {
     if (!svgRef.current) return;
+    // Skip re-render if data hasn't actually changed (prevents D3 simulation restart)
+    const dataSignature = nodes.map(n => n.id).sort().join(",") + "|" + edges.map(e => e.source + "-" + e.target).sort().join(",");
+    if (dataSignature === prevDataSignatureRef.current) return;
+    prevDataSignatureRef.current = dataSignature;
+
     const svg = d3.select(svgRef.current);
     svg.selectAll("*").remove();
     if (!nodes || nodes.length === 0) return;

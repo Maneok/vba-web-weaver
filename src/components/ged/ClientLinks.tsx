@@ -13,17 +13,17 @@ export default function ClientLinks({ siren, clientRef }: ClientLinksProps) {
     {
       icon: ClipboardList,
       label: 'Lettres de mission',
-      onClick: () => navigate(`/lettres-mission?client=${clientRef}`),
+      onClick: () => navigate(`/lettre-mission/${clientRef}`),
     },
     {
       icon: Search,
       label: 'Fiche LCB-FT',
-      onClick: () => navigate(`/registre?siren=${siren}`),
+      onClick: () => navigate(`/registre`),
     },
     {
       icon: User,
       label: 'Fiche client',
-      onClick: () => navigate(`/clients/${clientRef}`),
+      onClick: () => navigate(`/client/${clientRef}`),
     },
   ];
 

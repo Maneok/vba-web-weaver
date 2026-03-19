@@ -651,6 +651,28 @@ export default function NouveauClientPage() {
     return keys.some(k => screening[k].loading);
   }, [screening]);
 
+  // Deduplicate network graph nodes/edges — memoized to avoid re-triggering D3 simulation
+  const dedupedNetwork = useMemo(() => {
+    const rawNodes = screening.network.data?.nodes ?? [];
+    const rawEdges = screening.network.data?.edges ?? [];
+    if (rawNodes.length === 0) return { nodes: [], edges: [], totalCompanies: 0, totalPersons: 0 };
+    const personLabels = new Set(
+      (rawNodes as any[]).filter(n => n.type === "person").map(n => (n.label ?? "").toUpperCase())
+    );
+    const nodes = (rawNodes as any[]).filter(n => {
+      if (n.type === "company" && !n.isSource && personLabels.has((n.label ?? "").toUpperCase())) return false;
+      return true;
+    });
+    const nodeIds = new Set(nodes.map((n: any) => n.id));
+    const edges = (rawEdges as any[]).filter(e => nodeIds.has(e.source) && nodeIds.has(e.target));
+    return {
+      nodes,
+      edges,
+      totalCompanies: nodes.filter((n: any) => n.type === "company").length,
+      totalPersons: nodes.filter((n: any) => n.type === "person").length,
+    };
+  }, [screening.network.data]);
+
   // Screening timeout: when screeningRunning turns false, clear timeout
   useEffect(() => {
     if (!screeningRunning && screeningTimeoutRef.current) {
@@ -2368,34 +2390,19 @@ export default function NouveauClientPage() {
             )}
 
             {/* Network Graph preview (Probleme 9) */}
-            {screening.network.data && screening.network.data.nodes?.length > 0 && (() => {
-              // BUG FIX: Deduplicate — remove company nodes that share a label with a person node
-              const personLabels = new Set(
-                (screening.network.data.nodes as any[])
-                  .filter(n => n.type === "person")
-                  .map(n => (n.label ?? "").toUpperCase())
-              );
-              const deduped = (screening.network.data.nodes as any[]).filter(n => {
-                if (n.type === "company" && !n.isSource && personLabels.has((n.label ?? "").toUpperCase())) return false;
-                return true;
-              });
-              const dedupedIds = new Set(deduped.map(n => n.id));
-              const dedupedEdges = (screening.network.data.edges ?? []).filter(e => dedupedIds.has(e.source) && dedupedIds.has(e.target));
-              const totalCompanies = deduped.filter(n => n.type === "company").length;
-              const totalPersons = deduped.filter(n => n.type === "person").length;
-              return (
+            {dedupedNetwork.nodes.length > 0 && (
               <div className="rounded-lg border border-gray-200 dark:border-white/[0.06] overflow-hidden">
                 <div className="px-4 py-3 border-b border-gray-200 dark:border-white/[0.06] flex items-center gap-2">
                   <User className="w-4 h-4 text-cyan-400" />
                   <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Reseau dirigeants</h3>
                   <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-auto">
-                    {totalCompanies} societe(s), {totalPersons} personne(s) — double-cliquez un noeud pour rechercher
+                    {dedupedNetwork.totalCompanies} societe(s), {dedupedNetwork.totalPersons} personne(s) — double-cliquez un noeud pour rechercher
                   </span>
                 </div>
                 <div className="p-2">
                   <NetworkGraph
-                    nodes={deduped}
-                    edges={dedupedEdges}
+                    nodes={dedupedNetwork.nodes}
+                    edges={dedupedNetwork.edges}
                     height={350}
                     onNodeDoubleClick={(n) => {
                       if (n.type === "company" && n.siren && !n.isSource) {
@@ -2405,9 +2412,9 @@ export default function NouveauClientPage() {
                     }}
                   />
                 </div>
-                {(screening.network.data.alertes?.length ?? 0) > 0 && (
+                {(screening.network.data?.alertes?.length ?? 0) > 0 && (
                   <div className="px-4 py-3 border-t border-gray-200 dark:border-white/[0.06] space-y-1">
-                    {screening.network.data.alertes.slice(0, 5).map((a, i) => (
+                    {screening.network.data!.alertes.slice(0, 5).map((a, i) => (
                       <div key={`net-${i}-${a.message.slice(0, 20)}`} className="flex items-start gap-2 text-xs">
                         <AlertTriangle className={`w-3 h-3 mt-0.5 shrink-0 ${a.severity === "red" ? "text-red-400" : "text-amber-400"}`} />
                         <span className={a.severity === "red" ? "text-red-300" : "text-amber-300"}>{a.message}</span>
@@ -2416,8 +2423,7 @@ export default function NouveauClientPage() {
                   </div>
                 )}
               </div>
-              );
-            })()}
+            )}
 
             {selectedResult && (
               <div className="p-4 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
