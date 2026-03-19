@@ -465,7 +465,7 @@ export default function GedPage() {
         </div>
 
         <div className="flex gap-3 justify-center">
-          <Button onClick={() => navigate("/clients/nouveau")}>
+          <Button onClick={() => navigate("/nouveau-client")}>
             <Plus className="w-4 h-4 mr-1.5" />
             Créer mon premier client
           </Button>
@@ -530,7 +530,7 @@ export default function GedPage() {
               variant="outline"
               size="sm"
               className="mt-4"
-              onClick={() => navigate("/clients/nouveau")}
+              onClick={() => navigate("/nouveau-client")}
             >
               <Plus className="w-3.5 h-3.5 mr-1.5" />
               Créer un client
