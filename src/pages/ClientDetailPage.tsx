@@ -21,6 +21,8 @@ import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
 import type { Client, OuiNon, EtatPilotage } from "@/lib/types";
 import { toast } from "sonner";
+import { EditableText } from "@/components/ged/EditableCell";
+import { updateDocumentField } from "@/services/gedService";
 
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -1967,10 +1969,19 @@ function DocumentsTab({
             {gedDocuments
               .filter(d => !['kbis', 'statuts', 'cni_dirigeant', 'rib'].includes(d.category))
               .map(doc => (
-                <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 transition-colors">
+                <div key={doc.id} className="flex items-center justify-between p-2 rounded-lg hover:bg-accent/50 transition-colors group">
                   <div className="flex items-center gap-2 min-w-0">
                     <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
-                    <span className="text-sm truncate">{doc.name}</span>
+                    <EditableText
+                      value={doc.label || doc.name}
+                      placeholder="Libellé du document"
+                      onSave={async (newLabel) => {
+                        try {
+                          await updateDocumentField(doc.id, 'label', newLabel || null);
+                          setGedDocuments(prev => prev.map(d => d.id === doc.id ? { ...d, label: newLabel } : d));
+                        } catch { toast.error("Erreur mise à jour libellé"); }
+                      }}
+                    />
                     <Badge variant="outline" className="text-[10px] shrink-0">{doc.category}</Badge>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">

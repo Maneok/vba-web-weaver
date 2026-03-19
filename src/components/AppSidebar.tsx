@@ -155,10 +155,25 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       });
   }, [profile?.cabinet_id, clients]);
 
+  // Count expired GED documents for sidebar badge
+  const [expiredDocsCount, setExpiredDocsCount] = useState(0);
+  useEffect(() => {
+    if (!profile?.cabinet_id) return;
+    supabase
+      .from("documents")
+      .select("id", { count: "exact", head: true })
+      .eq("cabinet_id", profile.cabinet_id)
+      .lt("expiration_date", new Date().toISOString().split("T")[0])
+      .then(({ count }) => {
+        setExpiredDocsCount(count ?? 0);
+      });
+  }, [profile?.cabinet_id]);
+
   /* Badge counts */
   const badges: Record<string, number> = {
     "/bdd": clients.length,
     "/registre": alertesEnCours,
+    "/ged": expiredDocsCount,
   };
 
   const cabinetName = profile?.full_name?.split(" ").pop() || "GRIMY";

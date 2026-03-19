@@ -130,9 +130,17 @@ export default function SirenListItem({
             )}
           </div>
         </div>
-        <span className="text-xs text-muted-foreground whitespace-nowrap shrink-0">
-          {formatDaysAgo(lastUpdate)}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {/* NEW badge for uploads < 24h */}
+          {lastUpdate && (Date.now() - new Date(lastUpdate).getTime()) < 86_400_000 && (
+            <span className="text-[9px] font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-full">
+              NEW
+            </span>
+          )}
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {formatDaysAgo(lastUpdate)}
+          </span>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 mt-1.5 ml-8">
