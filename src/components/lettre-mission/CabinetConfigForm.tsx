@@ -77,7 +77,7 @@ export default function CabinetConfigForm() {
   const handleFileUpload = (field: "logo" | "signature", maxKb: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > maxKb * 1000) {
+    if (file.size > maxKb * 1024) {
       toast.error(`Le fichier ne doit pas depasser ${maxKb} Ko`);
       return;
     }

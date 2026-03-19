@@ -46,7 +46,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
   const divisor = data.frequence_facturation === "MENSUEL" ? 12 : data.frequence_facturation === "TRIMESTRIEL" ? 4 : 1;
   const perPeriod = data.honoraires_ht > 0 ? Math.round(ttc / divisor * 100) / 100 : 0;
 
-  const validateField = (field: string, value: any) => {
+  const validateField = (field: string, value: string | number) => {
     let error = "";
     if (field === "honoraires_ht" && (!value || value <= 0)) error = "Montant requis";
     if (field === "honoraires_ht" && value > 500000) error = "Montant anormalement eleve";
@@ -66,7 +66,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
     <div className="space-y-8">
       {/* ── Grand input montant ── */}
       <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500">
           <DollarSign className="w-5 h-5 text-blue-400" />
           <span className="text-sm font-medium">Honoraires annuels HT</span>
         </div>
@@ -110,23 +110,25 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Slider optionnel ── */}
       <div className="px-2">
+        {(() => { const sliderMax = Math.max(50000, data.honoraires_ht || 0); return (<>
         <Slider
           value={[data.honoraires_ht]}
           onValueChange={([v]) => onChange({ honoraires_ht: v })}
           min={0}
-          max={Math.max(50000, data.honoraires_ht || 0)}
+          max={sliderMax}
           step={100}
           className="w-full"
         />
         <div className="flex justify-between text-[10px] text-slate-300 dark:text-slate-600 mt-1">
           <span>0 €</span>
-          <span>50 000 €</span>
+          <span>{sliderMax.toLocaleString("fr-FR")} €</span>
         </div>
+        </>); })()}
       </div>
 
       {/* ── Taux TVA ── */}
       <div className="space-y-1.5">
-        <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Taux de TVA (%)</Label>
+        <Label className="text-slate-400 dark:text-slate-500 text-xs">Taux de TVA (%)</Label>
         <div className="flex gap-2">
           {[0, 5.5, 10, 20].map((rate) => {
             const active = data.taux_tva === rate;
@@ -193,7 +195,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 }`}
               >
                 <div className={`${active ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}>{icon}</div>
-                <p className={`text-xs font-medium ${active ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500 dark:text-slate-400"}`}>{label}</p>
+                <p className={`text-xs font-medium ${active ? "text-blue-600 dark:text-blue-400" : "text-slate-400 dark:text-slate-500"}`}>{label}</p>
               </button>
             );
           })}
@@ -204,7 +206,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
       {data.mode_paiement === "prelevement" && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 rounded-xl wizard-card">
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">IBAN</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">IBAN</Label>
             <Input
               value={formatIBAN(data.iban)}
               onChange={(e) => onChange({ iban: e.target.value.replace(/\s/g, "") })}
@@ -216,7 +218,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
             {fieldErrors.iban && <p className="text-xs text-red-400" role="alert">{fieldErrors.iban}</p>}
           </div>
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">BIC</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">BIC</Label>
             <Input
               value={data.bic}
               onChange={(e) => onChange({ bic: e.target.value.toUpperCase() })}
@@ -230,7 +232,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Echeance paiement ── */}
       <div className="space-y-1.5">
-        <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Echeance de paiement (jours)</Label>
+        <Label className="text-slate-400 dark:text-slate-500 text-xs">Echeance de paiement (jours)</Label>
         <div className="flex gap-2">
           {[15, 30, 45, 60].map((d) => {
             const active = data.echeance_jours === d;
@@ -253,7 +255,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
       {/* ── Taux horaire complémentaire ── */}
       <div className="space-y-1.5">
-        <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Taux horaire complementaire</Label>
+        <Label className="text-slate-400 dark:text-slate-500 text-xs">Taux horaire complementaire</Label>
         <div className="relative w-40">
           <Input
             inputMode="decimal"
@@ -284,7 +286,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
           {data.honoraires_succes_prevu && (
             <div className="space-y-3 ml-7">
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Conditions de declenchement</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Conditions de declenchement</Label>
                 <Input
                   value={data.honoraires_succes_conditions || ""}
                   onChange={(e) => onChange({ honoraires_succes_conditions: e.target.value })}
@@ -293,7 +295,7 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Montant ou pourcentage</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Montant ou pourcentage</Label>
                 <Input
                   value={data.honoraires_succes_montant || ""}
                   onChange={(e) => onChange({ honoraires_succes_montant: e.target.value })}

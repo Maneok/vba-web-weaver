@@ -106,7 +106,7 @@ export const MANDAT_SEPA = {
     ics: "{{cabinet_ics}}",
     adresse: "{{cabinet_adresse}}",
   },
-  rum: "RUM-{{ref_client}}-{{annee}}",
+  rum: "RUM-{{ref}}-{{annee}}",
   typePrelevement: "Récurrent" as const,
   texteAutorisation: `En signant ce formulaire de mandat, vous autorisez {{cabinet_nom}} à envoyer des instructions à votre banque pour débiter votre compte, et votre banque à débiter votre compte conformément aux instructions de {{cabinet_nom}}.
 
@@ -134,7 +134,7 @@ export const AUTORISATION_LIASSE = {
 
 AUTORISE
 
-le cabinet {{cabinet_nom}}, représenté par {{associe}}, expert-comptable inscrit au Tableau de l'Ordre des Experts-Comptables de la région Provence-Alpes-Côte d'Azur, à :
+le cabinet {{cabinet_nom}}, représenté par {{associe}}, expert-comptable inscrit au Tableau de l'Ordre des Experts-Comptables de la région {{region_oec}}, à :
 
 1. Transmettre par voie dématérialisée via la plateforme jedeclare.com (procédure EDI-TDFC) la liasse fiscale et les déclarations de résultats de la société auprès de la Direction Générale des Finances Publiques (DGFiP) ;
 
@@ -144,7 +144,7 @@ le cabinet {{cabinet_nom}}, représenté par {{associe}}, expert-comptable inscr
 
 4. Recevoir en retour les accusés de réception, les avis d'imposition et les comptes rendus de traitement correspondants.
 
-Cette autorisation est donnée pour l'exercice clos le {{fin_exercice}} et les exercices suivants, pour toute la durée de la mission d'expertise comptable, sauf révocation expresse par lettre recommandée avec accusé de réception.
+Cette autorisation est donnée pour l'exercice clos le {{exercice_fin}} et les exercices suivants, pour toute la durée de la mission d'expertise comptable, sauf révocation expresse par lettre recommandée avec accusé de réception.
 
 Le client s'engage à vérifier les déclarations avant leur transmission et à signaler au cabinet toute erreur ou anomalie dans un délai de huit (8) jours à compter de la réception des projets de déclarations.
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useNavigate, useParams } from "react-router-dom";
 import { useAppState } from "@/lib/AppContext";
@@ -71,7 +71,21 @@ const MISSION_TYPE_OPTIONS = Object.values(MISSION_TYPES).map((m) => ({
 // ─────────────────────────────────────────
 const PAGE_SIZE = 20;
 
-function LetterHistory({
+// ── Status pills config (module-level for stable reference) ──
+const STATUS_PILLS = [
+  { value: "all", label: "Tous", color: "bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-gray-300 dark:border-white/[0.08]" },
+  { value: "brouillon", label: "Brouillons", color: "bg-slate-500/10 text-slate-400 dark:text-slate-400 border-slate-500/20" },
+  { value: "envoyee", label: "Envoyees", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
+  { value: "signee", label: "Signees", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
+  { value: "resiliee", label: "Resiliees", color: "bg-red-500/10 text-red-400 border-red-500/20" },
+  { value: "archivee", label: "Archivees", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
+];
+
+// ── EUR formatter (module-level to avoid re-creating on each render) ──
+const eurFormatter = new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const formatEurCompact = (n: number) => eurFormatter.format(n);
+
+const LetterHistory = React.memo(function LetterHistory({
   letters,
   loading,
   onEdit,
@@ -218,9 +232,6 @@ function LetterHistory({
     return cat ? getCategoryColorClasses(cat) : null;
   };
 
-  const formatEurCompact = (n: number) =>
-    new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
-
   const toggleSort = (col: "date" | "client" | "status") => {
     if (sortBy === col) setSortAsc(!sortAsc);
     else { setSortBy(col); setSortAsc(false); }
@@ -256,16 +267,6 @@ function LetterHistory({
     );
   }
 
-  // Status pills config
-  const STATUS_PILLS = [
-    { value: "all", label: "Tous", color: "bg-gray-100 dark:bg-white/[0.06] text-slate-700 dark:text-slate-300 border-gray-300 dark:border-white/[0.08]" },
-    { value: "brouillon", label: "Brouillons", color: "bg-slate-500/10 text-slate-400 dark:text-slate-400 border-slate-500/20" },
-    { value: "envoyee", label: "Envoyees", color: "bg-blue-500/10 text-blue-400 border-blue-500/20" },
-    { value: "signee", label: "Signees", color: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" },
-    { value: "resiliee", label: "Resiliees", color: "bg-red-500/10 text-red-400 border-red-500/20" },
-    { value: "archivee", label: "Archivees", color: "bg-purple-500/10 text-purple-400 border-purple-500/20" },
-  ];
-
   return (
     <div className="space-y-4">
       {/* Compact alertes bandeau */}
@@ -290,6 +291,7 @@ function LetterHistory({
             <button
               key={pill.value}
               onClick={() => setFilterStatut(pill.value)}
+              aria-pressed={filterStatut === pill.value}
               className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs border transition-all ${
                 isActive
                   ? `${pill.color} ring-1 ring-white/10`
@@ -313,6 +315,7 @@ function LetterHistory({
             placeholder="Rechercher par client ou n° LM..."
             value={searchQ}
             onChange={(e) => setSearchQ(e.target.value)}
+            aria-label="Rechercher par client ou numero de lettre"
             className="pl-9 h-9 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white text-xs"
           />
         </div>
@@ -480,7 +483,7 @@ function LetterHistory({
                   {avenantCount} av.
                 </Badge>
               )}
-              {letter.honoraires_ht > 0 && (
+              {(letter.honoraires_ht ?? 0) > 0 && (
                 <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono">{formatEurCompact(letter.honoraires_ht)}</span>
               )}
               <div className="flex-1" />
@@ -559,19 +562,22 @@ function LetterHistory({
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </Button>
-            {Array.from({ length: totalPages }, (_, i) => (
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+              const start = Math.max(0, Math.min(page - 2, totalPages - 5));
+              return start + i;
+            }).filter(p => p < totalPages).map(p => (
               <button
-                key={i}
-                onClick={() => setPage(i)}
+                key={p}
+                onClick={() => setPage(p)}
                 className={`w-7 h-7 rounded text-xs transition-colors ${
-                  i === page
+                  p === page
                     ? "bg-blue-500/20 text-blue-300"
                     : "text-slate-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-white/[0.04]"
                 }`}
               >
-                {i + 1}
+                {p + 1}
               </button>
-            )).slice(Math.max(0, page - 2), page + 3)}
+            ))}
             <Button
               size="sm"
               variant="outline"
@@ -628,8 +634,9 @@ function LetterHistory({
           ) : (
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400 dark:text-slate-400">Email du client *</Label>
+                <Label htmlFor="sign-email" className="text-xs text-slate-400 dark:text-slate-400">Email du client *</Label>
                 <Input
+                  id="sign-email"
                   type="email"
                   value={signEmail}
                   onChange={(e) => setSignEmail(e.target.value)}
@@ -638,8 +645,9 @@ function LetterHistory({
                 />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400 dark:text-slate-400">Nom du signataire</Label>
+                <Label htmlFor="sign-client-nom" className="text-xs text-slate-400 dark:text-slate-400">Nom du signataire</Label>
                 <Input
+                  id="sign-client-nom"
                   value={signClientNom}
                   onChange={(e) => setSignClientNom(e.target.value)}
                   placeholder="Nom du client"
@@ -665,12 +673,12 @@ function LetterHistory({
       </Dialog>
     </div>
   );
-}
+});
 
 // ─────────────────────────────────────────
 // F) Renewal alerts
 // ─────────────────────────────────────────
-function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
+const RenewalAlerts = React.memo(function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
   const expiringSoon = useMemo(() => {
     const now = new Date();
     const in60Days = new Date(); in60Days.setDate(in60Days.getDate() + 60);
@@ -706,6 +714,21 @@ function RenewalAlerts({ letters }: { letters: SavedLetter[] }) {
       </div>
     </div>
   );
+});
+
+// ─────────────────────────────────────────
+// Elapsed time mini-component
+// ─────────────────────────────────────────
+function ElapsedTimer({ startedAt }: { startedAt: string }) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    if (!startedAt) return;
+    const id = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(id);
+  }, [startedAt]);
+  if (!startedAt) return null;
+  const elapsed = Math.round((now - new Date(startedAt).getTime()) / 1000);
+  return <>{formatDuration(elapsed)}</>;
 }
 
 // ─────────────────────────────────────────
@@ -730,7 +753,6 @@ export default function LettreMissionPage() {
   // ── Wizard state (all hooks must be declared before any early return) ──
   const [step, setStep] = useState(0);
   const [data, setData] = useState<LMWizardData>({ ...INITIAL_LM_WIZARD_DATA });
-  const [stepDirection, setStepDirection] = useState<"left" | "right">("right");
   const [fieldsVisible, setFieldsVisible] = useState(true);
   const prevStepRef = useRef(0);
   const [lmId, setLmId] = useState<string | null>(null);
@@ -779,6 +801,7 @@ export default function LettreMissionPage() {
     if (!data.client_id) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
+      e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
@@ -791,7 +814,6 @@ export default function LettreMissionPage() {
 
   // ── Step animation + scroll ──
   useEffect(() => {
-    setStepDirection(step > prevStepRef.current ? "right" : "left");
     prevStepRef.current = step;
     setFieldsVisible(false);
     const t = setTimeout(() => setFieldsVisible(true), 50);
@@ -856,10 +878,14 @@ export default function LettreMissionPage() {
 
   const loadSupabaseDraft = async (cancelled: boolean) => {
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData?.session?.user?.id;
+      if (!userId) return;
       const { data: drafts } = await supabase
         .from("lettres_mission")
         .select("id, wizard_data, wizard_step, created_at")
         .eq("status", "brouillon")
+        .eq("user_id", userId)
         .order("updated_at", { ascending: false })
         .limit(1);
       if (cancelled) return;
@@ -887,7 +913,7 @@ export default function LettreMissionPage() {
   // ── TVA auto (associations) ──
   useEffect(() => {
     if (data.forme_juridique === "ASSOCIATION" || data.forme_juridique === "ASSO") {
-      setData((prev) => ({ ...prev, taux_tva: 0 }));
+      setData((prev) => prev.taux_tva === 0 ? prev : { ...prev, taux_tva: 0 });
     }
   }, [data.forme_juridique]);
 
@@ -975,7 +1001,7 @@ export default function LettreMissionPage() {
     try {
       const { data: rows } = await supabase
         .from("lettres_mission")
-        .select("*")
+        .select("id, numero, client_ref, raison_sociale, type_mission, status, created_at, updated_at, wizard_data")
         .order("updated_at", { ascending: false });
       if (rows) {
         setSavedLetters(
@@ -1107,6 +1133,7 @@ export default function LettreMissionPage() {
   // ── H) Compute duration on final save ──
   const handleSave = async () => {
    if (saving) return;
+   clearTimeout(saveTimer.current);
    setSaving(true);
    try {
     // Compute duration
@@ -1129,8 +1156,8 @@ export default function LettreMissionPage() {
       wizard_step: step,
       numero: sanitized.numero_lettre || incrementCounter(),
     };
-    if (lmId) {
-      const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmId);
+    if (lmIdRef.current) {
+      const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmIdRef.current);
       if (error) throw error;
     } else {
       if (!profile?.cabinet_id) {
@@ -1146,7 +1173,7 @@ export default function LettreMissionPage() {
     logAudit({
       action: "LETTRE_MISSION_SAVE",
       table_name: "lettres_mission",
-      record_id: lmId || undefined,
+      record_id: lmIdRef.current || undefined,
       new_data: { client_ref: sanitized.client_ref, type: sanitized.type_mission, status: effectiveStatus, duration_seconds: duration },
     }).catch((e) => logger.warn("LM", "Audit log failed:", e));
     sessionStorage.removeItem("lm_wizard_draft");
@@ -1188,7 +1215,7 @@ export default function LettreMissionPage() {
       ...INITIAL_LM_WIZARD_DATA,
       ...letter.wizard_data,
       statut: "brouillon",
-      numero_lettre: "",
+      numero_lettre: incrementCounter(),
       signature_expert: "",
       signature_client: "",
       date_signature: "",
@@ -1205,6 +1232,7 @@ export default function LettreMissionPage() {
 
   // G) Archive
   const handleArchive = async (letter: SavedLetter) => {
+    if (!window.confirm("Archiver cette lettre de mission ?")) return;
     try {
       const { error } = await supabase.from("lettres_mission").update({ status: "archivee", updated_at: new Date().toISOString() }).eq("id", letter.id);
       if (error) throw error;
@@ -1224,7 +1252,7 @@ export default function LettreMissionPage() {
       const wd = letter.wizard_data;
       const client = buildClientFromWizardData(wd as LMWizardData);
       await renderLettreMissionPdf({
-        numero: letter.numero, date: new Date().toLocaleDateString("fr-FR"),
+        numero: letter.numero, date: new Date(letter.created_at).toLocaleDateString("fr-FR"),
         client,
         cabinet: cabinetInfo,
         options: {
@@ -1255,23 +1283,12 @@ export default function LettreMissionPage() {
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       if (activeTab !== "wizard") return;
-      if (e.key === "Escape" && step > 0) { e.preventDefault(); setStep(step - 1); }
+      if (e.key === "Escape" && step > 0) { if (document.querySelector('[data-state="open"]')) return; e.preventDefault(); setStep(step - 1); }
       if (e.key === "Enter" && e.ctrlKey && step < LM_TOTAL_STEPS - 1) { e.preventDefault(); handleNext(); }
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [step, activeTab, handleNext]);
-
-  // H) Elapsed time display (live timer)
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (!data.started_at) return;
-    const id = setInterval(() => setNow(Date.now()), 60000);
-    return () => clearInterval(id);
-  }, [data.started_at]);
-  const elapsed = data.started_at
-    ? Math.round((now - new Date(data.started_at).getTime()) / 1000)
-    : 0;
 
   // Step render
   const renderStep = () => {
@@ -1282,7 +1299,7 @@ export default function LettreMissionPage() {
       case 3: return <LMStep4Modele data={data} onChange={handleChange} />;
       case 4: return <LMStep4Honoraires data={data} onChange={handleChange} />;
       case 5: return <LMStep6Clauses data={data} onChange={handleChange} />;
-      case 6: return <LMStep5Preview data={data} onChange={handleChange} onGoToStep={goToStep} isMobile={isMobile} />;
+      case 6: return <LMStep5Preview data={data} onGoToStep={goToStep} isMobile={isMobile} />;
       case 7: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} saving={saving} />;
       default: return null;
     }
@@ -1373,9 +1390,9 @@ export default function LettreMissionPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">{LM_STEP_TITLES[step]}</h2>
             <div className="flex items-center gap-3">
-              {elapsed > 0 && (
+              {data.started_at && (
                 <span className="text-[10px] text-slate-600 flex items-center gap-1">
-                  <Clock className="w-3 h-3" /> {formatDuration(elapsed)}
+                  <Clock className="w-3 h-3" /> <ElapsedTimer startedAt={data.started_at} />
                 </span>
               )}
               {lastSaved && (

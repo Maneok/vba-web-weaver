@@ -108,8 +108,8 @@ export default function DocxImportDialog({
   // ── Step 1: File handling ──
 
   const processFile = async (file: File) => {
-    if (!file.name.endsWith(".docx") && !file.name.endsWith(".doc")) {
-      toast.error("Seuls les fichiers .docx sont acceptes.");
+    if (!file.name.endsWith(".docx")) {
+      toast.error("Seuls les fichiers .docx sont acceptes. Les fichiers .doc ne sont pas supportes.");
       return;
     }
     setLoading(true);
@@ -130,7 +130,7 @@ export default function DocxImportDialog({
       setSections(result.sections);
       setCgvContent(result.detectedCgv);
       // OPT-33: Pre-fill name from filename
-      setModeleName(file.name.replace(/\.(docx|doc)$/i, ""));
+      setModeleName(file.name.replace(/\.docx$/i, ""));
       setStep("mapping");
     } catch (err) {
       toast.error("Erreur lors du parsing du fichier DOCX.");
@@ -208,7 +208,7 @@ export default function DocxImportDialog({
     try {
       const modele = await createModele({
         cabinet_id: cabinetId,
-        nom: modeleName || fileName.replace(/\.(docx|doc)$/i, ""),
+        nom: modeleName || fileName.replace(/\.docx$/i, ""),
         description: `Importe depuis ${fileName}`,
         mission_type: missionType,
         sections: sections.map((s, i) => ({ ...s, ordre: i + 1 })),
@@ -295,11 +295,11 @@ export default function DocxImportDialog({
                   Glissez votre DOCX ici ou cliquez pour selectionner
                 </p>
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-                  Formats acceptes : .docx, .doc
+                  Format accepte : .docx
                 </p>
                 <input
                   type="file"
-                  accept=".docx,.doc"
+                  accept=".docx"
                   className="hidden"
                   onChange={handleFileInput}
                 />

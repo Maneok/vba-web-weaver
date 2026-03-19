@@ -93,17 +93,17 @@ export function validateStep4(data: Record<string, unknown>): ValidationError[] 
 }
 
 /** Step 5 — Clauses (always valid) */
-export function validateStep5(): ValidationError[] {
+export function validateStep5(_data?: Record<string, unknown>): ValidationError[] {
   return [];
 }
 
 /** Step 6 — Preview (always valid) */
-export function validateStep6(): ValidationError[] {
+export function validateStep6(_data?: Record<string, unknown>): ValidationError[] {
   return [];
 }
 
 /** Step 7 — Export (always valid) */
-export function validateStep7(): ValidationError[] {
+export function validateStep7(_data?: Record<string, unknown>): ValidationError[] {
   return [];
 }
 

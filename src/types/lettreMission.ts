@@ -94,6 +94,7 @@ export interface LettreMissionOptions {
   outilComptable: string;
   controleFiscalOptions: string[];
   missionTypeId?: string;
+  taux_tva?: number;
 }
 
 export interface LettreMissionBloc {
@@ -110,7 +111,7 @@ export interface LettreMissionMetadata {
   genereLe: string;
   genereParUser: string;
   version: number;
-  statut: "brouillon" | "envoye" | "signe" | "archive";
+  statut: "brouillon" | "en_validation" | "envoyee" | "signee" | "archivee" | "resiliee";
   signatureCabinet?: string;
   signatureClient?: string;
   dateSignature?: string;
@@ -145,8 +146,8 @@ export const DEFAULT_LM_OPTIONS: LettreMissionOptions = {
   honorairesJuridique: 0,
   honorairesControleFiscal: 0,
   fraisConstitution: 0,
-  exerciceDebut: "01/01/2026",
-  exerciceFin: "31/12/2026",
+  exerciceDebut: `01/01/${new Date().getFullYear()}`,
+  exerciceFin: `31/12/${new Date().getFullYear()}`,
   regimeFiscal: "IS — Impôt sur les Sociétés",
   tvaRegime: "Réel normal",
   cac: false,

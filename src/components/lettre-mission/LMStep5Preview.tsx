@@ -14,13 +14,12 @@ import { Edit3, Maximize2, X, Paperclip, FileText, BookOpen, CheckCircle2, XCirc
 
 interface Props {
   data: LMWizardData;
-  onChange: (updates: Partial<LMWizardData>) => void;
   onGoToStep: (step: number) => void;
   isMobile: boolean;
 }
 
 
-export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }: Props) {
+export default function LMStep5Preview({ data, onGoToStep, isMobile }: Props) {
   const { profile } = useAuth();
   const [fullscreen, setFullscreen] = useState(false);
 
@@ -89,7 +88,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
       <div className="fixed inset-0 z-[100] bg-background overflow-auto overscroll-contain animate-step-in">
         <div className="sticky top-0 z-10 flex items-center justify-between p-3 bg-background/95 backdrop-blur-lg border-b border-gray-200 dark:border-white/[0.06]">
           <p className="text-sm font-medium text-slate-900 dark:text-white">{numero}</p>
-          <Button variant="ghost" size="sm" onClick={() => setFullscreen(false)} className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
+          <Button variant="ghost" size="sm" onClick={() => setFullscreen(false)} className="text-slate-400 dark:text-slate-500">
             <X className="w-4 h-4" />
           </Button>
         </div>
@@ -163,7 +162,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
         {isMobile && (
           <button
             onClick={() => setFullscreen(true)}
-            className="sticky bottom-4 float-right mr-4 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600/90 backdrop-blur text-slate-900 dark:text-white text-xs font-medium shadow-lg z-10"
+            className="sticky bottom-4 float-right mr-4 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-blue-600/90 backdrop-blur text-white text-xs font-medium shadow-lg z-10"
           >
             <Maximize2 className="w-3.5 h-3.5" /> Plein ecran
           </button>
@@ -182,7 +181,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
             {annexes.map((id) => (
               <div key={id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50/50 dark:bg-white/[0.02] border border-gray-150 dark:border-white/[0.05]">
                 <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{ANNEXE_LABELS[id] || id}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{ANNEXE_LABELS[id] || id}</span>
               </div>
             ))}
           </div>
@@ -191,7 +190,7 @@ export default function LMStep5Preview({ data, onChange, onGoToStep, isMobile }:
 
       {/* CTA */}
       <div className="text-center space-y-2 pt-2">
-        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">Tout est correct ?</p>
+        <p className="text-sm text-slate-400 dark:text-slate-500">Tout est correct ?</p>
       </div>
     </div>
   );

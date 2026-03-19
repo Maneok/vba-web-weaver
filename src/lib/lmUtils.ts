@@ -38,7 +38,7 @@ export function buildClientFromWizardData(data: LMWizardData): Client {
     bic: data.bic,
     etat: "EN COURS" as EtatDossier,
     comptable: "",
-    mission: "TENUE COMPTABLE" as MissionType,
+    mission: (data.type_mission || "TENUE COMPTABLE") as MissionType,
     domaine: "",
     effectif: "",
     dateCreation: "",

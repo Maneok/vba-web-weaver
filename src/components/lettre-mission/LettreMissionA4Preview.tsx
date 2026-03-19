@@ -58,6 +58,7 @@ interface Props {
   customWatermark?: string;
   colorTheme?: ColorTheme;
   numeroLettre?: string;
+  tauxTva?: number;
 }
 
 const REPARTITION_ROWS = [
@@ -108,6 +109,7 @@ export default function LettreMissionA4Preview({
   customWatermark,
   colorTheme = "navy",
   numeroLettre,
+  tauxTva = 20,
 }: Props) {
   const theme = THEME_COLORS[colorTheme] || THEME_COLORS.navy;
 
@@ -179,8 +181,9 @@ export default function LettreMissionA4Preview({
 
   const remiseAmount = remise && remise > 0 ? Math.round(totalHTBeforeRemise * (remise / 100) * 100) / 100 : 0;
   const totalHT = totalHTBeforeRemise - remiseAmount;
-  const totalTVA = Math.round(totalHT * 0.20 * 100) / 100;
-  const totalTTC = Math.round(totalHT * 1.20 * 100) / 100;
+  const tvaRate = tauxTva / 100;
+  const totalTVA = Math.round(totalHT * tvaRate * 100) / 100;
+  const totalTTC = Math.round(totalHT * (1 + tvaRate) * 100) / 100;
   const freqLabel = honoraires.frequence === "MENSUEL" ? "mensuel" : honoraires.frequence === "TRIMESTRIEL" ? "trimestriel" : "annuel";
   const divisor = honoraires.frequence === "MENSUEL" ? 12 : honoraires.frequence === "TRIMESTRIEL" ? 4 : 1;
   // Fix #1: use totalHT instead of honoraires.comptable
@@ -347,7 +350,7 @@ export default function LettreMissionA4Preview({
                       <tr style={{ background: headerBg, color: "#fff" }}>
                         <th style={{ padding: "8px 12px", textAlign: "left", borderRadius: "4px 0 0 0" }}>D{"\u00E9"}signation</th>
                         <th style={{ padding: "8px 12px", textAlign: "right" }}>Montant HT</th>
-                        <th style={{ padding: "8px 12px", textAlign: "right" }}>TVA 20%</th>
+                        <th style={{ padding: "8px 12px", textAlign: "right" }}>TVA {tauxTva}%</th>
                         <th style={{ padding: "8px 12px", textAlign: "right", borderRadius: "0 4px 0 0" }}>Montant TTC</th>
                       </tr>
                     </thead>
@@ -356,8 +359,8 @@ export default function LettreMissionA4Preview({
                         <tr key={i} style={{ background: i % 2 === 0 ? rowEven : rowOdd }}>
                           <td style={{ padding: "6px 12px" }}>{row.label}</td>
                           <td style={{ padding: "6px 12px", textAlign: "right" }}>{fmt(row.ht)}</td>
-                          <td style={{ padding: "6px 12px", textAlign: "right" }}>{fmt(Math.round(row.ht * 0.20 * 100) / 100)}</td>
-                          <td style={{ padding: "6px 12px", textAlign: "right" }}>{fmt(Math.round(row.ht * 1.20 * 100) / 100)}</td>
+                          <td style={{ padding: "6px 12px", textAlign: "right" }}>{fmt(Math.round(row.ht * tvaRate * 100) / 100)}</td>
+                          <td style={{ padding: "6px 12px", textAlign: "right" }}>{fmt(Math.round(row.ht * (1 + tvaRate) * 100) / 100)}</td>
                         </tr>
                       ))}
                       {/* Remise row (#18) */}
@@ -365,8 +368,8 @@ export default function LettreMissionA4Preview({
                         <tr style={{ background: "#fef9e7", color: "#92400e" }}>
                           <td style={{ padding: "6px 12px", fontStyle: "italic" }}>Remise ({remise}%)</td>
                           <td style={{ padding: "6px 12px", textAlign: "right" }}>{"\u2212"}{fmt(remiseAmount)}</td>
-                          <td style={{ padding: "6px 12px", textAlign: "right" }}>{"\u2212"}{fmt(Math.round(remiseAmount * 0.20 * 100) / 100)}</td>
-                          <td style={{ padding: "6px 12px", textAlign: "right" }}>{"\u2212"}{fmt(Math.round(remiseAmount * 1.20 * 100) / 100)}</td>
+                          <td style={{ padding: "6px 12px", textAlign: "right" }}>{"\u2212"}{fmt(Math.round(remiseAmount * tvaRate * 100) / 100)}</td>
+                          <td style={{ padding: "6px 12px", textAlign: "right" }}>{"\u2212"}{fmt(Math.round(remiseAmount * (1 + tvaRate) * 100) / 100)}</td>
                         </tr>
                       )}
                       <tr style={{ background: "#e0e5f0", fontWeight: 700 }}>

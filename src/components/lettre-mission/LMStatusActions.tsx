@@ -52,6 +52,12 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
   const [tokens, setTokens] = useState<SignatureToken[]>([]);
   const [loadingTokens, setLoadingTokens] = useState(false);
 
+  // Sync email/name when instance changes
+  useEffect(() => {
+    setEmail(instance.wizard_data?.email || "");
+    setClientNom(instance.wizard_data?.dirigeant || instance.raison_sociale || "");
+  }, [instance.id]);
+
   const currentStatus = (instance.status || "brouillon") as LMStatus;
   const allowed = STATUS_TRANSITIONS[currentStatus] || [];
 
@@ -210,7 +216,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
               variant="outline"
               onClick={() => doTransition("brouillon")}
               disabled={loading}
-              className="gap-1.5 border-gray-300 dark:border-white/[0.08] text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs"
+              className="gap-1.5 border-gray-300 dark:border-white/[0.08] text-slate-400 dark:text-slate-500 text-xs"
             >
               <Undo2 className="w-3 h-3" /> Repasser en brouillon
             </Button>
@@ -287,7 +293,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
           <div className="p-2.5 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] space-y-2">
             <div className="flex items-center gap-2 text-xs">
               <Link2 className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
-              <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">Lien de signature</span>
+              <span className="text-slate-400 dark:text-slate-500">Lien de signature</span>
               {tokenStatus === "en_attente" && (
                 <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1">
                   <Clock className="w-2.5 h-2.5" /> En attente
@@ -480,7 +486,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
               />
             </div>
             <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
-              <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+              <p className="text-xs text-slate-400 dark:text-slate-500">
                 Cette action marquera la lettre comme signee et declenchera le suivi (reconduction tacite, revue annuelle).
               </p>
             </div>
@@ -507,7 +513,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
             </DialogDescription>
           </DialogHeader>
           <div className="p-3 rounded-lg bg-purple-500/5 border border-purple-500/15">
-            <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+            <p className="text-xs text-slate-400 dark:text-slate-500">
               La lettre archivee restera consultable dans l'historique mais ne pourra plus etre modifiee ni resilier.
             </p>
           </div>
@@ -564,7 +570,7 @@ export default function LMStatusActions({ instance, onStatusChange, onCreateAven
                   onCheckedChange={(v) => setConfirmResiliation(!!v)}
                   className="mt-0.5"
                 />
-                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-slate-500">
                   Je confirme vouloir resilier cette lettre de mission. Cette action est irreversible et sera tracee dans l'audit trail.
                 </span>
               </label>

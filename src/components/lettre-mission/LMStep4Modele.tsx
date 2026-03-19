@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
@@ -55,7 +55,10 @@ export default function LMStep4Modele({ data, onChange }: Props) {
   }, [profile?.cabinet_id]);
 
   // Auto pre-fill associe and referent LCB on first render
+  const autoFillDone = useRef(false);
   useEffect(() => {
+    if (autoFillDone.current) return;
+    autoFillDone.current = true;
     const updates: Partial<LMWizardData> = {};
     if (!data.associe_signataire && collaborateurs.length > 0) {
       const admin = collaborateurs.find((c) => c.fonction?.toLowerCase().includes("associ"));
@@ -65,7 +68,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
       updates.referent_lcb = referentLcb.nom;
     }
     if (Object.keys(updates).length > 0) onChange(updates);
-  }, []);
+  }, [collaborateurs]);
 
   const validateField = (field: string, value: string) => {
     let error = "";
@@ -173,7 +176,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
 
         {data.tacite_reconduction && (
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Preavis (mois)</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Preavis (mois)</Label>
             <Select value={String(data.preavis_mois)} onValueChange={(v) => onChange({ preavis_mois: Number(v) })}>
               <SelectTrigger className={`${inputCls} w-32`}><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -187,7 +190,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         )}
 
         <div className="space-y-1.5">
-          <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Date de debut</Label>
+          <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de debut</Label>
           <Input
             type="date"
             lang="fr"
@@ -199,7 +202,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Date de cloture exercice</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de cloture exercice</Label>
             <Input
               type="date"
               lang="fr"
@@ -216,7 +219,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Intervenants</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Associe signataire *</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Associe signataire *</Label>
             <Select value={data.associe_signataire} onValueChange={(v) => onChange({ associe_signataire: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
               <SelectContent>
@@ -225,7 +228,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Chef de mission</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Chef de mission</Label>
             <Select value={data.chef_mission} onValueChange={(v) => onChange({ chef_mission: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
               <SelectContent>
@@ -234,7 +237,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Validateur (co-edition)</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Validateur (co-edition)</Label>
             <Select value={data.validateur} onValueChange={(v) => onChange({ validateur: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Aucun validateur" /></SelectTrigger>
               <SelectContent>
@@ -247,7 +250,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         {data.referent_lcb && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
             <Badge className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-[9px]">LCB</Badge>
-            <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Referent : {data.referent_lcb}</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">Referent : {data.referent_lcb}</span>
           </div>
         )}
       </div>

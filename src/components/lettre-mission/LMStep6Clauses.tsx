@@ -77,7 +77,7 @@ export default function LMStep6Clauses({ data, onChange }: Props) {
             <span className="text-sm text-slate-800 dark:text-slate-200">Conciliation CROEC</span>
             <p className="text-[10px] text-slate-400 dark:text-slate-500">Clause de conciliation aupres du Conseil Regional</p>
           </div>
-          <Switch checked={true} disabled />
+          <Switch checked={data.clause_conciliation_croec ?? true} onCheckedChange={(v) => onChange({ clause_conciliation_croec: v })} />
         </div>
       </div>
 

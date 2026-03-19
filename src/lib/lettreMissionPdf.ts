@@ -713,7 +713,7 @@ class LMPdfBuilder {
     // TTC
     this.setSmall();
     this.doc.text(
-      `Total TTC (TVA 20%) : ${formatMontant(grandTotal * 1.2)}`,
+      `Total TTC (TVA ${((this.options as any).taux_tva ?? 20)}%) : ${formatMontant(grandTotal * (1 + ((this.options as any).taux_tva ?? 20) / 100))}`,
       MARGIN_R - 3,
       this.y,
       { align: "right" }
@@ -1187,7 +1187,11 @@ class LMPdfBuilder {
     this.drawPage6();
     this.drawPage7();
     this.drawPage8();
-    this.drawPage9();
+    // Only render SEPA page if payment mode is prelevement
+    const modePaiement = (this.options as any).mode_paiement ?? (this.options as any).modePaiement;
+    if (!modePaiement || modePaiement === "prelevement") {
+      this.drawPage9();
+    }
     this.drawPage10();
     this.drawConditionsGenerales();
     this.addFooters();

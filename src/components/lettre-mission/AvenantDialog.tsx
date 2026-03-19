@@ -2,7 +2,7 @@
 // Dialog de creation d'avenant — 4 etapes
 // OPT 43-50: stepper, changement responsable, send for signature, step 4
 // ──────────────────────────────────────────────
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -172,18 +172,18 @@ export default function AvenantDialog({
   }, [instance]);
 
   // Pre-fill ancien responsable
-  useState(() => {
+  useEffect(() => {
     if (responsableActuel && !ancienResponsable) {
       setAncienResponsable(responsableActuel);
     }
-  });
+  }, [responsableActuel]);
 
   // Pre-fill signature info from wizard_data
-  useState(() => {
+  useEffect(() => {
     const wd = (instance.wizard_data ?? {}) as Record<string, any>;
     if (wd.email_client && !signatureEmail) setSignatureEmail(String(wd.email_client));
     if (wd.dirigeant && !signatureNom) setSignatureNom(String(wd.dirigeant));
-  });
+  }, [instance.wizard_data]);
 
   const toggleType = (type: ModificationType) => {
     setSelectedTypes((prev) =>
@@ -425,7 +425,7 @@ export default function AvenantDialog({
                 <h3 className="text-sm font-semibold">Modification des honoraires</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Montant actuel (EUR HT)</Label>
+                    <Label className="text-xs text-slate-400 dark:text-slate-500">Montant actuel (EUR HT)</Label>
                     <Input
                       value={honorairesActuels}
                       readOnly
@@ -433,7 +433,7 @@ export default function AvenantDialog({
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nouveau montant (EUR HT)</Label>
+                    <Label className="text-xs text-slate-400 dark:text-slate-500">Nouveau montant (EUR HT)</Label>
                     <Input
                       type="number"
                       placeholder="Ex: 12000"
@@ -443,7 +443,7 @@ export default function AvenantDialog({
                     />
                   </div>
                 </div>
-                {nouveauHonoraires && Number(nouveauHonoraires) > 0 && (
+                {nouveauHonoraires && Number(nouveauHonoraires) > 0 && Number(honorairesActuels) > 0 && (
                   <p className="text-[10px] text-slate-400 dark:text-slate-500">
                     Variation : {((Number(nouveauHonoraires) - Number(honorairesActuels)) / Number(honorairesActuels) * 100).toFixed(1)}%
                   </p>
@@ -515,7 +515,7 @@ export default function AvenantDialog({
                 </h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Responsable actuel</Label>
+                    <Label className="text-xs text-slate-400 dark:text-slate-500">Responsable actuel</Label>
                     <Input
                       value={ancienResponsable || responsableActuel}
                       onChange={(e) => setAncienResponsable(e.target.value)}
@@ -523,7 +523,7 @@ export default function AvenantDialog({
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nouveau responsable</Label>
+                    <Label className="text-xs text-slate-400 dark:text-slate-500">Nouveau responsable</Label>
                     <Input
                       placeholder="Nom du nouveau responsable"
                       value={nouveauResponsable}
@@ -632,7 +632,7 @@ export default function AvenantDialog({
               <Check className="w-5 h-5 text-emerald-400" />
               <div>
                 <p className="text-sm font-medium text-emerald-300">Avenant sauvegarde</p>
-                <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                <p className="text-[11px] text-slate-400 dark:text-slate-500">
                   {savedAvenant?.numero} — Statut : brouillon
                 </p>
               </div>
@@ -649,7 +649,7 @@ export default function AvenantDialog({
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Nom du signataire</Label>
+                  <Label className="text-xs text-slate-400 dark:text-slate-500">Nom du signataire</Label>
                   <Input
                     placeholder="Jean DUPONT"
                     value={signatureNom}
@@ -658,7 +658,7 @@ export default function AvenantDialog({
                   />
                 </div>
                 <div>
-                  <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Email du signataire</Label>
+                  <Label className="text-xs text-slate-400 dark:text-slate-500">Email du signataire</Label>
                   <Input
                     type="email"
                     placeholder="client@example.com"

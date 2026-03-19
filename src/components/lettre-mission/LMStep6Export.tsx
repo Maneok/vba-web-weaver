@@ -154,7 +154,6 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
   }), [profile?.full_name, profile?.email]);
 
   // E) Compute annexes
-  const annexes = useMemo(() => computeAnnexes(data), [data]);
   const prevAnnexesRef = useRef<string>("");
   useEffect(() => {
     const computed = computeAnnexes(data);
@@ -164,6 +163,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
       onChange({ annexes: computed });
     }
   }, [data.missions_selected, data.type_mission, data.mission_type_id, data.clause_travail_dissimule]);
+
+  const annexes = data.annexes || [];
 
   const withLock = useCallback(async (key: string, fn: () => Promise<void>) => {
     if (lockRef.current) return;
@@ -216,7 +217,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
       client,
       cabinet: cabinetInfo,
       options: {
-        genre: "M" as const,
+        genre: (data.genre || "M") as const,
         missionSociale: data.missions_selected.some((m) => m.section_id === "social" && m.selected),
         missionJuridique: data.missions_selected.some((m) => m.section_id === "juridique" && m.selected),
         missionControleFiscal: data.missions_selected.some((m) => m.section_id === "fiscal" && m.selected),
@@ -323,7 +324,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         <div className="w-16 h-16 rounded-full bg-gradient-to-br from-emerald-50 to-emerald-100 dark:from-emerald-500/15 dark:to-emerald-500/10 flex items-center justify-center animate-bounce-once">
           <CheckCircle2 className="w-8 h-8 text-emerald-400" />
         </div>
-        <p className="text-sm text-slate-400 dark:text-slate-500 dark:text-slate-400">
+        <p className="text-sm text-slate-400 dark:text-slate-500">
           <span className="text-slate-900 dark:text-white font-medium">{data.raison_sociale}</span> · {data.type_mission}
         </p>
       </div>
@@ -365,7 +366,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
       {showEmail && (
         <div className="flex gap-2 items-end">
           <div className="flex-1 space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Adresse email</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Adresse email</Label>
             <Input
               type="email"
               inputMode="email"
@@ -392,7 +393,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
             {annexes.map((id) => (
               <div key={id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
                 <FileText className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{ANNEXE_LABELS[id] || id}</span>
+                <span className="text-xs text-slate-400 dark:text-slate-500">{ANNEXE_LABELS[id] || id}</span>
               </div>
             ))}
           </div>
@@ -418,7 +419,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
           <div className="px-4 pb-4 space-y-4 border-t border-gray-100 dark:border-white/[0.04]">
             {/* Canvas signature */}
             <div className="pt-3">
-              <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs mb-2 block">Dessiner la signature</Label>
+              <Label className="text-slate-400 dark:text-slate-500 text-xs mb-2 block">Dessiner la signature</Label>
               <SignatureCanvas
                 value={data.signature_expert}
                 onSave={(dataUrl) => onChange({ signature_expert: dataUrl })}
@@ -427,10 +428,10 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
 
             {/* Or upload image */}
             <div className="space-y-1.5">
-              <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Ou charger une image</Label>
+              <Label className="text-slate-400 dark:text-slate-500 text-xs">Ou charger une image</Label>
               <label className="flex items-center gap-2 p-3 rounded-lg border border-dashed border-gray-300 dark:border-white/[0.1] bg-white dark:bg-white/[0.02] cursor-pointer hover:border-white/[0.15] transition-colors">
                 <Upload className="w-4 h-4 text-slate-400 dark:text-slate-500" />
-                <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">
+                <span className="text-xs text-slate-400 dark:text-slate-500">
                   {data.signature_expert ? "Signature chargee" : "Cliquez pour charger"}
                 </span>
                 <input type="file" accept="image/*" onChange={handleSignatureUpload} className="hidden" />
@@ -439,7 +440,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
 
             {/* Date */}
             <div className="space-y-1.5">
-              <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Date de signature</Label>
+              <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de signature</Label>
               <Input
                 type="date"
                 lang="fr"
@@ -475,7 +476,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         <Button onClick={handleSave} disabled={saving} className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 shadow-md shadow-blue-500/20 h-11 gap-2 disabled:opacity-50" aria-label="Sauvegarder la lettre de mission">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />} Sauvegarder
         </Button>
-        <Button variant="outline" onClick={onReset} className="gap-2 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:text-white" aria-label="Commencer une nouvelle lettre de mission">
+        <Button variant="outline" onClick={onReset} className="gap-2 border-gray-200 dark:border-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:text-white" aria-label="Commencer une nouvelle lettre de mission">
           <RotateCcw className="w-4 h-4" /> Nouvelle lettre
         </Button>
       </div>

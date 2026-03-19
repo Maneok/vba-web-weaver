@@ -17,7 +17,7 @@ export default function AutorisationLiasse({
     .replace(/\{\{siren\}\}/g, client?.siren ?? "")
     .replace(/\{\{adresse\}\}/g, client?.adresse ?? "")
     .replace(/\{\{cp\}\}/g, client?.cp ?? "")
-    .replace(/\{\{cabinet_nom\}\}/g, "COMPTADEC")
+    .replace(/\{\{cabinet_nom\}\}/g, "le cabinet")
     .replace(/\{\{associe\}\}/g, associe ?? "")
     .replace(/\{\{fin_exercice\}\}/g, "31/12/" + new Date().getFullYear())
     .replace(/\{\{ville\}\}/g, client?.ville ?? "")
@@ -25,7 +25,7 @@ export default function AutorisationLiasse({
 
   return (
     <div className="border border-slate-600 rounded-lg">
-      <div className="bg-gray-800 text-slate-900 dark:text-white px-6 py-3 rounded-t-lg">
+      <div className="bg-gray-800 text-white px-6 py-3 rounded-t-lg">
         <h3 className="text-sm font-semibold">
           {AUTORISATION_LIASSE?.titre ?? "Autorisation"}
         </h3>

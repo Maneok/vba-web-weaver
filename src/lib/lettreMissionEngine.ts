@@ -475,6 +475,8 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
   const mtConfig = getMissionTypeConfig(missionTypeId);
 
   const vars: Record<string, string> = {
+    // Lettre
+    numero_lettre: String(d.numero_lettre ?? ""),
     // Client
     raison_sociale: String(d.raison_sociale ?? ""),
     forme_juridique: String(d.forme_juridique ?? ""),

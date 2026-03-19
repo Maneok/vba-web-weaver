@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
@@ -30,7 +30,10 @@ export default function LMStep3Details({ data, onChange }: Props) {
   const mtConfig = useMemo(() => getMissionTypeConfig(data.mission_type_id || "presentation"), [data.mission_type_id]);
 
   // Auto pre-fill associe and referent LCB on first render only
+  const autoFillDone = useRef(false);
   useEffect(() => {
+    if (autoFillDone.current) return;
+    autoFillDone.current = true;
     const updates: Partial<LMWizardData> = {};
     if (!data.associe_signataire && collaborateurs.length > 0) {
       const admin = collaborateurs.find((c) => c.fonction?.toLowerCase().includes("associ"));
@@ -40,7 +43,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
       updates.referent_lcb = referentLcb.nom;
     }
     if (Object.keys(updates).length > 0) onChange(updates);
-  }, []);
+  }, [collaborateurs]);
 
   const validateField = (field: string, value: any) => {
     let error = "";
@@ -84,11 +87,11 @@ export default function LMStep3Details({ data, onChange }: Props) {
           <div className="px-4 pb-4 space-y-4 border-t border-gray-100 dark:border-white/[0.04]">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Dirigeant *</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Dirigeant *</Label>
                 <Input value={data.dirigeant} onChange={(e) => onChange({ dirigeant: e.target.value })} className={inputCls} autoComplete="name" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Qualite</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Qualite</Label>
                 <Select value={data.qualite_dirigeant} onValueChange={(v) => onChange({ qualite_dirigeant: v })}>
                   <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -98,12 +101,12 @@ export default function LMStep3Details({ data, onChange }: Props) {
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Adresse *</Label>
+              <Label className="text-slate-400 dark:text-slate-500 text-xs">Adresse *</Label>
               <Input value={data.adresse} onChange={(e) => onChange({ adresse: e.target.value })} className={inputCls} autoComplete="street-address" />
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Code postal *</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Code postal *</Label>
                 <Input
                   value={data.cp} onChange={(e) => onChange({ cp: e.target.value })}
                   onBlur={(e) => validateField("cp", e.target.value)}
@@ -113,17 +116,17 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 {fieldErrors.cp && <p className="text-xs text-red-400" role="alert">{fieldErrors.cp}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Ville *</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Ville *</Label>
                 <Input value={data.ville} onChange={(e) => onChange({ ville: e.target.value })} className={inputCls} />
               </div>
               <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">RCS</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">RCS</Label>
                 <Input value={data.rcs} onChange={(e) => onChange({ rcs: e.target.value })} className={inputCls} />
               </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="space-y-1.5 sm:col-span-2">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Date de cloture</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de cloture</Label>
                 <Input
                   type="date"
                   lang="fr"
@@ -135,7 +138,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Email</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Email</Label>
                 <Input
                   type="email" inputMode="email" autoComplete="email"
                   value={data.email} onChange={(e) => onChange({ email: e.target.value })}
@@ -145,7 +148,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
                 {fieldErrors.email && <p className="text-xs text-red-400" role="alert">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Telephone</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Telephone</Label>
                 <Input
                   inputMode="tel" autoComplete="tel"
                   value={data.telephone} onChange={(e) => onChange({ telephone: e.target.value })}
@@ -192,7 +195,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
 
         {data.tacite_reconduction && (
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Preavis (mois)</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Preavis (mois)</Label>
             <Select value={String(data.preavis_mois)} onValueChange={(v) => onChange({ preavis_mois: Number(v) })}>
               <SelectTrigger className={`${inputCls} w-32`}><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -205,7 +208,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
         )}
 
         <div className="space-y-1.5">
-          <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Date de debut</Label>
+          <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de debut</Label>
           <Input
             type="date"
             lang="fr"
@@ -221,7 +224,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Intervenants</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Associe signataire *</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Associe signataire *</Label>
             <Select value={data.associe_signataire} onValueChange={(v) => onChange({ associe_signataire: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
               <SelectContent>
@@ -230,7 +233,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Chef de mission</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Chef de mission</Label>
             <Select value={data.chef_mission} onValueChange={(v) => onChange({ chef_mission: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
               <SelectContent>
@@ -239,7 +242,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
             </Select>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Validateur (co-edition)</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Validateur (co-edition)</Label>
             <Select value={data.validateur} onValueChange={(v) => onChange({ validateur: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Aucun validateur" /></SelectTrigger>
               <SelectContent>
@@ -252,7 +255,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
         {data.referent_lcb && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
             <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[9px]">LCB</Badge>
-            <span className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Referent : {data.referent_lcb}</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">Referent : {data.referent_lcb}</span>
           </div>
         )}
       </div>
@@ -267,15 +270,15 @@ export default function LMStep3Details({ data, onChange }: Props) {
         <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-2">
           <div className="flex items-center gap-2">
             <Badge variant="outline" className="text-[9px] border-blue-500/30 text-blue-400">{mtConfig.normeRef}</Badge>
-            <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400">{mtConfig.formeRapport}</Badge>
+            <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500">{mtConfig.formeRapport}</Badge>
           </div>
-          <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-4">{mtConfig.missionText.split('\n')[0]}</p>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed line-clamp-4">{mtConfig.missionText.split('\n')[0]}</p>
         </div>
 
         {mtConfig.natureLimiteText && (
           <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-1.5">
             <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Nature et limites de la mission</p>
-            <p className="text-[11px] text-slate-400 dark:text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-3">{mtConfig.natureLimiteText.split('\n')[0]}</p>
+            <p className="text-[11px] text-slate-400 dark:text-slate-500 leading-relaxed line-clamp-3">{mtConfig.natureLimiteText.split('\n')[0]}</p>
           </div>
         )}
 
@@ -324,7 +327,7 @@ export default function LMStep3Details({ data, onChange }: Props) {
               <Switch checked={data.clause_rgpd} onCheckedChange={(v) => onChange({ clause_rgpd: v })} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-slate-400 dark:text-slate-500 dark:text-slate-400 text-xs">Clauses supplementaires</Label>
+              <Label className="text-slate-400 dark:text-slate-500 text-xs">Clauses supplementaires</Label>
               <Textarea
                 value={data.clauses_supplementaires}
                 onChange={(e) => onChange({ clauses_supplementaires: e.target.value })}

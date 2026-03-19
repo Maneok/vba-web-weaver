@@ -56,6 +56,7 @@ export interface LMWizardData {
   clause_lcbft: boolean;
   clause_travail_dissimule: boolean;
   clause_rgpd: boolean;
+  clause_conciliation_croec: boolean;
   clauses_supplementaires: string;
 
   // Mission-specific variables (dynamic per mission type)
@@ -171,6 +172,7 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   clause_lcbft: true,
   clause_travail_dissimule: true,
   clause_rgpd: true,
+  clause_conciliation_croec: true,
   clauses_supplementaires: "",
   honoraires_ht: 0,
   taux_tva: 20,
@@ -214,6 +216,8 @@ export function computeAnnexes(data: LMWizardData): string[] {
   const annexes: string[] = [];
   // Always
   annexes.push("cgv_cabinet");
+  annexes.push("autorisation_liasse");
+  annexes.push("repartition_travaux");
   if (data.clause_travail_dissimule !== false) annexes.push("clause_travail_dissimule");
 
   // Social missions → annexe repartition travaux sociaux

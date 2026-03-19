@@ -139,7 +139,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
         });
       }
     }
-  }, [missions.length, client?.effectif, data.forme_juridique, missions, onChange]);
+  }, [missions.length, client?.effectif, data.forme_juridique, onChange]);
 
   const toggleSection = (sectionId: string) => {
     const m = allMissions.find((x) => x.section_id === sectionId);

@@ -105,23 +105,27 @@ const CLIENT_VARIABLE_MAP: Record<string, (c: Client) => string> = {
   forme_rapport: () => "Selon le type de mission",
   indice_revision: () => "Indice INSEE prix services comptables",
   delai_mise_en_demeure: () => "30 jours",
-  code_postal: (c) => c.cp,
+  code_postal: (c) => c.cp ?? "",
   adresse_complete: (c) => `${c.adresse}, ${c.cp} ${c.ville}`,
   honoraires_ttc: (c) => ((c.honoraires ?? 0) * (1 + (((c as any).taux_tva ?? 20) / 100))).toLocaleString("fr-FR"),
   hono: (c) => `${c.honoraires?.toLocaleString("fr-FR") ?? "0"} € HT`,
   honoraires_juridique: (c) => `${c.juridique?.toLocaleString("fr-FR") ?? "0"} € HT`,
   telephone: (c) => c.tel,
   email: (c) => c.mail,
+  qualite_dirigeant: (c) => (c as any).qualiteDir ?? "Gérant",
+  cp_ville: (c) => [c.cp, c.ville].filter(Boolean).join(" "),
 };
 
 const CABINET_VARIABLE_MAP: Record<string, (cab: CabinetConfig) => string> = {
   cabinet_nom: (cab) => cab.nom,
+  nom_cabinet: (cab) => cab.nom ?? "",
   cabinet_adresse: (cab) => `${cab.adresse}, ${cab.cp} ${cab.ville}`,
   cabinet_siret: (cab) => cab.siret,
   cabinet_oec: (cab) => cab.numeroOEC,
   cabinet_email: (cab) => cab.email,
   cabinet_tel: (cab) => cab.telephone,
   cabinet_logo: (cab) => cab.logo ?? "",
+  ville_cabinet: (cab) => cab.ville ?? "",
 };
 
 function getDateVariables(): Record<string, string> {
@@ -133,6 +137,7 @@ function getDateVariables(): Record<string, string> {
   const endOfYear = new Date(year, 11, 31);
 
   return {
+    date_du_jour: fmt(now),
     date_jour: fmt(now),
     date_lettre: fmt(now),
     annee: String(year),
@@ -146,7 +151,7 @@ function getOptionsVariables(options?: LettreMissionOptions): Record<string, str
   if (!options) return {};
   return {
     genre: options.genre === "F" ? "Mme" : "M.",
-    formule_politesse: options.genre === "F" ? "Chère Madame" : "Cher Monsieur",
+    formule_politesse: options.genre === "F" ? "Madame" : "Monsieur",
     setup: `${options.fraisConstitution?.toLocaleString("fr-FR") ?? "0"} € HT`,
     exercice_debut: options.exerciceDebut ?? "",
     exercice_fin: options.exerciceFin ?? "",

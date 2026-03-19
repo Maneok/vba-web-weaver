@@ -18,7 +18,7 @@ function CompactSummary({ data }: { data: LMWizardData }) {
 
   return (
     <div className="flex items-center justify-between px-4 py-2 bg-gray-50 dark:bg-white/[0.03] border-t border-gray-200 dark:border-white/[0.06] text-xs">
-      <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">
+      <span className="text-slate-400 dark:text-slate-500">
         {missionCount > 0 ? `${missionCount} mission${missionCount > 1 ? "s" : ""}` : "Aucune mission"}
       </span>
       {data.honoraires_ht > 0 && (
@@ -36,7 +36,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
 
   return (
     <div className="sticky top-20 space-y-5">
-      <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 dark:text-slate-400 uppercase tracking-wider">Resume</h3>
+      <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Resume</h3>
 
       {/* Client */}
       {data.raison_sociale ? (
@@ -62,7 +62,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
                   <Badge className={`text-[10px] ${catColors ? catColors.badge : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
                     {mtConfig.shortLabel}
                   </Badge>
-                  <Badge className={`text-[9px] ${catColors ? catColors.badge : 'border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400'}`}>
+                  <Badge className={`text-[9px] ${catColors ? catColors.badge : 'border-slate-500/30 text-slate-400 dark:text-slate-500'}`}>
                     {mtConfig.normeRef}
                   </Badge>
                   {data.type_mission && (mtId === 'presentation' || mtId === 'compilation') && ['TENUE', 'SURVEILLANCE', 'REVISION'].includes(data.type_mission) && (
@@ -112,7 +112,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
       {data.duree && (
         <div className="space-y-1">
           <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Duree</p>
-          <p className="text-sm text-slate-700 dark:text-slate-300">{data.duree} an{data.duree !== "1" ? "s" : ""} · {data.frequence_facturation || "—"}</p>
+          <p className="text-sm text-slate-700 dark:text-slate-300">{data.duree}{/^\d+$/.test(data.duree) ? ` an${data.duree !== "1" ? "s" : ""}` : ""} · {data.frequence_facturation || "—"}</p>
         </div>
       )}
 
@@ -122,11 +122,11 @@ function FullSummary({ data }: { data: LMWizardData }) {
           <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Honoraires</p>
           <div className="space-y-1">
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">HT</span>
+              <span className="text-slate-400 dark:text-slate-500">HT</span>
               <span className="text-slate-700 dark:text-slate-300">{formatEur(data.honoraires_ht)}</span>
             </div>
             <div className="flex justify-between text-xs">
-              <span className="text-slate-400 dark:text-slate-500 dark:text-slate-400">TVA ({data.taux_tva}%)</span>
+              <span className="text-slate-400 dark:text-slate-500">TVA ({data.taux_tva}%)</span>
               <span className="text-slate-700 dark:text-slate-300">{formatEur(tva)}</span>
             </div>
             <div className="h-px bg-gray-100 dark:bg-white/[0.06] my-1" />

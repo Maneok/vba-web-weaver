@@ -94,7 +94,10 @@ export default function LMStep1Client({ data, onChange }: Props) {
       siren: c.siren,
       forme_juridique: c.forme,
       dirigeant: c.dirigeant,
-      qualite_dirigeant: c.forme === "ENTREPRISE INDIVIDUELLE" ? "Gerant" : "President",
+      qualite_dirigeant: (() => {
+        const qualiteMap: Record<string, string> = { "SARL": "Gérant", "EURL": "Gérant", "SCI": "Gérant", "SAS": "Président", "SASU": "Président", "SA": "Directeur général", "SNC": "Gérant", "ASSOCIATION": "Président", "ASSO": "Président" };
+        return qualiteMap[c.forme] || "Dirigeant";
+      })(),
       adresse: c.adresse,
       cp: c.cp,
       ville: c.ville,
@@ -291,7 +294,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 <CheckCircle2 className="w-5 h-5 text-emerald-400" />
               </div>
               <div className="min-w-0">
-                <p className="text-base font-semibold text-emerald-300">{data.raison_sociale}</p>
+                <p className="text-base font-semibold text-emerald-700 dark:text-emerald-300">{data.raison_sociale}</p>
                 <p className="text-xs text-emerald-400/60 mt-0.5">{data.client_ref} · SIREN {data.siren} · {data.forme_juridique}</p>
               </div>
             </div>
