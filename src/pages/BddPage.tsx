@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAppState } from "@/lib/AppContext";
@@ -8,16 +8,17 @@ import { useDebounce } from "@/hooks/useDebounce";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { VigilanceBadge, PilotageBadge, ScoreGauge } from "@/components/RiskBadges";
-import { Search, Eye, ArrowUpDown, ChevronDown, ChevronUp, Plus, MoreHorizontal, Edit3, FileDown, FileText, Archive, Download, Clock, Trash2, ChevronLeft, ChevronRight as ChevronRightIcon, ChevronsLeft, ChevronsRight, X, Users, SearchX, RotateCw } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Search, Eye, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight as ChevronRightIcon, Plus, Edit3, FileDown, FileText, Archive, Download, Clock, Trash2, ChevronLeft, ChevronsLeft, ChevronsRight, X, Users, SearchX, RotateCw, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
 import type { Client } from "@/lib/types";
 
-const PAGE_SIZE = 25;
+const DEFAULT_PAGE_SIZE = 25;
 
 /** Calculate KYC completion percentage based on key fields */
 function computeKycPercent(client: Client): number {
@@ -27,6 +28,32 @@ function computeKycPercent(client: Client): number {
   if (client.iban) s += 25;
   if (client.adresse) s += 25;
   return s;
+}
+
+/** Generate hue from name for avatar */
+function nameHue(name: string): number {
+  return name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+}
+
+/** Get initials from name (max 2 chars) */
+function getInitials(name: string): string {
+  return name
+    .split(/[\s-]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() || "")
+    .join("");
+}
+
+/** Parse date string and return days until that date */
+function daysUntil(dateStr: string | undefined): number | null {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  d.setHours(0, 0, 0, 0);
+  return Math.ceil((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 interface DraftInfo {
@@ -53,12 +80,13 @@ export default function BddPage() {
   const [sortKey, setSortKey] = useState<SortKey>("raisonSociale");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedRefs, setSelectedRefs] = useState<Set<string>>(new Set());
   const [selectAllPages, setSelectAllPages] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ type: "single"; ref: string; name: string } | { type: "bulk"; refs: string[] } | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  // #16 — 300ms debounce
   const debouncedSearch = useDebounce(search, 300);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   useDocumentTitle("Clients");
 
@@ -72,7 +100,6 @@ export default function BddPage() {
     setSearchParams(params, { replace: true });
   }, [search, filterVigilance, filterPilotage, filterEtat, setSearchParams]);
 
-  // Active filter count (excluding search)
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filterVigilance !== "all") count++;
@@ -83,7 +110,6 @@ export default function BddPage() {
 
   const hasAnyFilter = activeFilterCount > 0 || !!debouncedSearch;
 
-  // #13 — Clear all filters
   const clearFilters = useCallback(() => {
     setSearch("");
     setFilterVigilance("all");
@@ -153,11 +179,12 @@ export default function BddPage() {
 
   const ariaSort = (col: SortKey) => sortKey === col ? (sortDir === "asc" ? "ascending" as const : "descending" as const) : undefined;
 
+  // #24 — Sort icon with rotation animation
   const SortIcon = ({ column }: { column: SortKey }) => {
-    if (sortKey !== column) return <ArrowUpDown className="w-3 h-3 text-slate-600" />;
+    if (sortKey !== column) return <ArrowUpDown className="w-3.5 h-3.5 ml-1 text-slate-300 dark:text-slate-600 group-hover:text-slate-500 transition-colors" />;
     return sortDir === "asc"
-      ? <ChevronUp className="w-3 h-3 text-blue-400" />
-      : <ChevronDown className="w-3 h-3 text-blue-400" />;
+      ? <ArrowUp className="w-3.5 h-3.5 ml-1 text-blue-500 transition-transform duration-200" />
+      : <ArrowDown className="w-3.5 h-3.5 ml-1 text-blue-500 transition-transform duration-200" />;
   };
 
   // Reset page when filters change
@@ -196,8 +223,13 @@ export default function BddPage() {
     return result;
   }, [clients, debouncedSearch, filterVigilance, filterPilotage, filterEtat, sortKey, sortDir]);
 
-  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
-  const paginated = filtered.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = Math.ceil(filtered.length / pageSize);
+  const paginated = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+  // #15 — Checkbox header state
+  const allPageSelected = paginated.length > 0 && paginated.every(c => selectedRefs.has(c.ref));
+  const somePageSelected = paginated.some(c => selectedRefs.has(c.ref));
+  const isIndeterminate = somePageSelected && !allPageSelected;
 
   const handleExportCSV = () => {
     const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "KYC%", "Butoir"];
@@ -208,7 +240,6 @@ export default function BddPage() {
       String(c.scoreGlobal), c.nivVigilance, c.etatPilotage, `${computeKycPercent(c)}%`, c.dateButoir,
     ]);
     downloadCSV(headers, rows, "clients_lcb.csv");
-    // #23 — Toast on CSV export
     if (excluded > 0) {
       toast.warning(`Export CSV telecharge — ${excluded} client(s) non-diffusible(s) exclus (art. R.123-320 C.com)`);
     } else {
@@ -216,7 +247,6 @@ export default function BddPage() {
     }
   };
 
-  // #26 — Pull to refresh with spin animation
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
@@ -226,11 +256,15 @@ export default function BddPage() {
     }
   };
 
-  // #19 — Skeleton loading with staggered animation
+  // #19 — Row click handler (navigates to client detail)
+  const handleRowClick = (ref: string) => {
+    navigate(`/client/${ref}`);
+  };
+
+  // Skeleton loading
   if (isLoading) {
     return (
       <div className="px-6 py-6 space-y-4">
-        {/* Skeleton header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="h-7 w-24 rounded-lg bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
@@ -242,14 +276,12 @@ export default function BddPage() {
             <div className="h-9 w-36 rounded-lg bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
           </div>
         </div>
-        {/* Skeleton filters */}
         <div className="flex items-center gap-3">
           <div className="h-9 flex-1 max-w-sm rounded-lg bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
           <div className="h-9 w-[160px] rounded-lg bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
           <div className="h-9 w-[150px] rounded-lg bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
           <div className="h-9 w-[130px] rounded-lg bg-slate-100 dark:bg-white/[0.04] animate-pulse" />
         </div>
-        {/* Skeleton table rows */}
         <div className="rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none overflow-hidden p-4 space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
@@ -265,19 +297,16 @@ export default function BddPage() {
 
   return (
     <div className="px-6 py-6 animate-fade-in-up">
-      {/* #8 — Breadcrumb */}
+      {/* Breadcrumb */}
       <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">Accueil / Clients</p>
 
-      {/* #1-7 — Header */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          {/* #1 — Simplified title */}
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Clients</h1>
-          {/* #2 — Integrated counter badge */}
           <span className="text-sm font-normal text-slate-500 dark:text-slate-400 ml-1">· {clients.length} dossier{clients.length !== 1 ? "s" : ""}</span>
         </div>
         <div className="flex items-center gap-2">
-          {/* #6 — Refresh icon button */}
           <Button
             variant="outline"
             className="w-9 h-9 p-0 rounded-lg border-slate-200 dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04]"
@@ -286,7 +315,6 @@ export default function BddPage() {
           >
             <RotateCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </Button>
-          {/* #5 — Export CSV ghost/outline */}
           <Button
             variant="outline"
             className="rounded-lg px-3 h-9 text-sm border-slate-200 dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04] gap-1.5"
@@ -294,7 +322,6 @@ export default function BddPage() {
           >
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export CSV</span>
           </Button>
-          {/* #4 — Nouveau client button (blue) */}
           <Button
             className="rounded-lg px-4 h-9 text-sm font-medium shadow-sm bg-blue-600 hover:bg-blue-700 text-white gap-1.5"
             onClick={() => navigate("/nouveau-client")}
@@ -304,9 +331,8 @@ export default function BddPage() {
         </div>
       </div>
 
-      {/* #9-18 — Search and filters bar */}
+      {/* Search and filters bar */}
       <div className="flex items-center gap-3 mt-4 mb-4 flex-wrap lg:flex-nowrap transition-all duration-200">
-        {/* #10, #17, #18 — Search field */}
         <div className="relative flex-1 min-w-[200px] max-w-sm w-full lg:w-auto">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <Input
@@ -317,11 +343,9 @@ export default function BddPage() {
             className="pl-9 h-9 rounded-lg bg-slate-50 dark:bg-white/[0.04] border-slate-200 dark:border-white/[0.08] text-sm placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500/40 dark:focus:ring-blue-400/20"
           />
         </div>
-        {/* #11 — Filter dropdowns */}
         <Select value={filterVigilance} onValueChange={setFilterVigilance}>
           <SelectTrigger className="w-full lg:w-[160px] h-9 rounded-lg border-slate-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-sm text-slate-600 dark:text-slate-300 px-3">
             <div className="flex items-center gap-1.5">
-              {/* #12 — Active filter dot */}
               {filterVigilance !== "all" && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
               <SelectValue placeholder="Vigilance" />
             </div>
@@ -362,14 +386,12 @@ export default function BddPage() {
           </SelectContent>
         </Select>
 
-        {/* #15 — Filtered result count */}
         {hasAnyFilter && (
           <span className="text-xs text-slate-400 dark:text-slate-500 whitespace-nowrap" aria-live="polite">
             {filtered.length} resultat{filtered.length !== 1 ? "s" : ""}
           </span>
         )}
 
-        {/* #13 — Reset filters X */}
         {hasAnyFilter && (
           <button
             onClick={clearFilters}
@@ -443,15 +465,15 @@ export default function BddPage() {
         </div>
       )}
 
-      {/* Bulk actions */}
+      {/* #14 — Bulk actions bar */}
       {selectedRefs.size > 0 && (
-        <div className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-blue-500/10 border border-blue-500/20 mb-4 animate-fade-in-up">
-          <span className="text-sm text-blue-200 font-medium">{selectedRefs.size} selectionne{selectedRefs.size > 1 ? "s" : ""}</span>
+        <div className="bg-blue-50 dark:bg-blue-500/10 border-b border-blue-200 dark:border-blue-500/20 px-4 py-2 flex items-center gap-3 text-sm rounded-lg mb-4 animate-fade-in-up">
+          <span className="text-blue-700 dark:text-blue-200 font-medium">{selectedRefs.size} selectionne{selectedRefs.size > 1 ? "s" : ""}</span>
           {!selectAllPages && filtered.length > paginated.length && (
             <Button
               size="sm"
               variant="ghost"
-              className="text-xs text-blue-300 hover:text-blue-200"
+              className="text-xs text-blue-600 dark:text-blue-300 hover:text-blue-700 dark:hover:text-blue-200"
               onClick={() => {
                 const next = new Set(selectedRefs);
                 filtered.forEach(c => next.add(c.ref));
@@ -463,12 +485,20 @@ export default function BddPage() {
             </Button>
           )}
           {selectAllPages && (
-            <span className="text-xs text-blue-400">Tous les {filtered.length} resultats selectionnes</span>
+            <span className="text-xs text-blue-500 dark:text-blue-400">Tous les {filtered.length} resultats selectionnes</span>
           )}
           <Button
             size="sm"
             variant="outline"
-            className="gap-1 text-xs border-amber-500/30 text-amber-300 hover:bg-amber-500/10"
+            className="gap-1 text-xs border-blue-300 dark:border-blue-500/30 text-blue-600 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-500/10"
+            onClick={handleExportCSV}
+          >
+            <Download className="w-3 h-3" /> Exporter
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1 text-xs border-amber-300 dark:border-amber-500/30 text-amber-600 dark:text-amber-300 hover:bg-amber-50 dark:hover:bg-amber-500/10"
             onClick={() => {
               try {
                 const validRefs = [...selectedRefs].filter(ref => clients.some(c => c.ref === ref));
@@ -502,7 +532,7 @@ export default function BddPage() {
             <Button
               size="sm"
               variant="outline"
-              className="gap-1 text-xs border-red-500/30 text-red-300 hover:bg-red-500/10"
+              className="gap-1 text-xs border-red-300 dark:border-red-500/30 text-red-600 dark:text-red-300 hover:bg-red-50 dark:hover:bg-red-500/10"
               onClick={() => {
                 const validRefs = [...selectedRefs].filter(ref => clients.some(c => c.ref === ref));
                 if (validRefs.length === 0) return;
@@ -512,13 +542,13 @@ export default function BddPage() {
               <Trash2 className="w-3 h-3" /> Supprimer
             </Button>
           )}
-          <Button size="sm" variant="ghost" className="text-xs text-slate-400 dark:text-slate-400" onClick={() => { setSelectedRefs(new Set()); setSelectAllPages(false); }}>
+          <Button size="sm" variant="ghost" className="text-xs text-slate-500 dark:text-slate-400" onClick={() => { setSelectedRefs(new Set()); setSelectAllPages(false); }}>
             Deselectionner
           </Button>
         </div>
       )}
 
-      {/* #20 — Empty state global (0 clients in DB) */}
+      {/* Empty state global */}
       {clients.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 gap-4">
           <Users className="w-12 h-12 text-slate-300 dark:text-slate-600" />
@@ -537,7 +567,6 @@ export default function BddPage() {
       {clients.length > 0 && (
         <div className="sm:hidden space-y-2">
           {filtered.length === 0 ? (
-            /* #21 — Empty state filtered */
             <div className="flex flex-col items-center py-16 gap-3 text-center">
               <SearchX className="w-8 h-8 text-slate-300 dark:text-slate-600" />
               <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Aucun client ne correspond a votre recherche</p>
@@ -548,51 +577,53 @@ export default function BddPage() {
               )}
             </div>
           ) : (
-            paginated.map((client) => (
-              <div
-                key={client.ref}
-                className="rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors"
-                onClick={() => navigate(`/client/${client.ref}`)}
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-mono text-[10px] text-slate-400 dark:text-slate-500">{client.ref}</span>
-                    <VigilanceBadge level={client.nivVigilance} />
+            paginated.map((client) => {
+              const hue = nameHue(client.raisonSociale || "?");
+              return (
+                <div
+                  key={client.ref}
+                  className="rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] p-4 flex items-start justify-between gap-3 cursor-pointer hover:bg-slate-50 dark:hover:bg-white/[0.03] transition-colors"
+                  onClick={() => navigate(`/client/${client.ref}`)}
+                >
+                  <div className="min-w-0 flex-1 flex gap-3">
+                    <div
+                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                      style={{
+                        backgroundColor: `hsl(${hue}, 60%, 92%)`,
+                        color: `hsl(${hue}, 70%, 35%)`,
+                      }}
+                    >
+                      {getInitials(client.raisonSociale || "?")}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate" title={client.raisonSociale}>{client.raisonSociale}</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{client.ref}</p>
+                      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                        <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">{client.forme}</span>
+                        <span className="text-xs text-slate-400">{client.mission}</span>
+                      </div>
+                    </div>
                   </div>
-                  <p className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate" title={client.raisonSociale}>{client.raisonSociale}</p>
-                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{client.forme} · {client.mission}</p>
-                  <div className="flex items-center gap-3 mt-2">
-                    <PilotageBadge status={client.etatPilotage} />
-                    <span className="text-xs text-slate-400 dark:text-slate-500 font-mono">{client.dateButoir}</span>
+                  <div className="flex flex-col items-end gap-2 shrink-0">
+                    {/* Score mini */}
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ring-1 ${
+                      client.scoreGlobal <= 25
+                        ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-200 dark:ring-emerald-500/20"
+                        : client.scoreGlobal < 60
+                        ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-200 dark:ring-amber-500/20"
+                        : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 ring-red-200 dark:ring-red-500/20"
+                    }`}>
+                      {client.scoreGlobal}
+                    </div>
+                    <ChevronRightIcon className="w-4 h-4 text-slate-300" />
                   </div>
                 </div>
-                <div className="flex flex-col items-end gap-2 shrink-0">
-                  <ScoreGauge score={client.scoreGlobal} />
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" className="text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-7 w-7 p-0" aria-label="Actions">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/client/${client.ref}`); }}>
-                        <Eye className="w-3.5 h-3.5 mr-2" /> Voir detail
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch { toast.error("Erreur PDF"); } }}>
-                        <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/lettre-mission/${client.ref}`); }}>
-                        <FileText className="w-3.5 h-3.5 mr-2" /> Lettre de mission
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
           {totalPages > 1 && (
             <div className="flex items-center justify-between py-2">
-              <p className="text-xs text-slate-400 dark:text-slate-500">{page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}</p>
+              <p className="text-xs text-slate-400 dark:text-slate-500">{page * pageSize + 1}-{Math.min((page + 1) * pageSize, filtered.length)} sur {filtered.length}</p>
               <div className="flex items-center gap-1">
                 <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0"><ChevronLeft className="w-4 h-4" /></Button>
                 <span className="text-xs text-slate-400 dark:text-slate-400 px-2">{page + 1} / {totalPages}</span>
@@ -603,145 +634,300 @@ export default function BddPage() {
         </div>
       )}
 
-      {/* #29, #32, #34 — Table (desktop) wrapped in card */}
+      {/* Desktop table */}
       {clients.length > 0 && (
-        <div className="hidden sm:block rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none overflow-hidden">
+        <div ref={tableRef} className="hidden sm:block rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none overflow-hidden">
           <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto [&::-webkit-scrollbar]:h-1.5">
             <Table>
-              <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-[#0f1117] backdrop-blur-sm">
-                <TableRow className="border-slate-200 dark:border-white/[0.06] hover:bg-transparent">
-                  <TableHead className="w-[40px]">
-                    <input
-                      type="checkbox"
-                      className="rounded border-slate-300 dark:border-white/20 bg-white dark:bg-white/5"
-                      checked={paginated.length > 0 && paginated.every(c => selectedRefs.has(c.ref))}
-                      onChange={(e) => {
+              {/* #21-23 — Styled sticky header */}
+              <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-[#0f1117]">
+                <TableRow className="border-b border-slate-200 dark:border-white/[0.06] hover:bg-transparent">
+                  {/* #1 — Checkbox */}
+                  <TableHead className="w-10 px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                    <Checkbox
+                      checked={allPageSelected ? true : isIndeterminate ? "indeterminate" : false}
+                      onCheckedChange={(checked) => {
                         const next = new Set(selectedRefs);
-                        paginated.forEach(c => e.target.checked ? next.add(c.ref) : next.delete(c.ref));
+                        paginated.forEach(c => checked ? next.add(c.ref) : next.delete(c.ref));
                         setSelectedRefs(next);
+                        if (!checked) setSelectAllPages(false);
                       }}
                       aria-label="Selectionner tous les clients de la page"
                     />
                   </TableHead>
-                  <TableHead className="w-[90px] text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Ref</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("raisonSociale")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("raisonSociale"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Raison Sociale" aria-sort={ariaSort("raisonSociale")}>
-                    <div className="flex items-center gap-1.5">Raison Sociale <SortIcon column="raisonSociale" /></div>
+                  {/* #2 — Client */}
+                  <TableHead
+                    className="flex-1 min-w-[200px] px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 cursor-pointer group"
+                    onClick={() => handleSort("raisonSociale")}
+                    role="columnheader"
+                    tabIndex={0}
+                    aria-label="Trier par Client"
+                    aria-sort={ariaSort("raisonSociale")}
+                  >
+                    <div className="flex items-center">Client <SortIcon column="raisonSociale" /></div>
                   </TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Forme</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer" onClick={() => handleSort("comptable")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("comptable"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Comptable" aria-sort={ariaSort("comptable")}>
-                    <div className="flex items-center gap-1.5">Comptable <SortIcon column="comptable" /></div>
+                  {/* #3 — Forme */}
+                  <TableHead className="w-16 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Forme</TableHead>
+                  {/* #4 — Comptable (hidden below xl) */}
+                  <TableHead
+                    className="w-24 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 cursor-pointer group hidden xl:table-cell"
+                    onClick={() => handleSort("comptable")}
+                    role="columnheader"
+                    tabIndex={0}
+                    aria-label="Trier par Comptable"
+                    aria-sort={ariaSort("comptable")}
+                  >
+                    <div className="flex items-center">Comptable <SortIcon column="comptable" /></div>
                   </TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Mission</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer text-center" onClick={() => handleSort("scoreGlobal")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("scoreGlobal"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Score" aria-sort={ariaSort("scoreGlobal")}>
-                    <div className="flex items-center gap-1.5 justify-center">Score <SortIcon column="scoreGlobal" /></div>
+                  {/* #5 — Mission (hidden below xl) */}
+                  <TableHead className="w-28 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden xl:table-cell">Mission</TableHead>
+                  {/* #6 — Risque */}
+                  <TableHead
+                    className="w-32 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 cursor-pointer group"
+                    onClick={() => handleSort("scoreGlobal")}
+                    role="columnheader"
+                    tabIndex={0}
+                    aria-label="Trier par Risque"
+                    aria-sort={ariaSort("scoreGlobal")}
+                  >
+                    <div className="flex items-center">Risque <SortIcon column="scoreGlobal" /></div>
                   </TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider text-center">Vigilance</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider text-center">Pilotage</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider text-center">KYC</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider text-center cursor-pointer" onClick={() => handleSort("dateButoir")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleSort("dateButoir"); } }} role="columnheader" tabIndex={0} aria-label="Trier par Butoir" aria-sort={ariaSort("dateButoir")}>
-                    <div className="flex items-center gap-1.5 justify-center">Butoir <SortIcon column="dateButoir" /></div>
+                  {/* #7 — Pilotage */}
+                  <TableHead className="w-20 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-center">Pilotage</TableHead>
+                  {/* #8 — KYC (hidden below lg) */}
+                  <TableHead className="w-20 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-center hidden lg:table-cell">KYC</TableHead>
+                  {/* #9 — Butoir (hidden below lg) */}
+                  <TableHead
+                    className="w-24 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 cursor-pointer group hidden lg:table-cell"
+                    onClick={() => handleSort("dateButoir")}
+                    role="columnheader"
+                    tabIndex={0}
+                    aria-label="Trier par Butoir"
+                    aria-sort={ariaSort("dateButoir")}
+                  >
+                    <div className="flex items-center">Butoir <SortIcon column="dateButoir" /></div>
                   </TableHead>
-                  <TableHead className="w-[80px]"></TableHead>
+                  {/* #10 — Actions */}
+                  <TableHead className="w-10 px-3 py-2.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {paginated.map((client, idx) => (
-                  <TableRow
-                    key={client.ref}
-                    className={`cursor-pointer border-slate-100 dark:border-white/[0.04] transition-colors hover:bg-slate-50 dark:hover:bg-white/[0.03] hover:border-l-2 hover:border-l-blue-500 ${idx % 2 === 0 ? "bg-white dark:bg-white/[0.01]" : "bg-slate-50/50 dark:bg-transparent"}`}
-                    onClick={() => navigate(`/client/${client.ref}`)}
-                  >
-                    <TableCell onClick={e => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        className="rounded border-slate-300 dark:border-white/20 bg-white dark:bg-white/5"
-                        checked={selectedRefs.has(client.ref)}
-                        onChange={(e) => {
-                          const next = new Set(selectedRefs);
-                          e.target.checked ? next.add(client.ref) : next.delete(client.ref);
-                          setSelectedRefs(next);
-                          if (selectAllPages && !e.target.checked) setSelectAllPages(false);
-                        }}
-                        aria-label={`Selectionner ${client.raisonSociale}`}
-                      />
-                    </TableCell>
-                    <TableCell className="font-mono text-[11px] text-slate-400 dark:text-slate-500">{client.ref}</TableCell>
-                    <TableCell className="font-medium text-sm text-slate-800 dark:text-slate-200 max-w-[200px]"><span className="truncate block" title={client.raisonSociale}>{client.raisonSociale}</span></TableCell>
-                    <TableCell className="text-xs text-slate-400 dark:text-slate-400">{client.forme}</TableCell>
-                    <TableCell className="text-xs text-slate-400 dark:text-slate-400" title={client.comptable}>{client.comptable}</TableCell>
-                    <TableCell className="text-xs text-slate-400 dark:text-slate-400">{client.mission}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <ScoreGauge score={client.scoreGlobal} />
-                        {(() => {
-                          const ref = client.dateDerniereRevue || client.dateCreation;
-                          if (!ref) return <span className="text-[9px] text-amber-500" title="Score jamais calcule">&#9888;&#65039;</span>;
-                          const age = Date.now() - new Date(ref).getTime();
-                          if (age > 30 * 24 * 60 * 60 * 1000) return <span className="text-[9px] text-amber-500" title="Score non recalcule depuis 30+ jours">&#9888;&#65039;</span>;
-                          return null;
-                        })()}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-center"><VigilanceBadge level={client.nivVigilance} /></TableCell>
-                    <TableCell className="text-center"><PilotageBadge status={client.etatPilotage} /></TableCell>
-                    <TableCell className="text-center">
-                      {(() => {
-                        const s = computeKycPercent(client);
-                        const color = s >= 75 ? "text-emerald-400" : s >= 50 ? "text-amber-400" : "text-red-400";
-                        return <span className={`text-xs font-mono font-semibold ${color}`}>{s}%</span>;
-                      })()}
-                    </TableCell>
-                    <TableCell className="text-xs text-center text-slate-400 dark:text-slate-400 font-mono">{client.dateButoir}</TableCell>
-                    <TableCell>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild onClick={e => e.stopPropagation()}>
-                          <Button variant="ghost" size="sm" className="text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/10 h-8 w-8 p-0" aria-label="Actions">
-                            <MoreHorizontal className="w-4 h-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/client/${client.ref}`); }}>
-                            <Eye className="w-3.5 h-3.5 mr-2" /> Voir detail
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/client/${client.ref}`); }}>
-                            <Edit3 className="w-3.5 h-3.5 mr-2" /> Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch (err) { toast.error("Erreur lors de la generation du PDF"); } }}>
-                            <FileDown className="w-3.5 h-3.5 mr-2" /> Generer PDF
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); navigate(`/lettre-mission/${client.ref}`); }}>
-                            <FileText className="w-3.5 h-3.5 mr-2" /> Lettre de mission
-                          </DropdownMenuItem>
-                          <DropdownMenuItem onClick={(e) => {
-                            e.stopPropagation();
-                            const prevEtat = client.etat;
-                            updateClient(client.ref, { etat: "ARCHIVE" });
-                            toast.success("Client archive", {
-                              action: {
-                                label: "Annuler",
-                                onClick: () => {
-                                  updateClient(client.ref, { etat: prevEtat });
-                                  toast.info("Archivage annule");
-                                },
-                              },
-                            });
-                          }}>
-                            <Archive className="w-3.5 h-3.5 mr-2" /> Archiver
-                          </DropdownMenuItem>
-                          {profile?.role === "ADMIN" && (
-                            <DropdownMenuItem className="text-red-400 focus:text-red-400 focus:bg-red-500/10" onClick={(e) => { e.stopPropagation(); setDeleteTarget({ type: "single", ref: client.ref, name: client.raisonSociale || client.ref }); }}>
-                              <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
+                {paginated.map((client, idx) => {
+                  const hue = nameHue(client.raisonSociale || "?");
+                  const kycPct = computeKycPercent(client);
+                  const days = daysUntil(client.dateButoir);
+                  const isSelected = selectedRefs.has(client.ref);
+
+                  return (
+                    <TableRow
+                      key={client.ref}
+                      className={`cursor-pointer transition-colors duration-100 hover:bg-slate-50 dark:hover:bg-white/[0.025] active:bg-slate-100 dark:active:bg-white/[0.04] ${
+                        isSelected ? "bg-blue-50/50 dark:bg-blue-500/[0.05]" : ""
+                      } ${idx < paginated.length - 1 ? "border-b border-slate-100 dark:border-white/[0.04]" : "border-b-0"}`}
+                      style={{ animation: `fadeInRow 200ms ease-out forwards`, animationDelay: `${idx * 40}ms`, opacity: 0 } as React.CSSProperties}
+                      onClick={() => handleRowClick(client.ref)}
+                      onDoubleClick={() => handleRowClick(client.ref)}
+                    >
+                      {/* #1 — Checkbox */}
+                      <TableCell className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={(checked) => {
+                            const next = new Set(selectedRefs);
+                            checked ? next.add(client.ref) : next.delete(client.ref);
+                            setSelectedRefs(next);
+                            if (selectAllPages && !checked) setSelectAllPages(false);
+                          }}
+                          aria-label={`Selectionner ${client.raisonSociale}`}
+                        />
+                      </TableCell>
+                      {/* #2 — Client (avatar + name + ref) */}
+                      <TableCell className="px-3 py-3">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0"
+                            style={{
+                              backgroundColor: `hsl(${hue}, 60%, 92%)`,
+                              color: `hsl(${hue}, 70%, 35%)`,
+                            }}
+                          >
+                            <span className="dark:hidden">{getInitials(client.raisonSociale || "?")}</span>
+                            <span
+                              className="hidden dark:inline"
+                              style={{ color: `hsl(${hue}, 50%, 75%)` }}
+                            >
+                              {getInitials(client.raisonSociale || "?")}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <p className="text-sm font-medium text-slate-800 dark:text-white truncate max-w-[200px]">
+                                  {client.raisonSociale}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p>{client.raisonSociale}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                            <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{client.ref}</p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      {/* #3 — Forme */}
+                      <TableCell className="px-3 py-3">
+                        <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">
+                          {client.forme}
+                        </span>
+                      </TableCell>
+                      {/* #4 — Comptable (hidden below xl) */}
+                      <TableCell className="px-3 py-3 text-xs text-slate-500 dark:text-slate-400 hidden xl:table-cell" title={client.comptable}>
+                        {client.comptable}
+                      </TableCell>
+                      {/* #5 — Mission (hidden below xl) */}
+                      <TableCell className="px-3 py-3 text-xs text-slate-500 dark:text-slate-400 hidden xl:table-cell">
+                        {client.mission}
+                      </TableCell>
+                      {/* #6 — Risque (score circle + vigilance badge) */}
+                      <TableCell className="px-3 py-3">
+                        <div className="flex items-center gap-2">
+                          {/* Score circle 28px */}
+                          <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ring-1 ${
+                            client.scoreGlobal <= 25
+                              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 ring-emerald-200 dark:ring-emerald-500/20"
+                              : client.scoreGlobal < 60
+                              ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 ring-amber-200 dark:ring-amber-500/20"
+                              : "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 ring-red-200 dark:ring-red-500/20"
+                          }`}>
+                            {client.scoreGlobal}
+                          </div>
+                          {/* Vigilance badge */}
+                          <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                            client.nivVigilance === "SIMPLIFIEE"
+                              ? "bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                              : client.nivVigilance === "RENFORCEE"
+                              ? "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400"
+                              : "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                          }`}>
+                            {client.nivVigilance === "SIMPLIFIEE" ? "Simplifiee" : client.nivVigilance === "RENFORCEE" ? "Renforcee" : "Standard"}
+                          </span>
+                        </div>
+                      </TableCell>
+                      {/* #7 — Pilotage (icon only) */}
+                      <TableCell className="px-3 py-3 text-center">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center justify-center">
+                              {client.etatPilotage === "A JOUR" ? (
+                                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                              ) : client.etatPilotage === "RETARD" ? (
+                                <XCircle className="w-4 h-4 text-red-500" />
+                              ) : (
+                                <Clock className="w-4 h-4 text-amber-500" />
+                              )}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p>{client.etatPilotage === "A JOUR" ? "A jour" : client.etatPilotage === "RETARD" ? "En retard" : "Bientot a revoir"}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TableCell>
+                      {/* #8 — KYC progress bar (hidden below lg) */}
+                      <TableCell className="px-3 py-3 hidden lg:table-cell">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <div className="w-12 h-1.5 rounded-full bg-slate-200 dark:bg-white/[0.08]">
+                            <div
+                              className={`rounded-full h-full transition-all duration-500 ${
+                                kycPct >= 75 ? "bg-emerald-500" : kycPct >= 50 ? "bg-amber-500" : "bg-red-500"
+                              }`}
+                              style={{ width: `${kycPct}%` }}
+                            />
+                          </div>
+                          <span className="text-[11px] text-slate-500 dark:text-slate-400">{kycPct}%</span>
+                        </div>
+                      </TableCell>
+                      {/* #9 — Butoir (conditional color, hidden below lg) */}
+                      <TableCell className="px-3 py-3 hidden lg:table-cell">
+                        {client.dateButoir ? (
+                          <div className={`flex items-center gap-1 text-sm ${
+                            days !== null && days <= 7
+                              ? "text-red-500 dark:text-red-400 font-medium"
+                              : days !== null && days <= 30
+                              ? "text-amber-500 dark:text-amber-400"
+                              : "text-slate-500 dark:text-slate-400"
+                          }`}>
+                            {days !== null && days <= 7 && <AlertTriangle className="w-3 h-3 shrink-0" />}
+                            {client.dateButoir}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-slate-300 dark:text-slate-600">—</span>
+                        )}
+                      </TableCell>
+                      {/* #10 — Actions (chevron + dropdown) */}
+                      <TableCell className="px-3 py-3" onClick={e => e.stopPropagation()}>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              className="group/chevron inline-flex items-center justify-center w-8 h-8 rounded-md hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors"
+                              aria-label="Actions"
+                            >
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <ChevronRightIcon className="w-4 h-4 text-slate-300 dark:text-slate-600 group-hover/chevron:text-slate-500 dark:group-hover/chevron:text-slate-300 group-hover/chevron:translate-x-0.5 transition-all duration-150" />
+                                </TooltipTrigger>
+                                <TooltipContent side="left">
+                                  <p>Voir la fiche</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => navigate(`/client/${client.ref}`)}>
+                              <Eye className="w-3.5 h-3.5 mr-2" /> Voir la fiche
                             </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {/* #21 — Empty state filtered (desktop) */}
+                            <DropdownMenuItem onClick={() => navigate(`/client/${client.ref}`)}>
+                              <Edit3 className="w-3.5 h-3.5 mr-2" /> Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => { try { generateFicheAcceptation(client); toast.success("PDF genere"); } catch { toast.error("Erreur PDF"); } }}>
+                              <FileDown className="w-3.5 h-3.5 mr-2" /> Exporter PDF
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => navigate(`/lettre-mission/${client.ref}`)}>
+                              <FileText className="w-3.5 h-3.5 mr-2" /> Lettre de mission
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              const prevEtat = client.etat;
+                              updateClient(client.ref, { etat: "ARCHIVE" });
+                              toast.success("Client archive", {
+                                action: {
+                                  label: "Annuler",
+                                  onClick: () => {
+                                    updateClient(client.ref, { etat: prevEtat });
+                                    toast.info("Archivage annule");
+                                  },
+                                },
+                              });
+                            }}>
+                              <Archive className="w-3.5 h-3.5 mr-2" /> Archiver
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {profile?.role === "ADMIN" && (
+                              <DropdownMenuItem
+                                className="text-red-500 focus:text-red-500 focus:bg-red-50 dark:focus:bg-red-500/10"
+                                onClick={() => setDeleteTarget({ type: "single", ref: client.ref, name: client.raisonSociale || client.ref })}
+                              >
+                                <Trash2 className="w-3.5 h-3.5 mr-2" /> Supprimer
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+                {/* Empty state filtered (desktop) */}
                 {filtered.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={12} className="text-center py-16">
+                    <TableCell colSpan={10} className="text-center py-16">
                       <div className="flex flex-col items-center gap-3">
                         <SearchX className="w-8 h-8 text-slate-300 dark:text-slate-600" />
                         <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Aucun client ne correspond a votre recherche</p>
@@ -758,51 +944,65 @@ export default function BddPage() {
             </Table>
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between px-4 py-3 border-t border-slate-200 dark:border-white/[0.06]">
-              <p className="text-xs text-slate-400 dark:text-slate-500">
-                {page * PAGE_SIZE + 1}-{Math.min((page + 1) * PAGE_SIZE, filtered.length)} sur {filtered.length}
-              </p>
-              <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(0)} className="h-8 w-8 p-0" title="Premiere page" aria-label="Premiere page">
-                  <ChevronsLeft className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-8 w-8 p-0" title="Page precedente" aria-label="Page precedente">
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
-                  const start = Math.max(0, Math.min(page - 2, totalPages - 5));
-                  const p = start + i;
-                  return (
-                    <Button
-                      key={p}
-                      variant={p === page ? "default" : "ghost"}
-                      size="sm"
-                      onClick={() => setPage(p)}
-                      className={`h-8 w-8 p-0 text-xs ${p === page ? "bg-blue-600" : ""}`}
-                    >
-                      {p + 1}
-                    </Button>
-                  );
-                })}
-                <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-8 w-8 p-0" title="Page suivante" aria-label="Page suivante">
-                  <ChevronRightIcon className="w-4 h-4" />
-                </Button>
-                <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} className="h-8 w-8 p-0" title="Derniere page" aria-label="Derniere page">
-                  <ChevronsRight className="w-4 h-4" />
-                </Button>
-              </div>
+          {/* #31 — Footer counter + #32 — Pagination */}
+          <div className="flex items-center justify-between px-3 py-2 border-t border-slate-200 dark:border-white/[0.06]">
+            <span className="text-xs text-slate-400 dark:text-slate-500">
+              Affichage de {filtered.length > 0 ? page * pageSize + 1 : 0} a {Math.min((page + 1) * pageSize, filtered.length)} sur {filtered.length} dossier{filtered.length !== 1 ? "s" : ""}
+            </span>
+            <div className="flex items-center gap-2">
+              {/* Page size selector */}
+              <Select value={String(pageSize)} onValueChange={(v) => { setPageSize(Number(v)); setPage(0); }}>
+                <SelectTrigger className="h-7 w-[70px] text-xs border-slate-200 dark:border-white/[0.08] bg-transparent">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="10">10</SelectItem>
+                  <SelectItem value="25">25</SelectItem>
+                  <SelectItem value="50">50</SelectItem>
+                  <SelectItem value="100">100</SelectItem>
+                </SelectContent>
+              </Select>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(0)} className="h-7 w-7 p-0" title="Premiere page" aria-label="Premiere page">
+                    <ChevronsLeft className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-7 w-7 p-0" title="Page precedente" aria-label="Page precedente">
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                  </Button>
+                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                    const start = Math.max(0, Math.min(page - 2, totalPages - 5));
+                    const p = start + i;
+                    return (
+                      <Button
+                        key={p}
+                        variant={p === page ? "default" : "ghost"}
+                        size="sm"
+                        onClick={() => setPage(p)}
+                        className={`h-7 w-7 p-0 text-xs ${p === page ? "bg-blue-600" : ""}`}
+                      >
+                        {p + 1}
+                      </Button>
+                    );
+                  })}
+                  <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-7 w-7 p-0" title="Page suivante" aria-label="Page suivante">
+                    <ChevronRightIcon className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} className="h-7 w-7 p-0" title="Derniere page" aria-label="Derniere page">
+                    <ChevronsRight className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 
-      {/* #24 — Confirmation suppression */}
+      {/* Confirmation suppression */}
       <Dialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-red-400">Confirmer la suppression</DialogTitle>
+            <DialogTitle className="text-red-500">Confirmer la suppression</DialogTitle>
             <DialogDescription>
               {deleteTarget?.type === "single"
                 ? `Etes-vous sur de vouloir supprimer definitivement "${deleteTarget.name}" ? Cette action est irreversible.`

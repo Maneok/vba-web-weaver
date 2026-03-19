@@ -392,12 +392,10 @@ thead th {
   position: relative;
 }
 
-/* Better table striping — adaptive light/dark */
-tbody tr:nth-child(even) {
-  background-color: rgba(0, 0, 0, 0.02);
-}
-.dark tbody tr:nth-child(even) {
-  background-color: rgba(255, 255, 255, 0.01);
+/* #30 — Row entrance animation (staggered) */
+@keyframes fadeInRow {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* OPT-8: Toast — position + adaptive light/dark */
