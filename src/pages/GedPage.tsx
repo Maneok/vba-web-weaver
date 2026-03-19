@@ -90,6 +90,7 @@ export default function GedPage() {
     handleCategoryChange,
     handleExpirationChange,
     handleLabelChange,
+    handleUpdateField,
     handleBulkCategoryChange,
     handleRenameAllToNorm,
     favorites,
@@ -911,16 +912,9 @@ export default function GedPage() {
                     onPreview={() => handlePreview(doc)}
                     onDownload={() => handleDownload(doc)}
                     onDelete={() => handleDeleteDoc(doc)}
-                    onRename={handleRename}
-                    onCategoryChange={handleCategoryChange}
-                    onExpirationChange={handleExpirationChange}
-                    onLabelChange={handleLabelChange}
-                    prefixCell={
-                      <Checkbox
-                        checked={selectedDocIds.includes(doc.id)}
-                        onCheckedChange={() => toggleDocSelection(doc.id)}
-                      />
-                    }
+                    onUpdateField={handleUpdateField}
+                    isSelected={selectedDocIds.includes(doc.id)}
+                    onToggleSelect={() => toggleDocSelection(doc.id)}
                   />
                 ))}
               </tbody>

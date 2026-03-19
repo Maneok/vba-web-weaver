@@ -14,6 +14,7 @@ import {
   type SirenFolder,
   type GEDStats,
 } from '@/services/gedService';
+import type { GEDDocument as ComponentGEDDocument } from '@/components/ged/types';
 import { logAudit, fetchAuditLog, type AuditEntry } from '@/services/gedAuditService';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -333,6 +334,37 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
     [],
   );
 
+  // ── T10 — Unified field updater (for refactored DocumentRow) ──
+  const handleUpdateField = useCallback(
+    async (docId: string, field: string, value: unknown) => {
+      // Delegate to specific handlers for fields that need extra logic
+      if (field === 'name') {
+        return handleRename(docId, value as string);
+      }
+      if (field === 'category') {
+        return handleCategoryChange(docId, value as string);
+      }
+      if (field === 'expiration') {
+        return handleExpirationChange(docId, value as string | null);
+      }
+      if (field === 'label') {
+        return handleLabelChange(docId, value as string);
+      }
+      // Generic field update for description, notes, tags, etc.
+      try {
+        // Map component field names to DB column names
+        const dbField = field === 'expiration' ? 'expiration_date' : field;
+        await updateDocumentField(docId, dbField, value);
+        setDocuments(prev =>
+          prev.map(d => d.id === docId ? { ...d, [dbField]: value } as GEDDocument : d),
+        );
+      } catch {
+        toast.error('Erreur mise à jour');
+      }
+    },
+    [handleRename, handleCategoryChange, handleExpirationChange, handleLabelChange],
+  );
+
   // ── #106 — Bulk category change ───────────────────────────────
   const handleBulkCategoryChange = useCallback(
     async (docIds: string[], newCategory: string) => {
@@ -473,6 +505,7 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
     handleCategoryChange,
     handleExpirationChange,
     handleLabelChange,
+    handleUpdateField,
     handleBulkCategoryChange,
     handleRenameAllToNorm,
 

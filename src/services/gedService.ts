@@ -401,24 +401,61 @@ export function getKycCompletionStatus(existingCategories: string[], vigilanceLe
   };
 }
 
-// ── Rename document (#101) ──────────────────────────────────────────
+// ── Rename document (#101) — DB + Storage copy ─────────────────────
 
 export async function renameDocument(
   docId: string,
   newName: string,
   oldName: string,
 ): Promise<void> {
+  // 1. Fetch current file_path from DB
+  const { data: doc, error: fetchErr } = await supabase
+    .from('documents')
+    .select('file_path')
+    .eq('id', docId)
+    .single();
+
+  if (fetchErr || !doc) {
+    logger.error('GED', 'renameDocument:fetch', fetchErr);
+    throw new Error(fetchErr?.message ?? 'Document introuvable');
+  }
+
+  const oldPath = doc.file_path;
+  // Build new path: keep directory, replace filename
+  const dir = oldPath.substring(0, oldPath.lastIndexOf('/') + 1);
+  const newPath = dir + newName;
+
+  // 2. Copy file in Storage (Supabase has no rename — copy then remove)
+  if (oldPath !== newPath) {
+    const { error: copyErr } = await supabase.storage
+      .from('documents')
+      .copy(oldPath, newPath);
+
+    if (copyErr) {
+      // If copy fails, still update the DB name (non-blocking)
+      logger.error('GED', 'renameDocument:storageCopy', copyErr);
+    } else {
+      // Remove old file (best-effort)
+      await supabase.storage.from('documents').remove([oldPath]);
+    }
+  }
+
+  // 3. Update DB record
+  const updatePayload: Record<string, unknown> = { name: newName };
+  if (oldPath !== newPath) updatePayload.file_path = newPath;
+
   const { error } = await supabase
     .from('documents')
-    .update({ name: newName })
+    .update(updatePayload)
     .eq('id', docId);
+
   if (error) {
-    logger.error('GED', 'renameDocument', error);
+    logger.error('GED', 'renameDocument:db', error);
     throw new Error(error.message);
   }
 }
 
-// ── Update single field (#102, #103, #109, #110) ────────────────────
+// ── Update document fields (#102, #103, #109, #110) ─────────────────
 
 export async function updateDocumentField(
   docId: string,
@@ -431,6 +468,20 @@ export async function updateDocumentField(
     .eq('id', docId);
   if (error) {
     logger.error('GED', `updateDocumentField(${field})`, error);
+    throw new Error(error.message);
+  }
+}
+
+export async function updateDocumentFields(
+  docId: string,
+  fields: Record<string, unknown>,
+): Promise<void> {
+  const { error } = await supabase
+    .from('documents')
+    .update(fields)
+    .eq('id', docId);
+  if (error) {
+    logger.error('GED', 'updateDocumentFields', error);
     throw new Error(error.message);
   }
 }
