@@ -268,13 +268,181 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
     [cabinetId, documents, fireAudit],
   );
 
+  // ── #101 — Inline rename ───────────────────────────────────────
+  const handleRename = useCallback(
+    async (docId: string, newName: string) => {
+      const doc = documents.find(d => d.id === docId);
+      if (!doc) return;
+      try {
+        await renameDocument(docId, newName, doc.name);
+        setDocuments(prev => prev.map(d => d.id === docId ? { ...d, name: newName } : d));
+        fireAudit('rename', docId, { old_name: doc.name, new_name: newName });
+        toast.success('Document renommé');
+      } catch (err) {
+        toast.error('Erreur lors du renommage');
+      }
+    },
+    [documents, fireAudit],
+  );
+
+  // ── #102 — Inline category change ─────────────────────────────
+  const handleCategoryChange = useCallback(
+    async (docId: string, newCategory: string) => {
+      try {
+        await updateDocumentField(docId, 'category', newCategory);
+        setDocuments(prev => prev.map(d => d.id === docId ? { ...d, category: newCategory } : d));
+        fireAudit('category_change', docId, { new_category: newCategory });
+        // Refresh folders to update KYC stats
+        const updatedFolders = await fetchSirenFolders(cabinetId);
+        setFolders(updatedFolders);
+      } catch {
+        toast.error('Erreur changement de catégorie');
+      }
+    },
+    [cabinetId, fireAudit],
+  );
+
+  // ── #103 — Inline expiration change ───────────────────────────
+  const handleExpirationChange = useCallback(
+    async (docId: string, newDate: string | null) => {
+      try {
+        await updateDocumentField(docId, 'expiration_date', newDate);
+        setDocuments(prev =>
+          prev.map(d => d.id === docId ? { ...d, expiration_date: newDate } : d),
+        );
+        toast.success(newDate ? 'Date d\'expiration mise à jour' : 'Expiration supprimée');
+      } catch {
+        toast.error('Erreur mise à jour expiration');
+      }
+    },
+    [],
+  );
+
+  // ── #109 — Inline label change ────────────────────────────────
+  const handleLabelChange = useCallback(
+    async (docId: string, newLabel: string) => {
+      try {
+        await updateDocumentField(docId, 'label', newLabel || null);
+        setDocuments(prev =>
+          prev.map(d => d.id === docId ? { ...d, label: newLabel || null } as GEDDocument : d),
+        );
+      } catch {
+        toast.error('Erreur mise à jour du libellé');
+      }
+    },
+    [],
+  );
+
+  // ── #106 — Bulk category change ───────────────────────────────
+  const handleBulkCategoryChange = useCallback(
+    async (docIds: string[], newCategory: string) => {
+      try {
+        await bulkUpdateCategory(docIds, newCategory);
+        setDocuments(prev =>
+          prev.map(d => docIds.includes(d.id) ? { ...d, category: newCategory } : d),
+        );
+        fireAudit('category_change', null, { doc_count: docIds.length, new_category: newCategory });
+        toast.success(`${docIds.length} document(s) mis à jour`);
+        const updatedFolders = await fetchSirenFolders(cabinetId);
+        setFolders(updatedFolders);
+      } catch {
+        toast.error('Erreur mise à jour en masse');
+      }
+    },
+    [cabinetId, fireAudit],
+  );
+
+  // ── #104 — Rename all to norm ─────────────────────────────────
+  const handleRenameAllToNorm = useCallback(
+    async () => {
+      if (!selectedSiren || !cabinetId) return;
+      const folder = folders.find(f => f.client_ref === selectedSiren);
+      if (!folder) return;
+      try {
+        const count = await renameAllToNorm(selectedSiren, cabinetId, folder.siren);
+        if (count > 0) {
+          const docs = await fetchDocumentsByClientRef(selectedSiren, cabinetId);
+          setDocuments(docs);
+          fireAudit('rename', null, { action: 'normalize_all', count });
+          toast.success(`${count} document(s) renommé(s)`);
+        } else {
+          toast.info('Tous les documents sont déjà normalisés');
+        }
+      } catch {
+        toast.error('Erreur lors du renommage');
+      }
+    },
+    [selectedSiren, cabinetId, folders, fireAudit],
+  );
+
+  // ── #116 — Favorites ─────────────────────────────────────────
+  const [favorites, setFavorites] = useState<string[]>(() => {
+    try {
+      return JSON.parse(localStorage.getItem('ged-favorites') || '[]');
+    } catch { return []; }
+  });
+
+  const toggleFavorite = useCallback((clientRef: string) => {
+    setFavorites(prev => {
+      const next = prev.includes(clientRef)
+        ? prev.filter(r => r !== clientRef)
+        : [...prev, clientRef];
+      localStorage.setItem('ged-favorites', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  // ── #118 — "Récents" filter ───────────────────────────────────
+  const filteredFoldersWithFavs = useMemo(() => {
+    let result = filteredFolders;
+
+    // #118 — Recent filter: docs added within 7 days
+    if (statusFilter === 'recent' as any) {
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      result = result.filter(f => f.last_update && new Date(f.last_update) >= sevenDaysAgo);
+    }
+
+    // #116 — Sort favorites first
+    if (favorites.length > 0) {
+      result = [...result].sort((a, b) => {
+        const aFav = favorites.includes(a.client_ref) ? 0 : 1;
+        const bFav = favorites.includes(b.client_ref) ? 0 : 1;
+        return aFav - bFav;
+      });
+    }
+
+    return result;
+  }, [filteredFolders, favorites, statusFilter]);
+
+  // ── #141 — Date upload filter ─────────────────────────────────
+  const [dateFilter, setDateFilter] = useState<'all' | 'week' | 'month' | 'old'>('all');
+
+  const filteredDocumentsWithDate = useMemo(() => {
+    let result = filteredDocuments;
+    const now = new Date();
+
+    if (dateFilter === 'week') {
+      const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
+      result = result.filter(d => new Date(d.created_at) >= weekAgo);
+    } else if (dateFilter === 'month') {
+      const monthAgo = new Date(now.getTime() - 30 * 86_400_000);
+      result = result.filter(d => new Date(d.created_at) >= monthAgo);
+    } else if (dateFilter === 'old') {
+      const yearStart = new Date(now.getFullYear(), 0, 1);
+      result = result.filter(d => new Date(d.created_at) < yearStart);
+    }
+
+    return result;
+  }, [filteredDocuments, dateFilter]);
+
   return {
     // Data
     folders,
-    filteredFolders,
+    filteredFolders: filteredFoldersWithFavs,
     selectedSiren,
     documents,
-    filteredDocuments,
+    filteredDocuments: filteredDocumentsWithDate,
     stats,
     loading,
     uploading,
@@ -291,12 +459,26 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
     setSortDirection,
     statusFilter,
     setStatusFilter,
+    dateFilter,
+    setDateFilter,
 
     // Actions
     handleSelectSiren,
     handleUpload,
     handleDelete,
     refreshFolders,
+
+    // Inline editing (#101-#109)
+    handleRename,
+    handleCategoryChange,
+    handleExpirationChange,
+    handleLabelChange,
+    handleBulkCategoryChange,
+    handleRenameAllToNorm,
+
+    // Favorites (#116)
+    favorites,
+    toggleFavorite,
 
     // Audit
     auditEntries,

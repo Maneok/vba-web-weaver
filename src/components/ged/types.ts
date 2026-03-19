@@ -9,6 +9,11 @@ export interface GEDDocument {
   created_at: string;
   siren: string;
   uploaded_by?: string;
+  label?: string | null;
+  description?: string | null;
+  validation_status?: string;
+  tags?: string[];
+  notes?: string;
 }
 
 export interface SirenFolder {

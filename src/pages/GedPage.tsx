@@ -11,8 +11,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import {
   Upload, FileText, Trash2, Download, Loader2,
   Search, FolderOpen, Plus, ChevronUp, ChevronDown,
-  ExternalLink, Package, Users, Bell, X,
+  ExternalLink, Package, Users, Bell, X, AlertTriangle,
+  ArrowUpDown, Wand2, LayoutGrid, LayoutList, HardDrive,
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { toast } from "sonner";
@@ -72,12 +74,26 @@ export default function GedPage() {
     setSearchQuery,
     activeCategory,
     setActiveCategory,
+    sortColumn,
+    setSortColumn,
+    sortDirection,
+    setSortDirection,
     statusFilter,
     setStatusFilter,
+    dateFilter,
+    setDateFilter,
     handleSelectSiren,
     handleUpload,
     handleDelete,
     refreshFolders,
+    handleRename,
+    handleCategoryChange,
+    handleExpirationChange,
+    handleLabelChange,
+    handleBulkCategoryChange,
+    handleRenameAllToNorm,
+    favorites,
+    toggleFavorite,
     auditEntries,
     auditLoading,
     refreshAuditLog,
@@ -114,6 +130,12 @@ export default function GedPage() {
   // Exporting ZIP
   const [exporting, setExporting] = useState(false);
 
+  // #121 — View mode toggle (list vs grid)
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
+
+  // #106 — Bulk category change
+  const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+
   // All documents across all folders for command palette search
   const allDocuments = useMemo(() => folders.flatMap((f) => f.documents), [folders]);
 
@@ -149,6 +171,11 @@ export default function GedPage() {
       url: "",
       created_at: doc.created_at,
       siren: doc.siren || "",
+      label: (doc as any).label || null,
+      description: (doc as any).description || null,
+      validation_status: (doc as any).validation_status || "pending",
+      tags: (doc as any).tags || [],
+      notes: (doc as any).notes || "",
     }),
     [],
   );
@@ -480,11 +507,12 @@ export default function GedPage() {
 
   /* ─── Siren panel ─── */
 
-  const statusFilterMap: { value: typeof statusFilter; label: string }[] = [
+  const statusFilterMap: { value: string; label: string }[] = [
     { value: "all", label: "Tous" },
     { value: "complete", label: "Complets" },
     { value: "incomplete", label: "Incomplets" },
     { value: "alert", label: "Alertes" },
+    { value: "recent", label: "Récents" },
   ];
 
   const renderSirenPanel = () => (
@@ -538,28 +566,46 @@ export default function GedPage() {
           </div>
         ) : (
           <div className="py-1">
-            {filteredFolders.map((folder) => (
-              <SirenListItem
-                key={folder.client_ref}
-                siren={folder.siren}
-                clientName={folder.client_name}
-                docCount={folder.total_docs}
-                requiredDocs={folder.required_docs}
-                lastUpdate={folder.last_update}
-                hasExpired={folder.has_expired}
-                isSelected={selectedSiren === folder.client_ref}
-                onClick={() => handleSelectSirenUI(folder.client_ref)}
-              />
-            ))}
+            {filteredFolders.map((folder) => {
+              const expiredCount = folder.documents.filter(d => d.expiration_date && new Date(d.expiration_date) < new Date()).length;
+              const pendingCount = folder.documents.filter(d => (d as any).validation_status === 'pending' || !(d as any).validation_status).length;
+              return (
+                <SirenListItem
+                  key={folder.client_ref}
+                  siren={folder.siren}
+                  clientName={folder.client_name}
+                  docCount={folder.total_docs}
+                  requiredDocs={folder.required_docs}
+                  lastUpdate={folder.last_update}
+                  hasExpired={folder.has_expired}
+                  isSelected={selectedSiren === folder.client_ref}
+                  onClick={() => handleSelectSirenUI(folder.client_ref)}
+                  expiredCount={expiredCount}
+                  pendingCount={folder.total_docs > 0 ? pendingCount : 0}
+                  isFavorite={favorites.includes(folder.client_ref)}
+                  onToggleFavorite={toggleFavorite}
+                  clientRef={folder.client_ref}
+                />
+              );
+            })}
           </div>
         )}
       </div>
 
-      {/* Keyboard shortcut hint */}
-      <div className="p-2 border-t border-border/30 text-center">
-        <span className="text-xs text-muted-foreground">
-          {navigator.platform.includes("Mac") ? "⌘" : "Ctrl+"}K pour rechercher
-        </span>
+      {/* #119 — Panel footer counter + keyboard hint */}
+      <div className="p-2 border-t border-border/30">
+        <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+          <span>
+            {folders.length} client{folders.length > 1 ? "s" : ""} · {stats?.total_documents || 0} doc{(stats?.total_documents || 0) > 1 ? "s" : ""}
+            {stats && stats.total_documents > 0 && (() => {
+              const totalSize = folders.flatMap(f => f.documents).reduce((sum, d) => sum + (d.file_size || 0), 0);
+              if (totalSize >= 1_000_000) return ` · ${(totalSize / 1_000_000).toFixed(1)} Mo`;
+              if (totalSize >= 1_000) return ` · ${Math.round(totalSize / 1_000)} Ko`;
+              return '';
+            })()}
+          </span>
+          <span>{navigator.platform.includes("Mac") ? "⌘" : "Ctrl+"}K</span>
+        </div>
       </div>
     </div>
   );
@@ -608,6 +654,26 @@ export default function GedPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {/* #104 — Rename all to norm */}
+              {selectedFolder.total_docs > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (window.confirm(`Renommer les ${selectedFolder.total_docs} documents au format SIREN_CAT_DATE_vN ?`)) {
+                          handleRenameAllToNorm();
+                        }
+                      }}
+                    >
+                      <Wand2 className="w-3.5 h-3.5 mr-1.5" />
+                      Norme
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Renommer tous les documents selon la norme</TooltipContent>
+                </Tooltip>
+              )}
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
@@ -728,16 +794,53 @@ export default function GedPage() {
           </Collapsible>
         )}
 
-        {/* Category filter */}
-        <div className="px-4 pt-3 pb-2">
-          <CategoryFilter
-            categories={CATEGORY_TABS}
-            active={activeCategory}
-            onChange={setActiveCategory}
-          />
+        {/* Category filter + date filter + view toggle */}
+        <div className="px-4 pt-3 pb-2 flex items-center gap-2 flex-wrap">
+          <div className="flex-1">
+            <CategoryFilter
+              categories={CATEGORY_TABS}
+              active={activeCategory}
+              onChange={setActiveCategory}
+            />
+          </div>
+          {/* #141 — Date filter pills */}
+          <div className="flex items-center gap-1">
+            {([
+              { value: "all", label: "Tout" },
+              { value: "week", label: "7j" },
+              { value: "month", label: "30j" },
+            ] as const).map(d => (
+              <button
+                key={d.value}
+                onClick={() => setDateFilter(d.value as any)}
+                className={`px-2 py-0.5 text-[10px] rounded-full transition-colors ${
+                  dateFilter === d.value
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted/50 text-muted-foreground hover:bg-muted"
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+          {/* #121 — View mode toggle */}
+          <div className="flex border rounded-md overflow-hidden">
+            <button
+              onClick={() => setViewMode("list")}
+              className={`p-1 ${viewMode === "list" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+            >
+              <LayoutList className="h-3.5 w-3.5" />
+            </button>
+            <button
+              onClick={() => setViewMode("grid")}
+              className={`p-1 ${viewMode === "grid" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+            </button>
+          </div>
         </div>
 
-        {/* Documents table */}
+        {/* Documents table or grid */}
         <div className="px-4 py-3">
           {filteredDocuments.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
@@ -751,7 +854,7 @@ export default function GedPage() {
                 Importer
               </Button>
             </div>
-          ) : (
+          ) : viewMode === "list" ? (
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border/30 text-left">
@@ -764,11 +867,37 @@ export default function GedPage() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </th>
-                  <th className="py-2 px-3 text-xs text-muted-foreground font-medium">Document</th>
-                  <th className="py-2 px-3 text-xs text-muted-foreground font-medium">Catégorie</th>
-                  <th className="py-2 px-3 text-xs text-muted-foreground font-medium">Taille</th>
-                  <th className="py-2 px-3 text-xs text-muted-foreground font-medium">Version</th>
-                  <th className="py-2 px-3 text-xs text-muted-foreground font-medium">Expiration</th>
+                  {/* #122 — Sortable column headers */}
+                  {[
+                    { key: "name", label: "Document" },
+                    { key: "category", label: "Catégorie" },
+                    { key: "file_size", label: "Taille" },
+                    { key: "current_version", label: "Version" },
+                    { key: "expiration_date", label: "Expiration" },
+                    { key: "validation_status", label: "Statut" },
+                  ].map(col => (
+                    <th
+                      key={col.key}
+                      className="py-2 px-3 text-xs text-muted-foreground font-medium cursor-pointer hover:text-foreground transition-colors select-none"
+                      onClick={() => {
+                        if (sortColumn === col.key) {
+                          setSortDirection(prev => prev === "asc" ? "desc" : "asc");
+                        } else {
+                          setSortColumn(col.key);
+                          setSortDirection("asc");
+                        }
+                      }}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        {col.label}
+                        {sortColumn === col.key && (
+                          sortDirection === "asc"
+                            ? <ChevronUp className="h-3 w-3" />
+                            : <ChevronDown className="h-3 w-3" />
+                        )}
+                      </span>
+                    </th>
+                  ))}
                   <th className="py-2 px-3 text-xs text-muted-foreground font-medium text-right">
                     Actions
                   </th>
@@ -782,6 +911,10 @@ export default function GedPage() {
                     onPreview={() => handlePreview(doc)}
                     onDownload={() => handleDownload(doc)}
                     onDelete={() => handleDeleteDoc(doc)}
+                    onRename={handleRename}
+                    onCategoryChange={handleCategoryChange}
+                    onExpirationChange={handleExpirationChange}
+                    onLabelChange={handleLabelChange}
                     prefixCell={
                       <Checkbox
                         checked={selectedDocIds.includes(doc.id)}
@@ -792,7 +925,44 @@ export default function GedPage() {
                 ))}
               </tbody>
             </table>
-          )}
+            ) : (
+              /* #121 — Grid view */
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                {filteredDocuments.map((doc) => {
+                  const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.name);
+                  const docIsNew = (new Date().getTime() - new Date(doc.created_at).getTime()) < 86_400_000;
+                  return (
+                    <div
+                      key={doc.id}
+                      className="group relative glass-card p-3 rounded-xl cursor-pointer hover:ring-1 hover:ring-primary/30 transition-all"
+                      onClick={() => handlePreview(doc)}
+                    >
+                      {docIsNew && (
+                        <span className="absolute -top-1.5 -right-1.5 px-1.5 py-0.5 rounded-full bg-blue-500 text-[9px] text-white font-bold z-10">
+                          NEW
+                        </span>
+                      )}
+                      <div className="aspect-[4/3] rounded-lg bg-muted/30 flex items-center justify-center mb-2 overflow-hidden">
+                        {isImage ? (
+                          <img src="" alt={doc.name} className="w-full h-full object-cover opacity-60" />
+                        ) : (
+                          <FileText className="h-8 w-8 text-muted-foreground/40" />
+                        )}
+                      </div>
+                      <p className="text-xs font-medium truncate" title={doc.name}>
+                        {(doc as any).label || doc.name}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span className="bg-primary/10 text-primary rounded-full text-[10px] px-1.5 py-0.5">
+                          {doc.category}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">v{doc.current_version}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
         </div>
       </>
     );
@@ -1026,6 +1196,16 @@ export default function GedPage() {
         </div>
       )}
 
+      {/* #148 — Critical alert banner */}
+      {stats && stats.expired > 0 && folders.some(f => f.has_expired && (f.niv_vigilance === 'RENFORCEE')) && (
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 bg-red-500/95 text-white shadow-lg rounded-xl px-6 py-2.5 flex items-center gap-3 animate-fade-in-up z-30 max-w-lg">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <span className="text-sm font-medium">
+            {stats.expired} document{stats.expired > 1 ? "s" : ""} expiré{stats.expired > 1 ? "s" : ""} pour des clients à risque renforcé
+          </span>
+        </div>
+      )}
+
       {/* Multi-selection action bar */}
       {selectedDocIds.length > 0 && (
         <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-card border shadow-lg rounded-xl px-6 py-3 flex items-center gap-4 animate-fade-in-up z-20">
@@ -1033,6 +1213,20 @@ export default function GedPage() {
             {selectedDocIds.length} document{selectedDocIds.length > 1 ? "s" : ""} sélectionné
             {selectedDocIds.length > 1 ? "s" : ""}
           </span>
+          {/* #106 — Bulk category change */}
+          <Select onValueChange={(val) => {
+            handleBulkCategoryChange(selectedDocIds, val);
+            setSelectedDocIds([]);
+          }}>
+            <SelectTrigger className="h-8 w-[130px] text-xs">
+              <SelectValue placeholder="Catégorie..." />
+            </SelectTrigger>
+            <SelectContent>
+              {CATEGORY_TABS.filter(c => c !== "Tous").map(cat => (
+                <SelectItem key={cat} value={cat.toLowerCase()} className="text-xs">{cat}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm" onClick={handleBulkDownload}>
             <Download className="w-3.5 h-3.5 mr-1.5" />
             Télécharger
