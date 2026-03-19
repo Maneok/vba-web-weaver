@@ -4,6 +4,18 @@ function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
+function normalizeUpper(s: string): string {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+}
+
+function personKey(nom: string, prenom: string): string {
+  // Key = normalized surname + first token of firstname
+  // This handles "ALEXANDRE" matching "ALEXANDRE GEORGES MOÏSE"
+  const normNom = normalizeUpper(nom);
+  const firstPrenom = normalizeUpper(prenom).split(/\s+/)[0] || "";
+  return `${normNom}|${firstPrenom}`;
+}
+
 // Role code → label mapping (same as enterprise-lookup)
 const QUALITE_LABELS: Record<string, string> = {
   "01": "Président du CA", "02": "Directeur général", "03": "Gérant",
@@ -227,26 +239,45 @@ Deno.serve(async (req) => {
           nodes[0].label = clientData.denomination;
         }
 
-        // Add person nodes for each INDIVIDU in pouvoirs
+        // Merge INPI individus + input dirigeants into a single deduplicated list
+        const allPersons: Array<{ nom: string; prenom: string; role: string }> = [];
+        const seenPersonKeys = new Set<string>();
+
+        // Add INPI individus first (they have roles from pouvoirs)
         for (const ind of clientData.individus) {
-          const fullName = `${ind.prenom} ${ind.nom}`.trim();
-          if (!fullName || fullName.length < 3) continue;
-          const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
-          if (!nodes.some(n => n.id === personId)) {
-            nodes.push({ id: personId, label: fullName, type: "person" });
-            edges.push({ source: personId, target: `company-${cleanSiren}`, label: ind.role || "Dirigeant" });
-            personSirens[personId] = new Set<string>();
-          }
+          const key = personKey(ind.nom, ind.prenom);
+          if (seenPersonKeys.has(key)) continue;
+          seenPersonKeys.add(key);
+          allPersons.push({ nom: ind.nom, prenom: ind.prenom, role: ind.role || "Dirigeant" });
         }
 
-        // Also ensure input dirigeants are added as person nodes
+        // Add input dirigeants (may have more complete names)
         for (const dir of dirSlice) {
-          const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
+          const key = personKey(dir.nom ?? "", dir.prenom ?? "");
+          if (seenPersonKeys.has(key)) {
+            // Already exists — update label if this one is longer (more complete)
+            const existing = allPersons.find(p => personKey(p.nom, p.prenom) === key);
+            if (existing) {
+              const fullExisting = `${existing.prenom} ${existing.nom}`.trim();
+              const fullNew = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
+              if (fullNew.length > fullExisting.length) {
+                existing.prenom = dir.prenom ?? existing.prenom;
+              }
+            }
+            continue;
+          }
+          seenPersonKeys.add(key);
+          allPersons.push({ nom: dir.nom ?? "", prenom: dir.prenom ?? "", role: dir.qualite || "Dirigeant" });
+        }
+
+        // Create person nodes from deduplicated list
+        for (const person of allPersons) {
+          const fullName = `${person.prenom} ${person.nom}`.trim();
           if (!fullName || fullName.length < 3) continue;
-          const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
+          const personId = `person-${normalizeUpper(fullName).replace(/\s+/g, "-").toLowerCase()}`;
           if (!nodes.some(n => n.id === personId)) {
             nodes.push({ id: personId, label: fullName, type: "person" });
-            edges.push({ source: personId, target: `company-${cleanSiren}`, label: dir.qualite || "Dirigeant" });
+            edges.push({ source: personId, target: `company-${cleanSiren}`, label: person.role });
             personSirens[personId] = new Set<string>();
           }
         }
@@ -312,30 +343,27 @@ Deno.serve(async (req) => {
               addressCounts[linked.codePostal].push(linked.denomination || linked.siren);
             }
 
-            // Check if any input dirigeants also appear in this linked company
+            // Check if any known persons also appear in this linked company
             for (const ind of linked.individus) {
-              const normIndNom = normalize(ind.nom);
-              const normIndPrenom = normalize(ind.prenom);
+              const indKey = personKey(ind.nom, ind.prenom);
 
-              for (const dir of dirSlice) {
-                const normDirNom = normalize(dir.nom ?? "");
-                const normDirPrenom = normalize(dir.prenom ?? "");
+              for (const person of allPersons) {
+                const pKey = personKey(person.nom, person.prenom);
+                if (indKey !== pKey) continue;
 
-                if (normIndNom === normDirNom && normIndPrenom.startsWith(normDirPrenom.slice(0, 3))) {
-                  const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
-                  const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
+                const fullName = `${person.prenom} ${person.nom}`.trim();
+                const personId = `person-${normalizeUpper(fullName).replace(/\s+/g, "-").toLowerCase()}`;
 
-                  // Create edge: person → linked company
-                  if (!edges.some(e => e.source === personId && e.target === `company-${linked.siren}`)) {
-                    edges.push({
-                      source: personId,
-                      target: `company-${linked.siren}`,
-                      label: ind.role || "Dirigeant",
-                    });
-                  }
-                  if (personSirens[personId]) {
-                    personSirens[personId].add(linked.siren);
-                  }
+                // Create edge: person → linked company
+                if (!edges.some(e => e.source === personId && e.target === `company-${linked.siren}`)) {
+                  edges.push({
+                    source: personId,
+                    target: `company-${linked.siren}`,
+                    label: ind.role || "Dirigeant",
+                  });
+                }
+                if (personSirens[personId]) {
+                  personSirens[personId].add(linked.siren);
                 }
               }
             }
@@ -364,10 +392,10 @@ Deno.serve(async (req) => {
 
         // Step 3: For each input dirigeant, check if they appear as individu in the client company
         // and add mandat-related alerts
-        for (const dir of dirSlice) {
-          const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
+        for (const person of allPersons) {
+          const fullName = `${person.prenom} ${person.nom}`.trim();
           if (!fullName || fullName.length < 3) continue;
-          const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
+          const personId = `person-${normalizeUpper(fullName).replace(/\s+/g, "-").toLowerCase()}`;
           const dirSirens = personSirens[personId] ?? new Set<string>();
           const activeMandatCount = dirSirens.size;
 
