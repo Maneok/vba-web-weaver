@@ -49,7 +49,7 @@ import {
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
   ZoomIn, ZoomOut, Maximize, Mail, QrCode, Filter, SortAsc, SortDesc, CheckSquare, Square,
-  Pencil, ImageIcon, Inbox,
+  Pencil, ImageIcon, Inbox, FolderOpen,
 } from "lucide-react";
 
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
@@ -3594,12 +3594,7 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
-            {/* OPT-46: Section 1 — Recapitulatif */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-full bg-blue-500/15 text-blue-500 text-[10px] font-bold flex items-center justify-center shrink-0">1</span>
-              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Recapitulatif</span>
-              {form.raisonSociale && form.siren && decision && <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0 ml-auto">Complet</Badge>}
-            </div>
+            {/* Recapitulatif — ouvert par defaut */}
             <Collapsible defaultOpen>
               <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-colors">
                 <div className="flex items-center gap-2">
@@ -3700,9 +3695,6 @@ export default function NouveauClientPage() {
               </CollapsibleContent>
             </Collapsible>
 
-            {/* OPT-47: Gradient separator */}
-            <hr className="section-gradient-hr" />
-
             {/* FIX 56: Show INPI/document fetch errors */}
             {screening.inpi.error && !screening.inpi.loading && (
               <div className="p-3 rounded-lg border border-red-500/20 bg-red-500/5 flex items-center gap-2">
@@ -3713,7 +3705,6 @@ export default function NouveauClientPage() {
                 </div>
               </div>
             )}
-            {/* FIX P4-49: Better error display with inline retry */}
             {screening.documents.error && !screening.documents.loading && (
               <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -3731,11 +3722,301 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* OPT-46: Section 2 — Documents */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-full bg-emerald-500/15 text-emerald-500 text-[10px] font-bold flex items-center justify-center shrink-0">2</span>
-              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Documents</span>
+            {/* ===== CHECKLIST DOCUMENTAIRE (remontée ici) ===== */}
+            {/* SECTION 2: Checklist documentaire dynamique (Idee 30) */}
+            {(() => {
+              // FIX 29: Deduplicate documents from both sources before checklist matching
+              // Include enterprise-based fallback "Fiche Entreprise" as virtual KBIS if no real one exists
+              const inpiDocs = screening.inpi.data?.documents ?? [];
+              const fetchDocs = screening.documents.data?.documents ?? [];
+              const hasRealKbis = [...inpiDocs, ...fetchDocs].some(d =>
+                d.type?.toUpperCase().includes("KBIS") && (d.storedInSupabase || (d.status === "auto" && d.url))
+              );
+              const fallbackKbis = (!hasRealKbis && selectedEnterprise) ? [{
+                type: "kbis",
+                label: "Fiche Entreprise (equivalent Kbis)",
+                url: "#fallback",
+                source: "annuaire_entreprises",
+                available: true,
+                status: "auto" as const,
+                storedInSupabase: false,
+              }] : [];
+              const rawDocs = [
+                // FIX P4-12: Prefer INPI docs first (higher quality), then documents-fetch
+                ...inpiDocs,
+                ...fetchDocs,
+                ...fallbackKbis,
+              ];
+              const seenKeys = new Set<string>();
+              const allDocs = rawDocs.filter(d => {
+                // FIX P4-12: Better dedup key — type+source+date instead of type+label
+                const dateKey = d.dateDepot || d.dateCloture || "";
+                const key = `${d.type.toUpperCase()}-${d.source || ""}-${dateKey}`;
+                if (seenKeys.has(key)) return false;
+                seenKeys.add(key);
+                return true;
+              });
+              // Accept docs that are stored in Supabase, have auto status with a URL, or lien_direct
+              // FIX P4-10: needsAuth docs are NOT accessible — exclude them
+              const hasAvailableDoc = (types: string[]) => allDocs.some(d =>
+                types.some(t => d.type.toUpperCase().includes(t)) &&
+                !d.needsAuth &&
+                (d.storedInSupabase === true || (d.status === "auto" && d.url) || d.status === "lien_direct")
+              );
+              const hasUpload = (types: string[]) => documents.some(d =>
+                types.some(t => d.type.toUpperCase().includes(t))
+              );
+
+              const results = vigilanceDocChecklist.map(c => ({
+                ...c,
+                hasPdf: hasAvailableDoc(c.types),
+                hasUpload: hasUpload(c.types),
+                found: hasAvailableDoc(c.types) || hasUpload(c.types),
+                manual: ["CNI", "RIB", "Justificatif", "Organigramme"].includes(c.key),
+              }));
+              const foundCount = results.filter(r => r.found).length;
+              const pct = Math.round((foundCount / vigilanceDocChecklist.length) * 100);
+
+              return (
+                <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Checklist documentaire</h3>
+                      <Badge className={`text-[9px] border-0 ${
+                        risk.nivVigilance === "SIMPLIFIEE" ? "bg-emerald-500/20 text-emerald-400" :
+                        risk.nivVigilance === "STANDARD" ? "bg-amber-500/20 text-amber-400" :
+                        "bg-red-500/20 text-red-400"
+                      }`}>{vigilanceDocChecklist.length} documents requis</Badge>
+                      {pct === 100 && <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">Complet</Badge>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {/* OPT-23: Progress bar with gradient */}
+                      <Progress value={pct} className={`w-24 h-2 ${pct >= 80 ? "progress-gradient-green" : pct >= 50 ? "progress-gradient-orange" : "progress-gradient-red"}`} />
+                      <span className={`text-sm font-bold animate-count-up ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
+                    </div>
+                  </div>
+                  {/* R2-19: Checklist grid 2x2 */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {results.map(item => {
+                      // R2-33: Obligation level
+                      const obligationLevel = item.manual ? "recommande" : "obligatoire";
+                      // R2-35: Expiration check for Kbis (3 months)
+                      const kbisExpiry = item.key === "KBIS" && item.hasPdf ? (() => {
+                        const kbisDoc = [...(screening.inpi.data?.documents ?? []), ...(screening.documents.data?.documents ?? [])].find(d => d.type?.toUpperCase().includes("KBIS") && d.dateDepot);
+                        if (!kbisDoc?.dateDepot) return null;
+                        const expDate = new Date(kbisDoc.dateDepot);
+                        expDate.setMonth(expDate.getMonth() + 3);
+                        return { expired: expDate < new Date(), date: expDate };
+                      })() : null;
+
+                      return (
+                        <TooltipRoot key={item.key}>
+                          <TooltipTrigger asChild>
+                            <label
+                              className={`p-2.5 rounded-lg border text-center transition-colors cursor-pointer relative ${
+                                item.found
+                                  ? (kbisExpiry?.expired ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10" : "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10")
+                                  : "border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10"
+                              }`}
+                              onClick={e => {
+                                // Click on found item = open preview of matching doc
+                                if (item.found && item.hasPdf) {
+                                  e.preventDefault();
+                                  const autoDocs = [
+                                    ...(screening.inpi.data?.documents ?? []),
+                                    ...(screening.documents.data?.documents ?? []),
+                                  ];
+                                  const matchedDoc = autoDocs.find(d =>
+                                    item.types.some(t => (d.type ?? "").toUpperCase().includes(t)) && d.url && !d.needsAuth
+                                  );
+                                  if (matchedDoc?.url) {
+                                    setPreviewDoc({ url: matchedDoc.url, label: item.label });
+                                  }
+                                }
+                              }}
+                            >
+                              {/* R2-33: Obligation badge */}
+                              <span className={`absolute top-1 right-1 text-[7px] px-1 py-0.5 rounded ${
+                                obligationLevel === "obligatoire" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
+                              }`}>{obligationLevel === "obligatoire" ? "Requis" : "Recommande"}</span>
+                              {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5 animate-check-pop" /> : <Upload className="w-4 h-4 text-orange-400 mx-auto mb-0.5" />}
+                              <p className={`text-[11px] font-medium leading-tight ${item.found ? (kbisExpiry?.expired ? "text-red-400" : "text-emerald-400") : "text-orange-400"}`}>{item.label}</p>
+                              {item.hasPdf && !kbisExpiry?.expired && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere automatiquement</p>}
+                              {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
+                              {!item.found && <p className="text-[8px] text-orange-400 mt-0.5">Cliquez pour uploader</p>}
+                              {/* R2-35: Expiration date for Kbis */}
+                              {kbisExpiry && (
+                                <p className={`text-[8px] mt-0.5 ${kbisExpiry.expired ? "text-red-400 font-medium" : "text-slate-400"}`}>
+                                  {kbisExpiry.expired ? `Expire le ${formatDateFr(kbisExpiry.date, "short")}` : `Valide jusqu'au ${formatDateFr(kbisExpiry.date, "short")}`}
+                                </p>
+                              )}
+                              {/* R2-36: Alert for expired CNI */}
+                              {item.key === "CNI" && item.found && form.dateCreation && (() => {
+                                // Rough check: if dateCreation > 10 years, CNI might be expired
+                                return null; // CNI expiry requires actual CNI date, skip
+                              })()}
+                              {!item.found && (
+                                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => {
+                                  if (e.target.files && e.target.files.length > 0) {
+                                    const f = e.target.files[0];
+                                    if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier trop volumineux (max 10 Mo)`); return; }
+                                    setDocuments(prev => [...prev, { name: f.name, type: item.key, file: f }]);
+                                    toast.success(`${item.label} uploade`);
+                                  }
+                                }} />
+                              )}
+                            </label>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs max-w-[250px]">
+                            {item.found
+                              ? (item.hasPdf ? "Recupere automatiquement via INPI" : "Upload manuel present")
+                              : (item.manual ? "En attente d'upload manuel" : "Recuperation automatique non disponible — upload requis")}
+                            {kbisExpiry && (kbisExpiry.expired ? " — PERIME, veuillez re-uploader" : ` — valide 3 mois`)}
+                          </TooltipContent>
+                        </TooltipRoot>
+                      );
+                    })}
+                  </div>
+                  {/* R2-47: Confetti animation when 100% */}
+                  {foundCount === vigilanceDocChecklist.length && (
+                    <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center gap-2 animate-fade-in-up relative overflow-hidden">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-check-pop" />
+                      <span className="text-sm font-semibold text-emerald-400">Dossier documentaire complet</span>
+                      {/* R2-47: Confetti particles */}
+                      {showConfetti && (
+                        <>
+                          {Array.from({ length: 12 }).map((_, i) => (
+                            <span key={i} className="confetti-particle" style={{
+                              left: `${10 + Math.random() * 80}%`, top: `${40 + Math.random() * 20}%`,
+                              backgroundColor: ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"][i % 5],
+                              animationDelay: `${i * 0.08}s`,
+                            }} />
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            <hr className="section-gradient-hr" />
+
+            {/* Generation & Export */}
+            {/* R2-45: Last generation info */}
+            {lastGeneration && (
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1 mb-1">
+                <History className="w-3 h-3" /> Derniere generation : {lastGeneration.type} le {formatDateFr(lastGeneration.date, "long")} a {lastGeneration.date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-3">
+              {/* R2-41: Generer fiche LCB-FT — blue primary */}
+              <Button
+                size="lg"
+                className="gap-2.5 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 text-sm px-5 py-3"
+                disabled={generatingPdf === "fiche"}
+                onClick={() => {
+                  const tempClient = buildTempClient();
+                  if (!tempClient) { toast.error("Impossible de generer la fiche : donnees manquantes"); return; }
+                  setGeneratingPdf("fiche");
+                  try {
+                    generateFicheAcceptation(tempClient);
+                    toast.success("Fiche LCB-FT generee (PDF)");
+                    setLastGeneration({ type: "Fiche LCB-FT", date: new Date() });
+                  } catch { toast.error("Erreur lors de la generation de la fiche"); }
+                  finally { setGeneratingPdf(null); }
+                }}
+              >
+                {generatingPdf === "fiche" ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />} Generer fiche LCB-FT
+              </Button>
+              {/* R2-42: Generer lettre de mission */}
+              <Button
+                size="lg"
+                variant="outline"
+                className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 text-sm px-5 py-3"
+                disabled={generatingPdf === "lettre"}
+                onClick={() => {
+                  const tempClient = buildTempClient();
+                  if (!tempClient) { toast.error("Impossible de generer la lettre : donnees manquantes"); return; }
+                  setGeneratingPdf("lettre");
+                  try {
+                    generateLettreMission(tempClient);
+                    toast.success("Lettre de mission generee (PDF)");
+                    setLastGeneration({ type: "Lettre de mission", date: new Date() });
+                  } catch { toast.error("Erreur lors de la generation de la lettre"); }
+                  finally { setGeneratingPdf(null); }
+                }}
+              >
+                {generatingPdf === "lettre" ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSignature className="w-5 h-5" />} Generer lettre de mission
+              </Button>
+              {/* R2-43: Tout telecharger — with file counter */}
+              {(() => {
+                const rawStoredDocs = [
+                  ...(screening.inpi.data?.documents ?? []),
+                  ...(screening.documents.data?.documents ?? []),
+                ].filter(d => d.url && (d.storedInSupabase || d.status === "auto"));
+                const seenUrls = new Set<string>();
+                const allStoredDocs = rawStoredDocs.filter(d => {
+                  if (!d.url || seenUrls.has(d.url)) return false;
+                  seenUrls.add(d.url);
+                  return true;
+                });
+                const totalFiles = allStoredDocs.length + documents.filter(d => d.file).length;
+                if (allStoredDocs.length < 2) return null;
+                return (
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 text-sm px-5 py-3"
+                    onClick={() => {
+                      allStoredDocs.forEach((doc, j) => {
+                        setTimeout(() => {
+                          const a = document.createElement("a");
+                          a.href = doc.url!;
+                          a.target = "_blank";
+                          a.rel = "noopener noreferrer";
+                          a.click();
+                        }, j * 300);
+                      });
+                      toast.success(`Ouverture de ${allStoredDocs.length} document(s)`);
+                    }}
+                  >
+                    <Download className="w-5 h-5" /> Tout telecharger ({totalFiles} fichiers)
+                  </Button>
+                );
+              })()}
+              {/* R2-46: Send to client by email */}
+              {form.mail && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/30 text-sm px-5 py-3"
+                  onClick={() => {
+                    const subject = encodeURIComponent(`Documents ${form.raisonSociale} — Dossier LCB-FT`);
+                    const body = encodeURIComponent(`Bonjour,\n\nVeuillez trouver ci-joint les documents relatifs au dossier ${form.raisonSociale} (SIREN ${form.siren}).\n\nCordialement,`);
+                    window.open(`mailto:${form.mail}?subject=${subject}&body=${body}`, "_blank");
+                    toast.info("Client mail ouvert");
+                  }}
+                >
+                  <Mail className="w-5 h-5" /> Envoyer au client
+                </Button>
+              )}
             </div>
+
+            <hr className="section-gradient-hr" />
+
+            {/* Extrait Kbis / RNE — Collapsible fermé */}
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-colors">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Extrait Kbis / RNE</h3>
+                  {(screening.inpi.data?.documents ?? []).some(d => d.type?.toLowerCase() === "kbis" && (d.storedInSupabase || d.url)) && <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">Disponible</Badge>}
+                </div>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
             {/* SECTION 1: Extrait RNE / Kbis — affiché en premier car c'est le doc le plus important */}
             {(() => {
               // FIX P4-24+46: Deduplicate KBIS/RBE extraits from both sources
@@ -3883,7 +4164,20 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 </div>
               );
             })()}
+              </CollapsibleContent>
+            </Collapsible>
 
+            {/* Documents collectés — Collapsible fermé */}
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-colors">
+                <div className="flex items-center gap-2">
+                  <FolderOpen className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Documents collectes</h3>
+                  <Badge className="text-[9px] bg-gray-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400 border-0">{((screening.inpi.data?.documents ?? []).length + (screening.documents.data?.documents ?? []).length) || 0}</Badge>
+                </div>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
             {/* SECTION 2: Statuts & Actes INPI recuperes */}
             {(() => {
               // FIX P4-17: Merge sources, prefer stored PDFs, better dedup
@@ -4183,6 +4477,91 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               );
             })()}
 
+            {/* R2-23/25/27/30: Uploaded documents summary with previews */}
+            {documents.filter(d => d.file).length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents uploades</Label>
+                    <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{documents.filter(d => d.file).length} fichier(s)</Badge>
+                  </div>
+                  {/* R2-30: Total weight */}
+                  <span className="text-[9px] text-slate-400 dark:text-slate-500">
+                    {documents.filter(d => d.file).length} fichiers — {(documents.filter(d => d.file).reduce((s, d) => s + (d.file?.size || 0), 0) / 1024 / 1024).toFixed(1)} Mo
+                  </span>
+                </div>
+                {documents.filter(d => d.file).map((doc, i) => {
+                  const docIdx = documents.findIndex(d => d === doc);
+                  const ext = doc.name.split(".").pop()?.toLowerCase() || "";
+                  const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
+                  const preview = imagePreviews[doc.name];
+                  // R2-27: Per-file upload progress
+                  const progress = fileUploadProgress[doc.name];
+                  // R2-25: Suggested rename
+                  const suggestedName = (() => {
+                    if (doc.type === "CNI" && form.dirigeant && doc.name.startsWith("IMG")) {
+                      return `CNI_${form.dirigeant.replace(/\s+/g, "_").toUpperCase()}.${ext}`;
+                    }
+                    return null;
+                  })();
+                  return (
+                    <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10 animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
+                      <div className="flex items-center gap-3 min-w-0">
+                        {/* R2-23: Image thumbnail preview */}
+                        {isImage && preview ? (
+                          <img src={preview} alt="" className="upload-thumbnail shrink-0" />
+                        ) : (
+                          <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${isImage ? "bg-violet-500/10" : ext === "pdf" ? "bg-red-500/10" : "bg-blue-500/10"}`}>
+                            {isImage ? <ImageIcon className="w-4 h-4 text-violet-400" /> : <FileText className={`w-4 h-4 ${ext === "pdf" ? "text-red-400" : "text-blue-400"}`} />}
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <span className="text-xs text-slate-700 dark:text-slate-300 truncate block">{doc.name}</span>
+                          {/* R2-25: Rename suggestion */}
+                          {suggestedName && (
+                            <button onClick={() => {
+                              setDocuments(prev => prev.map((d, idx) => idx === docIdx ? { ...d, name: suggestedName } : d));
+                              toast.info(`Renomme en ${suggestedName}`);
+                            }} className="text-[8px] text-blue-400 hover:text-blue-300 mt-0.5 flex items-center gap-0.5">
+                              <Sparkles className="w-2.5 h-2.5" /> Renommer en {suggestedName}
+                            </button>
+                          )}
+                          <div className="flex items-center gap-2 mt-0.5">
+                            {doc.file && <span className="text-[9px] text-slate-400 dark:text-slate-500">{doc.file.size > 1024 * 1024 ? `${(doc.file.size / 1024 / 1024).toFixed(1)} Mo` : `${(doc.file.size / 1024).toFixed(0)} Ko`}</span>}
+                            <Badge className={`text-[8px] border-0 uppercase ${ext === "pdf" ? "bg-red-500/15 text-red-400" : isImage ? "bg-green-500/15 text-green-400" : "bg-blue-500/15 text-blue-400"}`}>{ext}</Badge>
+                            <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">{doc.type}</Badge>
+                          </div>
+                          {/* R2-27: Per-file progress bar */}
+                          {progress !== undefined && progress < 100 && (
+                            <div className="w-24 mt-1">
+                              <Progress value={progress} className="h-1 progress-gradient-green" />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-400 dark:text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-7 w-7 p-0 shrink-0">
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Données financières — Collapsible fermé */}
+            {((screening.inpi.data?.financials && screening.inpi.data.financials.length > 0) || (selectedEnterprise?.finances && selectedEnterprise.finances.length > 0)) && (
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-colors">
+                <div className="flex items-center gap-2">
+                  <BarChart3 className="w-4 h-4 text-amber-400" />
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Donnees financieres</h3>
+                </div>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 space-y-4">
             {/* Donnees financieres — improved formatting */}
             {screening.inpi.data?.financials && screening.inpi.data.financials.length > 0 && (
               <div className="space-y-2">
@@ -4298,6 +4677,9 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 </div>
               </div>
             )}
+              </CollapsibleContent>
+            </Collapsible>
+            )}
 
             {/* FIX 40: Improved INPI Historique Timeline */}
             {inpiHistorique.length > 0 && (
@@ -4382,263 +4764,16 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </Collapsible>
             )}
 
-            {/* OPT-47: Gradient separator */}
-            <hr className="section-gradient-hr" />
-
-            {/* OPT-46: Section 3 — Checklist */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-full bg-amber-500/15 text-amber-500 text-[10px] font-bold flex items-center justify-center shrink-0">3</span>
-              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Checklist</span>
-            </div>
-            {/* SECTION 2: Checklist documentaire dynamique (Idee 30) */}
-            {(() => {
-              // FIX 29: Deduplicate documents from both sources before checklist matching
-              // Include enterprise-based fallback "Fiche Entreprise" as virtual KBIS if no real one exists
-              const inpiDocs = screening.inpi.data?.documents ?? [];
-              const fetchDocs = screening.documents.data?.documents ?? [];
-              const hasRealKbis = [...inpiDocs, ...fetchDocs].some(d =>
-                d.type?.toUpperCase().includes("KBIS") && (d.storedInSupabase || (d.status === "auto" && d.url))
-              );
-              const fallbackKbis = (!hasRealKbis && selectedEnterprise) ? [{
-                type: "kbis",
-                label: "Fiche Entreprise (equivalent Kbis)",
-                url: "#fallback",
-                source: "annuaire_entreprises",
-                available: true,
-                status: "auto" as const,
-                storedInSupabase: false,
-              }] : [];
-              const rawDocs = [
-                // FIX P4-12: Prefer INPI docs first (higher quality), then documents-fetch
-                ...inpiDocs,
-                ...fetchDocs,
-                ...fallbackKbis,
-              ];
-              const seenKeys = new Set<string>();
-              const allDocs = rawDocs.filter(d => {
-                // FIX P4-12: Better dedup key — type+source+date instead of type+label
-                const dateKey = d.dateDepot || d.dateCloture || "";
-                const key = `${d.type.toUpperCase()}-${d.source || ""}-${dateKey}`;
-                if (seenKeys.has(key)) return false;
-                seenKeys.add(key);
-                return true;
-              });
-              // Accept docs that are stored in Supabase, have auto status with a URL, or lien_direct
-              // FIX P4-10: needsAuth docs are NOT accessible — exclude them
-              const hasAvailableDoc = (types: string[]) => allDocs.some(d =>
-                types.some(t => d.type.toUpperCase().includes(t)) &&
-                !d.needsAuth &&
-                (d.storedInSupabase === true || (d.status === "auto" && d.url) || d.status === "lien_direct")
-              );
-              const hasUpload = (types: string[]) => documents.some(d =>
-                types.some(t => d.type.toUpperCase().includes(t))
-              );
-
-              const results = vigilanceDocChecklist.map(c => ({
-                ...c,
-                hasPdf: hasAvailableDoc(c.types),
-                hasUpload: hasUpload(c.types),
-                found: hasAvailableDoc(c.types) || hasUpload(c.types),
-                manual: ["CNI", "RIB", "Justificatif", "Organigramme"].includes(c.key),
-              }));
-              const foundCount = results.filter(r => r.found).length;
-              const pct = Math.round((foundCount / vigilanceDocChecklist.length) * 100);
-
-              return (
-                <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Checklist documentaire</h3>
-                      <Badge className={`text-[9px] border-0 ${
-                        risk.nivVigilance === "SIMPLIFIEE" ? "bg-emerald-500/20 text-emerald-400" :
-                        risk.nivVigilance === "STANDARD" ? "bg-amber-500/20 text-amber-400" :
-                        "bg-red-500/20 text-red-400"
-                      }`}>{vigilanceDocChecklist.length} documents requis</Badge>
-                      {pct === 100 && <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">Complet</Badge>}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {/* OPT-23: Progress bar with gradient */}
-                      <Progress value={pct} className={`w-24 h-2 ${pct >= 80 ? "progress-gradient-green" : pct >= 50 ? "progress-gradient-orange" : "progress-gradient-red"}`} />
-                      <span className={`text-sm font-bold animate-count-up ${pct >= 80 ? "text-emerald-400" : pct >= 50 ? "text-amber-400" : "text-red-400"}`}>{pct}%</span>
-                    </div>
-                  </div>
-                  {/* R2-19: Checklist grid 2x2 */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {results.map(item => {
-                      // R2-33: Obligation level
-                      const obligationLevel = item.manual ? "recommande" : "obligatoire";
-                      // R2-35: Expiration check for Kbis (3 months)
-                      const kbisExpiry = item.key === "KBIS" && item.hasPdf ? (() => {
-                        const kbisDoc = [...(screening.inpi.data?.documents ?? []), ...(screening.documents.data?.documents ?? [])].find(d => d.type?.toUpperCase().includes("KBIS") && d.dateDepot);
-                        if (!kbisDoc?.dateDepot) return null;
-                        const expDate = new Date(kbisDoc.dateDepot);
-                        expDate.setMonth(expDate.getMonth() + 3);
-                        return { expired: expDate < new Date(), date: expDate };
-                      })() : null;
-
-                      return (
-                        <TooltipRoot key={item.key}>
-                          <TooltipTrigger asChild>
-                            <label
-                              className={`p-2.5 rounded-lg border text-center transition-colors cursor-pointer relative ${
-                                item.found
-                                  ? (kbisExpiry?.expired ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10" : "border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10")
-                                  : "border-orange-500/20 bg-orange-500/5 hover:bg-orange-500/10"
-                              }`}
-                              onClick={e => {
-                                // R2-31: Click on found item = scroll to matching doc
-                                if (item.found && item.hasPdf) {
-                                  e.preventDefault();
-                                  const docEl = document.querySelector(`[aria-label="Etape 6 : Documents et finalisation"] .doc-timeline-connector`);
-                                  if (docEl) docEl.scrollIntoView({ behavior: "smooth", block: "center" });
-                                }
-                              }}
-                            >
-                              {/* R2-33: Obligation badge */}
-                              <span className={`absolute top-1 right-1 text-[7px] px-1 py-0.5 rounded ${
-                                obligationLevel === "obligatoire" ? "bg-red-500/10 text-red-400" : "bg-amber-500/10 text-amber-400"
-                              }`}>{obligationLevel === "obligatoire" ? "Requis" : "Recommande"}</span>
-                              {item.found ? <CheckCircle2 className="w-4 h-4 text-emerald-400 mx-auto mb-0.5 animate-check-pop" /> : <Upload className="w-4 h-4 text-orange-400 mx-auto mb-0.5" />}
-                              <p className={`text-[11px] font-medium leading-tight ${item.found ? (kbisExpiry?.expired ? "text-red-400" : "text-emerald-400") : "text-orange-400"}`}>{item.label}</p>
-                              {item.hasPdf && !kbisExpiry?.expired && <p className="text-[8px] text-emerald-500 mt-0.5">Recupere automatiquement</p>}
-                              {item.hasUpload && !item.hasPdf && <p className="text-[8px] text-amber-400 mt-0.5">Upload manuel</p>}
-                              {!item.found && <p className="text-[8px] text-orange-400 mt-0.5">Cliquez pour uploader</p>}
-                              {/* R2-35: Expiration date for Kbis */}
-                              {kbisExpiry && (
-                                <p className={`text-[8px] mt-0.5 ${kbisExpiry.expired ? "text-red-400 font-medium" : "text-slate-400"}`}>
-                                  {kbisExpiry.expired ? `Expire le ${formatDateFr(kbisExpiry.date, "short")}` : `Valide jusqu'au ${formatDateFr(kbisExpiry.date, "short")}`}
-                                </p>
-                              )}
-                              {/* R2-36: Alert for expired CNI */}
-                              {item.key === "CNI" && item.found && form.dateCreation && (() => {
-                                // Rough check: if dateCreation > 10 years, CNI might be expired
-                                return null; // CNI expiry requires actual CNI date, skip
-                              })()}
-                              {!item.found && (
-                                <input type="file" className="hidden" accept=".pdf,.jpg,.jpeg,.png" onChange={e => {
-                                  if (e.target.files && e.target.files.length > 0) {
-                                    const f = e.target.files[0];
-                                    if (f.size > MAX_FILE_SIZE) { toast.error(`Fichier trop volumineux (max 10 Mo)`); return; }
-                                    setDocuments(prev => [...prev, { name: f.name, type: item.key, file: f }]);
-                                    toast.success(`${item.label} uploade`);
-                                  }
-                                }} />
-                              )}
-                            </label>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="text-xs max-w-[250px]">
-                            {item.found
-                              ? (item.hasPdf ? "Recupere automatiquement via INPI" : "Upload manuel present")
-                              : (item.manual ? "En attente d'upload manuel" : "Recuperation automatique non disponible — upload requis")}
-                            {kbisExpiry && (kbisExpiry.expired ? " — PERIME, veuillez re-uploader" : ` — valide 3 mois`)}
-                          </TooltipContent>
-                        </TooltipRoot>
-                      );
-                    })}
-                  </div>
-                  {/* R2-47: Confetti animation when 100% */}
-                  {foundCount === vigilanceDocChecklist.length && (
-                    <div className="mt-3 p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center gap-2 animate-fade-in-up relative overflow-hidden">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 animate-check-pop" />
-                      <span className="text-sm font-semibold text-emerald-400">Dossier documentaire complet</span>
-                      {/* R2-47: Confetti particles */}
-                      {showConfetti && (
-                        <>
-                          {Array.from({ length: 12 }).map((_, i) => (
-                            <span key={i} className="confetti-particle" style={{
-                              left: `${10 + Math.random() * 80}%`, top: `${40 + Math.random() * 20}%`,
-                              backgroundColor: ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"][i % 5],
-                              animationDelay: `${i * 0.08}s`,
-                            }} />
-                          ))}
-                        </>
-                      )}
-                    </div>
-                  )}
+            {/* Ajouter des documents — Collapsible fermé */}
+            <Collapsible defaultOpen={false}>
+              <CollapsibleTrigger className="w-full flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.05] transition-colors">
+                <div className="flex items-center gap-2">
+                  <Upload className="w-4 h-4 text-violet-400" />
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Ajouter des documents manuellement</h3>
                 </div>
-              );
-            })()}
-
-            {/* R2-23/25/27/30: Uploaded documents summary with previews */}
-            {documents.filter(d => d.file).length > 0 && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <Label className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Documents uploades</Label>
-                    <Badge className="text-[9px] bg-emerald-500/15 text-emerald-400 border-0">{documents.filter(d => d.file).length} fichier(s)</Badge>
-                  </div>
-                  {/* R2-30: Total weight */}
-                  <span className="text-[9px] text-slate-400 dark:text-slate-500">
-                    {documents.filter(d => d.file).length} fichiers — {(documents.filter(d => d.file).reduce((s, d) => s + (d.file?.size || 0), 0) / 1024 / 1024).toFixed(1)} Mo
-                  </span>
-                </div>
-                {documents.filter(d => d.file).map((doc, i) => {
-                  const docIdx = documents.findIndex(d => d === doc);
-                  const ext = doc.name.split(".").pop()?.toLowerCase() || "";
-                  const isImage = ["jpg", "jpeg", "png", "gif", "webp"].includes(ext);
-                  const preview = imagePreviews[doc.name];
-                  // R2-27: Per-file upload progress
-                  const progress = fileUploadProgress[doc.name];
-                  // R2-25: Suggested rename
-                  const suggestedName = (() => {
-                    if (doc.type === "CNI" && form.dirigeant && doc.name.startsWith("IMG")) {
-                      return `CNI_${form.dirigeant.replace(/\s+/g, "_").toUpperCase()}.${ext}`;
-                    }
-                    return null;
-                  })();
-                  return (
-                    <div key={i} className="flex items-center justify-between p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/10 animate-slide-up" style={{ animationDelay: `${i * 50}ms` }}>
-                      <div className="flex items-center gap-3 min-w-0">
-                        {/* R2-23: Image thumbnail preview */}
-                        {isImage && preview ? (
-                          <img src={preview} alt="" className="upload-thumbnail shrink-0" />
-                        ) : (
-                          <div className={`w-8 h-8 rounded flex items-center justify-center shrink-0 ${isImage ? "bg-violet-500/10" : ext === "pdf" ? "bg-red-500/10" : "bg-blue-500/10"}`}>
-                            {isImage ? <ImageIcon className="w-4 h-4 text-violet-400" /> : <FileText className={`w-4 h-4 ${ext === "pdf" ? "text-red-400" : "text-blue-400"}`} />}
-                          </div>
-                        )}
-                        <div className="min-w-0">
-                          <span className="text-xs text-slate-700 dark:text-slate-300 truncate block">{doc.name}</span>
-                          {/* R2-25: Rename suggestion */}
-                          {suggestedName && (
-                            <button onClick={() => {
-                              setDocuments(prev => prev.map((d, idx) => idx === docIdx ? { ...d, name: suggestedName } : d));
-                              toast.info(`Renomme en ${suggestedName}`);
-                            }} className="text-[8px] text-blue-400 hover:text-blue-300 mt-0.5 flex items-center gap-0.5">
-                              <Sparkles className="w-2.5 h-2.5" /> Renommer en {suggestedName}
-                            </button>
-                          )}
-                          <div className="flex items-center gap-2 mt-0.5">
-                            {doc.file && <span className="text-[9px] text-slate-400 dark:text-slate-500">{doc.file.size > 1024 * 1024 ? `${(doc.file.size / 1024 / 1024).toFixed(1)} Mo` : `${(doc.file.size / 1024).toFixed(0)} Ko`}</span>}
-                            <Badge className={`text-[8px] border-0 uppercase ${ext === "pdf" ? "bg-red-500/15 text-red-400" : isImage ? "bg-green-500/15 text-green-400" : "bg-blue-500/15 text-blue-400"}`}>{ext}</Badge>
-                            <Badge className="text-[8px] bg-emerald-500/15 text-emerald-400 border-0">{doc.type}</Badge>
-                          </div>
-                          {/* R2-27: Per-file progress bar */}
-                          {progress !== undefined && progress < 100 && (
-                            <div className="w-24 mt-1">
-                              <Progress value={progress} className="h-1 progress-gradient-green" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      <Button variant="ghost" size="sm" onClick={() => removeDocument(docIdx)} className="text-slate-400 dark:text-slate-500 hover:text-red-400 hover:bg-red-500/10 h-7 w-7 p-0 shrink-0">
-                        <Trash2 className="w-3 h-3" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {/* OPT-47: Gradient separator */}
-            <hr className="section-gradient-hr" />
-
-            {/* OPT-46: Section 4 — Upload */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-full bg-violet-500/15 text-violet-500 text-[10px] font-bold flex items-center justify-center shrink-0">4</span>
-              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Upload</span>
-            </div>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
 
             {/* General upload zone for additional documents — OPT-26/27/28/29/30 */}
             <label className="block">
@@ -4669,116 +4804,9 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                 }} />
               </div>
             </label>
+              </CollapsibleContent>
+            </Collapsible>
 
-            {/* OPT-47: Gradient separator */}
-            <hr className="section-gradient-hr" />
-
-            {/* R2: Section 5 — Generation & Export */}
-            <div className="flex items-center gap-2 mb-1">
-              <span className="w-5 h-5 rounded-full bg-rose-500/15 text-rose-500 text-[10px] font-bold flex items-center justify-center shrink-0">5</span>
-              <span className="text-[10px] font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Generation & Export</span>
-            </div>
-
-            {/* R2-45: Last generation info */}
-            {lastGeneration && (
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 flex items-center gap-1 mb-1">
-                <History className="w-3 h-3" /> Derniere generation : {lastGeneration.type} le {formatDateFr(lastGeneration.date, "long")} a {lastGeneration.date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
-              </p>
-            )}
-
-            <div className="flex flex-wrap gap-3">
-              {/* R2-41: Generer fiche LCB-FT — blue primary */}
-              <Button
-                size="lg"
-                className="gap-2.5 bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/20 text-sm px-5 py-3"
-                disabled={generatingPdf === "fiche"}
-                onClick={() => {
-                  const tempClient = buildTempClient();
-                  if (!tempClient) { toast.error("Impossible de generer la fiche : donnees manquantes"); return; }
-                  setGeneratingPdf("fiche");
-                  try {
-                    generateFicheAcceptation(tempClient);
-                    toast.success("Fiche LCB-FT generee (PDF)");
-                    setLastGeneration({ type: "Fiche LCB-FT", date: new Date() });
-                  } catch { toast.error("Erreur lors de la generation de la fiche"); }
-                  finally { setGeneratingPdf(null); }
-                }}
-              >
-                {generatingPdf === "fiche" ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileText className="w-5 h-5" />} Generer fiche LCB-FT
-              </Button>
-              {/* R2-42: Generer lettre de mission */}
-              <Button
-                size="lg"
-                variant="outline"
-                className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30 text-sm px-5 py-3"
-                disabled={generatingPdf === "lettre"}
-                onClick={() => {
-                  const tempClient = buildTempClient();
-                  if (!tempClient) { toast.error("Impossible de generer la lettre : donnees manquantes"); return; }
-                  setGeneratingPdf("lettre");
-                  try {
-                    generateLettreMission(tempClient);
-                    toast.success("Lettre de mission generee (PDF)");
-                    setLastGeneration({ type: "Lettre de mission", date: new Date() });
-                  } catch { toast.error("Erreur lors de la generation de la lettre"); }
-                  finally { setGeneratingPdf(null); }
-                }}
-              >
-                {generatingPdf === "lettre" ? <Loader2 className="w-5 h-5 animate-spin" /> : <FileSignature className="w-5 h-5" />} Generer lettre de mission
-              </Button>
-              {/* R2-43: Tout telecharger — with file counter */}
-              {(() => {
-                const rawStoredDocs = [
-                  ...(screening.inpi.data?.documents ?? []),
-                  ...(screening.documents.data?.documents ?? []),
-                ].filter(d => d.url && (d.storedInSupabase || d.status === "auto"));
-                const seenUrls = new Set<string>();
-                const allStoredDocs = rawStoredDocs.filter(d => {
-                  if (!d.url || seenUrls.has(d.url)) return false;
-                  seenUrls.add(d.url);
-                  return true;
-                });
-                const totalFiles = allStoredDocs.length + documents.filter(d => d.file).length;
-                if (allStoredDocs.length < 2) return null;
-                return (
-                  <Button
-                    size="lg"
-                    variant="outline"
-                    className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30 text-sm px-5 py-3"
-                    onClick={() => {
-                      allStoredDocs.forEach((doc, j) => {
-                        setTimeout(() => {
-                          const a = document.createElement("a");
-                          a.href = doc.url!;
-                          a.target = "_blank";
-                          a.rel = "noopener noreferrer";
-                          a.click();
-                        }, j * 300);
-                      });
-                      toast.success(`Ouverture de ${allStoredDocs.length} document(s)`);
-                    }}
-                  >
-                    <Download className="w-5 h-5" /> Tout telecharger ({totalFiles} fichiers)
-                  </Button>
-                );
-              })()}
-              {/* R2-46: Send to client by email */}
-              {form.mail && (
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="gap-2.5 border-gray-200 dark:border-white/[0.06] hover:bg-violet-500/10 hover:text-violet-400 hover:border-violet-500/30 text-sm px-5 py-3"
-                  onClick={() => {
-                    const subject = encodeURIComponent(`Documents ${form.raisonSociale} — Dossier LCB-FT`);
-                    const body = encodeURIComponent(`Bonjour,\n\nVeuillez trouver ci-joint les documents relatifs au dossier ${form.raisonSociale} (SIREN ${form.siren}).\n\nCordialement,`);
-                    window.open(`mailto:${form.mail}?subject=${subject}&body=${body}`, "_blank");
-                    toast.info("Client mail ouvert");
-                  }}
-                >
-                  <Mail className="w-5 h-5" /> Envoyer au client
-                </Button>
-              )}
-            </div>
           </div>
         )}
       </div>
