@@ -68,79 +68,61 @@ const REQUIRED_DOCS = 9; // nombre de documents KYC standard
 
 export async function fetchSirenFolders(cabinetId: string): Promise<SirenFolder[]> {
   try {
-    // Fetch all documents for this cabinet
-    const { data: docs, error } = await supabase
+    // 1. Charger TOUS les clients du cabinet
+    const { data: clients, error: clientsError } = await supabase
+      .from('clients')
+      .select('id, ref, raison_sociale, siren, niv_vigilance')
+      .eq('cabinet_id', cabinetId)
+      .order('raison_sociale', { ascending: true });
+
+    if (clientsError) throw new Error(clientsError.message);
+    if (!clients || clients.length === 0) return [];
+
+    // 2. Charger tous les documents du cabinet
+    const { data: docs } = await supabase
       .from('documents')
       .select('*')
       .eq('cabinet_id', cabinetId)
       .order('updated_at', { ascending: false });
 
-    if (error) {
-      logger.error('GED', 'fetchSirenFolders — documents query', error);
-      throw new Error(error.message);
-    }
-
-    if (!docs || docs.length === 0) return [];
-
-    // Fetch clients to resolve names and SIRENs
-    const { data: clients } = await supabase
-      .from('clients')
-      .select('id, ref, raison_sociale, siren, niv_vigilance')
-      .eq('cabinet_id', cabinetId);
-
-    const clientMap = new Map<string, { id: string; name: string; siren: string; niv_vigilance: string }>();
-    if (clients) {
-      for (const c of clients) {
-        if (c.ref) {
-          clientMap.set(c.ref, {
-            id: c.id,
-            name: (c as Record<string, unknown>).raison_sociale as string ?? c.ref,
-            siren: (c as Record<string, unknown>).siren as string ?? '',
-            niv_vigilance: (c as Record<string, unknown>).niv_vigilance as string ?? 'STANDARD',
-          });
-        }
+    // Grouper les docs par client_ref
+    const docsByRef = new Map<string, GEDDocument[]>();
+    if (docs) {
+      for (const doc of docs) {
+        const ref = doc.client_ref ?? '';
+        const arr = docsByRef.get(ref) ?? [];
+        arr.push(doc as GEDDocument);
+        docsByRef.set(ref, arr);
       }
     }
 
-    // Group documents by client_ref
-    const groups = new Map<string, GEDDocument[]>();
-    for (const doc of docs) {
-      const ref = doc.client_ref ?? '__sans_client__';
-      const arr = groups.get(ref) ?? [];
-      const client = clientMap.get(ref);
-      arr.push({
-        ...doc,
-        client_name: client?.name ?? ref,
-        siren: client?.siren ?? '',
-      } as GEDDocument);
-      groups.set(ref, arr);
-    }
-
-    // Build folder objects
-    const folders: SirenFolder[] = [];
-    for (const [ref, groupDocs] of groups) {
-      const client = clientMap.get(ref);
-      const siren = client?.siren ?? ref;
-      const clientName = client?.name ?? ref;
-      const lastUpdate = groupDocs[0]?.updated_at ?? groupDocs[0]?.created_at ?? '';
-
-      folders.push({
-        siren,
-        client_name: clientName,
-        client_ref: ref,
-        client_id: client?.id,
-        niv_vigilance: client?.niv_vigilance,
-        documents: groupDocs,
-        total_docs: groupDocs.length,
+    // 3. Construire un folder par client
+    const folders: SirenFolder[] = clients.map(c => {
+      const clientDocs = docsByRef.get(c.ref) ?? [];
+      const lastUpdate = clientDocs[0]?.updated_at ?? clientDocs[0]?.created_at ?? '';
+      return {
+        siren: c.siren ?? '',
+        client_name: c.raison_sociale ?? c.ref,
+        client_ref: c.ref,
+        client_id: c.id,
+        niv_vigilance: c.niv_vigilance ?? 'STANDARD',
+        documents: clientDocs,
+        total_docs: clientDocs.length,
         required_docs: REQUIRED_DOCS,
         last_update: lastUpdate,
-        has_expired: groupDocs.some(d => isExpired(d.expiration_date)),
-        completion_rate: Math.min(100, Math.round((groupDocs.length / REQUIRED_DOCS) * 100)),
-      });
-    }
+        has_expired: clientDocs.some(d => isExpired(d.expiration_date)),
+        completion_rate: clientDocs.length > 0
+          ? Math.min(100, Math.round((clientDocs.length / REQUIRED_DOCS) * 100))
+          : 0,
+      };
+    });
 
-    // Trier par dernier ajout (le plus récent en premier)
-    folders.sort((a, b) => new Date(b.last_update).getTime() - new Date(a.last_update).getTime());
+    // Trier : clients avec docs en premier, puis par nom
+    folders.sort((a, b) => {
+      if (a.total_docs > 0 && b.total_docs === 0) return -1;
+      if (a.total_docs === 0 && b.total_docs > 0) return 1;
+      return a.client_name.localeCompare(b.client_name);
+    });
 
     return folders;
   } catch (err) {
