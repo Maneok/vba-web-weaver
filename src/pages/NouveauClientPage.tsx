@@ -278,29 +278,6 @@ export default function NouveauClientPage() {
     return () => clearTimeout(t);
   }, [step]);
 
-  // OPT-48: Auto-scroll to first incomplete section on step 6
-  useEffect(() => {
-    if (step !== 5) return;
-    const timer = setTimeout(() => {
-      // Find the first section that needs attention by checking KYC completeness
-      if (kycCompleteness < 100) {
-        // Scroll to the checklist section (section 3) if docs are incomplete
-        const checklistEl = document.querySelector('[aria-label="Etape 6 : Documents et finalisation"] .grid.grid-cols-1');
-        if (checklistEl) checklistEl.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, 800);
-    return () => clearTimeout(timer);
-  }, [step, kycCompleteness]);
-
-  // R2-47: Confetti animation when KYC reaches 100%
-  useEffect(() => {
-    if (kycCompleteness === 100 && prevKycRef.current < 100 && step === 5) {
-      setShowConfetti(true);
-      setTimeout(() => setShowConfetti(false), 2000);
-    }
-    prevKycRef.current = kycCompleteness;
-  }, [kycCompleteness, step]);
-
   // R2-23: Generate image previews for uploaded files
   useEffect(() => {
     documents.forEach(doc => {
@@ -606,6 +583,31 @@ export default function NouveauClientPage() {
     );
     return Math.round((found.length / required.length) * 100);
   }, [documents, screening.documents.data, screening.inpi.data]);
+
+  // OPT-48: Auto-scroll to first incomplete section on step 6
+  // (placed after kycCompleteness to avoid TDZ in production builds)
+  useEffect(() => {
+    if (step !== 5) return;
+    const timer = setTimeout(() => {
+      // Find the first section that needs attention by checking KYC completeness
+      if (kycCompleteness < 100) {
+        // Scroll to the checklist section (section 3) if docs are incomplete
+        const checklistEl = document.querySelector('[aria-label="Etape 6 : Documents et finalisation"] .grid.grid-cols-1');
+        if (checklistEl) checklistEl.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 800);
+    return () => clearTimeout(timer);
+  }, [step, kycCompleteness]);
+
+  // R2-47: Confetti animation when KYC reaches 100%
+  // (placed after kycCompleteness to avoid TDZ in production builds)
+  useEffect(() => {
+    if (kycCompleteness === 100 && prevKycRef.current < 100 && step === 5) {
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 2000);
+    }
+    prevKycRef.current = kycCompleteness;
+  }, [kycCompleteness, step]);
 
   // Idee 18: SPEC_O90 KYC completeness — required fields
   const specO90Kyc = useMemo(() => {
