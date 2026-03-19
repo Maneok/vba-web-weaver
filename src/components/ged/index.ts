@@ -9,6 +9,9 @@ export { default as DocumentStatusBadge } from "./DocumentStatusBadge";
 export { default as ValidationWorkflow } from "./ValidationWorkflow";
 
 export { default as UploadDialog } from "./UploadDialog";
+export { default as AuditTrail } from "./AuditTrail";
+export { default as ConformityReport } from "./ConformityReport";
+export { default as ClientLinks } from "./ClientLinks";
 
 export type { GEDDocument, SirenFolder } from "./types";
 export type { UploadConfig } from "./UploadDialog";
