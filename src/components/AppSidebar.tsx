@@ -43,7 +43,7 @@ type NavItem = {
 
 /* ─── Navigation data ─── */
 
-const DASHBOARD: NavItem = { to: "/", label: "Dashboard", icon: LayoutDashboard, shortcut: "D" };
+const DASHBOARD: NavItem = { to: "/", label: "Tableau de bord", icon: LayoutDashboard, shortcut: "D" };
 
 const PORTEFEUILLE: NavItem[] = [
   { to: "/bdd", label: "Clients", icon: Users, shortcut: "B" },

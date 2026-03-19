@@ -1262,7 +1262,7 @@ export default function LandingPage() {
   const navigate = useNavigate();
   const tlProgress = useTimelineProgress();
 
-  useDocumentTitle("GRIMY | Conformite LCB-FT");
+  useDocumentTitle("GRIMY — Conformite LAB pour professionnels assujettis");
 
   /* SEO — meta description */
   useEffect(() => {

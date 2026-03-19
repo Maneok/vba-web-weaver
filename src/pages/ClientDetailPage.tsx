@@ -119,7 +119,7 @@ export default function ClientDetailPage() {
 
   if (loading) {
     return (
-      <div className="p-8 flex flex-col items-center justify-center min-h-[40vh]">
+      <div className="p-8 flex flex-col items-center justify-center min-h-[40vh]" role="status" aria-label="Chargement du client">
         <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
         <p className="text-slate-400 dark:text-slate-400 mt-3 text-sm">Chargement du client...</p>
       </div>
@@ -418,7 +418,7 @@ function ClientDetailContent({ client }: { client: Client }) {
           <Shield className="w-4 h-4" /> Lancer screening
         </Button>
         {profile?.role === "ADMIN" && (
-          <Button variant="outline" className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => setShowDeleteConfirm(true)}>
+          <Button variant="outline" className="gap-2 border-gray-200 dark:border-white/[0.06] hover:bg-red-500/10 hover:text-red-400 text-red-400" onClick={() => setShowDeleteConfirm(true)} aria-label="Supprimer le client">
             <Trash2 className="w-4 h-4" /> Supprimer
           </Button>
         )}
@@ -539,7 +539,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
             {/* Sanctions results inline */}
             {screening.sanctions.loading && (
-              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-center gap-2">
+              <div className="p-3 rounded-lg bg-blue-500/5 border border-blue-500/20 flex items-center gap-2" role="status">
                 <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />
                 <span className="text-sm text-blue-400">Verification OpenSanctions en cours...</span>
               </div>
@@ -609,7 +609,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             </div>
 
             {screening.network.loading && (
-              <div className="flex items-center justify-center py-20">
+              <div className="flex items-center justify-center py-20" role="status">
                 <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
                 <span className="text-sm text-slate-400 dark:text-slate-400 ml-3">Analyse du reseau en cours...</span>
               </div>
@@ -754,7 +754,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         <TabsContent value="financier" className="mt-4">
           <div className="space-y-6">
             {screening.inpi.loading && (
-              <div className="glass-card p-6 flex items-center justify-center gap-2">
+              <div className="glass-card p-6 flex items-center justify-center gap-2" role="status">
                 <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
                 <span className="text-sm text-slate-400 dark:text-slate-400">Recuperation des donnees financieres INPI...</span>
               </div>
@@ -1070,7 +1070,7 @@ function ClientDetailContent({ client }: { client: Client }) {
         <TabsContent value="historique_legal" className="mt-4">
           <div className="space-y-6">
             {screening.inpi.loading && (
-              <div className="glass-card p-6 flex items-center justify-center gap-2">
+              <div className="glass-card p-6 flex items-center justify-center gap-2" role="status">
                 <Loader2 className="w-5 h-5 text-blue-400 animate-spin" />
                 <span className="text-sm text-slate-400 dark:text-slate-400">Chargement de l'historique legal...</span>
               </div>
@@ -1872,7 +1872,7 @@ function DocumentsTab({
 
       {/* ═══ AUTO-RECOVERED DOCUMENTS ═══ */}
       {screening.documents.loading && (
-        <div className="glass-card p-4 flex items-center gap-3">
+        <div className="glass-card p-4 flex items-center gap-3" role="status">
           <Loader2 className="w-5 h-5 text-blue-400 animate-spin shrink-0" />
           <div>
             <p className="text-sm text-blue-400 font-medium">Recherche de documents en cours...</p>

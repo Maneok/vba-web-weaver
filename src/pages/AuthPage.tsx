@@ -181,13 +181,13 @@ export default function AuthPage() {
           </CardHeader>
           <CardContent>
             {error && (
-              <div id="auth-error" role="alert" className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
+              <div id="auth-error" role="alert" aria-live="assertive" className="mb-4 flex items-center gap-2 rounded-lg border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
                 <AlertCircle className="h-4 w-4 shrink-0" />
                 {error}
               </div>
             )}
             {message && (
-              <div className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">
+              <div role="status" aria-live="polite" className="mb-4 rounded-lg border border-emerald-500/20 bg-emerald-500/10 p-3 text-sm text-emerald-300">
                 {message}
               </div>
             )}

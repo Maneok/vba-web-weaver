@@ -259,18 +259,7 @@ export function getQuarter(dateStr: string): number {
   return Math.floor(d.getMonth() / 3) + 1;
 }
 
-// D2: Relative date formatting in French
+/** @deprecated Use formatDateFr(dateStr, "relative") instead */
 export function formatDateRelative(dateStr: string): string {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  if (isNaN(date.getTime())) return "";
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffDays < 0) return `dans ${Math.abs(diffDays)} jour(s)`;
-  if (diffDays === 0) return "Aujourd'hui";
-  if (diffDays === 1) return "Hier";
-  if (diffDays < 30) return `Il y a ${diffDays} jour(s)`;
-  if (diffDays < 365) return `Il y a ${Math.floor(diffDays / 30)} mois`;
-  return `Il y a ${Math.floor(diffDays / 365)} an(s)`;
+  return formatDateFr(dateStr, "relative") || "";
 }

@@ -1057,11 +1057,6 @@ aside > div:last-child {
   background: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.1) 100%);
 }
 
-/* OPT-60: Print — hide sidebar completely */
-@media print {
-  aside { display: none !important; }
-}
-
 /* Print styles */
 @media print {
   .no-print { display: none !important; }

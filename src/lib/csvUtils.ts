@@ -6,8 +6,9 @@
 /** Protect against CSV injection (=, +, -, @, tab, CR) */
 export function csvSafe(val: unknown): string {
   const s = String(val ?? "");
+  if (!s) return s;
   const escaped = s.replace(/"/g, '""');
-  // Always quote to handle embedded newlines, semicolons, and CSV injection
+  // Always quote non-empty values to handle embedded newlines, semicolons, and CSV injection
   if (/^[=+\-@\t\r]/.test(s)) return `"'${escaped}"`;
   return `"${escaped}"`;
 }

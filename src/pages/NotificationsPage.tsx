@@ -197,7 +197,7 @@ export default function NotificationsPage() {
             </Button>
           </div>
         ) : loading && notifications.length === 0 ? (
-          <div className="p-12 text-center">
+          <div className="p-12 text-center" role="status" aria-label="Chargement des notifications">
             <div className="h-6 w-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mx-auto mb-3" />
             <p className="text-sm text-slate-400 dark:text-slate-500">Chargement des notifications...</p>
           </div>

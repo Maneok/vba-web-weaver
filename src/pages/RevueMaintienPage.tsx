@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -261,6 +262,7 @@ const PAGE_SIZE = 20;
 // ─── Main Component ────────────────────────────────────────────────
 
 export default function RevueMaintienPage() {
+  useDocumentTitle("Revue periodique");
   const { profile } = useAuth();
   const navigate = useNavigate();
   const cabinetId = profile?.cabinet_id;
@@ -1395,7 +1397,7 @@ export default function RevueMaintienPage() {
               </SelectContent>
             </Select>
             {filterType !== "tous" && (
-              <button onClick={() => setFilterType("tous")} className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+              <button onClick={() => setFilterType("tous")} className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center" aria-label="Effacer le filtre type">
                 <X className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
               </button>
             )}
@@ -1411,7 +1413,7 @@ export default function RevueMaintienPage() {
               </SelectContent>
             </Select>
             {filterRisk !== "tous" && (
-              <button onClick={() => setFilterRisk("tous")} className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center">
+              <button onClick={() => setFilterRisk("tous")} className="absolute -right-1 -top-1 w-4 h-4 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center" aria-label="Effacer le filtre risque">
                 <X className="w-2.5 h-2.5 text-slate-500 dark:text-slate-400" />
               </button>
             )}
@@ -1434,19 +1436,20 @@ export default function RevueMaintienPage() {
           {/* OPT-32-33: Sticky header */}
           <TableHeader className="sticky top-0 z-10">
             <TableRow className="bg-slate-50 dark:bg-white/[0.02] border-b border-slate-100 dark:border-white/[0.04]">
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Client</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 w-[70px]">Score</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Vigilance</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden lg:table-cell">Type</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden lg:table-cell">Echeance</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Statut</TableHead>
-              <TableHead className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</TableHead>
+              <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Client</TableHead>
+              <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 w-[70px]">Score</TableHead>
+              <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Vigilance</TableHead>
+              <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden lg:table-cell">Type</TableHead>
+              <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden lg:table-cell">Echeance</TableHead>
+              <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Statut</TableHead>
+              <TableHead scope="col" className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {/* OPT-38: Loading skeleton */}
             {loading ? (
               <>
+                <tr role="status" aria-label="Chargement des revues" className="sr-only"><td /></tr>
                 <SkeletonRow />
                 <SkeletonRow />
                 <SkeletonRow />
@@ -1519,7 +1522,7 @@ export default function RevueMaintienPage() {
                           )}
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <button className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors text-slate-400">
+                              <button className="h-7 w-7 rounded-md flex items-center justify-center hover:bg-slate-100 dark:hover:bg-white/[0.06] transition-colors text-slate-400" aria-label="Plus d'actions">
                                 <MoreHorizontal className="h-4 w-4" />
                               </button>
                             </DropdownMenuTrigger>

@@ -240,7 +240,7 @@ const LetterHistory = React.memo(function LetterHistory({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <div className="flex items-center justify-center py-20" role="status" aria-label="Chargement des lettres de mission">
         <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
         <span className="ml-2 text-slate-400 dark:text-slate-400 text-sm">Chargement...</span>
       </div>
@@ -432,6 +432,7 @@ const LetterHistory = React.memo(function LetterHistory({
                 onClick={() => onEdit(letter)}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors"
                 title={letter.status === "brouillon" ? "Modifier" : "Voir"}
+                aria-label={letter.status === "brouillon" ? "Modifier la lettre" : "Voir la lettre"}
               >
                 <Edit3 className="w-3.5 h-3.5" />
               </button>
@@ -440,6 +441,7 @@ const LetterHistory = React.memo(function LetterHistory({
                   onClick={() => openSignDialog(letter)}
                   className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-blue-400 transition-colors"
                   title="Envoyer pour signature"
+                  aria-label="Envoyer pour signature"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>
@@ -449,6 +451,7 @@ const LetterHistory = React.memo(function LetterHistory({
                   onClick={() => onCreateAvenant(letter)}
                   className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-cyan-400 transition-colors"
                   title="Creer un avenant"
+                  aria-label="Creer un avenant"
                 >
                   <FilePlus2 className="w-3.5 h-3.5" />
                 </button>
@@ -457,13 +460,15 @@ const LetterHistory = React.memo(function LetterHistory({
                 onClick={() => onDuplicate(letter)}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-emerald-400 transition-colors"
                 title="Dupliquer"
+                aria-label="Dupliquer la lettre"
               >
                 <Copy className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => onDownloadPdf(letter)}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-purple-400 transition-colors"
-                title="PDF"
+                title="Telecharger en PDF"
+                aria-label="Telecharger en PDF"
               >
                 <FileDown className="w-3.5 h-3.5" />
               </button>
@@ -471,6 +476,7 @@ const LetterHistory = React.memo(function LetterHistory({
                 onClick={() => onArchive(letter)}
                 className="p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-white/[0.06] text-slate-400 dark:text-slate-500 hover:text-amber-400 transition-colors"
                 title="Archiver"
+                aria-label="Archiver la lettre"
               >
                 <Archive className="w-3.5 h-3.5" />
               </button>
@@ -489,14 +495,14 @@ const LetterHistory = React.memo(function LetterHistory({
               )}
               <div className="flex-1" />
               {(letter.status === "brouillon" || letter.status === "envoyee") && (
-                <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><Send className="w-3.5 h-3.5" /></button>
+                <button onClick={() => openSignDialog(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Envoyer pour signature"><Send className="w-3.5 h-3.5" /></button>
               )}
               {letter.status === "signee" && (
-                <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><FilePlus2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => onCreateAvenant(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Creer un avenant"><FilePlus2 className="w-3.5 h-3.5" /></button>
               )}
-              <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><Copy className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><FileDown className="w-3.5 h-3.5" /></button>
-              <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-400 dark:text-slate-500"><Archive className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Dupliquer la lettre"><Copy className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Telecharger en PDF"><FileDown className="w-3.5 h-3.5" /></button>
+              <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Archiver la lettre"><Archive className="w-3.5 h-3.5" /></button>
             </div>
 
             {/* Avenants list */}
@@ -560,6 +566,7 @@ const LetterHistory = React.memo(function LetterHistory({
               disabled={page === 0}
               onClick={() => setPage(page - 1)}
               className="h-7 w-7 p-0 border-gray-200 dark:border-white/[0.06]"
+              aria-label="Page precedente"
             >
               <ChevronLeft className="w-3.5 h-3.5" />
             </Button>
@@ -585,6 +592,7 @@ const LetterHistory = React.memo(function LetterHistory({
               disabled={page >= totalPages - 1}
               onClick={() => setPage(page + 1)}
               className="h-7 w-7 p-0 border-gray-200 dark:border-white/[0.06]"
+              aria-label="Page suivante"
             >
               <ChevronRight className="w-3.5 h-3.5" />
             </Button>

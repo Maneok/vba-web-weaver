@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const PAGE_TITLES: Record<string, { title: string; breadcrumb: { label: string; path?: string }[] }> = {
-  "/": { title: "Dashboard", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Dashboard" }] },
+  "/": { title: "Tableau de bord", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Tableau de bord" }] },
   "/bdd": { title: "Base Clients", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Base Clients" }] },
   "/nouveau-client": { title: "Nouveau Client", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Base Clients", path: "/bdd" }, { label: "Nouveau Client" }] },
   "/gouvernance": { title: "Gouvernance", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Gouvernance" }] },
@@ -32,8 +32,11 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: { label: string; 
   "/ged": { title: "Documents / GED", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Documents / GED" }] },
   "/parametres": { title: "Parametres", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Parametres" }] },
   "/lettre-mission": { title: "Lettre de Mission", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Lettre de Mission" }] },
+  "/revue-maintien": { title: "Revue periodique", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Revue periodique" }] },
   "/aide": { title: "Aide", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Aide" }] },
   "/notifications": { title: "Notifications", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Notifications" }] },
+  "/admin/users": { title: "Gestion utilisateurs", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Gestion utilisateurs" }] },
+  "/audit": { title: "Journal d'audit", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Journal d'audit" }] },
   "/super-admin": { title: "Super Admin", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Super Admin" }] },
 };
 
@@ -308,7 +311,7 @@ export default function AppLayout() {
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-950/95 backdrop-blur-xl border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-around px-2 h-16 safe-area-bottom" aria-label="Navigation mobile">
         <NavLink to="/" end className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}>
           <LayoutDashboard className="w-5 h-5" />
-          <span className="text-[10px] font-medium">Dashboard</span>
+          <span className="text-[10px] font-medium">Accueil</span>
         </NavLink>
         <NavLink to="/bdd" className={({ isActive }) => `flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors ${isActive ? "text-blue-400" : "text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}>
           <Users className="w-5 h-5" />
