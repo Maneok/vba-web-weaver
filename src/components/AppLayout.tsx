@@ -5,7 +5,7 @@ import NotificationBell from "./NotificationBell";
 import { ThemeToggle } from "./ThemeToggle";
 import SubscriptionBanner from "./SubscriptionBanner";
 
-import { ArrowLeft, ChevronRight, Keyboard, LayoutDashboard, LogOut, Menu, ScrollText, Settings, User, Users } from "lucide-react";
+import { ArrowLeft, Home, Keyboard, LayoutDashboard, LogOut, Menu, ScrollText, Settings, User, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppState } from "@/lib/AppContext";
 import { ROLE_LABELS } from "@/lib/auth/types";
@@ -43,17 +43,15 @@ function getUserInitials(name: string | undefined | null): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-/** Format date with relative time for today/yesterday, otherwise short date */
-function formatRelativeDate(date: Date): string {
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  if (isToday) return "Aujourd'hui";
-  if (isYesterday) return "Hier";
-  return date.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+/** Format date as "Jeu. 19 mars 2026" */
+function formatHeaderDate(date: Date): string {
+  const dayName = date.toLocaleDateString("fr-FR", { weekday: "short" });
+  const day = date.getDate();
+  const month = date.toLocaleDateString("fr-FR", { month: "long" });
+  const year = date.getFullYear();
+  // Capitalize first letter: "jeu." → "Jeu."
+  const capitalized = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+  return `${capitalized} ${day} ${month} ${year}`;
 }
 
 export default function AppLayout() {
@@ -107,10 +105,12 @@ export default function AppLayout() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Page transition fade on route change
+  // Page transition fade + scroll to top on route change
   useEffect(() => {
     if (prevPathRef.current !== location.pathname) {
       setIsTransitioning(true);
+      window.scrollTo(0, 0);
+      if (scrollRef.current) scrollRef.current.scrollTop = 0;
       const timer = setTimeout(() => setIsTransitioning(false), 200);
       prevPathRef.current = location.pathname;
       return () => clearTimeout(timer);
@@ -172,7 +172,7 @@ export default function AppLayout() {
       <AppSidebar collapsed={sidebarCollapsed} onToggle={handleSidebarToggle} />
 
       <div ref={scrollRef} className="app-content-offset pb-16 lg:pb-0">
-        <header className="sticky top-0 z-30 h-14 lg:h-16 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 bg-background/70 backdrop-blur-xl border-b border-gray-200/80 dark:border-white/[0.06]">
+        <header className="sticky top-0 z-30 h-14 flex items-center gap-2 lg:gap-4 px-3 lg:px-6 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-white/[0.06]">
           {/* Mobile menu button with animation */}
           <button
             onClick={handleSidebarToggle}
@@ -193,24 +193,25 @@ export default function AppLayout() {
             </button>
           )}
 
-          <nav className="flex items-center gap-1 lg:gap-1.5 text-sm min-w-0 flex-1" aria-label="Fil d'ariane">
+          <nav className="flex items-center gap-1 lg:gap-1.5 text-xs min-w-0 flex-1" aria-label="Fil d'ariane">
             <ol className="flex items-center gap-1 lg:gap-1.5 list-none m-0 p-0 min-w-0">
               {page.breadcrumb.map((item, i) => {
                 const isLast = i === page.breadcrumb.length - 1;
+                const isHome = i === 0 && item.label === "Accueil";
                 // On mobile, only show last 2 breadcrumb items
                 const hiddenOnMobile = !isLast && i < page.breadcrumb.length - 2;
                 return (
                   <li key={i} className={`flex items-center gap-1 lg:gap-1.5 min-w-0 ${hiddenOnMobile ? "hidden sm:flex" : ""}`}>
-                    {i > 0 && <ChevronRight className="w-3 lg:w-3.5 h-3 lg:h-3.5 text-slate-300 dark:text-slate-600 shrink-0" />}
+                    {i > 0 && <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none">/</span>}
                     {!isLast && item.path ? (
                       <button
                         onClick={() => startTransition(() => navigate(item.path!))}
-                        className="text-slate-400 dark:text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 transition-colors cursor-pointer truncate max-w-[80px] sm:max-w-none"
+                        className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors cursor-pointer truncate max-w-[80px] sm:max-w-none"
                       >
-                        {item.label}
+                        {isHome ? <Home className="w-3.5 h-3.5" /> : item.label}
                       </button>
                     ) : (
-                      <span className={`truncate max-w-[120px] sm:max-w-none ${isLast ? "text-slate-800 dark:text-slate-200 font-medium" : "text-slate-400 dark:text-slate-500"}`} aria-current={isLast ? "page" : undefined}>
+                      <span className={`truncate max-w-[120px] sm:max-w-none ${isLast ? "text-slate-600 dark:text-slate-300 font-medium" : "text-slate-400 dark:text-slate-500"}`} aria-current={isLast ? "page" : undefined}>
                         {item.label}
                       </span>
                     )}
@@ -220,18 +221,18 @@ export default function AppLayout() {
             </ol>
           </nav>
 
-          <div className="ml-auto flex items-center gap-2 lg:gap-3 shrink-0">
+          <div className="ml-auto flex items-center gap-1 shrink-0">
             <button
               onClick={() => navigate("/parametres")}
-              className="hidden md:flex items-center gap-2 rounded-lg border border-gray-300 dark:border-white/[0.08] bg-white dark:bg-white/[0.02] px-3 py-1.5 text-xs text-slate-800 dark:text-slate-200 hover:bg-gray-100 dark:hover:bg-white/[0.06] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+              aria-label="Parametres"
+              className="hidden md:flex w-8 h-8 rounded-lg hover:bg-slate-100 dark:hover:bg-white/[0.06] text-slate-500 dark:text-slate-400 items-center justify-center transition-colors duration-150 cursor-pointer"
             >
-              <Settings className="h-3.5 w-3.5" />
-              Parametres
+              <Settings className="h-4 w-4" />
             </button>
-            <time dateTime={new Date().toISOString().split("T")[0]} className="hidden lg:inline text-[11px] text-slate-400 dark:text-slate-500 font-mono">
-              {formatRelativeDate(new Date())}
+            <time dateTime={new Date().toISOString().split("T")[0]} className="hidden lg:inline text-xs text-slate-400 dark:text-slate-500 px-1.5">
+              {formatHeaderDate(new Date())}
             </time>
-            <div className="hidden sm:block w-px h-5 bg-gray-100 dark:bg-white/[0.06]" />
+            <div className="hidden sm:block w-px h-5 bg-slate-200 dark:bg-white/[0.06]" />
 
             <ThemeToggle />
             <NotificationBell />
@@ -240,14 +241,11 @@ export default function AppLayout() {
               <DropdownMenuTrigger asChild>
                 <button
                   aria-label="Ouvrir le menu utilisateur"
-                  className="relative group w-9 h-9 rounded-full p-[2px] bg-gradient-to-br from-blue-400 via-blue-500 to-indigo-600 hover:from-blue-300 hover:to-indigo-500 transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
+                  className="relative w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold flex items-center justify-center hover:bg-blue-500/20 transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 >
-                  <span className="flex items-center justify-center w-full h-full rounded-full bg-gray-50 dark:bg-slate-900 text-[11px] font-bold text-slate-900 dark:text-white">
-                    {userInitials}
-                  </span>
-                  {/* OPT-18: Connection status — aria-label + pulsing dot for live */}
+                  {userInitials}
                   <span
-                    className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${
+                    className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-[1.5px] border-white dark:border-slate-900 ${
                       isOnline && session ? "bg-emerald-400 status-dot-live" : "bg-red-400"
                     }`}
                     title={isOnline && session ? "Connecte" : "Hors ligne"}
@@ -266,10 +264,10 @@ export default function AppLayout() {
                   )}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate("/parametres")}>
-                  <User className="mr-2 h-4 w-4" /> Profil
+                <DropdownMenuItem onClick={() => navigate("/parametres")} className="cursor-pointer">
+                  <User className="mr-2 h-4 w-4" /> Mon profil
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => navigate("/parametres")}>
+                <DropdownMenuItem onClick={() => navigate("/parametres")} className="cursor-pointer">
                   <Settings className="mr-2 h-4 w-4" /> Parametres
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate("/logs")}>

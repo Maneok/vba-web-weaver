@@ -361,8 +361,10 @@ button:disabled, [role="button"][aria-disabled="true"] {
 
 /* Better selection color */
 ::selection {
-  background: hsl(217 91% 60% / 0.3);
-  color: white;
+  background: rgba(59, 130, 246, 0.15);
+}
+.dark ::selection {
+  background: rgba(96, 165, 250, 0.2);
 }
 
 /* Notification badge pulse */
@@ -805,10 +807,13 @@ thead th {
 }
 
 /* Smooth theme transition */
-*, *::before, *::after {
-  transition-property: background-color, border-color, color;
-  transition-duration: 0.15s;
-  transition-timing-function: ease;
+body {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Cursor pointer on all interactive elements */
+button, [role="button"], a, [role="tab"], [role="menuitem"], [role="option"], summary {
+  cursor: pointer;
 }
 
 /* Disable transitions during initial load to prevent flash */
@@ -818,11 +823,7 @@ thead th {
   transition: none !important;
 }
 
-/* OPT-47: Custom text selection color for brand consistency */
-::selection {
-  background: hsl(217, 91%, 60%, 0.25);
-  color: inherit;
-}
+/* OPT-47: Custom text selection — handled in @layer base above */
 
 /* OPT-48: Smooth scroll for anchor navigation */
 html {
