@@ -281,8 +281,9 @@ export default function AuditTrailPage() {
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
+        <div className="flex items-center justify-center py-16" role="status" aria-live="polite">
           <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+          <span className="sr-only">Chargement du journal d'audit...</span>
         </div>
       ) : (
         <div className="glass-card overflow-hidden animate-fade-in-up">
@@ -290,8 +291,9 @@ export default function AuditTrailPage() {
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-200 dark:border-white/[0.06] hover:bg-transparent">
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider w-[50px]">#</TableHead>
+                  <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider w-[50px]">#</TableHead>
                   <TableHead
+                    scope="col"
                     className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider cursor-pointer select-none"
                     onClick={() => setSortDir(d => d === "desc" ? "asc" : "desc")}
                   >
@@ -300,12 +302,12 @@ export default function AuditTrailPage() {
                       <ArrowUpDown className={`w-3 h-3 ${sortDir ? "text-blue-400" : "text-slate-600"}`} />
                     </span>
                   </TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Utilisateur</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Action</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Table</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">ID</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
-                  <TableHead className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider w-10"></TableHead>
+                  <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Utilisateur</TableHead>
+                  <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Action</TableHead>
+                  <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Table</TableHead>
+                  <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">ID</TableHead>
+                  <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider">Details</TableHead>
+                  <TableHead scope="col" className="text-slate-400 dark:text-slate-500 text-[11px] uppercase tracking-wider w-10"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -342,6 +344,7 @@ export default function AuditTrailPage() {
                         size="sm"
                         className="h-7 w-7 p-0 text-slate-400 dark:text-slate-500 hover:text-blue-400"
                         onClick={() => setSelectedEntry(entry)}
+                        aria-label={`Voir le detail de l'entree ${entry.id}`}
                       >
                         <Eye className="w-3.5 h-3.5" />
                       </Button>
@@ -394,6 +397,7 @@ export default function AuditTrailPage() {
                     className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300"
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={safePage <= 1}
+                    aria-label="Page precedente"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </Button>
@@ -404,6 +408,7 @@ export default function AuditTrailPage() {
                     className="h-7 w-7 p-0 border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300"
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={safePage >= totalPages}
+                    aria-label="Page suivante"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </Button>

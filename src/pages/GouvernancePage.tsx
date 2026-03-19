@@ -109,7 +109,7 @@ export default function GouvernancePage() {
   };
 
   const SortableHeader = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
-    <TableHead className="cursor-pointer hover:text-slate-700 dark:hover:text-slate-300" onClick={() => handleSort(field)}>
+    <TableHead scope="col" className="cursor-pointer hover:text-slate-700 dark:hover:text-slate-300" onClick={() => handleSort(field)}>
       <span className="flex items-center gap-1">
         {children}
         <ArrowUpDown className={`w-3 h-3 ${sortField === field ? "text-blue-400" : "text-slate-600"}`} />
@@ -396,7 +396,7 @@ export default function GouvernancePage() {
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500">
+                          <TableCell colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500" role="status" aria-live="polite">
                             Chargement...
                           </TableCell>
                         </TableRow>
@@ -463,7 +463,7 @@ export default function GouvernancePage() {
                                 <div className="flex gap-1">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(c)}>
+                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(c)} aria-label={`Modifier ${c.nom}`}>
                                         <Pencil className="w-3.5 h-3.5" />
                                       </Button>
                                     </TooltipTrigger>
@@ -471,7 +471,7 @@ export default function GouvernancePage() {
                                   </Tooltip>
                                   <Tooltip>
                                     <TooltipTrigger asChild>
-                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300" onClick={() => openDelete(c)}>
+                                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-red-400 hover:text-red-300" onClick={() => openDelete(c)} aria-label={`Desactiver ${c.nom}`}>
                                         <Trash2 className="w-3.5 h-3.5" />
                                       </Button>
                                     </TooltipTrigger>

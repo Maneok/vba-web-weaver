@@ -638,7 +638,7 @@ export default function GedPage() {
         </div>
 
         {storageLoading ? (
-          <div className="flex items-center justify-center py-10">
+          <div className="flex items-center justify-center py-10" role="status" aria-live="polite">
             <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-400 border-t-transparent" />
             <span className="ml-3 text-sm text-slate-400 dark:text-slate-400">Chargement du stockage...</span>
           </div>

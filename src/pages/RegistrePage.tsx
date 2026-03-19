@@ -346,7 +346,10 @@ export default function RegistrePage() {
                         {a.statut}
                       </span>
                     </TableCell>
-                    <TableCell className={`text-xs font-mono whitespace-nowrap ${isOverdue ? "text-red-400 font-semibold" : "text-slate-400 dark:text-slate-400"}`}>{formatDateFR(a.dateButoir)}</TableCell>
+                    <TableCell className={`text-xs font-mono whitespace-nowrap ${isOverdue ? "text-red-400 font-semibold" : "text-slate-400 dark:text-slate-400"}`}>
+                      {formatDateFR(a.dateButoir)}
+                      {isOverdue && <span className="sr-only"> (en retard)</span>}
+                    </TableCell>
                   </TableRow>
                 );
               })}

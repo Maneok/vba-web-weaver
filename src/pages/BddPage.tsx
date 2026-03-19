@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Search, Eye, ArrowUpDown, ArrowUp, ArrowDown, ChevronRight as ChevronRightIcon, Plus, Edit3, FileDown, FileText, Archive, Download, Clock, Trash2, ChevronLeft, ChevronsLeft, ChevronsRight, X, Users, SearchX, RotateCw, CheckCircle, XCircle, AlertTriangle } from "lucide-react";
 import { generateFicheAcceptation } from "@/lib/generateFichePdf";
 import { toast } from "sonner";
+import { getUserInitials } from "@/lib/utils";
 import type { Client } from "@/lib/types";
 
 const DEFAULT_PAGE_SIZE = 25;
@@ -33,16 +34,6 @@ function computeKycPercent(client: Client): number {
 /** Generate hue from name for avatar */
 function nameHue(name: string): number {
   return name.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
-}
-
-/** Get initials from name (max 2 chars) */
-function getInitials(name: string): string {
-  return name
-    .split(/[\s-]+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() || "")
-    .join("");
 }
 
 /** Parse date string and return days until that date */
@@ -168,14 +159,14 @@ export default function BddPage() {
     setDrafts(found);
   }, []);
 
-  const handleSort = (key: SortKey) => {
+  const handleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
       setSortDir(d => d === "asc" ? "desc" : "asc");
     } else {
       setSortKey(key);
       setSortDir("asc");
     }
-  };
+  }, [sortKey]);
 
   const ariaSort = (col: SortKey) => sortKey === col ? (sortDir === "asc" ? "ascending" as const : "descending" as const) : undefined;
 
@@ -231,7 +222,7 @@ export default function BddPage() {
   const somePageSelected = paginated.some(c => selectedRefs.has(c.ref));
   const isIndeterminate = somePageSelected && !allPageSelected;
 
-  const handleExportCSV = () => {
+  const handleExportCSV = useCallback(() => {
     const headers = ["Ref", "Raison Sociale", "SIREN", "Forme", "Mission", "Comptable", "Score", "Vigilance", "Pilotage", "KYC%", "Butoir"];
     const exportable = filtered.filter(c => !c.nonDiffusible);
     const excluded = filtered.length - exportable.length;
@@ -245,7 +236,7 @@ export default function BddPage() {
     } else {
       toast.success("Export CSV telecharge");
     }
-  };
+  }, [filtered]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
@@ -257,9 +248,9 @@ export default function BddPage() {
   };
 
   // #19 — Row click handler (navigates to client detail)
-  const handleRowClick = (ref: string) => {
+  const handleRowClick = useCallback((ref: string) => {
     navigate(`/client/${ref}`);
-  };
+  }, [navigate]);
 
   // Skeleton loading
   if (isLoading) {
@@ -312,6 +303,7 @@ export default function BddPage() {
             className="w-9 h-9 p-0 rounded-lg border-slate-200 dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04]"
             onClick={handleRefresh}
             title="Rafraichir la liste"
+            aria-label="Rafraichir la liste"
           >
             <RotateCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
           </Button>
@@ -319,6 +311,7 @@ export default function BddPage() {
             variant="outline"
             className="rounded-lg px-3 h-9 text-sm border-slate-200 dark:border-white/[0.1] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/[0.04] gap-1.5"
             onClick={handleExportCSV}
+            aria-label="Exporter en CSV"
           >
             <Download className="w-4 h-4" /> <span className="hidden sm:inline">Export CSV</span>
           </Button>
@@ -441,6 +434,7 @@ export default function BddPage() {
                     variant="ghost"
                     size="sm"
                     className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-8 w-8 p-0"
+                    aria-label="Supprimer le brouillon"
                     onClick={() => {
                       sessionStorage.removeItem(draft.key);
                       const mainDraft = sessionStorage.getItem("draft_nouveau_client");
@@ -593,7 +587,7 @@ export default function BddPage() {
                         color: `hsl(${hue}, 70%, 35%)`,
                       }}
                     >
-                      {getInitials(client.raisonSociale || "?")}
+                      {getUserInitials(client.raisonSociale || "?")}
                     </div>
                     <div className="min-w-0">
                       <p className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate" title={client.raisonSociale}>{client.raisonSociale}</p>
@@ -636,14 +630,14 @@ export default function BddPage() {
 
       {/* Desktop table */}
       {clients.length > 0 && (
-        <div ref={tableRef} className="hidden sm:block rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none overflow-hidden">
+        <div ref={tableRef} aria-label="Liste des clients" className="hidden sm:block rounded-xl border border-slate-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] shadow-sm dark:shadow-none overflow-hidden">
           <div className="overflow-x-auto max-h-[calc(100vh-320px)] overflow-y-auto [&::-webkit-scrollbar]:h-1.5">
             <Table>
               {/* #21-23 — Styled sticky header */}
               <TableHeader className="sticky top-0 z-10 bg-slate-50 dark:bg-[#0f1117]">
                 <TableRow className="border-b border-slate-200 dark:border-white/[0.06] hover:bg-transparent">
                   {/* #1 — Checkbox */}
-                  <TableHead className="w-10 px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                  <TableHead scope="col" className="w-10 px-3 py-2.5" onClick={e => e.stopPropagation()}>
                     <Checkbox
                       checked={allPageSelected ? true : isIndeterminate ? "indeterminate" : false}
                       onCheckedChange={(checked) => {
@@ -657,6 +651,7 @@ export default function BddPage() {
                   </TableHead>
                   {/* #2 — Client */}
                   <TableHead
+                    scope="col"
                     className="flex-1 min-w-[200px] px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 cursor-pointer group"
                     onClick={() => handleSort("raisonSociale")}
                     role="columnheader"
@@ -667,9 +662,10 @@ export default function BddPage() {
                     <div className="flex items-center">Client <SortIcon column="raisonSociale" /></div>
                   </TableHead>
                   {/* #3 — Forme */}
-                  <TableHead className="w-16 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Forme</TableHead>
+                  <TableHead scope="col" className="w-16 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Forme</TableHead>
                   {/* #4 — Comptable (hidden below xl) */}
                   <TableHead
+                    scope="col"
                     className="w-24 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 cursor-pointer group hidden xl:table-cell"
                     onClick={() => handleSort("comptable")}
                     role="columnheader"
@@ -680,9 +676,10 @@ export default function BddPage() {
                     <div className="flex items-center">Comptable <SortIcon column="comptable" /></div>
                   </TableHead>
                   {/* #5 — Mission (hidden below xl) */}
-                  <TableHead className="w-28 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden xl:table-cell">Mission</TableHead>
+                  <TableHead scope="col" className="w-28 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden xl:table-cell">Mission</TableHead>
                   {/* #6 — Risque */}
                   <TableHead
+                    scope="col"
                     className="w-32 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 cursor-pointer group"
                     onClick={() => handleSort("scoreGlobal")}
                     role="columnheader"
@@ -693,11 +690,12 @@ export default function BddPage() {
                     <div className="flex items-center">Risque <SortIcon column="scoreGlobal" /></div>
                   </TableHead>
                   {/* #7 — Pilotage */}
-                  <TableHead className="w-20 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-center">Pilotage</TableHead>
+                  <TableHead scope="col" className="w-20 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-center">Pilotage</TableHead>
                   {/* #8 — KYC (hidden below lg) */}
-                  <TableHead className="w-20 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-center hidden lg:table-cell">KYC</TableHead>
+                  <TableHead scope="col" className="w-20 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 text-center hidden lg:table-cell">KYC</TableHead>
                   {/* #9 — Butoir (hidden below lg) */}
                   <TableHead
+                    scope="col"
                     className="w-24 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 cursor-pointer group hidden lg:table-cell"
                     onClick={() => handleSort("dateButoir")}
                     role="columnheader"
@@ -708,7 +706,7 @@ export default function BddPage() {
                     <div className="flex items-center">Butoir <SortIcon column="dateButoir" /></div>
                   </TableHead>
                   {/* #10 — Actions */}
-                  <TableHead className="w-10 px-3 py-2.5"></TableHead>
+                  <TableHead scope="col" className="w-10 px-3 py-2.5"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -751,12 +749,12 @@ export default function BddPage() {
                               color: `hsl(${hue}, 70%, 35%)`,
                             }}
                           >
-                            <span className="dark:hidden">{getInitials(client.raisonSociale || "?")}</span>
+                            <span className="dark:hidden">{getUserInitials(client.raisonSociale || "?")}</span>
                             <span
                               className="hidden dark:inline"
                               style={{ color: `hsl(${hue}, 50%, 75%)` }}
                             >
-                              {getInitials(client.raisonSociale || "?")}
+                              {getUserInitials(client.raisonSociale || "?")}
                             </span>
                           </div>
                           <div className="min-w-0">
@@ -819,11 +817,20 @@ export default function BddPage() {
                           <TooltipTrigger asChild>
                             <span className="inline-flex items-center justify-center">
                               {client.etatPilotage === "A JOUR" ? (
-                                <CheckCircle className="w-4 h-4 text-emerald-500" />
+                                <>
+                                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                                  <span className="sr-only">A jour</span>
+                                </>
                               ) : client.etatPilotage === "RETARD" ? (
-                                <XCircle className="w-4 h-4 text-red-500" />
+                                <>
+                                  <XCircle className="w-4 h-4 text-red-500" />
+                                  <span className="sr-only">En retard</span>
+                                </>
                               ) : (
-                                <Clock className="w-4 h-4 text-amber-500" />
+                                <>
+                                  <Clock className="w-4 h-4 text-amber-500" />
+                                  <span className="sr-only">Bientot</span>
+                                </>
                               )}
                             </span>
                           </TooltipTrigger>
@@ -967,7 +974,7 @@ export default function BddPage() {
                   <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(0)} className="h-7 w-7 p-0" title="Premiere page" aria-label="Premiere page">
                     <ChevronsLeft className="w-3.5 h-3.5" />
                   </Button>
-                  <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => setPage(p => p - 1)} className="h-7 w-7 p-0" title="Page precedente" aria-label="Page precedente">
+                  <Button variant="ghost" size="sm" disabled={page === 0} onClick={() => { setPage(p => p - 1); tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="h-7 w-7 p-0" title="Page precedente" aria-label="Page precedente">
                     <ChevronLeft className="w-3.5 h-3.5" />
                   </Button>
                   {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -979,13 +986,15 @@ export default function BddPage() {
                         variant={p === page ? "default" : "ghost"}
                         size="sm"
                         onClick={() => setPage(p)}
+                        aria-current={p === page ? "page" : undefined}
+                        aria-label={`Page ${p + 1}`}
                         className={`h-7 w-7 p-0 text-xs ${p === page ? "bg-blue-600" : ""}`}
                       >
                         {p + 1}
                       </Button>
                     );
                   })}
-                  <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(p => p + 1)} className="h-7 w-7 p-0" title="Page suivante" aria-label="Page suivante">
+                  <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => { setPage(p => p + 1); tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }} className="h-7 w-7 p-0" title="Page suivante" aria-label="Page suivante">
                     <ChevronRightIcon className="w-3.5 h-3.5" />
                   </Button>
                   <Button variant="ghost" size="sm" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} className="h-7 w-7 p-0" title="Derniere page" aria-label="Derniere page">

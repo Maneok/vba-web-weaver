@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
+import { getUserInitials } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Tooltip,
@@ -84,13 +85,6 @@ const ROLE_SHORT_LABELS: Record<string, string> = {
 };
 
 /* ─── Helpers ─── */
-
-function getInitials(name: string | undefined | null): string {
-  if (!name?.trim()) return "U";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 function getCabinetInitials(name: string): string {
   return name.slice(0, 2).toUpperCase();
@@ -168,7 +162,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
   };
 
   const cabinetName = profile?.full_name?.split(" ").pop() || "GRIMY";
-  const userInitials = getInitials(profile?.full_name);
+  const userInitials = getUserInitials(profile?.full_name);
   const hasAlerts = alertesEnCours > 0;
 
   /* ─── Check if item is active ─── */

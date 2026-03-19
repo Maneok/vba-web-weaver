@@ -7,9 +7,9 @@
 export function csvSafe(val: unknown): string {
   const s = String(val ?? "");
   const escaped = s.replace(/"/g, '""');
+  // Always quote to handle embedded newlines, semicolons, and CSV injection
   if (/^[=+\-@\t\r]/.test(s)) return `"'${escaped}"`;
-  if (s.includes(";") || s.includes('"') || s.includes("\n")) return `"${escaped}"`;
-  return s;
+  return `"${escaped}"`;
 }
 
 /** Export data as a CSV file with UTF-8 BOM for Excel compatibility */

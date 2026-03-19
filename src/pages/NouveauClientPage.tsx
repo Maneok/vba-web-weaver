@@ -626,7 +626,7 @@ export default function NouveauClientPage() {
     const entLng = (enterprise as Record<string, unknown>).longitude as number | null ?? null;
     setEnterpriseGps({ lat: entLat, lng: entLng });
     supabase.functions.invoke("google-places-verify", {
-      body: { raison_sociale: raisonSociale, ville, latitude: entLat, longitude: entLng },
+      body: { raison_sociale: raisonSociale, ville, adresse: enterprise.adresse ?? form.adresse, code_postal: enterprise.code_postal ?? form.cp, latitude: entLat, longitude: entLng },
     }).then(({ data, error }) => {
       if (error) throw error;
       setScreening(prev => ({ ...prev, google: { loading: false, data, error: null, timeMs: Date.now() - t0google } }));
@@ -2222,8 +2222,8 @@ export default function NouveauClientPage() {
             {/* Map embed — OpenStreetMap with Nominatim geocoding fallback (#9-11) */}
             {(screening.google.data || form.adresse) && (
               <MapSection
-                lat={screening.google.data?.place?.lat ?? screening.google.data?.fallbackGps?.lat ?? enterpriseGps.lat ?? null}
-                lng={screening.google.data?.place?.lng ?? screening.google.data?.fallbackGps?.lng ?? enterpriseGps.lng ?? null}
+                lat={enterpriseGps.lat ?? screening.google.data?.fallbackGps?.latitude ?? screening.google.data?.place?.lat ?? null}
+                lng={enterpriseGps.lng ?? screening.google.data?.fallbackGps?.longitude ?? screening.google.data?.place?.lng ?? null}
                 adresse={form.adresse}
                 cp={form.cp}
                 ville={form.ville}

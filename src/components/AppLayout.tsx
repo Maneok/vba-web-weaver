@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useTransition } from "react";
+import { useState, useEffect, useMemo, useRef, useTransition } from "react";
 import { Outlet, useLocation, useNavigate, NavLink } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import NotificationBell from "./NotificationBell";
@@ -9,6 +9,7 @@ import { ArrowLeft, Home, Keyboard, LayoutDashboard, LogOut, Menu, ScrollText, S
 import { useAuth } from "@/lib/auth/AuthContext";
 import { useAppState } from "@/lib/AppContext";
 import { ROLE_LABELS } from "@/lib/auth/types";
+import { getUserInitials } from "@/lib/utils";
 import { formatDateFr } from "@/lib/dateUtils";
 import {
   DropdownMenu,
@@ -35,14 +36,6 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: { label: string; 
   "/notifications": { title: "Notifications", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Notifications" }] },
   "/super-admin": { title: "Super Admin", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Super Admin" }] },
 };
-
-/** Compute user initials safely for single-word or empty names */
-function getUserInitials(name: string | undefined | null): string {
-  if (!name || !name.trim()) return "U";
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
 
 /** Format date as "Jeu. 19 mars 2026" */
 function formatHeaderDate(date: Date): string {
@@ -77,6 +70,7 @@ export default function AppLayout() {
   const prevPathRef = useRef(location.pathname);
 
   const userInitials = getUserInitials(profile?.full_name);
+  const headerDate = useMemo(() => formatHeaderDate(new Date()), []);
 
   // Persist sidebar collapsed state + keep CSS variable in sync
   useEffect(() => {
@@ -228,7 +222,7 @@ export default function AppLayout() {
               <Settings className="h-4 w-4" />
             </button>
             <time dateTime={new Date().toISOString().split("T")[0]} className="hidden lg:inline text-xs text-slate-400 dark:text-slate-500 px-1.5">
-              {formatHeaderDate(new Date())}
+              {headerDate}
             </time>
             <div className="hidden sm:block w-px h-5 bg-slate-200 dark:bg-white/[0.06]" />
 

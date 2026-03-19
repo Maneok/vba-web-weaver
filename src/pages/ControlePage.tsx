@@ -1124,24 +1124,24 @@ export default function ControlePage() {
                     <table className="w-full text-sm" role="table">
                       <thead>
                         <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-gray-200 dark:border-white/[0.06]">
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")} aria-label="Trier par date" role="button">
+                          <th scope="col" className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dateTirage")} aria-label="Trier par date" aria-sort={sortField === "dateTirage" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} role="button">
                             <span className="flex items-center gap-1">Date <SortIconIndicator field="dateTirage" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dossierAudite")} aria-label="Trier par dossier" role="button">
+                          <th scope="col" className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("dossierAudite")} aria-label="Trier par dossier" aria-sort={sortField === "dossierAudite" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} role="button">
                             <span className="flex items-center gap-1">Dossier audite <SortIconIndicator field="dossierAudite" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("scoreGlobal")} aria-label="Trier par score" role="button">
+                          <th scope="col" className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("scoreGlobal")} aria-label="Trier par score" aria-sort={sortField === "scoreGlobal" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} role="button">
                             <span className="flex items-center gap-1">Score <SortIconIndicator field="scoreGlobal" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("nivVigilance")} aria-label="Trier par vigilance" role="button">
+                          <th scope="col" className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("nivVigilance")} aria-label="Trier par vigilance" aria-sort={sortField === "nivVigilance" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} role="button">
                             <span className="flex items-center gap-1">Vigilance <SortIconIndicator field="nivVigilance" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("resultatGlobal")} aria-label="Trier par resultat" role="button">
+                          <th scope="col" className="px-6 py-3 font-medium cursor-pointer select-none" onClick={() => handleSort("resultatGlobal")} aria-label="Trier par resultat" aria-sort={sortField === "resultatGlobal" ? (sortDir === "asc" ? "ascending" : "descending") : "none"} role="button">
                             <span className="flex items-center gap-1">Resultat <SortIconIndicator field="resultatGlobal" currentField={sortField} currentDir={sortDir} /></span>
                           </th>
-                          <th className="px-6 py-3 font-medium">Controleur</th>
-                          <th className="px-6 py-3 font-medium">Suivi</th>
-                          <th className="px-6 py-3 font-medium w-10"></th>
+                          <th scope="col" className="px-6 py-3 font-medium">Controleur</th>
+                          <th scope="col" className="px-6 py-3 font-medium">Suivi</th>
+                          <th scope="col" className="px-6 py-3 font-medium w-10"><span className="sr-only">Actions</span></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-white/[0.04]">
@@ -1202,7 +1202,8 @@ export default function ControlePage() {
                                 )}
                               </td>
                               <td className="px-6 py-3.5">
-                                <Eye className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+                                <Eye className="w-4 h-4 text-slate-400 dark:text-slate-500" aria-hidden="true" />
+                                <span className="sr-only">Voir le detail</span>
                               </td>
                             </tr>
                           );
@@ -1234,17 +1235,17 @@ export default function ControlePage() {
                           {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filteredControles.length)} sur {filteredControles.length}
                         </span>
                       )}
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page === 0} onClick={() => setPage(0)}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page === 0} onClick={() => setPage(0)} aria-label="Premiere page">
                         <ChevronsLeft className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page === 0} onClick={() => setPage((p) => p - 1)}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page === 0} onClick={() => setPage((p) => p - 1)} aria-label="Page precedente">
                         <ChevronLeft className="w-3.5 h-3.5" />
                       </Button>
                       <span className="text-xs text-slate-400 dark:text-slate-400 mx-1">{page + 1}/{totalPages}</span>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages - 1} onClick={() => setPage((p) => p + 1)} aria-label="Page suivante">
                         <ChevronRight className="w-3.5 h-3.5" />
                       </Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages - 1} onClick={() => setPage(totalPages - 1)} aria-label="Derniere page">
                         <ChevronsRight className="w-3.5 h-3.5" />
                       </Button>
                     </div>
@@ -1446,12 +1447,12 @@ export default function ControlePage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-slate-400 dark:text-slate-500 border-b border-gray-200 dark:border-white/[0.06]">
-                    <th className="px-6 py-3 font-medium">Statut</th>
-                    <th className="px-6 py-3 font-medium">Client</th>
-                    <th className="px-6 py-3 font-medium">Score</th>
-                    <th className="px-6 py-3 font-medium">Vigilance</th>
-                    <th className="px-6 py-3 font-medium">Nb controles</th>
-                    <th className="px-6 py-3 font-medium">Dernier controle</th>
+                    <th scope="col" className="px-6 py-3 font-medium">Statut</th>
+                    <th scope="col" className="px-6 py-3 font-medium">Client</th>
+                    <th scope="col" className="px-6 py-3 font-medium">Score</th>
+                    <th scope="col" className="px-6 py-3 font-medium">Vigilance</th>
+                    <th scope="col" className="px-6 py-3 font-medium">Nb controles</th>
+                    <th scope="col" className="px-6 py-3 font-medium">Dernier controle</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.04]">
@@ -1892,11 +1893,11 @@ export default function ControlePage() {
                       Detail du controle
                     </DialogTitle>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(-1)} disabled={detailIndexInFiltered <= 0}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(-1)} disabled={detailIndexInFiltered <= 0} aria-label="Controle precedent">
                         <ChevronLeft className="w-4 h-4" />
                       </Button>
                       <span className="text-xs text-slate-400 dark:text-slate-500 tabular-nums">{detailIndexInFiltered + 1}/{filteredControles.length}</span>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(1)} disabled={detailIndexInFiltered >= filteredControles.length - 1}>
+                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => navigateDetail(1)} disabled={detailIndexInFiltered >= filteredControles.length - 1} aria-label="Controle suivant">
                         <ChevronRight className="w-4 h-4" />
                       </Button>
                     </div>

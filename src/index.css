@@ -286,6 +286,12 @@
   animation: fade-in-up 0.4s ease-out forwards;
 }
 
+.animate-fade-in-up,
+.card-hover-lift,
+.interactive-card {
+  will-change: transform;
+}
+
 .animate-fade-in-up-delay-1 {
   animation: fade-in-up 0.4s ease-out 0.05s forwards;
   opacity: 0;
@@ -573,6 +579,11 @@ thead th {
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
+/* Balanced text wrapping for headings */
+.text-balance {
+  text-wrap: balance;
+}
+
 /* Responsive typography */
 @media (min-width: 1024px) {
   .text-responsive-xl { font-size: 1.5rem; }
@@ -826,24 +837,7 @@ button, [role="button"], a, [role="tab"], [role="menuitem"], [role="option"], su
 
 /* OPT-47: Custom text selection — handled in @layer base above */
 
-/* OPT-48: Smooth scroll for anchor navigation */
-html {
-  scroll-behavior: smooth;
-}
-@media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-}
-
 /* OPT-49: Scrollbar styling — handled in @layer base above */
-
-/* OPT-50: Reduced-motion global preference */
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
-}
 
 /* ============================================
    FIX : Contraste textes en mode light
@@ -1076,5 +1070,8 @@ aside > div:last-child {
   /* Hide sidebar and header in print */
   aside { display: none !important; }
   header { display: none !important; }
+  table { page-break-inside: avoid; }
+  tr { page-break-inside: avoid; }
+  .animate-fade-in-up { animation: none !important; }
   [class*="lg:pl-"] { padding-left: 0 !important; }
 }
