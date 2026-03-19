@@ -4,6 +4,17 @@ function normalize(s: string): string {
   return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 }
 
+// Role code → label mapping (same as enterprise-lookup)
+const QUALITE_LABELS: Record<string, string> = {
+  "01": "Président du CA", "02": "Directeur général", "03": "Gérant",
+  "04": "Administrateur", "05": "Président", "10": "Associé",
+  "11": "Membre du conseil de surveillance", "15": "Commissaire aux comptes",
+  "25": "Président du directoire", "30": "Liquidateur",
+  "50": "Secrétaire général", "55": "Fondé de pouvoir",
+  "70": "Membre", "71": "Associé-gérant", "72": "Co-gérant", "73": "Gérant non associé",
+  "74": "Gérant associé", "75": "Représentant", "76": "Directeur général délégué",
+};
+
 // ====== INPI Auth (same pattern as enterprise-lookup) ======
 const INPI_BASE = "https://registre-national-entreprises.inpi.fr/api";
 let cachedToken: string | null = null;
@@ -60,100 +71,101 @@ async function _refreshINPIToken(): Promise<string | null> {
   return null;
 }
 
-// ====== INPI search by dirigeant name ======
-interface INPICompanyResult {
+// ====== Fetch company pouvoirs (representatives + linked companies) from INPI ======
+interface CompanyPouvoirs {
   siren: string;
   denomination: string;
   formeJuridique: string;
   etatAdministratif: string;
   dateCreation: string;
   codePostal: string;
-  qualite: string;
+  individus: Array<{
+    nom: string;
+    prenom: string;
+    role: string;
+    dateNaissance: string;
+  }>;
+  entreprises: Array<{
+    siren: string;
+    denomination: string;
+    formeJuridique: string;
+    role: string;
+  }>;
 }
 
-async function searchINPIByDirigeant(
-  token: string,
-  nom: string,
-  prenom: string,
-  dateNaissance?: string,
-): Promise<INPICompanyResult[]> {
-  const params = new URLSearchParams({
-    representant_nom: nom,
-    representant_prenom: prenom,
-    page: "1",
-    pageSize: "20",
-  });
-
+async function fetchCompanyPouvoirs(token: string, siren: string): Promise<CompanyPouvoirs | null> {
   try {
-    const res = await fetch(`${INPI_BASE}/companies?${params.toString()}`, {
+    const res = await fetch(`${INPI_BASE}/companies/${siren}`, {
       headers: { Authorization: `Bearer ${token}` },
       signal: AbortSignal.timeout(8000),
     });
+    if (!res.ok) return null;
 
-    if (!res.ok) {
-      console.error(`[dirigeants-network][INPI] Search failed for ${prenom} ${nom}: HTTP ${res.status}`);
-      return [];
+    let raw: any;
+    try { raw = await res.json(); } catch { return null; }
+
+    const formality = raw.formality ?? raw;
+    const content = formality?.content ?? raw;
+    const pm = content?.personneMorale;
+    const pp = content?.personnePhysique;
+    const creation = content?.natureCreation ?? {};
+    const hasCessation = !!content?.natureCessation;
+
+    let denomination = "";
+    let codePostal = "";
+    let formeJuridique = "";
+    const individus: CompanyPouvoirs["individus"] = [];
+    const entreprises: CompanyPouvoirs["entreprises"] = [];
+
+    if (pm) {
+      denomination = (pm.identite?.entreprise?.denomination ?? "").toUpperCase();
+      formeJuridique = pm.identite?.entreprise?.formeJuridique ?? creation.formeJuridique ?? "";
+      const adresse = pm.adresseEntreprise?.adresse ?? {};
+      codePostal = adresse.codePostal ?? "";
+
+      // Extract composition.pouvoirs
+      const pouvoirs = pm.composition?.pouvoirs ?? [];
+      for (const p of pouvoirs) {
+        if (p.typeDePersonne === "INDIVIDU" && p.individu) {
+          const desc = p.individu.descriptionPersonne ?? {};
+          const prenoms = desc.prenoms ?? [];
+          const prenom = Array.isArray(prenoms) ? (prenoms[0] ?? "") : String(prenoms);
+          const roleCode = p.roleEntreprise ?? "";
+          individus.push({
+            nom: (desc.nom ?? "").toUpperCase(),
+            prenom,
+            role: QUALITE_LABELS[roleCode] ?? roleCode,
+            dateNaissance: desc.dateDeNaissance ?? "",
+          });
+        } else if (p.typeDePersonne === "ENTREPRISE" && p.entreprise) {
+          const ent = p.entreprise;
+          const entSiren = (ent.siren ?? "").replace(/\s/g, "");
+          if (entSiren && entSiren.length >= 9) {
+            const roleCode = p.roleEntreprise ?? "";
+            entreprises.push({
+              siren: entSiren,
+              denomination: (ent.denomination ?? "").toUpperCase(),
+              formeJuridique: ent.formeJuridique ?? "",
+              role: QUALITE_LABELS[roleCode] ?? roleCode,
+            });
+          }
+        }
+      }
+    } else if (pp) {
+      const desc = pp.identite?.entrepreneur?.descriptionPersonne ?? {};
+      denomination = `${desc.prenoms?.[0] ?? ""} ${desc.nom ?? ""}`.trim().toUpperCase();
+      formeJuridique = creation.formeJuridique ?? "";
+      const adresse = pp.adresseEntreprise?.adresse ?? {};
+      codePostal = adresse.codePostal ?? "";
     }
 
-    let data: any;
-    try { data = await res.json(); } catch { return []; }
+    const etat = hasCessation && (raw.nombreEtablissementsOuverts ?? 1) === 0 ? "F" : "A";
+    const dateCreation = creation.dateCreation ?? pm?.identite?.entreprise?.dateImmat ?? "";
 
-    const results: any[] = data?.results ?? data?.companies ?? (Array.isArray(data) ? data : []);
-    const companies: INPICompanyResult[] = [];
-
-    for (const item of results) {
-      const siren = String(item.siren ?? "").replace(/\s/g, "");
-      if (!siren || siren.length < 9) continue;
-
-      // Filter homonymes by date of birth if available
-      if (dateNaissance && item.representants) {
-        const reps = Array.isArray(item.representants) ? item.representants : [];
-        const matchesDir = reps.some((r: any) => {
-          const rNom = normalize(r.nom ?? r.nomPatronymique ?? "");
-          const rPrenom = normalize(r.prenoms ?? r.prenom ?? "");
-          const rDob = r.dateDeNaissance ?? r.date_de_naissance ?? "";
-          return rNom === normalize(nom) && rPrenom.startsWith(normalize(prenom).slice(0, 3))
-            && rDob && rDob === dateNaissance;
-        });
-        if (!matchesDir && reps.length > 0) continue; // skip homonyme
-      }
-
-      // Extract role from representants array
-      let qualite = "Dirigeant";
-      if (item.representants) {
-        const reps = Array.isArray(item.representants) ? item.representants : [];
-        const matchRep = reps.find((r: any) => {
-          const rNom = normalize(r.nom ?? r.nomPatronymique ?? "");
-          const rPrenom = normalize(r.prenoms ?? r.prenom ?? "");
-          return rNom === normalize(nom) && rPrenom.startsWith(normalize(prenom).slice(0, 3));
-        });
-        if (matchRep) qualite = matchRep.qualite ?? matchRep.role ?? "Dirigeant";
-      }
-
-      const denomination = (
-        item.denomination ?? item.nomComplet ?? item.nom_complet ?? ""
-      ).toUpperCase();
-
-      const forme = item.natureJuridique ?? item.formeJuridique ?? item.forme_juridique ?? "";
-      const etat = item.etatAdministratif ?? item.etat_administratif ?? "A";
-      const dateCreation = item.dateCreation ?? item.date_creation ?? item.dateImmatriculation ?? "";
-      const cp = item.siege?.codePostal ?? item.codePostal ?? item.siege?.code_postal ?? "";
-
-      companies.push({
-        siren,
-        denomination,
-        formeJuridique: forme,
-        etatAdministratif: etat,
-        dateCreation,
-        codePostal: cp,
-        qualite,
-      });
-    }
-
-    return companies;
+    return { siren, denomination, formeJuridique, etatAdministratif: etat, dateCreation, codePostal, individus, entreprises };
   } catch (e) {
-    console.error(`[dirigeants-network][INPI] Search error for ${prenom} ${nom}:`, (e as Error).message);
-    return [];
+    console.error(`[dirigeants-network][INPI] Fetch ${siren} error:`, (e as Error).message);
+    return null;
   }
 }
 
@@ -187,7 +199,6 @@ Deno.serve(async (req) => {
     const alertes: any[] = [];
     const seenSirens = new Set<string>();
     const addressCounts: Record<string, string[]> = {};
-    // Track which sirens each person directs (for cross-link detection)
     const personSirens: Record<string, Set<string>> = {};
 
     nodes.push({
@@ -199,122 +210,187 @@ Deno.serve(async (req) => {
     });
     seenSirens.add(cleanSiren);
 
-    // ====== 1. INPI: search by dirigeant name (primary source) ======
+    const dirSlice = (dirigeants as Array<{ nom: string; prenom: string; qualite: string; dateNaissance?: string }>).slice(0, 5);
+
+    // ====== 1. INPI: fetch client company pouvoirs + expand linked companies ======
     const inpiToken = await getINPIToken();
     let inpiUsed = false;
 
-    const dirSlice = (dirigeants as Array<{ nom: string; prenom: string; qualite: string; dateNaissance?: string }>).slice(0, 5);
+    if (inpiToken && !globalTimeout.aborted) {
+      // Step 1: Fetch the client company's composition.pouvoirs
+      const clientData = await fetchCompanyPouvoirs(inpiToken, cleanSiren);
 
-    if (inpiToken) {
-      // Search all dirigeants in parallel
-      const inpiResults = await Promise.allSettled(
-        dirSlice.map(dir => {
-          if (globalTimeout.aborted) return Promise.resolve([]);
-          return searchINPIByDirigeant(inpiToken, dir.nom, dir.prenom, dir.dateNaissance);
-        })
-      );
-
-      for (let i = 0; i < dirSlice.length; i++) {
-        const dir = dirSlice[i];
-        const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
-        if (!fullName || fullName.length < 3) continue;
-
-        const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
-        // Only add person node once
-        if (!nodes.some(n => n.id === personId)) {
-          nodes.push({ id: personId, label: fullName, type: "person" });
-          edges.push({ source: personId, target: `company-${cleanSiren}`, label: dir.qualite || "Dirigeant" });
+      if (clientData) {
+        inpiUsed = true;
+        // Update source node label with actual denomination
+        if (clientData.denomination) {
+          nodes[0].label = clientData.denomination;
         }
 
-        const settled = inpiResults[i];
-        const companies = settled.status === "fulfilled" ? settled.value : [];
+        // Add person nodes for each INDIVIDU in pouvoirs
+        for (const ind of clientData.individus) {
+          const fullName = `${ind.prenom} ${ind.nom}`.trim();
+          if (!fullName || fullName.length < 3) continue;
+          const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
+          if (!nodes.some(n => n.id === personId)) {
+            nodes.push({ id: personId, label: fullName, type: "person" });
+            edges.push({ source: personId, target: `company-${cleanSiren}`, label: ind.role || "Dirigeant" });
+            personSirens[personId] = new Set<string>();
+          }
+        }
 
-        if (companies.length > 0) inpiUsed = true;
+        // Also ensure input dirigeants are added as person nodes
+        for (const dir of dirSlice) {
+          const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
+          if (!fullName || fullName.length < 3) continue;
+          const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
+          if (!nodes.some(n => n.id === personId)) {
+            nodes.push({ id: personId, label: fullName, type: "person" });
+            edges.push({ source: personId, target: `company-${cleanSiren}`, label: dir.qualite || "Dirigeant" });
+            personSirens[personId] = new Set<string>();
+          }
+        }
 
-        let mandatCount = 0;
-        const recentCreations: string[] = [];
-        const dirSirens = new Set<string>();
-
-        for (const comp of companies) {
-          if (!comp.siren || comp.siren === cleanSiren) continue;
-          mandatCount++;
-          dirSirens.add(comp.siren);
-
-          if (!seenSirens.has(comp.siren)) {
-            seenSirens.add(comp.siren);
-            const companyId = `company-${comp.siren}`;
+        // Add ENTREPRISE entries from pouvoirs as linked companies
+        for (const ent of clientData.entreprises) {
+          if (!ent.siren || ent.siren === cleanSiren) continue;
+          if (!seenSirens.has(ent.siren)) {
+            seenSirens.add(ent.siren);
             nodes.push({
-              id: companyId,
-              label: comp.denomination,
+              id: `company-${ent.siren}`,
+              label: ent.denomination,
               type: "company",
-              siren: comp.siren,
-              dateCreation: comp.dateCreation,
-              ville: comp.codePostal,
-              formeJuridique: comp.formeJuridique,
+              siren: ent.siren,
+              formeJuridique: ent.formeJuridique,
             });
-            if (comp.codePostal && comp.codePostal.length >= 3) {
-              if (!addressCounts[comp.codePostal]) addressCounts[comp.codePostal] = [];
-              addressCounts[comp.codePostal].push(comp.denomination || comp.siren);
+          }
+          // Edge: linked company → client company (as representative)
+          edges.push({
+            source: `company-${ent.siren}`,
+            target: `company-${cleanSiren}`,
+            label: ent.role || "Représentant",
+          });
+        }
+
+        // Step 2: For each linked ENTREPRISE, fetch its pouvoirs to find cross-connections
+        // Also fetch for each linked company the dirigeants to match with input dirigeants
+        const linkedSirens = clientData.entreprises
+          .map(e => e.siren)
+          .filter(s => s && s !== cleanSiren);
+
+        if (linkedSirens.length > 0 && !globalTimeout.aborted) {
+          const linkedResults = await Promise.allSettled(
+            linkedSirens.slice(0, 10).map(s => fetchCompanyPouvoirs(inpiToken, s))
+          );
+
+          for (let i = 0; i < linkedResults.length; i++) {
+            const settled = linkedResults[i];
+            if (settled.status !== "fulfilled" || !settled.value) continue;
+            const linked = settled.value;
+
+            // Update node with additional data
+            const existingNode = nodes.find(n => n.siren === linked.siren);
+            if (existingNode) {
+              if (!existingNode.label && linked.denomination) existingNode.label = linked.denomination;
+              existingNode.dateCreation = linked.dateCreation;
+              existingNode.ville = linked.codePostal;
+              existingNode.etatAdministratif = linked.etatAdministratif;
+            }
+
+            // Check if closed
+            if (linked.etatAdministratif === "F" || linked.etatAdministratif === "C") {
+              alertes.push({
+                type: "societe_fermee",
+                message: `Societe fermee dans le reseau : ${linked.denomination} (SIREN ${linked.siren})`,
+                severity: "orange",
+              });
+            }
+
+            // Track address for domiciliation commune
+            if (linked.codePostal && linked.codePostal.length >= 3) {
+              if (!addressCounts[linked.codePostal]) addressCounts[linked.codePostal] = [];
+              addressCounts[linked.codePostal].push(linked.denomination || linked.siren);
+            }
+
+            // Check if any input dirigeants also appear in this linked company
+            for (const ind of linked.individus) {
+              const normIndNom = normalize(ind.nom);
+              const normIndPrenom = normalize(ind.prenom);
+
+              for (const dir of dirSlice) {
+                const normDirNom = normalize(dir.nom ?? "");
+                const normDirPrenom = normalize(dir.prenom ?? "");
+
+                if (normIndNom === normDirNom && normIndPrenom.startsWith(normDirPrenom.slice(0, 3))) {
+                  const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
+                  const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
+
+                  // Create edge: person → linked company
+                  if (!edges.some(e => e.source === personId && e.target === `company-${linked.siren}`)) {
+                    edges.push({
+                      source: personId,
+                      target: `company-${linked.siren}`,
+                      label: ind.role || "Dirigeant",
+                    });
+                  }
+                  if (personSirens[personId]) {
+                    personSirens[personId].add(linked.siren);
+                  }
+                }
+              }
+            }
+
+            // Add the linked company's own linked ENTREPRISES (depth 2)
+            for (const ent2 of linked.entreprises) {
+              if (!ent2.siren || ent2.siren === cleanSiren || ent2.siren === linked.siren) continue;
+              if (!seenSirens.has(ent2.siren)) {
+                seenSirens.add(ent2.siren);
+                nodes.push({
+                  id: `company-${ent2.siren}`,
+                  label: ent2.denomination,
+                  type: "company",
+                  siren: ent2.siren,
+                  formeJuridique: ent2.formeJuridique,
+                });
+              }
+              edges.push({
+                source: `company-${ent2.siren}`,
+                target: `company-${linked.siren}`,
+                label: ent2.role || "Représentant",
+              });
             }
           }
+        }
 
-          const companyId = `company-${comp.siren}`;
-          edges.push({ source: personId, target: companyId, label: comp.qualite || "Dirigeant" });
+        // Step 3: For each input dirigeant, check if they appear as individu in the client company
+        // and add mandat-related alerts
+        for (const dir of dirSlice) {
+          const fullName = `${dir.prenom ?? ""} ${dir.nom ?? ""}`.trim();
+          if (!fullName || fullName.length < 3) continue;
+          const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
+          const dirSirens = personSirens[personId] ?? new Set<string>();
+          const activeMandatCount = dirSirens.size;
 
-          // Alerte: société fermée
-          if (comp.etatAdministratif === "F" || comp.etatAdministratif === "C") {
+          if (activeMandatCount >= 10) {
             alertes.push({
-              type: "societe_fermee",
-              message: `Societe fermee dans le reseau : ${comp.denomination} (SIREN ${comp.siren})`,
+              type: "mandats_eleves",
+              message: `${fullName} dirige ${activeMandatCount}+ societes — nombre eleve de mandats`,
+              severity: "red",
+            });
+          } else if (activeMandatCount > 5) {
+            alertes.push({
+              type: "mandats_eleves",
+              message: `${fullName} dirige ${activeMandatCount} societes`,
               severity: "orange",
             });
           }
-
-          // Création récente (< 1 an)
-          if (comp.dateCreation) {
-            const created = new Date(comp.dateCreation);
-            const oneYearAgo = new Date();
-            oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-            if (created > oneYearAgo) {
-              recentCreations.push(comp.denomination || comp.siren);
-            }
-          }
-        }
-
-        personSirens[personId] = dirSirens;
-
-        // Alertes: mandats élevés (only count active companies)
-        const activeMandatCount = companies.filter(c =>
-          c.siren !== cleanSiren && c.etatAdministratif !== "F" && c.etatAdministratif !== "C"
-        ).length;
-
-        if (activeMandatCount >= 10) {
-          alertes.push({
-            type: "mandats_eleves",
-            message: `${fullName} dirige ${activeMandatCount}+ societes actives — nombre eleve de mandats`,
-            severity: "red",
-          });
-        } else if (activeMandatCount > 5) {
-          alertes.push({
-            type: "mandats_eleves",
-            message: `${fullName} dirige ${activeMandatCount} societes actives`,
-            severity: "orange",
-          });
-        }
-
-        if (recentCreations.length >= 2) {
-          alertes.push({
-            type: "creations_recentes",
-            message: `${fullName} a cree ${recentCreations.length} societes recentes (< 1 an) : ${recentCreations.join(", ")}`,
-            severity: "red",
-          });
         }
       }
     }
 
     // ====== 2. Fallback Pappers if INPI returned nothing and key exists ======
     if (!inpiUsed && pappersKey && !globalTimeout.aborted) {
-      console.log("[dirigeants-network] INPI returned no results, falling back to Pappers");
+      console.log("[dirigeants-network] INPI unavailable, falling back to Pappers");
       try {
         const pRes = await fetch(
           `https://api.pappers.fr/v2/entreprise?api_token=${pappersKey}&siren=${cleanSiren}`,
@@ -333,7 +409,6 @@ Deno.serve(async (req) => {
             const normPrenom = normalize(dir.prenom ?? "");
             const personId = `person-${fullName.replace(/\s/g, "-").toLowerCase()}`;
 
-            // Add person node if not already added by INPI path
             if (!nodes.some(n => n.id === personId)) {
               nodes.push({ id: personId, label: fullName, type: "person" });
               edges.push({ source: personId, target: `company-${cleanSiren}`, label: dir.qualite || "Dirigeant" });
@@ -462,6 +537,15 @@ Deno.serve(async (req) => {
     }
 
     // ====== 4. Domiciliation commune ======
+    // Also add client company address
+    if (inpiUsed) {
+      const clientNode = nodes.find(n => n.siren === cleanSiren);
+      if (clientNode?.ville && clientNode.ville.length >= 3) {
+        if (!addressCounts[clientNode.ville]) addressCounts[clientNode.ville] = [];
+        addressCounts[clientNode.ville].push(clientNode.label || cleanSiren);
+      }
+    }
+
     for (const [addr, companies] of Object.entries(addressCounts)) {
       if (companies.length >= 2) {
         alertes.push({
