@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
+import { recommendClientType, getClientTypeConfig } from "@/lib/lettreMissionTypes";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -87,12 +88,16 @@ export default function LMStep1Client({ data, onChange }: Props) {
   }, [data.client_id, selectedClient]);
 
   const selectClient = (c: Client) => {
+    const { recommended } = recommendClientType(c.forme);
+    const ctConfig = getClientTypeConfig(recommended);
     onChange({
       client_id: c.ref,
       client_ref: c.ref,
       raison_sociale: c.raisonSociale,
       siren: c.siren,
       forme_juridique: c.forme,
+      client_type_id: recommended,
+      mission_type_id: ctConfig?.defaultMissionType || "presentation",
       dirigeant: c.dirigeant,
       qualite_dirigeant: (() => {
         const qualiteMap: Record<string, string> = { "SARL": "Gérant", "EURL": "Gérant", "SCI": "Gérant", "SAS": "Président", "SASU": "Président", "SA": "Directeur général", "SNC": "Gérant", "ASSOCIATION": "Président", "ASSO": "Président" };
@@ -107,9 +112,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
       telephone: c.tel,
       iban: c.iban,
       bic: c.bic,
-      type_mission: c.mission?.includes("REVISION") || c.mission?.includes("SURVEILLANCE")
-        ? "SURVEILLANCE"
-        : "TENUE",
+      type_mission: ctConfig?.defaultModeComptable ||
+        (c.mission?.includes("REVISION") || c.mission?.includes("SURVEILLANCE") ? "SURVEILLANCE" : "TENUE"),
     });
   };
 
@@ -118,7 +122,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
       client_id: "", client_ref: "", raison_sociale: "", siren: "",
       forme_juridique: "", dirigeant: "", adresse: "", cp: "", ville: "",
       capital: "", ape: "", email: "", telephone: "", iban: "", bic: "",
-      qualite_dirigeant: "", type_mission: "", mission_type_id: "",
+      qualite_dirigeant: "", type_mission: "", mission_type_id: "", client_type_id: "",
     });
     riskToastShown.current = false;
     setSearch("");
