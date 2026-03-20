@@ -3445,18 +3445,6 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
-            {/* Screening summary at scoring step */}
-            {(screening.sanctions.data || screening.bodacc.data || screening.google.data || screening.news.data) && (
-              <div className="lg:col-span-2">
-                {form.raisonSociale.length < 4 && screening.news.data?.articles?.length > 0 && (
-                  <div className="text-[10px] text-amber-600 dark:text-amber-400 mb-1">
-                    ⚠️ Le nom est très court — certains articles peuvent ne pas concerner cette entreprise
-                  </div>
-                )}
-                <ScreeningPanel screening={screening} compact gelAvoirsAlert={gelAvoirsAlert} beneficiairesCount={{ pp: beneficiaires.length, pm: 0 }} />
-              </div>
-            )}
-
             {/* FIX 52: Improved decision section with shadows and transitions */}
             <div className="p-4 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] lg:col-span-2">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Decision</h3>
@@ -4892,7 +4880,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                     src={previewDoc.url}
                     title={previewDoc.label}
                     className="w-full h-full border-0"
-                    sandbox="allow-same-origin allow-scripts"
+                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
                   />
                 </div>
               </div>

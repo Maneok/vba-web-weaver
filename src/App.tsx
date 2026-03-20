@@ -145,7 +145,7 @@ const App = () => (
         </AppProvider>
       </AuthProvider>
       <Toaster />
-      <Sonner richColors position="bottom-right" closeButton />
+      <Sonner richColors position="bottom-center" closeButton />
       <CookieBanner />
     </TooltipProvider>
   </QueryClientProvider>
