@@ -645,7 +645,7 @@ export default function RevueMaintienPage() {
     setGenerating(true);
     try {
       const count = await generatePendingRevues(cabinetId);
-      toast.success(`${count} revue(s) generee(s)`);
+      toast.success(`${count} revue(s) générée(s) avec succès`);
       loadData();
     } catch (err: any) {
       toast.error("Erreur : " + (err.message || err));
@@ -663,7 +663,7 @@ export default function RevueMaintienPage() {
         date_echeance: reporterDate,
         observations: reporterMotif ? `[Report] ${reporterMotif}` : reporterRevueItem.observations,
       });
-      toast.success("Revue reportee");
+      toast.success("Revue reportée");
       setReporterRevueItem(null);
       setReporterDate("");
       setReporterMotif("");
@@ -1359,11 +1359,11 @@ export default function RevueMaintienPage() {
         </div>
       ) : stats && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <KpiCard label="A faire" value={stats.total_a_faire} icon={ClipboardCheck} variant="blue" onClick={() => handleKpiClick("a_faire")} />
+          <KpiCard label="À faire" value={stats.total_a_faire} icon={ClipboardCheck} variant="blue" onClick={() => handleKpiClick("a_faire")} />
           <KpiCard label="En retard" value={stats.en_retard} icon={Clock} variant="red" onClick={() => handleKpiClick("a_faire")} />
-          <KpiCard label="Risque eleve" value={stats.risque_eleve} icon={ShieldAlert} variant="red" onClick={() => handleKpiClick("tous")} />
-          <KpiCard label="KYC expires" value={stats.kyc_expires} icon={AlertTriangle} variant="red" onClick={() => handleKpiClick("tous")} />
-          <KpiCard label="Completees ce mois" value={stats.completees_ce_mois} icon={CheckCircle2} variant="emerald" onClick={() => handleKpiClick("completee")} />
+          <KpiCard label="Risque élevé" value={stats.risque_eleve} icon={ShieldAlert} variant="red" onClick={() => handleKpiClick("tous")} />
+          <KpiCard label="KYC expirés" value={stats.kyc_expires} icon={AlertTriangle} variant="red" onClick={() => handleKpiClick("tous")} />
+          <KpiCard label="Complétées ce mois" value={stats.completees_ce_mois} icon={CheckCircle2} variant="emerald" onClick={() => handleKpiClick("completee")} />
         </div>
       )}
 
@@ -1398,8 +1398,8 @@ export default function RevueMaintienPage() {
               <SelectContent>
                 <SelectItem value="tous">Tous types</SelectItem>
                 <SelectItem value="annuelle">Annuelle</SelectItem>
-                <SelectItem value="risque_eleve">Risque eleve</SelectItem>
-                <SelectItem value="kyc_expiration">KYC expire</SelectItem>
+                <SelectItem value="risque_eleve">Risque élevé</SelectItem>
+                <SelectItem value="kyc_expiration">KYC expiré</SelectItem>
                 <SelectItem value="changement_situation">Changement</SelectItem>
               </SelectContent>
             </Select>
@@ -1414,7 +1414,7 @@ export default function RevueMaintienPage() {
               <SelectTrigger className="h-8 text-xs rounded-md w-[130px]"><SelectValue placeholder="Risque" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="tous">Tous risques</SelectItem>
-                <SelectItem value="eleve">Eleve (≥60)</SelectItem>
+                <SelectItem value="eleve">Élevé (≥60)</SelectItem>
                 <SelectItem value="moyen">Moyen (30-59)</SelectItem>
                 <SelectItem value="faible">Faible (&lt;30)</SelectItem>
               </SelectContent>
@@ -1544,8 +1544,8 @@ export default function RevueMaintienPage() {
                               )}
                               {isActionable && (
                                 <DropdownMenuItem onClick={() => {
-                                  completeRevue(revue.id, { maintien: true, observations: "Marquee completee manuellement" })
-                                    .then(() => { toast.success("Revue marquee completee"); loadData(); })
+                                  completeRevue(revue.id, { maintien: true, observations: "Marquée complétée manuellement" })
+                                    .then(() => { toast.success("Revue marquée complétée"); loadData(); })
                                     .catch(() => toast.error("Erreur"));
                                 }}>
                                   <CheckCircle2 className="h-3.5 w-3.5 mr-2" /> Marquer completee
@@ -1579,7 +1579,7 @@ export default function RevueMaintienPage() {
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="reporter-date">Nouvelle date d'echeance</Label>
+              <Label htmlFor="reporter-date">Nouvelle date d'échéance</Label>
               <Input id="reporter-date" type="date" value={reporterDate} onChange={e => setReporterDate(e.target.value)} />
             </div>
             <div className="space-y-2">

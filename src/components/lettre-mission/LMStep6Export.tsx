@@ -226,7 +226,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
         const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
         const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
-        generatePdfFromInstance({
+        await generatePdfFromInstance({
           sections_snapshot: resolved,
           cgv_snapshot: modele.cgv_content,
           repartition_snapshot: modele.repartition_taches,

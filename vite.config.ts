@@ -54,6 +54,9 @@ export default defineConfig(({ mode }) => ({
             if (id.includes("jspdf")) {
               return "pdf-gen";
             }
+            if (id.includes("@react-pdf")) {
+              return "react-pdf";
+            }
             if (id.includes("docx") || id.includes("file-saver")) {
               return "docx-gen";
             }

@@ -32,7 +32,7 @@ const PAGE_TITLES: Record<string, { title: string; breadcrumb: { label: string; 
   "/ged": { title: "Documents / GED", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Documents / GED" }] },
   "/parametres": { title: "Parametres", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Parametres" }] },
   "/lettre-mission": { title: "Lettre de Mission", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Lettre de Mission" }] },
-  "/revue-maintien": { title: "Revue periodique", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Revue periodique" }] },
+  "/revue-maintien": { title: "Revue périodique", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Revue périodique" }] },
   "/aide": { title: "Aide", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Aide" }] },
   "/notifications": { title: "Notifications", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Notifications" }] },
   "/admin/users": { title: "Gestion utilisateurs", breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Gestion utilisateurs" }] },
