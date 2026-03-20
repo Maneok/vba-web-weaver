@@ -23,7 +23,25 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   const [tooltip, setTooltip] = useState<{ x: number; y: number; node?: NetworkNode; edge?: NetworkEdge } | null>(null);
   const prevDataSignatureRef = useRef<string>("");
 
+  // #50: Responsive scale factor
+  const mobile = width < 500;
+  const S = mobile ? 0.7 : 1;
+
   const hasClosedNode = useMemo(() => nodes.some(n => (n as any).etatAdministratif === "F" || (n as any).etatAdministratif === "C"), [nodes]);
+
+  // #41: Node type counts for legend
+  const typeCounts = useMemo(() => {
+    let person = 0, company = 0, closed = 0;
+    nodes.forEach(n => {
+      if (n.isSource) return;
+      if (n.type === "person") person++;
+      else {
+        company++;
+        if ((n as any).etatAdministratif === "F" || (n as any).etatAdministratif === "C") closed++;
+      }
+    });
+    return { person, company, closed };
+  }, [nodes]);
 
   const handleZoomIn = useCallback(() => {
     if (!svgRef.current || !zoomRef.current) return;
@@ -42,7 +60,6 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
   useEffect(() => {
     if (!svgRef.current) return;
-    // Skip re-render if data hasn't actually changed (prevents D3 simulation restart)
     const dataSignature = nodes.map(n => n.id).sort().join(",") + "|" + edges.map(e => e.source + "-" + e.target).sort().join(",");
     if (dataSignature === prevDataSignatureRef.current) return;
     prevDataSignatureRef.current = dataSignature;
@@ -56,6 +73,34 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
     const defs = svg.append("defs");
 
+    // --- #8-9-16-20: Drop shadow filters ---
+    const mkShadow = (id: string, color: string) => {
+      const f = defs.append("filter").attr("id", id).attr("x", "-30%").attr("y", "-30%").attr("width", "160%").attr("height", "160%");
+      f.append("feDropShadow").attr("dx", 0).attr("dy", 2 * S).attr("stdDeviation", 3 * S).attr("flood-color", color).attr("flood-opacity", 0.35);
+    };
+    mkShadow("shadow-blue", "rgba(59,130,246,0.4)");
+    mkShadow("shadow-orange", "rgba(249,115,22,0.3)");
+    mkShadow("shadow-green", "rgba(16,185,129,0.3)");
+    mkShadow("shadow-red", "rgba(239,68,68,0.3)");
+
+    // --- #8: Radial gradient for client hexagon ---
+    const clientGrad = defs.append("radialGradient").attr("id", "client-grad").attr("cx", "50%").attr("cy", "40%").attr("r", "60%");
+    clientGrad.append("stop").attr("offset", "0%").attr("stop-color", "rgba(96,165,250,0.25)");
+    clientGrad.append("stop").attr("offset", "100%").attr("stop-color", "rgba(29,78,216,0.08)");
+
+    // --- #11: Pulse animation for client border ---
+    const style = svg.append("style");
+    style.text(`
+      @keyframes pulse-stroke { 0%,100% { stroke-opacity: 1; } 50% { stroke-opacity: 0.5; } }
+      .client-hex { animation: pulse-stroke 3s ease-in-out infinite; }
+    `);
+
+    // --- #37: Subtle grid lines background ---
+    const gridPat = defs.append("pattern").attr("id", "grid-lines").attr("width", 40).attr("height", 40).attr("patternUnits", "userSpaceOnUse");
+    gridPat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 40).attr("y2", 0).attr("stroke", "rgba(148,163,184,0.03)").attr("stroke-width", 0.5);
+    gridPat.append("line").attr("x1", 0).attr("y1", 0).attr("x2", 0).attr("y2", 40).attr("stroke", "rgba(148,163,184,0.03)").attr("stroke-width", 0.5);
+    svg.append("rect").attr("width", width).attr("height", height).attr("fill", "url(#grid-lines)");
+
     const g = svg.append("g");
 
     // Zoom
@@ -66,86 +111,90 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
     zoomRef.current = zoom;
     setForceUpdate(v => v + 1);
 
-    // Connection count for sizing
+    // Connection count
     const connectionCount = new Map<string, number>();
     safeEdges.forEach(e => {
       connectionCount.set(e.source, (connectionCount.get(e.source) ?? 0) + 1);
       connectionCount.set(e.target, (connectionCount.get(e.target) ?? 0) + 1);
     });
 
-    // Build simulation data — hierarchical initial positions
+    // --- #1-5: Simulation with hierarchical forces ---
     const simNodes = nodes.map(n => ({
       ...n,
-      x: n.isSource ? width / 2 : width / 2 + (Math.random() - 0.5) * 250,
-      y: n.isSource ? height * 0.3 : n.type === "person" ? height * 0.15 + Math.random() * height * 0.2 : height * 0.55 + Math.random() * height * 0.3,
+      x: n.isSource ? width / 2 : width / 2 + (Math.random() - 0.5) * 280,
+      y: n.isSource ? height * 0.30 : n.type === "person" ? height * 0.15 + Math.random() * height * 0.2 : height * 0.55 + Math.random() * height * 0.3,
       fx: n.isSource ? width / 2 : undefined,
-      fy: n.isSource ? height * 0.3 : undefined,
+      fy: n.isSource ? height * 0.30 : undefined,
     }));
     const simEdges = safeEdges.map(e => ({ ...e, source: e.source, target: e.target }));
 
     const simulation = d3.forceSimulation(simNodes as d3.SimulationNodeDatum[])
       .force("link", d3.forceLink(simEdges as d3.SimulationLinkDatum<d3.SimulationNodeDatum>[])
         .id((d: any) => d.id)
-        .distance(180))
-      .force("charge", d3.forceManyBody().strength(-600))
+        .distance(200 * S))
+      .force("charge", d3.forceManyBody().strength(-700))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(65));
+      .force("collision", d3.forceCollide().radius(70 * S))
+      // #5: Vertical separation force
+      .force("y", d3.forceY().y((d: any) => d.type === "person" ? height * 0.25 : d.isSource ? height * 0.35 : height * 0.65).strength(0.15));
 
-    // Pre-calculate all positions silently before rendering
     simulation.stop();
     for (let i = 0; i < 300; i++) simulation.tick();
-    // Freeze all nodes at their final positions
     simNodes.forEach(n => { n.fx = (n as any).x; n.fy = (n as any).y; });
 
-    // #6: Role-based edge coloring
+    // --- Role helpers ---
+    // #30: More saturated colors
     const roleColor = (label: string): string => {
       const l = (label ?? "").toLowerCase();
-      if (l.includes("président") || l.includes("president") || l.includes("gérant") || l.includes("gerant")) return "#3b82f6";
-      if (l.includes("associé") || l.includes("associe")) return "#10b981";
-      if (l.includes("directeur")) return "#8b5cf6";
-      return "#64748b";
+      if (l.includes("président") || l.includes("president") || l.includes("gérant") || l.includes("gerant")) return "#60a5fa";
+      if (l.includes("associé") || l.includes("associe")) return "#34d399";
+      if (l.includes("directeur")) return "#a78bfa";
+      return "#94a3b8";
     };
 
-    // #5: Edge width by role
+    // #29: Edge widths
     const edgeWidth = (label: string): number => {
       const l = (label ?? "").toLowerCase();
-      if (l.includes("président") || l.includes("president") || l.includes("gérant") || l.includes("gerant")) return 2;
-      if (l.includes("associé") || l.includes("associe")) return 1.5;
-      if (l.includes("représentant") || l.includes("representant")) return 1;
-      return 0.8;
+      if (l.includes("président") || l.includes("president") || l.includes("gérant") || l.includes("gerant")) return 2 * S;
+      if (l.includes("associé") || l.includes("associe")) return 1.5 * S;
+      if (l.includes("représentant") || l.includes("representant")) return 1 * S;
+      return 1 * S;
     };
 
-    // #5: Dashed for indirect/représentant links
     const edgeDash = (label: string): string => {
       const l = (label ?? "").toLowerCase();
-      if (l.includes("représentant") || l.includes("representant")) return "4 2";
+      if (l.includes("représentant") || l.includes("representant")) return "5 3";
       return "";
     };
 
-    // Arrow marker
+    // #31: Elegant thin arrow marker
     defs.append("marker")
-      .attr("id", "arrowhead")
-      .attr("viewBox", "0 0 10 6")
-      .attr("refX", 10).attr("refY", 3)
-      .attr("markerWidth", 8).attr("markerHeight", 6)
+      .attr("id", "arrow")
+      .attr("viewBox", "0 0 12 8")
+      .attr("refX", 11).attr("refY", 4)
+      .attr("markerWidth", 10 * S).attr("markerHeight", 8 * S)
       .attr("orient", "auto")
       .append("path")
-      .attr("d", "M0,0L10,3L0,6")
-      .attr("fill", "#475569");
+      .attr("d", "M0,1 L10,4 L0,7")
+      .attr("fill", "none")
+      .attr("stroke", "#64748b")
+      .attr("stroke-width", 1.2);
 
-    // Edges — curved paths instead of straight lines
+    // --- #28: Curved edges (quadratic bezier) ---
     const linkPath = (d: any): string => {
       const sx = d.source.x, sy = d.source.y, tx = d.target.x, ty = d.target.y;
       const dx = tx - sx, dy = ty - sy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      // Curve offset proportional to distance
-      const offset = Math.min(dist * 0.15, 30);
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const offset = Math.min(dist * 0.12, 25);
       const mx = (sx + tx) / 2 - (dy / dist) * offset;
       const my = (sy + ty) / 2 + (dx / dist) * offset;
       return `M${sx},${sy} Q${mx},${my} ${tx},${ty}`;
     };
 
-    const link = g.append("g")
+    // #48: Links layer — initially hidden, fade in after nodes
+    const linkGroup = g.append("g").style("opacity", 0);
+
+    const link = linkGroup
       .selectAll("path")
       .data(simEdges)
       .join("path")
@@ -154,127 +203,113 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .attr("stroke", d => roleColor(d.label))
       .attr("stroke-width", d => edgeWidth(d.label))
       .attr("stroke-dasharray", d => edgeDash(d.label))
-      .attr("stroke-opacity", 0.6)
-      .attr("marker-end", "url(#arrowhead)")
+      .attr("stroke-opacity", 0.5)
+      .attr("marker-end", "url(#arrow)")
       .style("cursor", "pointer");
 
-    // #8: Edge tooltip on hover
+    // Edge hover
     link.on("mouseenter", function (event, d: any) {
-      d3.select(this).attr("stroke-opacity", 1).attr("stroke-width", edgeWidth(d.label) + 1);
+      d3.select(this).attr("stroke-opacity", 1).attr("stroke-width", edgeWidth(d.label) + 1.5);
       const svgRect = svgRef.current?.getBoundingClientRect();
-      if (svgRect) {
-        setTooltip({
-          x: event.clientX - svgRect.left,
-          y: event.clientY - svgRect.top - 10,
-          edge: d,
-        });
-      }
+      if (svgRect) setTooltip({ x: event.clientX - svgRect.left, y: event.clientY - svgRect.top - 10, edge: d });
     }).on("mouseleave", function (_event, d: any) {
-      d3.select(this).attr("stroke-opacity", 0.6).attr("stroke-width", edgeWidth(d.label));
+      d3.select(this).attr("stroke-opacity", 0.5).attr("stroke-width", edgeWidth(d.label));
       setTooltip(null);
     });
 
-    // Edge labels with background rect for readability
-    const linkLabelGroup = g.append("g")
-      .selectAll("g")
+    // --- #32-34: Edge labels at 40% from source, with pill background ---
+    const linkLabelGroup = linkGroup
+      .selectAll("g.link-label")
       .data(simEdges)
       .join("g")
+      .attr("class", "link-label")
       .attr("transform", (d: any) => {
-        const mx = (d.source.x + d.target.x) / 2;
-        const my = (d.source.y + d.target.y) / 2;
-        return `translate(${mx},${my - 4})`;
+        // #34: Position at 40% of path (closer to source)
+        const t = 0.4;
+        const sx = d.source.x, sy = d.source.y, tx = d.target.x, ty = d.target.y;
+        const dx = tx - sx, dy = ty - sy;
+        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+        const offset = Math.min(dist * 0.12, 25);
+        const cx = (sx + tx) / 2 - (dy / dist) * offset;
+        const cy = (sy + ty) / 2 + (dx / dist) * offset;
+        // Quadratic bezier at t
+        const px = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * cx + t * t * tx;
+        const py = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * cy + t * t * ty;
+        return `translate(${px},${py})`;
       });
 
-    // Background rect behind label text
     linkLabelGroup.each(function (d: any) {
       const el = d3.select(this);
       const labelText = ((d.label ?? "") as string).split(" (")[0];
       if (!labelText) return;
-      // Approximate text width
-      const textWidth = labelText.length * 4.5 + 6;
+      // #32: Pill-shaped background
+      const textW = labelText.length * 4.8 * S + 12;
+      const textH = 16 * S;
       el.append("rect")
-        .attr("x", -textWidth / 2)
-        .attr("y", -6)
-        .attr("width", textWidth)
-        .attr("height", 12)
-        .attr("rx", 3)
-        .attr("fill", "rgba(15, 23, 42, 0.75)")
-        .attr("stroke", "rgba(148, 163, 184, 0.1)")
+        .attr("x", -textW / 2).attr("y", -textH / 2)
+        .attr("width", textW).attr("height", textH)
+        .attr("rx", 8).attr("ry", 8)
+        .attr("fill", "rgba(15, 23, 42, 0.7)")
+        .attr("stroke", "rgba(148, 163, 184, 0.08)")
         .attr("stroke-width", 0.5);
+      // #33: 9px font
       el.append("text")
         .text(labelText)
-        .attr("font-size", "8px")
+        .attr("font-size", `${9 * S}px`)
+        .attr("font-weight", "500")
         .attr("fill", roleColor(d.label))
-        .attr("fill-opacity", 0.9)
+        .attr("fill-opacity", 0.95)
         .attr("text-anchor", "middle")
-        .attr("dy", 3);
+        .attr("dy", 3 * S)
+        .attr("letter-spacing", "0.2px");
     });
 
-    // Nodes — positioned at their final coordinates, no drag
+    // #48: Fade in links after a delay
+    linkGroup.transition().duration(400).delay(300).style("opacity", 1);
+
+    // --- Nodes ---
     const node = g.append("g")
       .selectAll("g")
       .data(simNodes)
       .join("g")
       .style("cursor", "pointer")
-      // #9: Fade-in + scale animation (positions are final, only opacity/scale animate)
       .style("opacity", 0)
       .attr("transform", (d: any) => `translate(${d.x},${d.y}) scale(0.5)`);
 
-    // #9: Animate in (fade + scale only, positions stay fixed)
-    node.transition().duration(400).delay((_d, i) => i * 60)
+    // #46-47: Slower fade-in with ease-out
+    node.transition().duration(500).delay((_d, i) => i * 80).ease(d3.easeQuadOut)
       .style("opacity", 1)
       .attr("transform", (d: any) => `translate(${d.x},${d.y}) scale(1)`);
 
-    // Click handler
+    // Click
     node.on("click", (_event, d: any) => {
-      if (onNodeClickRef.current) {
-        onNodeClickRef.current(d as NetworkNode);
-      } else if (d.type === "company" && d.siren) {
-        window.open(`https://www.pappers.fr/entreprise/${d.siren}`, "_blank", "noopener,noreferrer");
-      }
+      if (onNodeClickRef.current) onNodeClickRef.current(d as NetworkNode);
+      else if (d.type === "company" && d.siren) window.open(`https://www.pappers.fr/entreprise/${d.siren}`, "_blank", "noopener,noreferrer");
     });
-
-    // #13: Double-click handler
     node.on("dblclick", (_event, d: any) => {
       _event.stopPropagation();
-      if (onNodeDoubleClickRef.current) {
-        onNodeDoubleClickRef.current(d as NetworkNode);
-      }
+      if (onNodeDoubleClickRef.current) onNodeDoubleClickRef.current(d as NetworkNode);
     });
 
-    // #7: Tooltip on hover
+    // Hover
     node.on("mouseenter", function (event, d: any) {
-      d3.select(this).select(".node-shape").attr("stroke-width", 3.5);
+      d3.select(this).select(".node-shape").attr("stroke-width", 4 * S);
       const svgRect = svgRef.current?.getBoundingClientRect();
-      if (svgRect) {
-        setTooltip({
-          x: event.clientX - svgRect.left,
-          y: event.clientY - svgRect.top - 10,
-          node: d as NetworkNode,
-        });
-      }
+      if (svgRect) setTooltip({ x: event.clientX - svgRect.left, y: event.clientY - svgRect.top - 10, node: d as NetworkNode });
     }).on("mouseleave", function () {
-      d3.select(this).select(".node-shape").attr("stroke-width", (d: any) => d.isSource ? 3 : 1.5);
+      d3.select(this).select(".node-shape").attr("stroke-width", (d: any) => d.isSource ? 3 * S : 1.5 * S);
       setTooltip(null);
     });
 
-    // Node sizes — larger for readability
-    const nodeSize = (d: any) => {
-      const count = connectionCount.get(d.id) ?? 1;
-      if (d.isSource) return 32;
-      if (d.type === "person") return Math.min(18 + count * 3, 28);
-      return Math.min(16 + count * 3, 26);
-    };
-
-    // #2: Colors
     const isClosed = (d: any) => d.etatAdministratif === "F" || d.etatAdministratif === "C";
 
+    // --- #6-21: Node shapes ---
     node.each(function (d: any) {
       const el = d3.select(this);
-      const size = nodeSize(d);
 
       if (d.isSource) {
-        // Hexagon for client — larger with thicker border
+        // #6-11: Client hexagon
+        const sz = 35 * S;
         const hex = (s: number) => {
           const pts = [];
           for (let i = 0; i < 6; i++) {
@@ -284,88 +319,149 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
           return pts.join(" ");
         };
         el.append("polygon")
-          .attr("points", hex(size))
-          .attr("fill", "rgba(59, 130, 246, 0.15)")
+          .attr("points", hex(sz))
+          .attr("fill", "url(#client-grad)")
           .attr("stroke", "#3b82f6")
-          .attr("stroke-width", 3)
-          .attr("class", "node-shape");
+          .attr("stroke-width", 3 * S)
+          .attr("class", "node-shape client-hex")
+          .attr("filter", "url(#shadow-blue)");
+        // #10: Building icon in center
+        el.append("path")
+          .attr("d", "M-7,-5 L0,-9 L7,-5 L7,7 L-7,7 Z M-3,1 L-3,7 L3,7 L3,1 Z M-1,3 L1,3 L1,5 L-1,5 Z")
+          .attr("fill", "none")
+          .attr("stroke", "#93c5fd")
+          .attr("stroke-width", 1)
+          .attr("transform", `scale(${S})`);
       } else if (d.type === "person") {
-        // Circle for persons
+        // #12-16: Person circle
+        const r = 26 * S;
         el.append("circle")
-          .attr("r", size)
-          .attr("fill", "rgba(249, 115, 22, 0.08)")
+          .attr("r", r)
+          .attr("fill", "rgba(249, 115, 22, 0.06)")
           .attr("stroke", "#f97316")
-          .attr("stroke-width", 1.5)
-          .attr("class", "node-shape");
+          .attr("stroke-width", 1.5 * S)
+          .attr("class", "node-shape")
+          .attr("filter", "url(#shadow-orange)");
+        // #15: Simple person icon
+        el.append("circle").attr("cy", -4 * S).attr("r", 4 * S).attr("fill", "none").attr("stroke", "#fdba74").attr("stroke-width", 1);
+        el.append("path")
+          .attr("d", `M${-7 * S},${8 * S} A${7 * S},${7 * S} 0 0,1 ${7 * S},${8 * S}`)
+          .attr("fill", "none").attr("stroke", "#fdba74").attr("stroke-width", 1);
       } else {
-        // Rounded rectangle for companies — wider
-        const w = Math.max(size * 2.5, 130);
-        const h = Math.max(size * 1.6, 55);
+        // #17-21: Company rectangle
+        const w = 140 * S, h = 52 * S;
+        const closed = isClosed(d);
         el.append("rect")
           .attr("x", -w / 2).attr("y", -h / 2)
           .attr("width", w).attr("height", h)
-          .attr("rx", 6).attr("ry", 6)
-          .attr("fill", isClosed(d) ? "rgba(239, 68, 68, 0.08)" : "rgba(16, 185, 129, 0.08)")
-          .attr("stroke", isClosed(d) ? "#ef4444" : "#10b981")
-          .attr("stroke-width", 1.5)
-          .attr("class", "node-shape");
+          .attr("rx", 10 * S).attr("ry", 10 * S)
+          .attr("fill", closed ? "rgba(239, 68, 68, 0.05)" : "rgba(16, 185, 129, 0.05)")
+          .attr("stroke", closed ? "#ef4444" : "#10b981")
+          .attr("stroke-width", 1.5 * S)
+          .attr("stroke-dasharray", closed ? "6 3" : "")
+          .attr("class", "node-shape")
+          .attr("filter", closed ? "url(#shadow-red)" : "url(#shadow-green)");
+        // #21: Red X overlay for closed companies
+        if (closed) {
+          const cs = 8 * S;
+          el.append("line").attr("x1", -cs).attr("y1", -cs).attr("x2", cs).attr("y2", cs)
+            .attr("stroke", "#ef4444").attr("stroke-width", 1.5).attr("stroke-opacity", 0.4);
+          el.append("line").attr("x1", cs).attr("y1", -cs).attr("x2", -cs).attr("y2", cs)
+            .attr("stroke", "#ef4444").attr("stroke-width", 1.5).attr("stroke-opacity", 0.4);
+        }
       }
     });
 
-    // Node labels — larger font
-    node.append("text")
-      .text(d => d.label || "—")
-      .attr("font-size", d => d.isSource ? "12px" : "12px")
-      .attr("font-weight", "600")
-      .attr("fill", "#e2e8f0")
-      .attr("text-anchor", "middle")
-      .attr("dy", (d: any) => nodeSize(d) + 16);
+    // --- #22-27: Labels with background ---
+    // Helper: add text with semi-transparent background
+    const addLabel = (sel: d3.Selection<any, any, any, any>, getText: (d: any) => string, opts: {
+      dy: (d: any) => number; fontSize: number; fontWeight: string; fill: string; italic?: boolean; letterSpacing?: string;
+    }) => {
+      sel.each(function (d: any) {
+        const el = d3.select(this);
+        const text = getText(d);
+        if (!text) return;
+        const fs = opts.fontSize * S;
+        const tw = text.length * fs * 0.58 + 8;
+        const th = fs + 6;
+        const dyVal = opts.dy(d);
+        // #27: Background rect
+        el.append("rect")
+          .attr("x", -tw / 2).attr("y", dyVal - th / 2 - 1)
+          .attr("width", tw).attr("height", th)
+          .attr("rx", 3).attr("fill", "rgba(15,23,42,0.6)");
+        el.append("text")
+          .text(text)
+          .attr("font-size", `${fs}px`)
+          .attr("font-weight", opts.fontWeight)
+          .attr("font-style", opts.italic ? "italic" : "normal")
+          .attr("fill", opts.fill)
+          .attr("text-anchor", "middle")
+          .attr("dy", dyVal + 1)
+          .attr("letter-spacing", opts.letterSpacing ?? "0.2px");
+      });
+    };
 
-    // SIREN + ville label for companies
-    node.filter(d => d.type === "company" && !!d.siren && !d.isSource)
-      .append("text")
-      .text(d => {
-        const ville = (d as any).ville;
-        return ville ? `${d.siren} — ${ville}` : (d.siren ?? "");
-      })
-      .attr("font-size", "8px")
-      .attr("fill", "#64748b")
-      .attr("text-anchor", "middle")
-      .attr("dy", (d: any) => nodeSize(d) + 28);
+    // #22: Node name — bold 12px
+    addLabel(node, d => d.label || "—", {
+      dy: (d: any) => d.isSource ? 35 * S + 16 * S : d.type === "person" ? 26 * S + 16 * S : 52 * S / 2 + 14 * S,
+      fontSize: 12, fontWeight: "700", fill: "#e2e8f0",
+    });
 
-    // #12: Auto-fit zoom with generous padding
+    // #23: Sub-label for companies: "SIREN — VILLE"
+    addLabel(node.filter(d => d.type === "company" && !!d.siren && !d.isSource), d => {
+      const ville = (d as any).ville;
+      return ville ? `${d.siren} — ${ville}` : (d.siren ?? "");
+    }, {
+      dy: (d: any) => 52 * S / 2 + 28 * S,
+      fontSize: 8, fontWeight: "400", fill: "#64748b",
+    });
+
+    // #24: Sub-label for persons: role in italic
+    addLabel(node.filter(d => d.type === "person" && !d.isSource), d => {
+      // Find the role from edges connected to this person
+      const edge = simEdges.find((e: any) => (e.source?.id ?? e.source) === d.id || (e.target?.id ?? e.target) === d.id);
+      return edge ? ((edge as any).label ?? "").split(" (")[0] : "";
+    }, {
+      dy: () => 26 * S + 30 * S,
+      fontSize: 9, fontWeight: "400", fill: "#94a3b8", italic: true,
+    });
+
+    // #25: Client sub-label "(Client analyse)"
+    addLabel(node.filter(d => d.isSource), () => "(Client analyse)", {
+      dy: () => 35 * S + 30 * S,
+      fontSize: 8, fontWeight: "400", fill: "#60a5fa",
+    });
+
+    // --- #49: Auto-fit zoom with ease-in-out ---
     {
       const nodePositions = simNodes.map(n => ({ x: (n as any).x ?? 0, y: (n as any).y ?? 0 }));
       if (nodePositions.length >= 2) {
         const xs = nodePositions.map(p => p.x);
         const ys = nodePositions.map(p => p.y);
-        const x0 = Math.min(...xs) - 80;
-        const y0 = Math.min(...ys) - 80;
-        const x1 = Math.max(...xs) + 80;
-        const y1 = Math.max(...ys) + 80;
-        const bw = x1 - x0;
-        const bh = y1 - y0;
+        const pad = 80 * S;
+        const x0 = Math.min(...xs) - pad;
+        const y0 = Math.min(...ys) - pad;
+        const x1 = Math.max(...xs) + pad;
+        const y1 = Math.max(...ys) + pad;
+        const bw = x1 - x0, bh = y1 - y0;
         if (bw > 0 && bh > 0) {
           const scale = Math.min(width / bw, height / bh, 1.2) * 0.85;
           const tx = (width - bw * scale) / 2 - x0 * scale;
           const ty = (height - bh * scale) / 2 - y0 * scale;
-          svg.transition().duration(600)
+          svg.transition().duration(800).ease(d3.easeCubicInOut)
             .call(zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
         }
       }
     }
 
     return () => {
-      node.on("click", null);
-      node.on("dblclick", null);
-      node.on("mouseenter", null);
-      node.on("mouseleave", null);
-      link.on("mouseenter", null);
-      link.on("mouseleave", null);
+      node.on("click", null).on("dblclick", null).on("mouseenter", null).on("mouseleave", null);
+      link.on("mouseenter", null).on("mouseleave", null);
       svg.on(".zoom", null);
       svg.selectAll("*").remove();
     };
-  }, [nodes, edges, width, height]);
+  }, [nodes, edges, width, height, S]);
 
   // Empty state
   if (nodes.length === 0 || (nodes.length === 1 && (!edges || edges.length === 0))) {
@@ -408,59 +504,63 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         viewBox={`0 0 ${width} ${height}`}
       />
 
-      {/* #7/#8: Tooltip card */}
+      {/* #42-45: Rich tooltip with fade-in */}
       {tooltip && (
         <div
-          className="absolute z-20 pointer-events-none"
+          className="absolute z-20 pointer-events-none animate-[fadeIn_150ms_ease-out]"
           style={{ left: tooltip.x, top: tooltip.y, transform: "translate(-50%, -100%)" }}
         >
-          <div className="bg-slate-900 border border-white/10 rounded-lg shadow-xl px-3 py-2 text-xs max-w-[220px]">
+          <div className="bg-slate-900/95 border border-white/[0.08] rounded-xl shadow-2xl px-4 py-2.5 text-xs max-w-[280px] backdrop-blur-sm">
             {tooltip.node && (
               <>
-                <p className="font-semibold text-white truncate">{tooltip.node.label}</p>
-                {tooltip.node.siren && <p className="text-slate-400 font-mono text-[10px]">SIREN {tooltip.node.siren}</p>}
+                <p className="font-bold text-white truncate text-[13px]">{tooltip.node.label}</p>
+                {tooltip.node.siren && <p className="text-slate-400 font-mono text-[10px] mt-0.5">SIREN {tooltip.node.siren}</p>}
                 {(tooltip.node as any).formeJuridique && <p className="text-slate-400 text-[10px]">{(tooltip.node as any).formeJuridique}</p>}
                 {(tooltip.node as any).ville && <p className="text-slate-400 text-[10px]">{(tooltip.node as any).ville}</p>}
-                <p className="text-slate-500 text-[10px] mt-1">
+                {/* #42: Show etatAdministratif */}
+                {(tooltip.node as any).etatAdministratif && (
+                  <p className={`text-[10px] mt-0.5 ${(tooltip.node as any).etatAdministratif === "A" ? "text-emerald-400" : "text-red-400"}`}>
+                    {(tooltip.node as any).etatAdministratif === "A" ? "Active" : "Fermee"}
+                  </p>
+                )}
+                <p className="text-slate-500 text-[10px] mt-1 pt-1 border-t border-white/[0.06]">
                   {tooltip.node.isSource ? "Client analyse" : tooltip.node.type === "person" ? "Personne physique" : "Societe"}
                 </p>
               </>
             )}
             {tooltip.edge && (
-              <>
-                <p className="font-medium text-white">{tooltip.edge.label || "Lien"}</p>
-              </>
+              <p className="font-medium text-white">{tooltip.edge.label || "Lien"}</p>
             )}
           </div>
         </div>
       )}
 
-      {/* Legend — compact single line, conditionally show "Fermee" */}
-      <div className="flex items-center gap-5 mt-2.5 px-2 text-[10px] text-slate-400 print:hidden">
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-4 flex items-center justify-center"><Target className="w-3.5 h-3.5 text-blue-500" /></div>
+      {/* #38-41: Legend bottom-left with pill backgrounds and counts */}
+      <div className="flex items-center gap-2 mt-2.5 px-2 text-[10px] text-slate-400 print:hidden flex-wrap">
+        <div className="flex items-center gap-1.5 bg-slate-800/40 rounded-full px-2.5 py-1">
+          <Target className="w-3 h-3 text-blue-500" />
           <span>Client</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3.5 h-2.5 rounded border border-emerald-500 bg-emerald-500/10" />
-          <span>Societe</span>
+        <div className="flex items-center gap-1.5 bg-slate-800/40 rounded-full px-2.5 py-1">
+          <div className="w-3 h-2 rounded border border-emerald-500 bg-emerald-500/10" />
+          <span>Societe ({typeCounts.company})</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full border border-orange-500 bg-orange-500/10" />
-          <span>Personne</span>
+        <div className="flex items-center gap-1.5 bg-slate-800/40 rounded-full px-2.5 py-1">
+          <div className="w-2.5 h-2.5 rounded-full border border-orange-500 bg-orange-500/10" />
+          <span>Personne ({typeCounts.person})</span>
         </div>
         {hasClosedNode && (
-          <div className="flex items-center gap-1.5">
-            <div className="w-3.5 h-2.5 rounded border border-red-500 bg-red-500/10" />
-            <span>Fermee</span>
+          <div className="flex items-center gap-1.5 bg-slate-800/40 rounded-full px-2.5 py-1">
+            <div className="w-3 h-2 rounded border border-dashed border-red-500 bg-red-500/10" />
+            <span>Fermee ({typeCounts.closed})</span>
           </div>
         )}
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0.5 bg-blue-500 rounded" />
+        <div className="flex items-center gap-1.5 bg-slate-800/40 rounded-full px-2.5 py-1">
+          <div className="w-3.5 h-0.5 bg-blue-400 rounded" />
           <span>Dirigeant</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-0 border-t border-dashed border-slate-500" />
+        <div className="flex items-center gap-1.5 bg-slate-800/40 rounded-full px-2.5 py-1">
+          <div className="w-3.5 h-0 border-t border-dashed border-slate-400" />
           <span>Indirect</span>
         </div>
       </div>
