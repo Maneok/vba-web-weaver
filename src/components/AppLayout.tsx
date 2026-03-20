@@ -199,7 +199,7 @@ export default function AppLayout() {
                 const hiddenOnMobile = !isLast && i < page.breadcrumb.length - 2;
                 return (
                   <li key={i} className={`flex items-center gap-1 lg:gap-1.5 min-w-0 ${hiddenOnMobile ? "hidden sm:flex" : ""}`}>
-                    {i > 0 && <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none">/</span>}
+                    {i > 0 && <span className="text-slate-300 dark:text-slate-600 shrink-0 select-none">›</span>}
                     {!isLast && item.path ? (
                       <button
                         onClick={() => startTransition(() => navigate(item.path!))}
@@ -301,11 +301,13 @@ export default function AppLayout() {
 
         <main
           id="main-content"
-          className={`overflow-auto transition-opacity duration-200 ${isTransitioning ? "opacity-0" : "opacity-100"}`}
+          className={`flex-1 overflow-y-auto transition-opacity duration-200 ${isTransitioning ? "opacity-0" : "opacity-100"}`}
           aria-label={`Contenu ${page.title}`}
           aria-live="polite"
         >
-          <Outlet />
+          <div className="p-6 lg:p-8">
+            <Outlet />
+          </div>
         </main>
       </div>
 

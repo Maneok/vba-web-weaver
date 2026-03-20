@@ -51,8 +51,19 @@ import {
   MoreHorizontal, X, Home,
 } from "lucide-react";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import type { MissionType, VigilanceLevel } from "@/lib/types";
 import { MISSIONS } from "@/lib/constants";
+
+/** Format ISO date string as "dd MMM yyyy" in French */
+function formatDateFrShort(dateStr: string): string {
+  try {
+    return format(new Date(dateStr), "dd MMM yyyy", { locale: fr });
+  } catch {
+    return dateStr;
+  }
+}
 
 // ─── Constants ─────────────────────────────────────────────────────
 const REVUE_STEPS = ["Selection", "Informations", "Screening", "Questionnaire", "Decision"];
@@ -169,21 +180,22 @@ function StatusBadge({ status }: { status: string }) {
 
 // OPT-29: Echeance with conditional colors
 function EcheanceBadge({ date, status }: { date: string; status: string }) {
-  if (status === "completee") return <span className="text-xs text-slate-400 dark:text-slate-500">{date}</span>;
+  const formatted = formatDateFrShort(date);
+  if (status === "completee") return <span className="text-xs text-slate-400 dark:text-slate-500">{formatted}</span>;
   const today = new Date().toISOString().split("T")[0];
   const diff = Math.round((new Date(date).getTime() - new Date(today).getTime()) / 86400000);
   if (diff < 0) return (
     <span className="text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
-      <AlertTriangle className="w-3 h-3" />{date}
+      <AlertTriangle className="w-3 h-3" />{formatted}
     </span>
   );
   if (diff <= 7) return (
     <span className="text-xs font-semibold text-red-600 dark:text-red-400 flex items-center gap-1">
-      <AlertTriangle className="w-3 h-3" />{date}
+      <AlertTriangle className="w-3 h-3" />{formatted}
     </span>
   );
-  if (diff <= 30) return <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{date}</span>;
-  return <span className="text-xs text-slate-500 dark:text-slate-400">{date}</span>;
+  if (diff <= 30) return <span className="text-xs font-medium text-amber-600 dark:text-amber-400">{formatted}</span>;
+  return <span className="text-xs text-slate-500 dark:text-slate-400">{formatted}</span>;
 }
 
 // OPT-7-16: KPI Card redesigned
@@ -1314,14 +1326,9 @@ export default function RevueMaintienPage() {
   // RENDER — LIST MODE
   // ═══════════════════════════════════════════════════════════════════
   return (
-    <div className="space-y-5 p-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
-      {/* OPT-6: Breadcrumb */}
-      <div className="text-xs text-slate-400 dark:text-slate-500 mb-1 flex items-center gap-1">
-        <Home className="w-3 h-3" /> Accueil <span>/</span> Revue periodique
-      </div>
-
+    <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-300">
       {/* OPT-1-5: Header */}
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Revue periodique</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Suivi des diligences de vigilance</p>
@@ -1347,11 +1354,11 @@ export default function RevueMaintienPage() {
 
       {/* OPT-7-16: KPI Cards */}
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {Array.from({ length: 5 }).map((_, i) => <SkeletonKpi key={i} />)}
         </div>
       ) : stats && (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <KpiCard label="A faire" value={stats.total_a_faire} icon={ClipboardCheck} variant="blue" onClick={() => handleKpiClick("a_faire")} />
           <KpiCard label="En retard" value={stats.en_retard} icon={Clock} variant="red" onClick={() => handleKpiClick("a_faire")} />
           <KpiCard label="Risque eleve" value={stats.risque_eleve} icon={ShieldAlert} variant="red" onClick={() => handleKpiClick("tous")} />
@@ -1361,7 +1368,7 @@ export default function RevueMaintienPage() {
       )}
 
       {/* OPT-17-24: Filters — tabs left, dropdowns + search right */}
-      <div className="flex items-center justify-between gap-4 mt-4 mb-4 flex-wrap">
+      <div className="flex items-center justify-between gap-4 flex-wrap">
         {/* Tabs */}
         <div className="flex items-center gap-4">
           {STATUS_PILLS.map(pill => {
