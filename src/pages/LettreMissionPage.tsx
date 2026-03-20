@@ -777,6 +777,9 @@ export default function LettreMissionPage() {
   const [savedLetters, setSavedLetters] = useState<SavedLetter[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
+  // Cabinet logo
+  const [cabinetLogo, setCabinetLogo] = useState<string | undefined>(undefined);
+
   // Avenants
   const [avenantsByLetter, setAvenantsByLetter] = useState<Record<string, LMAvenant[]>>({});
   const [avenantDialogOpen, setAvenantDialogOpen] = useState(false);
@@ -796,6 +799,25 @@ export default function LettreMissionPage() {
         logger.warn("LM", "Alertes check failed:", e)
       );
     }
+  }, [profile?.cabinet_id]);
+
+  // ── Load cabinet logo from parametres ──
+  useEffect(() => {
+    if (!profile?.cabinet_id) return;
+    supabase
+      .from("parametres")
+      .select("valeur")
+      .eq("cabinet_id", profile.cabinet_id)
+      .eq("cle", "cabinet_info")
+      .maybeSingle()
+      .then(({ data: row }) => {
+        if (row?.valeur) {
+          try {
+            const info = typeof row.valeur === "string" ? JSON.parse(row.valeur) : row.valeur;
+            if (info.logo) setCabinetLogo(info.logo);
+          } catch { /* ignore */ }
+        }
+      });
   }, [profile?.cabinet_id]);
 
   // ── H) Time tracking ──
@@ -820,6 +842,18 @@ export default function LettreMissionPage() {
   useEffect(() => {
     return () => { clearTimeout(saveTimer.current); };
   }, []);
+
+  // ── C7) Ctrl+S keyboard shortcut to save ──
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+        e.preventDefault();
+        if (data.client_id) handleSave();
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [data.client_id]);
 
   // ── Step animation + scroll ──
   useEffect(() => {
@@ -1333,7 +1367,7 @@ export default function LettreMissionPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-900 dark:text-white">Lettres de mission</h1>
-          <p className="text-xs sm:text-sm text-slate-400 dark:text-slate-500 mt-1">Creez et gerez vos lettres de mission</p>
+          <p className="text-xs sm:text-sm text-slate-400 dark:text-slate-500 mt-1">Creez et gerez vos lettres de mission{savedLetters.length > 0 ? ` · ${savedLetters.length} lettre${savedLetters.length > 1 ? "s" : ""}` : ""}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -1436,7 +1470,7 @@ export default function LettreMissionPage() {
             {!isMobile && (
               <div className="flex-[2] min-w-[260px] max-w-[360px]">
                 <div className="wizard-card p-5">
-                  <LMSummaryPanel data={data} />
+                  <LMSummaryPanel data={data} cabinetLogo={cabinetLogo} />
                 </div>
               </div>
             )}

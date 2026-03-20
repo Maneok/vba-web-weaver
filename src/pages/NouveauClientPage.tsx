@@ -19,7 +19,7 @@ import {
 import { formatDateFR, formatDateFr } from "@/lib/dateUtils";
 import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
-import { generateFicheAcceptation } from "@/lib/generateFichePdf";
+import { generateFicheAcceptation, type FicheExtras } from "@/lib/generateFichePdf";
 import { generateLettreMission } from "@/lib/generateLettreMissionPdf";
 import type { Client, OuiNon, MissionType, EtatPilotage } from "@/lib/types";
 import { toast } from "sonner";
@@ -2073,7 +2073,7 @@ export default function NouveauClientPage() {
 
     // Idee 27: Auto-generate fiche PDF in background
     try {
-      generateFicheAcceptation(newClient);
+      generateFicheAcceptation(newClient, buildFicheExtras());
       toast.success("Fiche LCB-FT generee automatiquement");
     } catch {
       toast.warning("Erreur lors de la generation automatique de la fiche PDF");
@@ -5516,6 +5516,43 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
       etatPilotage: getPilotageStatus(dateButoir) as EtatPilotage,
       dateExpCni: "", statut: "ACTIF",
       be: beneficiaires.map(b => `${b.prenom} ${b.nom} (${b.pourcentage}%)`).join(", "),
+    };
+  }
+
+  function buildFicheExtras(): FicheExtras {
+    return {
+      regimeFiscal,
+      siret: form.siret,
+      objetSocial: form.objetSocial,
+      dirigeants: selectedEnterprise?.dirigeants ?? [],
+      beneficiaires,
+      chaineBE,
+      screening: {
+        sanctions: screening.sanctions.data ? {
+          hasPPE: screening.sanctions.data.hasPPE ?? false,
+          hasCriticalMatch: screening.sanctions.data.hasCriticalMatch ?? false,
+          matches: screening.sanctions.data.matches?.slice(0, 5),
+        } : undefined,
+        bodacc: screening.bodacc.data ? {
+          hasProcedureCollective: screening.bodacc.data.hasProcedureCollective ?? false,
+          alertes: screening.bodacc.data.alertes ?? [],
+        } : undefined,
+        news: screening.news.data ? {
+          hasNegativeNews: screening.news.data.hasNegativeNews ?? false,
+          alertes: screening.news.data.alertes ?? [],
+        } : undefined,
+        network: screening.network.data ? {
+          totalCompanies: screening.network.data.totalCompanies ?? 0,
+          totalPersons: screening.network.data.totalPersons ?? 0,
+          alertes: screening.network.data.alertes ?? [],
+        } : undefined,
+        gelAvoirs: gelAvoirsAlert,
+      },
+      questions: questions.map(q => ({ id: q.id, question: q.question, value: q.value, commentaire: q.commentaire, autoFilled: q.autoFilled })),
+      documents: documents.map(d => ({ name: d.name, type: d.type })),
+      decision,
+      motifRefus,
+      motifReserve,
     };
   }
 }

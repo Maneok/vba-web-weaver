@@ -15,6 +15,7 @@ import {
   FileDown, FileText, Send, CheckCircle2, Upload, RotateCcw, ChevronDown,
   Loader2, Trash2, Paperclip,
 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 interface Props {
@@ -148,11 +149,43 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
   const lockRef = useRef(false);
   const [generating, setGenerating] = useState<string | null>(null);
 
-  // Cabinet info from profile (avoids hardcoding)
-  const cabinetInfo = useMemo(() => ({
+  // Cabinet info loaded from Supabase parametres
+  const [cabinetInfo, setCabinetInfo] = useState<Record<string, string>>({
     nom: profile?.full_name ? `Cabinet ${profile.full_name}` : "Cabinet Expertise Comptable",
     adresse: "", cp: "", ville: "", siret: "", numeroOEC: "", email: profile?.email || "", telephone: "",
-  }), [profile?.full_name, profile?.email]);
+  });
+  useEffect(() => {
+    if (!profile?.cabinet_id) return;
+    supabase
+      .from("parametres")
+      .select("valeur")
+      .eq("cabinet_id", profile.cabinet_id)
+      .eq("cle", "cabinet_info")
+      .maybeSingle()
+      .then(({ data: row }) => {
+        if (row?.valeur) {
+          try {
+            const info = typeof row.valeur === "string" ? JSON.parse(row.valeur) : row.valeur;
+            setCabinetInfo((prev) => ({
+              ...prev,
+              nom: info.nom || prev.nom,
+              adresse: info.adresse || "",
+              cp: info.code_postal || "",
+              ville: info.ville || "",
+              siret: info.siret || "",
+              numeroOEC: info.numero_oec || "",
+              email: info.email || prev.email,
+              telephone: info.telephone || "",
+              logo: info.logo || "",
+              croec: info.croec || "",
+              tvaIntracommunautaire: info.tva_intracommunautaire || "",
+              assureurNom: info.assureur_nom || "",
+              assureurAdresse: info.assureur_adresse || "",
+            }));
+          } catch { /* ignore */ }
+        }
+      });
+  }, [profile?.cabinet_id]);
 
   // E) Compute annexes
   const prevAnnexesRef = useRef<string>("");
@@ -287,6 +320,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
     toast.success("DOCX genere avec succes");
   });
 
+  // TODO C9: Remplacer mailto par envoi email via Supabase Edge Function (avec PDF en pièce jointe)
   const handleEmail = () => {
     if (!emailTo) {
       toast.error("Adresse email requise");
@@ -295,6 +329,8 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
     window.location.href = `mailto:${emailTo}?subject=Lettre de mission - ${data.raison_sociale}&body=Veuillez trouver ci-joint la lettre de mission.`;
     toast.success("Client email ouvert");
   };
+
+  // TODO C10: Export ZIP (PDF + DOCX + annexes) via JSZip
 
   const handleSave = async () => {
     try {
