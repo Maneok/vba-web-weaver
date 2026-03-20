@@ -3030,45 +3030,55 @@ export default function NouveauClientPage() {
                     <Badge className="text-[8px] bg-amber-500/15 text-amber-400 border-0">Calcul automatique</Badge>
                   )}
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Impot</p>
-                    <select
-                      value={regimeFiscal.impot}
-                      onChange={e => setRegimeFiscalOverride(prev => ({ impot: e.target.value, categorieRevenu: (prev ?? regimeFiscal).categorieRevenu, tva: (prev ?? regimeFiscal).tva, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}
-                      className="w-full text-xs font-bold bg-white dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08] rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500/30"
-                    >
-                      {["IS", "IR", "IR (micro)", "Exonere", "A determiner"].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
+                    <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 block">Impot</Label>
+                    <Select value={regimeFiscal.impot} onValueChange={v => setRegimeFiscalOverride(prev => ({ impot: v, categorieRevenu: (prev ?? regimeFiscal).categorieRevenu, tva: (prev ?? regimeFiscal).tva, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}>
+                      <SelectTrigger className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["IS", "IR", "IR (micro)", "Exonere", "A determiner"].map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     <p className="text-[9px] text-slate-500 mt-0.5">{regimeFiscal.impotDetail}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Categorie</p>
-                    <select
-                      value={regimeFiscal.categorieRevenu}
-                      onChange={e => setRegimeFiscalOverride(prev => ({ impot: (prev ?? regimeFiscal).impot, categorieRevenu: e.target.value, tva: (prev ?? regimeFiscal).tva, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}
-                      className="w-full text-xs font-semibold bg-white dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08] rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500/30"
-                    >
-                      {["BIC", "BNC", "BA", "Revenus fonciers", "-"].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
+                    <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 block">Categorie</Label>
+                    <Select value={regimeFiscal.categorieRevenu} onValueChange={v => setRegimeFiscalOverride(prev => ({ impot: (prev ?? regimeFiscal).impot, categorieRevenu: v, tva: (prev ?? regimeFiscal).tva, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}>
+                      <SelectTrigger className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["BIC", "BNC", "BA", "Revenus fonciers", "-"].map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">TVA</p>
-                    <select
-                      value={regimeFiscal.tva}
-                      onChange={e => setRegimeFiscalOverride(prev => ({ impot: (prev ?? regimeFiscal).impot, categorieRevenu: (prev ?? regimeFiscal).categorieRevenu, tva: e.target.value, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}
-                      className="w-full text-xs font-semibold bg-white dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08] rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500/30"
-                    >
-                      {["Assujetti (regime reel)", "Assujetti (regime reel normal)", "Assujetti (regime reel simplifie)", "Franchise en base (presumee)", "Exonere", "Exonere (soins medicaux)", "Exonere (locations nues)", "Exonere (prestations internes)", "Sur option"].map(v => <option key={v} value={v}>{v}</option>)}
-                    </select>
+                    <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 block">TVA</Label>
+                    <Select value={regimeFiscal.tva} onValueChange={v => setRegimeFiscalOverride(prev => ({ impot: (prev ?? regimeFiscal).impot, categorieRevenu: (prev ?? regimeFiscal).categorieRevenu, tva: v, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}>
+                      <SelectTrigger className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {["Assujetti (regime reel)", "Assujetti (regime reel normal)", "Assujetti (regime reel simplifie)", "Franchise en base (presumee)", "Exonere", "Exonere (soins medicaux)", "Exonere (locations nues)", "Exonere (prestations internes)", "Sur option"].map(v => (
+                          <SelectItem key={v} value={v}>{v}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                     {regimeFiscal.tvaDetail && <p className="text-[9px] text-slate-500 mt-0.5">{regimeFiscal.tvaDetail}</p>}
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">TVA Intracom</p>
+                    <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 block">TVA Intracom</Label>
                     <Input
                       value={regimeFiscal.tvaIntracom}
                       onChange={e => setRegimeFiscalOverride(prev => ({ impot: (prev ?? regimeFiscal).impot, categorieRevenu: (prev ?? regimeFiscal).categorieRevenu, tva: (prev ?? regimeFiscal).tva, tvaIntracom: e.target.value }))}
-                      className="text-xs font-mono bg-white dark:bg-white/[0.04] border-gray-200 dark:border-white/[0.08] h-7"
+                      className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-10 font-mono"
+                      placeholder="FRXX000000000"
                     />
                   </div>
                 </div>
