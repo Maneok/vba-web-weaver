@@ -125,6 +125,7 @@ export default function NouveauClientPage() {
   const navigate = useNavigate();
   const { clients, addClient, refreshClients, isOnline } = useAppState();
   const [step, setStep] = useState(0);
+  const [maxStepReached, setMaxStepReached] = useState(0);
   // #24 - Load scoring data from DB for accurate risk calculation
   const { scoringData } = useScoringData();
 
@@ -251,6 +252,9 @@ export default function NouveauClientPage() {
   // #11: Collapsible sections state for step 1
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
+  // Track max step reached for free navigation
+  useEffect(() => { setMaxStepReached(prev => Math.max(prev, step)); }, [step]);
+
   // #40: Collapsed beneficiaires
   const [collapsedBE, setCollapsedBE] = useState<Record<number, boolean>>({});
   useEffect(() => { setCollapsedBE({}); }, [beneficiaires.length]);
@@ -366,7 +370,9 @@ export default function NouveauClientPage() {
       // Validate draft structure before restoring
       if (!data || typeof data !== "object" || !data.form || typeof data.form !== "object" || !data.form.siren) return;
       setForm(data.form);
-      setStep(typeof data.step === "number" && data.step >= 0 && data.step <= 4 ? data.step : 0);
+      const restoredStep = typeof data.step === "number" && data.step >= 0 && data.step <= 4 ? data.step : 0;
+      setStep(restoredStep);
+      setMaxStepReached(restoredStep);
       if (Array.isArray(data.beneficiaires)) setBeneficiaires(data.beneficiaires);
       if (data.questions && typeof data.questions === "object") setQuestions(data.questions);
       if (typeof data.decision === "string") setDecision(data.decision);
@@ -2087,25 +2093,26 @@ export default function NouveauClientPage() {
           {STEP_LABELS.map((label, i) => (
             <button
               key={i}
-              onClick={() => i <= step && setStep(i)}
-              aria-label={`Etape ${i + 1}: ${label}${i < step ? " (complétée)" : i === step ? " (en cours)" : ""}`}
+              onClick={() => i <= maxStepReached && setStep(i)}
+              aria-label={`Etape ${i + 1}: ${label}${i < step ? " (complétée)" : i === step ? " (en cours)" : i <= maxStepReached ? " (visitée)" : ""}`}
               aria-current={i === step ? "step" : undefined}
-              disabled={i > step}
-              className={`flex items-center gap-2 transition-opacity ${i <= step ? "cursor-pointer opacity-100" : "cursor-default opacity-50"}`}
+              disabled={i > maxStepReached}
+              className={`flex items-center gap-2 transition-opacity ${i <= maxStepReached ? "cursor-pointer opacity-100" : "cursor-default opacity-50"}`}
             >
               {/* #73: Completion checkmarks + #97: Shadow on active */}
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300 ${
                 i < step ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/20 scale-90" :
                 i === step ? "bg-blue-500 text-white ring-4 ring-blue-500/20 shadow-xl shadow-blue-500/30 scale-110" :
+                i <= maxStepReached ? "bg-emerald-500/50 text-emerald-200 scale-90" :
                 "bg-gray-100 dark:bg-white/[0.06] text-slate-400 dark:text-slate-500"
               }`}>
-                {i < step ? <Check className="w-4 h-4" /> : i + 1}
+                {i < step ? <Check className="w-4 h-4" /> : i === step ? i + 1 : i <= maxStepReached ? <Check className="w-4 h-4" /> : i + 1}
               </div>
               <span className={`text-xs font-medium hidden sm:inline transition-colors ${
-                i < step ? "text-emerald-400" : i === step ? "text-slate-800 dark:text-slate-200" : "text-slate-300 dark:text-slate-600"
+                i < step ? "text-emerald-400" : i === step ? "text-slate-800 dark:text-slate-200" : i <= maxStepReached ? "text-emerald-400/70" : "text-slate-300 dark:text-slate-600"
               }`}>{label}</span>
               {i < STEP_LABELS.length - 1 && (
-                <div className={`w-8 lg:w-16 h-0.5 mx-2 rounded-full transition-colors duration-300 ${i < step ? "bg-emerald-500" : "bg-gray-100 dark:bg-white/[0.06]"}`} />
+                <div className={`w-8 lg:w-16 h-0.5 mx-2 rounded-full transition-colors duration-300 ${i < step ? "bg-emerald-500" : i <= maxStepReached ? "bg-emerald-500/40" : "bg-gray-100 dark:bg-white/[0.06]"}`} />
               )}
             </button>
           ))}

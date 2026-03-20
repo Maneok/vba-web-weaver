@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import * as d3 from "d3";
 import { ZoomIn, ZoomOut, RotateCcw, Building2, User, Target, XCircle } from "lucide-react";
 import type { NetworkNode, NetworkEdge } from "@/lib/kycService";
@@ -22,6 +22,8 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
   const [, setForceUpdate] = useState(0);
   const [tooltip, setTooltip] = useState<{ x: number; y: number; node?: NetworkNode; edge?: NetworkEdge } | null>(null);
   const prevDataSignatureRef = useRef<string>("");
+
+  const hasClosedNode = useMemo(() => nodes.some(n => (n as any).etatAdministratif === "F" || (n as any).etatAdministratif === "C"), [nodes]);
 
   const handleZoomIn = useCallback(() => {
     if (!svgRef.current || !zoomRef.current) return;
@@ -52,16 +54,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
     const nodeIds = new Set(nodes.map(n => n.id));
     const safeEdges = (edges ?? []).filter(e => e.source && e.target && nodeIds.has(e.source) && nodeIds.has(e.target));
 
-    // #15: Dot grid background
     const defs = svg.append("defs");
-    const pattern = defs.append("pattern")
-      .attr("id", "dot-grid")
-      .attr("width", 20).attr("height", 20)
-      .attr("patternUnits", "userSpaceOnUse");
-    pattern.append("circle")
-      .attr("cx", 10).attr("cy", 10).attr("r", 0.8)
-      .attr("fill", "rgba(148, 163, 184, 0.15)");
-    svg.append("rect").attr("width", width).attr("height", height).attr("fill", "url(#dot-grid)");
 
     const g = svg.append("g");
 
@@ -80,23 +73,23 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       connectionCount.set(e.target, (connectionCount.get(e.target) ?? 0) + 1);
     });
 
-    // Build simulation data
+    // Build simulation data — hierarchical initial positions
     const simNodes = nodes.map(n => ({
       ...n,
-      x: n.isSource ? width / 2 : width / 2 + (Math.random() - 0.5) * 200,
-      y: n.isSource ? height / 2 : height / 2 + (Math.random() - 0.5) * 200,
+      x: n.isSource ? width / 2 : width / 2 + (Math.random() - 0.5) * 250,
+      y: n.isSource ? height * 0.3 : n.type === "person" ? height * 0.15 + Math.random() * height * 0.2 : height * 0.55 + Math.random() * height * 0.3,
       fx: n.isSource ? width / 2 : undefined,
-      fy: n.isSource ? height / 2 : undefined,
+      fy: n.isSource ? height * 0.3 : undefined,
     }));
     const simEdges = safeEdges.map(e => ({ ...e, source: e.source, target: e.target }));
 
     const simulation = d3.forceSimulation(simNodes as d3.SimulationNodeDatum[])
       .force("link", d3.forceLink(simEdges as d3.SimulationLinkDatum<d3.SimulationNodeDatum>[])
         .id((d: any) => d.id)
-        .distance(140))
-      .force("charge", d3.forceManyBody().strength(-400))
+        .distance(180))
+      .force("charge", d3.forceManyBody().strength(-600))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(50));
+      .force("collision", d3.forceCollide().radius(65));
 
     // Pre-calculate all positions silently before rendering
     simulation.stop();
@@ -140,11 +133,24 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       .attr("d", "M0,0L10,3L0,6")
       .attr("fill", "#475569");
 
-    // Edges
+    // Edges — curved paths instead of straight lines
+    const linkPath = (d: any): string => {
+      const sx = d.source.x, sy = d.source.y, tx = d.target.x, ty = d.target.y;
+      const dx = tx - sx, dy = ty - sy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      // Curve offset proportional to distance
+      const offset = Math.min(dist * 0.15, 30);
+      const mx = (sx + tx) / 2 - (dy / dist) * offset;
+      const my = (sy + ty) / 2 + (dx / dist) * offset;
+      return `M${sx},${sy} Q${mx},${my} ${tx},${ty}`;
+    };
+
     const link = g.append("g")
-      .selectAll("line")
+      .selectAll("path")
       .data(simEdges)
-      .join("line")
+      .join("path")
+      .attr("d", linkPath)
+      .attr("fill", "none")
       .attr("stroke", d => roleColor(d.label))
       .attr("stroke-width", d => edgeWidth(d.label))
       .attr("stroke-dasharray", d => edgeDash(d.label))
@@ -154,7 +160,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
     // #8: Edge tooltip on hover
     link.on("mouseenter", function (event, d: any) {
-      d3.select(this).attr("stroke-opacity", 1).attr("stroke-width", (d: any) => edgeWidth(d.label) + 1);
+      d3.select(this).attr("stroke-opacity", 1).attr("stroke-width", edgeWidth(d.label) + 1);
       const svgRect = svgRef.current?.getBoundingClientRect();
       if (svgRect) {
         setTooltip({
@@ -164,34 +170,45 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         });
       }
     }).on("mouseleave", function (_event, d: any) {
-      d3.select(this).attr("stroke-opacity", 0.6).attr("stroke-width", (d: any) => edgeWidth(d.label));
+      d3.select(this).attr("stroke-opacity", 0.6).attr("stroke-width", edgeWidth(d.label));
       setTooltip(null);
     });
 
-    // Edge labels
-    const linkLabel = g.append("g")
-      .selectAll("text")
+    // Edge labels with background rect for readability
+    const linkLabelGroup = g.append("g")
+      .selectAll("g")
       .data(simEdges)
-      .join("text")
-      .text(d => {
-        const parts = (d.label ?? "").split(" (");
-        return parts[0];
-      })
-      .attr("font-size", "7px")
-      .attr("fill", d => roleColor(d.label))
-      .attr("fill-opacity", 0.7)
-      .attr("text-anchor", "middle");
+      .join("g")
+      .attr("transform", (d: any) => {
+        const mx = (d.source.x + d.target.x) / 2;
+        const my = (d.source.y + d.target.y) / 2;
+        return `translate(${mx},${my - 4})`;
+      });
 
-    // Edges — position once with final coordinates
-    link
-      .attr("x1", (d: any) => d.source.x)
-      .attr("y1", (d: any) => d.source.y)
-      .attr("x2", (d: any) => d.target.x)
-      .attr("y2", (d: any) => d.target.y);
-
-    linkLabel
-      .attr("x", (d: any) => (d.source.x + d.target.x) / 2)
-      .attr("y", (d: any) => (d.source.y + d.target.y) / 2 - 4);
+    // Background rect behind label text
+    linkLabelGroup.each(function (d: any) {
+      const el = d3.select(this);
+      const labelText = ((d.label ?? "") as string).split(" (")[0];
+      if (!labelText) return;
+      // Approximate text width
+      const textWidth = labelText.length * 4.5 + 6;
+      el.append("rect")
+        .attr("x", -textWidth / 2)
+        .attr("y", -6)
+        .attr("width", textWidth)
+        .attr("height", 12)
+        .attr("rx", 3)
+        .attr("fill", "rgba(15, 23, 42, 0.75)")
+        .attr("stroke", "rgba(148, 163, 184, 0.1)")
+        .attr("stroke-width", 0.5);
+      el.append("text")
+        .text(labelText)
+        .attr("font-size", "8px")
+        .attr("fill", roleColor(d.label))
+        .attr("fill-opacity", 0.9)
+        .attr("text-anchor", "middle")
+        .attr("dy", 3);
+    });
 
     // Nodes — positioned at their final coordinates, no drag
     const node = g.append("g")
@@ -227,7 +244,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
     // #7: Tooltip on hover
     node.on("mouseenter", function (event, d: any) {
-      d3.select(this).select(".node-shape").attr("stroke-width", 3);
+      d3.select(this).select(".node-shape").attr("stroke-width", 3.5);
       const svgRect = svgRef.current?.getBoundingClientRect();
       if (svgRect) {
         setTooltip({
@@ -237,15 +254,16 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         });
       }
     }).on("mouseleave", function () {
-      d3.select(this).select(".node-shape").attr("stroke-width", (d: any) => d.isSource ? 2.5 : 1.5);
+      d3.select(this).select(".node-shape").attr("stroke-width", (d: any) => d.isSource ? 3 : 1.5);
       setTooltip(null);
     });
 
-    // #1-3: Node shapes - different per type
+    // Node sizes — larger for readability
     const nodeSize = (d: any) => {
       const count = connectionCount.get(d.id) ?? 1;
-      if (d.isSource) return 28;
-      return Math.min(14 + count * 3, 24);
+      if (d.isSource) return 32;
+      if (d.type === "person") return Math.min(18 + count * 3, 28);
+      return Math.min(16 + count * 3, 26);
     };
 
     // #2: Colors
@@ -256,7 +274,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       const size = nodeSize(d);
 
       if (d.isSource) {
-        // #1: Hexagon for client
+        // Hexagon for client — larger with thicker border
         const hex = (s: number) => {
           const pts = [];
           for (let i = 0; i < 6; i++) {
@@ -267,65 +285,68 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         };
         el.append("polygon")
           .attr("points", hex(size))
-          .attr("fill", "rgba(59, 130, 246, 0.2)")
+          .attr("fill", "rgba(59, 130, 246, 0.15)")
           .attr("stroke", "#3b82f6")
-          .attr("stroke-width", 2.5)
+          .attr("stroke-width", 3)
           .attr("class", "node-shape");
       } else if (d.type === "person") {
-        // #1: Circle for persons
+        // Circle for persons
         el.append("circle")
           .attr("r", size)
-          .attr("fill", "rgba(249, 115, 22, 0.12)")
+          .attr("fill", "rgba(249, 115, 22, 0.08)")
           .attr("stroke", "#f97316")
           .attr("stroke-width", 1.5)
           .attr("class", "node-shape");
       } else {
-        // #1: Rounded rectangle for companies
-        const w = size * 2.2;
-        const h = size * 1.4;
+        // Rounded rectangle for companies — wider
+        const w = Math.max(size * 2.5, 130);
+        const h = Math.max(size * 1.6, 55);
         el.append("rect")
           .attr("x", -w / 2).attr("y", -h / 2)
           .attr("width", w).attr("height", h)
           .attr("rx", 6).attr("ry", 6)
-          .attr("fill", isClosed(d) ? "rgba(239, 68, 68, 0.1)" : "rgba(16, 185, 129, 0.1)")
+          .attr("fill", isClosed(d) ? "rgba(239, 68, 68, 0.08)" : "rgba(16, 185, 129, 0.08)")
           .attr("stroke", isClosed(d) ? "#ef4444" : "#10b981")
           .attr("stroke-width", 1.5)
           .attr("class", "node-shape");
       }
     });
 
-    // #4: Node labels - name bold + role italic
+    // Node labels — larger font
     node.append("text")
       .text(d => d.label || "—")
-      .attr("font-size", d => d.isSource ? "11px" : "10px")
+      .attr("font-size", d => d.isSource ? "12px" : "12px")
       .attr("font-weight", "600")
       .attr("fill", "#e2e8f0")
       .attr("text-anchor", "middle")
-      .attr("dy", (d: any) => nodeSize(d) + 14);
+      .attr("dy", (d: any) => nodeSize(d) + 16);
 
-    // SIREN label for companies
+    // SIREN + ville label for companies
     node.filter(d => d.type === "company" && !!d.siren && !d.isSource)
       .append("text")
-      .text(d => d.siren ?? "")
-      .attr("font-size", "7px")
+      .text(d => {
+        const ville = (d as any).ville;
+        return ville ? `${d.siren} — ${ville}` : (d.siren ?? "");
+      })
+      .attr("font-size", "8px")
       .attr("fill", "#64748b")
       .attr("text-anchor", "middle")
-      .attr("dy", (d: any) => nodeSize(d) + 25);
+      .attr("dy", (d: any) => nodeSize(d) + 28);
 
-    // #12: Auto-fit zoom immediately (positions are already final)
+    // #12: Auto-fit zoom with generous padding
     {
       const nodePositions = simNodes.map(n => ({ x: (n as any).x ?? 0, y: (n as any).y ?? 0 }));
       if (nodePositions.length >= 2) {
         const xs = nodePositions.map(p => p.x);
         const ys = nodePositions.map(p => p.y);
-        const x0 = Math.min(...xs) - 60;
-        const y0 = Math.min(...ys) - 60;
-        const x1 = Math.max(...xs) + 60;
-        const y1 = Math.max(...ys) + 60;
+        const x0 = Math.min(...xs) - 80;
+        const y0 = Math.min(...ys) - 80;
+        const x1 = Math.max(...xs) + 80;
+        const y1 = Math.max(...ys) + 80;
         const bw = x1 - x0;
         const bh = y1 - y0;
         if (bw > 0 && bh > 0) {
-          const scale = Math.min(width / bw, height / bh, 1.5) * 0.85;
+          const scale = Math.min(width / bw, height / bh, 1.2) * 0.85;
           const tx = (width - bw * scale) / 2 - x0 * scale;
           const ty = (height - bh * scale) / 2 - y0 * scale;
           svg.transition().duration(600)
@@ -414,7 +435,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         </div>
       )}
 
-      {/* #14: Legend */}
+      {/* Legend — compact single line, conditionally show "Fermee" */}
       <div className="flex items-center gap-5 mt-2.5 px-2 text-[10px] text-slate-400 print:hidden">
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-4 flex items-center justify-center"><Target className="w-3.5 h-3.5 text-blue-500" /></div>
@@ -428,10 +449,12 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
           <div className="w-3 h-3 rounded-full border border-orange-500 bg-orange-500/10" />
           <span>Personne</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3.5 h-2.5 rounded border border-red-500 bg-red-500/10" />
-          <span>Fermee</span>
-        </div>
+        {hasClosedNode && (
+          <div className="flex items-center gap-1.5">
+            <div className="w-3.5 h-2.5 rounded border border-red-500 bg-red-500/10" />
+            <span>Fermee</span>
+          </div>
+        )}
         <div className="flex items-center gap-1.5">
           <div className="w-4 h-0.5 bg-blue-500 rounded" />
           <span>Dirigeant</span>
