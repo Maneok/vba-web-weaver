@@ -910,7 +910,7 @@ export default function NouveauClientPage() {
   }, [kycCompleteness, step]);
 
   // Régime fiscal présumé — déduit de la forme juridique + code APE
-  const regimeFiscal = useMemo(() => computeRegimeFiscal(
+  const regimeFiscalAuto = useMemo(() => computeRegimeFiscal(
     form.forme,
     selectedEnterprise?.forme_juridique_code || "",
     form.ape,
@@ -918,6 +918,17 @@ export default function NouveauClientPage() {
     [], // beneficiaires PM not available via API — defaults to empty
     form.forme.includes("EURL") || form.forme.includes("SASU"),
   ), [form.forme, form.ape, form.siren, selectedEnterprise]);
+
+  const [regimeFiscalOverride, setRegimeFiscalOverride] = useState<{
+    impot: string; categorieRevenu: string; tva: string; tvaIntracom: string;
+  } | null>(null);
+
+  // Reset override when auto-calc inputs change
+  useEffect(() => { setRegimeFiscalOverride(null); }, [form.forme, form.ape, form.siren]);
+
+  const regimeFiscal = regimeFiscalOverride
+    ? { ...regimeFiscalAuto, impot: regimeFiscalOverride.impot, categorieRevenu: regimeFiscalOverride.categorieRevenu, tva: regimeFiscalOverride.tva, tvaIntracom: regimeFiscalOverride.tvaIntracom }
+    : regimeFiscalAuto;
 
   // Idee 18: SPEC_O90 KYC completeness — required fields
   const specO90Kyc = useMemo(() => {
@@ -2279,8 +2290,6 @@ export default function NouveauClientPage() {
               {form.siren && <span className="text-[10px] text-slate-400 dark:text-slate-500 font-mono shrink-0">{form.siren}</span>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
-              <ScoreGauge score={adjustedScore} />
-              <VigilanceBadge level={risk.nivVigilance} />
               <span className="text-[10px] text-slate-400 dark:text-slate-500">Etape {step + 1}/{STEP_LABELS.length}</span>
             </div>
           </div>
@@ -3012,30 +3021,55 @@ export default function NouveauClientPage() {
                 <div className="flex items-center gap-2 mb-3">
                   <Scale className="w-4 h-4 text-blue-400" />
                   <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Regime fiscal presume</h3>
-                  <Badge className="text-[8px] bg-amber-500/15 text-amber-400 border-0">Calcul automatique</Badge>
+                  {regimeFiscalOverride ? (
+                    <>
+                      <Badge className="text-[8px] bg-orange-500/15 text-orange-400 border-0">Modifie manuellement</Badge>
+                      <button onClick={() => setRegimeFiscalOverride(null)} className="text-[9px] text-blue-400 hover:text-blue-300 ml-1">Reinitialiser</button>
+                    </>
+                  ) : (
+                    <Badge className="text-[8px] bg-amber-500/15 text-amber-400 border-0">Calcul automatique</Badge>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Impot</p>
-                    <p className={`text-sm font-bold ${regimeFiscal.impot === "IS" ? "text-violet-400" : regimeFiscal.impot === "IR" ? "text-blue-400" : "text-emerald-400"}`}>
-                      {regimeFiscal.impot}
-                    </p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Impot</p>
+                    <select
+                      value={regimeFiscal.impot}
+                      onChange={e => setRegimeFiscalOverride(prev => ({ impot: e.target.value, categorieRevenu: (prev ?? regimeFiscal).categorieRevenu, tva: (prev ?? regimeFiscal).tva, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}
+                      className="w-full text-xs font-bold bg-white dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08] rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500/30"
+                    >
+                      {["IS", "IR", "IR (micro)", "Exonere", "A determiner"].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
                     <p className="text-[9px] text-slate-500 mt-0.5">{regimeFiscal.impotDetail}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Categorie</p>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{regimeFiscal.categorieRevenu || "—"}</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">Categorie</p>
+                    <select
+                      value={regimeFiscal.categorieRevenu}
+                      onChange={e => setRegimeFiscalOverride(prev => ({ impot: (prev ?? regimeFiscal).impot, categorieRevenu: e.target.value, tva: (prev ?? regimeFiscal).tva, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}
+                      className="w-full text-xs font-semibold bg-white dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08] rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500/30"
+                    >
+                      {["BIC", "BNC", "BA", "Revenus fonciers", "-"].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">TVA</p>
-                    <p className={`text-sm font-semibold ${regimeFiscal.tva.includes("Exoner") ? "text-emerald-400" : regimeFiscal.tva.includes("Franchise") ? "text-amber-400" : "text-slate-700 dark:text-slate-200"}`}>
-                      {regimeFiscal.tva}
-                    </p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">TVA</p>
+                    <select
+                      value={regimeFiscal.tva}
+                      onChange={e => setRegimeFiscalOverride(prev => ({ impot: (prev ?? regimeFiscal).impot, categorieRevenu: (prev ?? regimeFiscal).categorieRevenu, tva: e.target.value, tvaIntracom: (prev ?? regimeFiscal).tvaIntracom }))}
+                      className="w-full text-xs font-semibold bg-white dark:bg-white/[0.04] border border-gray-200 dark:border-white/[0.08] rounded px-2 py-1.5 focus:ring-1 focus:ring-blue-500/30"
+                    >
+                      {["Assujetti (regime reel)", "Assujetti (regime reel normal)", "Assujetti (regime reel simplifie)", "Franchise en base (presumee)", "Exonere", "Exonere (soins medicaux)", "Exonere (locations nues)", "Exonere (prestations internes)", "Sur option"].map(v => <option key={v} value={v}>{v}</option>)}
+                    </select>
                     {regimeFiscal.tvaDetail && <p className="text-[9px] text-slate-500 mt-0.5">{regimeFiscal.tvaDetail}</p>}
                   </div>
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">TVA Intracom</p>
-                    <p className="text-xs font-mono text-slate-700 dark:text-slate-200">{regimeFiscal.tvaIntracom || "—"}</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">TVA Intracom</p>
+                    <Input
+                      value={regimeFiscal.tvaIntracom}
+                      onChange={e => setRegimeFiscalOverride(prev => ({ impot: (prev ?? regimeFiscal).impot, categorieRevenu: (prev ?? regimeFiscal).categorieRevenu, tva: (prev ?? regimeFiscal).tva, tvaIntracom: e.target.value }))}
+                      className="text-xs font-mono bg-white dark:bg-white/[0.04] border-gray-200 dark:border-white/[0.08] h-7"
+                    />
                   </div>
                 </div>
                 {regimeFiscal.avertissements.length > 0 && (
@@ -3706,15 +3740,25 @@ export default function NouveauClientPage() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <ResponsiveContainer width="100%" height={280}>
-                  <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
-                    <PolarGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" />
-                    <PolarAngleAxis dataKey="subject" tick={{ fill: "#94a3b8", fontSize: 11, fontWeight: 500 }} />
+                <ResponsiveContainer width="100%" height={320}>
+                  <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%" innerRadius="15%">
+                    <PolarGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" gridType="circle" />
+                    <PolarAngleAxis dataKey="subject" tick={({ x, y, payload }: any) => {
+                      const d = radarData.find(r => r.subject === payload.value);
+                      return (
+                        <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fill="#94a3b8" fontSize={11} fontWeight={500}>
+                          {payload.value} ({d?.score ?? 0})
+                        </text>
+                      );
+                    }} />
                     <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-                    <Radar name="Score" dataKey="score" stroke={vigilanceColor} fill={vigilanceColor} fillOpacity={0.2} strokeWidth={2.5} dot={{ fill: vigilanceColor, r: 3.5, strokeWidth: 0 }} />
+                    <Radar name="Score" dataKey="score" stroke={vigilanceColor} fill={vigilanceColor} fillOpacity={0.3} strokeWidth={2.5} dot={{ fill: vigilanceColor, r: 3.5, strokeWidth: 0 }} />
                     <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} formatter={(v: number) => [`${v}/100`, "Score"]} />
                   </RadarChart>
                 </ResponsiveContainer>
+                {radarData.every(d => d.score < 30) && (
+                  <p className="text-[9px] text-emerald-400 text-center mt-1">Risque faible — radar reduit</p>
+                )}
               </div>
 
               {/* Score gauge */}
@@ -5276,17 +5320,51 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                   </button>
                 </div>
               </div>
-              {/* Modal content — iframe preview with zoom */}
+              {/* Modal content — preview with zoom */}
               <div className="flex-1 overflow-auto rounded-b-2xl bg-gray-50 dark:bg-slate-950 relative">
-                <div style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: "top center", width: `${10000 / previewZoom}%`, height: `${10000 / previewZoom}%` }}>
-                  <iframe
-                    data-preview-iframe
-                    src={previewDoc.url}
-                    title={previewDoc.label}
-                    className="w-full h-full border-0"
-                    sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
-                  />
-                </div>
+                {(() => {
+                  const isPdf = previewDoc.url.toLowerCase().includes(".pdf") ||
+                    previewDoc.url.toLowerCase().includes("application/pdf") ||
+                    previewDoc.label.toLowerCase().includes("statut") ||
+                    previewDoc.label.toLowerCase().includes("acte") ||
+                    previewDoc.label.toLowerCase().includes("pv") ||
+                    previewDoc.label.toLowerCase().includes("cession");
+                  if (isPdf) {
+                    return (
+                      <object
+                        data={previewDoc.url}
+                        type="application/pdf"
+                        className="w-full h-full"
+                      >
+                        <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
+                          <FileText className="w-12 h-12" />
+                          <p className="text-sm">Impossible d'afficher le PDF dans le navigateur</p>
+                          <div className="flex gap-2">
+                            <a href={previewDoc.url} target="_blank" rel="noopener noreferrer"
+                              className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm hover:bg-blue-600 transition-colors">
+                              Ouvrir dans un nouvel onglet
+                            </a>
+                            <a href={previewDoc.url} download
+                              className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-white/[0.06] text-slate-700 dark:text-slate-200 text-sm hover:bg-gray-300 dark:hover:bg-white/[0.1] transition-colors">
+                              Telecharger
+                            </a>
+                          </div>
+                        </div>
+                      </object>
+                    );
+                  }
+                  return (
+                    <div style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: "top center", width: `${10000 / previewZoom}%`, height: `${10000 / previewZoom}%` }}>
+                      <iframe
+                        data-preview-iframe
+                        src={previewDoc.url}
+                        title={previewDoc.label}
+                        className="w-full h-full border-0"
+                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                      />
+                    </div>
+                  );
+                })()}
               </div>
               {/* R2-5: Navigation prev/next buttons */}
               {navDocs.length > 1 && (
