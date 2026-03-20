@@ -117,28 +117,33 @@ export default function LMStep1Client({ data, onChange }: Props) {
     });
   };
 
+  // OPT-50: clear also missions_selected and honoraires_detail
   const clearClient = () => {
     onChange({
       client_id: "", client_ref: "", raison_sociale: "", siren: "",
       forme_juridique: "", dirigeant: "", adresse: "", cp: "", ville: "",
       capital: "", ape: "", email: "", telephone: "", iban: "", bic: "",
       qualite_dirigeant: "", type_mission: "", mission_type_id: "", client_type_id: "",
+      missions_selected: [], honoraires_detail: {},
     });
     riskToastShown.current = false;
     setSearch("");
   };
 
+  // OPT-49: also import client_type_id and honoraires_detail
   const importPreviousLM = () => {
     if (!previousLM?.wizard_data) return;
     const wd = previousLM.wizard_data as Record<string, unknown>;
     onChange({
       type_mission: (wd.type_mission as string) || data.type_mission,
       mission_type_id: (wd.mission_type_id as string) || data.mission_type_id,
+      client_type_id: (wd.client_type_id as string) || data.client_type_id,
       missions_selected: (wd.missions_selected as unknown[]) || [],
       duree: (wd.duree as string) || data.duree,
       tacite_reconduction: (wd.tacite_reconduction as boolean) ?? true,
       preavis_mois: (wd.preavis_mois as number) || 3,
       honoraires_ht: (wd.honoraires_ht as number) || 0,
+      honoraires_detail: (wd.honoraires_detail as Record<string, string>) || {},
       frequence_facturation: (wd.frequence_facturation as string) || "MENSUEL",
       mode_paiement: (wd.mode_paiement as string) || "virement",
       taux_horaire_complementaire: (wd.taux_horaire_complementaire as number) || 0,

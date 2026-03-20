@@ -1,8 +1,10 @@
 import { useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { getClientTypeConfig, getMissionTypeConfig, recommendClientType, isModeComptableApplicable } from "@/lib/lettreMissionTypes";
+import { getDefaultSelectedCount } from "@/lib/lmClientMissions";
 import ClientTypeSelector from "./ClientTypeSelector";
 import { BookOpen, Eye, CheckSquare, CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 
 interface Props {
   data: LMWizardData;
@@ -29,6 +31,9 @@ export default function LMStep2MissionType({ data, onChange }: Props) {
       client_type_id: clientTypeId,
       mission_type_id: config.defaultMissionType,
       specific_variables: {},
+      // OPT-27: clear stale data on type change
+      missions_selected: [],
+      honoraires_detail: {},
     };
 
     if (config.defaultModeComptable) {
@@ -41,6 +46,12 @@ export default function LMStep2MissionType({ data, onChange }: Props) {
   };
 
   const showModeComptable = isModeComptableApplicable(data.mission_type_id || "presentation");
+
+  // OPT-45: pre-selected count for current type
+  const preselectedCount = useMemo(
+    () => data.client_type_id ? getDefaultSelectedCount(data.client_type_id) : null,
+    [data.client_type_id]
+  );
 
   return (
     <div className="space-y-6">
@@ -56,6 +67,16 @@ export default function LMStep2MissionType({ data, onChange }: Props) {
         recommendedType={recommended}
         alternatives={alternatives}
       />
+
+      {/* OPT-45: pre-selected count */}
+      {preselectedCount && (
+        <div className="flex items-center gap-2 text-[11px] text-slate-400 dark:text-slate-500">
+          <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+            {preselectedCount.missions} missions · {preselectedCount.sousOptions} sous-options pre-selectionnees
+          </Badge>
+          <span>a l'etape suivante</span>
+        </div>
+      )}
 
       {/* Mode comptable — only for presentation and compilation */}
       {showModeComptable && (

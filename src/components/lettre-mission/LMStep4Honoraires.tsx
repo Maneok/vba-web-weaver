@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useCallback, useRef } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { FREQUENCES, MODES_PAIEMENT } from "@/lib/lmDefaults";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
@@ -7,7 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, CreditCard, FileText, ArrowRight, Trophy, Calculator, ChevronDown } from "lucide-react";
+import {
+  DollarSign, CreditCard, FileText, ArrowRight, Trophy, Calculator,
+  ChevronDown, Scale, Landmark, Users, ShieldCheck, Lightbulb,
+} from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -35,18 +38,39 @@ const PAIEMENT_ICONS: Record<string, React.ReactNode> = {
   cheque: <FileText className="w-4 h-4" />,
 };
 
+// OPT-30: mission icon map for detail breakdown
+const MISSION_ICONS: Record<string, React.ReactNode> = {
+  comptabilite: <Calculator className="w-4 h-4 text-blue-400" />,
+  fiscal: <Landmark className="w-4 h-4 text-purple-400" />,
+  social: <Users className="w-4 h-4 text-teal-400" />,
+  juridique: <Scale className="w-4 h-4 text-amber-400" />,
+  conseil: <Lightbulb className="w-4 h-4 text-pink-400" />,
+  lcbft: <ShieldCheck className="w-4 h-4 text-emerald-400" />,
+};
+
 export default function LMStep4Honoraires({ data, onChange }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [showDetail, setShowDetail] = useState(false);
+  const syncRef = useRef(false);
 
-  // Auto-sync honoraires_ht from detail breakdown when detail is being used
-  useEffect(() => {
-    if (!showDetail || !data.honoraires_detail) return;
-    const detailTotal = Object.values(data.honoraires_detail).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
+  // OPT-28: Stable detail total (no useEffect infinite loop)
+  const detailTotal = useMemo(() => {
+    if (!data.honoraires_detail) return 0;
+    return Object.values(data.honoraires_detail).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
+  }, [data.honoraires_detail]);
+
+  // OPT-28: Sync total on detail input blur instead of useEffect
+  const syncDetailTotal = useCallback(() => {
     if (detailTotal > 0 && detailTotal !== data.honoraires_ht) {
       onChange({ honoraires_ht: detailTotal });
     }
-  }, [data.honoraires_detail, showDetail]);
+  }, [detailTotal, data.honoraires_ht, onChange]);
+
+  // OPT-35: single filtered list (no duplicate computation)
+  const selectedMissions = useMemo(
+    () => (data.missions_selected || []).filter(m => m.selected && !m.locked),
+    [data.missions_selected]
+  );
 
   const mtConfig = useMemo(() => getMissionTypeConfig(data.mission_type_id || "presentation"), [data.mission_type_id]);
 
@@ -138,58 +162,90 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
       </div>
 
       {/* ── Détail par mission ── */}
-      {data.missions_selected && data.missions_selected.filter(m => m.selected && !m.locked).length > 0 && (
+      {selectedMissions.length > 0 && (
         <div className="space-y-3">
           <button
             type="button"
             onClick={() => setShowDetail(!showDetail)}
             className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
           >
-            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showDetail ? "rotate-180" : ""}`} />
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${showDetail ? "rotate-180" : ""}`} />
             Ventiler par prestation
-            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">(optionnel)</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">({selectedMissions.length} prestations)</span>
           </button>
 
-          {showDetail && (
-            <div className="space-y-2">
-              {data.missions_selected.filter(m => m.selected && !m.locked).map((m) => (
-                <div key={m.section_id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{m.label}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
-                      {m.sous_options.filter(s => s.selected).length} sous-option{m.sous_options.filter(s => s.selected).length > 1 ? "s" : ""}
-                    </p>
+          {/* OPT-34: smooth expand */}
+          <div className={`overflow-hidden transition-all duration-300 ease-in-out ${showDetail ? "max-h-[1000px] opacity-100" : "max-h-0 opacity-0"}`}>
+            <div className="space-y-2 pt-1">
+              {selectedMissions.map((m) => {
+                const subCount = m.sous_options.filter(s => s.selected).length;
+                const icon = MISSION_ICONS[m.section_id];
+                return (
+                  <div key={m.section_id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      {icon && <div className="shrink-0">{icon}</div>}
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{m.label}</p>
+                        <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                          {subCount} sous-option{subCount > 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Input
+                        type="number"
+                        inputMode="decimal"
+                        placeholder="0"
+                        className="w-24 h-8 text-right text-sm bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
+                        value={(data.honoraires_detail || {})[m.section_id] || ''}
+                        onChange={(e) => onChange({
+                          honoraires_detail: { ...(data.honoraires_detail || {}), [m.section_id]: e.target.value }
+                        })}
+                        onBlur={syncDetailTotal}
+                      />
+                      <span className="text-xs text-slate-400 dark:text-slate-500 w-10">€ HT</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="0"
-                      className="w-24 h-8 text-right text-sm bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
-                      value={(data.honoraires_detail || {})[m.section_id] || ''}
-                      onChange={(e) => onChange({
-                        honoraires_detail: { ...(data.honoraires_detail || {}), [m.section_id]: e.target.value }
-                      })}
-                    />
-                    <span className="text-xs text-slate-400 dark:text-slate-500 w-10">€ HT</span>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
+
+              {/* OPT-31: Repartir equitablement */}
+              {data.honoraires_ht > 0 && selectedMissions.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const perMission = Math.floor(data.honoraires_ht / selectedMissions.length);
+                    const remainder = data.honoraires_ht - perMission * selectedMissions.length;
+                    const detail: Record<string, string> = {};
+                    selectedMissions.forEach((m, i) => {
+                      detail[m.section_id] = String(perMission + (i === 0 ? remainder : 0));
+                    });
+                    onChange({ honoraires_detail: detail });
+                  }}
+                  className="w-full text-center text-xs text-blue-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-300 py-1.5 rounded-lg hover:bg-blue-50/50 dark:hover:bg-blue-500/5 transition-colors"
+                >
+                  Repartir equitablement ({formatEur(Math.floor(data.honoraires_ht / selectedMissions.length))} / prestation)
+                </button>
+              )}
 
               {/* Auto-sum */}
-              {(() => {
-                const detailTotal = Object.values(data.honoraires_detail || {}).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
-                return detailTotal > 0 ? (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50/60 dark:bg-blue-500/[0.04] border border-blue-200/40 dark:border-blue-500/15 mt-1">
-                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Total ventile</p>
+              {detailTotal > 0 && (
+                <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50/60 dark:bg-blue-500/[0.04] border border-blue-200/40 dark:border-blue-500/15 mt-1">
+                  <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Total ventile</p>
+                  <div className="text-right">
                     <p className="text-base font-bold text-blue-600 dark:text-blue-400">
-                      {detailTotal.toLocaleString('fr-FR')} € HT
+                      {formatEur(detailTotal)}
                     </p>
+                    {detailTotal !== data.honoraires_ht && data.honoraires_ht > 0 && (
+                      <p className="text-[10px] text-amber-500">
+                        Ecart : {formatEur(data.honoraires_ht - detailTotal)}
+                      </p>
+                    )}
                   </div>
-                ) : null;
-              })()}
+                </div>
+              )}
             </div>
-          )}
+          </div>
         </div>
       )}
 

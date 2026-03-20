@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import {
   Building2, Home, User, KeyRound, UserCircle, Layers,
   Briefcase, Users, Heart, Network, Rocket, Building,
-  CheckCircle2, Sparkles, Info,
+  CheckCircle2, Sparkles, Info, Search,
 } from "lucide-react";
 import {
   CLIENT_TYPES, CLIENT_TYPE_CATEGORIES, getClientTypeConfig, getMissionTypeConfig,
@@ -34,14 +35,54 @@ const CATEGORY_COLORS: Record<string, { bg: string; border: string; text: string
 };
 
 export default function ClientTypeSelector({ value, onValueChange, recommendedType, alternatives = [] }: Props) {
+  const [search, setSearch] = useState("");
   const selectedConfig = useMemo(() => (value ? getClientTypeConfig(value) : null), [value]);
   const missionConfig = useMemo(() => (selectedConfig ? getMissionTypeConfig(selectedConfig.defaultMissionType) : null), [selectedConfig]);
 
+  // OPT-38: filter categories by search
+  const filteredCategories = useMemo(() => {
+    if (!search || search.length < 2) return CLIENT_TYPE_CATEGORIES;
+    const q = search.toLowerCase();
+    return CLIENT_TYPE_CATEGORIES
+      .map(cat => ({
+        ...cat,
+        types: cat.types.filter(tId => {
+          const cfg = CLIENT_TYPES[tId];
+          return cfg && (cfg.shortLabel.toLowerCase().includes(q) || cfg.label.toLowerCase().includes(q) || cfg.description?.toLowerCase().includes(q));
+        }),
+      }))
+      .filter(cat => cat.types.length > 0);
+  }, [search]);
+
+  // OPT-41: category color for active dot
+  const activeCatColor = useMemo(() => {
+    if (!value) return null;
+    const cat = CLIENT_TYPE_CATEGORIES.find(c => c.types.includes(value));
+    return cat ? cat.color : null;
+  }, [value]);
+
+  const DOT_COLORS: Record<string, string> = {
+    blue: 'bg-blue-500', purple: 'bg-purple-500', teal: 'bg-teal-500',
+    amber: 'bg-amber-500', pink: 'bg-pink-500', gray: 'bg-gray-500',
+  };
+
   return (
     <div className="space-y-4">
+      {/* OPT-38: search filter */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+        <Input
+          placeholder="Filtrer les types (SAS, SCI, LMNP...)"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9 h-9 text-sm wizard-input"
+          autoComplete="off"
+        />
+      </div>
+
       {/* Category grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {CLIENT_TYPE_CATEGORIES.map((cat) => {
+        {filteredCategories.map((cat) => {
           const colors = CATEGORY_COLORS[cat.color] || CATEGORY_COLORS.gray;
           const CatIcon = CATEGORY_ICONS[cat.icon] || Layers;
           const hasSel = cat.types.includes(value);
@@ -53,9 +94,13 @@ export default function ClientTypeSelector({ value, onValueChange, recommendedTy
                 hasSel ? `${colors.activeBg} ${colors.activeBorder} border-l-4` : `${colors.bg} ${colors.border}`
               }`}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <CatIcon className={`w-4 h-4 ${colors.text}`} />
-                <p className={`text-xs font-semibold ${colors.text}`}>{cat.label}</p>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <CatIcon className={`w-4 h-4 ${colors.text}`} />
+                  <p className={`text-xs font-semibold ${colors.text}`}>{cat.label}</p>
+                </div>
+                {/* OPT-40: type count */}
+                <span className="text-[10px] text-slate-400 dark:text-slate-500">{cat.types.length}</span>
               </div>
               <div className="space-y-1">
                 {cat.types.map((tId) => {
@@ -76,14 +121,15 @@ export default function ClientTypeSelector({ value, onValueChange, recommendedTy
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                          active ? "bg-gradient-to-r from-blue-400 to-indigo-500" : "bg-gray-300 dark:bg-gray-600"
+                        {/* OPT-41: category-colored active dot */}
+                        <div className={`w-1.5 h-1.5 rounded-full shrink-0 transition-colors ${
+                          active ? (DOT_COLORS[cat.color] || 'bg-blue-500') : "bg-gray-300 dark:bg-gray-600"
                         }`} />
                         <span className={`text-sm truncate ${active ? `font-medium ${colors.text}` : "text-slate-600 dark:text-slate-400"}`}>
                           {config.shortLabel}
                         </span>
                         {isRecommended && (
-                          <Badge className="text-[8px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border-0 gap-0.5 shrink-0">
+                          <Badge className="text-[8px] px-1.5 py-0 bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300 border-0 gap-0.5 shrink-0 animate-pulse">
                             <Sparkles className="w-2.5 h-2.5" /> Recommande
                           </Badge>
                         )}
@@ -100,6 +146,11 @@ export default function ClientTypeSelector({ value, onValueChange, recommendedTy
           );
         })}
       </div>
+
+      {/* OPT-38: no results */}
+      {filteredCategories.length === 0 && search.length >= 2 && (
+        <p className="text-center text-sm text-slate-400 dark:text-slate-500 py-4">Aucun type ne correspond a "{search}"</p>
+      )}
 
       {/* Info banner for selected type */}
       {selectedConfig && missionConfig && (
