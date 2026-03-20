@@ -3390,7 +3390,7 @@ export default function NouveauClientPage() {
                 size="sm"
                 className="text-xs gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 hover:text-emerald-400 hover:bg-emerald-500/10 hover:border-emerald-500/30 transition-all"
                 onClick={() => {
-                  setQuestions(prev => prev.map(q => ({ ...q, value: "NON" as const, commentaire: q.value === "OUI" ? q.commentaire : "" })));
+                  setQuestions(prev => prev.map(q => ({ ...q, value: "NON" as const, commentaire: q.value === "OUI" ? q.commentaire : "", autoFilled: false })));
                   toast.success("Toutes les reponses ont ete mises a NON");
                 }}
               >
@@ -3443,6 +3443,9 @@ export default function NouveauClientPage() {
                               </div>
                               {/* #44: Larger clickable area for radio buttons */}
                               <div className="flex items-center gap-1.5 shrink-0">
+                                {q.value === "OUI" && q.autoFilled && (
+                                  <Badge className="text-[8px] bg-blue-500/15 text-blue-400 border-0 gap-0.5"><Sparkles className="w-2.5 h-2.5" />Auto</Badge>
+                                )}
                                 {(["OUI", "NON", "N/A"] as const).map(val => (
                                   <button
                                     key={val}
@@ -3511,6 +3514,9 @@ export default function NouveauClientPage() {
                             <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 font-mono">{q.reference}</p>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0">
+                            {q.value === "OUI" && q.autoFilled && (
+                              <Badge className="text-[8px] bg-blue-500/15 text-blue-400 border-0 gap-0.5"><Sparkles className="w-2.5 h-2.5" />Auto</Badge>
+                            )}
                             {(["OUI", "NON", "N/A"] as const).map(val => (
                               <button
                                 key={val}

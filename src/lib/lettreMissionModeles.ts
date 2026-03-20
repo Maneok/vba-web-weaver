@@ -1,8 +1,8 @@
 import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { formatDateFr } from "./dateUtils";
-import { MISSION_TYPES, getMissionTypeConfig } from "./lettreMissionTypes";
-import type { MissionTypeConfig, MissionCategory } from "./lettreMissionTypes";
+import { MISSION_TYPES, getMissionTypeConfig, CLIENT_TYPES, CLIENT_TYPE_CATEGORIES } from "./lettreMissionTypes";
+import type { MissionTypeConfig, MissionCategory, ClientTypeCategory } from "./lettreMissionTypes";
 
 // ══════════════════════════════════════════════
 // OPT-42/48: Sanitization helpers
@@ -62,6 +62,7 @@ export interface LMModele {
   nom: string;
   description?: string;
   mission_type?: string;
+  client_type_id?: string; // ID de CLIENT_TYPES (ex: 'sas_is', 'sci_ir', 'lmnp')
   sections: LMSection[];
   cgv_content: string;
   repartition_taches: RepartitionRow[];
@@ -783,6 +784,7 @@ export async function createModele(modele: Partial<LMModele>): Promise<LMModele>
       nom: stripScripts(modele.nom ?? "Modèle standard"),
       description: modele.description ? stripScripts(modele.description) : modele.description,
       mission_type: modele.mission_type ?? "presentation",
+      client_type_id: modele.client_type_id ?? null,
       sections: cleanSections,
       cgv_content: stripScripts(modele.cgv_content ?? GRIMY_DEFAULT_CGV),
       repartition_taches: modele.repartition_taches ?? GRIMY_DEFAULT_REPARTITION,
@@ -859,6 +861,7 @@ export async function duplicateModele(id: string, newName: string): Promise<LMMo
     nom: newName || `Copie de ${original.nom}`,
     description: `Copie de « ${original.nom} »`,
     mission_type: original.mission_type,
+    client_type_id: original.client_type_id,
     sections: original.sections,
     cgv_content: original.cgv_content,
     repartition_taches: original.repartition_taches,
