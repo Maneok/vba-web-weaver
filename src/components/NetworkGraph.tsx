@@ -12,7 +12,7 @@ interface Props {
   onNodeDoubleClick?: (node: NetworkNode) => void;
 }
 
-export default function NetworkGraph({ nodes, edges, width = 700, height = 500, onNodeClick, onNodeDoubleClick }: Props) {
+export default function NetworkGraph({ nodes, edges, width = 700, height = 450, onNodeClick, onNodeDoubleClick }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const zoomRef = useRef<d3.ZoomBehavior<SVGSVGElement, unknown>>();
   const onNodeClickRef = useRef(onNodeClick);
@@ -131,12 +131,12 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
     const simulation = d3.forceSimulation(simNodes as d3.SimulationNodeDatum[])
       .force("link", d3.forceLink(simEdges as d3.SimulationLinkDatum<d3.SimulationNodeDatum>[])
         .id((d: any) => d.id)
-        .distance(200 * S))
-      .force("charge", d3.forceManyBody().strength(-700))
+        .distance(220 * S))
+      .force("charge", d3.forceManyBody().strength(-900))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(70 * S))
+      .force("collision", d3.forceCollide().radius(85 * S))
       // #5: Vertical separation force
-      .force("y", d3.forceY().y((d: any) => d.type === "person" ? height * 0.25 : d.isSource ? height * 0.35 : height * 0.65).strength(0.15));
+      .force("y", d3.forceY().y((d: any) => d.type === "person" ? height * 0.15 : d.isSource ? height * 0.35 : height * 0.70).strength(0.2));
 
     simulation.stop();
     for (let i = 0; i < 300; i++) simulation.tick();
@@ -238,10 +238,20 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
         return `translate(${px},${py})`;
       });
 
-    linkLabelGroup.each(function (d: any) {
+    // #8: Deduplicate link labels — if all labels are the same, show only on first link
+    const allLinkLabels = simEdges.map(e => ((e.label ?? "") as string).split(" (")[0]).filter(Boolean);
+    const allSameLabel = allLinkLabels.length > 1 && allLinkLabels.every(l => l === allLinkLabels[0]);
+    const shownLinkLabels = new Set<number>();
+
+    linkLabelGroup.each(function (d: any, idx: number) {
       const el = d3.select(this);
       const labelText = ((d.label ?? "") as string).split(" (")[0];
       if (!labelText) return;
+      // If all links have the same label, only show on first
+      if (allSameLabel) {
+        if (shownLinkLabels.size > 0) return;
+        shownLinkLabels.add(idx);
+      }
       // #32: Pill-shaped background
       const textW = labelText.length * 4.8 * S + 12;
       const textH = 16 * S;
@@ -404,7 +414,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
 
     // #22: Node name — bold 12px
     addLabel(node, d => d.label || "—", {
-      dy: (d: any) => d.isSource ? 35 * S + 16 * S : d.type === "person" ? 26 * S + 16 * S : 52 * S / 2 + 14 * S,
+      dy: (d: any) => d.isSource ? 35 * S + 18 * S : d.type === "person" ? 26 * S + 18 * S : 52 * S / 2 + 16 * S,
       fontSize: 12, fontWeight: "700", fill: "#e2e8f0",
     });
 
@@ -413,7 +423,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       const ville = (d as any).ville;
       return ville ? `${d.siren} — ${ville}` : (d.siren ?? "");
     }, {
-      dy: (d: any) => 52 * S / 2 + 28 * S,
+      dy: (d: any) => 52 * S / 2 + 30 * S,
       fontSize: 8, fontWeight: "400", fill: "#64748b",
     });
 
@@ -423,13 +433,13 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       const edge = simEdges.find((e: any) => (e.source?.id ?? e.source) === d.id || (e.target?.id ?? e.target) === d.id);
       return edge ? ((edge as any).label ?? "").split(" (")[0] : "";
     }, {
-      dy: () => 26 * S + 30 * S,
+      dy: () => 26 * S + 32 * S,
       fontSize: 9, fontWeight: "400", fill: "#94a3b8", italic: true,
     });
 
     // #25: Client sub-label "(Client analyse)"
     addLabel(node.filter(d => d.isSource), () => "(Client analyse)", {
-      dy: () => 35 * S + 30 * S,
+      dy: () => 35 * S + 32 * S,
       fontSize: 8, fontWeight: "400", fill: "#60a5fa",
     });
 
@@ -439,14 +449,14 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 500, 
       if (nodePositions.length >= 2) {
         const xs = nodePositions.map(p => p.x);
         const ys = nodePositions.map(p => p.y);
-        const pad = 80 * S;
+        const pad = 100 * S;
         const x0 = Math.min(...xs) - pad;
         const y0 = Math.min(...ys) - pad;
         const x1 = Math.max(...xs) + pad;
         const y1 = Math.max(...ys) + pad;
         const bw = x1 - x0, bh = y1 - y0;
         if (bw > 0 && bh > 0) {
-          const scale = Math.min(width / bw, height / bh, 1.2) * 0.85;
+          const scale = Math.min(width / bw, height / bh, 1.0) * 0.85;
           const tx = (width - bw * scale) / 2 - x0 * scale;
           const ty = (height - bh * scale) / 2 - y0 * scale;
           svg.transition().duration(800).ease(d3.easeCubicInOut)
