@@ -3712,66 +3712,83 @@ export default function NouveauClientPage() {
 
         {/* STEP 4: SCORING & DECISION */}
         {step === 4 && (
-          <div className="space-y-6" role="region" aria-label="Etape 5 : Scoring et decision">
-            <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Scoring et Decision</h2>
+          <div className="max-w-[900px] mx-auto space-y-5" role="region" aria-label="Etape 5 : Scoring et decision">
 
-            <div className="space-y-6">
-              {/* Score global — centré */}
-              <div className="p-6 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] text-center shadow-lg max-w-md mx-auto">
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Score Global</p>
-                <div className="relative w-40 h-40 mx-auto">
-                  <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
-                    <circle
-                      cx="60" cy="60" r="50" fill="none"
-                      stroke={vigilanceColor}
-                      strokeWidth="10"
-                      strokeDasharray={`${(Math.min(animatedScore, 100) / 100) * 314} 314`}
-                      strokeLinecap="round"
-                      className="transition-all duration-300 ease-out"
-                    />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center flex-col">
-                    <span className="text-4xl font-bold text-slate-900 dark:text-white tabular-nums">{animatedScore}</span>
-                    <span className="text-[10px] text-slate-400 dark:text-slate-500">/100</span>
+            {/* ── SECTION 1 : Bandeau score horizontal ── */}
+            <div className="p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-sm">
+              <div className="flex items-center justify-between gap-4 flex-wrap sm:flex-nowrap">
+                {/* LEFT: Score gauge compact */}
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="relative w-[72px] h-[72px]">
+                    <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                      <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(148,163,184,0.12)" strokeWidth="10" />
+                      <circle
+                        cx="60" cy="60" r="50" fill="none"
+                        stroke={vigilanceColor}
+                        strokeWidth="10"
+                        strokeDasharray={`${(Math.min(animatedScore, 100) / 100) * 314} 314`}
+                        strokeLinecap="round"
+                        className="transition-all duration-500 ease-out"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center flex-col">
+                      <span className="text-xl font-bold text-slate-900 dark:text-white tabular-nums leading-none">{animatedScore}</span>
+                      <span className="text-[8px] text-slate-400 dark:text-slate-500 leading-none">/100</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">Score Global</span>
+                    {(() => {
+                      const avgScore = clients.length > 0 ? Math.round(clients.reduce((s, c) => s + (c.scoreGlobal || 0), 0) / clients.length) : null;
+                      if (avgScore === null) return null;
+                      return (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                          Moy. cabinet : <span className="font-mono font-bold">{avgScore}</span>
+                          {adjustedScore > avgScore && <span className="text-amber-400 ml-1">+{adjustedScore - avgScore}</span>}
+                          {adjustedScore < avgScore && <span className="text-emerald-400 ml-1">-{avgScore - adjustedScore}</span>}
+                        </span>
+                      );
+                    })()}
                   </div>
                 </div>
-                <div className="mt-4">
-                  <VigilanceBadge level={risk.nivVigilance} />
-                </div>
-                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
-                  {risk.nivVigilance === "SIMPLIFIEE" && "Risque faible — mesures de vigilance allegees autorisees"}
-                  {risk.nivVigilance === "STANDARD" && "Risque moyen — mesures de vigilance normales requises"}
-                  {risk.nivVigilance === "RENFORCEE" && "Risque eleve — mesures de vigilance renforcees obligatoires (art. L.561-10 CMF)"}
-                </p>
-                {(() => {
-                  const avgScore = clients.length > 0 ? Math.round(clients.reduce((s, c) => s + (c.scoreGlobal || 0), 0) / clients.length) : null;
-                  if (avgScore === null) return null;
-                  return (
-                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-center gap-2">
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">Moyenne cabinet :</span>
-                      <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{avgScore}/100</span>
-                      {adjustedScore > avgScore && <span className="text-[9px] text-amber-400">+{adjustedScore - avgScore} au-dessus</span>}
-                      {adjustedScore < avgScore && <span className="text-[9px] text-emerald-400">{avgScore - adjustedScore} en-dessous</span>}
-                      {adjustedScore === avgScore && <span className="text-[9px] text-slate-400 dark:text-slate-500">= moyenne</span>}
-                    </div>
-                  );
-                })()}
-              </div>
 
-              {/* #53: Improved radar chart — centré */}
-              <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-lg max-w-[500px] mx-auto w-full">
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Radar de risque 6 axes</h3>
-                  {/* #52: Score breakdown tooltip */}
+                {/* CENTER: Vigilance badge + description */}
+                <div className="text-center flex-1 min-w-0">
+                  <VigilanceBadge level={risk.nivVigilance} />
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-1 leading-tight">
+                    {risk.nivVigilance === "SIMPLIFIEE" && "Mesures de vigilance allegees autorisees"}
+                    {risk.nivVigilance === "STANDARD" && "Mesures de vigilance normales requises"}
+                    {risk.nivVigilance === "RENFORCEE" && "Vigilance renforcee obligatoire (art. L.561-10 CMF)"}
+                  </p>
+                </div>
+
+                {/* RIGHT: Date butoir */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <Calendar className="w-4 h-4 text-blue-400" />
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-slate-800 dark:text-slate-200 font-mono leading-none">{formatDateFR(calculateDateButoir(risk.nivVigilance))}</p>
+                    <p className="text-[9px] text-slate-400 dark:text-slate-500">
+                      Prochaine revue ({risk.nivVigilance === "SIMPLIFIEE" ? "+3 ans" : risk.nivVigilance === "STANDARD" ? "+2 ans" : "+1 an"})
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* ── SECTION 2 : Radar + Décomposition côte à côte ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* LEFT: Radar chart */}
+              <div className="p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-sm flex flex-col">
+                <div className="flex items-center justify-between mb-1">
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Radar 6 axes</h3>
                   <Popover>
                     <PopoverTrigger asChild>
                       <button className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
-                        <HelpCircle className="w-3.5 h-3.5" /> Detail
+                        <HelpCircle className="w-3 h-3" /> Detail
                       </button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-64 bg-gray-50 dark:bg-slate-900 border-white/10">
-                      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Contribution de chaque facteur</h4>
+                    <PopoverContent className="w-60 bg-gray-50 dark:bg-slate-900 border-white/10">
+                      <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Contribution par facteur</h4>
                       <div className="space-y-1.5">
                         {radarData.map(d => (
                           <div key={d.subject} className="flex items-center justify-between text-xs">
@@ -3783,147 +3800,136 @@ export default function NouveauClientPage() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <ResponsiveContainer width="100%" height={350}>
-                  <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%" innerRadius="15%">
-                    <PolarGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" gridType="circle" />
-                    <PolarAngleAxis dataKey="subject" tick={({ x, y, payload }: any) => {
-                      const d = radarData.find(r => r.subject === payload.value);
-                      return (
-                        <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fill="#94a3b8" fontSize={11} fontWeight={500}>
-                          {payload.value} ({d?.score ?? 0})
-                        </text>
-                      );
-                    }} />
-                    <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
-                    <Radar name="Score" dataKey="score" stroke={vigilanceColor} fill={vigilanceColor} fillOpacity={0.3} strokeWidth={2.5} dot={{ fill: vigilanceColor, r: 3.5, strokeWidth: 0 }} />
-                    <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "12px", color: "#e2e8f0" }} formatter={(v: number) => [`${v}/100`, "Score"]} />
-                  </RadarChart>
-                </ResponsiveContainer>
+                <div className="flex-1 min-h-0">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%" innerRadius="15%">
+                      <PolarGrid stroke="rgba(148,163,184,0.12)" strokeDasharray="3 3" gridType="circle" />
+                      <PolarAngleAxis dataKey="subject" tick={({ x, y, payload }: any) => {
+                        const d = radarData.find(r => r.subject === payload.value);
+                        return (
+                          <text x={x} y={y} textAnchor="middle" dominantBaseline="central" fill="#94a3b8" fontSize={10} fontWeight={500}>
+                            {payload.value} ({d?.score ?? 0})
+                          </text>
+                        );
+                      }} />
+                      <PolarRadiusAxis angle={90} domain={[0, 100]} tick={false} axisLine={false} />
+                      <Radar name="Score" dataKey="score" stroke={vigilanceColor} fill={vigilanceColor} fillOpacity={0.25} strokeWidth={2} dot={{ fill: vigilanceColor, r: 3, strokeWidth: 0 }} />
+                      <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "8px", fontSize: "11px", color: "#e2e8f0" }} formatter={(v: number) => [`${v}/100`, "Score"]} />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                </div>
                 {radarData.every(d => d.score < 30) && (
-                  <p className="text-[9px] text-emerald-400 text-center mt-1">Risque faible — radar reduit</p>
+                  <p className="text-[9px] text-emerald-400 text-center">Profil a risque faible</p>
                 )}
               </div>
 
-              {/* Score breakdown — centré */}
-              <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] max-w-[600px] mx-auto w-full">
-                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">Decomposition</h3>
-                <div className="space-y-2">
-                  {[
-                    { label: "Activite (APE)", score: risk.scoreActivite, max: 100, desc: `Code ${form.ape}` },
-                    { label: "Pays", score: risk.scorePays, max: 100, desc: riskFlags.paysRisque ? "Pays a risque detecte" : "Aucun risque pays" },
-                    { label: "Mission", score: risk.scoreMission, max: 100, desc: form.mission },
-                    { label: "Maturite", score: risk.scoreMaturite, max: 100, desc: "Anciennete de la relation" },
-                    { label: "Structure", score: risk.scoreStructure, max: 100, desc: form.forme },
-                    { label: "Malus", score: totalMalus, max: 100, desc: `${questions.filter(q => q.value === "OUI").length} facteur(s) actif(s)` },
-                  ].map(item => (
-                    <div key={item.label} className="space-y-1">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="text-xs text-slate-700 dark:text-slate-300">{item.label}</span>
-                          <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-2">{item.desc}</span>
+              {/* RIGHT: Décomposition + malus */}
+              <div className="flex flex-col gap-4">
+                <div className="p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-sm flex-1">
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">Decomposition du score</h3>
+                  <div className="space-y-2.5">
+                    {[
+                      { label: "Activite (APE)", score: risk.scoreActivite, max: 100, desc: `Code ${form.ape}` },
+                      { label: "Pays", score: risk.scorePays, max: 100, desc: riskFlags.paysRisque ? "Pays a risque" : "Aucun risque" },
+                      { label: "Mission", score: risk.scoreMission, max: 100, desc: form.mission },
+                      { label: "Maturite", score: risk.scoreMaturite, max: 100, desc: "Anciennete relation" },
+                      { label: "Structure", score: risk.scoreStructure, max: 100, desc: form.forme },
+                      { label: "Malus", score: totalMalus, max: 100, desc: `${questions.filter(q => q.value === "OUI").length} facteur(s)` },
+                    ].map(item => (
+                      <div key={item.label} className="space-y-1">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-baseline gap-1.5">
+                            <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{item.label}</span>
+                            <span className="text-[9px] text-slate-400 dark:text-slate-500">{item.desc}</span>
+                          </div>
+                          <span className={`text-sm font-bold font-mono tabular-nums ${
+                            item.score >= 60 ? "text-red-400" : item.score >= 25 ? "text-amber-400" : "text-emerald-400"
+                          }`}>{item.score}</span>
                         </div>
-                        <span className={`text-sm font-bold font-mono tabular-nums ${
-                          item.score >= 60 ? "text-red-400" : item.score >= 25 ? "text-amber-400" : "text-emerald-400"
-                        }`}>{item.score}</span>
-                      </div>
-                      <div className="h-1 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
-                        <div
-                          className={`h-full rounded-full transition-all duration-500 ${
-                            item.score >= 60 ? "bg-red-500" : item.score >= 25 ? "bg-amber-500" : "bg-emerald-500"
-                          }`}
-                          style={{ width: `${Math.min((item.score / item.max) * 100, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* D35: Detailed malus breakdown */}
-              {questions.filter(q => q.value === "OUI").length > 0 && (
-                <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] max-w-[600px] mx-auto w-full">
-                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Detail des malus</h3>
-                  <div className="space-y-1">
-                    {questions.filter(q => q.value === "OUI").map(q => (
-                      <div key={q.id} className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500 dark:text-slate-400 truncate mr-2">{q.question.slice(0, 60)}...</span>
-                        <span className="text-red-400 font-mono font-bold shrink-0">+{q.malus}</span>
+                        <div className="h-1.5 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ease-out ${
+                              item.score >= 60 ? "bg-red-500" : item.score >= 25 ? "bg-amber-500" : "bg-emerald-500"
+                            }`}
+                            style={{ width: `${Math.min((item.score / item.max) * 100, 100)}%` }}
+                          />
+                        </div>
                       </div>
                     ))}
-                    {bodaccMalus > 0 && (
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-slate-500 dark:text-slate-400">BODACC (procedure collective)</span>
-                        <span className="text-red-400 font-mono font-bold">+{bodaccMalus}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
-              )}
 
-              {/* D36: What-if simulation toggle */}
-              <div className="text-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={`gap-1.5 border-gray-200 dark:border-white/[0.06] transition-all ${isSimulating ? "text-amber-400 border-amber-500/30 bg-amber-500/10" : "text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10"}`}
-                  onClick={() => setIsSimulating(!isSimulating)}
-                >
-                  <RefreshCw className="w-3.5 h-3.5" /> {isSimulating ? "Mode simulation actif" : "Simuler un changement"}
-                </Button>
+                {/* Malus detail */}
+                {questions.filter(q => q.value === "OUI").length > 0 && (
+                  <div className="p-3 rounded-xl bg-red-50/50 dark:bg-red-500/[0.03] border border-red-200/50 dark:border-red-500/10 shadow-sm">
+                    <h3 className="text-[10px] font-semibold text-red-500 dark:text-red-400 uppercase tracking-wider mb-2">Detail malus</h3>
+                    <div className="space-y-1">
+                      {questions.filter(q => q.value === "OUI").map(q => (
+                        <div key={q.id} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 dark:text-slate-400 truncate mr-2">{q.question.slice(0, 50)}...</span>
+                          <span className="text-red-400 font-mono font-bold shrink-0">+{q.malus}</span>
+                        </div>
+                      ))}
+                      {bodaccMalus > 0 && (
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="text-slate-500 dark:text-slate-400">BODACC (proc. collective)</span>
+                          <span className="text-red-400 font-mono font-bold">+{bodaccMalus}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Idée 9: Date butoir auto-calculée */}
-            <div className="p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-blue-400" />
-                <span className="text-xs text-slate-700 dark:text-slate-300">Date butoir prochaine revue</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold text-slate-800 dark:text-slate-200 font-mono">{formatDateFR(calculateDateButoir(risk.nivVigilance))}</span>
-                <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                  ({risk.nivVigilance === "SIMPLIFIEE" ? "+3 ans" : risk.nivVigilance === "STANDARD" ? "+2 ans" : "+1 an"})
-                </span>
-              </div>
+            {/* ── SECTION 3 : Simulation ── */}
+            <div className="text-center">
+              <Button
+                variant="ghost"
+                size="sm"
+                className={`gap-1.5 transition-all ${isSimulating ? "text-amber-500 bg-amber-500/10" : "text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/5"}`}
+                onClick={() => setIsSimulating(!isSimulating)}
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isSimulating ? "animate-spin" : ""}`} /> {isSimulating ? "Mode simulation actif" : "Simuler un changement"}
+              </Button>
             </div>
 
-            {/* FIX 52: Improved decision section with shadows and transitions */}
-            <div className="p-4 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Decision</h3>
-              <div className="grid grid-cols-3 gap-3">
+            {/* ── SECTION 4 : Decision ── */}
+            <div className="p-5 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-sm">
+              <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3 uppercase tracking-wider">Decision</h3>
+              <div className="flex items-stretch justify-center gap-3 flex-wrap sm:flex-nowrap">
                 <button
                   onClick={() => setDecision("ACCEPTER")}
                   aria-pressed={decision === "ACCEPTER"}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:outline-none ${
-                    decision === "ACCEPTER" ? "border-emerald-500 bg-emerald-500/10 shadow-lg shadow-emerald-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-emerald-500/30 hover:bg-emerald-500/5"
+                  className={`min-w-[180px] flex-1 max-w-[220px] p-3 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:outline-none ${
+                    decision === "ACCEPTER" ? "border-emerald-500 bg-emerald-500/10 shadow-md shadow-emerald-500/10 scale-[1.02]" : "border-gray-200 dark:border-white/[0.06] hover:border-emerald-500/30 hover:bg-emerald-500/5"
                   }`}
                 >
-                  <Check className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-400 dark:text-slate-500"}`} />
+                  <Check className={`w-5 h-5 mx-auto mb-1.5 transition-colors ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-400 dark:text-slate-500"}`} />
                   <p className={`text-sm font-semibold ${decision === "ACCEPTER" ? "text-emerald-400" : "text-slate-500 dark:text-slate-400"}`}>Accepter</p>
                 </button>
                 <button
                   onClick={() => setDecision("ACCEPTER_RESERVE")}
                   aria-pressed={decision === "ACCEPTER_RESERVE"}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none ${
-                    decision === "ACCEPTER_RESERVE" ? "border-amber-500 bg-amber-500/10 shadow-lg shadow-amber-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-amber-500/30 hover:bg-amber-500/5"
+                  className={`min-w-[180px] flex-1 max-w-[220px] p-3 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-amber-500/50 focus-visible:outline-none ${
+                    decision === "ACCEPTER_RESERVE" ? "border-amber-500 bg-amber-500/10 shadow-md shadow-amber-500/10 scale-[1.02]" : "border-gray-200 dark:border-white/[0.06] hover:border-amber-500/30 hover:bg-amber-500/5"
                   }`}
                 >
-                  <AlertTriangle className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
-                  <p className={`text-sm font-semibold ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-500 dark:text-slate-400"}`}>Accepter sous reserve</p>
+                  <AlertTriangle className={`w-5 h-5 mx-auto mb-1.5 transition-colors ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-400 dark:text-slate-500"}`} />
+                  <p className={`text-sm font-semibold ${decision === "ACCEPTER_RESERVE" ? "text-amber-400" : "text-slate-500 dark:text-slate-400"}`}>Sous reserve</p>
                 </button>
                 <button
                   onClick={() => setDecision("REFUSER")}
                   aria-pressed={decision === "REFUSER"}
-                  className={`p-4 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:outline-none ${
-                    decision === "REFUSER" ? "border-red-500 bg-red-500/10 shadow-lg shadow-red-500/10" : "border-gray-200 dark:border-white/[0.06] hover:border-red-500/30 hover:bg-red-500/5"
+                  className={`min-w-[180px] flex-1 max-w-[220px] p-3 rounded-xl border-2 transition-all duration-200 text-center focus-visible:ring-2 focus-visible:ring-red-500/50 focus-visible:outline-none ${
+                    decision === "REFUSER" ? "border-red-500 bg-red-500/10 shadow-md shadow-red-500/10 scale-[1.02]" : "border-gray-200 dark:border-white/[0.06] hover:border-red-500/30 hover:bg-red-500/5"
                   }`}
                 >
-                  <X className={`w-6 h-6 mx-auto mb-2 transition-colors ${decision === "REFUSER" ? "text-red-400" : "text-slate-400 dark:text-slate-500"}`} />
+                  <X className={`w-5 h-5 mx-auto mb-1.5 transition-colors ${decision === "REFUSER" ? "text-red-400" : "text-slate-400 dark:text-slate-500"}`} />
                   <p className={`text-sm font-semibold ${decision === "REFUSER" ? "text-red-400" : "text-slate-500 dark:text-slate-400"}`}>Refuser</p>
                 </button>
               </div>
 
-              {/* #57: Motif textarea for both REFUSER and ACCEPTER_RESERVE */}
               {decision === "REFUSER" && (
                 <div className="mt-4 animate-fade-in-up">
                   <Label className="text-xs text-red-400 font-semibold">Motif du refus (obligatoire)</Label>
@@ -3951,18 +3957,20 @@ export default function NouveauClientPage() {
               )}
             </div>
 
-            {/* #60: Print/export scoring summary */}
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 border-gray-200 dark:border-white/[0.06] text-slate-500 dark:text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 transition-all hover:scale-[1.02]"
-              onClick={() => {
-                window.print();
-                toast.info("Impression du scoring lancee");
-              }}
-            >
-              <Printer className="w-3.5 h-3.5" /> Imprimer le scoring
-            </Button>
+            {/* ── SECTION 5 : Imprimer ── */}
+            <div className="flex justify-start">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/5 transition-all"
+                onClick={() => {
+                  window.print();
+                  toast.info("Impression du scoring lancee");
+                }}
+              >
+                <Printer className="w-3.5 h-3.5" /> Imprimer le scoring
+              </Button>
+            </div>
           </div>
         )}
 

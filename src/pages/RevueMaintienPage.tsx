@@ -70,14 +70,14 @@ const REVUE_STEPS = ["Selection", "Informations", "Screening", "Questionnaire", 
 
 const STATUS_PILLS = [
   { value: "tous", label: "Toutes" },
-  { value: "a_faire", label: "A faire" },
+  { value: "a_faire", label: "À faire" },
   { value: "en_cours", label: "En cours" },
-  { value: "completee", label: "Completees" },
-  { value: "reportee", label: "Reportees" },
+  { value: "completee", label: "Complétées" },
+  { value: "reportee", label: "Reportées" },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
-  a_faire: "A faire", en_cours: "En cours", completee: "Completee", reportee: "Reportee",
+  a_faire: "À faire", en_cours: "En cours", completee: "Complétée", reportee: "Reportée",
 };
 
 const QUESTIONS_LCB = [
@@ -140,11 +140,11 @@ function ScoreBadge({ score }: { score: number }) {
 
 // OPT-26: Score circle for table
 function ScoreCircle({ score }: { score: number }) {
-  const bg = score >= 60 ? "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400"
-    : score >= 26 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400"
-    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400";
+  const bg = score >= 60 ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+    : score >= 30 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+    : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400";
   return (
-    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold ${bg}`}>
+    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${bg}`}>
       {score}
     </div>
   );
@@ -152,12 +152,12 @@ function ScoreCircle({ score }: { score: number }) {
 
 function VigilBadge({ level }: { level: string }) {
   const styles: Record<string, string> = {
-    SIMPLIFIEE: "bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10 dark:text-emerald-400",
-    STANDARD: "bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400",
-    RENFORCEE: "bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400",
+    SIMPLIFIEE: "bg-emerald-50 text-emerald-600 border-emerald-500/30 dark:bg-emerald-500/20 dark:text-emerald-400",
+    STANDARD: "bg-blue-50 text-blue-600 border-blue-500/30 dark:bg-blue-500/20 dark:text-blue-400",
+    RENFORCEE: "bg-red-50 text-red-600 border-red-500/30 dark:bg-red-500/20 dark:text-red-400",
   };
   return (
-    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${styles[level] || "bg-slate-100 text-slate-500 dark:bg-slate-500/10 dark:text-slate-400"}`}>
+    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${styles[level] || "bg-slate-100 text-slate-500 border-slate-500/30 dark:bg-slate-500/20 dark:text-slate-400"}`}>
       {level || "—"}
     </span>
   );
@@ -274,7 +274,7 @@ const PAGE_SIZE = 20;
 // ─── Main Component ────────────────────────────────────────────────
 
 export default function RevueMaintienPage() {
-  useDocumentTitle("Revue periodique");
+  useDocumentTitle("Revue périodique");
   const { profile } = useAuth();
   const navigate = useNavigate();
   const cabinetId = profile?.cabinet_id;
@@ -1330,7 +1330,7 @@ export default function RevueMaintienPage() {
       {/* OPT-1-5: Header */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Revue periodique</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-white">Revue périodique</h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">Suivi des diligences de vigilance</p>
         </div>
         <div className="flex gap-2">
@@ -1347,7 +1347,7 @@ export default function RevueMaintienPage() {
             className="bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 h-9 text-sm font-medium inline-flex items-center gap-2 transition-colors disabled:opacity-50"
           >
             {generating ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-            Generer les revues a faire
+            {generating ? "Génération…" : "Générer les revues à faire"}
           </button>
         </div>
       </div>

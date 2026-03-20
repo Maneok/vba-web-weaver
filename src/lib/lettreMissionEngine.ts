@@ -335,13 +335,11 @@ export function generateFromClient(
 /**
  * Génère et télécharge un PDF à partir d'un objet LettreMission.
  */
-export function renderToPdf(lettreMission: LettreMission): void {
+export async function renderToPdf(lettreMission: LettreMission): Promise<void> {
   try {
     const t0 = performance.now();
-    const doc = renderLettreMissionPdf(lettreMission);
+    await renderLettreMissionPdf(lettreMission);
     const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
-    const filename = `LDM_${lettreMission?.numero ?? "draft"}_${(lettreMission?.client?.raisonSociale ?? "client").replace(/\s+/g, "_")}.pdf`;
-    doc.save(filename);
     toast.success(`PDF généré en ${elapsed}s`);
   } catch (err: unknown) {
     logger.error("PDF", "renderToPdf error", err);
