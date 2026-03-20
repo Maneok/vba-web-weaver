@@ -349,7 +349,6 @@ export default function NouveauClientPage() {
   // Step 5 - Decision
   const [decision, setDecision] = useState<"ACCEPTER" | "ACCEPTER_RESERVE" | "REFUSER" | "">("");
   const [motifRefus, setMotifRefus] = useState("");
-  const [isSimulating, setIsSimulating] = useState(false);
 
   // Step 6 - Documents
   const [documents, setDocuments] = useState<UploadedDoc[]>([]);
@@ -3890,18 +3889,6 @@ export default function NouveauClientPage() {
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* ── SECTION 3 : Simulation ── */}
-            <div className="text-center">
-              <Button
-                variant="ghost"
-                size="sm"
-                className={`gap-1.5 transition-all ${isSimulating ? "text-amber-500 bg-amber-500/10" : "text-slate-400 dark:text-slate-500 hover:text-blue-400 hover:bg-blue-500/5"}`}
-                onClick={() => setIsSimulating(!isSimulating)}
-              >
-                <RefreshCw className={`w-3.5 h-3.5 ${isSimulating ? "animate-spin" : ""}`} /> {isSimulating ? "Mode simulation actif" : "Simuler un changement"}
-              </Button>
             </div>
 
             {/* ── SECTION 4 : Decision ── */}
