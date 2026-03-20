@@ -65,6 +65,13 @@ type CabinetInfo = {
   couleurSecondaire: string;
   associe_principal: string;
   police: string;
+  // Extended identity fields
+  croec: string;
+  assureur_nom: string;
+  assureur_adresse: string;
+  tva_intracommunautaire: string;
+  site_web: string;
+  logo: string; // base64 data URL
 };
 
 type ScoringConfig = {
@@ -105,6 +112,12 @@ const DEFAULT_CABINET: CabinetInfo = {
   couleurSecondaire: "#8b5cf6",
   associe_principal: "",
   police: "Inter",
+  croec: "",
+  assureur_nom: "",
+  assureur_adresse: "",
+  tva_intracommunautaire: "",
+  site_web: "",
+  logo: "",
 };
 
 const DEFAULT_SCORING: ScoringConfig = {
@@ -190,7 +203,7 @@ function InfoTip({ text }: { text: string }) {
 
 /* ---------- Cabinet tab helpers ---------- */
 
-const CABINET_FIELDS: (keyof CabinetInfo)[] = ["nom", "adresse", "cp", "ville", "siret", "numeroOEC", "email", "telephone", "associe_principal", "couleurPrimaire", "couleurSecondaire", "police"];
+const CABINET_FIELDS: (keyof CabinetInfo)[] = ["nom", "adresse", "cp", "ville", "siret", "numeroOEC", "email", "telephone", "associe_principal", "couleurPrimaire", "couleurSecondaire", "police", "croec", "assureur_nom", "tva_intracommunautaire", "site_web"];
 
 function computeCabinetCompletion(c: CabinetInfo): number {
   const filled = CABINET_FIELDS.filter((k) => {
@@ -956,6 +969,61 @@ export default function SettingsPage() {
                                 className={`pl-8 transition-colors ${cabinet.numeroOEC.trim() ? "border-green-500/40" : ""}`}
                               />
                             </div>
+                          </div>
+
+                          {/* CROEC */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-croec" className="text-xs">CROEC d'inscription</Label>
+                            <div className="relative">
+                              <Award className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                              <Input
+                                id="cab-croec"
+                                value={cabinet.croec}
+                                onChange={(e) => updateCabinet("croec", e.target.value)}
+                                placeholder="CROEC Provence-Alpes-Cote d'Azur"
+                                className={`pl-8 transition-colors ${cabinet.croec.trim() ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                          </div>
+
+                          {/* TVA intracommunautaire */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-tva" className="text-xs">N° TVA intracommunautaire</Label>
+                            <div className="relative">
+                              <Hash className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                              <Input
+                                id="cab-tva"
+                                value={cabinet.tva_intracommunautaire}
+                                onChange={(e) => updateCabinet("tva_intracommunautaire", e.target.value)}
+                                placeholder="FR12345678901"
+                                className={`pl-8 font-mono transition-colors ${cabinet.tva_intracommunautaire.trim() ? "border-green-500/40" : ""}`}
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* Assureur RC Pro */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-assureur" className="text-xs">Assureur RC Professionnelle</Label>
+                            <Input
+                              id="cab-assureur"
+                              value={cabinet.assureur_nom}
+                              onChange={(e) => updateCabinet("assureur_nom", e.target.value)}
+                              placeholder="MMA IARD"
+                              className={`transition-colors ${cabinet.assureur_nom.trim() ? "border-green-500/40" : ""}`}
+                            />
+                          </div>
+                          {/* Adresse assureur */}
+                          <div className="space-y-1.5">
+                            <Label htmlFor="cab-assureur-adr" className="text-xs">Adresse assureur</Label>
+                            <Input
+                              id="cab-assureur-adr"
+                              value={cabinet.assureur_adresse}
+                              onChange={(e) => updateCabinet("assureur_adresse", e.target.value)}
+                              placeholder="14 bd Marie et Alexandre OYON, 72030 Le Mans"
+                              className={`transition-colors ${cabinet.assureur_adresse.trim() ? "border-green-500/40" : ""}`}
+                            />
                           </div>
                         </div>
                       </div>

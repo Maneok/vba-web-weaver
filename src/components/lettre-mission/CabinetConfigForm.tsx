@@ -24,6 +24,11 @@ export interface CabinetConfig {
   police: string;
   piedDePage: string;
   icsSepa: string;
+  // Extended fields
+  croec: string;
+  assureurNom: string;
+  assureurAdresse: string;
+  tvaIntracommunautaire: string;
 }
 
 const DEFAULT_CONFIG: CabinetConfig = {
@@ -43,6 +48,10 @@ const DEFAULT_CONFIG: CabinetConfig = {
   police: "Inter",
   piedDePage: "Membre de l'Ordre des Experts-Comptables",
   icsSepa: "",
+  croec: "",
+  assureurNom: "",
+  assureurAdresse: "",
+  tvaIntracommunautaire: "",
 };
 
 const STORAGE_KEY = "lcb-cabinet-config";
@@ -146,6 +155,38 @@ export default function CabinetConfigForm() {
               <div className="col-span-2">
                 <Label className="text-xs text-muted-foreground">Site web</Label>
                 <Input value={config.siteWeb} onChange={(e) => update("siteWeb", e.target.value)} placeholder="https://www.cabinet.fr" className="bg-background/50 border-white/10" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Assurance & Identite professionnelle */}
+        <Card className="bg-card/80 backdrop-blur border-white/10">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Building2 className="h-5 w-5 text-emerald-400" />
+              Identite professionnelle
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">CROEC d'inscription</Label>
+                <Input value={config.croec} onChange={(e) => update("croec", e.target.value)} placeholder="CROEC Provence-Alpes-Cote d'Azur" className="bg-background/50 border-white/10" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">N° TVA intracommunautaire</Label>
+                <Input value={config.tvaIntracommunautaire} onChange={(e) => update("tvaIntracommunautaire", e.target.value)} placeholder="FR12345678901" className="bg-background/50 border-white/10" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label className="text-xs text-muted-foreground">Assureur RC Professionnelle</Label>
+                <Input value={config.assureurNom} onChange={(e) => update("assureurNom", e.target.value)} placeholder="MMA IARD" className="bg-background/50 border-white/10" />
+              </div>
+              <div>
+                <Label className="text-xs text-muted-foreground">Adresse assureur</Label>
+                <Input value={config.assureurAdresse} onChange={(e) => update("assureurAdresse", e.target.value)} placeholder="14 bd Marie et Alexandre OYON, 72030 Le Mans" className="bg-background/50 border-white/10" />
               </div>
             </div>
           </CardContent>
@@ -330,8 +371,11 @@ export default function CabinetConfigForm() {
                   background: `linear-gradient(to right, ${config.couleurPrimaire}, ${config.couleurSecondaire})`,
                 }}
               />
-              <div className="mt-4 text-sm text-gray-500">
+              <div className="mt-4 text-sm text-gray-500 space-y-0.5">
                 <p>SIRET : {config.siret || "---"} | N° OEC : {config.numeroOec || "---"}</p>
+                {config.croec && <p className="text-xs">CROEC : {config.croec}</p>}
+                {config.tvaIntracommunautaire && <p className="text-xs">TVA : {config.tvaIntracommunautaire}</p>}
+                {config.assureurNom && <p className="text-xs">Assurance RC Pro : {config.assureurNom}{config.assureurAdresse ? `, ${config.assureurAdresse}` : ""}</p>}
                 {config.icsSepa && <p className="text-xs">ICS : {config.icsSepa}</p>}
               </div>
 

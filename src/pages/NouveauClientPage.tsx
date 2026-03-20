@@ -46,7 +46,7 @@ import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
   Map as MapIcon, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
-  GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer, Scale,
+  GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer, Scale, GitBranch,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
   ZoomIn, ZoomOut, Maximize, Mail, QrCode, Filter, SortAsc, SortDesc, CheckSquare, Square,
   Pencil, ImageIcon, Inbox, FolderOpen,
@@ -273,6 +273,8 @@ export default function NouveauClientPage() {
   const [autoFields, setAutoFields] = useState<Set<string>>(new Set());
   const [capitalSource, setCapitalSource] = useState("");
   const [selectedEnterprise, setSelectedEnterprise] = useState<EnterpriseResult | null>(null);
+  // Chaîne de détention — lookup profondeur 2 pour BE personnes morales (art. L.561-2-2 CMF)
+  const [chaineBE, setChaineBE] = useState<Record<string, { denomination: string; siren: string; dirigeants: any[]; beneficiaires: any[] }>>({});
   // CORRECTION 3: Data provenance tracking
   const [dataProvenance, setDataProvenance] = useState<DataProvenance[]>([]);
   // CORRECTION 7: AML structural signals
@@ -709,6 +711,37 @@ export default function NouveauClientPage() {
       }));
     }
   }, [screening.enterprise.data, screening.enterprise.loading, bodaccData, newsData, networkData, gelAvoirsAlert, form.dateCreation, screening.inpi.data?.companyData?.dirigeants]);
+
+  // Chaîne de détention — lookup récursif pour BE personnes morales
+  useEffect(() => {
+    const pmList: any[] = (selectedEnterprise as any)?.beneficiaires_pm ?? [];
+    if (pmList.length === 0) { setChaineBE({}); return; }
+
+    let cancelled = false;
+    const lookupPM = async () => {
+      const results: typeof chaineBE = {};
+      for (const pm of pmList.slice(0, 5)) {
+        if (!pm.siren || String(pm.siren).length < 9) continue;
+        try {
+          const data = await searchEnterprise("siren", pm.siren);
+          if (cancelled) return;
+          if (data.results?.[0]) {
+            const r = data.results[0];
+            results[pm.siren] = {
+              denomination: pm.denomination || r.raison_sociale,
+              siren: pm.siren,
+              dirigeants: r.dirigeants ?? [],
+              beneficiaires: r.beneficiaires_effectifs ?? [],
+            };
+          }
+        } catch { /* non bloquant */ }
+      }
+      if (!cancelled) setChaineBE(results);
+    };
+
+    lookupPM();
+    return () => { cancelled = true; };
+  }, [selectedEnterprise]);
 
   // Risk flags derived from questionnaire
   const riskFlags = useMemo(() => ({
@@ -3337,6 +3370,54 @@ export default function NouveauClientPage() {
                 );
               })}
             </div>
+
+            {/* Chaîne de détention — BE indirects via holdings */}
+            {Object.keys(chaineBE).length > 0 && (
+              <div className="mt-4 p-4 rounded-lg bg-violet-500/5 border border-violet-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <GitBranch className="w-4 h-4 text-violet-400" />
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Chaine de detention — Beneficiaires indirects</h3>
+                  <Badge className="text-[8px] bg-violet-500/15 text-violet-400 border-0">Art. L.561-2-2 CMF</Badge>
+                </div>
+                {Object.values(chaineBE).map(pm => (
+                  <div key={pm.siren} className="mb-3 p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Building2 className="w-3.5 h-3.5 text-violet-400" />
+                      <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{pm.denomination}</span>
+                      <span className="text-[9px] text-slate-400 font-mono">SIREN {pm.siren}</span>
+                    </div>
+                    {pm.beneficiaires.length > 0 ? (
+                      <div className="ml-6 space-y-1">
+                        {pm.beneficiaires.map((b, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs">
+                            <span className="text-violet-400">↳</span>
+                            <User className="w-3 h-3 text-orange-400" />
+                            <span className="text-slate-700 dark:text-slate-200">{b.prenom} {b.nom}</span>
+                            <span className="text-slate-400">({b.pourcentage_parts ?? 0}%)</span>
+                            <Badge className="text-[7px] bg-orange-500/10 text-orange-400 border-0">BE indirect</Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : pm.dirigeants.length > 0 ? (
+                      <div className="ml-6 space-y-1">
+                        <p className="text-[9px] text-amber-400 mb-1">Aucun BE declare — dirigeants de la holding :</p>
+                        {pm.dirigeants.map((d, i) => (
+                          <div key={i} className="flex items-center gap-2 text-xs">
+                            <span className="text-violet-400">↳</span>
+                            <User className="w-3 h-3 text-amber-400" />
+                            <span className="text-slate-700 dark:text-slate-200">{d.prenom} {d.nom}</span>
+                            <span className="text-slate-400">({d.qualite})</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="ml-6 text-[9px] text-slate-500">Aucune information disponible sur les BE de cette holding</p>
+                    )}
+                  </div>
+                ))}
+                <p className="text-[8px] text-slate-500 mt-2 italic">Identification des beneficiaires effectifs indirects conformement a l'article L.561-2-2 du Code monetaire et financier</p>
+              </div>
+            )}
           </div>
         )}
 
