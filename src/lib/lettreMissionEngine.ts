@@ -10,7 +10,8 @@ import type {
 } from "@/types/lettreMission";
 import { DEFAULT_LM_OPTIONS } from "@/types/lettreMission";
 import { replaceVariables } from "@/lib/lettreMissionVariables";
-import { renderLettreMissionPdf } from "@/lib/lettreMissionPdf";
+// @react-pdf/renderer is heavy — dynamic import only when generating PDF
+// import { renderLettreMissionPdf } from "@/lib/lettreMissionPdf";
 import { formatDateFr } from "./dateUtils";
 import { toast } from "sonner";
 import { logger } from "@/lib/logger";
@@ -338,6 +339,7 @@ export function generateFromClient(
 export async function renderToPdf(lettreMission: LettreMission): Promise<void> {
   try {
     const t0 = performance.now();
+    const { renderLettreMissionPdf } = await import("@/lib/lettreMissionPdf");
     await renderLettreMissionPdf(lettreMission);
     const elapsed = ((performance.now() - t0) / 1000).toFixed(1);
     toast.success(`PDF généré en ${elapsed}s`);
@@ -459,6 +461,15 @@ function resolveVariablesInText(text: string, vars: Record<string, string>): str
 // Build variables map from wizard data
 // ──────────────────────────────────────────────
 
+/** Safe number coercion for template variables — never returns NaN/Infinity */
+function safeNumVar(val: unknown, fallback: number = 0): number {
+  if (val === null || val === undefined) return fallback;
+  const s = typeof val === "string" ? val.replace(/\s/g, "").replace(",", ".") : val;
+  const n = Number(s);
+  if (!Number.isFinite(n)) return fallback;
+  return n;
+}
+
 export function buildVariablesMap(wizardData: Record<string, unknown>): Record<string, string> {
   const d = wizardData;
   const now = new Date();
@@ -498,9 +509,9 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     type_mission: String(d.type_mission ?? ""),
     mission: String(d.type_mission ?? ""),
     frequence: String(d.frequence_facturation ?? ""),
-    honoraires: Number(d.honoraires_ht ?? 0).toLocaleString("fr-FR"),
-    hono: `${Number(d.honoraires_ht ?? 0).toLocaleString("fr-FR")} € HT`,
-    honoraires_ttc: (Number(d.honoraires_ht ?? 0) * (1 + (Number(d.taux_tva ?? 20)) / 100)).toLocaleString("fr-FR"),
+    honoraires: safeNumVar(d.honoraires_ht).toLocaleString("fr-FR"),
+    hono: `${safeNumVar(d.honoraires_ht).toLocaleString("fr-FR")} € HT`,
+    honoraires_ttc: (safeNumVar(d.honoraires_ht) * (1 + safeNumVar(d.taux_tva, 20) / 100)).toLocaleString("fr-FR"),
     // Dates
     date_du_jour: fmt(now),
     date_jour: fmt(now),

@@ -1,8 +1,8 @@
 import React from "react";
 import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
-import type { LettreMissionPdfData } from "@/types/lettreMissionPdf";
+import type { LettreMissionPdfData, HonorairesData, LcbftData } from "@/types/lettreMissionPdf";
 import { TEXTES_SECTIONS } from "@/lib/lettreMissionDefaults";
-import { styles, colors, s } from "./pdfStyles";
+import { styles, colors, s, safeNumber } from "./pdfStyles";
 import PdfTableEntite from "./PdfTableEntite";
 import PdfTableHonoraires from "./PdfTableHonoraires";
 import PdfTableRepartition from "./PdfTableRepartition";
@@ -15,7 +15,28 @@ interface Props {
 }
 
 const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
-  const { cabinet, client, mission, honoraires, lcbft, repartition } = data;
+  // Sanitize all numeric values to prevent NaN/Infinity reaching yoga layout engine
+  const honoraires: HonorairesData = {
+    forfait_annuel_ht: safeNumber(data.honoraires.forfait_annuel_ht),
+    constitution_dossier_ht: safeNumber(data.honoraires.constitution_dossier_ht),
+    honoraires_ec_heure: safeNumber(data.honoraires.honoraires_ec_heure, 200),
+    honoraires_collab_heure: safeNumber(data.honoraires.honoraires_collab_heure, 100),
+    juridique_annuel_ht: safeNumber(data.honoraires.juridique_annuel_ht),
+    frequence_facturation: data.honoraires.frequence_facturation || "MENSUEL",
+    social_bulletin_unite: safeNumber(data.honoraires.social_bulletin_unite, 32),
+    social_fin_contrat: safeNumber(data.honoraires.social_fin_contrat, 30),
+    social_contrat_simple: safeNumber(data.honoraires.social_contrat_simple, 100),
+    social_entree_sans_contrat: safeNumber(data.honoraires.social_entree_sans_contrat, 30),
+    social_attestation_maladie: safeNumber(data.honoraires.social_attestation_maladie, 30),
+  };
+  const lcbft: LcbftData = {
+    score_risque: safeNumber(data.lcbft.score_risque),
+    niveau_vigilance: data.lcbft.niveau_vigilance || "STANDARD",
+    statut_ppe: Boolean(data.lcbft.statut_ppe),
+    derniere_diligence_kyc: data.lcbft.derniere_diligence_kyc,
+    prochaine_maj_kyc: data.lcbft.prochaine_maj_kyc,
+  };
+  const { cabinet, client, mission, repartition } = data;
 
   const Header = () => (
     <View style={styles.headerFixed} fixed>

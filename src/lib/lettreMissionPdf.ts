@@ -1,6 +1,3 @@
-import React from "react";
-import { pdf } from "@react-pdf/renderer";
-import { saveAs } from "file-saver";
 import { logger } from "@/lib/logger";
 import { formatDateFr } from "./dateUtils";
 import type { LettreMission, CabinetConfig } from "@/types/lettreMission";
@@ -14,21 +11,33 @@ import type {
   LcbftData,
   PdfRepartitionRow,
 } from "@/types/lettreMissionPdf";
-import LettreMissionPdfDocument from "@/components/lettre-mission/pdf/LettreMissionPdfDocument";
 import { DEFAULT_REPARTITION, DEFAULT_CABINET } from "@/lib/lettreMissionDefaults";
 
 // ══════════════════════════════════════════════
-// Core generation functions (@react-pdf/renderer)
+// IMPORTANT: @react-pdf/renderer and PDF components are loaded via dynamic
+// import() ONLY when actually generating a PDF. This prevents the heavy WASM
+// bundle from being pulled in at page-load time (which triggers CSP errors
+// and "unsupported number" crashes during module evaluation).
 // ══════════════════════════════════════════════
 
+async function renderToBlob(data: LettreMissionPdfData): Promise<Blob> {
+  const React = await import("react");
+  const { pdf } = await import("@react-pdf/renderer");
+  const { default: LettreMissionPdfDocument } = await import(
+    "@/components/lettre-mission/pdf/LettreMissionPdfDocument"
+  );
+  return pdf(React.createElement(LettreMissionPdfDocument, { data })).toBlob();
+}
+
 export async function generateLettreMissionPdf(data: LettreMissionPdfData): Promise<void> {
-  const blob = await pdf(React.createElement(LettreMissionPdfDocument, { data })).toBlob();
+  const { saveAs } = await import("file-saver");
+  const blob = await renderToBlob(data);
   const filename = `LDM_${data.numero_lm}_${data.date_generation}.pdf`;
   saveAs(blob, filename);
 }
 
 export async function getLettreMissionPdfBlobUrl(data: LettreMissionPdfData): Promise<string> {
-  const blob = await pdf(React.createElement(LettreMissionPdfDocument, { data })).toBlob();
+  const blob = await renderToBlob(data);
   return URL.createObjectURL(blob);
 }
 
