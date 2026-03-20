@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { FREQUENCES, MODES_PAIEMENT } from "@/lib/lmDefaults";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, CreditCard, FileText, ArrowRight, Trophy, Calculator } from "lucide-react";
+import { DollarSign, CreditCard, FileText, ArrowRight, Trophy, Calculator, ChevronDown } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -37,6 +37,17 @@ const PAIEMENT_ICONS: Record<string, React.ReactNode> = {
 
 export default function LMStep4Honoraires({ data, onChange }: Props) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [showDetail, setShowDetail] = useState(false);
+
+  // Auto-sync honoraires_ht from detail breakdown when detail is being used
+  useEffect(() => {
+    if (!showDetail || !data.honoraires_detail) return;
+    const detailTotal = Object.values(data.honoraires_detail).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
+    if (detailTotal > 0 && detailTotal !== data.honoraires_ht) {
+      onChange({ honoraires_ht: detailTotal });
+    }
+  }, [data.honoraires_detail, showDetail]);
+
   const mtConfig = useMemo(() => getMissionTypeConfig(data.mission_type_id || "presentation"), [data.mission_type_id]);
 
   const tva = useMemo(() => Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100, [data.honoraires_ht, data.taux_tva]);
@@ -125,6 +136,62 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
         </div>
         </>); })()}
       </div>
+
+      {/* ── Détail par mission ── */}
+      {data.missions_selected && data.missions_selected.filter(m => m.selected && !m.locked).length > 0 && (
+        <div className="space-y-3">
+          <button
+            type="button"
+            onClick={() => setShowDetail(!showDetail)}
+            className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
+          >
+            <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${showDetail ? "rotate-180" : ""}`} />
+            Ventiler par prestation
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-normal">(optionnel)</span>
+          </button>
+
+          {showDetail && (
+            <div className="space-y-2">
+              {data.missions_selected.filter(m => m.selected && !m.locked).map((m) => (
+                <div key={m.section_id} className="flex items-center justify-between p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{m.label}</p>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                      {m.sous_options.filter(s => s.selected).length} sous-option{m.sous_options.filter(s => s.selected).length > 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="0"
+                      className="w-24 h-8 text-right text-sm bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]"
+                      value={(data.honoraires_detail || {})[m.section_id] || ''}
+                      onChange={(e) => onChange({
+                        honoraires_detail: { ...(data.honoraires_detail || {}), [m.section_id]: e.target.value }
+                      })}
+                    />
+                    <span className="text-xs text-slate-400 dark:text-slate-500 w-10">€ HT</span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Auto-sum */}
+              {(() => {
+                const detailTotal = Object.values(data.honoraires_detail || {}).reduce((sum, v) => sum + (parseFloat(v as string) || 0), 0);
+                return detailTotal > 0 ? (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50/60 dark:bg-blue-500/[0.04] border border-blue-200/40 dark:border-blue-500/15 mt-1">
+                    <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">Total ventile</p>
+                    <p className="text-base font-bold text-blue-600 dark:text-blue-400">
+                      {detailTotal.toLocaleString('fr-FR')} € HT
+                    </p>
+                  </div>
+                ) : null;
+              })()}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Taux TVA ── */}
       <div className="space-y-1.5">

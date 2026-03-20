@@ -1,7 +1,8 @@
 import { useEffect, useRef, useMemo } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData, MissionSelection } from "@/lib/lmWizardTypes";
-import { DEFAULT_MISSIONS, applyFormConditionals } from "@/lib/lmDefaults";
+import { getMissionsForClientType } from "@/lib/lmClientMissions";
+import { CLIENT_TYPES } from "@/lib/lettreMissionTypes";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import MissionSpecificFields from "@/components/lettre-mission/MissionSpecificFields";
 import { Switch } from "@/components/ui/switch";
@@ -9,7 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
   Calculator, Landmark, Users, Scale, ShieldCheck, FileWarning, Lightbulb,
-  Lock, ChevronDown, AlertTriangle, EyeOff,
+  Lock, ChevronDown, AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,35 +25,69 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   users: <Users className="w-5 h-5" />,
   scale: <Scale className="w-5 h-5" />,
   shield: <ShieldCheck className="w-5 h-5" />,
+  "shield-check": <ShieldCheck className="w-5 h-5" />,
   "file-warning": <FileWarning className="w-5 h-5" />,
   lightbulb: <Lightbulb className="w-5 h-5" />,
+};
+
+// Category color map for icon backgrounds
+const CATEGORY_ICON_COLORS: Record<string, { active: string; inactive: string }> = {
+  blue:   { active: "bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400", inactive: "bg-gray-50 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500" },
+  purple: { active: "bg-purple-50 dark:bg-purple-500/10 text-purple-500 dark:text-purple-400", inactive: "bg-gray-50 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500" },
+  teal:   { active: "bg-teal-50 dark:bg-teal-500/10 text-teal-500 dark:text-teal-400", inactive: "bg-gray-50 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500" },
+  amber:  { active: "bg-amber-50 dark:bg-amber-500/10 text-amber-500 dark:text-amber-400", inactive: "bg-gray-50 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500" },
+  pink:   { active: "bg-pink-50 dark:bg-pink-500/10 text-pink-500 dark:text-pink-400", inactive: "bg-gray-50 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500" },
+  gray:   { active: "bg-gray-100 dark:bg-white/[0.06] text-gray-600 dark:text-gray-400", inactive: "bg-gray-50 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500" },
 };
 
 export default function LMStep2Missions({ data, onChange }: Props) {
   const { clients } = useAppState();
   const suggestionsShown = useRef(false);
+  const prevClientTypeRef = useRef(data.client_type_id);
 
   const client = clients.find((c) => c.ref === data.client_id);
+  const clientTypeId = data.client_type_id || 'sas_is';
+  const clientConfig = CLIENT_TYPES[clientTypeId];
+  const categoryColor = clientConfig?.categoryColor || 'blue';
+  const iconColors = CATEGORY_ICON_COLORS[categoryColor] || CATEGORY_ICON_COLORS.blue;
 
-  // Init missions if empty + apply conditionals
+  // Get client-type-specific missions
+  const clientMissions = useMemo(
+    () => getMissionsForClientType(clientTypeId),
+    [clientTypeId]
+  );
+
+  // Convert ClientMissionPrestation[] to MissionSelection[] for wizard state
+  const convertToMissionSelections = useMemo(() => {
+    return clientMissions.map((m) => ({
+      section_id: m.id,
+      label: m.label,
+      description: m.description,
+      icon: m.icon,
+      selected: m.defaultSelected,
+      locked: m.locked,
+      sous_options: m.sous_options.map((s) => ({
+        id: s.id,
+        label: s.label,
+        selected: s.defaultSelected,
+      })),
+    }));
+  }, [clientMissions]);
+
+  // Init missions on mount or when client type changes
   useEffect(() => {
-    if (data.missions_selected.length === 0) {
-      const base = DEFAULT_MISSIONS.map((m) => ({
-        ...m,
-        sous_options: m.sous_options.map((s) => ({ ...s })),
-      }));
-      const applied = applyFormConditionals(base, data.forme_juridique, client?.effectif || "");
-      onChange({ missions_selected: applied });
+    if (data.missions_selected.length === 0 || prevClientTypeRef.current !== data.client_type_id) {
+      prevClientTypeRef.current = data.client_type_id;
+      onChange({ missions_selected: convertToMissionSelections });
     }
-  }, [data.missions_selected.length, data.forme_juridique, client?.effectif, onChange]);
+  }, [data.client_type_id, convertToMissionSelections]);
 
-  const allMissions = data.missions_selected.length > 0 ? data.missions_selected : DEFAULT_MISSIONS;
+  const allMissions = data.missions_selected.length > 0 ? data.missions_selected : convertToMissionSelections;
 
-  // Filter missions based on mission type config
+  // Audit-specific sections for audit_contractuel
   const mtId = data.mission_type_id || "presentation";
   const mtConfig = useMemo(() => getMissionTypeConfig(mtId), [mtId]);
 
-  // OPT-8: Audit-specific obligatory sections
   const auditSections: MissionSelection[] = useMemo(() => {
     if (mtId !== "audit_contractuel") return [];
     return [
@@ -62,43 +97,13 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     ];
   }, [mtId]);
 
-  // Visibility rules per section based on mission type
-  const missions = useMemo(() => {
-    const filtered = allMissions.filter((m) => {
-      // LCB-FT + travail_dissimule → always visible (mandatory)
-      if (m.section_id === "lcbft" || m.section_id === "travail_dissimule") return true;
-      // Conseil → always visible (optional)
-      if (m.section_id === "conseil") return true;
-      // Comptabilité → ONLY for présentation and compilation
-      if (m.section_id === "comptabilite") return mtId === "presentation" || mtId === "compilation";
-      // Fiscal → visible for presentation, examen_limite, compilation, autre_prestation
-      if (m.section_id === "fiscal") return ["presentation", "examen_limite", "compilation", "autre_prestation"].includes(mtId);
-      // Social → visible if optionalSections includes 'mission_sociale'
-      if (m.section_id === "social") return mtConfig.optionalSections.includes("mission_sociale");
-      // Juridique → visible if optionalSections includes 'mission_juridique'
-      if (m.section_id === "juridique") return mtConfig.optionalSections.includes("mission_juridique");
-      return true;
-    });
-    // Append audit-specific sections
-    return [...filtered, ...auditSections];
-  }, [allMissions, mtId, mtConfig.optionalSections, auditSections]);
+  const missions = useMemo(() => [...allMissions, ...auditSections], [allMissions, auditSections]);
 
-  const hiddenCount = allMissions.length - missions.length;
-
-  // Check if mission type has no complementary services
-  const hasNoComplementary = useMemo(() => {
-    const complementary = missions.filter(
-      (m) => !["lcbft", "travail_dissimule"].includes(m.section_id) && !m.locked
-    );
-    return complementary.length === 0;
-  }, [missions]);
-
-  // A) Conditional logic toasts — show once
+  // Conditional logic toasts — show once
   useEffect(() => {
     if (suggestionsShown.current || missions.length === 0) return;
     suggestionsShown.current = true;
 
-    // Effectif > 0 but social not checked
     if (client?.effectif && parseInt(client.effectif, 10) > 0) {
       const social = missions.find((m) => m.section_id === "social");
       if (social && !social.selected) {
@@ -107,7 +112,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
           action: {
             label: "Ajouter",
             onClick: () => {
-              const updated = missions.map((m) =>
+              const updated = allMissions.map((m) =>
                 m.section_id === "social"
                   ? { ...m, selected: true, sous_options: m.sous_options.map((s) => ({ ...s, selected: true })) }
                   : m
@@ -118,39 +123,15 @@ export default function LMStep2Missions({ data, onChange }: Props) {
         });
       }
     }
-
-    // SCI without juridique
-    if (data.forme_juridique === "SCI") {
-      const juridique = missions.find((m) => m.section_id === "juridique");
-      if (juridique && !juridique.selected) {
-        toast.info("90% des SCI necessitent l'AG annuelle. Ajouter la mission juridique ?", {
-          duration: 6000,
-          action: {
-            label: "Ajouter",
-            onClick: () => {
-              const updated = missions.map((m) =>
-                m.section_id === "juridique"
-                  ? { ...m, selected: true, sous_options: m.sous_options.map((s) => ({ ...s, selected: true })) }
-                  : m
-              );
-              onChange({ missions_selected: updated });
-            },
-          },
-        });
-      }
-    }
-  }, [missions.length, client?.effectif, data.forme_juridique, onChange]);
+  }, [missions.length, client?.effectif]);
 
   const toggleSection = (sectionId: string) => {
     const m = allMissions.find((x) => x.section_id === sectionId);
     if (!m || m.locked) return;
 
-    // A) Check tenue/surveillance incompatibility
-    if (!m.selected) {
-      if (sectionId === "comptabilite" && data.type_mission === "SURVEILLANCE") {
-        toast.error("Tenue et surveillance sont incompatibles");
-        return;
-      }
+    if (!m.selected && sectionId === "comptabilite" && data.type_mission === "SURVEILLANCE") {
+      toast.error("Tenue et surveillance sont incompatibles");
+      return;
     }
 
     const updated = allMissions.map((x) =>
@@ -175,13 +156,31 @@ export default function LMStep2Missions({ data, onChange }: Props) {
 
   const totalSelected = useMemo(() => missions.filter((m) => m.selected).length, [missions]);
 
-  // Check for tenue+surveillance conflict
   const hasTenue = allMissions.some((m) => m.section_id === "comptabilite" && m.selected);
   const isSurveillance = data.type_mission === "SURVEILLANCE";
   const hasConflict = hasTenue && isSurveillance;
 
   return (
     <div className="space-y-6">
+      {/* Client type label */}
+      {clientConfig && (
+        <div className="flex items-center gap-2">
+          <Badge className={`text-[10px] ${
+            categoryColor === 'blue' ? 'bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20' :
+            categoryColor === 'purple' ? 'bg-purple-50 text-purple-600 dark:bg-purple-500/10 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20' :
+            categoryColor === 'teal' ? 'bg-teal-50 text-teal-600 dark:bg-teal-500/10 dark:text-teal-400 border border-teal-200 dark:border-teal-500/20' :
+            categoryColor === 'amber' ? 'bg-amber-50 text-amber-600 dark:bg-amber-500/10 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20' :
+            categoryColor === 'pink' ? 'bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400 border border-pink-200 dark:border-pink-500/20' :
+            'bg-gray-50 text-gray-600 dark:bg-white/[0.04] dark:text-gray-400 border border-gray-200 dark:border-white/[0.08]'
+          }`}>
+            {clientConfig.shortLabel}
+          </Badge>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500">
+            Prestations adaptees pour {clientConfig.label}
+          </p>
+        </div>
+      )}
+
       {/* Mission-specific fields for the selected mission type */}
       <MissionSpecificFields
         missionType={data.mission_type_id || "presentation"}
@@ -192,31 +191,12 @@ export default function LMStep2Missions({ data, onChange }: Props) {
         }}
       />
 
-      {/* A) Incompatibility warning */}
+      {/* Incompatibility warning */}
       {hasConflict && (
         <div className="flex items-center gap-3 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-shake wizard-alert" role="alert">
           <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
           <p className="text-xs text-red-300">
             <strong>Missions incompatibles :</strong> La tenue comptable et la mission de surveillance ne peuvent pas etre combinees.
-          </p>
-        </div>
-      )}
-
-      {/* Hidden sections info */}
-      {hiddenCount > 0 && (
-        <div className="flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-white/[0.02] border border-slate-200/60 dark:border-white/[0.05] text-xs text-slate-400 dark:text-slate-500">
-          <EyeOff className="w-3.5 h-3.5 shrink-0" />
-          {hiddenCount} section{hiddenCount > 1 ? "s masquées" : " masquée"} (non applicable pour {mtConfig.shortLabel})
-        </div>
-      )}
-
-      {/* No complementary services message */}
-      {hasNoComplementary && (
-        <div className="flex items-start gap-2.5 p-3 rounded-xl bg-blue-500/5 border border-blue-500/15 text-xs text-blue-300/80">
-          <ShieldCheck className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
-          <p>
-            Cette mission ({mtConfig.shortLabel}) ne comporte pas de prestations complémentaires standard.
-            Les obligations LCB-FT s'appliquent.
           </p>
         </div>
       )}
@@ -246,7 +226,7 @@ export default function LMStep2Missions({ data, onChange }: Props) {
                 }`}
               >
                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
-                  mission.selected ? "bg-blue-50 dark:bg-blue-500/10 text-blue-500 dark:text-blue-400" : "bg-gray-50 dark:bg-white/[0.04] text-slate-400 dark:text-slate-500"
+                  mission.selected ? iconColors.active : iconColors.inactive
                 }`}>
                   {icon}
                 </div>
@@ -304,7 +284,14 @@ export default function LMStep2Missions({ data, onChange }: Props) {
       </div>
 
       <div className="flex justify-center">
-        <Badge className="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20 px-4 py-1.5">
+        <Badge className={`px-4 py-1.5 ${
+          categoryColor === 'blue' ? 'bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-200 dark:border-blue-500/20' :
+          categoryColor === 'purple' ? 'bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-200 dark:border-purple-500/20' :
+          categoryColor === 'teal' ? 'bg-teal-50 dark:bg-teal-500/10 text-teal-600 dark:text-teal-400 border border-teal-200 dark:border-teal-500/20' :
+          categoryColor === 'amber' ? 'bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-200 dark:border-amber-500/20' :
+          categoryColor === 'pink' ? 'bg-pink-50 dark:bg-pink-500/10 text-pink-600 dark:text-pink-400 border border-pink-200 dark:border-pink-500/20' :
+          'bg-gray-50 dark:bg-white/[0.04] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-white/[0.08]'
+        }`}>
           {totalSelected} mission{totalSelected > 1 ? "s" : ""} selectionnee{totalSelected > 1 ? "s" : ""}
         </Badge>
       </div>

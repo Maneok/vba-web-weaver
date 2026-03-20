@@ -69,6 +69,7 @@ export interface LMWizardData {
   honoraires_succes_montant: string;
 
   // Step 4 — Honoraires
+  honoraires_detail: Record<string, string>; // per-mission amounts
   honoraires_ht: number;
   taux_tva: number;
   frequence_facturation: string; // MENSUEL | TRIMESTRIEL | ANNUEL
@@ -176,6 +177,7 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   clause_rgpd: true,
   clause_conciliation_croec: true,
   clauses_supplementaires: "",
+  honoraires_detail: {},
   honoraires_ht: 0,
   taux_tva: 20,
   frequence_facturation: "MENSUEL",
