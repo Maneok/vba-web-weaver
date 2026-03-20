@@ -1,7 +1,9 @@
 import { useMemo } from "react";
+import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { getClientTypeConfig, getMissionTypeConfig, recommendClientType, isModeComptableApplicable } from "@/lib/lettreMissionTypes";
-import { getDefaultSelectedCount } from "@/lib/lmClientMissions";
+import { getDefaultSelectedCount, getMissionsForClientType } from "@/lib/lmClientMissions";
+import { generateSmartDefaults, getSmartMissionSelections } from "@/lib/lmSmartDefaults";
 import ClientTypeSelector from "./ClientTypeSelector";
 import { BookOpen, Eye, CheckSquare, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -18,10 +20,14 @@ const TYPES_MISSION = [
 ];
 
 export default function LMStep2MissionType({ data, onChange }: Props) {
+  const { clients } = useAppState();
+
   const { recommended, alternatives } = useMemo(
     () => data.forme_juridique ? recommendClientType(data.forme_juridique) : { recommended: '', alternatives: [] as string[] },
     [data.forme_juridique]
   );
+
+  const selectedClient = useMemo(() => clients.find((c) => c.ref === data.client_id), [clients, data.client_id]);
 
   const handleClientTypeChange = (clientTypeId: string) => {
     const config = getClientTypeConfig(clientTypeId);
@@ -31,15 +37,25 @@ export default function LMStep2MissionType({ data, onChange }: Props) {
       client_type_id: clientTypeId,
       mission_type_id: config.defaultMissionType,
       specific_variables: {},
-      // OPT-27: clear stale data on type change
-      missions_selected: [],
-      honoraires_detail: {},
     };
 
     if (config.defaultModeComptable) {
       updates.type_mission = config.defaultModeComptable;
     } else if (!data.type_mission || !["TENUE", "SURVEILLANCE", "REVISION"].includes(data.type_mission)) {
       updates.type_mission = "TENUE";
+    }
+
+    // Smart defaults: pre-fill honoraires, clauses, durée, paiement
+    if (selectedClient) {
+      const smartDefaults = generateSmartDefaults(clientTypeId, selectedClient);
+      Object.assign(updates, smartDefaults);
+
+      // Smart mission pre-selection
+      const missions = getMissionsForClientType(clientTypeId);
+      updates.missions_selected = getSmartMissionSelections(clientTypeId, selectedClient, missions);
+    } else {
+      updates.missions_selected = [];
+      updates.honoraires_detail = {};
     }
 
     onChange(updates);

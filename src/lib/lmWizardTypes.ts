@@ -79,6 +79,10 @@ export interface LMWizardData {
   bic: string;
   taux_horaire_complementaire: number;
 
+  // Smart defaults estimation
+  honoraires_estimation: boolean;
+  honoraires_estimation_label: string;
+
   // Step 5/6 — Preview & export
   numero_lettre: string;
   statut: string; // brouillon | en_validation | envoyee | signee | archivee
@@ -186,6 +190,8 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   iban: "",
   bic: "",
   taux_horaire_complementaire: 0,
+  honoraires_estimation: false,
+  honoraires_estimation_label: "",
   numero_lettre: "",
   statut: "brouillon",
   signature_expert: "",

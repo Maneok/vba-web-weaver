@@ -99,6 +99,17 @@ export default function LMStep4Honoraires({ data, onChange }: Props) {
 
   return (
     <div className="space-y-8">
+      {/* ── Estimation banner ── */}
+      {data.honoraires_estimation && data.honoraires_estimation_label && (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-50/80 dark:bg-amber-500/[0.06] border border-amber-200/60 dark:border-amber-500/15">
+          <span className="text-amber-500 shrink-0 mt-0.5 text-sm">💡</span>
+          <div>
+            <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">Estimation pre-remplie</p>
+            <p className="text-[11px] text-amber-500/80 dark:text-amber-400/60 mt-0.5">{data.honoraires_estimation_label}</p>
+          </div>
+        </div>
+      )}
+
       {/* ── Grand input montant ── */}
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500">

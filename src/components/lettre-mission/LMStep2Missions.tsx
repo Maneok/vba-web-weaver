@@ -82,18 +82,27 @@ export default function LMStep2Missions({ data, onChange }: Props) {
     }));
   }, [clientMissions]);
 
-  // OPT-27: clear honoraires_detail stale keys when missions change
+  // Initialize missions when client type changes or when none selected
+  // If missions_selected already has data (from smart defaults), keep it
   useEffect(() => {
-    if (data.missions_selected.length === 0 || prevClientTypeRef.current !== data.client_type_id) {
+    if (prevClientTypeRef.current !== data.client_type_id) {
       prevClientTypeRef.current = data.client_type_id;
-      const newMissionIds = new Set(convertToMissionSelections.map(m => m.section_id));
-      const cleanedDetail: Record<string, string> = {};
-      if (data.honoraires_detail) {
-        for (const [k, v] of Object.entries(data.honoraires_detail)) {
-          if (newMissionIds.has(k)) cleanedDetail[k] = v;
+      // If smart defaults already provided missions_selected, just clean stale honoraires keys
+      if (data.missions_selected.length > 0) {
+        const newMissionIds = new Set(data.missions_selected.map(m => m.section_id));
+        const cleanedDetail: Record<string, string> = {};
+        if (data.honoraires_detail) {
+          for (const [k, v] of Object.entries(data.honoraires_detail)) {
+            if (newMissionIds.has(k)) cleanedDetail[k] = v;
+          }
         }
+        onChange({ honoraires_detail: cleanedDetail });
+      } else {
+        // Fallback: use basic defaults
+        onChange({ missions_selected: convertToMissionSelections });
       }
-      onChange({ missions_selected: convertToMissionSelections, honoraires_detail: cleanedDetail });
+    } else if (data.missions_selected.length === 0) {
+      onChange({ missions_selected: convertToMissionSelections });
     }
   }, [data.client_type_id, convertToMissionSelections]);
 

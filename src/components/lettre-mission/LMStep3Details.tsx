@@ -4,13 +4,14 @@ import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { QUALITES_DIRIGEANT, DUREES } from "@/lib/lmDefaults";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
+import { isClientConsommateur, getSmartMissionText } from "@/lib/lmSmartDefaults";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ChevronDown, FileText, XCircle, Info } from "lucide-react";
+import { CheckCircle2, ChevronDown, FileText, XCircle, Info, AlertTriangle } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -188,10 +189,24 @@ export default function LMStep3Details({ data, onChange }: Props) {
         <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
           <div>
             <p className="text-sm text-slate-700 dark:text-slate-300">Tacite reconduction</p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500">Renouvellement automatique a echeance</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">
+              {isClientConsommateur(data.client_type_id || '')
+                ? "Client consommateur — obligation d'information (art. L 215-1 Code conso)"
+                : "Renouvellement automatique a echeance"}
+            </p>
           </div>
           <Switch checked={data.tacite_reconduction} onCheckedChange={(v) => onChange({ tacite_reconduction: v })} />
         </div>
+
+        {/* Consumer notice */}
+        {isClientConsommateur(data.client_type_id || '') && data.tacite_reconduction && (
+          <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-50/60 dark:bg-amber-500/[0.04] border border-amber-200/40 dark:border-amber-500/10">
+            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-[10px] text-amber-600 dark:text-amber-400">
+              Ce client est un consommateur au sens du Code de la consommation. La lettre de mission doit mentionner la possibilite de ne pas reconduire le contrat.
+            </p>
+          </div>
+        )}
 
         {data.tacite_reconduction && (
           <div className="space-y-1.5">
@@ -286,6 +301,18 @@ export default function LMStep3Details({ data, onChange }: Props) {
           <span className="text-[10px] text-slate-400 dark:text-slate-500">Forme du rapport :</span>
           <span className="text-[11px] text-slate-700 dark:text-slate-300">{mtConfig.formeRapport}</span>
         </div>
+
+        {/* Smart mission text enrichment */}
+        {data.client_type_id && getSmartMissionText(data.client_type_id) && (
+          <div className="p-3 rounded-xl bg-blue-50/60 dark:bg-blue-500/[0.04] border border-blue-200/40 dark:border-blue-500/10">
+            <div className="flex items-start gap-2">
+              <Info className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-blue-600/80 dark:text-blue-400/80 leading-relaxed">
+                {getSmartMissionText(data.client_type_id)}
+              </p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── OPT-10: Honoraires de succès ── */}
