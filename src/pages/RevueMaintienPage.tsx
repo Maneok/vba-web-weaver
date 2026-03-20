@@ -1011,10 +1011,28 @@ export default function RevueMaintienPage() {
                 {/* BE section */}
                 <div className="rounded-xl border bg-card p-4 space-y-3">
                   <h3 className="font-medium text-sm">Beneficiaires effectifs</h3>
-                  {clientData.be ? (
-                    <p className="text-sm">{clientData.be}</p>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Aucun BE renseigne</p>
+                  {clientData.be ? (() => {
+                    try {
+                      const beData = typeof clientData.be === "string" ? JSON.parse(clientData.be) : clientData.be;
+                      if (Array.isArray(beData) && beData.length > 0) {
+                        return (
+                          <ul className="space-y-1">
+                            {beData.map((b: any, i: number) => (
+                              <li key={i} className="text-sm flex items-center gap-2">
+                                <span className="font-medium">{b.prenom} {b.nom}</span>
+                                {b.pourcentage > 0 && <span className="text-xs text-muted-foreground">({b.pourcentage}%)</span>}
+                                {b.nationalite && <span className="text-xs text-muted-foreground">· {b.nationalite}</span>}
+                              </li>
+                            ))}
+                          </ul>
+                        );
+                      }
+                      return <p className="text-sm">{String(clientData.be)}</p>;
+                    } catch {
+                      return <p className="text-sm">{String(clientData.be)}</p>;
+                    }
+                  })() : (
+                    <p className="text-sm text-muted-foreground">Aucun BE renseigné</p>
                   )}
                   <label className="flex items-center gap-3 cursor-pointer pt-2 border-t border-border/50">
                     <Checkbox checked={beChecked} onCheckedChange={v => setBeChecked(!!v)} />
