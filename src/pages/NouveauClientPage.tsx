@@ -3715,9 +3715,52 @@ export default function NouveauClientPage() {
           <div className="space-y-6" role="region" aria-label="Etape 5 : Scoring et decision">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Scoring et Decision</h2>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* #53: Improved radar chart */}
-              <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-lg">
+            <div className="space-y-6">
+              {/* Score global — centré */}
+              <div className="p-6 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] text-center shadow-lg max-w-md mx-auto">
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Score Global</p>
+                <div className="relative w-40 h-40 mx-auto">
+                  <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
+                    <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
+                    <circle
+                      cx="60" cy="60" r="50" fill="none"
+                      stroke={vigilanceColor}
+                      strokeWidth="10"
+                      strokeDasharray={`${(Math.min(animatedScore, 100) / 100) * 314} 314`}
+                      strokeLinecap="round"
+                      className="transition-all duration-300 ease-out"
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center flex-col">
+                    <span className="text-4xl font-bold text-slate-900 dark:text-white tabular-nums">{animatedScore}</span>
+                    <span className="text-[10px] text-slate-400 dark:text-slate-500">/100</span>
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <VigilanceBadge level={risk.nivVigilance} />
+                </div>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
+                  {risk.nivVigilance === "SIMPLIFIEE" && "Risque faible — mesures de vigilance allegees autorisees"}
+                  {risk.nivVigilance === "STANDARD" && "Risque moyen — mesures de vigilance normales requises"}
+                  {risk.nivVigilance === "RENFORCEE" && "Risque eleve — mesures de vigilance renforcees obligatoires (art. L.561-10 CMF)"}
+                </p>
+                {(() => {
+                  const avgScore = clients.length > 0 ? Math.round(clients.reduce((s, c) => s + (c.scoreGlobal || 0), 0) / clients.length) : null;
+                  if (avgScore === null) return null;
+                  return (
+                    <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-center gap-2">
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">Moyenne cabinet :</span>
+                      <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{avgScore}/100</span>
+                      {adjustedScore > avgScore && <span className="text-[9px] text-amber-400">+{adjustedScore - avgScore} au-dessus</span>}
+                      {adjustedScore < avgScore && <span className="text-[9px] text-emerald-400">{avgScore - adjustedScore} en-dessous</span>}
+                      {adjustedScore === avgScore && <span className="text-[9px] text-slate-400 dark:text-slate-500">= moyenne</span>}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* #53: Improved radar chart — centré */}
+              <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-lg max-w-[500px] mx-auto w-full">
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Radar de risque 6 axes</h3>
                   {/* #52: Score breakdown tooltip */}
@@ -3740,7 +3783,7 @@ export default function NouveauClientPage() {
                     </PopoverContent>
                   </Popover>
                 </div>
-                <ResponsiveContainer width="100%" height={320}>
+                <ResponsiveContainer width="100%" height={350}>
                   <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="75%" innerRadius="15%">
                     <PolarGrid stroke="rgba(255,255,255,0.08)" strokeDasharray="3 3" gridType="circle" />
                     <PolarAngleAxis dataKey="subject" tick={({ x, y, payload }: any) => {
@@ -3761,112 +3804,64 @@ export default function NouveauClientPage() {
                 )}
               </div>
 
-              {/* Score gauge */}
-              <div className="space-y-4">
-                {/* #51: Animated gauge with count-up */}
-                <div className="p-6 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] text-center shadow-lg">
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Score Global</p>
-                  <div className="relative w-40 h-40 mx-auto">
-                    <svg viewBox="0 0 120 120" className="w-full h-full -rotate-90">
-                      <circle cx="60" cy="60" r="50" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="10" />
-                      <circle
-                        cx="60" cy="60" r="50" fill="none"
-                        stroke={vigilanceColor}
-                        strokeWidth="10"
-                        strokeDasharray={`${(Math.min(animatedScore, 100) / 100) * 314} 314`}
-                        strokeLinecap="round"
-                        className="transition-all duration-300 ease-out"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center flex-col">
-                      {/* #51: Animated score reveal */}
-                      <span className="text-4xl font-bold text-slate-900 dark:text-white tabular-nums">{animatedScore}</span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">/100</span>
-                    </div>
-                  </div>
-                  <div className="mt-4">
-                    <VigilanceBadge level={risk.nivVigilance} />
-                  </div>
-                  {/* #55: Risk level explanation */}
-                  <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-2">
-                    {risk.nivVigilance === "SIMPLIFIEE" && "Risque faible — mesures de vigilance allégées autorisées"}
-                    {risk.nivVigilance === "STANDARD" && "Risque moyen — mesures de vigilance normales requises"}
-                    {risk.nivVigilance === "RENFORCEE" && "Risque élevé — mesures de vigilance renforcées obligatoires (art. L.561-10 CMF)"}
-                  </p>
-                  {/* #54: Comparison with cabinet average */}
-                  {(() => {
-                    const avgScore = clients.length > 0 ? Math.round(clients.reduce((s, c) => s + (c.scoreGlobal || 0), 0) / clients.length) : null;
-                    if (avgScore === null) return null;
-                    return (
-                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-white/[0.06] flex items-center justify-center gap-2">
-                        <span className="text-[10px] text-slate-400 dark:text-slate-500">Moyenne cabinet :</span>
-                        <span className="text-xs font-mono font-bold text-slate-500 dark:text-slate-400">{avgScore}/100</span>
-                        {adjustedScore > avgScore && <span className="text-[9px] text-amber-400">+{adjustedScore - avgScore} au-dessus</span>}
-                        {adjustedScore < avgScore && <span className="text-[9px] text-emerald-400">{avgScore - adjustedScore} en-dessous</span>}
-                        {adjustedScore === avgScore && <span className="text-[9px] text-slate-400 dark:text-slate-500">= moyenne</span>}
+              {/* Score breakdown — centré */}
+              <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] max-w-[600px] mx-auto w-full">
+                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">Decomposition</h3>
+                <div className="space-y-2">
+                  {[
+                    { label: "Activite (APE)", score: risk.scoreActivite, max: 100, desc: `Code ${form.ape}` },
+                    { label: "Pays", score: risk.scorePays, max: 100, desc: riskFlags.paysRisque ? "Pays a risque detecte" : "Aucun risque pays" },
+                    { label: "Mission", score: risk.scoreMission, max: 100, desc: form.mission },
+                    { label: "Maturite", score: risk.scoreMaturite, max: 100, desc: "Anciennete de la relation" },
+                    { label: "Structure", score: risk.scoreStructure, max: 100, desc: form.forme },
+                    { label: "Malus", score: totalMalus, max: 100, desc: `${questions.filter(q => q.value === "OUI").length} facteur(s) actif(s)` },
+                  ].map(item => (
+                    <div key={item.label} className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <span className="text-xs text-slate-700 dark:text-slate-300">{item.label}</span>
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-2">{item.desc}</span>
+                        </div>
+                        <span className={`text-sm font-bold font-mono tabular-nums ${
+                          item.score >= 60 ? "text-red-400" : item.score >= 25 ? "text-amber-400" : "text-emerald-400"
+                        }`}>{item.score}</span>
                       </div>
-                    );
-                  })()}
+                      <div className="h-1 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            item.score >= 60 ? "bg-red-500" : item.score >= 25 ? "bg-amber-500" : "bg-emerald-500"
+                          }`}
+                          style={{ width: `${Math.min((item.score / item.max) * 100, 100)}%` }}
+                        />
+                      </div>
+                    </div>
+                  ))}
                 </div>
+              </div>
 
-                {/* Score breakdown */}
-                <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">Decomposition</h3>
-                  <div className="space-y-2">
-                    {/* FIX 49: Score decomposition with visual bars */}
-                    {[
-                      { label: "Activite (APE)", score: risk.scoreActivite, max: 100, desc: `Code ${form.ape}` },
-                      { label: "Pays", score: risk.scorePays, max: 100, desc: riskFlags.paysRisque ? "Pays a risque detecte" : "Aucun risque pays" },
-                      { label: "Mission", score: risk.scoreMission, max: 100, desc: form.mission },
-                      { label: "Maturite", score: risk.scoreMaturite, max: 100, desc: "Anciennete de la relation" },
-                      { label: "Structure", score: risk.scoreStructure, max: 100, desc: form.forme },
-                      { label: "Malus", score: totalMalus, max: 100, desc: `${questions.filter(q => q.value === "OUI").length} facteur(s) actif(s)` },
-                    ].map(item => (
-                      <div key={item.label} className="space-y-1">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <span className="text-xs text-slate-700 dark:text-slate-300">{item.label}</span>
-                            <span className="text-[10px] text-slate-400 dark:text-slate-500 ml-2">{item.desc}</span>
-                          </div>
-                          <span className={`text-sm font-bold font-mono tabular-nums ${
-                            item.score >= 60 ? "text-red-400" : item.score >= 25 ? "text-amber-400" : "text-emerald-400"
-                          }`}>{item.score}</span>
-                        </div>
-                        <div className="h-1 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-500 ${
-                              item.score >= 60 ? "bg-red-500" : item.score >= 25 ? "bg-amber-500" : "bg-emerald-500"
-                            }`}
-                            style={{ width: `${Math.min((item.score / item.max) * 100, 100)}%` }}
-                          />
-                        </div>
+              {/* D35: Detailed malus breakdown */}
+              {questions.filter(q => q.value === "OUI").length > 0 && (
+                <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] max-w-[600px] mx-auto w-full">
+                  <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Detail des malus</h3>
+                  <div className="space-y-1">
+                    {questions.filter(q => q.value === "OUI").map(q => (
+                      <div key={q.id} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 dark:text-slate-400 truncate mr-2">{q.question.slice(0, 60)}...</span>
+                        <span className="text-red-400 font-mono font-bold shrink-0">+{q.malus}</span>
                       </div>
                     ))}
+                    {bodaccMalus > 0 && (
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-slate-500 dark:text-slate-400">BODACC (procedure collective)</span>
+                        <span className="text-red-400 font-mono font-bold">+{bodaccMalus}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
+              )}
 
-                {/* D35: Detailed malus breakdown */}
-                {questions.filter(q => q.value === "OUI").length > 0 && (
-                  <div className="p-4 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-                    <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-2">Detail des malus</h3>
-                    <div className="space-y-1">
-                      {questions.filter(q => q.value === "OUI").map(q => (
-                        <div key={q.id} className="flex items-center justify-between text-xs">
-                          <span className="text-slate-500 dark:text-slate-400 truncate mr-2">{q.question.slice(0, 60)}...</span>
-                          <span className="text-red-400 font-mono font-bold shrink-0">+{q.malus}</span>
-                        </div>
-                      ))}
-                      {bodaccMalus > 0 && (
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="text-slate-500 dark:text-slate-400">BODACC (procedure collective)</span>
-                          <span className="text-red-400 font-mono font-bold">+{bodaccMalus}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* D36: What-if simulation toggle */}
+              {/* D36: What-if simulation toggle */}
+              <div className="text-center">
                 <Button
                   variant="outline"
                   size="sm"
@@ -3875,7 +3870,6 @@ export default function NouveauClientPage() {
                 >
                   <RefreshCw className="w-3.5 h-3.5" /> {isSimulating ? "Mode simulation actif" : "Simuler un changement"}
                 </Button>
-
               </div>
             </div>
 
@@ -3894,7 +3888,7 @@ export default function NouveauClientPage() {
             </div>
 
             {/* FIX 52: Improved decision section with shadows and transitions */}
-            <div className="p-4 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] lg:col-span-2">
+            <div className="p-4 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
               <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-4">Decision</h3>
               <div className="grid grid-cols-3 gap-3">
                 <button
@@ -5323,44 +5317,23 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               {/* Modal content — preview with zoom */}
               <div className="flex-1 overflow-auto rounded-b-2xl bg-gray-50 dark:bg-slate-950 relative">
                 {(() => {
-                  const isPdf = previewDoc.url.toLowerCase().includes(".pdf") ||
-                    previewDoc.url.toLowerCase().includes("application/pdf") ||
-                    previewDoc.label.toLowerCase().includes("statut") ||
-                    previewDoc.label.toLowerCase().includes("acte") ||
-                    previewDoc.label.toLowerCase().includes("pv") ||
-                    previewDoc.label.toLowerCase().includes("cession");
-                  if (isPdf) {
-                    return (
-                      <object
-                        data={previewDoc.url}
-                        type="application/pdf"
-                        className="w-full h-full"
-                      >
-                        <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
-                          <FileText className="w-12 h-12" />
-                          <p className="text-sm">Impossible d'afficher le PDF dans le navigateur</p>
-                          <div className="flex gap-2">
-                            <a href={previewDoc.url} target="_blank" rel="noopener noreferrer"
-                              className="px-4 py-2 rounded-lg bg-blue-500 text-white text-sm hover:bg-blue-600 transition-colors">
-                              Ouvrir dans un nouvel onglet
-                            </a>
-                            <a href={previewDoc.url} download
-                              className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-white/[0.06] text-slate-700 dark:text-slate-200 text-sm hover:bg-gray-300 dark:hover:bg-white/[0.1] transition-colors">
-                              Telecharger
-                            </a>
-                          </div>
-                        </div>
-                      </object>
-                    );
-                  }
+                  const url = previewDoc.url;
+                  const isHtml = url.toLowerCase().endsWith(".html") ||
+                    previewDoc.label.toLowerCase().includes("kbis") ||
+                    previewDoc.label.toLowerCase().includes("extrait");
                   return (
-                    <div style={{ transform: `scale(${previewZoom / 100})`, transformOrigin: "top center", width: `${10000 / previewZoom}%`, height: `${10000 / previewZoom}%` }}>
+                    <div style={isHtml ? {
+                      transform: `scale(${previewZoom / 100})`,
+                      transformOrigin: "top center",
+                      width: `${10000 / previewZoom}%`,
+                      height: `${10000 / previewZoom}%`,
+                    } : { width: "100%", height: "100%" }}>
                       <iframe
                         data-preview-iframe
-                        src={previewDoc.url}
+                        src={url}
                         title={previewDoc.label}
                         className="w-full h-full border-0"
-                        sandbox="allow-same-origin allow-scripts allow-popups allow-forms"
+                        {...(isHtml ? { sandbox: "allow-same-origin allow-scripts" as const } : {})}
                       />
                     </div>
                   );
