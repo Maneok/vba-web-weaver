@@ -42,6 +42,14 @@ function s(v: unknown): string {
   return String(v);
 }
 
+/** Safe number coercion — never returns NaN/Infinity */
+function safeNum(val: unknown, fallback: number = 0): number {
+  if (val === null || val === undefined) return fallback;
+  const n = typeof val === "string" ? parseFloat(val) : Number(val);
+  if (!Number.isFinite(n)) return fallback;
+  return n;
+}
+
 function cabinetConfigToInfo(cab: Partial<CabinetConfig> & { nom: string }): CabinetInfo {
   return {
     nom: cab.nom || DEFAULT_CABINET.nom,
@@ -82,7 +90,7 @@ function clientToLmData(client: Client): ClientLmData {
     exercice_fin: s((client as any).exerciceFin || (client as any).exercice_fin || `31/12/${new Date().getFullYear()}`),
     tva: Boolean((client as any).tva),
     cac: Boolean((client as any).cac),
-    effectif: (client as any).effectif,
+    effectif: (client as any).effectif != null ? safeNum((client as any).effectif) : undefined,
     volume_comptable: s((client as any).volumeComptable || (client as any).volume_comptable || ""),
   };
 }
@@ -90,23 +98,23 @@ function clientToLmData(client: Client): ClientLmData {
 function buildDefaultHonoraires(lm?: any): HonorairesData {
   const opts = lm?.options || {};
   return {
-    forfait_annuel_ht: opts.honorairesComptable || opts.forfait_annuel_ht || 0,
-    constitution_dossier_ht: opts.fraisConstitution || opts.constitution_dossier_ht || 0,
-    honoraires_ec_heure: opts.honoraires_ec_heure || 200,
-    honoraires_collab_heure: opts.honoraires_collab_heure || 100,
-    juridique_annuel_ht: opts.honorairesJuridique || opts.juridique_annuel_ht || 0,
+    forfait_annuel_ht: safeNum(opts.honorairesComptable ?? opts.forfait_annuel_ht, 0),
+    constitution_dossier_ht: safeNum(opts.fraisConstitution ?? opts.constitution_dossier_ht, 0),
+    honoraires_ec_heure: safeNum(opts.honoraires_ec_heure, 200),
+    honoraires_collab_heure: safeNum(opts.honoraires_collab_heure, 100),
+    juridique_annuel_ht: safeNum(opts.honorairesJuridique ?? opts.juridique_annuel_ht, 0),
     frequence_facturation: (opts.periodicite === "Trimestrielle" ? "TRIMESTRIEL" : opts.periodicite === "Annuelle" ? "ANNUEL" : "MENSUEL") as any,
-    social_bulletin_unite: opts.social_bulletin_unite || 32,
-    social_fin_contrat: opts.social_fin_contrat || 30,
-    social_contrat_simple: opts.social_contrat_simple || 100,
-    social_entree_sans_contrat: opts.social_entree_sans_contrat || 30,
-    social_attestation_maladie: opts.social_attestation_maladie || 30,
+    social_bulletin_unite: safeNum(opts.social_bulletin_unite, 32),
+    social_fin_contrat: safeNum(opts.social_fin_contrat, 30),
+    social_contrat_simple: safeNum(opts.social_contrat_simple, 100),
+    social_entree_sans_contrat: safeNum(opts.social_entree_sans_contrat, 30),
+    social_attestation_maladie: safeNum(opts.social_attestation_maladie, 30),
   };
 }
 
 function buildDefaultLcbft(client?: Client): LcbftData {
   return {
-    score_risque: (client as any)?.scoreRisque ?? (client as any)?.score_risque ?? 0,
+    score_risque: safeNum((client as any)?.scoreRisque ?? (client as any)?.score_risque, 0),
     niveau_vigilance: ((client as any)?.niveauVigilance ?? (client as any)?.niveau_vigilance ?? "STANDARD") as any,
     statut_ppe: Boolean((client as any)?.ppe || (client as any)?.statut_ppe),
     derniere_diligence_kyc: s((client as any)?.derniereDiligenceKyc || ""),

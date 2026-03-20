@@ -202,7 +202,21 @@ export function s(v: unknown): string {
   return String(v);
 }
 
-export function formatMontant(n: number | undefined): string {
-  if (n === undefined || n === null) return "—";
+/** Safe number coercion — never returns NaN/Infinity */
+export function safeNumber(val: unknown, fallback: number = 0): number {
+  if (val === null || val === undefined) return fallback;
+  const n = typeof val === "string" ? parseFloat(val) : Number(val);
+  if (!Number.isFinite(n)) return fallback;
+  return n;
+}
+
+export function formatMontant(val: unknown): string {
+  const n = safeNumber(val, 0);
+  if (n === 0) return "—";
   return `${n.toLocaleString("fr-FR")} € HT`;
+}
+
+export function formatMontantUnit(val: unknown, unit: string): string {
+  const n = safeNumber(val, 0);
+  return `${n.toLocaleString("fr-FR")} € HT / ${unit}`;
 }

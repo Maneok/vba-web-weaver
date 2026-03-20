@@ -47,8 +47,9 @@ import {
   ExternalLink, Loader2, Newspaper, Globe, Users, Archive, TrendingUp,
   Eye, Download, RefreshCw, Search, Filter, FolderOpen, HardDrive,
   ShieldCheck, ShieldAlert, AlertCircle, FileWarning, Link2, Paperclip, ScanLine,
-  Inbox, UploadCloud, FileCheck, FileClock, FileX, Info,
+  Inbox, UploadCloud, FileCheck, FileClock, FileX, Info, Hourglass, MessageSquare, Printer,
 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 const DILIGENCES_MAP: Record<string, { label: string; items: string[] }> = {
   "68": { label: "Immobilier", items: ["Controle origine des fonds", "Verification prix au m2 vs marche", "Analyse fiscalite immobiliere", "Verification comptes courants associes", "Entretien banquier habituel"] },
@@ -254,7 +255,7 @@ function ClientDetailContent({ client }: { client: Client }) {
 
   // Auto-launch screening on compliance/reseau/financier/historique_legal tab
   useEffect(() => {
-    if (tab === "compliance" || tab === "reseau" || tab === "financier" || tab === "historique_legal") {
+    if (tab === "compliance" || tab === "reseau" || tab === "financier" || tab === "historique_legal" || tab === "documents") {
       launchComplianceScreening();
     }
   }, [tab, launchComplianceScreening]);
@@ -448,17 +449,17 @@ function ClientDetailContent({ client }: { client: Client }) {
       {/* Tabs */}
       <Tabs value={tab} onValueChange={setTab} aria-label="Sections de la fiche client">
         <TabsList className="bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] flex-wrap h-auto gap-0.5 p-1">
-          <TabsTrigger value="informations" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Informations</TabsTrigger>
-          <TabsTrigger value="personnes" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Personnes</TabsTrigger>
-          <TabsTrigger value="reseau" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Reseau</TabsTrigger>
-          <TabsTrigger value="scoring" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Scoring</TabsTrigger>
-          <TabsTrigger value="documents" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Documents</TabsTrigger>
-          <TabsTrigger value="diligences" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Diligences</TabsTrigger>
-          <TabsTrigger value="financier" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Financier</TabsTrigger>
-          <TabsTrigger value="compliance" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Compliance</TabsTrigger>
-          <TabsTrigger value="historique_legal" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Hist. Legal</TabsTrigger>
-          <TabsTrigger value="historique" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Audit</TabsTrigger>
-          <TabsTrigger value="mission_lm" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs">Mission</TabsTrigger>
+          <TabsTrigger value="informations" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Informations <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /></TabsTrigger>
+          <TabsTrigger value="personnes" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Personnes {client.dirigeant ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
+          <TabsTrigger value="reseau" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Reseau {screening.network.data ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
+          <TabsTrigger value="scoring" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Scoring <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /></TabsTrigger>
+          <TabsTrigger value="documents" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Documents {(client.lienKbis || client.lienCni) ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
+          <TabsTrigger value="diligences" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Diligences {diligenceProgress > 0 ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
+          <TabsTrigger value="financier" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Financier {screening.inpi.data?.financials?.length ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
+          <TabsTrigger value="compliance" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Compliance {screening.sanctions.data?.totalHits ? <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" /> : screeningLaunched ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
+          <TabsTrigger value="historique_legal" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Hist. Legal {screening.bodacc.data?.annonces?.length ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
+          <TabsTrigger value="historique" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Audit {clientLogs.length > 0 ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
+          <TabsTrigger value="mission_lm" className="data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400 text-xs gap-1.5">Mission {clientLM ? <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" /> : <span className="w-1.5 h-1.5 rounded-full bg-slate-300 dark:bg-slate-600" />}</TabsTrigger>
         </TabsList>
 
         {/* TAB: Informations */}
@@ -887,65 +888,26 @@ function ClientDetailContent({ client }: { client: Client }) {
 
         {/* TAB: Documents */}
         <TabsContent value="documents" className="mt-4">
-
+          <DocumentsTab
+            client={client}
+            screening={screening}
+            screeningLaunched={screeningLaunched}
+            launchComplianceScreening={launchComplianceScreening}
+            updateClient={updateClient}
+            navigate={navigate}
+          />
         </TabsContent>
 
         {/* TAB: Diligences */}
         <TabsContent value="diligences" className="mt-4">
-          <div className="glass-card p-4 sm:p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  Diligences {sectorDiligences ? `- Secteur ${sectorDiligences.label}` : "generiques"}
-                </h3>
-                <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Code APE : {client.ape} · Vigilance : {client.nivVigilance}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <Progress value={diligenceProgress} className="w-24 h-2" />
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">{diligenceProgress}%</span>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              {diligences.map((d, i) => (
-                <div key={i} className={`p-4 rounded-lg border transition-colors ${
-                  d.statut === "FAIT" ? "border-emerald-500/20 bg-emerald-500/5" :
-                  d.statut === "EN_COURS" ? "border-amber-500/20 bg-amber-500/5" :
-                  "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
-                }`}>
-                  <div className="flex items-center justify-between gap-4">
-                    <div className="flex items-center gap-3 flex-1">
-                      <ClipboardCheck className={`w-4 h-4 shrink-0 ${
-                        d.statut === "FAIT" ? "text-emerald-400" : d.statut === "EN_COURS" ? "text-amber-400" : "text-slate-400 dark:text-slate-500"
-                      }`} />
-                      <span className="text-sm text-slate-800 dark:text-slate-200">{d.label}</span>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <Select value={d.responsable} onValueChange={v => updateDiligence(i, "responsable", v)}>
-                        <SelectTrigger className="w-[120px] h-8 text-xs bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {["MAGALIE", "JULIEN", "FANNY", "SERGE", "JOSE"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                      <Input type="date" value={d.deadline} onChange={e => updateDiligence(i, "deadline", e.target.value)} className="w-[140px] h-8 text-xs bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]" />
-                      <Select value={d.statut} onValueChange={v => updateDiligence(i, "statut", v)}>
-                        <SelectTrigger className={`w-[110px] h-8 text-xs ${
-                          d.statut === "FAIT" ? "text-emerald-400 border-emerald-500/30" :
-                          d.statut === "EN_COURS" ? "text-amber-400 border-amber-500/30" :
-                          "border-gray-200 dark:border-white/[0.06]"
-                        }`}><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="A_FAIRE">A faire</SelectItem>
-                          <SelectItem value="EN_COURS">En cours</SelectItem>
-                          <SelectItem value="FAIT">Fait</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <DiligencesTab
+            client={client}
+            diligences={diligences}
+            updateDiligence={updateDiligence}
+            setDiligences={setDiligences}
+            diligenceProgress={diligenceProgress}
+            sectorDiligences={sectorDiligences}
+          />
         </TabsContent>
 
         {/* TAB: Compliance */}
@@ -2124,6 +2086,305 @@ function DocumentsTab({
           <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700" size="sm" onClick={launchComplianceScreening}>
             <Globe className="w-3.5 h-3.5" /> Recuperer automatiquement
           </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   DILIGENCES TAB — Enhanced with filtering, comments, visual polish
+   ═══════════════════════════════════════════════════════════════════ */
+
+function DiligencesTab({
+  client, diligences, updateDiligence, setDiligences, diligenceProgress, sectorDiligences,
+}: {
+  client: Client;
+  diligences: Diligence[];
+  updateDiligence: (idx: number, field: keyof Diligence, val: string) => void;
+  setDiligences: React.Dispatch<React.SetStateAction<Diligence[]>>;
+  diligenceProgress: number;
+  sectorDiligences: { label: string; items: string[] } | null;
+}) {
+  const [filter, setFilter] = useState<"ALL" | "A_FAIRE" | "EN_COURS" | "FAIT">("ALL");
+  const [expandedComments, setExpandedComments] = useState<Set<number>>(new Set());
+
+  const today = new Date().toISOString().split("T")[0];
+
+  // Separate sector vs generic diligences
+  const sectorCount = sectorDiligences ? sectorDiligences.items.length : 0;
+  const sectorDils = diligences.slice(0, sectorCount);
+  const genericDils = diligences.slice(sectorCount);
+
+  // Filter + sort by deadline (urgentes en premier)
+  const filterAndSort = (items: Diligence[]) => {
+    const filtered = filter === "ALL" ? items : items.filter(d => d.statut === filter);
+    return [...filtered].sort((a, b) => {
+      if (a.statut === "FAIT" && b.statut !== "FAIT") return 1;
+      if (a.statut !== "FAIT" && b.statut === "FAIT") return -1;
+      if (!a.deadline) return 1;
+      if (!b.deadline) return -1;
+      return a.deadline.localeCompare(b.deadline);
+    });
+  };
+
+  const filteredSector = filterAndSort(sectorDils);
+  const filteredGeneric = filterAndSort(genericDils);
+
+  const doneCount = diligences.filter(d => d.statut === "FAIT").length;
+  const totalCount = diligences.length;
+  const remaining = totalCount - doneCount;
+
+  const toggleComment = (idx: number) => {
+    setExpandedComments(prev => {
+      const n = new Set(prev);
+      if (n.has(idx)) n.delete(idx); else n.add(idx);
+      return n;
+    });
+  };
+
+  const getGlobalIndex = (d: Diligence) => diligences.indexOf(d);
+
+  const renderDiligenceCard = (d: Diligence, displayIdx: number) => {
+    const globalIdx = getGlobalIndex(d);
+    const isOverdue = d.deadline && d.deadline < today && d.statut !== "FAIT";
+    const commentOpen = expandedComments.has(globalIdx);
+
+    return (
+      <div
+        key={globalIdx}
+        className={`rounded-xl border-l-4 border transition-all duration-200 hover:shadow-md hover:scale-[1.005] ${
+          d.statut === "FAIT" ? "border-l-emerald-500 border-emerald-500/20 bg-emerald-500/[0.03]" :
+          d.statut === "EN_COURS" ? "border-l-amber-500 border-amber-500/20 bg-amber-500/[0.03]" :
+          "border-l-slate-300 dark:border-l-slate-600 border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
+        }`}
+      >
+        <div className="p-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap sm:flex-nowrap">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              {/* Icon animé */}
+              {d.statut === "FAIT" ? (
+                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 animate-pulse" />
+              ) : d.statut === "EN_COURS" ? (
+                <Hourglass className="w-5 h-5 text-amber-400 shrink-0 animate-spin" style={{ animationDuration: "3s" }} />
+              ) : (
+                <ClipboardCheck className="w-5 h-5 text-slate-400 dark:text-slate-500 shrink-0" />
+              )}
+              <div className="min-w-0">
+                <span className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                  <span className="text-slate-400 dark:text-slate-500 mr-1.5">{displayIdx}.</span>
+                  {d.label}
+                </span>
+                {isOverdue && (
+                  <Badge className="ml-2 text-[9px] bg-red-500/15 text-red-400 border-0 animate-pulse">En retard</Badge>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {/* Responsable */}
+              <Select value={d.responsable} onValueChange={v => updateDiligence(globalIdx, "responsable", v)}>
+                <SelectTrigger className="w-[130px] h-8 text-xs bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]">
+                  <div className="flex items-center gap-1.5">
+                    <User className="w-3 h-3 text-slate-400 dark:text-slate-500" />
+                    <SelectValue />
+                  </div>
+                </SelectTrigger>
+                <SelectContent>
+                  {/* TODO: Charger dynamiquement depuis les collaborateurs du cabinet */}
+                  {["MAGALIE", "JULIEN", "FANNY", "SERGE", "JOSE"].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+
+              {/* Date */}
+              <div className="relative">
+                <Calendar className="w-3 h-3 text-slate-400 dark:text-slate-500 absolute left-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <Input
+                  type="date"
+                  value={d.deadline}
+                  onChange={e => updateDiligence(globalIdx, "deadline", e.target.value)}
+                  className={`w-[140px] h-8 text-xs pl-7 bg-gray-50 dark:bg-white/[0.03] ${isOverdue ? "border-red-500/50 text-red-400" : "border-gray-200 dark:border-white/[0.06]"}`}
+                />
+              </div>
+
+              {/* Statut */}
+              <Select value={d.statut} onValueChange={v => updateDiligence(globalIdx, "statut", v)}>
+                <SelectTrigger className={`w-[130px] h-8 text-xs font-medium ${
+                  d.statut === "FAIT" ? "text-emerald-400 bg-emerald-500/10 border-emerald-500/30" :
+                  d.statut === "EN_COURS" ? "text-amber-400 bg-amber-500/10 border-amber-500/30" :
+                  "bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"
+                }`}><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="A_FAIRE">A faire</SelectItem>
+                  <SelectItem value="EN_COURS">En cours</SelectItem>
+                  <SelectItem value="FAIT">Fait</SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* Toggle commentaire */}
+              <button
+                onClick={() => toggleComment(globalIdx)}
+                className={`w-8 h-8 rounded-md flex items-center justify-center transition-colors ${
+                  commentOpen ? "bg-blue-500/10 text-blue-400" : "hover:bg-gray-100 dark:hover:bg-white/[0.04] text-slate-400 dark:text-slate-500"
+                }`}
+                aria-label="Commentaire"
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Commentaire expandable */}
+          {commentOpen && (
+            <div className="mt-3 pt-3 border-t border-gray-200/50 dark:border-white/[0.04] animate-fade-in-up">
+              <Textarea
+                value={d.commentaire}
+                onChange={e => updateDiligence(globalIdx, "commentaire", e.target.value)}
+                placeholder="Ajouter un commentaire..."
+                className="text-xs bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] min-h-[60px] resize-y"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-[900px] mx-auto space-y-5">
+      {/* Header */}
+      <div className="glass-card p-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap">
+          <div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">
+              Diligences {sectorDiligences ? `— Secteur ${sectorDiligences.label}` : "generiques"}
+            </h3>
+            <div className="flex items-center gap-2 mt-1">
+              <Badge className="text-[10px] bg-blue-500/15 text-blue-400 border-0">APE {client.ape}</Badge>
+              <Badge className={`text-[10px] border-0 ${
+                client.nivVigilance === "SIMPLIFIEE" ? "bg-emerald-500/15 text-emerald-400" :
+                client.nivVigilance === "STANDARD" ? "bg-amber-500/15 text-amber-400" :
+                "bg-red-500/15 text-red-400"
+              }`}>{client.nivVigilance}</Badge>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Badge className={`text-xs border-0 ${doneCount === totalCount ? "bg-emerald-500/15 text-emerald-400" : "bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400"}`}>
+              {doneCount}/{totalCount} terminee{doneCount > 1 ? "s" : ""}
+            </Badge>
+          </div>
+        </div>
+
+        {/* Progress bar segmentée */}
+        <div className="mt-4 flex items-center gap-3">
+          <div className="flex-1 flex gap-0.5 h-3 rounded-full overflow-hidden bg-gray-100 dark:bg-white/[0.04]">
+            {diligences.map((d, i) => (
+              <div
+                key={i}
+                className={`flex-1 transition-all duration-500 ${
+                  d.statut === "FAIT" ? "bg-emerald-500" :
+                  d.statut === "EN_COURS" ? "bg-amber-500" :
+                  "bg-gray-200 dark:bg-white/[0.08]"
+                } ${i === 0 ? "rounded-l-full" : ""} ${i === diligences.length - 1 ? "rounded-r-full" : ""}`}
+              />
+            ))}
+          </div>
+          <span className={`text-sm font-bold tabular-nums ${
+            diligenceProgress === 100 ? "text-emerald-400" : "text-slate-600 dark:text-slate-400"
+          }`}>{diligenceProgress}%</span>
+        </div>
+
+        {/* 100% complete banner */}
+        {diligenceProgress === 100 && (
+          <div className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <span className="text-xs text-emerald-400 font-medium">Toutes les diligences sont terminees</span>
+          </div>
+        )}
+
+        {/* Filters */}
+        <div className="mt-4 flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex gap-1.5">
+            {([["ALL", "Toutes"], ["A_FAIRE", "A faire"], ["EN_COURS", "En cours"], ["FAIT", "Fait"]] as const).map(([val, label]) => (
+              <button
+                key={val}
+                onClick={() => setFilter(val)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  filter === val
+                    ? "bg-blue-500/15 text-blue-400"
+                    : "text-slate-400 dark:text-slate-500 hover:bg-gray-100 dark:hover:bg-white/[0.04]"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            {remaining > 0 && remaining <= 3 && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30"
+                onClick={() => setDiligences(prev => prev.map(d => ({ ...d, statut: "FAIT" as const })))}
+              >
+                <CheckCircle2 className="w-3 h-3" /> Tout marquer Fait
+              </Button>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30"
+              onClick={() => {
+                window.print();
+                toast.info("Impression des diligences lancee");
+              }}
+            >
+              <Printer className="w-3 h-3" /> Imprimer
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Sector diligences */}
+      {sectorDiligences && filteredSector.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Diligences sectorielles</h4>
+            <Badge className="text-[9px] bg-indigo-500/15 text-indigo-400 border-0">{sectorDiligences.label}</Badge>
+          </div>
+          <div className="space-y-3">
+            {filteredSector.map((d, i) => renderDiligenceCard(d, i + 1))}
+          </div>
+        </div>
+      )}
+
+      {/* Separator */}
+      {sectorDiligences && filteredSector.length > 0 && filteredGeneric.length > 0 && (
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-px bg-gray-200 dark:bg-white/[0.06]" />
+          <span className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">Generiques</span>
+          <div className="flex-1 h-px bg-gray-200 dark:bg-white/[0.06]" />
+        </div>
+      )}
+
+      {/* Generic diligences */}
+      {filteredGeneric.length > 0 && (
+        <div className="space-y-3">
+          {!sectorDiligences && (
+            <h4 className="text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">Diligences generiques</h4>
+          )}
+          <div className="space-y-3">
+            {filteredGeneric.map((d, i) => renderDiligenceCard(d, sectorCount + i + 1))}
+          </div>
+        </div>
+      )}
+
+      {/* Empty filtered state */}
+      {filteredSector.length === 0 && filteredGeneric.length === 0 && (
+        <div className="glass-card p-8 text-center">
+          <Filter className="w-8 h-8 mx-auto mb-3 text-slate-400 dark:text-slate-500 opacity-30" />
+          <p className="text-sm text-slate-400 dark:text-slate-500">Aucune diligence avec le filtre "{filter === "A_FAIRE" ? "A faire" : filter === "EN_COURS" ? "En cours" : "Fait"}"</p>
+          <Button variant="ghost" size="sm" className="mt-2 text-xs text-blue-400" onClick={() => setFilter("ALL")}>Afficher toutes</Button>
         </div>
       )}
     </div>

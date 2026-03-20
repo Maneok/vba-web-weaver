@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text } from "@react-pdf/renderer";
 import type { HonorairesData, MissionConfig } from "@/types/lettreMissionPdf";
-import { styles, colors, formatMontant } from "./pdfStyles";
+import { styles, colors, formatMontant, formatMontantUnit, safeNumber } from "./pdfStyles";
 
 interface Props {
   honoraires: HonorairesData;
@@ -24,7 +24,7 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
     },
   ];
 
-  if (honoraires.constitution_dossier_ht > 0) {
+  if (safeNumber(honoraires.constitution_dossier_ht) > 0) {
     lignes.push({
       designation: "Constitution de dossier (1re année)",
       montant: formatMontant(honoraires.constitution_dossier_ht),
@@ -35,7 +35,7 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
   if (mission.mission_sociale) {
     lignes.push({
       designation: "Mission sociale — Bulletins de paie",
-      montant: `${honoraires.social_bulletin_unite.toLocaleString("fr-FR")} € HT / bulletin`,
+      montant: formatMontantUnit(honoraires.social_bulletin_unite, "bulletin"),
       frequence: "Mensuelle",
     });
     lignes.push({
@@ -70,14 +70,16 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
   // Taux horaires
   lignes.push({
     designation: "Travaux complémentaires — Expert-comptable",
-    montant: `${honoraires.honoraires_ec_heure.toLocaleString("fr-FR")} € HT / heure`,
+    montant: formatMontantUnit(honoraires.honoraires_ec_heure, "heure"),
     frequence: "Sur demande",
   });
   lignes.push({
     designation: "Travaux complémentaires — Collaborateur",
-    montant: `${honoraires.honoraires_collab_heure.toLocaleString("fr-FR")} € HT / heure`,
+    montant: formatMontantUnit(honoraires.honoraires_collab_heure, "heure"),
     frequence: "Sur demande",
   });
+
+  const total = safeNumber(honoraires.forfait_annuel_ht) + safeNumber(honoraires.constitution_dossier_ht) + safeNumber(honoraires.juridique_annuel_ht);
 
   return (
     <View>
@@ -111,7 +113,7 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
             { width: "30%", textAlign: "right", color: colors.blanc, fontSize: 10 },
           ]}
         >
-          {formatMontant(honoraires.forfait_annuel_ht + honoraires.constitution_dossier_ht + honoraires.juridique_annuel_ht)}
+          {formatMontant(total)}
         </Text>
         <Text style={[styles.tableCell, { width: "20%", textAlign: "center", color: colors.blanc }]}>
           {freq}
