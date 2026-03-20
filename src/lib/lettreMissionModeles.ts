@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { formatDateFr } from "./dateUtils";
 import { MISSION_TYPES, getMissionTypeConfig, CLIENT_TYPES, CLIENT_TYPE_CATEGORIES } from "./lettreMissionTypes";
 import type { MissionTypeConfig, MissionCategory, ClientTypeCategory } from "./lettreMissionTypes";
+import { getSmartMissionText } from "./lmSmartDefaults";
 
 // ══════════════════════════════════════════════
 // OPT-42/48: Sanitization helpers
@@ -886,7 +887,7 @@ export async function setAsDefault(id: string, cabinetId: string): Promise<void>
 }
 
 // ══════════════════════════════════════════════
-// OPT-28: Count modeles by category
+// OPT-28: Count modeles by category (legacy mission category)
 // ══════════════════════════════════════════════
 
 export function countModelesByCategory(modeles: LMModele[]): Record<MissionCategory, number> {
@@ -901,6 +902,84 @@ export function countModelesByCategory(modeles: LMModele[]): Record<MissionCateg
     counts[config.category] = (counts[config.category] || 0) + 1;
   }
   return counts;
+}
+
+// ══════════════════════════════════════════════
+// Count modeles by CLIENT TYPE category
+// ══════════════════════════════════════════════
+
+export function countModelesByClientCategory(modeles: LMModele[]): Record<ClientTypeCategory, number> {
+  const counts: Record<ClientTypeCategory, number> = {
+    societes_commerciales: 0,
+    societes_civiles: 0,
+    entreprises_individuelles: 0,
+    immobilier_patrimoine: 0,
+    particuliers: 0,
+    autres: 0,
+  };
+  for (const m of modeles) {
+    const ct = CLIENT_TYPES[m.client_type_id || ''];
+    if (ct) counts[ct.category] = (counts[ct.category] || 0) + 1;
+    else counts.autres = (counts.autres || 0) + 1;
+  }
+  return counts;
+}
+
+// ══════════════════════════════════════════════
+// Filter modeles for a specific client type (with fallback)
+// ══════════════════════════════════════════════
+
+export function getModelesForClientType(modeles: LMModele[], clientTypeId: string): LMModele[] {
+  // 1. Exact match
+  const exact = modeles.filter(m => m.client_type_id === clientTypeId);
+  if (exact.length > 0) return exact;
+
+  // 2. Fallback: same category
+  const config = CLIENT_TYPES[clientTypeId];
+  if (config) {
+    const sameCategory = modeles.filter(m => {
+      const mConfig = CLIENT_TYPES[m.client_type_id || ''];
+      return mConfig?.category === config.category;
+    });
+    if (sameCategory.length > 0) return sameCategory;
+  }
+
+  // 3. Ultimate fallback: all modeles
+  return modeles;
+}
+
+// ══════════════════════════════════════════════
+// Build sections adapted for a client type
+// ══════════════════════════════════════════════
+
+export function buildSectionsForClientType(clientTypeId: string): LMSection[] {
+  const config = CLIENT_TYPES[clientTypeId];
+  if (!config) return buildSectionsForMissionType('presentation');
+
+  // 1. Base sections from the associated mission type
+  let sections = buildSectionsForMissionType(config.defaultMissionType);
+
+  // 2. Enrich mission section with client-type-specific text
+  const missionSection = sections.find(s => s.id === 'mission');
+  if (missionSection) {
+    const enrichment = getSmartMissionText(clientTypeId);
+    if (enrichment) {
+      missionSection.contenu += '\n\n' + enrichment;
+    }
+  }
+
+  // 3. Hide social section if not relevant
+  if (!config.defaultMissions.social) {
+    sections = sections.map(s => s.id === 'mission_sociale' ? { ...s, hidden: true } : s);
+  }
+  if (!config.defaultMissions.juridique) {
+    sections = sections.map(s => s.id === 'mission_juridique' ? { ...s, hidden: true } : s);
+  }
+
+  // 4. Re-filter hidden and reorder
+  return sections
+    .filter(s => !s.hidden)
+    .map((s, i) => ({ ...s, ordre: i + 1 }));
 }
 
 // ══════════════════════════════════════════════
@@ -929,6 +1008,7 @@ export function exportModeleAsJson(modele: LMModele): string {
     nom: modele.nom,
     description: modele.description,
     mission_type: modele.mission_type,
+    client_type_id: modele.client_type_id,
     sections: modele.sections.map(({ id, titre, contenu, type, condition, editable, cnoec_obligatoire, cnoec_reference, cnoec_warning, ordre, group }) => ({
       id, titre, contenu, type, condition, editable, cnoec_obligatoire, cnoec_reference, cnoec_warning, ordre, group,
     })),
@@ -954,6 +1034,7 @@ export async function importModeleFromJson(json: string, cabinetId: string): Pro
     nom: `Import — ${parsed.nom}`,
     description: parsed.description || `Importé le ${formatDateFr(new Date())}`,
     mission_type: parsed.mission_type || "presentation",
+    client_type_id: parsed.client_type_id || null,
     sections: parsed.sections,
     cgv_content: parsed.cgv_content || GRIMY_DEFAULT_CGV,
     repartition_taches: parsed.repartition_taches || GRIMY_DEFAULT_REPARTITION,
@@ -976,12 +1057,41 @@ export async function initCabinetDefaultModele(cabinetId: string): Promise<LMMod
     nom: "Modèle GRIMY standard",
     description: "Modèle conforme CNOEC — Guide « La lettre de mission, en pratique » (sept. 2022)",
     mission_type: "presentation",
+    client_type_id: "sas_is",
     sections: GRIMY_DEFAULT_SECTIONS,
     cgv_content: GRIMY_DEFAULT_CGV,
     repartition_taches: GRIMY_DEFAULT_REPARTITION,
     is_default: true,
     source: "grimy",
   });
+}
+
+/** Create 4 default modeles (one per major category) if cabinet has none */
+export async function initCabinetDefaultModeles(cabinetId: string): Promise<void> {
+  const existing = await getModeles(cabinetId);
+  if (existing.length > 0) return;
+
+  const defaultModeles = [
+    { client_type_id: 'sas_is', nom: 'Société commerciale IS (standard)', mission_type: 'presentation', is_default: true },
+    { client_type_id: 'sci_ir', nom: 'SCI à l\'IR', mission_type: 'presentation', is_default: false },
+    { client_type_id: 'lmnp', nom: 'LMNP au réel', mission_type: 'presentation', is_default: false },
+    { client_type_id: 'ei_reel', nom: 'Entreprise individuelle', mission_type: 'presentation', is_default: false },
+  ];
+
+  for (const def of defaultModeles) {
+    const sections = buildSectionsForClientType(def.client_type_id);
+    await createModele({
+      cabinet_id: cabinetId,
+      nom: def.nom,
+      client_type_id: def.client_type_id,
+      mission_type: def.mission_type,
+      sections,
+      cgv_content: getDefaultCgvForMissionType(def.mission_type),
+      repartition_taches: GRIMY_DEFAULT_REPARTITION,
+      is_default: def.is_default,
+      source: 'grimy',
+    });
+  }
 }
 
 // ══════════════════════════════════════════════

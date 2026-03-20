@@ -40,7 +40,7 @@ import {
   GRIMY_DEFAULT_REPARTITION,
 } from "@/lib/lettreMissionModeles";
 import type { LMModele, LMSection } from "@/lib/lettreMissionModeles";
-import { MISSION_TYPES, MISSION_CATEGORIES } from "@/lib/lettreMissionTypes";
+import { MISSION_TYPES, MISSION_CATEGORIES, CLIENT_TYPES, CLIENT_TYPE_CATEGORIES } from "@/lib/lettreMissionTypes";
 import { toast } from "sonner";
 import {
   Upload,
@@ -100,6 +100,7 @@ export default function DocxImportDialog({
   const [isDefault, setIsDefault] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [missionType, setMissionType] = useState("presentation");
+  const [clientType, setClientType] = useState("sas_is");
   const [parseProgress, setParseProgress] = useState(0);
   const [mappingTab, setMappingTab] = useState<"sections" | "cgv">("sections");
   // Post-creation state
@@ -120,6 +121,7 @@ export default function DocxImportDialog({
     setIsDefault(false);
     setDragOver(false);
     setMissionType("presentation");
+    setClientType("sas_is");
     setParseProgress(0);
     setMappingTab("sections");
     setCreatedModele(null);
@@ -307,11 +309,13 @@ export default function DocxImportDialog({
     setLoading(true);
     setError(null);
     try {
+      const ctConfig = CLIENT_TYPES[clientType];
       const modele = await createModele({
         cabinet_id: cabinetId,
         nom: modeleName || fileName.replace(/\.docx$/i, ""),
         description: modeleDescription || `Importé depuis ${fileName}`,
-        mission_type: missionType,
+        mission_type: ctConfig?.defaultMissionType || missionType,
+        client_type_id: clientType,
         sections: sections.map((s, i) => ({ ...s, ordre: i + 1 })),
         cgv_content: cgvContent ?? GRIMY_DEFAULT_CGV,
         repartition_taches: GRIMY_DEFAULT_REPARTITION,
@@ -810,21 +814,25 @@ export default function DocxImportDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label className="text-xs text-slate-400">Type de mission</Label>
-              <Select value={missionType} onValueChange={setMissionType}>
+              <Label className="text-xs text-slate-400">Type de client</Label>
+              <Select value={clientType} onValueChange={(val) => {
+                setClientType(val);
+                const ct = CLIENT_TYPES[val];
+                if (ct) setMissionType(ct.defaultMissionType);
+              }}>
                 <SelectTrigger className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {MISSION_CATEGORIES.map((cat) => (
+                  {CLIENT_TYPE_CATEGORIES.map((cat) => (
                     <SelectGroup key={cat.category}>
                       <SelectLabel className="text-[10px] text-slate-400">{cat.label}</SelectLabel>
-                      {cat.missions.map((mId) => {
-                        const config = (MISSION_TYPES as Record<string, any>)[mId];
+                      {cat.types.map((tId) => {
+                        const config = CLIENT_TYPES[tId];
                         if (!config) return null;
                         return (
-                          <SelectItem key={mId} value={mId}>
-                            {config.shortLabel} — {config.normeRef}
+                          <SelectItem key={tId} value={tId}>
+                            {config.shortLabel} — {config.label}
                           </SelectItem>
                         );
                       })}

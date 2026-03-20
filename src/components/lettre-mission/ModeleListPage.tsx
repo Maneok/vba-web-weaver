@@ -36,13 +36,14 @@ import {
   updateModele,
   validateCnoecCompliance,
   buildSectionsForMissionType,
+  buildSectionsForClientType,
   GRIMY_DEFAULT_SECTIONS,
   GRIMY_DEFAULT_CGV,
   GRIMY_DEFAULT_REPARTITION,
 } from "@/lib/lettreMissionModeles";
 import type { LMModele } from "@/lib/lettreMissionModeles";
-import { MISSION_TYPES, MISSION_CATEGORIES, getMissionTypeConfig, getCategoryColorClasses, getMissionCategory } from "@/lib/lettreMissionTypes";
-import type { MissionCategory, MissionTypeConfig } from "@/lib/lettreMissionTypes";
+import { MISSION_TYPES, MISSION_CATEGORIES, getMissionTypeConfig, getCategoryColorClasses, getMissionCategory, CLIENT_TYPES, CLIENT_TYPE_CATEGORIES } from "@/lib/lettreMissionTypes";
+import type { MissionCategory, MissionTypeConfig, ClientTypeCategory } from "@/lib/lettreMissionTypes";
 import { supabase } from "@/integrations/supabase/client";
 import DocxImportDialog from "./DocxImportDialog";
 import ModeleEditor from "./ModeleEditor";
@@ -70,22 +71,12 @@ import {
 } from "lucide-react";
 
 // ══════════════════════════════════════════════
-// OPT-3: Category subtitles
+// Client type category helpers
 // ══════════════════════════════════════════════
 
-const CATEGORY_SUBTITLES: Record<MissionCategory, string> = {
-  assurance_comptes: "Missions de presentation, examen limite et audit — NP 2300, NP 2400, ISA 210",
-  autres_assurance: "Attestations particulieres et previsionnels — NP 3100, NP 3400",
-  sans_assurance: "Procedures convenues et compilation — NP 4400, NP 4410",
-  activites: "Activites commerciales, conseil et accompagnement — Art. 22 Ord. 1945",
-};
-
-const CATEGORY_TAB_LABELS: Record<MissionCategory, string> = {
-  assurance_comptes: "Comptes historiques",
-  autres_assurance: "Autres assurance",
-  sans_assurance: "Sans assurance",
-  activites: "Activites",
-};
+function getClientTypeCategorySubtitle(cat: typeof CLIENT_TYPE_CATEGORIES[number]): string {
+  return cat.types.map(t => CLIENT_TYPES[t]?.shortLabel).filter(Boolean).join(', ');
+}
 
 // ══════════════════════════════════════════════
 // OPT-48: JSON export
@@ -141,6 +132,7 @@ function ModeleCard({
   const cnoec = validateCnoecCompliance(m.sections, m.mission_type);
   const activeSections = m.sections.length;
   const mtConfig = m.mission_type ? getMissionTypeConfig(m.mission_type) : null;
+  const clientConfig = CLIENT_TYPES[m.client_type_id || ''];
   const sourceLabel = m.source === "grimy" ? "GRIMY" : m.source === "import_docx" ? "Import DOCX" : "Copie";
   const sourceColor = m.source === "grimy" ? "border-teal-500/30 text-teal-400" : m.source === "import_docx" ? "border-purple-500/30 text-purple-400" : "border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400";
 
@@ -164,15 +156,11 @@ function ModeleCard({
 
       {/* Badges row */}
       <div className="flex flex-wrap gap-1.5">
-        {mtConfig && (() => {
-          const cat = getMissionCategory(m.mission_type || "");
-          const catColors = cat ? getCategoryColorClasses(cat) : null;
-          return (
-            <Badge variant="outline" className={`text-[9px] ${catColors ? catColors.badge : "border-indigo-500/30 text-indigo-400"}`}>
-              <BookOpen className="h-2.5 w-2.5 mr-0.5" /> {mtConfig.shortLabel}
-            </Badge>
-          );
-        })()}
+        {clientConfig && (
+          <Badge variant="outline" className="text-[9px] border-indigo-500/30 text-indigo-400">
+            {clientConfig.shortLabel}
+          </Badge>
+        )}
         {mtConfig && (
           <Badge variant="outline" className="text-[8px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">
             {mtConfig.normeRef}
@@ -331,7 +319,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
   const [editingModele, setEditingModele] = useState<LMModele | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<LMModele | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [activeTab, setActiveTab] = useState<MissionCategory>("assurance_comptes");
+  const [activeTab, setActiveTab] = useState<ClientTypeCategory>("societes_commerciales");
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // OPT-12: Search
@@ -351,6 +339,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
   const [createNom, setCreateNom] = useState("");
   const [createDescription, setCreateDescription] = useState("");
   const [createMissionType, setCreateMissionType] = useState("");
+  const [createClientType, setCreateClientType] = useState("");
   const [createSource, setCreateSource] = useState<"grimy" | "empty">("grimy");
   const [creating, setCreating] = useState(false);
 
@@ -415,20 +404,21 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
     });
   }, [modeles]);
 
-  // Category counts
+  // Category counts (by client type)
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const cat of MISSION_CATEGORIES) {
-      counts[cat.category] = modeles.filter((m) =>
-        m.mission_type && cat.missions.includes(m.mission_type)
-      ).length;
+    for (const cat of CLIENT_TYPE_CATEGORIES) {
+      counts[cat.category] = modeles.filter((m) => {
+        const ct = CLIENT_TYPES[m.client_type_id || ''];
+        return ct?.category === cat.category;
+      }).length;
     }
     return counts;
   }, [modeles]);
 
   // OPT-50: Total stats
   const usedCategories = useMemo(() => {
-    return MISSION_CATEGORIES.filter((c) => (categoryCounts[c.category] || 0) > 0).length;
+    return CLIENT_TYPE_CATEGORIES.filter((c) => (categoryCounts[c.category] || 0) > 0).length;
   }, [categoryCounts]);
 
   // OPT-12-13: Search filtering
@@ -439,21 +429,12 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
     return sortedModeles.filter((m) => m.nom.toLowerCase().includes(q));
   }, [sortedModeles, searchQuery, isSearching]);
 
-  // Category missions for create dialog
-  const getCategoryMissions = useCallback((category: MissionCategory) => {
-    const cat = MISSION_CATEGORIES.find((c) => c.category === category);
-    if (!cat) return [];
-    return cat.missions.map((mId) => {
-      const config = (MISSION_TYPES as Record<string, MissionTypeConfig>)[mId];
-      return config ? { id: mId, label: config.label, shortLabel: config.shortLabel, normeRef: config.normeRef } : null;
-    }).filter(Boolean) as { id: string; label: string; shortLabel: string; normeRef: string }[];
-  }, []);
-
-  // Filter by active tab
-  const getModelesByCategory = useCallback((category: MissionCategory) => {
-    const cat = MISSION_CATEGORIES.find((c) => c.category === category);
-    if (!cat) return [];
-    return sortedModeles.filter((m) => m.mission_type && cat.missions.includes(m.mission_type));
+  // Filter by active tab (client type category)
+  const getModelesByClientCategory = useCallback((category: ClientTypeCategory) => {
+    return sortedModeles.filter((m) => {
+      const ct = CLIENT_TYPES[m.client_type_id || ''];
+      return ct?.category === category;
+    });
   }, [sortedModeles]);
 
   // OPT-23: Check name uniqueness
@@ -464,26 +445,28 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
 
   // ── Actions (OPT-36-37) ──
 
-  const openCreateDialog = (preselectedCategory?: MissionCategory) => {
+  const openCreateDialog = (preselectedCategory?: ClientTypeCategory) => {
     const cat = preselectedCategory || activeTab;
-    const missions = getCategoryMissions(cat);
-    const defaultMission = missions[0]?.id || "";
-    const mtConfig = defaultMission ? getMissionTypeConfig(defaultMission) : null;
+    const catConfig = CLIENT_TYPE_CATEGORIES.find(c => c.category === cat);
+    const defaultClientType = catConfig?.types[0] || 'sas_is';
+    const ctConfig = CLIENT_TYPES[defaultClientType];
     setCreateStep(1);
-    setCreateNom(mtConfig ? `${mtConfig.shortLabel} — Standard` : "");
+    setCreateClientType(defaultClientType);
+    setCreateMissionType(ctConfig?.defaultMissionType || 'presentation');
+    setCreateNom(ctConfig ? `${ctConfig.shortLabel} — Standard` : "");
     setCreateDescription("");
-    setCreateMissionType(defaultMission);
     setCreateSource("grimy");
     setShowCreate(true);
   };
 
   // OPT-24: Quick create (skip step 1 if type is pre-selected)
-  const openQuickCreate = (category: MissionCategory) => {
-    const missions = getCategoryMissions(category);
-    const defaultMission = missions[0]?.id || "";
-    const mtConfig = defaultMission ? getMissionTypeConfig(defaultMission) : null;
-    setCreateMissionType(defaultMission);
-    setCreateNom(mtConfig ? `${mtConfig.shortLabel} — Standard` : "");
+  const openQuickCreate = (category: ClientTypeCategory) => {
+    const catConfig = CLIENT_TYPE_CATEGORIES.find(c => c.category === category);
+    const defaultClientType = catConfig?.types[0] || 'sas_is';
+    const ctConfig = CLIENT_TYPES[defaultClientType];
+    setCreateClientType(defaultClientType);
+    setCreateMissionType(ctConfig?.defaultMissionType || 'presentation');
+    setCreateNom(ctConfig ? `${ctConfig.shortLabel} — Standard` : "");
     setCreateDescription("");
     setCreateSource("grimy");
     setCreateStep(2);
@@ -491,20 +474,23 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
   };
 
   const handleCreateNew = async () => {
-    if (!createNom.trim() || !createMissionType) {
-      toast.error("Veuillez renseigner un nom et un type de mission.");
+    if (!createNom.trim() || !createClientType) {
+      toast.error("Veuillez renseigner un nom et un type de client.");
       return;
     }
     setCreating(true);
     try {
+      const ctConfig = CLIENT_TYPES[createClientType];
+      const missionType = ctConfig?.defaultMissionType || 'presentation';
       const sections = createSource === "grimy"
-        ? buildSectionsForMissionType(createMissionType)
+        ? buildSectionsForClientType(createClientType)
         : [];
       const m = await createModele({
         cabinet_id: cabinetId,
         nom: createNom.trim(),
         description: createDescription.trim() || undefined,
-        mission_type: createMissionType,
+        mission_type: missionType,
+        client_type_id: createClientType,
         sections,
         cgv_content: createSource === "grimy" ? GRIMY_DEFAULT_CGV : "",
         repartition_taches: createSource === "grimy" ? GRIMY_DEFAULT_REPARTITION : [],
@@ -611,9 +597,10 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
     );
   }
 
-  // ── Create dialog mission type config ──
+  // ── Create dialog config ──
+  const createCtConfig = CLIENT_TYPES[createClientType] || null;
   const createMtConfig = createMissionType ? getMissionTypeConfig(createMissionType) : null;
-  const createSections = createSource === "grimy" && createMissionType ? buildSectionsForMissionType(createMissionType) : [];
+  const createSections = createSource === "grimy" && createClientType ? buildSectionsForClientType(createClientType) : [];
 
   return (
     <div className="space-y-6">
@@ -717,29 +704,30 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
         </div>
       )}
 
-      {/* ── Category Tabs (OPT-1-5) ── */}
+      {/* ── Category Tabs (by client type) ── */}
       {!loading && !loadError && !isSearching && (
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as MissionCategory)}>
-          <TabsList className="bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] mb-4">
-            {MISSION_CATEGORIES.map((cat) => (
-              <TabsTrigger key={cat.category} value={cat.category} className="text-xs gap-1.5">
-                {CATEGORY_TAB_LABELS[cat.category]}
-                {/* OPT-2: Counter */}
-                <span className="text-[9px] opacity-60">({categoryCounts[cat.category] || 0})</span>
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as ClientTypeCategory)}>
+          <TabsList className="flex flex-wrap gap-1 h-auto p-1 bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06] mb-4">
+            {CLIENT_TYPE_CATEGORIES.map((cat) => (
+              <TabsTrigger key={cat.category} value={cat.category} className="text-xs px-3 py-1.5 gap-1.5">
+                {cat.label}
+                {(categoryCounts[cat.category] || 0) > 0 && (
+                  <Badge variant="secondary" className="ml-1 text-[9px] px-1.5">{categoryCounts[cat.category]}</Badge>
+                )}
               </TabsTrigger>
             ))}
           </TabsList>
 
-          {MISSION_CATEGORIES.map((cat) => {
-            const catModeles = getModelesByCategory(cat.category);
+          {CLIENT_TYPE_CATEGORIES.map((cat) => {
+            const catModeles = getModelesByClientCategory(cat.category);
             return (
-              <TabsContent key={cat.category} value={cat.category}>
-                {/* OPT-3: Subtitle + OPT-4: Action buttons */}
+              <TabsContent key={cat.category} value={cat.category} className="mt-4">
+                {/* Header */}
                 <div className="flex items-start justify-between mb-4 gap-4">
                   <div>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-300">{cat.label}</p>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 mt-0.5">
-                      {CATEGORY_SUBTITLES[cat.category]}
+                    <h3 className="text-base font-medium text-slate-700 dark:text-slate-300">{cat.label}</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Types : {getClientTypeCategorySubtitle(cat)}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
@@ -763,21 +751,21 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
                   </div>
                 </div>
 
-                {/* OPT-5: Empty state */}
+                {/* Empty state */}
                 {catModeles.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 gap-4">
                     <div className="w-16 h-16 rounded-2xl bg-gray-50/80 dark:bg-white/[0.04] flex items-center justify-center">
                       <FileText className="h-8 w-8 text-slate-400 dark:text-slate-500" />
                     </div>
                     <div className="text-center">
-                      <p className="text-sm font-medium text-slate-400 dark:text-slate-500 dark:text-slate-400">Aucun modele pour cette categorie</p>
-                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Creez un modele a partir du modele GRIMY ou importez votre DOCX existant</p>
+                      <p className="text-sm font-medium text-slate-400 dark:text-slate-500">Aucun modele pour cette categorie</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Creez un modele ou importez votre DOCX</p>
                     </div>
                     <Button
                       onClick={() => openQuickCreate(cat.category)}
                       className="gap-1.5 bg-blue-600 hover:bg-blue-700"
                     >
-                      <Plus className="h-4 w-4" /> Creer mon premier modele
+                      <Plus className="h-4 w-4" /> Creer un modele
                     </Button>
                   </div>
                 ) : (
@@ -818,12 +806,12 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
         <DialogContent className="max-w-lg w-full">
           <DialogHeader>
             <DialogTitle>
-              {createStep === 1 && "Nouveau modele — Type de mission"}
+              {createStep === 1 && "Nouveau modele — Type de client"}
               {createStep === 2 && "Nouveau modele — Informations"}
               {createStep === 3 && "Nouveau modele — Confirmation"}
             </DialogTitle>
             <DialogDescription>
-              {createStep === 1 && "Choisissez le type de mission pour lequel creer un modele."}
+              {createStep === 1 && "Pour quel type de client souhaitez-vous creer un modele ?"}
               {createStep === 2 && "Definissez le nom et la base du modele."}
               {createStep === 3 && "Verifiez les parametres avant de creer le modele."}
             </DialogDescription>
@@ -841,28 +829,31 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
             ))}
           </div>
 
-          {/* OPT-16: Step 1 — Mission type */}
+          {/* Step 1 — Client type */}
           {createStep === 1 && (
             <div className="space-y-4 py-2">
               <div className="space-y-1.5">
-                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Type de mission *</Label>
-                <Select value={createMissionType} onValueChange={(val) => {
-                  setCreateMissionType(val);
-                  const config = getMissionTypeConfig(val);
-                  setCreateNom(`${config.shortLabel} — Standard`);
+                <Label className="text-xs text-slate-400 dark:text-slate-500">Pour quel type de client ? *</Label>
+                <Select value={createClientType} onValueChange={(val) => {
+                  setCreateClientType(val);
+                  const ctConfig = CLIENT_TYPES[val];
+                  if (ctConfig) {
+                    setCreateMissionType(ctConfig.defaultMissionType);
+                    setCreateNom(`${ctConfig.shortLabel} — Standard`);
+                  }
                 }}>
                   <SelectTrigger className="bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08]">
-                    <SelectValue placeholder="Choisir un type de mission" />
+                    <SelectValue placeholder="Choisir un type de client" />
                   </SelectTrigger>
                   <SelectContent>
-                    {MISSION_CATEGORIES.map((cat) => (
+                    {CLIENT_TYPE_CATEGORIES.map((cat) => (
                       <SelectGroup key={cat.category}>
                         <SelectLabel className="text-[10px] text-slate-400 dark:text-slate-500">{cat.label}</SelectLabel>
-                        {cat.missions.map((mId) => {
-                          const config = (MISSION_TYPES as Record<string, MissionTypeConfig>)[mId];
+                        {cat.types.map((tId) => {
+                          const config = CLIENT_TYPES[tId];
                           if (!config) return null;
                           return (
-                            <SelectItem key={mId} value={mId}>
+                            <SelectItem key={tId} value={tId}>
                               {config.label}
                             </SelectItem>
                           );
@@ -873,20 +864,16 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
                 </Select>
               </div>
 
-              {createMtConfig && (
+              {createCtConfig && (
                 <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-2">
-                  <p className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">{createMtConfig.description}</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">{createCtConfig.description}</p>
                   <div className="flex flex-wrap gap-1.5">
-                    <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">
-                      {createMtConfig.normeRef}
+                    <Badge variant="outline" className="text-[9px] border-indigo-500/30 text-indigo-400">
+                      {createCtConfig.shortLabel}
                     </Badge>
-                    {createMtConfig.honorairesSuccesAutorises ? (
-                      <Badge className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                        Succes autorises
-                      </Badge>
-                    ) : (
-                      <Badge className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20">
-                        Succes interdits
+                    {createMtConfig && (
+                      <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500 font-mono">
+                        Norme : {createMtConfig.normeRef}
                       </Badge>
                     )}
                   </div>
@@ -966,8 +953,8 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
               <div className="p-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] space-y-3">
                 <p className="text-sm font-medium text-slate-900 dark:text-white">Resume</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <span className="text-slate-400 dark:text-slate-500">Type :</span>
-                  <span className="text-slate-700 dark:text-slate-300">{createMtConfig?.shortLabel || "—"}</span>
+                  <span className="text-slate-400 dark:text-slate-500">Type client :</span>
+                  <span className="text-slate-700 dark:text-slate-300">{createCtConfig?.shortLabel || "—"}</span>
                   <span className="text-slate-400 dark:text-slate-500">Norme :</span>
                   <span className="text-slate-700 dark:text-slate-300 font-mono">{createMtConfig?.normeRef || "—"}</span>
                   <span className="text-slate-400 dark:text-slate-500">Nom :</span>
@@ -1000,7 +987,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
             {createStep < 3 ? (
               <Button
                 onClick={() => setCreateStep(createStep + 1)}
-                disabled={createStep === 1 && !createMissionType}
+                disabled={createStep === 1 && !createClientType}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 Continuer
@@ -1008,7 +995,7 @@ export default function ModeleListPage({ cabinetId, onBack }: ModeleListPageProp
             ) : (
               <Button
                 onClick={handleCreateNew}
-                disabled={creating || !createNom.trim() || !createMissionType}
+                disabled={creating || !createNom.trim() || !createClientType}
                 className="gap-1.5 bg-blue-600 hover:bg-blue-700"
               >
                 {creating && <Loader2 className="h-4 w-4 animate-spin" />}

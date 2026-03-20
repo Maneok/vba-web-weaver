@@ -3,7 +3,8 @@ import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { LMModele } from "@/lib/lettreMissionModeles";
-import { getModeles, validateCnoecCompliance } from "@/lib/lettreMissionModeles";
+import { getModeles, validateCnoecCompliance, getModelesForClientType } from "@/lib/lettreMissionModeles";
+import { CLIENT_TYPES } from "@/lib/lettreMissionTypes";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { QUALITES_DIRIGEANT, DUREES } from "@/lib/lmDefaults";
 import { logger } from "@/lib/logger";
@@ -32,6 +33,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
 
   const referentLcb = collaborateurs.find((c) => c.referentLcb);
   const mtConfig = useMemo(() => getMissionTypeConfig(data.mission_type_id || "presentation"), [data.mission_type_id]);
+  const clientTypeConfig = CLIENT_TYPES[data.client_type_id || ''] || null;
 
   // Load modeles
   useEffect(() => {
@@ -44,7 +46,9 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         if (!cancelled) {
           setModeles(m);
           if (!data.modele_id) {
-            const defaultModele = m.find((mod) => mod.is_default);
+            // Auto-select default modele filtered by client type
+            const filtered = getModelesForClientType(m, data.client_type_id || 'sas_is');
+            const defaultModele = filtered.find((mod) => mod.is_default) || filtered[0];
             if (defaultModele) onChange({ modele_id: defaultModele.id });
           }
         }
@@ -53,6 +57,12 @@ export default function LMStep4Modele({ data, onChange }: Props) {
       .finally(() => { if (!cancelled) setModelesLoading(false); });
     return () => { cancelled = true; };
   }, [profile?.cabinet_id]);
+
+  // Filter modeles by client type
+  const filteredModeles = useMemo(
+    () => getModelesForClientType(modeles, data.client_type_id || 'sas_is'),
+    [modeles, data.client_type_id]
+  );
 
   // Auto pre-fill associe and referent LCB on first render
   const autoFillDone = useRef(false);
@@ -93,9 +103,12 @@ export default function LMStep4Modele({ data, onChange }: Props) {
             <Skeleton className="h-11 w-full bg-gray-100 dark:bg-white/[0.06] rounded-lg" />
             <Skeleton className="h-4 w-48 bg-gray-50/80 dark:bg-white/[0.04]" />
           </div>
-        ) : modeles.length === 0 ? (
-          <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
-            <p className="text-xs text-slate-400 dark:text-slate-500">Aucun modele configure — le modele GRIMY par defaut sera utilise.</p>
+        ) : filteredModeles.length === 0 ? (
+          <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-dashed border-gray-200 dark:border-white/[0.06]">
+            <p className="text-xs text-muted-foreground">
+              Aucun modele pour les clients {clientTypeConfig?.shortLabel || ''}.
+              Le modele GRIMY par defaut sera utilise.
+            </p>
           </div>
         ) : (
           <Select value={data.modele_id || ""} onValueChange={(val) => onChange({ modele_id: val })}>
@@ -103,7 +116,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
               <SelectValue placeholder="Choisir un modele..." />
             </SelectTrigger>
             <SelectContent>
-              {modeles.map((m) => {
+              {filteredModeles.map((m) => {
                 const cnoec = validateCnoecCompliance(m.sections);
                 return (
                   <SelectItem key={m.id} value={m.id}>
@@ -124,8 +137,8 @@ export default function LMStep4Modele({ data, onChange }: Props) {
             </SelectContent>
           </Select>
         )}
-        {data.modele_id && modeles.length > 0 && (() => {
-          const selected = modeles.find((m) => m.id === data.modele_id);
+        {data.modele_id && filteredModeles.length > 0 && (() => {
+          const selected = filteredModeles.find((m) => m.id === data.modele_id);
           if (!selected) return null;
           const cnoec = validateCnoecCompliance(selected.sections);
           return (

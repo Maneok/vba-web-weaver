@@ -39,7 +39,7 @@ import {
   buildSectionsForMissionType,
 } from "@/lib/lettreMissionModeles";
 import type { LMModele, LMSection, CnoecWarning, RepartitionRow } from "@/lib/lettreMissionModeles";
-import { MISSION_TYPES, getMissionTypeConfig } from "@/lib/lettreMissionTypes";
+import { MISSION_TYPES, getMissionTypeConfig, CLIENT_TYPES } from "@/lib/lettreMissionTypes";
 import {
   Save,
   X,
@@ -649,20 +649,22 @@ export default function ModeleEditor({
         <ChevronRight className="h-3 w-3 text-slate-300 dark:text-slate-600" />
         <span className="text-sm font-medium text-slate-900 dark:text-white truncate max-w-[200px]">{modele.nom}</span>
 
-        {/* OPT-2/3: Mission type badge (read-only with tooltip) */}
+        {/* Client type + norme badges (read-only with tooltip) */}
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="flex items-center gap-1.5 cursor-help">
-              <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-400">
-                {missionTypeConfig.shortLabel}
-              </Badge>
+              {CLIENT_TYPES[modele.client_type_id || ''] && (
+                <Badge variant="outline" className="text-[10px] border-indigo-500/30 text-indigo-400">
+                  {CLIENT_TYPES[modele.client_type_id || ''].shortLabel}
+                </Badge>
+              )}
               <Badge variant="outline" className="text-[9px] border-slate-500/30 text-slate-400 dark:text-slate-500 dark:text-slate-400 font-mono">
                 {missionTypeConfig.normeRef}
               </Badge>
             </div>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-[300px] text-xs">
-            Le type de mission ne peut pas etre modifie apres creation. Pour un autre type, creez un nouveau modele.
+            {CLIENT_TYPES[modele.client_type_id || '']?.description || missionTypeConfig.description} · Le type de client ne peut pas etre modifie apres creation.
           </TooltipContent>
         </Tooltip>
 
