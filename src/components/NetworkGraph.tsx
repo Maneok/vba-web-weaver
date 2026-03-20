@@ -131,12 +131,12 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
     const simulation = d3.forceSimulation(simNodes as d3.SimulationNodeDatum[])
       .force("link", d3.forceLink(simEdges as d3.SimulationLinkDatum<d3.SimulationNodeDatum>[])
         .id((d: any) => d.id)
-        .distance(220 * S))
-      .force("charge", d3.forceManyBody().strength(-900))
+        .distance(260 * S))
+      .force("charge", d3.forceManyBody().strength(-1100))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collision", d3.forceCollide().radius(85 * S))
+      .force("collision", d3.forceCollide().radius(95 * S))
       // #5: Vertical separation force
-      .force("y", d3.forceY().y((d: any) => d.type === "person" ? height * 0.15 : d.isSource ? height * 0.35 : height * 0.70).strength(0.2));
+      .force("y", d3.forceY().y((d: any) => d.type === "person" ? height * 0.10 : d.isSource ? height * 0.35 : height * 0.75).strength(0.25));
 
     simulation.stop();
     for (let i = 0; i < 300; i++) simulation.tick();
@@ -311,6 +311,49 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
       setTooltip(null);
     });
 
+    // --- Drag & drop: reposition nodes manually ---
+    // Helper to compute link label position at t=0.4 on quadratic bezier
+    const linkLabelPos = (d: any) => {
+      const t = 0.4;
+      const sx = d.source.x, sy = d.source.y, tx = d.target.x, ty = d.target.y;
+      const dx = tx - sx, dy = ty - sy;
+      const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+      const off = Math.min(dist * 0.12, 25);
+      const cx = (sx + tx) / 2 - (dy / dist) * off;
+      const cy = (sy + ty) / 2 + (dx / dist) * off;
+      const px = (1 - t) * (1 - t) * sx + 2 * (1 - t) * t * cx + t * t * tx;
+      const py = (1 - t) * (1 - t) * sy + 2 * (1 - t) * t * cy + t * t * ty;
+      return { px, py };
+    };
+
+    node.call(d3.drag<SVGGElement, any>()
+      .on("start", function (_event, _d: any) {
+        d3.select(this).style("cursor", "grabbing");
+      })
+      .on("drag", function (event, d: any) {
+        d.fx = event.x;
+        d.fy = event.y;
+        d.x = event.x;
+        d.y = event.y;
+        // Move this node group directly
+        d3.select(this).attr("transform", `translate(${event.x},${event.y})`);
+        // Update connected curved links
+        link.filter((l: any) => l.source === d || l.target === d).attr("d", linkPath);
+        // Update connected link labels
+        linkLabelGroup.filter((l: any) => l.source === d || l.target === d)
+          .attr("transform", (l: any) => {
+            const { px, py } = linkLabelPos(l);
+            return `translate(${px},${py})`;
+          });
+      })
+      .on("end", function (event, d: any) {
+        d.fx = event.x;
+        d.fy = event.y;
+        d3.select(this).style("cursor", "grab");
+      })
+    );
+    node.style("cursor", "grab");
+
     const isClosed = (d: any) => d.etatAdministratif === "F" || d.etatAdministratif === "C";
 
     // --- #6-21: Node shapes ---
@@ -449,7 +492,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
       if (nodePositions.length >= 2) {
         const xs = nodePositions.map(p => p.x);
         const ys = nodePositions.map(p => p.y);
-        const pad = 100 * S;
+        const pad = 120 * S;
         const x0 = Math.min(...xs) - pad;
         const y0 = Math.min(...ys) - pad;
         const x1 = Math.max(...xs) + pad;
