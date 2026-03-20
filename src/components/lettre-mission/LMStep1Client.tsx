@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
 import { recommendClientType, getClientTypeConfig } from "@/lib/lettreMissionTypes";
+import { detectRegimeBenefices } from "@/lib/lmSmartDefaults";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -114,6 +115,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
       bic: c.bic,
       type_mission: ctConfig?.defaultModeComptable ||
         (c.mission?.includes("REVISION") || c.mission?.includes("SURVEILLANCE") ? "SURVEILLANCE" : "TENUE"),
+      regime_benefices: detectRegimeBenefices(c.ape) || undefined,
     });
   };
 

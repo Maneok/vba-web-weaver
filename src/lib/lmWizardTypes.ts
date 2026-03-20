@@ -83,6 +83,21 @@ export interface LMWizardData {
   honoraires_estimation: boolean;
   honoraires_estimation_label: string;
 
+  // Contextual scenario fields (14 corrections)
+  gerant_majoritaire?: boolean; // SARL: gérant majoritaire (TNS) vs minoritaire (assimilé salarié)
+  regime_benefices?: string; // BIC | BNC — auto-detected from APE
+  regime_fiscal_detail?: string; // micro_bic | reel_simplifie | reel_normal | micro_bnc | declaration_controlee
+  regime_fiscal_societe?: string; // IR | IS — for ambiguous forms (SARL, SCI)
+  nombre_biens?: number; // SCI/LMNP: nombre de biens immobiliers
+  president_remunere?: boolean; // SAS/SASU: président rémunéré ou non
+  nombre_associes_tns?: number; // SARL: nombre d'associés TNS (gérants + conjoints)
+  caisse_retraite?: string; // Profession libérale: CIPAV | CARCDSF | CARPIMKO | CNBF | autre
+  holding_type?: string; // holding: animatrice | passive | mixte
+  nombre_filiales?: number; // holding: nombre de filiales
+  association_activites_lucratives?: boolean; // association: activités lucratives soumises IS
+  montant_subventions?: string; // association: tranche subventions (< 153k | > 153k)
+  type_location?: string; // LMNP: classique | courte_duree | mixte
+
   // Step 5/6 — Preview & export
   numero_lettre: string;
   statut: string; // brouillon | en_validation | envoyee | signee | archivee
@@ -192,6 +207,19 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   taux_horaire_complementaire: 0,
   honoraires_estimation: false,
   honoraires_estimation_label: "",
+  gerant_majoritaire: undefined,
+  regime_benefices: undefined,
+  regime_fiscal_detail: undefined,
+  regime_fiscal_societe: undefined,
+  nombre_biens: undefined,
+  president_remunere: undefined,
+  nombre_associes_tns: undefined,
+  caisse_retraite: undefined,
+  holding_type: undefined,
+  nombre_filiales: undefined,
+  association_activites_lucratives: undefined,
+  montant_subventions: undefined,
+  type_location: undefined,
   numero_lettre: "",
   statut: "brouillon",
   signature_expert: "",

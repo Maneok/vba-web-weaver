@@ -16,16 +16,25 @@ import type { Client } from './types';
 export function generateSmartDefaults(
   clientTypeId: string,
   client: Client,
+  wizardData?: Partial<LMWizardData>,
 ): Partial<LMWizardData> {
   const config = CLIENT_TYPES[clientTypeId];
   if (!config) return {};
 
+  // Auto-detect regime_benefices from APE if not already set
+  const autoRegime = detectRegimeBenefices(client.ape);
+  const enrichedWizard = {
+    ...wizardData,
+    regime_benefices: wizardData?.regime_benefices || autoRegime || undefined,
+  };
+
   return {
     ...getSmartDuree(clientTypeId),
-    ...getSmartHonoraires(clientTypeId, config, client),
+    ...getSmartHonoraires(clientTypeId, config, client, enrichedWizard),
     ...getSmartClauses(clientTypeId, client),
     ...getSmartPaiement(client),
     frequence_facturation: ['irpp', 'lmnp', 'lmp', 'creation'].includes(clientTypeId) ? 'ANNUEL' : 'MENSUEL',
+    regime_benefices: enrichedWizard.regime_benefices,
   };
 }
 
@@ -37,6 +46,7 @@ export function getSmartMissionSelections(
   clientTypeId: string,
   client: Client,
   missions: ClientMissionPrestation[],
+  wizardData?: Partial<LMWizardData>,
 ): MissionSelection[] {
   const effectif = parseInt(client.effectif || '0', 10);
 
@@ -64,13 +74,30 @@ export function getSmartMissionSelections(
       autoSelected = true;
     }
 
+    // Règle 5 : Holding animatrice → conseil activé
+    if (m.id === 'conseil' && clientTypeId === 'holding' && wizardData?.holding_type === 'animatrice') {
+      autoSelected = true;
+    }
+
+    // Règle 6 : Association activités lucratives → fiscal renforcé
+    if (m.id === 'fiscal' && clientTypeId === 'association' && wizardData?.association_activites_lucratives) {
+      autoSelected = true;
+    }
+
     // Adapter les sous-options
     const sous_options = m.sous_options.map((s) => {
       let subSelected = s.defaultSelected;
 
-      // TNS si gérant SARL/EURL/SELARL
-      if (s.id === 'tns_gerant' && ['sarl_is', 'sarl_ir', 'sarl_famille', 'selarl'].includes(clientTypeId)) {
-        subSelected = true;
+      // TNS si gérant majoritaire SARL/EURL/SELARL (correction: conditionné par gerant_majoritaire)
+      if (s.id === 'tns_gerant') {
+        if (['sarl_is', 'sarl_ir', 'sarl_famille', 'selarl'].includes(clientTypeId)) {
+          subSelected = wizardData?.gerant_majoritaire !== false; // default true for SARL
+        }
+      }
+
+      // Bulletin dirigeant SAS si président rémunéré
+      if (s.id === 'bulletin_president' && ['sas_is', 'selas'].includes(clientTypeId)) {
+        subSelected = wizardData?.president_remunere === true;
       }
 
       // DAS2 si honoraires client élevés (proxy pour CA élevé)
@@ -85,6 +112,11 @@ export function getSmartMissionSelections(
 
       // Annexe légale si capital élevé
       if (s.id === 'annexe_legale' && (client.capital || 0) > 100000) {
+        subSelected = true;
+      }
+
+      // Location courte durée → TVA sub-option ON
+      if (s.id === 'tva_meuble' && wizardData?.type_location && ['courte_duree', 'mixte'].includes(wizardData.type_location)) {
         subSelected = true;
       }
 
@@ -160,6 +192,7 @@ function getSmartHonoraires(
   clientTypeId: string,
   config: { needsJuridique: boolean },
   client: Client,
+  wizardData?: Partial<LMWizardData>,
 ): Partial<LMWizardData> {
   const effectif = parseInt(client.effectif || '0', 10);
   const b = BAREME[clientTypeId] || BAREME['sas_is'];
@@ -172,6 +205,38 @@ function getSmartHonoraires(
   // Ajustements volume : utiliser effectif comme proxy
   if (effectif > 10) { comptaMensuel *= 1.3; fiscalMensuel *= 1.2; socialMensuel *= 1.2; }
   if (effectif > 50) { comptaMensuel *= 1.3; socialMensuel *= 1.3; juridiqueMensuel *= 1.5; }
+
+  // Correction 1: gérant majoritaire SARL → TNS = cotisations SSI supplémentaires
+  if (wizardData?.gerant_majoritaire && ['sarl_is', 'sarl_ir', 'sarl_famille', 'selarl'].includes(clientTypeId)) {
+    const nbTns = wizardData.nombre_associes_tns || 1;
+    socialMensuel += nbTns * 25; // forfait TNS par associé gérant
+  }
+
+  // Correction 2: président SAS rémunéré → bulletins dirigeant
+  if (wizardData?.president_remunere && ['sas_is', 'selas'].includes(clientTypeId)) {
+    socialMensuel += 35; // bulletin dirigeant assimilé salarié
+  }
+
+  // Correction 3: nombre de biens SCI/LMNP → multiplicateur compta
+  if (wizardData?.nombre_biens && wizardData.nombre_biens > 1 && ['sci_ir', 'sci_is', 'lmnp', 'lmp'].includes(clientTypeId)) {
+    comptaMensuel *= (1 + (wizardData.nombre_biens - 1) * 0.4);
+  }
+
+  // Correction 4: holding nombre filiales → suivi participations
+  if (wizardData?.nombre_filiales && wizardData.nombre_filiales > 1 && clientTypeId === 'holding') {
+    comptaMensuel *= (1 + (wizardData.nombre_filiales - 1) * 0.25);
+    juridiqueMensuel *= (1 + (wizardData.nombre_filiales - 1) * 0.2);
+  }
+
+  // Correction 5: location courte durée → TVA + déclarations supplémentaires
+  if (wizardData?.type_location && ['courte_duree', 'mixte'].includes(wizardData.type_location)) {
+    fiscalMensuel *= 1.4;
+  }
+
+  // Correction 6: association activités lucratives → IS partiel
+  if (wizardData?.association_activites_lucratives && clientTypeId === 'association') {
+    fiscalMensuel *= 1.5;
+  }
 
   const totalMensuel = Math.round(comptaMensuel + fiscalMensuel + socialMensuel + juridiqueMensuel + b.conseil);
   const totalAnnuel = totalMensuel * 12;
@@ -186,6 +251,9 @@ function getSmartHonoraires(
 
   const parts: string[] = [];
   if (effectif > 0) parts.push(`${effectif} salarie(s)`);
+  if (wizardData?.nombre_biens && wizardData.nombre_biens > 1) parts.push(`${wizardData.nombre_biens} biens`);
+  if (wizardData?.gerant_majoritaire) parts.push('gerant majoritaire TNS');
+  if (wizardData?.president_remunere) parts.push('president remunere');
   parts.push(clientTypeId);
 
   return {
@@ -248,4 +316,296 @@ export function getSmartMissionText(clientTypeId: string): string {
 
 export function isClientConsommateur(clientTypeId: string): boolean {
   return ['ei_reel', 'micro', 'profession_liberale', 'lmnp', 'lmp', 'irpp'].includes(clientTypeId);
+}
+
+// ============================================================
+// DÉTECTION BIC / BNC depuis le code APE
+// ============================================================
+
+/** Codes APE typiquement BNC (professions libérales, services intellectuels) */
+const APE_BNC_PREFIXES = [
+  '69', // Activités juridiques et comptables
+  '70', // Conseil de gestion
+  '71', // Architecture, ingénierie, contrôle
+  '72', // Recherche-développement scientifique
+  '73', // Publicité et études de marché
+  '74', // Autres activités spécialisées (design, photo, traduction)
+  '75', // Activités vétérinaires
+  '85', // Enseignement (partiel)
+  '86', // Activités pour la santé humaine
+  '87', // Hébergement médico-social (partiel)
+  '90', // Activités créatives, artistiques, spectacle
+  '91', // Bibliothèques, musées
+];
+
+export function detectRegimeBenefices(codeApe: string): 'BIC' | 'BNC' | null {
+  if (!codeApe) return null;
+  const cleaned = codeApe.replace(/[.\s]/g, '');
+  const prefix2 = cleaned.substring(0, 2);
+  if (APE_BNC_PREFIXES.includes(prefix2)) return 'BNC';
+  // Par défaut si code APE connu → BIC (commerce, industrie, artisanat)
+  if (cleaned.length >= 2) return 'BIC';
+  return null;
+}
+
+// ============================================================
+// SEUILS CAC (Commissaire aux comptes)
+// ============================================================
+
+export interface CACSeuilResult {
+  obligatoire: boolean;
+  motif: string;
+}
+
+export function checkCACSeuils(
+  clientTypeId: string,
+  ca?: number,
+  totalBilan?: number,
+  effectif?: number,
+): CACSeuilResult {
+  // Seuils 2024-2025 (ordonnance 2023)
+  // SA: 2/3 seuils parmi CA > 8M€, bilan > 4M€, effectif > 50
+  // SAS/SARL: 2/3 seuils parmi CA > 8M€, bilan > 4M€, effectif > 50
+  // Association: subventions > 153k€ ou CA > 200k€
+  const eff = effectif || 0;
+  const caVal = ca || 0;
+  const bilanVal = totalBilan || 0;
+
+  if (['sa'].includes(clientTypeId)) {
+    let count = 0;
+    if (caVal > 8_000_000) count++;
+    if (bilanVal > 4_000_000) count++;
+    if (eff > 50) count++;
+    if (count >= 2) return { obligatoire: true, motif: 'SA depassant 2 des 3 seuils legaux (CA 8M€, bilan 4M€, 50 salaries)' };
+  }
+
+  if (['sas_is', 'sarl_is', 'sarl_ir'].includes(clientTypeId)) {
+    let count = 0;
+    if (caVal > 8_000_000) count++;
+    if (bilanVal > 4_000_000) count++;
+    if (eff > 50) count++;
+    if (count >= 2) return { obligatoire: true, motif: 'Societe commerciale depassant 2 des 3 seuils legaux' };
+  }
+
+  return { obligatoire: false, motif: '' };
+}
+
+// ============================================================
+// QUESTIONS CONTEXTUELLES — quelles questions poser par type
+// ============================================================
+
+export interface ContextualQuestion {
+  id: string;
+  label: string;
+  description: string;
+  type: 'boolean' | 'select' | 'number';
+  options?: { value: string; label: string }[];
+  field: string; // key in LMWizardData
+}
+
+export function getContextualQuestions(clientTypeId: string): ContextualQuestion[] {
+  const questions: ContextualQuestion[] = [];
+
+  // SARL: gérant majoritaire vs minoritaire
+  if (['sarl_is', 'sarl_ir', 'sarl_famille'].includes(clientTypeId)) {
+    questions.push({
+      id: 'gerant_majoritaire',
+      label: 'Le gerant est-il majoritaire ?',
+      description: 'Gerant majoritaire = TNS (SSI). Minoritaire/egalitaire = assimile salarie (regime general).',
+      type: 'boolean',
+      field: 'gerant_majoritaire',
+    });
+    questions.push({
+      id: 'nombre_associes_tns',
+      label: 'Nombre d\'associes TNS (gerants + conjoints)',
+      description: 'Pour le calcul des bulletins/declarations sociales TNS.',
+      type: 'number',
+      field: 'nombre_associes_tns',
+    });
+  }
+
+  // SELARL: gérant majoritaire
+  if (clientTypeId === 'selarl') {
+    questions.push({
+      id: 'gerant_majoritaire',
+      label: 'Le gerant est-il majoritaire ?',
+      description: 'Gerant majoritaire SELARL = TNS (SSI).',
+      type: 'boolean',
+      field: 'gerant_majoritaire',
+    });
+  }
+
+  // SAS/SASU: président rémunéré
+  if (['sas_is', 'selas'].includes(clientTypeId)) {
+    questions.push({
+      id: 'president_remunere',
+      label: 'Le president est-il remunere ?',
+      description: 'Si oui, bulletins de paie et declarations sociales du dirigeant a prevoir.',
+      type: 'boolean',
+      field: 'president_remunere',
+    });
+  }
+
+  // EI: BIC vs BNC
+  if (['ei_reel', 'profession_liberale'].includes(clientTypeId)) {
+    questions.push({
+      id: 'regime_benefices',
+      label: 'Regime de benefices',
+      description: 'Determine le plan comptable et les declarations applicables.',
+      type: 'select',
+      options: [
+        { value: 'BIC', label: 'BIC (Benefices Industriels et Commerciaux)' },
+        { value: 'BNC', label: 'BNC (Benefices Non Commerciaux)' },
+      ],
+      field: 'regime_benefices',
+    });
+  }
+
+  // Micro: micro-BIC vs micro-BNC
+  if (clientTypeId === 'micro') {
+    questions.push({
+      id: 'regime_benefices',
+      label: 'Regime micro applicable',
+      description: 'Micro-BIC (commerce/artisanat) ou micro-BNC (services/liberal).',
+      type: 'select',
+      options: [
+        { value: 'BIC', label: 'Micro-BIC (vente/artisanat — abattement 50-71%)' },
+        { value: 'BNC', label: 'Micro-BNC (services/liberal — abattement 34%)' },
+      ],
+      field: 'regime_benefices',
+    });
+  }
+
+  // LMNP/LMP: régime fiscal détaillé + type location + nombre biens
+  if (['lmnp', 'lmp'].includes(clientTypeId)) {
+    questions.push({
+      id: 'regime_fiscal_detail',
+      label: 'Regime fiscal applicable',
+      description: clientTypeId === 'lmnp'
+        ? 'Micro-BIC (recettes < 77 700€) ou reel simplifie (amortissements deductibles).'
+        : 'LMP : reel simplifie obligatoire.',
+      type: 'select',
+      options: clientTypeId === 'lmnp'
+        ? [
+            { value: 'micro_bic', label: 'Micro-BIC (recettes < 77 700€)' },
+            { value: 'reel_simplifie', label: 'Reel simplifie (amortissements)' },
+          ]
+        : [
+            { value: 'reel_simplifie', label: 'Reel simplifie' },
+            { value: 'reel_normal', label: 'Reel normal' },
+          ],
+      field: 'regime_fiscal_detail',
+    });
+    questions.push({
+      id: 'type_location',
+      label: 'Type de location',
+      description: 'La location courte duree implique des obligations TVA et declarations specifiques.',
+      type: 'select',
+      options: [
+        { value: 'classique', label: 'Location classique (bail meuble)' },
+        { value: 'courte_duree', label: 'Courte duree (Airbnb, saisonnier)' },
+        { value: 'mixte', label: 'Mixte (classique + courte duree)' },
+      ],
+      field: 'type_location',
+    });
+    questions.push({
+      id: 'nombre_biens',
+      label: 'Nombre de biens immobiliers',
+      description: 'Impacte le volume de travail comptable et le montant des honoraires.',
+      type: 'number',
+      field: 'nombre_biens',
+    });
+  }
+
+  // SCI: nombre de biens + régime IR/IS
+  if (['sci_ir', 'sci_is'].includes(clientTypeId)) {
+    questions.push({
+      id: 'nombre_biens',
+      label: 'Nombre de biens immobiliers detenus',
+      description: 'Chaque bien genere des ecritures comptables supplementaires.',
+      type: 'number',
+      field: 'nombre_biens',
+    });
+  }
+
+  // Ambiguous IR/IS forms
+  if (['sarl_ir', 'sarl_famille'].includes(clientTypeId)) {
+    questions.push({
+      id: 'regime_fiscal_societe',
+      label: 'Regime fiscal de la societe',
+      description: 'La SARL de famille peut opter pour l\'IR. Cela impacte les obligations declaratives.',
+      type: 'select',
+      options: [
+        { value: 'IR', label: 'Impot sur le revenu (IR)' },
+        { value: 'IS', label: 'Impot sur les societes (IS)' },
+      ],
+      field: 'regime_fiscal_societe',
+    });
+  }
+
+  // Profession libérale: caisse retraite
+  if (clientTypeId === 'profession_liberale') {
+    questions.push({
+      id: 'caisse_retraite',
+      label: 'Caisse de retraite',
+      description: 'Determine les declarations sociales specifiques a produire.',
+      type: 'select',
+      options: [
+        { value: 'CIPAV', label: 'CIPAV (architectes, ingenieurs, consultants)' },
+        { value: 'CARCDSF', label: 'CARCDSF (medecins, chirurgiens-dentistes, sages-femmes)' },
+        { value: 'CARPIMKO', label: 'CARPIMKO (infirmiers, kines, orthophonistes)' },
+        { value: 'CNBF', label: 'CNBF (avocats)' },
+        { value: 'CAVEC', label: 'CAVEC (experts-comptables)' },
+        { value: 'autre', label: 'Autre caisse' },
+      ],
+      field: 'caisse_retraite',
+    });
+  }
+
+  // Holding: type + nombre filiales
+  if (clientTypeId === 'holding') {
+    questions.push({
+      id: 'holding_type',
+      label: 'Type de holding',
+      description: 'Holding animatrice = prestations de services aux filiales. Passive = gestion de participations uniquement.',
+      type: 'select',
+      options: [
+        { value: 'animatrice', label: 'Animatrice (services aux filiales)' },
+        { value: 'passive', label: 'Passive (gestion patrimoniale)' },
+        { value: 'mixte', label: 'Mixte (animatrice + patrimoniale)' },
+      ],
+      field: 'holding_type',
+    });
+    questions.push({
+      id: 'nombre_filiales',
+      label: 'Nombre de filiales',
+      description: 'Impacte la consolidation et le suivi des participations.',
+      type: 'number',
+      field: 'nombre_filiales',
+    });
+  }
+
+  // Association: activités lucratives + subventions
+  if (clientTypeId === 'association') {
+    questions.push({
+      id: 'association_activites_lucratives',
+      label: 'L\'association a-t-elle des activites lucratives ?',
+      description: 'Si oui, soumission partielle a l\'IS et obligations declaratives supplementaires.',
+      type: 'boolean',
+      field: 'association_activites_lucratives',
+    });
+    questions.push({
+      id: 'montant_subventions',
+      label: 'Tranche de subventions annuelles',
+      description: 'Au-dela de 153 000€, le commissaire aux comptes est obligatoire.',
+      type: 'select',
+      options: [
+        { value: '< 153k', label: 'Moins de 153 000€' },
+        { value: '> 153k', label: 'Plus de 153 000€ (CAC obligatoire)' },
+      ],
+      field: 'montant_subventions',
+    });
+  }
+
+  return questions;
 }

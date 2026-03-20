@@ -74,6 +74,7 @@ interface QuestionLCB {
   malus: number;
   value: "OUI" | "NON" | "N/A";
   commentaire: string;
+  autoFilled?: boolean;
 }
 
 const QUESTIONS_LCB: Omit<QuestionLCB, "value" | "commentaire">[] = [
@@ -535,7 +536,7 @@ export default function NouveauClientPage() {
     if (sanctionsPPE) {
       setQuestions(prev => prev.map(q =>
         q.id === "ppe" && q.value !== "OUI"
-          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || "PPE detectee automatiquement via OpenSanctions" }
+          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || "PPE detectee automatiquement via OpenSanctions", autoFilled: true }
           : q
       ));
     }
@@ -546,7 +547,7 @@ export default function NouveauClientPage() {
     if (sanctionsCritical) {
       setQuestions(prev => prev.map(q =>
         q.id === "atypique" && q.value !== "OUI"
-          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || "Match critique OpenSanctions — verification manuelle requise" }
+          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || "Match critique OpenSanctions — verification manuelle requise", autoFilled: true }
           : q
       ));
     }
@@ -579,7 +580,7 @@ export default function NouveauClientPage() {
           toast.warning("Secteur a risque especes detecte (APE " + form.ape + ")");
           return prev.map(q =>
             q.id === "cash"
-              ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Secteur a risque especes detecte automatiquement (APE ${form.ape})` }
+              ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Secteur a risque especes detecte automatiquement (APE ${form.ape})`, autoFilled: true }
               : q
           );
         }
@@ -601,7 +602,7 @@ export default function NouveauClientPage() {
           if (q && q.value === "OUI") return prev; // Already set, don't re-toast
           return prev.map(q =>
             q.id === "paysRisque" && q.value !== "OUI"
-              ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Pays a risque detecte via BE : ${paysRisqueMatch.nationalite}` }
+              ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Pays a risque detecte via BE : ${paysRisqueMatch.nationalite}`, autoFilled: true }
               : q
           );
         });
@@ -620,11 +621,94 @@ export default function NouveauClientPage() {
     if (paysRisqueDetected || dirPaysRisque) {
       setQuestions(prev => prev.map(q =>
         q.id === "paysRisque" && q.value !== "OUI"
-          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Pays a risque detecte automatiquement : ${paysRisqueDetected ? paysAddr : dirPaysRisque}` }
+          ? { ...q, value: "OUI" as const, commentaire: q.commentaire || `Pays a risque detecte automatiquement : ${paysRisqueDetected ? paysAddr : dirPaysRisque}`, autoFilled: true }
           : q
       ));
     }
   }, [inpiPays, screening.inpi.data?.companyData?.dirigeants]);
+
+  // Comprehensive screening-based auto-fill for additional signals
+  // (PPE, critical match, APE cash, pays risque already handled above — this covers BODACC, network, news, etc.)
+  const bodaccData = screening.bodacc.data;
+  const newsData = screening.news.data;
+  const networkData = screening.network.data;
+  useEffect(() => {
+    if (!screening.enterprise.data || screening.enterprise.loading) return;
+
+    const updates: Record<string, { value: "OUI"; commentaire: string }> = {};
+
+    // BODACC: procédure collective → structureComplexe or changeJuridiques
+    if (bodaccData?.hasProcedureCollective) {
+      const q = questions.find(q => q.id === "changeJuridiques");
+      if (q && q.value !== "OUI") {
+        updates[q.id] = { value: "OUI", commentaire: "Procedure collective detectee via BODACC" };
+      }
+    }
+
+    // Gel des avoirs DG Trésor
+    if (gelAvoirsAlert && gelAvoirsAlert.length > 0) {
+      const q = questions.find(q => q.id === "paysRisque");
+      if (q && q.value !== "OUI") {
+        updates[q.id] = { value: "OUI", commentaire: `Gel des avoirs detecte : ${gelAvoirsAlert[0]}` };
+      }
+    }
+
+    // Réseau complexe — mandats multiples ou alertes réseau
+    if (networkData?.alertes && networkData.alertes.length > 0) {
+      const hasComplexity = networkData.alertes.some(a =>
+        a.type.includes("mandat") || a.type.includes("domicil") || a.type.includes("complexe") || a.severity === "red"
+      );
+      if (hasComplexity) {
+        const q = questions.find(q => q.id === "structureComplexe");
+        if (q && q.value !== "OUI") {
+          updates[q.id] = { value: "OUI", commentaire: `Reseau complexe detecte — ${networkData.alertes[0].message}` };
+        }
+      }
+    }
+
+    // Article de presse négatif
+    if (newsData?.hasNegativeNews) {
+      // No direct question for news — flag atypique if not already set
+      const q = questions.find(q => q.id === "atypique");
+      if (q && q.value !== "OUI") {
+        updates[q.id] = { value: "OUI", commentaire: "Article de presse negatif detecte via revue de presse" };
+      }
+    }
+
+    // Société récente (< 1 an) → pression (closest match for elevated vigilance)
+    if (form.dateCreation) {
+      const created = new Date(form.dateCreation);
+      const oneYearAgo = new Date();
+      oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+      if (created > oneYearAgo && !isNaN(created.getTime())) {
+        const q = questions.find(q => q.id === "changeJuridiques");
+        if (q && q.value !== "OUI" && !updates[q.id]) {
+          updates[q.id] = { value: "OUI", commentaire: `Societe creee le ${form.dateCreation} — moins d'un an` };
+        }
+      }
+    }
+
+    // Filiales étrangères via INPI dirigeants with foreign nationalities (not risk countries — those are handled above)
+    const dirigeants = screening.inpi.data?.companyData?.dirigeants ?? [];
+    const foreignDirigeant = dirigeants.find(d => {
+      const nat = (d.nationalite || "").toUpperCase();
+      return nat && nat !== "FRANCAISE" && nat !== "FRANÇAISE" && nat !== "FRENCH" && nat !== "FR";
+    });
+    if (foreignDirigeant) {
+      const q = questions.find(q => q.id === "filialesEtrangeres");
+      if (q && q.value !== "OUI") {
+        updates[q.id] = { value: "OUI", commentaire: `Dirigeant de nationalite etrangere detecte : ${foreignDirigeant.nationalite}` };
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      setQuestions(prev => prev.map(q => {
+        const update = updates[q.id];
+        if (update && q.value !== "OUI") return { ...q, value: update.value, commentaire: q.commentaire || update.commentaire, autoFilled: true };
+        return q;
+      }));
+    }
+  }, [screening.enterprise.data, screening.enterprise.loading, bodaccData, newsData, networkData, gelAvoirsAlert, form.dateCreation, screening.inpi.data?.companyData?.dirigeants]);
 
   // Risk flags derived from questionnaire
   const riskFlags = useMemo(() => ({
@@ -1468,7 +1552,7 @@ export default function NouveauClientPage() {
 
   // OPT-5: Wrap in useCallback to avoid re-creating on each render
   const updateQuestion = useCallback((idx: number, field: "value" | "commentaire", val: string) => {
-    setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: val } : q));
+    setQuestions(prev => prev.map((q, i) => i === idx ? { ...q, [field]: val, ...(field === "value" ? { autoFilled: false } : {}) } : q));
   }, []);
 
   // Step 6: file upload

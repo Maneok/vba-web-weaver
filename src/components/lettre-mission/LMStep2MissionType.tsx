@@ -1,12 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useAppState } from "@/lib/AppContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { getClientTypeConfig, getMissionTypeConfig, recommendClientType, isModeComptableApplicable } from "@/lib/lettreMissionTypes";
 import { getDefaultSelectedCount, getMissionsForClientType } from "@/lib/lmClientMissions";
-import { generateSmartDefaults, getSmartMissionSelections } from "@/lib/lmSmartDefaults";
+import { generateSmartDefaults, getSmartMissionSelections, getContextualQuestions, detectRegimeBenefices } from "@/lib/lmSmartDefaults";
 import ClientTypeSelector from "./ClientTypeSelector";
-import { BookOpen, Eye, CheckSquare, CheckCircle2 } from "lucide-react";
+import { BookOpen, Eye, CheckSquare, CheckCircle2, HelpCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 interface Props {
   data: LMWizardData;
@@ -37,6 +40,19 @@ export default function LMStep2MissionType({ data, onChange }: Props) {
       client_type_id: clientTypeId,
       mission_type_id: config.defaultMissionType,
       specific_variables: {},
+      // Reset contextual fields on type change
+      gerant_majoritaire: undefined,
+      regime_fiscal_detail: undefined,
+      regime_fiscal_societe: undefined,
+      nombre_biens: undefined,
+      president_remunere: undefined,
+      nombre_associes_tns: undefined,
+      caisse_retraite: undefined,
+      holding_type: undefined,
+      nombre_filiales: undefined,
+      association_activites_lucratives: undefined,
+      montant_subventions: undefined,
+      type_location: undefined,
     };
 
     if (config.defaultModeComptable) {
@@ -45,14 +61,19 @@ export default function LMStep2MissionType({ data, onChange }: Props) {
       updates.type_mission = "TENUE";
     }
 
+    // Auto-detect regime_benefices from APE
+    if (selectedClient?.ape) {
+      updates.regime_benefices = detectRegimeBenefices(selectedClient.ape) || undefined;
+    }
+
     // Smart defaults: pre-fill honoraires, clauses, durée, paiement
     if (selectedClient) {
-      const smartDefaults = generateSmartDefaults(clientTypeId, selectedClient);
+      const smartDefaults = generateSmartDefaults(clientTypeId, selectedClient, updates);
       Object.assign(updates, smartDefaults);
 
       // Smart mission pre-selection
       const missions = getMissionsForClientType(clientTypeId);
-      updates.missions_selected = getSmartMissionSelections(clientTypeId, selectedClient, missions);
+      updates.missions_selected = getSmartMissionSelections(clientTypeId, selectedClient, missions, updates);
     } else {
       updates.missions_selected = [];
       updates.honoraires_detail = {};
@@ -61,11 +82,38 @@ export default function LMStep2MissionType({ data, onChange }: Props) {
     onChange(updates);
   };
 
+  // Handle contextual question changes — recalculate smart defaults
+  const handleContextualChange = useCallback((field: string, value: unknown) => {
+    const updates: Partial<LMWizardData> = { [field]: value };
+
+    // Recalculate honoraires with new contextual data
+    if (selectedClient && data.client_type_id) {
+      const mergedWizard = { ...data, ...updates };
+      const smartDefaults = generateSmartDefaults(data.client_type_id, selectedClient, mergedWizard);
+      // Only update honoraires estimation, not clauses/duree/etc
+      updates.honoraires_ht = smartDefaults.honoraires_ht;
+      updates.honoraires_detail = smartDefaults.honoraires_detail;
+      updates.honoraires_estimation_label = smartDefaults.honoraires_estimation_label;
+
+      // Recalculate mission selections with new context
+      const missions = getMissionsForClientType(data.client_type_id);
+      updates.missions_selected = getSmartMissionSelections(data.client_type_id, selectedClient, missions, mergedWizard);
+    }
+
+    onChange(updates);
+  }, [data, selectedClient, onChange]);
+
   const showModeComptable = isModeComptableApplicable(data.mission_type_id || "presentation");
 
   // OPT-45: pre-selected count for current type
   const preselectedCount = useMemo(
     () => data.client_type_id ? getDefaultSelectedCount(data.client_type_id) : null,
+    [data.client_type_id]
+  );
+
+  // Contextual questions for the selected client type
+  const contextualQuestions = useMemo(
+    () => data.client_type_id ? getContextualQuestions(data.client_type_id) : [],
     [data.client_type_id]
   );
 
@@ -133,6 +181,66 @@ export default function LMStep2MissionType({ data, onChange }: Props) {
                 </button>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* Contextual questions — adapt to client type */}
+      {contextualQuestions.length > 0 && data.client_type_id && (
+        <div className="space-y-4">
+          <div className="flex items-center gap-2">
+            <HelpCircle className="w-4 h-4 text-blue-400" />
+            <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Precisions sur la mission</p>
+          </div>
+          <p className="text-[11px] text-slate-400 dark:text-slate-500 -mt-2">
+            Ces informations permettent d'affiner les prestations et les honoraires.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {contextualQuestions.map((q) => (
+              <div key={q.id} className="space-y-1.5 p-3 rounded-xl bg-slate-50/80 dark:bg-white/[0.02] border border-slate-100 dark:border-white/[0.04]">
+                <label className="text-xs font-medium text-slate-700 dark:text-slate-300">{q.label}</label>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500">{q.description}</p>
+                {q.type === 'boolean' && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <Switch
+                      checked={(data as Record<string, unknown>)[q.field] === true}
+                      onCheckedChange={(v) => handleContextualChange(q.field, v)}
+                    />
+                    <span className="text-xs text-slate-500 dark:text-slate-400">
+                      {(data as Record<string, unknown>)[q.field] === true ? 'Oui' : 'Non'}
+                    </span>
+                  </div>
+                )}
+                {q.type === 'select' && q.options && (
+                  <Select
+                    value={((data as Record<string, unknown>)[q.field] as string) || ''}
+                    onValueChange={(v) => handleContextualChange(q.field, v)}
+                  >
+                    <SelectTrigger className="h-9 text-xs">
+                      <SelectValue placeholder="Selectionner..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {q.options.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value} className="text-xs">
+                          {opt.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                {q.type === 'number' && (
+                  <Input
+                    type="number"
+                    min={1}
+                    max={99}
+                    value={((data as Record<string, unknown>)[q.field] as number) || ''}
+                    onChange={(e) => handleContextualChange(q.field, e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                    placeholder="1"
+                    className="h-9 text-xs w-24"
+                  />
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
