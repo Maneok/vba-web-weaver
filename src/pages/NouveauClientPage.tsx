@@ -46,7 +46,7 @@ import {
   Search, Hash, Building2, User, Loader2, CheckCircle2, ChevronLeft, ChevronRight,
   Upload, FileText, AlertTriangle, Plus, Trash2, FileDown, Check, X, ArrowRight, Info,
   Map as MapIcon, ExternalLink, Eye, Clock, DollarSign, Calendar, ChevronDown, Lock, Sparkles,
-  GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer,
+  GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer, Scale,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
   ZoomIn, ZoomOut, Maximize, Mail, QrCode, Filter, SortAsc, SortDesc, CheckSquare, Square,
   Pencil, ImageIcon, Inbox, FolderOpen,
@@ -119,6 +119,132 @@ function dedupBeneficiaires(list: Beneficiaire[]): Beneficiaire[] {
     }
   }
   return Array.from(seen.values());
+}
+
+interface RegimeFiscal {
+  impot: string;
+  impotDetail: string;
+  categorieRevenu: string;
+  tva: string;
+  tvaDetail: string;
+  tvaIntracom: string;
+  avertissements: string[];
+}
+
+function computeRegimeFiscal(
+  forme: string,
+  formeCode: string,
+  ape: string,
+  siren: string,
+  beneficiairesPM: any[],
+  isAssocieUnique: boolean,
+): RegimeFiscal {
+  const f = (forme || "").toUpperCase();
+  const apePrefix = (ape || "").replace(/[^0-9]/g, "").substring(0, 2);
+  const apeNum = parseInt(apePrefix, 10) || 0;
+
+  // Calcul TVA intracommunautaire
+  const sirenClean = parseInt((siren || "").replace(/\s/g, ""), 10);
+  const tvaIntracom = sirenClean ? `FR${String((12 + 3 * (sirenClean % 97)) % 97).padStart(2, "0")}${sirenClean}` : "";
+
+  // Catégorie de revenu par APE
+  let categorieRevenu = "BIC";
+  if (apeNum >= 1 && apeNum <= 3) categorieRevenu = "BA";
+  else if ((apeNum >= 69 && apeNum <= 72) || (apeNum >= 74 && apeNum <= 75) || (apeNum >= 86 && apeNum <= 88)) categorieRevenu = "BNC";
+
+  // TVA santé : exonérée pour professions médicales (art. 261-4-1° CGI)
+  const isSante = apeNum === 86 || f.includes("SELARL") || f.includes("SELAS");
+
+  const result: RegimeFiscal = {
+    impot: "IS", impotDetail: "", categorieRevenu: "-",
+    tva: "Assujetti (regime reel)", tvaDetail: "", tvaIntracom,
+    avertissements: [],
+  };
+
+  // === IMPÔT SUR LES SOCIÉTÉS (IS) par défaut ===
+  if (f.includes("SAS") || f.includes("SASU")) {
+    result.impot = "IS";
+    result.impotDetail = "Impot sur les societes (de droit)";
+  }
+  else if (f.includes("SA ") || f === "SA") {
+    result.impot = "IS";
+    result.impotDetail = "Impot sur les societes (de droit)";
+    result.tva = "Assujetti (regime reel normal)";
+  }
+  else if (f.includes("SARL") && !f.includes("EURL")) {
+    result.impot = "IS";
+    result.impotDetail = "Impot sur les societes (de droit)";
+    result.avertissements.push("Option IR possible pour les SARL de famille (art. 239 bis AA CGI)");
+  }
+  else if (f.includes("SELARL") || f.includes("SELAS")) {
+    result.impot = "IS";
+    result.impotDetail = "Impot sur les societes (de droit)";
+    if (isSante) {
+      result.tva = "Exonere (soins medicaux)";
+      result.tvaDetail = "Art. 261-4-1° CGI — soins a la personne";
+    }
+  }
+  // === IMPÔT SUR LE REVENU (IR) par défaut ===
+  else if (f.includes("EURL")) {
+    const hasAssociePM = (beneficiairesPM || []).length > 0;
+    if (hasAssociePM) {
+      result.impot = "IS";
+      result.impotDetail = "IS obligatoire (associe unique = personne morale)";
+    } else {
+      result.impot = "IR";
+      result.impotDetail = "IR par defaut (associe unique = personne physique)";
+      result.categorieRevenu = categorieRevenu;
+      result.avertissements.push("Option IS possible (irrevocable)");
+    }
+  }
+  else if (f.includes("SCI")) {
+    result.impot = "IR";
+    result.impotDetail = "IR par defaut — transparence fiscale";
+    result.categorieRevenu = "Revenus fonciers";
+    result.tva = "Exonere (locations nues)";
+    result.tvaDetail = "Exoneration sauf locations meublees ou professionnelles";
+    result.avertissements.push("Option IS possible (irrevocable — art. 206-3 CGI)");
+  }
+  else if (f.includes("SCP")) {
+    result.impot = "IR";
+    result.impotDetail = "IR par defaut — transparence fiscale";
+    result.categorieRevenu = "BNC";
+    result.avertissements.push("Option IS possible");
+  }
+  else if (f.includes("SNC")) {
+    result.impot = "IR";
+    result.impotDetail = "IR par defaut — chaque associe est impose a son niveau";
+    result.categorieRevenu = categorieRevenu;
+    result.avertissements.push("Option IS possible");
+  }
+  else if (f.includes("EARL")) {
+    result.impot = "IR";
+    result.impotDetail = "IR par defaut — benefices agricoles";
+    result.categorieRevenu = "BA";
+  }
+  else if (f.includes("INDIVIDUEL") || f.includes("EI") || f.includes("MICRO") || f.includes("AUTO")) {
+    result.impot = "IR";
+    result.impotDetail = "IR — regime micro ou reel selon CA";
+    result.categorieRevenu = categorieRevenu;
+    result.tva = "Franchise en base (presumee)";
+    result.tvaDetail = "Seuils 2025 : 37 500€ services / 85 000€ commerce";
+    result.avertissements.push("Regime micro ou reel a confirmer selon le CA");
+  }
+  else if (f.includes("ASSOCIATION")) {
+    result.impot = "Exonere";
+    result.impotDetail = "Non soumise aux impots commerciaux (sauf activite lucrative)";
+    result.categorieRevenu = "-";
+    result.tva = "Exonere";
+    result.tvaDetail = "Sauf si recettes commerciales > 76 679€/an";
+  }
+  // Défaut pour formes non reconnues
+  else {
+    result.impot = "A determiner";
+    result.impotDetail = "Forme juridique non standard — verification manuelle requise";
+    result.avertissements.push("Forme juridique non reconnue automatiquement");
+  }
+
+  return result;
 }
 
 export default function NouveauClientPage() {
@@ -621,6 +747,16 @@ export default function NouveauClientPage() {
     }
     prevKycRef.current = kycCompleteness;
   }, [kycCompleteness, step]);
+
+  // Régime fiscal présumé — déduit de la forme juridique + code APE
+  const regimeFiscal = useMemo(() => computeRegimeFiscal(
+    form.forme,
+    selectedEnterprise?.forme_juridique_code || "",
+    form.ape,
+    form.siren,
+    [], // beneficiaires PM not available via API — defaults to empty
+    form.forme.includes("EURL") || form.forme.includes("SASU"),
+  ), [form.forme, form.ape, form.siren, selectedEnterprise]);
 
   // Idee 18: SPEC_O90 KYC completeness — required fields
   const specO90Kyc = useMemo(() => {
@@ -2708,6 +2844,52 @@ export default function NouveauClientPage() {
                 </CollapsibleContent>
               </div>
             </Collapsible>
+
+            {/* ===== Régime fiscal présumé ===== */}
+            {form.forme && (
+              <div className="p-4 rounded-lg bg-gradient-to-r from-blue-500/5 to-violet-500/5 border border-blue-500/20">
+                <div className="flex items-center gap-2 mb-3">
+                  <Scale className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Regime fiscal presume</h3>
+                  <Badge className="text-[8px] bg-amber-500/15 text-amber-400 border-0">Calcul automatique</Badge>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Impot</p>
+                    <p className={`text-sm font-bold ${regimeFiscal.impot === "IS" ? "text-violet-400" : regimeFiscal.impot === "IR" ? "text-blue-400" : "text-emerald-400"}`}>
+                      {regimeFiscal.impot}
+                    </p>
+                    <p className="text-[9px] text-slate-500 mt-0.5">{regimeFiscal.impotDetail}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Categorie</p>
+                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-200">{regimeFiscal.categorieRevenu || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">TVA</p>
+                    <p className={`text-sm font-semibold ${regimeFiscal.tva.includes("Exoner") ? "text-emerald-400" : regimeFiscal.tva.includes("Franchise") ? "text-amber-400" : "text-slate-700 dark:text-slate-200"}`}>
+                      {regimeFiscal.tva}
+                    </p>
+                    {regimeFiscal.tvaDetail && <p className="text-[9px] text-slate-500 mt-0.5">{regimeFiscal.tvaDetail}</p>}
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">TVA Intracom</p>
+                    <p className="text-xs font-mono text-slate-700 dark:text-slate-200">{regimeFiscal.tvaIntracom || "—"}</p>
+                  </div>
+                </div>
+                {regimeFiscal.avertissements.length > 0 && (
+                  <div className="mt-2 pt-2 border-t border-white/[0.06] space-y-1">
+                    {regimeFiscal.avertissements.map((a, i) => (
+                      <div key={i} className="flex items-start gap-1.5">
+                        <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 shrink-0" />
+                        <p className="text-[9px] text-amber-400/80">{a}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[8px] text-slate-500 mt-2 italic">Regime deduit de la forme juridique et du code APE — a confirmer avec le client</p>
+              </div>
+            )}
 
             {/* ===== SECTION 2: Coordonnees (collapsible #11) ===== */}
             <Collapsible open={!collapsedSections["coordonnees"]} onOpenChange={open => setCollapsedSections(prev => ({ ...prev, coordonnees: !open }))}>
