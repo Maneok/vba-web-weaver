@@ -481,17 +481,32 @@ function ClientDetailContent({ client }: { client: Client }) {
 
             {!editing ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
-                <div>
+                <div className="sm:border-r sm:border-white/[0.06] sm:pr-8">
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Identite</h4>
                   <InfoRow label="Dirigeant" value={client.dirigeant} icon={User} />
-                  <InfoRow label="Forme juridique" value={client.forme} icon={Building} />
-                  <InfoRow label="Activite" value={`${client.domaine} (${client.ape})`} />
-                  <InfoRow label="Adresse" value={`${client.adresse}, ${client.cp} ${client.ville}`} icon={MapPin} />
-                  <InfoRow label="Telephone" value={client.tel} icon={Phone} />
-                  <InfoRow label="Email" value={client.mail} icon={Mail} />
-                  <InfoRow label="Capital" value={`${client.capital.toLocaleString()} EUR`} />
-                  <InfoRow label="Effectif" value={client.effectif} />
-                  <InfoRow label="Date creation" value={client.dateCreation} />
+                  <InfoRow label="Forme juridique" value={client.forme} icon={Building}
+                    badge={(() => {
+                      const f = client.forme?.toUpperCase() || "";
+                      if (f.includes("SAS")) return { text: "SAS", color: "bg-violet-500/15 text-violet-400" };
+                      if (f.includes("SARL") || f.includes("EURL")) return { text: f.includes("EURL") ? "EURL" : "SARL", color: "bg-emerald-500/15 text-emerald-400" };
+                      if (f.includes("SCI")) return { text: "SCI", color: "bg-blue-500/15 text-blue-400" };
+                      if (f.includes("EI") || f.includes("INDIVIDUEL")) return { text: "EI", color: "bg-orange-500/15 text-orange-400" };
+                      return undefined;
+                    })()} />
+                  <InfoRow label="Activite" value={(() => {
+                    const apeCode = client.ape || "";
+                    const apeScore = APE_SCORES[apeCode];
+                    return `${client.domaine}${apeCode ? ` — ${apeCode}` : ""}${apeScore !== undefined ? ` (risque: ${apeScore})` : ""}`;
+                  })()} />
+                  <InfoRow label="Adresse" value={`${client.adresse}, ${client.cp} ${client.ville}`} icon={MapPin}
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${client.adresse}, ${client.cp} ${client.ville}`)}`} />
+                  <InfoRow label="Telephone" value={client.tel} icon={Phone}
+                    href={client.tel ? `tel:${client.tel.replace(/\s/g, "")}` : undefined} />
+                  <InfoRow label="Email" value={client.mail} icon={Mail}
+                    href={client.mail ? `mailto:${client.mail}` : undefined} />
+                  <InfoRow label="Capital" value={client.capital ? `${client.capital.toLocaleString("fr-FR")} €` : ""} />
+                  <InfoRow label="Effectif" value={client.effectif === "NN" || !client.effectif ? "" : client.effectif} />
+                  <InfoRow label="Date creation" value={client.dateCreation ? new Date(client.dateCreation).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : ""} />
                 </div>
                 <div>
                   <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mb-3">Mission & Suivi</h4>
@@ -499,11 +514,14 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <InfoRow label="Comptable" value={client.comptable} />
                   <InfoRow label="Associe" value={client.associe} />
                   <InfoRow label="Superviseur" value={client.superviseur} />
-                  <InfoRow label="Honoraires" value={`${client.honoraires.toLocaleString()} EUR HT`} />
+                  <InfoRow label="Honoraires" value={client.honoraires ? `${client.honoraires.toLocaleString("fr-FR")} € HT` : ""}
+                    badge={client.honoraires === 0 || !client.honoraires ? { text: "A definir", color: "bg-amber-500/15 text-amber-400" } : undefined} />
                   <InfoRow label="Frequence" value={client.frequence} />
-                  <InfoRow label="IBAN" value={client.iban || "---"} />
-                  <InfoRow label="BIC" value={client.bic || "---"} />
-                  <InfoRow label="Date reprise" value={client.dateReprise || "---"} />
+                  <InfoRow label="IBAN" value={client.iban || ""}
+                    badge={!client.iban || client.iban === "---" ? { text: "A completer", color: "bg-orange-500/15 text-orange-400" } : undefined} />
+                  <InfoRow label="BIC" value={client.bic || ""}
+                    badge={!client.bic || client.bic === "---" ? { text: "A completer", color: "bg-orange-500/15 text-orange-400" } : undefined} />
+                  <InfoRow label="Date reprise" value={client.dateReprise ? new Date(client.dateReprise).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : ""} />
                 </div>
               </div>
             ) : (
@@ -514,11 +532,11 @@ function ClientDetailContent({ client }: { client: Client }) {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-6">
               <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Derniere revue</p>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-1 font-mono">{client.dateDerniereRevue}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-1 font-mono">{client.dateDerniereRevue ? new Date(client.dateDerniereRevue).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "---"}</p>
               </div>
               <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Date butoir</p>
-                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-1 font-mono">{client.dateButoir}</p>
+                <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-1 font-mono">{client.dateButoir ? new Date(client.dateButoir).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "---"}</p>
               </div>
               <div className="p-3 rounded-lg bg-gray-50 dark:bg-white/[0.03] border border-gray-200 dark:border-white/[0.06]">
                 <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Pilotage</p>
@@ -556,7 +574,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                 {screening.sanctions.data.matches.map((m, i) => (
                   <div key={`${m.person}-${m.score}-${i}`} className="ml-7 text-xs text-red-300">
                     <span className="font-semibold">{m.person}</span> — {m.details}
-                    {m.isPPE && <Badge className="ml-2 bg-red-500/20 text-red-400 border-0 text-[9px]">PPE</Badge>}
+                    {m.isPPE && <Badge className="ml-2 bg-red-500/20 text-red-400 border-0 text-[9px] animate-pulse">PPE</Badge>}
                   </div>
                 ))}
               </div>
@@ -568,27 +586,87 @@ function ClientDetailContent({ client }: { client: Client }) {
               </div>
             )}
 
+            {/* Dirigeants section */}
+            {screening.enterprise.data && screening.enterprise.data.length > 0 && screening.enterprise.data[0]?.dirigeants?.length > 0 && (
+              <div className="space-y-3">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-400">Dirigeants</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {screening.enterprise.data[0].dirigeants.map((dir: any, i: number) => {
+                    const initials = `${(dir.prenom || "")[0] || ""}${(dir.nom || "")[0] || ""}`.toUpperCase();
+                    const colors = ["bg-blue-500/15 text-blue-400", "bg-violet-500/15 text-violet-400", "bg-emerald-500/15 text-emerald-400", "bg-amber-500/15 text-amber-400"];
+                    const color = colors[i % colors.length];
+                    const qualite = dir.qualite || dir.fonction || "";
+                    const qualiteBadge = qualite.toLowerCase().includes("gerant") ? "bg-blue-500/15 text-blue-400"
+                      : qualite.toLowerCase().includes("president") ? "bg-violet-500/15 text-violet-400"
+                      : qualite.toLowerCase().includes("associ") ? "bg-emerald-500/15 text-emerald-400"
+                      : "bg-slate-500/15 text-slate-400";
+                    return (
+                      <div key={`dir-${dir.nom}-${i}`} className="p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:shadow-md transition-all">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center text-sm font-bold shrink-0`}>
+                            {initials}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm text-slate-800 dark:text-slate-200">
+                              <span className="font-semibold">{dir.nom}</span>{dir.prenom ? ` ${dir.prenom}` : ""}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              {qualite && <Badge className={`text-[9px] border-0 ${qualiteBadge}`}>{qualite}</Badge>}
+                              {dir.date_naissance && <span className="text-[10px] text-slate-400 dark:text-slate-500">{new Date(dir.date_naissance).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}</span>}
+                              {dir.nationalite && <span className="text-[10px] text-slate-400 dark:text-slate-500">{dir.nationalite === "Francaise" || dir.nationalite === "FR" ? "🇫🇷" : dir.nationalite}</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* BE section */}
+            <h4 className="text-[10px] font-bold uppercase tracking-widest text-blue-400 mt-2">Beneficiaires effectifs</h4>
             {client.be && client.be.trim() ? (
-              <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {(() => {
-                  let entries: Array<{ nom: string; prenom?: string }> = [];
+                  let entries: Array<{ nom: string; prenom?: string; pourcentage?: number; nationalite?: string }> = [];
                   try { entries = JSON.parse(client.be); } catch { entries = client.be.split(",").map(s => ({ nom: s.trim() })); }
                   if (!Array.isArray(entries)) entries = [{ nom: String(entries) }];
                   entries = entries.filter(e => e.nom && e.nom.trim() !== "");
                   return entries;
-                })().map((b) => (
-                  <div key={b.nom} className="p-3 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center">
-                        <User className="w-4 h-4 text-blue-400" />
+                })().map((b, i) => {
+                  const initials = `${(b.prenom || b.nom || "")[0] || ""}${(b.nom || "")[0] || ""}`.toUpperCase();
+                  const colors = ["bg-emerald-500/15 text-emerald-400", "bg-blue-500/15 text-blue-400", "bg-violet-500/15 text-violet-400", "bg-amber-500/15 text-amber-400"];
+                  const ppeMatch = screening.sanctions.data?.matches?.find(m => m.isPPE && m.person.toLowerCase().includes(b.nom.toLowerCase()));
+                  return (
+                    <div key={b.nom} className="p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:shadow-md transition-all">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full ${colors[i % colors.length]} flex items-center justify-center text-sm font-bold shrink-0`}>
+                          {initials}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-slate-800 dark:text-slate-200">
+                            <span className="font-semibold">{b.nom}</span>{b.prenom ? ` ${b.prenom}` : ""}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1 flex-wrap">
+                            {(b as any).pourcentage != null && (
+                              <div className="flex items-center gap-1.5">
+                                <div className="w-16 h-1.5 rounded-full bg-gray-100 dark:bg-white/[0.04] overflow-hidden">
+                                  <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${Math.min((b as any).pourcentage, 100)}%` }} />
+                                </div>
+                                <span className="text-[10px] font-mono text-slate-400">{(b as any).pourcentage}%</span>
+                              </div>
+                            )}
+                            {b.nationalite && <span className="text-[10px] text-slate-400">{b.nationalite === "Francaise" || b.nationalite === "FR" ? "🇫🇷" : b.nationalite}</span>}
+                          </div>
+                        </div>
+                        {(client.ppe === "OUI" || ppeMatch) && (
+                          <Badge className="bg-red-500/10 text-red-400 border-0 text-[10px] animate-pulse">PPE</Badge>
+                        )}
                       </div>
-                      <span className="text-sm text-slate-800 dark:text-slate-200">{b.prenom ? `${b.prenom} ${b.nom}` : b.nom}</span>
                     </div>
-                    {client.ppe === "OUI" && (
-                      <Badge className="bg-red-500/10 text-red-400 border-0 text-[10px]">PPE</Badge>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-slate-400 dark:text-slate-500 py-8 text-center">Aucun beneficiaire effectif renseigne</p>
@@ -660,10 +738,29 @@ function ClientDetailContent({ client }: { client: Client }) {
               </>
             )}
 
+            {/* #27 — Liste textuelle des societes liees avec SIREN */}
+            {screening.network.data && screening.network.data.nodes && (
+              <div className="space-y-2">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500">Societes liees</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {screening.network.data.nodes.filter((n: any) => n.type === "company" || n.group === "company").map((n: any, i: number) => (
+                    <div key={`${n.id || n.label}-${i}`} className="p-2.5 rounded-lg border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] flex items-center gap-2">
+                      <Building className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                      <span className="text-xs text-slate-800 dark:text-slate-200 truncate">{n.label || n.name}</span>
+                      {n.siren && <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 ml-auto shrink-0">{n.siren}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {!screening.network.loading && !screening.network.data && !screeningLaunched && (
               <div className="text-center py-16 text-slate-400 dark:text-slate-500">
                 <Users className="w-10 h-10 mx-auto mb-3 opacity-30" />
-                <p className="text-sm">Cliquez sur "Analyser le reseau" pour lancer l'analyse</p>
+                <p className="text-sm">Lancez le screening pour voir le reseau</p>
+                <Button className="mt-4 gap-2 bg-blue-600 hover:bg-blue-700" size="sm" onClick={launchComplianceScreening}>
+                  <Users className="w-3.5 h-3.5" /> Analyser le reseau
+                </Button>
               </div>
             )}
           </div>
@@ -673,7 +770,12 @@ function ClientDetailContent({ client }: { client: Client }) {
         <TabsContent value="scoring" className="mt-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="glass-card p-4 sm:p-6">
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">Radar de risque 6 axes</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Radar de risque 6 axes</h3>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={handleSave}>
+                  <RefreshCw className="w-3 h-3" /> Recalculer
+                </Button>
+              </div>
               <ResponsiveContainer width="100%" height={300}>
                 <RadarChart data={radarData} cx="50%" cy="50%" outerRadius="70%">
                   <PolarGrid stroke="rgba(255,255,255,0.06)" />
@@ -733,6 +835,64 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <div className="flex items-center gap-2">
                     <AlertTriangle className="w-4 h-4 text-amber-400" />
                     <span className="text-xs text-amber-400 font-semibold">Malus BODACC : +30 (procedure collective)</span>
+                  </div>
+                </div>
+              )}
+
+              {/* LCB-FT questionnaire summary */}
+              <div className="glass-card p-4">
+                <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300 mb-3">Questionnaire LCB-FT</h3>
+                <div className="flex items-center gap-4">
+                  {(() => {
+                    const factors = [
+                      { key: "ppe", label: "PPE" },
+                      { key: "paysRisque", label: "Pays risque" },
+                      { key: "atypique", label: "Atypique" },
+                      { key: "distanciel", label: "Distanciel" },
+                      { key: "cash", label: "Especes" },
+                      { key: "pression", label: "Pression" },
+                    ] as const;
+                    const ouiCount = factors.filter(f => client[f.key] === "OUI").length;
+                    const nonCount = factors.filter(f => client[f.key] === "NON").length;
+                    return (
+                      <>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center">
+                            <span className="text-xs font-bold text-red-400">{ouiCount}</span>
+                          </div>
+                          <span className="text-xs text-slate-400">OUI</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center">
+                            <span className="text-xs font-bold text-emerald-400">{nonCount}</span>
+                          </div>
+                          <span className="text-xs text-slate-400">NON</span>
+                        </div>
+                        <div className="flex gap-1.5 flex-wrap ml-auto">
+                          {factors.map(f => (
+                            <Badge key={f.key} className={`text-[9px] border-0 ${client[f.key] === "OUI" ? "bg-red-500/10 text-red-400" : "bg-emerald-500/10 text-emerald-400"}`}>
+                              {f.label}: {client[f.key]}
+                            </Badge>
+                          ))}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Decision (accepter/refuser) if available */}
+              {client.statut && (
+                <div className={`glass-card p-3 ${client.statut === "REFUSE" ? "border-red-500/20" : "border-emerald-500/20"}`}>
+                  <div className="flex items-center gap-2">
+                    {client.statut === "REFUSE" ? (
+                      <ShieldAlert className="w-4 h-4 text-red-400" />
+                    ) : (
+                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    )}
+                    <span className={`text-xs font-semibold ${client.statut === "REFUSE" ? "text-red-400" : "text-emerald-400"}`}>
+                      Decision : {client.statut === "REFUSE" ? "REFUSER" : "ACCEPTER"}
+                    </span>
                   </div>
                 </div>
               )}
@@ -2333,6 +2493,17 @@ function DiligencesTab({
             <Button
               variant="outline"
               size="sm"
+              className="gap-1.5 text-xs border-gray-200 dark:border-white/[0.06] hover:bg-emerald-500/10 hover:text-emerald-400 hover:border-emerald-500/30"
+              onClick={() => {
+                setDiligences(prev => [...prev, { label: "Nouvelle diligence", responsable: client.comptable, deadline: "", statut: "A_FAIRE", commentaire: "" }]);
+                toast.success("Diligence ajoutee");
+              }}
+            >
+              <Plus className="w-3 h-3" /> Ajouter
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               className="gap-1.5 text-xs border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400 hover:border-blue-500/30"
               onClick={() => {
                 window.print();
@@ -2391,13 +2562,25 @@ function DiligencesTab({
   );
 }
 
-function InfoRow({ label, value, icon: Icon }: { label: string; value: string | number; icon?: React.ComponentType<{ className?: string }> }) {
+function InfoRow({ label, value, icon: Icon, href, badge }: { label: string; value: string | number; icon?: React.ComponentType<{ className?: string }>; href?: string; badge?: { text: string; color: string } }) {
+  const displayValue = value || "---";
+  const isEmpty = !value || value === "---" || value === "NN";
   return (
-    <div className="flex items-start gap-2.5 py-2">
+    <div className="flex items-start gap-2.5 p-3 rounded-lg hover:bg-white/[0.02] transition-colors">
       {Icon && <Icon className="w-4 h-4 text-slate-400 dark:text-slate-500 mt-0.5 shrink-0" />}
-      <div>
+      <div className="flex-1 min-w-0">
         <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</p>
-        <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-0.5">{value || "---"}</p>
+        {isEmpty ? (
+          <p className="text-sm italic text-slate-400 mt-0.5">Non renseigne</p>
+        ) : href ? (
+          <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noopener noreferrer" : undefined} className="text-sm font-medium text-blue-400 hover:text-blue-300 hover:underline mt-0.5 inline-flex items-center gap-1">
+            {displayValue}
+            {href.startsWith("http") && <ExternalLink className="w-3 h-3" />}
+          </a>
+        ) : (
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200 mt-0.5">{displayValue}</p>
+        )}
+        {badge && <Badge className={`mt-1 text-[9px] ${badge.color} border-0`}>{badge.text}</Badge>}
       </div>
     </div>
   );
