@@ -1146,23 +1146,48 @@ class LMPdfBuilder {
   private addFooters(): void {
     const totalPages = this.doc.getNumberOfPages();
     const mtConf = getMissionTypeConfig(this.options?.missionTypeId || "presentation");
+    const cab = this.cabinet;
+
+    // Build full footer text with all cabinet info
+    const footerParts: string[] = [];
+    if (cab?.nom) footerParts.push(s(cab.nom));
+    const addrParts = [s(cab?.adresse), `${s(cab?.cp)} ${s(cab?.ville)}`.trim()].filter(Boolean);
+    if (addrParts.length > 0) footerParts.push(addrParts.join(', '));
+
+    const footerLine2Parts: string[] = [];
+    if ((cab as any)?.numeroOEC) footerLine2Parts.push(`OEC n° ${s((cab as any).numeroOEC)}`);
+    if ((cab as any)?.croec) footerLine2Parts.push(`CROEC ${s((cab as any).croec)}`);
+    if ((cab as any)?.assureurNom || (cab as any)?.assureur_nom) footerLine2Parts.push(`RC Pro : ${s((cab as any).assureurNom || (cab as any).assureur_nom)}`);
+    if ((cab as any)?.tvaIntracommunautaire || (cab as any)?.tva_intracommunautaire) footerLine2Parts.push(`TVA : ${s((cab as any).tvaIntracommunautaire || (cab as any).tva_intracommunautaire)}`);
+
+    const footerText1 = footerParts.join(' — ');
+    const footerText2 = footerLine2Parts.join(' — ');
+
     for (let i = 1; i <= totalPages; i++) {
       this.doc.setPage(i);
       // OPT-29: Footer
       this.doc.setDrawColor(GREY_LINE.r, GREY_LINE.g, GREY_LINE.b);
       this.doc.setLineWidth(0.3);
       this.doc.line(MARGIN_L, FOOTER_Y, MARGIN_R, FOOTER_Y);
-      this.doc.setFontSize(8);
+      this.doc.setFontSize(7);
       this.doc.setTextColor(FOOTER_COLOR.r, FOOTER_COLOR.g, FOOTER_COLOR.b);
-      this.doc.text(
-        `${s(this.cabinet?.nom)} | Lettre de mission — Document confidentiel`,
-        MARGIN_L,
-        FOOTER_Y + 4
-      );
+
+      if (footerText2) {
+        // Two-line footer with full info
+        this.doc.text(footerText1, PAGE_W / 2, FOOTER_Y + 3, { align: "center" });
+        this.doc.text(footerText2, PAGE_W / 2, FOOTER_Y + 6.5, { align: "center" });
+      } else {
+        this.doc.text(
+          `${s(cab?.nom)} | Lettre de mission — Document confidentiel`,
+          MARGIN_L,
+          FOOTER_Y + 4
+        );
+      }
+
       this.doc.text(
         `Page ${i} / ${totalPages}`,
         MARGIN_R,
-        FOOTER_Y + 4,
+        FOOTER_Y + (footerText2 ? 6.5 : 4),
         { align: "right" }
       );
       // OPT-30: Header on pages 2+

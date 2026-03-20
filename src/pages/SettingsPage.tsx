@@ -571,6 +571,9 @@ export default function SettingsPage() {
               email: cabinet.email,
               telephone: cabinet.telephone,
               couleur_primaire: cabinet.couleurPrimaire,
+              // Extended fields (ignored if columns don't exist yet)
+              ...(cabinet.croec ? { croec: cabinet.croec } : {}),
+              ...(cabinet.site_web ? { site_web: cabinet.site_web } : {}),
             }).eq("id", cabRow.id);
             if (syncErr) {
               logger.error("Settings", "Erreur sync cabinets:", syncErr);
@@ -1136,6 +1139,21 @@ export default function SettingsPage() {
                             </div>
                           </div>
                         </div>
+
+                        {/* Site web */}
+                        <div className="space-y-1.5">
+                          <Label htmlFor="cab-web" className="text-xs">Site web</Label>
+                          <div className="relative">
+                            <Globe className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 dark:text-slate-500" />
+                            <Input
+                              id="cab-web"
+                              value={cabinet.site_web}
+                              onChange={(e) => updateCabinet("site_web", e.target.value)}
+                              placeholder="www.cabinet-exemple.fr"
+                              className={`pl-8 transition-colors ${cabinet.site_web.trim() ? "border-green-500/40" : ""}`}
+                            />
+                          </div>
+                        </div>
                       </div>
                     </CollapsibleContent>
                   </div>
@@ -1156,6 +1174,56 @@ export default function SettingsPage() {
                     </CollapsibleTrigger>
                     <CollapsibleContent>
                       <div className="px-4 pb-4 pt-3 border-l-2 border-violet-500/30 ml-4 space-y-5">
+                        {/* Logo upload */}
+                        <div className="space-y-2">
+                          <Label className="text-xs">Logo du cabinet</Label>
+                          <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                            Utilise dans les en-tetes de vos lettres de mission, PDF et DOCX. Format PNG ou JPG, max 500 Ko. Dimensions recommandees : 300x100 px.
+                          </p>
+                          <div className="flex items-center gap-4">
+                            {cabinet.logo ? (
+                              <>
+                                <div className="w-48 h-16 rounded-lg border border-gray-200 dark:border-white/10 flex items-center justify-center overflow-hidden bg-white p-2">
+                                  <img src={cabinet.logo} alt="Logo cabinet" className="max-w-full max-h-full object-contain" />
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                  <Button variant="outline" size="sm" className="text-xs h-7" onClick={() => (document.getElementById('cab-logo-input') as HTMLInputElement)?.click()}>
+                                    Changer
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-xs h-7 text-red-400 hover:text-red-600" onClick={() => updateCabinet("logo", "")}>
+                                    Supprimer
+                                  </Button>
+                                </div>
+                              </>
+                            ) : (
+                              <div
+                                className="w-full h-24 rounded-xl border-2 border-dashed border-gray-300 dark:border-white/[0.08] flex flex-col items-center justify-center gap-1.5 cursor-pointer hover:border-blue-500/30 hover:bg-blue-500/5 transition-all"
+                                onClick={() => (document.getElementById('cab-logo-input') as HTMLInputElement)?.click()}
+                              >
+                                <Building2 className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                                <p className="text-[11px] text-slate-400 dark:text-slate-500">Cliquez pour selectionner votre logo</p>
+                                <p className="text-[9px] text-slate-300 dark:text-slate-600">PNG ou JPG · Max 500 Ko</p>
+                              </div>
+                            )}
+                            <input
+                              id="cab-logo-input"
+                              type="file"
+                              accept="image/png,image/jpeg,image/jpg,image/webp"
+                              className="hidden"
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                if (file.size > 500 * 1024) { toast.error("Le fichier est trop volumineux (max 500 Ko)"); return; }
+                                if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp'].includes(file.type)) { toast.error("Format non supporte. Utilisez PNG ou JPG."); return; }
+                                const reader = new FileReader();
+                                reader.onload = () => updateCabinet("logo", reader.result as string);
+                                reader.readAsDataURL(file);
+                                e.target.value = '';
+                              }}
+                            />
+                          </div>
+                        </div>
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           {/* Colors + Font */}
                           <div className="space-y-5">

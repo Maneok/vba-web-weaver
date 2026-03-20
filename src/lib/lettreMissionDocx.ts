@@ -461,11 +461,27 @@ export async function renderLettreMissionDocx(lm: LettreMission): Promise<void> 
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
+                spacing: { after: 20 },
                 children: [
-                  new TextRun({ text: `${str(cabinet?.nom)} | Lettre de mission — Document confidentiel  ·  Page `, size: 14, color: FOOTER_COL }),
-                  new TextRun({ children: [PageNumber.CURRENT], size: 14, color: FOOTER_COL }),
-                  new TextRun({ text: " / ", size: 14, color: FOOTER_COL }),
-                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 14, color: FOOTER_COL }),
+                  new TextRun({ text: `${str(cabinet?.nom)} — ${str(cabinet?.adresse)}, ${str(cabinet?.cp)} ${str(cabinet?.ville)}`, size: 12, color: "999999" }),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 20 },
+                children: [
+                  new TextRun({ text: `OEC : ${str(cabinet?.numeroOEC)}`, size: 12, color: "999999" }),
+                  ...(cabinet?.email ? [new TextRun({ text: ` — ${str(cabinet?.email)}`, size: 12, color: "999999" })] : []),
+                  ...(cabinet?.telephone ? [new TextRun({ text: ` — ${str(cabinet?.telephone)}`, size: 12, color: "999999" })] : []),
+                ],
+              }),
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [
+                  new TextRun({ text: "Document confidentiel  ·  Page ", size: 12, color: FOOTER_COL }),
+                  new TextRun({ children: [PageNumber.CURRENT], size: 12, color: FOOTER_COL }),
+                  new TextRun({ text: " / ", size: 12, color: FOOTER_COL }),
+                  new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 12, color: FOOTER_COL }),
                 ],
               }),
             ],

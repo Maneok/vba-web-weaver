@@ -8,6 +8,7 @@ import { Building2, CheckCircle2, XCircle, BookOpen } from "lucide-react";
 interface Props {
   data: LMWizardData;
   compact?: boolean;
+  cabinetLogo?: string;
 }
 
 /** Compact mobile summary band */
@@ -29,14 +30,33 @@ function CompactSummary({ data }: { data: LMWizardData }) {
 }
 
 /** Full desktop summary panel */
-function FullSummary({ data }: { data: LMWizardData }) {
+function FullSummary({ data, cabinetLogo }: { data: LMWizardData; cabinetLogo?: string }) {
   const tva = useMemo(() => Math.round(data.honoraires_ht * (data.taux_tva / 100) * 100) / 100, [data.honoraires_ht, data.taux_tva]);
   const ttc = data.honoraires_ht + tva;
   const missions = useMemo(() => data.missions_selected.filter((m) => m.selected), [data.missions_selected]);
 
+  // Conformity check
+  const hasClient = !!data.raison_sociale;
+  const hasMissions = missions.length > 0;
+  const hasHonoraires = data.honoraires_ht > 0;
+  const hasClauses = data.clause_lcbft;
+  const conformityOk = hasClient && hasMissions && hasHonoraires && hasClauses;
+
   return (
     <div className="sticky top-20 space-y-5">
-      <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Resume</h3>
+      {/* Cabinet logo */}
+      {cabinetLogo && (
+        <div className="flex justify-center">
+          <img src={cabinetLogo} alt="Logo" className="max-h-10 object-contain opacity-60" />
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Resume</h3>
+        <Badge className={`text-[9px] ${conformityOk ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"}`}>
+          {conformityOk ? "Conforme CNOEC" : "Incomplet"}
+        </Badge>
+      </div>
 
       {/* Client */}
       {data.raison_sociale ? (
@@ -141,7 +161,7 @@ function FullSummary({ data }: { data: LMWizardData }) {
   );
 }
 
-export default function LMSummaryPanel({ data, compact }: Props) {
+export default function LMSummaryPanel({ data, compact, cabinetLogo }: Props) {
   if (compact) return <CompactSummary data={data} />;
-  return <FullSummary data={data} />;
+  return <FullSummary data={data} cabinetLogo={cabinetLogo} />;
 }

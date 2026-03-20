@@ -166,6 +166,7 @@ function computeRegimeFiscal(
   if (f.includes("SAS") || f.includes("SASU")) {
     result.impot = "IS";
     result.impotDetail = "Impot sur les societes (de droit)";
+    result.avertissements.push("Option IR possible pendant 5 exercices (art. 239 bis AB CGI) — non verifiable");
   }
   else if (f.includes("SA ") || f === "SA") {
     result.impot = "IS";
@@ -237,6 +238,49 @@ function computeRegimeFiscal(
     result.categorieRevenu = "-";
     result.tva = "Exonere";
     result.tvaDetail = "Sauf si recettes commerciales > 76 679€/an";
+  }
+  // SEL générique (SELURL, SELAFA, SELCA)
+  else if (f.includes("SEL") && (f.includes("URL") || f.includes("AFA") || f.includes("CA ") || f === "SEL")) {
+    result.impot = "IS";
+    result.impotDetail = "Societe d'exercice liberal — IS de droit";
+    if (isSante) { result.tva = "Exonere (soins medicaux)"; result.tvaDetail = "Art. 261-4-1° CGI"; }
+  }
+  // GIE — IR transparence
+  else if (f.includes("GIE") || f.includes("GROUPEMENT")) {
+    result.impot = "IR";
+    result.impotDetail = "IR — transparence fiscale (chaque membre est impose)";
+    result.categorieRevenu = categorieRevenu;
+  }
+  // SCM — IR + BNC
+  else if (f.includes("SCM") || f.includes("CIVILE DE MOYENS")) {
+    result.impot = "IR";
+    result.impotDetail = "IR — transparence fiscale";
+    result.categorieRevenu = "BNC";
+    result.tva = "Exonere (prestations internes)";
+  }
+  // SCPI — IR revenus fonciers
+  else if (f.includes("SCPI") || f.includes("PLACEMENT IMMOBILIER")) {
+    result.impot = "IR";
+    result.impotDetail = "IR — revenus fonciers distribues aux porteurs";
+    result.categorieRevenu = "Revenus fonciers";
+    result.tva = "Exonere";
+  }
+  // SCA — IS
+  else if (f.includes("SCA") || f.includes("COMMANDITE PAR ACTIONS")) {
+    result.impot = "IS";
+    result.impotDetail = "IS de droit";
+  }
+  // SCS — IR
+  else if (f.includes("SCS") || f.includes("COMMANDITE SIMPLE")) {
+    result.impot = "IR";
+    result.impotDetail = "IR — transparence fiscale";
+    result.categorieRevenu = categorieRevenu;
+    result.avertissements.push("Option IS possible");
+  }
+  // Coopérative — IS (taux réduit)
+  else if (f.includes("COOP") || f.includes("SCOP") || f.includes("SCIC")) {
+    result.impot = "IS";
+    result.impotDetail = "IS — regime cooperatif (exonerations partielles possibles)";
   }
   // Défaut pour formes non reconnues
   else {

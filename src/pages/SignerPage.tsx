@@ -420,9 +420,14 @@ Mode de paiement : ${wd.mode_paiement || "virement"}`,
       <header className="bg-white border-b border-slate-200 sticky top-1 z-40 print:static print:border-0">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
-              <FileText className="w-5 h-5 text-slate-900 dark:text-white" />
-            </div>
+            {/* Cabinet logo or fallback icon */}
+            {(instance?.wizard_data as any)?.cabinet_logo ? (
+              <img src={(instance.wizard_data as any).cabinet_logo} alt="Logo" className="h-9 max-w-[120px] object-contain shrink-0" />
+            ) : (
+              <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shrink-0">
+                <FileText className="w-5 h-5 text-slate-900 dark:text-white" />
+              </div>
+            )}
             <div className="min-w-0">
               <h1 className="text-sm font-bold text-slate-800 truncate">
                 Lettre de Mission {instance?.numero || ""}
