@@ -205,25 +205,54 @@ export async function completeRevue(
   }
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────
+
+/** Retourne la date la plus récente entre deux dates string (ISO ou YYYY-MM-DD) */
+function getLatestDate(date1?: string | null, date2?: string | null): Date | null {
+  const d1 = date1 ? new Date(date1) : null;
+  const d2 = date2 ? new Date(date2) : null;
+  if (d1 && isNaN(d1.getTime())) return d2;
+  if (d2 && isNaN(d2.getTime())) return d1;
+  if (d1 && d2) return d1 > d2 ? d1 : d2;
+  return d1 || d2 || null;
+}
+
+/**
+ * Intervalle en mois selon le niveau de vigilance.
+ * Aligné sur la fonction SQL get_review_interval :
+ *   SIMPLIFIEE → 2 ans, STANDARD → 1 an, RENFORCEE → 6 mois
+ */
+function getReviewIntervalMonths(vigilance: string): number {
+  switch (vigilance?.toUpperCase()) {
+    case 'SIMPLIFIEE': return 24;
+    case 'STANDARD':   return 12;
+    case 'RENFORCEE':  return 6;
+    default:           return 12;
+  }
+}
+
 // ─── Génération automatique ──────────────────────────────────────────
 
 export async function generatePendingRevues(cabinetId: string): Promise<number> {
-  // clients columns: id (uuid), score_global (numeric), niv_vigilance (text), date_exp_cni (text)
   const { data: clients, error: cErr } = await supabase
     .from('clients')
-    .select('id, score_global, niv_vigilance, date_exp_cni')
-    .eq('cabinet_id', cabinetId);
+    .select('id, score_global, niv_vigilance, date_exp_cni, date_derniere_revue, date_creation_ligne, statut')
+    .eq('cabinet_id', cabinetId)
+    .eq('statut', 'ACTIF');
   if (cErr) throw cErr;
+  if (!clients || clients.length === 0) return 0;
 
-  // Fetch existing pending revues
+  // Client IDs qui ont déjà une revue pending (a_faire ou en_cours)
   const { data: existing, error: eErr } = await supabase
     .from('revue_maintien')
-    .select('client_id, type, status')
+    .select('client_id, type')
     .eq('cabinet_id', cabinetId)
     .in('status', ['a_faire', 'en_cours']);
   if (eErr) throw eErr;
 
-  // Fetch last completed revue per client
+  const pendingSet = new Set((existing || []).map(e => `${e.client_id}:${e.type}`));
+
+  // Dernière revue complétée par client (pour enrichir la date de référence)
   const { data: completed, error: coErr } = await supabase
     .from('revue_maintien')
     .select('client_id, completed_at')
@@ -232,7 +261,6 @@ export async function generatePendingRevues(cabinetId: string): Promise<number> 
     .order('completed_at', { ascending: false });
   if (coErr) throw coErr;
 
-  const pendingSet = new Set((existing || []).map(e => `${e.client_id}:${e.type}`));
   const lastCompleted: Record<string, string> = {};
   for (const c of completed || []) {
     if (!lastCompleted[c.client_id] && c.completed_at) {
@@ -241,13 +269,15 @@ export async function generatePendingRevues(cabinetId: string): Promise<number> 
   }
 
   const now = new Date();
+  const thirtyDaysFromNow = new Date(now);
+  thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
   const revuesToCreate: Partial<RevueMaintien>[] = [];
 
-  for (const client of clients || []) {
+  for (const client of clients) {
     const score = Number(client.score_global) || 0;
-    const vigilance = client.niv_vigilance || null;
+    const vigilance = client.niv_vigilance || 'STANDARD';
 
-    // 1. Risque élevé sans revue pending
+    // 1. Risque élevé sans revue pending — échéance dans 30 jours
     if (score >= 70 && !pendingSet.has(`${client.id}:risque_eleve`)) {
       const echeance = new Date(now);
       echeance.setDate(echeance.getDate() + 30);
@@ -262,31 +292,39 @@ export async function generatePendingRevues(cabinetId: string): Promise<number> 
       });
     }
 
-    // 2. Revue périodique
-    const lastDate = lastCompleted[client.id];
-    const monthsSinceLast = lastDate
-      ? (now.getTime() - new Date(lastDate).getTime()) / (1000 * 60 * 60 * 24 * 30)
-      : Infinity;
+    // 2. Revue périodique — alignée sur la logique SQL is_review_due
+    if (!pendingSet.has(`${client.id}:annuelle`)) {
+      // Date de référence = max(dernière revue complétée, date_derniere_revue client, date_creation_ligne)
+      const dateRef = getLatestDate(
+        lastCompleted[client.id] || client.date_derniere_revue,
+        client.date_creation_ligne,
+      );
 
-    const threshold = score >= 70 ? 12 : score >= 50 ? 24 : 36;
-    if (monthsSinceLast >= threshold && !pendingSet.has(`${client.id}:annuelle`)) {
-      const echeance = new Date(now);
-      echeance.setDate(echeance.getDate() + 30);
-      revuesToCreate.push({
-        cabinet_id: cabinetId,
-        client_id: client.id,
-        type: 'annuelle',
-        status: 'a_faire',
-        score_risque_avant: score,
-        vigilance_avant: vigilance,
-        date_echeance: echeance.toISOString().split('T')[0],
-      });
+      if (dateRef) {
+        const intervalMonths = getReviewIntervalMonths(vigilance);
+        const dueDate = new Date(dateRef);
+        dueDate.setMonth(dueDate.getMonth() + intervalMonths);
+
+        // Ne créer que si l'échéance est passée ou tombe dans les 30 prochains jours
+        if (dueDate <= thirtyDaysFromNow) {
+          const echeance = dueDate < now ? now : dueDate;
+          revuesToCreate.push({
+            cabinet_id: cabinetId,
+            client_id: client.id,
+            type: 'annuelle',
+            status: 'a_faire',
+            score_risque_avant: score,
+            vigilance_avant: vigilance,
+            date_echeance: echeance.toISOString().split('T')[0],
+          });
+        }
+      }
     }
 
-    // 3. KYC expiré (date_exp_cni is text format)
-    if (client.date_exp_cni) {
+    // 3. KYC expiré (date_exp_cni is text format YYYY-MM-DD)
+    if (client.date_exp_cni && !pendingSet.has(`${client.id}:kyc_expiration`)) {
       const kycDate = new Date(client.date_exp_cni);
-      if (!isNaN(kycDate.getTime()) && kycDate <= now && !pendingSet.has(`${client.id}:kyc_expiration`)) {
+      if (!isNaN(kycDate.getTime()) && kycDate <= now) {
         const echeance = new Date(now);
         echeance.setDate(echeance.getDate() + 15);
         revuesToCreate.push({
