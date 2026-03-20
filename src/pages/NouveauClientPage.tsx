@@ -4313,7 +4313,7 @@ export default function NouveauClientPage() {
                   if (!tempClient) { toast.error("Impossible de generer la fiche : donnees manquantes"); return; }
                   setGeneratingPdf("fiche");
                   try {
-                    generateFicheAcceptation(tempClient);
+                    generateFicheAcceptation(tempClient, buildFicheExtras());
                     toast.success("Fiche LCB-FT generee (PDF)");
                     setLastGeneration({ type: "Fiche LCB-FT", date: new Date() });
                   } catch { toast.error("Erreur lors de la generation de la fiche"); }
