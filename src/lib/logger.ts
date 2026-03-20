@@ -71,4 +71,29 @@ export const logger = {
       }
     }
   },
+
+  // OPT-LOG1: Performance timing helper — measures duration of async operations
+  async time<T>(tag: string, label: string, fn: () => Promise<T>): Promise<T> {
+    const start = performance.now();
+    try {
+      const result = await fn();
+      if (shouldLog("debug")) {
+        console.log(formatPrefix("debug", tag), `${label}: ${(performance.now() - start).toFixed(1)}ms`);
+      }
+      return result;
+    } catch (e) {
+      if (shouldLog("error")) {
+        console.error(formatPrefix("error", tag), `${label} failed after ${(performance.now() - start).toFixed(1)}ms`);
+      }
+      throw e;
+    }
+  },
+
+  // OPT-LOG2: Group related logs together for cleaner dev console
+  group(tag: string, label: string): void {
+    if (IS_DEV) console.groupCollapsed(formatPrefix("debug", tag), label);
+  },
+  groupEnd(): void {
+    if (IS_DEV) console.groupEnd();
+  },
 };

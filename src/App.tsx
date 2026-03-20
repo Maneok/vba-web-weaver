@@ -68,6 +68,12 @@ const queryClient = new QueryClient({
       staleTime: 5 * 60 * 1000,
       gcTime: 10 * 60 * 1000, // OPT-12: Keep cached data in memory 10 min
       refetchOnWindowFocus: false,
+      // OPT-A1: Disable refetch on reconnect — data is loaded via AppContext
+      refetchOnReconnect: false,
+    },
+    mutations: {
+      // OPT-A2: Retry mutations once on network error
+      retry: 1,
     },
   },
 });

@@ -56,9 +56,11 @@ export default class PageErrorBoundary extends React.Component<
               <summary className="text-xs text-slate-400 dark:text-slate-500 cursor-pointer hover:text-slate-700 dark:text-slate-300 transition-colors">
                 Voir les details de l'erreur
               </summary>
-              <pre className="mt-2 text-xs bg-black/30 border border-white/10 rounded-lg p-3 overflow-auto text-slate-700 dark:text-slate-300">
+              <pre className="mt-2 text-xs bg-black/30 border border-white/10 rounded-lg p-3 overflow-auto text-slate-700 dark:text-slate-300 max-h-40">
                 {this.state.errorMessage}
               </pre>
+              {/* OPT-PEB1: Show error timestamp for debugging */}
+              <p className="mt-1 text-[10px] text-slate-500 font-mono">{new Date().toISOString()}</p>
             </details>
           )}
           <div className="flex items-center gap-3">

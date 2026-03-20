@@ -17,9 +17,17 @@
     <link rel="alternate" hreflang="fr" href="https://grimy.fr/landing">
     <link rel="icon" href="/favicon.ico" type="image/x-icon">
     <link rel="apple-touch-icon" href="/favicon.ico">
+    <!-- OPT-H1: DNS prefetch for external services -->
+    <link rel="dns-prefetch" href="https://szjcmepjuxlvnkqbxqqr.supabase.co" />
+    <link rel="dns-prefetch" href="https://api.pappers.fr" />
+    <link rel="dns-prefetch" href="https://js.stripe.com" />
+    <!-- OPT-H2: Preconnect to font CDN -->
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- OPT-H3: Font loading with display=swap for better LCP -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <!-- OPT-H4: Preload critical font weight (400) for faster text rendering -->
+    <link rel="preload" href="https://fonts.gstatic.com/s/inter/v18/UcCO3FwrK3iLTeHuS_nVMrMxCp50SjIw2boKoduKmMEVuLyfAZ9hiA.woff2" as="font" type="font/woff2" crossorigin />
 
     <!-- Open Graph -->
     <meta property="og:title" content="GRIMY — Conformité LAB pour professionnels assujettis">

@@ -21,10 +21,14 @@ export function useTheme() {
     return "dark";
   });
 
+  // OPT-TM1: Smooth transition when switching themes
   const setTheme = useCallback((newTheme: Theme) => {
+    document.documentElement.classList.add("theme-transitioning");
     setThemeState(newTheme);
     localStorage.setItem(STORAGE_KEY, newTheme);
     applyTheme(newTheme);
+    // Remove transition class after animation completes
+    setTimeout(() => document.documentElement.classList.remove("theme-transitioning"), 250);
   }, []);
 
   useEffect(() => {

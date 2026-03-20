@@ -389,6 +389,10 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  /* OPT-C1: Improve text kerning */
+  font-kerning: normal;
+  /* OPT-C2: Prevent layout shifts from scrollbar appearance */
+  overflow-y: scroll;
 }
 
 /* OPT-7: Table row hover transition — use token */
@@ -588,6 +592,34 @@ thead th {
 @media (min-width: 1024px) {
   .text-responsive-xl { font-size: 1.5rem; }
   .text-responsive-2xl { font-size: 1.75rem; }
+}
+
+/* OPT-C3: Tabular numbers for tables and stats — prevents layout jitter */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* OPT-C4: Loading skeleton with accessible aria */
+[aria-busy="true"] {
+  cursor: wait;
+}
+
+/* OPT-C5: Smooth image loading — prevent layout shift */
+img {
+  height: auto;
+  max-width: 100%;
+}
+
+/* OPT-C6: Better focus ring for keyboard navigation */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+/* Reset for elements that have their own focus ring */
+button:focus-visible, [role="button"]:focus-visible, a:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: none;
 }
 
 /* OPT-10: Truncated text — show full text on hover via title (tooltip) */
@@ -1239,4 +1271,36 @@ aside > div:last-child {
   [class*="lg:pl-"] { padding-left: 0 !important; }
   /* Item 48: Sticky header hidden in print */
   .sticky { position: static !important; }
+  /* OPT-C7: Ensure page breaks are clean */
+  h1, h2, h3 { page-break-after: avoid; }
+  .page-container { padding: 0 !important; max-width: 100% !important; }
+}
+
+/* OPT-C8: Smooth color transition on theme switch for all elements */
+*, *::before, *::after {
+  transition-property: none;
+}
+html.theme-transitioning *, html.theme-transitioning *::before, html.theme-transitioning *::after {
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease !important;
+}
+
+/* OPT-C9: GPU-accelerated transforms for common animated elements */
+.animate-spin, .animate-pulse, [class*="animate-fade"], [class*="animate-slide"] {
+  will-change: transform, opacity;
+}
+
+/* OPT-C10: Better textarea styling */
+textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+/* OPT-C11: Number input — hide spin buttons */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
 }

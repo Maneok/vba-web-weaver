@@ -23,5 +23,17 @@ export const supabase = createClient<Database>(
       detectSessionInUrl: true, // Required for OAuth redirect (Google login)
       flowType: 'pkce', // More secure OAuth flow
     },
+    // OPT-SUP1: Enable global error handling for better debugging
+    global: {
+      headers: {
+        'x-client-info': 'grimy-web/1.0.0',
+      },
+    },
+    // OPT-SUP2: Realtime disabled by default (we don't use it yet)
+    realtime: {
+      params: {
+        eventsPerSecond: 2,
+      },
+    },
   }
 );

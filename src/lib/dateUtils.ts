@@ -263,3 +263,29 @@ export function getQuarter(dateStr: string): number {
 export function formatDateRelative(dateStr: string): string {
   return formatDateFr(dateStr, "relative") || "";
 }
+
+// OPT-D1: Cached French holiday computation (one calculation per year)
+const _holidayCache = new Map<number, Set<string>>();
+export function isFrenchHolidayCached(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return false;
+  const year = d.getFullYear();
+  if (!_holidayCache.has(year)) {
+    _holidayCache.set(year, new Set(getFrenchHolidays(year)));
+  }
+  return _holidayCache.get(year)!.has(d.toISOString().split("T")[0]);
+}
+
+// OPT-D2: Format a duration in human-readable French
+export function formatDuration(ms: number): string {
+  if (ms < 1000) return `${Math.round(ms)}ms`;
+  if (ms < 60_000) return `${(ms / 1000).toFixed(1)}s`;
+  const min = Math.floor(ms / 60_000);
+  const sec = Math.round((ms % 60_000) / 1000);
+  return sec > 0 ? `${min}min ${sec}s` : `${min}min`;
+}
+
+// OPT-D3: Get current ISO date string (YYYY-MM-DD) — avoids repeated new Date().toISOString().split("T")[0]
+export function todayISO(): string {
+  return new Date().toISOString().split("T")[0];
+}

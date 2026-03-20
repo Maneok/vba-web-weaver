@@ -71,6 +71,37 @@ export function initMonitoring() {
         }
       });
       clsObserver.observe({ type: "layout-shift", buffered: true });
+
+      // OPT-M1: Track FID (First Input Delay) for interactivity
+      const fidObserver = new PerformanceObserver((list) => {
+        try {
+          for (const entry of list.getEntries()) {
+            const fid = (entry as PerformanceEntry & { processingStart?: number }).processingStart
+              ? (entry as PerformanceEntry & { processingStart: number }).processingStart - entry.startTime
+              : 0;
+            if (fid > 100) {
+              logger.warn("Perf", `FID: ${Math.round(fid)}ms (above 100ms threshold)`);
+            }
+          }
+        } catch {
+          // Ignore reporting errors
+        }
+      });
+      fidObserver.observe({ type: "first-input", buffered: true });
+
+      // OPT-M2: Track long tasks (>50ms) that block the main thread
+      const longTaskObserver = new PerformanceObserver((list) => {
+        try {
+          for (const entry of list.getEntries()) {
+            if (entry.duration > 100) {
+              logger.warn("Perf", `Long task: ${Math.round(entry.duration)}ms`);
+            }
+          }
+        } catch {
+          // Ignore reporting errors
+        }
+      });
+      longTaskObserver.observe({ type: "longtask", buffered: true });
     } catch {
       // Observer not supported
     }

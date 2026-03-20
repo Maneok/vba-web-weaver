@@ -2,20 +2,32 @@ import { supabase } from "@/integrations/supabase/client";
 import { logger } from "@/lib/logger";
 import { MAX_RETRIES, RETRY_DELAY_MS, AUDIT_TRAIL_FETCH_LIMIT } from "@/lib/constants";
 
+// OPT-DB1: Exponential backoff for retries (1s, 2s, 4s...)
 async function withRetry<T>(label: string, fn: () => Promise<T>): Promise<T> {
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
       return await fn();
     } catch (e) {
       if (attempt < MAX_RETRIES) {
-        logger.warn("DB", `${label} failed (attempt ${attempt + 1}), retrying in ${RETRY_DELAY_MS}ms...`);
-        await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
+        logger.warn("DB", `${label} failed (attempt ${attempt + 1}), retrying in ${delay}ms...`);
+        await new Promise(r => setTimeout(r, delay));
       } else {
         throw e;
       }
     }
   }
   throw new Error(`${label} failed after ${MAX_RETRIES + 1} attempts`);
+}
+
+// OPT-DB2: Request deduplication — prevents duplicate concurrent requests
+const _inflight = new Map<string, Promise<unknown>>();
+async function dedupe<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const existing = _inflight.get(key);
+  if (existing) return existing as Promise<T>;
+  const promise = fn().finally(() => _inflight.delete(key));
+  _inflight.set(key, promise);
+  return promise;
 }
 
 // OPT-8: Strip fields that should never be overwritten by client code
@@ -76,7 +88,8 @@ export const clientsService = {
   async getAll() {
     const cabinetId = await getCabinetId();
     if (!cabinetId) return [];
-    return withRetry("clients.getAll", async () => {
+    // OPT-DB3: Dedupe concurrent getAll calls (e.g. from multiple components)
+    return dedupe(`clients.getAll.${cabinetId}`, () => withRetry("clients.getAll", async () => {
       const { data, error } = await supabase
         .from("clients")
         .select("*")
@@ -89,8 +102,8 @@ export const clientsService = {
       return data || [];
     }).catch((err) => {
       logger.error("DB", "clients.getAll failed after retries:", err);
-      return [];
-    });
+      return [] as Record<string, unknown>[];
+    }));
   },
 
   async create(client: Record<string, unknown>) {

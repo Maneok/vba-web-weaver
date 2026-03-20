@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
@@ -115,10 +115,11 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
-  const handleSignOut = async () => {
+  // OPT-SB3: Stable callback reference
+  const handleSignOut = useCallback(async () => {
     await signOut();
     navigate("/auth", { replace: true });
-  };
+  }, [signOut, navigate]);
 
   const alertesEnCours = useMemo(
     () => alertes.filter((a) => a.statut === "EN COURS").length,
@@ -169,22 +170,23 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       });
   }, [profile?.cabinet_id]);
 
-  /* Badge counts */
-  const badges: Record<string, number> = {
+  // OPT-SB1: Memoize badge counts to avoid object recreation on every render
+  const badges = useMemo<Record<string, number>>(() => ({
     "/bdd": clients.length,
     "/registre": alertesEnCours,
     "/ged": expiredDocsCount,
-  };
+  }), [clients.length, alertesEnCours, expiredDocsCount]);
 
-  const cabinetName = profile?.full_name?.split(" ").pop() || "GRIMY";
-  const userInitials = getUserInitials(profile?.full_name);
+  // OPT-SB2: Memoize derived values
+  const cabinetName = useMemo(() => profile?.full_name?.split(" ").pop() || "GRIMY", [profile?.full_name]);
+  const userInitials = useMemo(() => getUserInitials(profile?.full_name), [profile?.full_name]);
   const hasAlerts = alertesEnCours > 0;
 
-  /* ─── Check if item is active ─── */
-  const isItemActive = (to: string) => {
+  // OPT-SB4: Stable callback for item active check
+  const isItemActive = useCallback((to: string) => {
     if (to === "/") return location.pathname === "/";
     return location.pathname === to || location.pathname.startsWith(to + "/");
-  };
+  }, [location.pathname]);
 
   /* ─── Render single nav item ─── */
   const renderItem = (

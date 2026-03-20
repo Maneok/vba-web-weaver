@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, memo } from "react";
 import { Loader2, CheckCircle2, AlertTriangle, XCircle, ExternalLink, Newspaper, MapPin, Shield, FileText, Users, Eye, Building2, BookOpen, ChevronDown, LayoutList, List, Snowflake, UserCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -19,7 +19,8 @@ function normalizeStatus(s: string | null): string | null {
   return "ERREUR";
 }
 
-function StatusIcon({ status, loading }: { status: Status | null; loading: boolean }) {
+// OPT-S1: Memoize StatusIcon to prevent re-renders when parent updates
+const StatusIcon = memo(function StatusIcon({ status, loading }: { status: Status | null; loading: boolean }) {
   if (loading) return <Loader2 className="w-4 h-4 text-blue-400 animate-spin" />;
   const norm = normalizeStatus(status);
   if (!norm) return <div className="w-4 h-4 rounded-full bg-gray-100 dark:bg-white/[0.06]" />;
@@ -27,7 +28,7 @@ function StatusIcon({ status, loading }: { status: Status | null; loading: boole
   if (norm === "ATTENTION") return <AlertTriangle className="w-4 h-4 text-amber-400" />;
   if (norm === "ALERTE") return <XCircle className="w-4 h-4 text-red-400 animate-pulse" />;
   return <AlertTriangle className="w-4 h-4 text-slate-400 dark:text-slate-500" />;
-}
+});
 
 // Per-key contextual badge labels
 const OK_LABELS: Record<string, string> = {
@@ -60,7 +61,8 @@ const ATTENTION_LABELS: Record<string, string> = {
   beneficiaires: "Aucun BE declare",
 };
 
-function StatusBadge({ status, loading, tooltip, rowKey }: { status: Status | null; loading: boolean; tooltip?: string; rowKey?: string }) {
+// OPT-S2: Memoize StatusBadge — called 9 times per render
+const StatusBadge = memo(function StatusBadge({ status, loading, tooltip, rowKey }: { status: Status | null; loading: boolean; tooltip?: string; rowKey?: string }) {
   const badge = (() => {
     if (loading) return <Badge className="bg-blue-500/15 text-blue-400 border-0 text-[10px] rounded-lg">Verification...</Badge>;
     const norm = normalizeStatus(status);
@@ -92,7 +94,7 @@ function StatusBadge({ status, loading, tooltip, rowKey }: { status: Status | nu
     );
   }
   return badge;
-}
+});
 
 /** A6: Format relative date in French */
 function formatRelativeDate(dateStr: string): string {
@@ -164,7 +166,8 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert, ben
   // A7: Gel des avoirs status
   const gelAvoirsStatus = gelAvoirsAlert === undefined ? null : gelAvoirsAlert.length === 0 ? "OK" : "ALERTE";
 
-  const rows: Array<{
+  // OPT-S3: Memoize rows to avoid rebuilding on every render
+  const rows = useMemo<Array<{
     key: string;
     icon: React.ReactNode;
     label: string;
@@ -174,7 +177,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert, ben
     alertes?: string[];
     errorMsg?: string | null;
     timeMs?: number;
-  }> = [
+  }>>(() => [
     {
       key: "enterprise",
       icon: SECTION_ICONS.enterprise,
@@ -290,7 +293,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert, ben
       alertes: gelAvoirsAlert.length > 0 ? gelAvoirsAlert : undefined,
       errorMsg: null,
     }] : []),
-  ];
+  ], [screening, enterpriseOk, enterpriseLoading, enterpriseError, inpiDocsLoading, inpiDocsStatus, inpiDocsStored, inpiDocsTotal, inpiDocsError, gelAvoirsStatus, gelAvoirsAlert, beneficiairesCount]);
 
   const anyLoading = screening.enterprise.loading || screening.sanctions.loading || screening.bodacc.loading || screening.google.loading || screening.news.loading || screening.network.loading || screening.inpi.loading || screening.documents.loading;
 

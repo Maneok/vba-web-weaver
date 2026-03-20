@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useTransition } from "react";
+import { useState, useEffect, useMemo, useRef, useTransition, useCallback } from "react";
 import { Outlet, useLocation, useNavigate, NavLink } from "react-router-dom";
 import AppSidebar from "./AppSidebar";
 import NotificationBell from "./NotificationBell";
@@ -112,36 +112,38 @@ export default function AppLayout() {
     }
   }, [location.pathname]);
 
-  const handleSignOut = async () => {
+  // OPT-L1: Stable callback reference for signOut
+  const handleSignOut = useCallback(async () => {
     await signOut();
     navigate("/auth", { replace: true });
-  };
+  }, [signOut, navigate]);
 
-  const handleSidebarToggle = () => {
+  // OPT-L2: Stable callback for sidebar toggle
+  const handleSidebarToggle = useCallback(() => {
     // Preserve scroll position on sidebar toggle
     const scrollTop = scrollRef.current?.scrollTop ?? 0;
     setSidebarCollapsed(prev => !prev);
     requestAnimationFrame(() => {
       if (scrollRef.current) scrollRef.current.scrollTop = scrollTop;
     });
-  };
+  }, []);
 
-  // Detect detail pages for "Retour" button
-  const isClientDetail = location.pathname.startsWith("/client/");
-  const isLettreMissionDetail = /^\/lettre-mission\/[^/]+/.test(location.pathname);
-  const isDetailPage = isClientDetail || isLettreMissionDetail;
-
-  // Dynamic breadcrumb for client detail pages
-  let page = PAGE_TITLES[location.pathname];
-  if (!page && isClientDetail) {
-    const ref = location.pathname.split("/client/")[1];
-    page = { title: ref, breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Base Clients", path: "/bdd" }, { label: ref }] };
-  }
-  if (!page && isLettreMissionDetail) {
-    const ref = location.pathname.split("/lettre-mission/")[1];
-    page = { title: `LDM ${ref}`, breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Lettre de Mission", path: "/lettre-mission" }, { label: ref }] };
-  }
-  if (!page) page = { title: "Page", breadcrumb: [{ label: "Accueil", path: "/" }] };
+  // OPT-L3: Memoize page detection to avoid recalculation on unrelated re-renders
+  const { isClientDetail, isLettreMissionDetail, isDetailPage, page } = useMemo(() => {
+    const _isClientDetail = location.pathname.startsWith("/client/");
+    const _isLettreMissionDetail = /^\/lettre-mission\/[^/]+/.test(location.pathname);
+    let _page = PAGE_TITLES[location.pathname];
+    if (!_page && _isClientDetail) {
+      const ref = location.pathname.split("/client/")[1];
+      _page = { title: ref, breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Base Clients", path: "/bdd" }, { label: ref }] };
+    }
+    if (!_page && _isLettreMissionDetail) {
+      const ref = location.pathname.split("/lettre-mission/")[1];
+      _page = { title: `LDM ${ref}`, breadcrumb: [{ label: "Accueil", path: "/" }, { label: "Lettre de Mission", path: "/lettre-mission" }, { label: ref }] };
+    }
+    if (!_page) _page = { title: "Page", breadcrumb: [{ label: "Accueil", path: "/" }] };
+    return { isClientDetail: _isClientDetail, isLettreMissionDetail: _isLettreMissionDetail, isDetailPage: _isClientDetail || _isLettreMissionDetail, page: _page };
+  }, [location.pathname]);
 
   const roleLabel = profile?.role ? ROLE_LABELS[profile.role] : null;
   const roleBadgeColor: Record<string, string> = {

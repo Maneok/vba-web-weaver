@@ -158,6 +158,28 @@ export const VIGILANCE_COLORS = {
   RENFORCEE: "bg-red-500/15 text-red-400 border-red-500/20",
 } as const;
 
+// OPT-K1: Vigilance level labels (French)
+export const VIGILANCE_LABELS = {
+  SIMPLIFIEE: "Simplifiee",
+  STANDARD: "Standard",
+  RENFORCEE: "Renforcee",
+} as const;
+
+// OPT-K2: Pilotage state colors
+export const PILOTAGE_COLORS = {
+  "A JOUR": "bg-emerald-500/15 text-emerald-400",
+  "A VERIFIER": "bg-amber-500/15 text-amber-400",
+  "ALERTE": "bg-red-500/15 text-red-400",
+  "NON PILOTE": "bg-slate-500/15 text-slate-400",
+} as const;
+
+// OPT-K3: Client state colors
+export const ETAT_COLORS = {
+  VALIDE: "bg-emerald-500/15 text-emerald-400",
+  PROSPECT: "bg-blue-500/15 text-blue-400",
+  ARCHIVE: "bg-slate-500/15 text-slate-400",
+} as const;
+
 // C1: Documents required by vigilance level
 export const DOCS_REQUIRED = {
   ALL: ["KBIS", "STATUTS", "CNI", "RIB"],
