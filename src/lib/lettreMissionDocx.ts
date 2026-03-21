@@ -819,6 +819,7 @@ export async function generateDocxFromInstance(
     iban?: string;
     bic?: string;
     mode_paiement?: string;
+    honoraires_detail?: Record<string, number>;
   },
 ): Promise<void> {
   try {
@@ -882,6 +883,21 @@ export async function generateDocxFromInstance(
           content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val || "—");
         }
       }
+
+      // 1b. Resolve payment & client variables from wizard data
+      const ibanVal = (honorairesData?.iban || "").replace(/\s/g, "");
+      const ibanDisplay = ibanVal ? ibanVal.replace(/(.{4})/g, "$1 ").trim() : "________________________";
+      const bicVal = (honorairesData?.bic || "").trim() || "___________";
+      const modeLabel = honorairesData?.mode_paiement === "virement" ? "virement bancaire" :
+                        honorairesData?.mode_paiement === "cheque" ? "chèque" : "prélèvement automatique";
+      const freqLabel = honorairesData?.frequence_facturation === "TRIMESTRIEL" ? "trimestriellement" :
+                        honorairesData?.frequence_facturation === "ANNUEL" ? "annuellement" : "mensuellement";
+      content = content.replace(/\{\{iban\}\}/g, ibanDisplay);
+      content = content.replace(/\{\{bic\}\}/g, bicVal);
+      content = content.replace(/\{\{mode_paiement\}\}/g, modeLabel);
+      content = content.replace(/\{\{frequence_facturation_label\}\}/g, freqLabel);
+      content = content.replace(/\{\{nom_cabinet\}\}/g, cabinet?.nom || "");
+      content = content.replace(/\{\{date_cloture\}\}/g, clientData?.exercice_fin || `31/12/${new Date().getFullYear()}`);
 
       // 2. Resolve {{bloc_vigilance_lab}}
       content = content.replace(/\{\{bloc_vigilance_lab\}\}/g,
@@ -953,6 +969,54 @@ export async function generateDocxFromInstance(
             width: { size: 100, type: WidthType.PERCENTAGE },
           });
           children.push(table);
+
+          // Honoraires detail breakdown (if provided)
+          const detail = honorairesData?.honoraires_detail || {};
+          const hasDetail = Object.values(detail).some(v => Number(v) > 0);
+          if (hasDetail) {
+            const DETAIL_LABELS: Record<string, string> = {
+              comptabilite: "Comptabilité",
+              fiscal: "Fiscal",
+              social: "Social / Paie",
+              juridique: "Juridique",
+              conseil: "Conseil",
+            };
+            const detailRows = Object.entries(detail)
+              .filter(([, v]) => Number(v) > 0)
+              .map(([k, v]) => [DETAIL_LABELS[k] || k, `${Number(v).toLocaleString("fr-FR")} € HT`]);
+            if (detailRows.length > 0) {
+              children.push(subHeading("Détail des honoraires par mission"));
+              children.push(new Table({
+                rows: [
+                  new TableRow({
+                    children: [
+                      new TableCell({
+                        shading: { type: ShadingType.CLEAR, color: NAVY, fill: NAVY },
+                        width: { size: 5000, type: WidthType.DXA },
+                        children: [new Paragraph({ children: [new TextRun({ text: "Mission", bold: true, size: 18, color: "FFFFFF" })] })],
+                      }),
+                      new TableCell({
+                        shading: { type: ShadingType.CLEAR, color: NAVY, fill: NAVY },
+                        width: { size: 4500, type: WidthType.DXA },
+                        children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Montant HT", bold: true, size: 18, color: "FFFFFF" })] })],
+                      }),
+                    ],
+                  }),
+                  ...detailRows.map(([label, montant], idx) => tableRow2Col(label, montant, idx % 2 === 0)),
+                ],
+                width: { size: 100, type: WidthType.PERCENTAGE },
+              }));
+            }
+          }
+
+          // Payment mode & frequency text
+          const modeLbl = honorairesData?.mode_paiement === "virement" ? "virement bancaire" :
+                          honorairesData?.mode_paiement === "cheque" ? "chèque" : "prélèvement automatique";
+          const freqLbl = honorairesData?.frequence_facturation === "TRIMESTRIEL" ? "trimestriellement" :
+                          honorairesData?.frequence_facturation === "ANNUEL" ? "annuellement" : "mensuellement";
+          children.push(bodyText(
+            `Nos honoraires seront facturés ${freqLbl}, réglés par ${modeLbl} à réception de facture, au plus tard sous 30 jours. Pénalités de retard conformément à l'article L.441-10 du Code de commerce.`
+          ));
         } else {
           children.push(bodyText("[Honoraires non renseignés]"));
         }

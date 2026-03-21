@@ -322,6 +322,16 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
           iban: data.iban || "",
           bic: data.bic || "",
           mode_paiement: data.mode_paiement || "prelevement",
+          honoraires_detail: (() => {
+            const d: Record<string, number> = {};
+            if (data.honoraires_detail) {
+              for (const [k, v] of Object.entries(data.honoraires_detail)) {
+                const n = parseFloat(String(v));
+                if (Number.isFinite(n) && n > 0) d[k] = n;
+              }
+            }
+            return Object.keys(d).length > 0 ? d : undefined;
+          })(),
         });
         toast.success("DOCX genere depuis le modele");
         return;
