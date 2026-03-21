@@ -4,15 +4,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2, CheckCircle2, XCircle, Building2, UserPlus } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, Building2, UserPlus, Mail, Shield, Clock } from "lucide-react";
+import { toast } from "sonner";
 
 interface InvitationInfo {
-  id: string;
   email: string;
   role: string;
   cabinet_name: string;
+  invited_by: string;
   expires_at: string;
-  status: string;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -21,6 +21,20 @@ const ROLE_LABELS: Record<string, string> = {
   COLLABORATEUR: "Collaborateur",
   STAGIAIRE: "Stagiaire",
 };
+
+function formatDateFr(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString("fr-FR", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
 export default function InvitePage() {
   const { token } = useParams<{ token: string }>();
@@ -33,7 +47,7 @@ export default function InvitePage() {
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(false);
 
-  // Load invitation info
+  // Validate invitation token via RPC (bypasses RLS)
   useEffect(() => {
     if (!token) {
       setError("Lien d'invitation invalide.");
@@ -43,54 +57,43 @@ export default function InvitePage() {
 
     let cancelled = false;
 
-    async function fetchInvitation() {
-      const { data, error: fetchErr } = await supabase
-        .from("invitations")
-        .select("id, email, role, status, expires_at, cabinet_id, cabinets(nom)")
-        .eq("token", token!)
-        .maybeSingle();
+    async function validateToken() {
+      const { data, error: rpcError } = await supabase.rpc("validate_invitation_token", {
+        p_token: token!,
+      });
 
       if (cancelled) return;
 
-      if (fetchErr || !data) {
-        setError("Invitation introuvable ou lien invalide.");
+      if (rpcError) {
+        console.error("RPC validate_invitation_token error:", rpcError);
+        setError("Erreur de validation du lien d'invitation.");
         setLoading(false);
         return;
       }
 
-      if (data.status !== "pending") {
-        setError("Cette invitation a deja ete utilisee ou revoquee.");
+      if (!data || !data.valid) {
+        setError(data?.error || "Invitation introuvable ou lien invalide.");
         setLoading(false);
         return;
       }
-
-      if (new Date(data.expires_at) < new Date()) {
-        setError("Cette invitation a expire.");
-        setLoading(false);
-        return;
-      }
-
-      const cabinets = data.cabinets as Record<string, unknown> | null;
-      const cabinetName = (cabinets && typeof cabinets.nom === "string") ? cabinets.nom : "Cabinet inconnu";
 
       setInvitation({
-        id: data.id,
         email: data.email,
         role: data.role,
-        cabinet_name: cabinetName,
+        cabinet_name: data.cabinet_name,
+        invited_by: data.invited_by || "",
         expires_at: data.expires_at,
-        status: data.status,
       });
       setLoading(false);
     }
 
-    fetchInvitation();
+    validateToken();
     return () => { cancelled = true; };
   }, [token]);
 
   async function handleAccept() {
     if (!user) {
-      // Redirect to auth with return URL
+      // Redirect to auth with return URL + pre-fill email
       const returnUrl = `/invite/${token}`;
       navigate(`/auth?email=${encodeURIComponent(invitation?.email || "")}&redirect=${encodeURIComponent(returnUrl)}`);
       return;
@@ -101,38 +104,46 @@ export default function InvitePage() {
     setAccepting(true);
     setError(null);
 
-    const { data, error: rpcErr } = await supabase.rpc("accept_invitation", {
+    const { data, error: rpcError } = await supabase.rpc("accept_invitation", {
       p_token: token,
-      p_user_id: user.id,
     });
 
-    if (rpcErr) {
-      setError(rpcErr.message || "Erreur lors de l'acceptation de l'invitation.");
+    if (rpcError) {
+      toast.error(rpcError.message || "Erreur lors de l'acceptation de l'invitation.");
+      setError(rpcError.message || "Erreur lors de l'acceptation.");
       setAccepting(false);
       return;
     }
 
+    if (data && !data.success) {
+      toast.error(data.error || "Impossible d'accepter l'invitation.");
+      setError(data.error || "Impossible d'accepter l'invitation.");
+      setAccepting(false);
+      return;
+    }
+
+    toast.success(data?.message || "Bienvenue dans le cabinet !");
     setAccepted(true);
     setAccepting(false);
 
     // Redirect to dashboard after short delay
-    setTimeout(() => navigate("/", { replace: true }), 2000);
+    setTimeout(() => navigate("/", { replace: true }), 1500);
   }
 
   if (loading || authLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center mb-3">
-            <UserPlus className="w-6 h-6 text-blue-600" />
+          <div className="mx-auto w-12 h-12 rounded-full bg-blue-100 dark:bg-blue-500/15 flex items-center justify-center mb-3">
+            <UserPlus className="w-6 h-6 text-blue-600 dark:text-blue-400" />
           </div>
           <CardTitle className="text-xl">Invitation a rejoindre un cabinet</CardTitle>
           <CardDescription>
@@ -147,26 +158,26 @@ export default function InvitePage() {
         <CardContent>
           {error ? (
             <div className="text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-red-100 flex items-center justify-center">
-                <XCircle className="w-6 h-6 text-red-600" />
+              <div className="mx-auto w-12 h-12 rounded-full bg-red-100 dark:bg-red-500/15 flex items-center justify-center">
+                <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
               </div>
-              <p className="text-sm text-red-600">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
               <Button variant="outline" onClick={() => navigate("/auth")}>
                 Retour a la connexion
               </Button>
             </div>
           ) : accepted ? (
             <div className="text-center space-y-4">
-              <div className="mx-auto w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle2 className="w-6 h-6 text-green-600" />
+              <div className="mx-auto w-12 h-12 rounded-full bg-green-100 dark:bg-green-500/15 flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
               </div>
-              <p className="text-sm text-green-700">
+              <p className="text-sm text-green-700 dark:text-green-400">
                 Vous avez rejoint <strong>{invitation?.cabinet_name}</strong>. Redirection en cours...
               </p>
             </div>
           ) : invitation ? (
             <div className="space-y-6">
-              <div className="rounded-lg border bg-slate-50 p-4 space-y-3">
+              <div className="rounded-lg border bg-slate-50 dark:bg-white/[0.02] p-4 space-y-3">
                 <div className="flex items-center gap-3">
                   <Building2 className="w-5 h-5 text-slate-400 dark:text-slate-500" />
                   <div>
@@ -175,17 +186,36 @@ export default function InvitePage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <UserPlus className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                  <Shield className="w-5 h-5 text-slate-400 dark:text-slate-500" />
                   <div>
                     <p className="text-xs text-muted-foreground">Role propose</p>
                     <p className="font-medium">{ROLE_LABELS[invitation.role] || invitation.role}</p>
                   </div>
                 </div>
+                <div className="flex items-center gap-3">
+                  <Mail className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Adresse email</p>
+                    <p className="font-medium">{invitation.email}</p>
+                  </div>
+                </div>
+                {invitation.invited_by && (
+                  <div className="flex items-center gap-3">
+                    <UserPlus className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                    <div>
+                      <p className="text-xs text-muted-foreground">Invite par</p>
+                      <p className="font-medium">{invitation.invited_by}</p>
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-3">
+                  <Clock className="w-5 h-5 text-slate-400 dark:text-slate-500" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Expire le</p>
+                    <p className="font-medium text-sm">{formatDateFr(invitation.expires_at)}</p>
+                  </div>
+                </div>
               </div>
-
-              <p className="text-sm text-muted-foreground text-center">
-                Invitation envoyee a <strong>{invitation.email}</strong>
-              </p>
 
               {!user ? (
                 <div className="space-y-2">
