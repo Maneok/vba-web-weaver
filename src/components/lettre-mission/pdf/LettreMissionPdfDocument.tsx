@@ -50,16 +50,18 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
 
   // BUG 6 / C5 — expert name: prefer data, never show cabinet name, never show "—"
   const expertName = data.expert_responsable && data.expert_responsable !== cabinet.nom && data.expert_responsable !== "\u2014"
-    ? data.expert_responsable : "L'Expert-comptable";
+    ? data.expert_responsable : "";
 
   // C3 — normalized SIREN for consistent display
   const clientSiren = normalizeSiren(client.siren || "");
 
-  // BUG 5 — safe exercice dates with fallback
-  const dateDebut = client.exercice_debut && client.exercice_debut !== "" && client.exercice_debut !== "\u2014"
-    ? client.exercice_debut : `01/01/${new Date().getFullYear()}`;
-  const dateFin = client.exercice_fin && client.exercice_fin !== "" && client.exercice_fin !== "\u2014"
-    ? client.exercice_fin : `31/12/${new Date().getFullYear()}`;
+  // BUG 5 — safe exercice dates with fallback (trim to catch spaces/invisible chars)
+  const rawDateDebut = (client.exercice_debut || "").trim();
+  const dateDebut = rawDateDebut && rawDateDebut !== "\u2014" && rawDateDebut.length > 2
+    ? rawDateDebut : `01/01/${new Date().getFullYear()}`;
+  const rawDateFin = (client.exercice_fin || "").trim();
+  const dateFin = rawDateFin && rawDateFin !== "\u2014" && rawDateFin.length > 2
+    ? rawDateFin : `31/12/${new Date().getFullYear()}`;
 
   // E1 — Document metadata
   const pdfTitle = `Lettre de Mission ${s(data.numero_lm)} - ${s(client.raison_sociale)}`;
@@ -301,7 +303,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
             <SignatureBox
               label="L'Expert-comptable"
               boldName
-              name={expertName}
+              name={expertName || s(cabinet.nom)}
               signatureImage={data.signature_expert}
             />
             <SignatureBox
@@ -364,7 +366,7 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
         </View>
         <View style={{ alignItems: "flex-end" }}>
           {hasValidLogo ? (
-            <Image src={cabinet.logo_base64!} style={{ width: 80, height: 80, objectFit: "contain" }} />
+            <Image src={cabinet.logo_base64!} style={{ width: 90 }} />
           ) : (
             <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>
               {s(cabinet.nom)}
@@ -398,7 +400,6 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
 
       {/* Info grid with premium InfoRow */}
       <View style={{ marginBottom: 2 }}>
-        <InfoRow label="Cabinet" value={s(cabinet.nom)} theme={theme} />
         <InfoRow label="Client" value={`${s(client.forme_juridique)} ${s(client.raison_sociale)}`} theme={theme} />
         <InfoRow label="SIREN" value={displaySiren || "\u2014"} theme={theme} />
         <InfoRow label="Exercice" value={`${s(client.exercice_debut)} \u2014 ${s(client.exercice_fin)}`} theme={theme} />
@@ -519,7 +520,7 @@ const RenderSnapshotSection: React.FC<{
 const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissionPdfData; theme: PdfTheme }> = ({ data, theme }) => {
   const dateLong = formatDateLong(data.date_generation);
   const expName = data.expert_responsable && data.expert_responsable !== data.cabinet.nom && data.expert_responsable !== "\u2014"
-    ? data.expert_responsable : "L'Expert-comptable";
+    ? data.expert_responsable : "";
   return (
     <View>
       <Text style={styles.bodyText}>
@@ -532,7 +533,7 @@ const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissio
       <View style={styles.signatureContainer}>
         <SignatureBox
           label="L'Expert-comptable"
-          name={expName}
+          name={expName || s(data.cabinet.nom)}
           signatureImage={data.signature_expert}
         />
         <SignatureBox

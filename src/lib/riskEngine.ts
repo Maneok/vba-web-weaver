@@ -12,11 +12,38 @@ export interface PaysRisqueData {
   est_offshore: boolean;
 }
 
+export interface ScoringConfig {
+  seuil_bas: number;
+  seuil_haut: number;
+  malus_cash: number;
+  malus_pression: number;
+  malus_distanciel: number;
+  malus_ppe: number;
+  malus_atypique: number;
+  revue_standard_mois: number;
+  revue_renforcee_mois: number;
+  revue_simplifiee_mois: number;
+}
+
+const DEFAULT_SCORING_CONFIG: ScoringConfig = {
+  seuil_bas: 25,
+  seuil_haut: 60,
+  malus_cash: 40,
+  malus_pression: 40,
+  malus_distanciel: 30,
+  malus_ppe: 20,
+  malus_atypique: 15,
+  revue_standard_mois: 24,
+  revue_renforcee_mois: 12,
+  revue_simplifiee_mois: 36,
+};
+
 export interface ScoringData {
   missions: Map<string, number>;
   typesJuridiques: Map<string, number>;
   pays: Map<string, PaysRisqueData>;
   activites: Map<string, number>;
+  config: ScoringConfig;
 }
 
 // ====== SCORING DATA CACHE (TTL 5 min) ======
@@ -96,7 +123,22 @@ export async function loadScoringData(cabinetId: string): Promise<ScoringData> {
       }
     }
 
-    const data: ScoringData = { missions, typesJuridiques, pays, activites };
+    // Load scoring_config from parametres
+    let config: ScoringConfig = { ...DEFAULT_SCORING_CONFIG };
+    try {
+      const { data: paramData } = await supabase
+        .from("parametres")
+        .select("valeur")
+        .eq("cabinet_id", cabinetId)
+        .eq("cle", "scoring_config")
+        .single();
+      if (paramData?.valeur) {
+        const v = typeof paramData.valeur === "string" ? JSON.parse(paramData.valeur) : paramData.valeur;
+        config = { ...config, ...v };
+      }
+    } catch { /* fallback to defaults */ }
+
+    const data: ScoringData = { missions, typesJuridiques, pays, activites, config };
 
     scoringCache = { data, cabinetId, timestamp: Date.now() };
     logger.info("RiskEngine", `Scoring data loaded for cabinet ${cabinetId} (${missions.size} missions, ${typesJuridiques.size} types, ${pays.size} pays, ${activites.size} activites)`);
@@ -159,12 +201,15 @@ export const MISSION_FREQUENCE: Record<string, string> = {
 };
 
 // ====== VIGILANCE → DATE BUTOIR OFFSET (Idée 9) ======
-export function calculateDateButoir(nivVigilance: VigilanceLevel): string {
+export function calculateDateButoir(nivVigilance: VigilanceLevel, config?: ScoringConfig): string {
   const d = new Date();
+  const moisSimp = config?.revue_simplifiee_mois ?? 36;
+  const moisStd = config?.revue_standard_mois ?? 24;
+  const moisRenf = config?.revue_renforcee_mois ?? 12;
   switch (nivVigilance) {
-    case "SIMPLIFIEE": d.setFullYear(d.getFullYear() + 2); break;
-    case "STANDARD": d.setFullYear(d.getFullYear() + 1); break;
-    case "RENFORCEE": d.setMonth(d.getMonth() + 6); break;
+    case "SIMPLIFIEE": d.setMonth(d.getMonth() + moisSimp); break;
+    case "STANDARD": d.setMonth(d.getMonth() + moisStd); break;
+    case "RENFORCEE": d.setMonth(d.getMonth() + moisRenf); break;
   }
   return d.toISOString().split("T")[0];
 }
@@ -363,17 +408,20 @@ export function calculateRiskScore(params: {
     return MISSION_SCORES[mission] ?? 25;
   };
 
-  // PPE or Atypique = forced 100, but still compute malus for audit trail
-  if (params.ppe || params.atypique) {
+  const cfg = scoringData?.config;
+
+  // PPE = forced RENFORCEE at score 100 (non-configurable)
+  if (params.ppe) {
     const sa = resolveApe(params.ape);
     const sp = computeScorePays(params.paysRisque, params.pays, scoringData);
     const sm = resolveMission(params.mission);
     const smat = scoreMaturite(params.dateCreation, params.dateReprise, params.effectif, params.forme);
     const ss = scoreStructure(params.forme, scoringData);
     let mal = 0;
-    if (params.cash) mal += 40;
-    if (params.pression) mal += 40;
-    if (params.distanciel) mal += 30;
+    if (params.cash) mal += cfg?.malus_cash ?? 40;
+    if (params.pression) mal += cfg?.malus_pression ?? 40;
+    if (params.distanciel) mal += cfg?.malus_distanciel ?? 30;
+    if (params.atypique) mal += cfg?.malus_atypique ?? 15;
     return {
       scoreActivite: sa, scorePays: sp, scoreMission: sm,
       scoreMaturite: smat, scoreStructure: ss,
@@ -387,11 +435,12 @@ export function calculateRiskScore(params: {
   const scoreMat = scoreMaturite(params.dateCreation, params.dateReprise, params.effectif, params.forme);
   const scoreStr = scoreStructure(params.forme, scoringData);
 
-  // Malus
+  // Malus (dynamic from scoring_config)
   let malus = 0;
-  if (params.cash) malus += 40;
-  if (params.pression) malus += 40;
-  if (params.distanciel) malus += 30;
+  if (params.cash) malus += cfg?.malus_cash ?? 40;
+  if (params.pression) malus += cfg?.malus_pression ?? 40;
+  if (params.distanciel) malus += cfg?.malus_distanciel ?? 30;
+  if (params.atypique) malus += cfg?.malus_atypique ?? 15;
 
   // B1: Récence malus — company age (complements scoreMaturite)
   if (params.dateCreation) {
@@ -418,9 +467,12 @@ export function calculateRiskScore(params: {
   // Cap at 100 (maximum score)
   scoreGlobal = Math.min(scoreGlobal, 100);
 
+  const seuilSimplifie = cfg?.seuil_bas ?? RISK_THRESHOLDS.SIMPLIFIEE_MAX;
+  const seuilRenforce = cfg?.seuil_haut ?? RISK_THRESHOLDS.STANDARD_MAX;
+
   let nivVigilance: VigilanceLevel;
-  if (scoreGlobal <= RISK_THRESHOLDS.SIMPLIFIEE_MAX) nivVigilance = "SIMPLIFIEE";
-  else if (scoreGlobal <= RISK_THRESHOLDS.STANDARD_MAX) nivVigilance = "STANDARD";
+  if (scoreGlobal <= seuilSimplifie) nivVigilance = "SIMPLIFIEE";
+  else if (scoreGlobal <= seuilRenforce) nivVigilance = "STANDARD";
   else nivVigilance = "RENFORCEE";
 
   return {

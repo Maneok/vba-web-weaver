@@ -177,14 +177,15 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     textTransform: "uppercase", // opt 4
     marginTop: 20, // opt 3
-    marginBottom: 6,
+    marginBottom: 2,
   },
   coverSubtitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: "Helvetica-Bold",
     color: colors.primaire,
     textAlign: "center",
     textTransform: "uppercase", // opt 5
+    marginTop: 6,
     marginBottom: 4,
   },
   coverNorme: {

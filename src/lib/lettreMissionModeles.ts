@@ -346,7 +346,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     id: "annexe_sepa",
     titre: "Annexe — Mandat de prélèvement SEPA",
     contenu:
-      "En signant ce formulaire de mandat, vous autorisez {{nom_cabinet}} à envoyer des instructions à votre banque pour débiter votre compte.\n\nIBAN : {{iban}}\nBIC : {{bic}}",
+      "En signant ce formulaire de mandat, vous autorisez {{nom_cabinet}} à envoyer des instructions à votre banque pour débiter votre compte conformément aux instructions de {{nom_cabinet}}. Vous bénéficiez du droit d'être remboursé par votre banque selon les conditions de la convention que vous avez passée avec elle. Une demande de remboursement doit être présentée dans les 8 semaines suivant la date de débit.\n\nIBAN : {{iban}}\nBIC : {{bic}}",
     type: "fixed",
     editable: true,
     cnoec_obligatoire: false,
@@ -450,41 +450,27 @@ Conformément aux dispositions de l'article 1225 du Code civil, en cas d'inexéc
 // ══════════════════════════════════════════════
 
 export const GRIMY_DEFAULT_REPARTITION: RepartitionRow[] = [
-  // Comptabilité
   { id: "tenue", label: "Tenue des comptes", cabinet: true, client: false, periodicite: "M" },
   { id: "depenses_recettes", label: "Tenue de vos dépenses et recettes", cabinet: true, client: false, periodicite: "M" },
-  { id: "editions", label: "Éditions des journaux, grand livre, balance", cabinet: true, client: false, periodicite: "A" },
+  { id: "editions", label: "Éditions des journaux, grand livre\u2026", cabinet: true, client: false, periodicite: "A" },
   { id: "justification", label: "Justification des comptes", cabinet: true, client: false, periodicite: "M" },
-  // Fiscal
   { id: "decl_periodiques", label: "Établissement des déclarations fiscales périodiques", cabinet: true, client: false, periodicite: "A" },
   { id: "decl_annuelles", label: "Établissement des déclarations fiscales annuelles", cabinet: true, client: false, periodicite: "A" },
-  // Inventaire
-  { id: "prep_inventaire", label: "Préparation des éléments d'inventaire", cabinet: false, client: true, periodicite: "A" },
-  { id: "inventaire_physique", label: "Inventaire physique des stocks et immobilisations", cabinet: false, client: true, periodicite: "A" },
-  // Clôture
+  { id: "inventaire", label: "Préparation des éléments d'inventaire", cabinet: false, client: true, periodicite: "A" },
   { id: "comptes_annuels", label: "Établissement et présentation des comptes annuels", cabinet: true, client: false, periodicite: "A" },
-  { id: "registres_legaux", label: "Tenue des registres légaux", cabinet: true, client: false, periodicite: "A" },
+  { id: "registres", label: "Tenue des registres légaux", cabinet: true, client: false, periodicite: "A" },
   { id: "attestation", label: "Attestation de présentation", cabinet: true, client: false, periodicite: "A" },
-  // Social
-  { id: "bulletins", label: "Établissement des bulletins de paie", cabinet: true, client: false, periodicite: "M" },
-  { id: "dsn", label: "Déclarations sociales périodiques (DSN)", cabinet: true, client: false, periodicite: "M" },
-  { id: "entrees_sorties", label: "Gestion des entrées/sorties de personnel", cabinet: true, client: true, periodicite: "P" },
-  // Juridique
-  { id: "formalites_juridiques", label: "Formalités juridiques ordinaires et annuelles", cabinet: false, client: true, periodicite: "A" },
-  { id: "ago", label: "Secrétariat juridique annuel (AGO)", cabinet: true, client: false, periodicite: "A" },
-  // Obligations client
+  { id: "formalites_jur", label: "Formalités juridiques ordinaires et annuelles", cabinet: false, client: true, periodicite: "A" },
   { id: "archives", label: "Conservation des archives", cabinet: false, client: true, periodicite: "A" },
   { id: "legislation", label: "Respect de la législation de votre activité", cabinet: false, client: true, periodicite: "M" },
-  { id: "vigilance_sociale", label: "Devoir de vigilance en matière sociale", cabinet: false, client: true, periodicite: "A" },
-  { id: "vigilance_fiscale", label: "Attestation de vigilance en matière fiscale", cabinet: false, client: true, periodicite: "A" },
-  { id: "assurance_metiers", label: "Assurance \"métiers\" facultative", cabinet: false, client: true, periodicite: "A" },
-  { id: "tva_client", label: "Taxe sur la Valeur Ajoutée", cabinet: false, client: true, periodicite: "ND" },
-  { id: "mentions_factures", label: "Conformité de vos mentions obligatoires sur vos factures de vente", cabinet: false, client: true, periodicite: "M" },
+  { id: "vigilance_sociale", label: "Devoir de vigilance en matière sociale", cabinet: false, client: true, periodicite: "S" },
+  { id: "vigilance_fiscale", label: "Attestation de vigilance en matière fiscale", cabinet: false, client: true, periodicite: "S" },
+  { id: "assurance", label: "Assurance \"métiers\" facultative", cabinet: false, client: true, periodicite: "A" },
+  { id: "tva_client", label: "Taxe sur la Valeur Ajoutée", cabinet: false, client: true, periodicite: "NA" },
+  { id: "mentions_factures", label: "Conformité de vos mentions obligatoires sur vos factures", cabinet: false, client: true, periodicite: "M" },
   { id: "caisse", label: "Caisse enregistreuse certifiée", cabinet: false, client: true, periodicite: "A" },
-  // Options
-  { id: "previsionnels", label: "Établissement de documents prévisionnels — Si Option", cabinet: true, client: false, periodicite: "A" },
-  { id: "situations", label: "Établissement de situations intermédiaires — Si Option", cabinet: true, client: false, periodicite: "A" },
-  { id: "controle_fiscal", label: "Assistance au contrôle fiscal — Si Option", cabinet: true, client: false, periodicite: "ND" },
+  { id: "previsionnels", label: "Établissement de documents prévisionnels \u2013 Si Option", cabinet: true, client: false, periodicite: "A" },
+  { id: "situations", label: "Établissement de situations intermédiaires \u2013 Si Option", cabinet: true, client: false, periodicite: "A" },
 ];
 
 // ══════════════════════════════════════════════

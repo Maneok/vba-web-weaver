@@ -8,25 +8,19 @@ export const DEFAULT_REPARTITION: PdfRepartitionRow[] = [
   // Comptabilité
   { tache: "Tenue des comptes", cabinet: true, client: false, periodicite: "Mensuel", categorie: "Comptabilité" },
   { tache: "Tenue de vos dépenses et recettes", cabinet: true, client: false, periodicite: "Mensuel", categorie: "Comptabilité" },
-  { tache: "Éditions des journaux, grand livre, balance", cabinet: true, client: false, periodicite: "Annuel", categorie: "Comptabilité" },
+  { tache: "Éditions des journaux, grand livre\u2026", cabinet: true, client: false, periodicite: "Annuel", categorie: "Comptabilité" },
   { tache: "Justification des comptes", cabinet: true, client: false, periodicite: "Mensuel", categorie: "Comptabilité" },
   // Fiscal
   { tache: "Établissement des déclarations fiscales périodiques", cabinet: true, client: false, periodicite: "Annuel", categorie: "Fiscal" },
   { tache: "Établissement des déclarations fiscales annuelles", cabinet: true, client: false, periodicite: "Annuel", categorie: "Fiscal" },
   // Inventaire
   { tache: "Préparation des éléments d'inventaire", cabinet: false, client: true, periodicite: "Annuel", categorie: "Inventaire" },
-  { tache: "Inventaire physique des stocks et immobilisations", cabinet: false, client: true, periodicite: "Annuel", categorie: "Inventaire" },
   // Clôture
   { tache: "Établissement et présentation des comptes annuels", cabinet: true, client: false, periodicite: "Annuel", categorie: "Clôture" },
   { tache: "Tenue des registres légaux", cabinet: true, client: false, periodicite: "Annuel", categorie: "Clôture" },
   { tache: "Attestation de présentation", cabinet: true, client: false, periodicite: "Annuel", categorie: "Clôture" },
-  // Social
-  { tache: "Établissement des bulletins de paie", cabinet: true, client: false, periodicite: "Mensuel", categorie: "Social" },
-  { tache: "Déclarations sociales périodiques (DSN)", cabinet: true, client: false, periodicite: "Mensuel", categorie: "Social" },
-  { tache: "Gestion des entrées/sorties de personnel", cabinet: true, client: true, periodicite: "Par évènement", categorie: "Social" },
   // Juridique
   { tache: "Formalités juridiques ordinaires et annuelles", cabinet: false, client: true, periodicite: "Annuel", categorie: "Juridique" },
-  { tache: "Secrétariat juridique annuel (AGO)", cabinet: true, client: false, periodicite: "Annuel", categorie: "Juridique" },
   // Obligations client
   { tache: "Conservation des archives", cabinet: false, client: true, periodicite: "Annuel", categorie: "Obligations client" },
   { tache: "Respect de la législation de votre activité", cabinet: false, client: true, periodicite: "Mensuel", categorie: "Obligations client" },
@@ -34,12 +28,11 @@ export const DEFAULT_REPARTITION: PdfRepartitionRow[] = [
   { tache: "Attestation de vigilance en matière fiscale", cabinet: false, client: true, periodicite: "Semestriel", categorie: "Obligations client" },
   { tache: "Assurance \"métiers\" facultative", cabinet: false, client: true, periodicite: "Annuel", categorie: "Obligations client" },
   { tache: "Taxe sur la Valeur Ajoutée", cabinet: false, client: true, periodicite: "NA", categorie: "Obligations client" },
-  { tache: "Conformité de vos mentions obligatoires sur vos factures de vente", cabinet: false, client: true, periodicite: "Mensuel", categorie: "Obligations client" },
+  { tache: "Conformité de vos mentions obligatoires sur vos factures", cabinet: false, client: true, periodicite: "Mensuel", categorie: "Obligations client" },
   { tache: "Caisse enregistreuse certifiée", cabinet: false, client: true, periodicite: "Annuel", categorie: "Obligations client" },
   // Options
-  { tache: "Établissement de documents prévisionnels — Si Option", cabinet: true, client: false, periodicite: "Annuel", categorie: "Options" },
-  { tache: "Établissement de situations intermédiaires — Si Option", cabinet: true, client: false, periodicite: "Annuel", categorie: "Options" },
-  { tache: "Assistance au contrôle fiscal — Si Option", cabinet: true, client: false, periodicite: "Sur demande", categorie: "Options" },
+  { tache: "Établissement de documents prévisionnels \u2013 Si Option", cabinet: true, client: false, periodicite: "Annuel", categorie: "Options" },
+  { tache: "Établissement de situations intermédiaires \u2013 Si Option", cabinet: true, client: false, periodicite: "Annuel", categorie: "Options" },
 ];
 
 // ══════════════════════════════════════════════
