@@ -194,14 +194,14 @@ describe("DashboardKPICards — accessibilité", () => {
 
 describe("DashboardKPICards — couleurs dynamiques", () => {
   // Test 57
-  it("score <= 30 utilise couleur verte", () => {
+  it("score <= 25 utilise couleur verte", () => {
     renderKPICards({ avgScore: 20 });
     // Card should render without error
     expect(screen.getByText("20")).toBeInTheDocument();
   });
 
   // Test 58
-  it("score 31-55 utilise couleur orange", () => {
+  it("score 26-60 utilise couleur orange", () => {
     renderKPICards({ avgScore: 45 });
     expect(screen.getByText("45")).toBeInTheDocument();
   });

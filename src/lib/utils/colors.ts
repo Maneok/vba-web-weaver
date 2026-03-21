@@ -12,7 +12,7 @@ export function getRiskColor(score: number): {
   border: string;
   label: string;
 } {
-  if (score <= 30) {
+  if (score <= 25) {
     return {
       bg: "bg-emerald-500/15",
       text: "text-emerald-400",
@@ -20,7 +20,7 @@ export function getRiskColor(score: number): {
       label: "Faible",
     };
   }
-  if (score <= 59) {
+  if (score <= 60) {
     return {
       bg: "bg-amber-500/15",
       text: "text-amber-400",

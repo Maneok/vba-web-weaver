@@ -730,7 +730,7 @@ export function computeRevueKPIs(clients: { scoreGlobal?: number; dateDerniereRe
 
   for (const c of clients) {
     const score = c.scoreGlobal ?? 0;
-    if (score >= 60) vigilanceRenforcee++;
+    if (score > 60) vigilanceRenforcee++;
 
     if (c.dateDerniereRevue) {
       const revueDate = new Date(c.dateDerniereRevue);

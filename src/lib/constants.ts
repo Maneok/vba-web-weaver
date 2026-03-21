@@ -104,10 +104,11 @@ export const DEADLINE_THRESHOLDS = {
 } as const;
 
 // Risk score thresholds
+// SIMPLIFIEE ≤ 25 | STANDARD 26–60 | RENFORCEE > 60
 export const RISK_THRESHOLDS = {
-  SIMPLIFIEE_MAX: 30,
-  STANDARD_MAX: 59,
-  RENFORCEE_MIN: 60,
+  SIMPLIFIEE_MAX: 25,
+  STANDARD_MAX: 60,
+  RENFORCEE_MIN: 61,
 } as const;
 
 // OPT-35: Validate threshold consistency at module load

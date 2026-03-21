@@ -159,13 +159,13 @@ describe("riskEngine — scoreStructure", () => {
 // 16-20: RISK ENGINE — vigilance thresholds
 // ============================================================
 describe("riskEngine — vigilance levels", () => {
-  it("16. score <= 30 => SIMPLIFIEE", () => {
+  it("16. score <= 25 => SIMPLIFIEE", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "86.21Z", forme: "ENTREPRISE INDIVIDUELLE" });
     expect(r.scoreGlobal).toBeLessThanOrEqual(RISK_THRESHOLDS.SIMPLIFIEE_MAX);
     expect(r.nivVigilance).toBe("SIMPLIFIEE");
   });
 
-  it("17. score 31-59 => STANDARD", () => {
+  it("17. score 26-60 => STANDARD", () => {
     const r = calculateRiskScore({ ...baseRiskParams, ape: "45.11Z", cash: true });
     expect(r.scoreGlobal).toBeGreaterThan(RISK_THRESHOLDS.SIMPLIFIEE_MAX);
     expect(r.scoreGlobal).toBeLessThanOrEqual(RISK_THRESHOLDS.STANDARD_MAX);

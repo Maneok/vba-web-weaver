@@ -132,16 +132,16 @@ interface QuestionState {
 // ─── Helper components ─────────────────────────────────────────────
 
 function ScoreBadge({ score }: { score: number }) {
-  const color = score >= 60 ? "bg-red-500/15 text-red-400 border-red-500/30"
-    : score >= 30 ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
+  const color = score > 60 ? "bg-red-500/15 text-red-400 border-red-500/30"
+    : score > 25 ? "bg-amber-500/15 text-amber-400 border-amber-500/30"
     : "bg-emerald-500/15 text-emerald-400 border-emerald-500/30";
   return <Badge variant="outline" className={color}>{score}</Badge>;
 }
 
 // OPT-26: Score circle for table
 function ScoreCircle({ score }: { score: number }) {
-  const bg = score >= 60 ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
-    : score >= 30 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
+  const bg = score > 60 ? "bg-red-100 text-red-700 dark:bg-red-500/20 dark:text-red-400"
+    : score > 25 ? "bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400"
     : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-400";
   return (
     <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${bg}`}>
@@ -716,8 +716,8 @@ export default function RevueMaintienPage() {
     const score = revue.score_risque_avant ?? revue.client_score ?? 0;
     if (revue.status === "completee") return "opacity-60";
     if (revue.status === "a_faire" && revue.date_echeance < today) return "border-l-2 border-l-red-500 bg-red-500/[0.03]";
-    if (score >= 60) return "border-l-2 border-l-red-400";
-    if (score >= 30) return "border-l-2 border-l-amber-400";
+    if (score > 60) return "border-l-2 border-l-red-400";
+    if (score > 25) return "border-l-2 border-l-amber-400";
     return "";
   };
 
@@ -1060,14 +1060,14 @@ export default function RevueMaintienPage() {
                 <div className="rounded-xl border bg-card p-4 flex items-center gap-6">
                   <div className="text-center">
                     <span className="text-xs text-muted-foreground block">Avant</span>
-                    <span className={`text-2xl font-bold ${scoreBefore >= 60 ? "text-red-400" : scoreBefore >= 30 ? "text-amber-400" : "text-emerald-400"}`}>
+                    <span className={`text-2xl font-bold ${scoreBefore > 60 ? "text-red-400" : scoreBefore > 25 ? "text-amber-400" : "text-emerald-400"}`}>
                       {scoreBefore}
                     </span>
                   </div>
                   <ArrowRight className="h-5 w-5 text-muted-foreground" />
                   <div className="text-center">
                     <span className="text-xs text-muted-foreground block">Apres</span>
-                    <span className={`text-2xl font-bold ${scoreAfter.scoreGlobal >= 60 ? "text-red-400" : scoreAfter.scoreGlobal >= 30 ? "text-amber-400" : "text-emerald-400"}`}>
+                    <span className={`text-2xl font-bold ${scoreAfter.scoreGlobal > 60 ? "text-red-400" : scoreAfter.scoreGlobal > 25 ? "text-amber-400" : "text-emerald-400"}`}>
                       {scoreAfter.scoreGlobal}
                     </span>
                   </div>

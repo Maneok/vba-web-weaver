@@ -24,20 +24,20 @@ describe("Feature #48: getRiskColor", () => {
     expect(result.label).toBe("Eleve");
   });
 
-  it("boundary: score 30 → low", () => {
-    expect(getRiskColor(30).label).toBe("Faible");
+  it("boundary: score 25 → low", () => {
+    expect(getRiskColor(25).label).toBe("Faible");
   });
 
-  it("boundary: score 31 → medium", () => {
-    expect(getRiskColor(31).label).toBe("Moyen");
+  it("boundary: score 26 → medium", () => {
+    expect(getRiskColor(26).label).toBe("Moyen");
   });
 
-  it("boundary: score 59 → medium", () => {
-    expect(getRiskColor(59).label).toBe("Moyen");
+  it("boundary: score 60 → medium", () => {
+    expect(getRiskColor(60).label).toBe("Moyen");
   });
 
-  it("boundary: score 60 → high", () => {
-    expect(getRiskColor(60).label).toBe("Eleve");
+  it("boundary: score 61 → high", () => {
+    expect(getRiskColor(61).label).toBe("Eleve");
   });
 
   it("score 0 → low", () => {

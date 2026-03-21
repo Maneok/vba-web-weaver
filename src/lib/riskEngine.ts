@@ -527,7 +527,7 @@ export function isRiskCountry(nationality: string): boolean {
 
 // ====== B3: Vigilance thresholds as exportable constant ======
 export const VIGILANCE_THRESHOLDS = {
-  SIMPLIFIEE: { max: 30, label: "Simplifiée", color: "emerald", reviewMonths: 24 },
+  SIMPLIFIEE: { max: 25, label: "Simplifiée", color: "emerald", reviewMonths: 24 },
   STANDARD: { max: 60, label: "Standard", color: "amber", reviewMonths: 12 },
   RENFORCEE: { max: 100, label: "Renforcée", color: "red", reviewMonths: 6 },
 } as const;
