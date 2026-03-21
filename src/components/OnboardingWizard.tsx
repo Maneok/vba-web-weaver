@@ -99,16 +99,41 @@ export default function OnboardingWizard() {
 
     setInviting(true);
 
-    const { error } = await supabase.functions.invoke("invite-user", {
-      body: { email: inviteEmail.trim(), role: inviteRole },
-    });
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Session expirée, veuillez vous reconnecter");
+        setInviting(false);
+        return;
+      }
 
-    setInviting(false);
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+        }
+      );
 
-    if (error) {
-      toast.error("Erreur lors de l'envoi de l'invitation");
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Erreur ${response.status}`);
+      }
+
+      const resData = await response.json();
+      if (resData?.error) throw new Error(resData.error);
+    } catch (err) {
+      setInviting(false);
+      toast.error(err instanceof Error ? err.message : "Erreur lors de l'envoi de l'invitation");
       return;
     }
+
+    setInviting(false);
 
     toast.success(`Invitation envoyee a ${inviteEmail}`);
     setStep(2);

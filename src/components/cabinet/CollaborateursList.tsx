@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import {
   UserPlus, Search, Download, ChevronUp, ChevronDown,
   UserX, UserCheck, MailPlus, Trash2, MoreHorizontal, ChevronLeft, ChevronRight,
-  Users, UserMinus,
+  Users, UserMinus, User, Mail, Info, Loader2, Shield,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -337,20 +337,38 @@ export default function CollaborateursList() {
         ? inviteForm.role
         : "COLLABORATEUR";
 
-      const res = await supabase.functions.invoke("invite-user", {
-        body: {
-          email: trimmedEmail,
-          fullName: trimmedName,
-          role: authRole,
-          cabinet_id: targetCabinet,
-        },
-      });
-
-      if (res.error) {
-        throw new Error(res.error.message || "Erreur lors de l'invitation");
+      // Explicit fetch with Authorization header to avoid 401
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Session expirée, veuillez vous reconnecter");
+        setInviting(false);
+        return;
       }
 
-      const resData = res.data as { error?: string; message?: string; emailSent?: boolean; inviteLink?: string | null };
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            email: trimmedEmail,
+            fullName: trimmedName,
+            role: authRole,
+            cabinet_id: targetCabinet,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Erreur ${response.status} lors de l'invitation`);
+      }
+
+      const resData = await response.json() as { error?: string; message?: string; emailSent?: boolean; inviteLink?: string | null };
       if (resData?.error) {
         throw new Error(resData.error);
       }
@@ -653,36 +671,59 @@ export default function CollaborateursList() {
                 <UserPlus className="h-4 w-4" /> Ajouter un collaborateur
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Inviter un collaborateur</DialogTitle>
-                <DialogDescription>
-                  Un email d'invitation sera envoye au collaborateur pour rejoindre le cabinet.
-                </DialogDescription>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
+                    <UserPlus className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-base">Inviter un collaborateur</DialogTitle>
+                    <DialogDescription className="text-xs">
+                      Ajoutez un membre à votre cabinet
+                    </DialogDescription>
+                  </div>
+                </div>
               </DialogHeader>
               <form onSubmit={handleInvite} className="space-y-4 pt-2">
-                <div className="space-y-2">
-                  <Label htmlFor="invite-nom">Nom complet</Label>
-                  <Input id="invite-nom" value={inviteForm.nom} onChange={(e) => setInviteForm({ ...inviteForm, nom: e.target.value })} placeholder="Jean Dupont" required minLength={2} maxLength={100} />
+                <div className="space-y-1.5">
+                  <Label htmlFor="invite-nom" className="text-xs text-muted-foreground">Nom complet</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="invite-nom" value={inviteForm.nom} onChange={(e) => setInviteForm({ ...inviteForm, nom: e.target.value })} placeholder="Jean Dupont" required minLength={2} maxLength={100} className="pl-9" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="invite-email">Email</Label>
-                  <Input id="invite-email" type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} placeholder="jean@cabinet.fr" required />
+                <div className="space-y-1.5">
+                  <Label htmlFor="invite-email" className="text-xs text-muted-foreground">Adresse email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input id="invite-email" type="email" value={inviteForm.email} onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })} placeholder="jean@cabinet.fr" required className="pl-9" />
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="invite-role">Role</Label>
+                <div className="space-y-1.5">
+                  <Label htmlFor="invite-role" className="text-xs text-muted-foreground">Rôle</Label>
                   <Select value={inviteForm.role} onValueChange={(v) => setInviteForm({ ...inviteForm, role: v as CabinetRole })}>
-                    <SelectTrigger id="invite-role"><SelectValue /></SelectTrigger>
+                    <SelectTrigger id="invite-role" className="h-10">
+                      <div className="flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-muted-foreground" />
+                        <SelectValue />
+                      </div>
+                    </SelectTrigger>
                     <SelectContent>
                       {(Object.keys(ROLE_LABELS) as CabinetRole[]).map((role) => (
-                        <SelectItem key={role} value={role}>{ROLE_LABELS[role]}</SelectItem>
+                        <SelectItem key={role} value={role}>
+                          <div className="py-0.5">
+                            <p className="font-medium text-sm">{ROLE_LABELS[role]}</p>
+                            <p className="text-xs text-muted-foreground">{ROLE_DESCRIPTIONS[role]}</p>
+                          </div>
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
                 {cabinets.length > 1 && (
-                  <div className="space-y-2">
-                    <Label htmlFor="invite-cabinet">Cabinet</Label>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invite-cabinet" className="text-xs text-muted-foreground">Cabinet</Label>
                     <Select value={inviteForm.cabinet_id || cabinets[0]?.id} onValueChange={(v) => setInviteForm({ ...inviteForm, cabinet_id: v })}>
                       <SelectTrigger id="invite-cabinet"><SelectValue /></SelectTrigger>
                       <SelectContent>
@@ -693,9 +734,19 @@ export default function CollaborateursList() {
                     </Select>
                   </div>
                 )}
-                <Button type="submit" className="w-full" disabled={inviting}>
-                  {inviting ? "Envoi..." : "Envoyer l'invitation"}
-                </Button>
+                <div className="flex items-start gap-2 p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/30">
+                  <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <p className="text-xs text-blue-700 dark:text-blue-300">Un email de réinitialisation de mot de passe sera envoyé au collaborateur pour qu'il puisse se connecter.</p>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button type="button" variant="ghost" onClick={() => setInviteOpen(false)} disabled={inviting}>
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={inviting} className="gap-2">
+                    {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                    {inviting ? "Envoi en cours..." : "Envoyer l'invitation"}
+                  </Button>
+                </div>
               </form>
             </DialogContent>
           </Dialog>
