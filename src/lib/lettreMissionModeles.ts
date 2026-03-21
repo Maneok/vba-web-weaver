@@ -1098,26 +1098,49 @@ export async function initCabinetDefaultModele(cabinetId: string): Promise<LMMod
 
 /** Create 4 default modeles (one per major category) if cabinet has none */
 export async function initCabinetDefaultModeles(cabinetId: string): Promise<void> {
-  const existing = await getModeles(cabinetId);
-  if (existing.length > 0) return;
-
   const defaultModeles = [
-    { client_type_id: 'sas_is', nom: 'Société commerciale IS (standard)', mission_type: 'presentation', is_default: true },
-    { client_type_id: 'sci_ir', nom: 'SCI à l\'IR', mission_type: 'presentation', is_default: false },
-    { client_type_id: 'lmnp', nom: 'LMNP au réel', mission_type: 'presentation', is_default: false },
-    { client_type_id: 'ei_reel', nom: 'Entreprise individuelle', mission_type: 'presentation', is_default: false },
+    // Sociétés commerciales
+    { client_type_id: 'sas_is', nom: 'Société commerciale IS (SAS/SASU)', mission_type: 'presentation', is_default: true, description: 'Modèle standard pour SAS, SASU, SA à l\'IS. Comptabilité d\'engagement, liasse 2050-2059.' },
+    { client_type_id: 'sarl_is', nom: 'SARL / EURL à l\'IS', mission_type: 'presentation', is_default: false, description: 'Gérant majoritaire TNS. Inclut DSI et spécificités gérance majoritaire.' },
+
+    // Sociétés civiles
+    { client_type_id: 'sci_ir', nom: 'SCI à l\'IR (revenus fonciers)', mission_type: 'presentation', is_default: false, description: 'Déclaration 2072, aide 2044 associés, suivi loyers et emprunts.' },
+    { client_type_id: 'sci_is', nom: 'SCI à l\'IS (amortissements)', mission_type: 'presentation', is_default: false, description: 'Comptabilité d\'engagement, amortissements immobiliers, liasse IS.' },
+
+    // Entreprises individuelles
+    { client_type_id: 'ei_reel', nom: 'Entreprise individuelle au réel', mission_type: 'presentation', is_default: false, description: 'BIC ou BNC selon activité. Liasse 2031 ou 2035.' },
+    { client_type_id: 'profession_liberale', nom: 'Profession libérale (BNC)', mission_type: 'presentation', is_default: false, description: 'Déclaration contrôlée 2035, CIPAV/CARCDSF, suivi URSSAF.' },
+    { client_type_id: 'micro', nom: 'Micro-entreprise / Auto-entrepreneur', mission_type: 'compilation', is_default: false, description: 'Mission de compilation. Suivi CA, seuils, franchise TVA.' },
+
+    // Immobilier & patrimoine
+    { client_type_id: 'lmnp', nom: 'LMNP au réel', mission_type: 'presentation', is_default: false, description: 'Amortissements, liasse 2031/2033, 2042 C PRO, déficits BIC.' },
+    { client_type_id: 'lmp', nom: 'LMP (Loueur Meublé Professionnel)', mission_type: 'presentation', is_default: false, description: 'Cotisations SSI, plus-values professionnelles, art. 151 septies.' },
+
+    // Particuliers
+    { client_type_id: 'irpp', nom: 'IRPP — Déclaration de revenus', mission_type: 'autre_prestation', is_default: false, description: 'Déclaration 2042, revenus fonciers, capitaux mobiliers, IFI.' },
+
+    // Autres structures
+    { client_type_id: 'association', nom: 'Association loi 1901', mission_type: 'presentation', is_default: false, description: 'Plan comptable associatif, rapport financier, reçus fiscaux.' },
+    { client_type_id: 'holding', nom: 'Holding', mission_type: 'presentation', is_default: false, description: 'Portefeuille participations, régime mère-fille, conventions réglementées.' },
+    { client_type_id: 'creation', nom: 'Création d\'entreprise', mission_type: 'previsionnel', is_default: false, description: 'Business plan, prévisionnel, choix statut, formalités création.' },
+    { client_type_id: 'syndicat_copro', nom: 'Syndicat de copropriété', mission_type: 'procedures_convenues', is_default: false, description: 'Vérification comptes, contrôle charges, rapport pour AG.' },
   ];
 
+  const existing = await getModeles(cabinetId);
+  const existingTypes = new Set(existing.map(m => m.client_type_id));
+
   for (const def of defaultModeles) {
+    if (existingTypes.has(def.client_type_id)) continue;
     const sections = buildSectionsForClientType(def.client_type_id);
     await createModele({
       cabinet_id: cabinetId,
       nom: def.nom,
+      description: def.description,
       client_type_id: def.client_type_id,
       mission_type: def.mission_type,
       sections,
       cgv_content: getDefaultCgvForMissionType(def.mission_type),
-      repartition_taches: GRIMY_DEFAULT_REPARTITION,
+      repartition_taches: getDefaultRepartitionForMissionType(def.mission_type),
       is_default: def.is_default,
       source: 'grimy',
     });
