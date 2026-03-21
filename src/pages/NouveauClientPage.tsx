@@ -50,7 +50,7 @@ import {
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer, Scale, GitBranch,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
   ZoomIn, ZoomOut, Maximize, Mail, QrCode, Filter, SortAsc, SortDesc, CheckSquare, Square,
-  Pencil, ImageIcon, Inbox, FolderOpen, Copy, Circle, Link2,
+  Pencil, ImageIcon, Inbox, FolderOpen, Copy, Circle, Link2, ArrowRightLeft,
 } from "lucide-react";
 
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
@@ -1607,8 +1607,16 @@ export default function NouveauClientPage() {
   const addBeneficiaire = () => {
     setBeneficiaires(prev => [...prev, { nom: "", prenom: "", dateNaissance: "", nationalite: "Francaise", pourcentage: 0, pourcentageVotes: 0 }]);
   };
-  const updateBeneficiaire = (idx: number, field: keyof Beneficiaire, val: string | number) => {
-    setBeneficiaires(prev => prev.map((b, i) => i === idx ? { ...b, [field]: val } : b));
+  const updateBeneficiaire = (idx: number, field: keyof Beneficiaire, val: string | number | boolean) => {
+    setBeneficiaires(prev => {
+      const updated = prev.map((b, i) => i === idx ? { ...b, [field]: val } : b);
+      // Sync form.ppe when a BE PPE checkbox changes
+      if (field === "ppe") {
+        const anyPpe = updated.some(b => b.ppe);
+        setQuestions(qs => qs.map(q => q.id === "ppe" ? { ...q, value: anyPpe ? "OUI" as const : "NON" as const, commentaire: anyPpe ? (q.commentaire || "PPE detectee via beneficiaires effectifs") : q.commentaire, autoFilled: anyPpe } : q));
+      }
+      return updated;
+    });
   };
   const removeBeneficiaire = (idx: number) => {
     setBeneficiaires(prev => prev.filter((_, i) => i !== idx));
@@ -3297,9 +3305,10 @@ export default function NouveauClientPage() {
                 {beneficiaires.length > 0 && beneficiaires.some(b => (b.pourcentageVotes ?? 0) !== b.pourcentage) && (
                   <Button onClick={() => {
                     setBeneficiaires(prev => prev.map(b => ({ ...b, pourcentageVotes: b.pourcentage })));
-                    toast.success("Votes alignes sur les parts");
-                  }} variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-300">
-                    Aligner votes sur parts
+                    toast.success("Votes alignes sur les parts pour tous les BE");
+                  }} variant="outline" size="sm" className="text-xs gap-1.5">
+                    <ArrowRightLeft className="w-3 h-3" />
+                    Aligner tous les votes sur les parts
                   </Button>
                 )}
                 <Button onClick={addBeneficiaire} variant="outline" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400">
@@ -3381,17 +3390,24 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* OPTIM 13/14 — Donut with "Non attribue" slice + center label */}
-            {beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && (() => {
+            {/* OPTIM 13/14 — Donut always visible with fixed height */}
+            {beneficiaires.length > 0 && (() => {
               const overBudget = totalParts > 100;
-              // OPTIM 16 — sorted by % desc for donut
-              const sorted = [...beneficiaires].filter(b => b.pourcentage > 0).sort((a, c) => c.pourcentage - a.pourcentage);
-              const pieData = sorted.map((b, i) => ({
-                name: `${b.prenom} ${b.nom}`.trim() || `BE ${i + 1}`,
+              const DONUT_COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899", "#10b981"];
+              const getDonutColor = (index: number, name: string) => {
+                if (name === "Non attribue") return "#64748b";
+                return overBudget ? "#ef4444" : DONUT_COLORS[index % DONUT_COLORS.length];
+              };
+              // Build pieData — always show something
+              const sorted = [...beneficiaires].filter(b => (b.pourcentage || 0) > 0).sort((a, c) => c.pourcentage - a.pourcentage);
+              const beData = sorted.map((b, i) => ({
+                name: `${b.prenom || ""} ${b.nom || ""}`.trim() || `BE ${i + 1}`,
                 value: b.pourcentage,
               }));
-              if (totalParts < 100) pieData.push({ name: "Non attribue", value: 100 - totalParts });
-              const COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899", "#10b981"];
+              if (totalParts < 100) beData.push({ name: "Non attribue", value: 100 - totalParts });
+              const pieData = beData.length === 0 || (beData.length === 1 && beData[0].name === "Non attribue")
+                ? [{ name: "Non attribue", value: 100 }]
+                : beData;
               return (
                 <div className={`p-4 rounded-lg border ${overBudget ? "border-red-500/30 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"}`}>
                   <div className="flex items-center justify-between mb-2">
@@ -3401,23 +3417,48 @@ export default function NouveauClientPage() {
                     </span>
                   </div>
                   <div className="relative">
-                    <ResponsiveContainer width="100%" height={160}>
-                      <PieChart>
-                        <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={30} paddingAngle={2} animationBegin={0} animationDuration={800}>
-                          {pieData.map((entry, idx) => (
-                            <Cell key={idx} fill={entry.name === "Non attribue" ? "#334155" : overBudget ? "#ef4444" : COLORS[idx % COLORS.length]} />
-                          ))}
-                        </Pie>
-                        <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "11px", color: "#e2e8f0" }} formatter={(v: number) => `${v}%`} />
-                      </PieChart>
-                    </ResponsiveContainer>
-                    {/* OPTIM 14 — Center label */}
-                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                      <div className="text-center">
-                        <span className={`text-lg font-bold ${overBudget ? "text-red-400" : totalParts === 100 ? "text-emerald-400" : "text-amber-400"}`}>{totalParts}%</span>
-                        <p className="text-[9px] text-slate-400">attribue</p>
+                    <div className="h-[220px] w-[220px] mx-auto relative">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            dataKey="value"
+                            nameKey="name"
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={65}
+                            outerRadius={95}
+                            paddingAngle={pieData.length > 1 ? 3 : 0}
+                            strokeWidth={0}
+                            animationBegin={0}
+                            animationDuration={800}
+                          >
+                            {pieData.map((entry, idx) => (
+                              <Cell key={idx} fill={getDonutColor(idx, entry.name)} opacity={entry.name === "Non attribue" ? 0.3 : 1} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            formatter={(v: number) => `${v}%`}
+                            contentStyle={{ borderRadius: "8px", border: "0.5px solid var(--color-border, rgba(255,255,255,0.06))", background: "var(--color-background, hsl(217,33%,17%))", fontSize: "13px" }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      {/* Center label */}
+                      <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                        <span className={`text-2xl font-semibold ${overBudget ? "text-red-400" : totalParts === 100 ? "text-emerald-400" : "text-amber-400"}`}>{totalParts}%</span>
+                        <span className="text-[11px] text-muted-foreground">{totalParts === 100 ? "complet" : "attribue"}</span>
                       </div>
                     </div>
+                  </div>
+                  {/* Legend */}
+                  <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 mt-2">
+                    {pieData.filter(d => d.value > 0).map((entry, idx) => (
+                      <div key={idx} className="flex items-center gap-1.5 text-xs">
+                        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: getDonutColor(idx, entry.name), opacity: entry.name === "Non attribue" ? 0.3 : 1 }} />
+                        <span className={entry.name === "Non attribue" ? "text-muted-foreground" : ""}>{entry.name}</span>
+                        <span className="text-muted-foreground font-medium">{entry.value}%</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               );
@@ -3549,7 +3590,17 @@ export default function NouveauClientPage() {
                           <div>
                             <div className="flex items-center justify-between mb-1">
                               <Label className="text-[10px] text-slate-400 dark:text-slate-500">% votes</Label>
-                              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{b.pourcentageVotes || 0}%</span>
+                              <div className="flex items-center gap-2">
+                                {(b.pourcentageVotes ?? 0) !== (b.pourcentage || 0) && (b.pourcentage || 0) > 0 && (
+                                  <button
+                                    onClick={() => updateBeneficiaire(i, "pourcentageVotes", b.pourcentage || 0)}
+                                    className="text-[11px] text-primary hover:underline underline-offset-2"
+                                  >
+                                    = parts ({b.pourcentage}%)
+                                  </button>
+                                )}
+                                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{b.pourcentageVotes || 0}%</span>
+                              </div>
                             </div>
                             <div className="flex items-center gap-3">
                               <Slider
@@ -3578,7 +3629,7 @@ export default function NouveauClientPage() {
                           <div className="flex items-center gap-2">
                             <Checkbox checked={b.ppe ?? false} onCheckedChange={(v) => updateBeneficiaire(i, "ppe" as any, Boolean(v))} id={`be-ppe-${i}`} />
                             <Label htmlFor={`be-ppe-${i}`} className="text-xs text-slate-500 dark:text-slate-400 cursor-pointer">Personne Politiquement Exposee</Label>
-                            {b.ppe && <Badge className="text-[8px] bg-red-500/20 text-red-400 border-0">PPE</Badge>}
+                            {b.ppe && <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300 font-medium">PPE &rarr; Vigilance renforcee auto</span>}
                           </div>
                           <div className="flex items-center gap-2">
                             <Link2 className="w-3.5 h-3.5 text-slate-400" />
@@ -3697,6 +3748,14 @@ export default function NouveauClientPage() {
               </div>
               <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300">{adjustedScore}/100</span>
             </div>
+
+            {/* PPE auto-detected from BE */}
+            {questions.find(q => q.id === "ppe")?.value === "OUI" && beneficiaires.some(b => b.ppe) && (
+              <div className="flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950/20 rounded-lg text-sm text-red-600 dark:text-red-400">
+                <Shield className="w-4 h-4 shrink-0" />
+                PPE detecte via les beneficiaires effectifs — vigilance renforcee appliquee automatiquement
+              </div>
+            )}
 
             {/* #45: "Tout NON" shortcut */}
             <div className="flex items-center gap-2">
