@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDateFr } from "@/lib/dateUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface CabinetProfile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+}
+
 interface DeclarationSoupcon {
   id: string;
   dateDetection: string;
@@ -26,6 +35,8 @@ interface DeclarationSoupcon {
   refTracfin: string;
   statut: "EN_COURS" | "TRANSMISE" | "CLASSEE";
   elementsSuspects: string;
+  declarant?: string;
+  declarant_id?: string;
 }
 
 function formatDate(dateStr: string) {
@@ -63,13 +74,31 @@ function loadDeclarations(): DeclarationSoupcon[] {
 
 export default function DeclarationsSoupcon() {
   const { collaborateurs, clients } = useAppState();
+  const { profile: currentProfile } = useAuth();
+  const [cabinetProfiles, setCabinetProfiles] = useState<CabinetProfile[]>([]);
   const [declarations, setDeclarations] = useState<DeclarationSoupcon[]>(loadDeclarations);
   const [showWizard, setShowWizard] = useState(false);
   const [wizardStep, setWizardStep] = useState(1);
   const [newDs, setNewDs] = useState({
     client: "", elementsSuspects: "", motif: "",
     decision: "EN_ANALYSE" as const, justification: "", refTracfin: "",
+    declarant_id: "" as string,
   });
+
+  // Load profiles (ADMIN/SUPERVISEUR only for declarations)
+  useEffect(() => {
+    (async () => {
+      if (!currentProfile?.cabinet_id) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role")
+        .eq("cabinet_id", currentProfile.cabinet_id)
+        .eq("is_active", true)
+        .in("role", ["ADMIN", "SUPERVISEUR"])
+        .order("full_name");
+      if (data) setCabinetProfiles(data as CabinetProfile[]);
+    })();
+  }, [currentProfile?.cabinet_id]);
 
   // Persist declarations to localStorage
   useEffect(() => {
@@ -98,6 +127,7 @@ export default function DeclarationsSoupcon() {
       toast.error("Selectionnez un client");
       return;
     }
+    const selectedDeclarant = cabinetProfiles.find(p => p.id === newDs.declarant_id);
     const ds: DeclarationSoupcon = {
       id: `ds-${Date.now()}`,
       dateDetection: new Date().toISOString().split("T")[0],
@@ -108,20 +138,22 @@ export default function DeclarationsSoupcon() {
       refTracfin: newDs.refTracfin,
       statut: newDs.decision === "DECLARE" ? "EN_COURS" : "CLASSEE",
       elementsSuspects: newDs.elementsSuspects,
+      declarant: selectedDeclarant?.full_name || "",
+      declarant_id: newDs.declarant_id || undefined,
     };
     setDeclarations(prev => [ds, ...prev]);
-    setNewDs({ client: "", elementsSuspects: "", motif: "", decision: "EN_ANALYSE", justification: "", refTracfin: "" });
+    setNewDs({ client: "", elementsSuspects: "", motif: "", decision: "EN_ANALYSE", justification: "", refTracfin: "", declarant_id: "" });
     setWizardStep(1);
     setShowWizard(false);
     toast.success(newDs.decision === "DECLARE"
       ? "Declaration de soupcon enregistree"
       : "Analyse classee sans suite"
     );
-  }, [newDs]);
+  }, [newDs, cabinetProfiles]);
 
   const openWizard = () => {
     setWizardStep(1);
-    setNewDs({ client: "", elementsSuspects: "", motif: "", decision: "EN_ANALYSE", justification: "", refTracfin: "" });
+    setNewDs({ client: "", elementsSuspects: "", motif: "", decision: "EN_ANALYSE", justification: "", refTracfin: "", declarant_id: "" });
     setShowWizard(true);
   };
 
@@ -155,6 +187,7 @@ export default function DeclarationsSoupcon() {
                   <TableRow>
                     <TableHead>Date detection</TableHead>
                     <TableHead>Client</TableHead>
+                    <TableHead>Declarant</TableHead>
                     <TableHead>Motif</TableHead>
                     <TableHead>Decision</TableHead>
                     <TableHead>Ref. TRACFIN</TableHead>
@@ -166,6 +199,7 @@ export default function DeclarationsSoupcon() {
                     <TableRow key={ds.id}>
                       <TableCell className="text-sm">{formatDate(ds.dateDetection)}</TableCell>
                       <TableCell className="text-sm font-medium">{ds.client}</TableCell>
+                      <TableCell className="text-sm text-slate-400 dark:text-slate-400">{ds.declarant || "---"}</TableCell>
                       <TableCell className="text-sm max-w-[200px] truncate">{ds.motif || "---"}</TableCell>
                       <TableCell>
                         <Badge className={`text-xs ${DECISION_COLORS[ds.decision]}`}>
@@ -303,6 +337,17 @@ export default function DeclarationsSoupcon() {
                       <SelectItem key={c.ref} value={`${c.raisonSociale} (${c.ref})`}>
                         {c.raisonSociale} ({c.ref})
                       </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Declarant *</Label>
+                <Select value={newDs.declarant_id} onValueChange={v => setNewDs(p => ({ ...p, declarant_id: v }))}>
+                  <SelectTrigger><SelectValue placeholder="Selectionner le declarant..." /></SelectTrigger>
+                  <SelectContent>
+                    {cabinetProfiles.map(p => (
+                      <SelectItem key={p.id} value={p.id}>{p.full_name || p.email} ({p.role})</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>

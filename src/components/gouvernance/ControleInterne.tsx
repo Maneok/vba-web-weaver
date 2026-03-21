@@ -1,5 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAppState } from "@/lib/AppContext";
+import { useAuth } from "@/lib/auth/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { formatDateFr } from "@/lib/dateUtils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +18,13 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
+interface CabinetProfile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+}
+
 interface NonConformite {
   id: string;
   date: string;
@@ -25,6 +34,7 @@ interface NonConformite {
   gravite: "MINEURE" | "MAJEURE" | "CRITIQUE";
   actionCorrective: string;
   responsable: string;
+  responsable_id?: string;
   echeance: string;
   statut: "OUVERTE" | "EN_COURS" | "RESOLUE";
 }
@@ -89,6 +99,22 @@ function loadStorage<T>(key: string, fallback: T[]): T[] {
 
 export default function ControleInterne() {
   const { collaborateurs, clients } = useAppState();
+  const { profile: currentProfile } = useAuth();
+  const [cabinetProfiles, setCabinetProfiles] = useState<CabinetProfile[]>([]);
+
+  // Load cabinet profiles
+  useEffect(() => {
+    (async () => {
+      if (!currentProfile?.cabinet_id) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role")
+        .eq("cabinet_id", currentProfile.cabinet_id)
+        .eq("is_active", true)
+        .order("full_name");
+      if (data) setCabinetProfiles(data as CabinetProfile[]);
+    })();
+  }, [currentProfile?.cabinet_id]);
 
   // Non-conformites
   const [nonConformites, setNonConformites] = useState<NonConformite[]>(() => loadStorage<NonConformite>(CI_NC_KEY, []));
@@ -97,7 +123,7 @@ export default function ControleInterne() {
   const [ncSearch, setNcSearch] = useState("");
   const [newNc, setNewNc] = useState({
     source: "", client: "", description: "", gravite: "MINEURE" as const,
-    actionCorrective: "", responsable: "", echeance: "",
+    actionCorrective: "", responsable: "", responsable_id: "" as string, echeance: "",
   });
 
   // Controles prevus
@@ -131,7 +157,9 @@ export default function ControleInterne() {
   // Filtered NCs
   const filteredNcs = useMemo(() => {
     let result = nonConformites;
-    if (ncFilter !== "all") {
+    if (ncFilter === "MES_NC") {
+      result = result.filter(nc => nc.responsable_id === currentProfile?.id);
+    } else if (ncFilter !== "all") {
       result = result.filter(nc => nc.statut === ncFilter);
     }
     if (ncSearch) {
@@ -194,7 +222,7 @@ export default function ControleInterne() {
       statut: "OUVERTE",
     };
     setNonConformites(prev => [nc, ...prev]);
-    setNewNc({ source: "", client: "", description: "", gravite: "MINEURE", actionCorrective: "", responsable: "", echeance: "" });
+    setNewNc({ source: "", client: "", description: "", gravite: "MINEURE", actionCorrective: "", responsable: "", responsable_id: "", echeance: "" });
     setShowNcDialog(false);
     toast.success("Non-conformite enregistree");
   }, [newNc]);
@@ -301,6 +329,7 @@ export default function ControleInterne() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tous</SelectItem>
+                <SelectItem value="MES_NC">Mes non-conformites</SelectItem>
                 <SelectItem value="OUVERTE">Ouverte</SelectItem>
                 <SelectItem value="EN_COURS">En cours</SelectItem>
                 <SelectItem value="RESOLUE">Resolue</SelectItem>
@@ -509,11 +538,14 @@ export default function ControleInterne() {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs text-slate-400 dark:text-slate-500 dark:text-slate-400">Responsable</Label>
-              <Select value={newNc.responsable} onValueChange={v => setNewNc(p => ({ ...p, responsable: v }))}>
+              <Select value={newNc.responsable_id} onValueChange={v => {
+                const selected = cabinetProfiles.find(p => p.id === v);
+                setNewNc(p => ({ ...p, responsable: selected?.full_name || "", responsable_id: v }));
+              }}>
                 <SelectTrigger><SelectValue placeholder="Selectionner..." /></SelectTrigger>
                 <SelectContent>
-                  {collaborateurs.map(c => (
-                    <SelectItem key={c.id || c.nom} value={c.nom}>{c.nom}</SelectItem>
+                  {cabinetProfiles.map(p => (
+                    <SelectItem key={p.id} value={p.id}>{p.full_name || p.email} ({p.role})</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

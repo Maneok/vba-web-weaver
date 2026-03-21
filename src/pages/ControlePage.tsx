@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import { useAppState } from "@/lib/AppContext";
 import { controlesService } from "@/lib/supabaseService";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { formatDateFR, formatDateFr, timeAgo } from "@/lib/dateUtils";
 import { downloadCSV } from "@/lib/csvUtils";
 import { Button } from "@/components/ui/button";
@@ -111,6 +113,7 @@ function mapDbToControle(row: Record<string, unknown>): ControleQualite {
     incident: (row.incident as string) || "",
     commentaire: (row.commentaire as string) || "",
     controleur: (row.controleur as string) || "",
+    controleur_id: (row.controleur_id as string) || undefined,
     actionCorrectrice: (row.action_correctrice as string) || "",
     dateEcheance: (row.date_echeance as string) || "",
     suiviStatut: (row.suivi_statut as string) || "",
@@ -141,6 +144,7 @@ function mapControleToDb(c: ControleQualite): Record<string, unknown> {
     incident: c.incident,
     commentaire: c.commentaire,
     controleur: c.controleur,
+    controleur_id: c.controleur_id || null,
     action_correctrice: c.actionCorrectrice,
     date_echeance: c.dateEcheance,
     suivi_statut: c.suiviStatut,
@@ -278,8 +282,17 @@ function SortIconIndicator({ field, currentField, currentDir }: { field: SortFie
 }
 
 // ─── Main Component ─────────────────────────────────────────────────
+interface CabinetProfile {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+}
+
 export default function ControlePage() {
   const { clients, addLog, isOnline } = useAppState();
+  const { profile: currentProfile } = useAuth();
+  const [cabinetProfiles, setCabinetProfiles] = useState<CabinetProfile[]>([]);
   const [controles, setControles] = useState<ControleQualite[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -347,6 +360,20 @@ export default function ControlePage() {
     loadControles();
     return () => { loadControlesRef.current = false; };
   }, [loadControles]);
+
+  // ── Load cabinet profiles for controleur Select ──
+  useEffect(() => {
+    (async () => {
+      if (!currentProfile?.cabinet_id) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("id, full_name, email, role")
+        .eq("cabinet_id", currentProfile.cabinet_id)
+        .eq("is_active", true)
+        .order("full_name");
+      if (data) setCabinetProfiles(data as CabinetProfile[]);
+    })();
+  }, [currentProfile?.cabinet_id]);
 
   // Clear detailId when the selected control no longer exists in the list
   useEffect(() => {
@@ -590,7 +617,7 @@ export default function ControlePage() {
     if (!form.point1.trim()) errors.point1 = "Ce point de controle est obligatoire";
     if (!form.point2.trim()) errors.point2 = "Ce point de controle est obligatoire";
     if (!form.point3.trim()) errors.point3 = "Ce point de controle est obligatoire";
-    if (!form.controleur.trim()) errors.controleur = "Le nom du controleur est obligatoire";
+    if (!form.controleur_id && !form.controleur.trim()) errors.controleur = "Le controleur est obligatoire";
     if (form.resultatGlobal.startsWith("NON CONFORME") && !form.actionCorrectrice.trim()) {
       errors.actionCorrectrice = "Une action correctrice est requise pour une non-conformite";
     }
@@ -1653,14 +1680,27 @@ export default function ControlePage() {
                 <label className="text-xs font-medium text-slate-400 dark:text-slate-400">
                   Controleur <span className="text-red-400">*</span>
                 </label>
-                <input
-                  type="text"
-                  className={`w-full rounded-lg border ${formErrors.controleur ? "border-red-500/50" : "border-gray-300 dark:border-white/[0.08]"} bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-500/50`}
-                  placeholder="Nom du controleur..."
-                  value={form.controleur}
-                  onChange={(e) => { setForm((prev) => ({ ...prev, controleur: e.target.value })); setFormDirty(true); }}
+                <select
+                  className={`w-full rounded-lg border ${formErrors.controleur ? "border-red-500/50" : "border-gray-300 dark:border-white/[0.08]"} bg-gray-50 dark:bg-white/[0.03] px-3 py-2 text-sm text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-1 focus:ring-blue-500/50`}
+                  value={form.controleur_id || ""}
+                  onChange={(e) => {
+                    const selected = cabinetProfiles.find(p => p.id === e.target.value);
+                    setForm((prev) => ({
+                      ...prev,
+                      controleur: selected?.full_name || "",
+                      controleur_id: selected?.id || undefined,
+                    }));
+                    setFormDirty(true);
+                  }}
                   aria-label="Nom du controleur"
-                />
+                >
+                  <option value="">Selectionner un controleur...</option>
+                  {cabinetProfiles.map(p => (
+                    <option key={p.id} value={p.id}>
+                      {p.full_name || p.email} ({p.role})
+                    </option>
+                  ))}
+                </select>
                 {formErrors.controleur && <p className="text-xs text-red-400">{formErrors.controleur}</p>}
               </div>
 

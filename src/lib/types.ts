@@ -97,6 +97,8 @@ export interface Client {
   nonDiffusible?: boolean;
   // CORRECTION 1: EI type
   typePersonne?: "morale" | "physique" | "exploitation" | "unknown";
+  assignedTo?: string | null;
+  assignedToName?: string | null;
 }
 
 export interface CollaborateurProfile {
@@ -163,6 +165,7 @@ export interface ControleQualite {
   incident: string;
   commentaire: string;
   controleur: string;
+  controleur_id?: string;
   actionCorrectrice: string;
   dateEcheance: string;
   suiviStatut: string;
