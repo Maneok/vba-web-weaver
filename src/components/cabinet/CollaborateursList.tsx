@@ -331,47 +331,28 @@ export default function CollaborateursList() {
     try {
       const targetCabinet = inviteForm.cabinet_id || cabinets[0]?.id || profile.cabinet_id;
 
-      // Map the cabinet role to the 4 auth-compatible roles for the edge function
+      // Map the cabinet role to the 4 auth-compatible roles for the RPC
       // CONTROLEUR and SECRETAIRE are mapped to COLLABORATEUR for auth purposes
       const authRole = ["ADMIN", "SUPERVISEUR", "COLLABORATEUR", "STAGIAIRE"].includes(inviteForm.role)
         ? inviteForm.role
         : "COLLABORATEUR";
 
-      // Explicit fetch with Authorization header to avoid 401
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        toast.error("Session expirée, veuillez vous reconnecter");
-        setInviting(false);
-        return;
+      const { data: rpcData, error: rpcError } = await supabase.rpc('invite_collaborator', {
+        p_email: trimmedEmail,
+        p_full_name: trimmedName,
+        p_role: authRole,
+      });
+
+      if (rpcError) {
+        console.error('[INVITE] RPC error:', rpcError);
+        throw new Error(rpcError.message || "Erreur lors de l'invitation");
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            email: trimmedEmail,
-            fullName: trimmedName,
-            role: authRole,
-            cabinet_id: targetCabinet,
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Erreur ${response.status} lors de l'invitation`);
+      if (rpcData && !rpcData.success) {
+        throw new Error(rpcData.error || "Erreur lors de l'invitation");
       }
 
-      const resData = await response.json() as { error?: string; message?: string; emailSent?: boolean; inviteLink?: string | null };
-      if (resData?.error) {
-        throw new Error(resData.error);
-      }
+      const resData = rpcData as { success?: boolean; error?: string; message?: string; invite_url?: string; token?: string } | null;
 
       // Sync: also create a record in the collaborateurs table
       // so this person appears in Gouvernance > Organisation
@@ -402,22 +383,19 @@ export default function CollaborateursList() {
         }
       }
 
-      // If email was not sent (SMTP not configured), copy invite link to clipboard
-      if (!resData.emailSent && resData.inviteLink) {
+      // RPC returns invite_url — copy to clipboard if available
+      if (resData?.invite_url) {
         try {
-          await navigator.clipboard.writeText(resData.inviteLink);
-          toast.success(`Compte cree pour ${trimmedEmail}. Le lien d'invitation a ete copie dans le presse-papier.`, { duration: 8000 });
+          await navigator.clipboard.writeText(resData.invite_url);
+          toast.success(`Invitation creee pour ${trimmedEmail}. Le lien d'invitation a ete copie dans le presse-papier.`, { duration: 8000 });
         } catch {
-          // Clipboard failed, show link in toast
           toast.success(
-            `Compte cree pour ${trimmedEmail}. Partagez ce lien : ${resData.inviteLink}`,
+            `Invitation creee pour ${trimmedEmail}. Partagez ce lien : ${resData.invite_url}`,
             { duration: 15000 }
           );
         }
-      } else if (!resData.emailSent) {
-        toast.success(`Compte cree pour ${trimmedEmail}. L'email n'a pas pu etre envoye. Le collaborateur peut utiliser "Mot de passe oublie" pour se connecter.`, { duration: 8000 });
       } else {
-        toast.success(`Invitation envoyee a ${trimmedEmail}`);
+        toast.success(resData?.message || `Invitation envoyee a ${trimmedEmail}`);
       }
       setInviteOpen(false);
       setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });

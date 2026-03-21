@@ -100,33 +100,24 @@ export default function OnboardingWizard() {
     setInviting(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        toast.error("Session expirée, veuillez vous reconnecter");
+      const { data, error } = await supabase.rpc('invite_collaborator', {
+        p_email: inviteEmail.trim().toLowerCase(),
+        p_full_name: inviteEmail.trim().split("@")[0],
+        p_role: inviteRole,
+      });
+
+      if (error) {
+        console.error('[INVITE] RPC error:', error);
+        toast.error(error.message || "Erreur lors de l'invitation");
         setInviting(false);
         return;
       }
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ email: inviteEmail.trim(), fullName: inviteEmail.trim().split("@")[0], role: inviteRole }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Erreur ${response.status}`);
+      if (data && !data.success) {
+        toast.error(data.error || "Erreur lors de l'invitation");
+        setInviting(false);
+        return;
       }
-
-      const resData = await response.json();
-      if (resData?.error) throw new Error(resData.error);
     } catch (err) {
       setInviting(false);
       toast.error(err instanceof Error ? err.message : "Erreur lors de l'envoi de l'invitation");

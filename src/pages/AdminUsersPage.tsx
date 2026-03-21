@@ -82,47 +82,19 @@ export default function AdminUsersPage() {
     setInviting(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        toast.error("Session expirée, veuillez vous reconnecter");
-        setInviting(false);
-        return;
+      const { data, error } = await supabase.rpc('invite_collaborator', {
+        p_email: inviteEmail.trim().toLowerCase(),
+        p_full_name: inviteName.trim(),
+        p_role: inviteRole,
+      });
+
+      if (error) {
+        console.error('[INVITE] RPC error:', error);
+        throw new Error(error.message || "Erreur lors de l'invitation");
       }
 
-      console.log('[INVITE] Calling invite-user with token:', session?.access_token ? 'present' : 'MISSING');
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${session.access_token}`,
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({
-            email: inviteEmail.trim().toLowerCase(),
-            fullName: inviteName.trim(),
-            role: inviteRole,
-          }),
-        }
-      );
-
-      if (response.status === 403) {
-        throw new Error("Seuls les administrateurs peuvent inviter");
-      }
-      if (response.status === 409) {
-        throw new Error("Ce collaborateur existe déjà dans le cabinet");
-      }
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(errorText || `Erreur ${response.status} lors de l'invitation`);
-      }
-
-      const resData = await response.json() as { error?: string; message?: string };
-      if (resData?.error) {
-        throw new Error(resData.error);
+      if (data && !data.success) {
+        throw new Error(data.error || "Erreur lors de l'invitation");
       }
 
       await logAudit({
@@ -131,7 +103,7 @@ export default function AdminUsersPage() {
         new_data: { email: inviteEmail, role: inviteRole, full_name: inviteName },
       });
 
-      toast.success(resData?.message || `Invitation envoyée à ${inviteEmail}`);
+      toast.success(data?.message || `Invitation envoyée à ${inviteEmail}`);
       setInviteOpen(false);
       setInviteEmail("");
       setInviteName("");
