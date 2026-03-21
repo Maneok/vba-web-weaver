@@ -32,7 +32,7 @@ const SepaRow: React.FC<{
       flexDirection: "row",
       minHeight: 24,
       alignItems: "center",
-      borderBottomWidth: isLast ? 0 : 0.5,
+      borderBottomWidth: isLast === true ? 0 : 0.5,
       borderBottomColor: theme.border,
     }}
   >
@@ -55,7 +55,7 @@ const SepaRow: React.FC<{
         fontFamily: courier ? "Courier" : bold ? "Helvetica-Bold" : "Helvetica",
         paddingHorizontal: 8,
         paddingVertical: 5,
-        backgroundColor: grayBg ? "#F0F0F0" : undefined,
+        ...(grayBg ? { backgroundColor: "#F0F0F0" } : {}),
         letterSpacing: courier ? 1 : 0,
       }}
     >
@@ -76,7 +76,7 @@ const IdentRow: React.FC<{
       flexDirection: "row",
       minHeight: 22,
       alignItems: "center",
-      borderBottomWidth: isLast ? 0 : 0.5,
+      borderBottomWidth: isLast === true ? 0 : 0.5,
       borderBottomColor: theme.border,
     }}
   >

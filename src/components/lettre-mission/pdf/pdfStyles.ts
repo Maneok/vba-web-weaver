@@ -226,10 +226,11 @@ export const styles = StyleSheet.create({
     marginBottom: 10,
     padding: 8,
     paddingLeft: 12,
-    borderWidth: 0,
+    borderTopWidth: 0,
+    borderRightWidth: 0,
+    borderBottomWidth: 0,
     borderLeftWidth: 3,
     borderLeftColor: colors.primaire,
-    borderRadius: 0,
   },
   destText: {
     fontSize: 10,

@@ -133,8 +133,8 @@ export const Badge: React.FC<{ text: string; bgColor: string; textColor: string;
       paddingHorizontal: 8,
       paddingVertical: 2,
       alignSelf: "flex-start",
-      borderWidth: bordered ? 0.5 : 0,
-      borderColor: bordered ? textColor : "transparent",
+      borderWidth: bordered === true ? 0.5 : 0,
+      borderColor: bordered === true ? textColor : "transparent",
     }}
   >
     <Text style={{ fontSize: 7.5, color: textColor, fontFamily: "Helvetica-Bold" }}>{text}</Text>
