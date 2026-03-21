@@ -1,7 +1,8 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Layers } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -1381,86 +1382,143 @@ export default function SettingsPage() {
 
         {/* ===== SCORING TAB ===== */}
         <TabsContent value="scoring">
-          <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl p-6 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Configuration du scoring</h2>
-              <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Seuils de vigilance, malus de risque et frequences de revue.</p>
-            </div>
+          <div className="space-y-4">
 
-            {/* Seuils */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Seuils de vigilance</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="sc-bas">Seuil SIMPLIFIEE (max)</Label>
-                  <Input id="sc-bas" type="number" min={0} value={scoring.seuil_bas} onChange={(e) => updateScoring("seuil_bas", Number(e.target.value))} />
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Score &le; ce seuil = vigilance SIMPLIFIEE</p>
+            {/* CARTE 1 — Seuils de vigilance */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
+                    <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Seuils de vigilance</CardTitle>
+                    <CardDescription className="text-xs">Définissent le niveau de vigilance selon le score global</CardDescription>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sc-haut">Seuil RENFORCEE (min)</Label>
-                  <Input id="sc-haut" type="number" min={0} value={scoring.seuil_haut} onChange={(e) => updateScoring("seuil_haut", Number(e.target.value))} />
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Score &ge; ce seuil = vigilance RENFORCEE</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-3 gap-3 items-end">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Simplifiée (max)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-1.5 h-8 rounded-full bg-emerald-400" />
+                      <Input type="number" min={0} value={scoring.seuil_bas} onChange={(e) => updateScoring("seuil_bas", Number(e.target.value))} className="text-center font-medium" />
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="bg-muted rounded-full px-3 py-1.5 text-xs text-muted-foreground inline-block">
+                      {scoring.seuil_bas + 1 <= scoring.seuil_haut - 1 ? `${scoring.seuil_bas + 1} \u2013 ${scoring.seuil_haut - 1}` : "Plage invalide"}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-1">Standard (auto)</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Renforcée (min)</Label>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-1.5 h-8 rounded-full bg-red-400" />
+                      <Input type="number" min={0} value={scoring.seuil_haut} onChange={(e) => updateScoring("seuil_haut", Number(e.target.value))} className="text-center font-medium" />
+                    </div>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label className="text-slate-400 dark:text-slate-400 text-xs">STANDARD (auto)</Label>
-                  <p className="text-sm text-slate-700 dark:text-slate-300 pt-2">{scoring.seuil_bas + 1 <= scoring.seuil_haut - 1 ? `${scoring.seuil_bas + 1} \u2013 ${scoring.seuil_haut - 1}` : "Plage invalide"}</p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500">Plage calculee automatiquement</p>
+                <div>
+                  <div className="h-2 rounded-full overflow-hidden flex">
+                    <div className="bg-emerald-400" style={{ width: `${scoring.seuil_bas}%` }} />
+                    <div className="bg-amber-400" style={{ width: `${scoring.seuil_haut - scoring.seuil_bas}%` }} />
+                    <div className="bg-red-400" style={{ width: `${100 - scoring.seuil_haut}%` }} />
+                  </div>
+                  <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
+                    <span>0</span>
+                    <span>{scoring.seuil_bas}</span>
+                    <span>{scoring.seuil_haut}</span>
+                    <span>100</span>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Malus */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Malus (points ajoutes au score)</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="sc-cash">Especes (cash)</Label>
-                  <Input id="sc-cash" type="number" min={0} value={scoring.malus_cash} onChange={(e) => updateScoring("malus_cash", Number(e.target.value))} />
+            {/* CARTE 2 — Malus */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950 flex items-center justify-center">
+                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Malus (points ajoutés au score)</CardTitle>
+                    <CardDescription className="text-xs">Facteurs aggravants qui augmentent le risque</CardDescription>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sc-pression">Pression / urgence</Label>
-                  <Input id="sc-pression" type="number" min={0} value={scoring.malus_pression} onChange={(e) => updateScoring("malus_pression", Number(e.target.value))} />
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Espèces (cash)", key: "malus_cash" as const },
+                    { label: "Pression / urgence", key: "malus_pression" as const },
+                    { label: "Distanciel", key: "malus_distanciel" as const },
+                  ].map(item => (
+                    <div key={item.key} className="bg-muted rounded-lg p-3">
+                      <p className="text-[11px] text-muted-foreground mb-1">{item.label}</p>
+                      <div className="flex items-center gap-1">
+                        <span className="text-amber-600 dark:text-amber-400 font-medium">+</span>
+                        <Input type="number" min={0} value={scoring[item.key]} onChange={(e) => updateScoring(item.key, Number(e.target.value))} className="h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sc-dist">Distanciel</Label>
-                  <Input id="sc-dist" type="number" min={0} value={scoring.malus_distanciel} onChange={(e) => updateScoring("malus_distanciel", Number(e.target.value))} />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-muted rounded-lg p-3">
+                    <p className="text-[11px] text-muted-foreground mb-1">Montage atypique</p>
+                    <div className="flex items-center gap-1">
+                      <span className="text-amber-600 dark:text-amber-400 font-medium">+</span>
+                      <Input type="number" min={0} value={scoring.malus_atypique} onChange={(e) => updateScoring("malus_atypique", Number(e.target.value))} className="h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16" />
+                    </div>
+                  </div>
+                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 border-l-[3px] border-red-500 rounded-l-none">
+                    <p className="text-[11px] text-muted-foreground mb-1">PPE (forçage automatique)</p>
+                    <p className="text-lg font-medium text-red-600 dark:text-red-400">= 100</p>
+                    <p className="text-[11px] text-red-600 dark:text-red-400 mt-0.5">Force automatiquement RENFORCÉE</p>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sc-ppe" className="text-slate-400">PPE (forcage auto)</Label>
-                  <Input id="sc-ppe" type="number" value={100} disabled className="opacity-50 cursor-not-allowed" />
-                  <p className="text-[11px] text-slate-400">PPE force automatiquement le score a 100 (RENFORCEE)</p>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sc-atyp">Atypique</Label>
-                  <Input id="sc-atyp" type="number" min={0} value={scoring.malus_atypique} onChange={(e) => updateScoring("malus_atypique", Number(e.target.value))} />
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Frequences de revue */}
-            <div>
-              <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 mb-3">Frequences de revue (mois)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                <div className="space-y-2">
-                  <Label htmlFor="sc-rev-std">Revue STANDARD</Label>
-                  <Input id="sc-rev-std" type="number" min={1} value={scoring.revue_standard_mois} onChange={(e) => updateScoring("revue_standard_mois", Number(e.target.value))} />
+            {/* CARTE 3 — Fréquences de revue */}
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
+                    <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-base">Fréquences de revue</CardTitle>
+                    <CardDescription className="text-xs">Délai entre chaque revue selon le niveau de vigilance</CardDescription>
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sc-rev-renf">Revue RENFORCEE</Label>
-                  <Input id="sc-rev-renf" type="number" min={1} value={scoring.revue_renforcee_mois} onChange={(e) => updateScoring("revue_renforcee_mois", Number(e.target.value))} />
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: "Simplifiée", key: "revue_simplifiee_mois" as const, badgeClass: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" },
+                    { label: "Standard", key: "revue_standard_mois" as const, badgeClass: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" },
+                    { label: "Renforcée", key: "revue_renforcee_mois" as const, badgeClass: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300" },
+                  ].map(item => (
+                    <div key={item.key} className="bg-muted rounded-lg p-3 text-center">
+                      <span className={`inline-block text-[11px] px-2.5 py-0.5 rounded-full mb-2 ${item.badgeClass}`}>
+                        {item.label}
+                      </span>
+                      <Input type="number" min={1} value={scoring[item.key]} onChange={(e) => updateScoring(item.key, Number(e.target.value))} className="h-auto text-xl font-medium text-center bg-transparent border-0 p-0" />
+                      <p className="text-[11px] text-muted-foreground mt-0.5">mois</p>
+                    </div>
+                  ))}
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sc-rev-simp">Revue SIMPLIFIEE</Label>
-                  <Input id="sc-rev-simp" type="number" min={1} value={scoring.revue_simplifiee_mois} onChange={(e) => updateScoring("revue_simplifiee_mois", Number(e.target.value))} />
-                </div>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
             {/* Warning: unsaved changes */}
             {dirtyScoring && (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="text-xs text-amber-400">Les modifications ne seront appliquees aux dossiers existants qu'apres sauvegarde</span>
+                <span className="text-xs text-amber-400">Les modifications ne seront appliquées aux dossiers existants qu'après sauvegarde</span>
               </div>
             )}
 
@@ -1468,14 +1526,14 @@ export default function SettingsPage() {
               <Button
                 variant="outline"
                 onClick={async () => {
-                  if (!cabinetId) { toast.error("Cabinet non identifie"); return; }
+                  if (!cabinetId) { toast.error("Cabinet non identifié"); return; }
                   setRecalculating(true);
                   const result = await recalculateAllCabinetScores(cabinetId);
                   setRecalculating(false);
                   if (result.success) {
-                    toast.success(`${result.updated_count} dossier(s) recalcule(s) avec les parametres actuels`);
+                    toast.success(`${result.updated_count} dossier(s) recalculé(s) avec les paramètres actuels`);
                   } else {
-                    toast.error("Erreur lors du recalcul des scores. La fonction RPC n'est peut-etre pas encore deployee.");
+                    toast.error("Erreur lors du recalcul des scores. La fonction RPC n'est peut-être pas encore déployée.");
                   }
                 }}
                 disabled={recalculating || !cabinetId}
