@@ -796,14 +796,14 @@ export default function SettingsPage() {
   /* --- warn before leaving with unsaved changes --- */
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
-      if (dirtyCabinet || dirtyScoring || dirtyLcbft) {
+      if (dirtyCabinet || dirtyScoring) {
         e.preventDefault();
         e.returnValue = "Les modifications non sauvegardees seront perdues";
       }
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [dirtyCabinet, dirtyScoring, dirtyLcbft]);
+  }, [dirtyCabinet, dirtyScoring]);
 
   /* --- keyboard shortcut Ctrl+S --- */
   useEffect(() => {
@@ -813,19 +813,17 @@ export default function SettingsPage() {
         const tab = activeTabRef.current;
         if (tab === "cabinet") saveCabinet();
         else if (tab === "scoring") saveScoring();
-        else if (tab === "lcbft") saveLcbft();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [saveCabinet, saveScoring, saveLcbft]);
+  }, [saveCabinet, saveScoring]);
 
   /* --- tab change with unsaved changes warning --- */
   function handleTabChange(newTab: string) {
     const currentDirty =
       (activeTab === "cabinet" && dirtyCabinet) ||
-      (activeTab === "scoring" && dirtyScoring) ||
-      (activeTab === "lcbft" && dirtyLcbft);
+      (activeTab === "scoring" && dirtyScoring);
     if (currentDirty) {
       toast.warning("Modifications non enregistrees. Sauvegardez avant de changer d'onglet.");
       return;
@@ -883,11 +881,6 @@ export default function SettingsPage() {
             <Target className="w-4 h-4" />
             <span className="hidden sm:inline">Scoring</span>
             {dirtyScoring && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
-          </TabsTrigger>
-          <TabsTrigger value="lcbft" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2 relative">
-            <ShieldCheck className="w-4 h-4" />
-            <span className="hidden sm:inline">LCB-FT</span>
-            {dirtyLcbft && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
           <TabsTrigger value="referentiels" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2">
             <BookOpen className="w-4 h-4" />
@@ -1713,91 +1706,6 @@ export default function SettingsPage() {
                   {savedScoring ? "Enregistre !" : "Enregistrer"}
                 </Button>
               </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ===== LCB-FT TAB ===== */}
-        <TabsContent value="lcbft">
-          <div className="glass-card border border-gray-200 dark:border-white/10 rounded-xl p-6 space-y-6">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">Configuration LCB-FT</h2>
-              <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Referent, formations et listes de pays a risque.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="lcb-ref">Referent LCB-FT</Label>
-                <Input id="lcb-ref" value={lcbft.referent_lcb} onChange={(e) => updateLcbft("referent_lcb", e.target.value)} placeholder="Nom du referent" />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lcb-sup">Suppleant LCB-FT</Label>
-                <Input id="lcb-sup" value={lcbft.suppleant_lcb} onChange={(e) => updateLcbft("suppleant_lcb", e.target.value)} placeholder="Nom du suppleant" />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              <div className="space-y-2">
-                <Label htmlFor="lcb-formation">Date derniere formation</Label>
-                <Input id="lcb-formation" type="date" value={lcbft.date_derniere_formation} onChange={(e) => updateLcbft("date_derniere_formation", e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lcb-signature">Date signature manuel</Label>
-                <Input id="lcb-signature" type="date" value={lcbft.date_signature_manuel} onChange={(e) => updateLcbft("date_signature_manuel", e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lcb-version">Version du manuel</Label>
-                <Input id="lcb-version" value={lcbft.version_manuel} onChange={(e) => updateLcbft("version_manuel", e.target.value)} placeholder="v2.1" />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lcb-risque">Pays a risque (GAFI / UE)</Label>
-              <Textarea
-                id="lcb-risque"
-                value={lcbft.pays_risque.join(", ")}
-                onChange={(e) =>
-                  updateLcbft(
-                    "pays_risque",
-                    e.target.value
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                  )
-                }
-                rows={3}
-                className="font-mono text-xs"
-                placeholder="AFGHANISTAN, IRAN, COREE DU NORD..."
-              />
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">Noms des pays separes par des virgules.</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="lcb-grey">Pays greylist</Label>
-              <Textarea
-                id="lcb-grey"
-                value={lcbft.pays_greylist.join(", ")}
-                onChange={(e) =>
-                  updateLcbft(
-                    "pays_greylist",
-                    e.target.value
-                      .split(",")
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                  )
-                }
-                rows={3}
-                className="font-mono text-xs"
-                placeholder="TURQUIE, EMIRATS ARABES UNIS..."
-              />
-              <p className="text-[11px] text-slate-400 dark:text-slate-500">Pays sous surveillance renforcee (liste grise GAFI).</p>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <Button onClick={saveLcbft} disabled={savingLcbft} aria-label="Enregistrer la configuration LCB-FT" className="gap-2">
-                {savingLcbft ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Enregistrer
-              </Button>
             </div>
           </div>
         </TabsContent>
