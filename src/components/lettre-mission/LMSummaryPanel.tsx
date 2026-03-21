@@ -3,7 +3,7 @@ import type { LMWizardData } from "@/lib/lmWizardTypes";
 import { getMissionTypeConfig, getCategoryColorClasses, getMissionCategory } from "@/lib/lettreMissionTypes";
 import { formatEur } from "@/lib/lmUtils";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CheckCircle2, XCircle, BookOpen } from "lucide-react";
+import { Building2, CheckCircle2, XCircle, BookOpen, UserCheck, Shield, Users } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -133,6 +133,36 @@ function FullSummary({ data, cabinetLogo }: { data: LMWizardData; cabinetLogo?: 
         <div className="space-y-1">
           <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Duree</p>
           <p className="text-sm text-slate-700 dark:text-slate-300">{data.duree}{/^\d+$/.test(data.duree) ? ` an${data.duree !== "1" ? "s" : ""}` : ""} · {data.frequence_facturation || "—"}</p>
+        </div>
+      )}
+
+      {/* Équipe mission */}
+      {(data.collaborateur_principal_nom || data.superviseur_nom || (data.intervenants_liste || []).length > 0) && (
+        <div className="space-y-2">
+          <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Équipe mission</p>
+          <div className="space-y-1.5">
+            {data.collaborateur_principal_nom && (
+              <div className="flex items-center gap-2 text-xs">
+                <UserCheck className="w-3 h-3 text-blue-400 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">{data.collaborateur_principal_nom}</span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500">Responsable</span>
+              </div>
+            )}
+            {data.superviseur_nom && (
+              <div className="flex items-center gap-2 text-xs">
+                <Shield className="w-3 h-3 text-amber-400 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">{data.superviseur_nom}</span>
+                <span className="text-[9px] text-slate-400 dark:text-slate-500">Superviseur</span>
+              </div>
+            )}
+            {(data.intervenants_liste || []).filter((iv) => iv.nom).map((iv, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs">
+                <Users className="w-3 h-3 text-slate-400 shrink-0" />
+                <span className="text-slate-700 dark:text-slate-300">{iv.nom}</span>
+                {iv.role_mission && <span className="text-[9px] text-slate-400 dark:text-slate-500">{iv.role_mission}</span>}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

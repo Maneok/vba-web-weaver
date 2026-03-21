@@ -1,13 +1,16 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
-import type { LMWizardData } from "@/lib/lmWizardTypes";
+import type { LMWizardData, IntervenantMission } from "@/lib/lmWizardTypes";
+import { ROLES_MISSION } from "@/lib/lmWizardTypes";
 import type { LMModele, LMSection } from "@/lib/lettreMissionModeles";
 import { getModeles, validateCnoecCompliance, getModelesForClientType, GRIMY_DEFAULT_SECTIONS } from "@/lib/lettreMissionModeles";
 import { CLIENT_TYPES } from "@/lib/lettreMissionTypes";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { QUALITES_DIRIGEANT, DUREES } from "@/lib/lmDefaults";
 import { logger } from "@/lib/logger";
+import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -16,7 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { FileText, ShieldCheck, AlertTriangle, CheckCircle2, ChevronDown, Layers, Eye, EyeOff } from "lucide-react";
+import { FileText, ShieldCheck, AlertTriangle, CheckCircle2, ChevronDown, Layers, Eye, EyeOff, Users, Plus, X, UserCheck, Shield } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -35,6 +38,45 @@ export default function LMStep4Modele({ data, onChange }: Props) {
   const referentLcb = collaborateurs.find((c) => c.referentLcb);
   const mtConfig = useMemo(() => getMissionTypeConfig(data.mission_type_id || "presentation"), [data.mission_type_id]);
   const clientTypeConfig = CLIENT_TYPES[data.client_type_id || ''] || null;
+
+  // Superviseurs (ADMIN + SUPERVISEUR profiles)
+  const [superviseurs, setSuperviseurs] = useState<{ id: string; full_name: string; email: string; role: string }[]>([]);
+  useEffect(() => {
+    const cabinetId = profile?.cabinet_id;
+    if (!cabinetId) return;
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, role")
+      .eq("cabinet_id", cabinetId)
+      .eq("is_active", true)
+      .in("role", ["ADMIN", "SUPERVISEUR"])
+      .order("full_name")
+      .then(({ data: rows }) => {
+        if (rows) setSuperviseurs(rows as any);
+      })
+      .catch((e) => logger.warn("LM", "Failed to load superviseurs:", e));
+  }, [profile?.cabinet_id]);
+
+  // Active collaborateurs for selectors
+  const activeCollabs = useMemo(() => collaborateurs.filter((c) => c.isActive !== false), [collaborateurs]);
+
+  // Handlers for intervenants multi-select
+  const addIntervenant = useCallback(() => {
+    const liste = [...(data.intervenants_liste || [])];
+    liste.push({ collaborateur_id: "", nom: "", role_mission: "" });
+    onChange({ intervenants_liste: liste });
+  }, [data.intervenants_liste, onChange]);
+
+  const updateIntervenant = useCallback((idx: number, updates: Partial<IntervenantMission>) => {
+    const liste = [...(data.intervenants_liste || [])];
+    liste[idx] = { ...liste[idx], ...updates };
+    onChange({ intervenants_liste: liste });
+  }, [data.intervenants_liste, onChange]);
+
+  const removeIntervenant = useCallback((idx: number) => {
+    const liste = (data.intervenants_liste || []).filter((_, i) => i !== idx);
+    onChange({ intervenants_liste: liste });
+  }, [data.intervenants_liste, onChange]);
 
   // Load modeles
   useEffect(() => {
@@ -340,9 +382,136 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         </div>
       </div>
 
-      {/* Intervenants */}
+      {/* Équipe mission */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Intervenants</p>
+        <div className="flex items-center gap-2">
+          <Users className="w-4 h-4 text-blue-400" />
+          <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Équipe mission</p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Collaborateur principal (obligatoire) */}
+          <div className="space-y-1.5">
+            <Label className="text-slate-400 dark:text-slate-500 text-xs flex items-center gap-1">
+              <UserCheck className="w-3 h-3" /> Collaborateur principal *
+            </Label>
+            <Select
+              value={data.collaborateur_principal_id || ""}
+              onValueChange={(v) => {
+                const collab = activeCollabs.find((c) => c.id === v);
+                onChange({
+                  collaborateur_principal_id: v,
+                  collaborateur_principal_nom: collab ? `${collab.nom}` : "",
+                });
+              }}
+            >
+              <SelectTrigger className={inputCls}><SelectValue placeholder="Sélectionner le responsable" /></SelectTrigger>
+              <SelectContent>
+                {activeCollabs.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.nom} — {c.fonction || "Collaborateur"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-slate-300 dark:text-slate-600">Responsable du dossier</p>
+          </div>
+
+          {/* Superviseur (optionnel) */}
+          <div className="space-y-1.5">
+            <Label className="text-slate-400 dark:text-slate-500 text-xs flex items-center gap-1">
+              <Shield className="w-3 h-3" /> Superviseur
+            </Label>
+            <Select
+              value={data.superviseur_id || ""}
+              onValueChange={(v) => {
+                const sup = superviseurs.find((s) => s.id === v);
+                onChange({
+                  superviseur_id: v,
+                  superviseur_nom: sup?.full_name || "",
+                });
+              }}
+            >
+              <SelectTrigger className={inputCls}><SelectValue placeholder="Aucun superviseur" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Aucun</SelectItem>
+                {superviseurs.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.full_name || s.email} — {s.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-slate-300 dark:text-slate-600">Valide le dossier (Admin ou Superviseur)</p>
+          </div>
+        </div>
+
+        {/* Intervenants additionnels */}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Intervenants additionnels</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={addIntervenant}
+              className="h-7 text-xs text-blue-400 hover:text-blue-500 gap-1"
+            >
+              <Plus className="w-3 h-3" /> Ajouter
+            </Button>
+          </div>
+          {(data.intervenants_liste || []).length === 0 && (
+            <p className="text-[10px] text-slate-300 dark:text-slate-600 italic">Aucun intervenant additionnel</p>
+          )}
+          {(data.intervenants_liste || []).map((interv, idx) => (
+            <div key={idx} className="flex items-start gap-2 p-2.5 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
+              <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Select
+                  value={interv.collaborateur_id || ""}
+                  onValueChange={(v) => {
+                    const collab = activeCollabs.find((c) => c.id === v);
+                    updateIntervenant(idx, {
+                      collaborateur_id: v,
+                      nom: collab?.nom || "",
+                    });
+                  }}
+                >
+                  <SelectTrigger className={`${inputCls} h-8 text-xs`}><SelectValue placeholder="Collaborateur" /></SelectTrigger>
+                  <SelectContent>
+                    {activeCollabs
+                      .filter((c) => c.id !== data.collaborateur_principal_id && !(data.intervenants_liste || []).some((iv, i) => i !== idx && iv.collaborateur_id === c.id))
+                      .map((c) => (
+                        <SelectItem key={c.id} value={c.id}>{c.nom} — {c.fonction || "Collaborateur"}</SelectItem>
+                      ))
+                    }
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={interv.role_mission || ""}
+                  onValueChange={(v) => updateIntervenant(idx, { role_mission: v })}
+                >
+                  <SelectTrigger className={`${inputCls} h-8 text-xs`}><SelectValue placeholder="Rôle mission" /></SelectTrigger>
+                  <SelectContent>
+                    {ROLES_MISSION.map((r) => (
+                      <SelectItem key={r} value={r}>{r}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <button
+                type="button"
+                onClick={() => removeIntervenant(idx)}
+                className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-colors mt-0.5"
+                aria-label="Supprimer cet intervenant"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Separator */}
+        <div className="border-t border-gray-100 dark:border-white/[0.04] pt-3" />
+
+        {/* Legacy intervenants (associe, chef de mission, validateur) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <Label className="text-slate-400 dark:text-slate-500 text-xs">Associé signataire *</Label>

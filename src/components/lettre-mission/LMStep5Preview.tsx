@@ -75,7 +75,7 @@ export default function LMStep5Preview({ data, onGoToStep, isMobile }: Props) {
         customWatermark="BROUILLON"
         numeroLettre={numero}
         zoom={isMobile && !fullscreen ? 0.55 : 0.75}
-        responsableDossier={data.chef_mission}
+        responsableDossier={data.collaborateur_principal_nom || data.chef_mission}
         dateSignature={data.date_signature}
       />
     </div>

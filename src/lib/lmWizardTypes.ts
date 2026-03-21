@@ -18,6 +18,22 @@ export interface MissionSelection {
   sous_options: MissionSubOption[];
 }
 
+export interface IntervenantMission {
+  collaborateur_id: string;
+  nom: string;
+  role_mission: string;
+}
+
+export const ROLES_MISSION = [
+  "Saisie comptable",
+  "Revision",
+  "Paie",
+  "Juridique",
+  "Fiscal",
+  "Social",
+  "Conseil",
+] as const;
+
 export interface LMWizardData {
   // Step 1 — Client & type
   client_id: string;
@@ -54,6 +70,13 @@ export interface LMWizardData {
   chef_mission: string;
   referent_lcb: string;
   validateur: string; // C) Co-édition: collaborateur qui valide
+
+  // Équipe mission (linked to DB)
+  collaborateur_principal_id: string;
+  collaborateur_principal_nom: string;
+  superviseur_id: string;
+  superviseur_nom: string;
+  intervenants_liste: IntervenantMission[];
   clause_lcbft: boolean;
   clause_travail_dissimule: boolean;
   clause_rgpd: boolean;
@@ -191,6 +214,11 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   chef_mission: "",
   referent_lcb: "",
   validateur: "",
+  collaborateur_principal_id: "",
+  collaborateur_principal_nom: "",
+  superviseur_id: "",
+  superviseur_nom: "",
+  intervenants_liste: [],
   clause_lcbft: true,
   clause_travail_dissimule: true,
   clause_rgpd: true,

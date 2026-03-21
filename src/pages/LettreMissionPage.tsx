@@ -347,12 +347,13 @@ const LetterHistory = React.memo(function LetterHistory({
       </div>
 
       {/* Table header (desktop) — sortable */}
-      <div className="hidden sm:grid grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
+      <div className="hidden sm:grid grid-cols-[1fr_110px_140px_100px_80px_90px_90px_50px_120px] gap-2 px-4 text-[10px] text-slate-600 uppercase tracking-wider">
         <button onClick={() => toggleSort("client")} className="text-left hover:text-slate-400 dark:text-slate-400 transition-colors">
           Client {sortBy === "client" ? (sortAsc ? "↑" : "↓") : ""}
         </button>
         <span>Numero</span>
         <span>Type de mission</span>
+        <span>Responsable</span>
         <span>Honoraires</span>
         <button onClick={() => toggleSort("date")} className="text-left hover:text-slate-400 dark:text-slate-400 transition-colors">
           Date {sortBy === "date" ? (sortAsc ? "↑" : "↓") : ""}
@@ -373,7 +374,7 @@ const LetterHistory = React.memo(function LetterHistory({
           return (
           <div
             key={letter.id}
-            className={`group sm:grid sm:grid-cols-[1fr_110px_140px_80px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors ${rowCatColors ? `border-l-[3px] ${rowCatColors.border}` : ''}`}
+            className={`group sm:grid sm:grid-cols-[1fr_110px_140px_100px_80px_90px_90px_50px_120px] sm:items-center gap-2 p-3 sm:px-4 rounded-xl bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] hover:bg-gray-100 dark:hover:bg-white/[0.04] transition-colors ${rowCatColors ? `border-l-[3px] ${rowCatColors.border}` : ''}`}
           >
             {/* Client */}
             <button onClick={() => onEdit(letter)} className="flex items-center gap-2 text-left min-w-0">
@@ -403,6 +404,11 @@ const LetterHistory = React.memo(function LetterHistory({
                 <span className="block text-[9px] text-slate-600 mt-0.5 truncate">{getMissionNorme(letter)}</span>
               )}
             </div>
+
+            {/* Responsable */}
+            <span className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-400 truncate">
+              {letter.wizard_data?.collaborateur_principal_nom || "—"}
+            </span>
 
             {/* Honoraires HT */}
             <span className="hidden sm:block text-[10px] text-slate-400 dark:text-slate-400 font-mono">
@@ -1012,13 +1018,16 @@ export default function LettreMissionPage() {
     try {
       const { data: sessionData } = await supabase.auth.getSession();
       if (!sessionData?.session?.user) return;
-      const payload = {
+      const payload: Record<string, unknown> = {
         wizard_data: currentData,
         wizard_step: currentStep,
         client_ref: currentData.client_ref || null,
         raison_sociale: currentData.raison_sociale || null,
         type_mission: currentData.type_mission || null,
         updated_at: new Date().toISOString(),
+        collaborateur_principal_id: currentData.collaborateur_principal_id || null,
+        superviseur_id: (currentData.superviseur_id && currentData.superviseur_id !== "__none__") ? currentData.superviseur_id : null,
+        intervenants: { liste: currentData.intervenants_liste || [] },
       };
       let saved = false;
       if (lmIdRef.current) {
@@ -1040,6 +1049,9 @@ export default function LettreMissionPage() {
             wizard_data: currentData,
             wizard_step: currentStep,
             numero: incrementCounter(),
+            collaborateur_principal_id: currentData.collaborateur_principal_id || null,
+            superviseur_id: (currentData.superviseur_id && currentData.superviseur_id !== "__none__") ? currentData.superviseur_id : null,
+            intervenants: { liste: currentData.intervenants_liste || [] },
           })
           .select("id")
           .maybeSingle();
@@ -1065,7 +1077,7 @@ export default function LettreMissionPage() {
     try {
       const { data: rows } = await supabase
         .from("lettres_mission")
-        .select("id, numero, client_ref, raison_sociale, type_mission, status, created_at, updated_at, wizard_data")
+        .select("id, numero, client_ref, raison_sociale, type_mission, status, created_at, updated_at, wizard_data, collaborateur_principal_id")
         .order("updated_at", { ascending: false });
       if (rows) {
         setSavedLetters(
@@ -1215,7 +1227,7 @@ export default function LettreMissionPage() {
     const { data: authData } = await supabase.auth.getUser();
     if (!authData?.user) { toast.error("Session expirée. Reconnectez-vous."); return; }
     const effectiveStatus = sanitized.statut || "brouillon";
-    const payload = {
+    const payload: Record<string, unknown> = {
       client_ref: sanitized.client_ref,
       raison_sociale: sanitized.raison_sociale,
       type_mission: sanitized.type_mission,
@@ -1223,6 +1235,9 @@ export default function LettreMissionPage() {
       wizard_data: sanitized,
       wizard_step: step,
       numero: sanitized.numero_lettre || incrementCounter(),
+      collaborateur_principal_id: sanitized.collaborateur_principal_id || null,
+      superviseur_id: (sanitized.superviseur_id && sanitized.superviseur_id !== "__none__") ? sanitized.superviseur_id : null,
+      intervenants: { liste: sanitized.intervenants_liste || [] },
     };
     if (lmIdRef.current) {
       const { error } = await supabase.from("lettres_mission").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", lmIdRef.current);
