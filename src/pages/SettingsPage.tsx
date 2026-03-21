@@ -77,17 +77,25 @@ type CabinetInfo = {
 };
 
 type ScoringConfig = {
-  seuil_bas: number;
-  seuil_haut: number;
-  malus_cash: number;
-  malus_pression: number;
-  malus_distanciel: number;
-  malus_ppe: number;
-  malus_atypique: number;
-  revue_standard_mois: number;
-  revue_renforcee_mois: number;
-  revue_simplifiee_mois: number;
+  seuil_bas: string | number;
+  seuil_haut: string | number;
+  malus_cash: string | number;
+  malus_pression: string | number;
+  malus_distanciel: string | number;
+  malus_ppe: string | number;
+  malus_atypique: string | number;
+  revue_standard_mois: string | number;
+  revue_renforcee_mois: string | number;
+  revue_simplifiee_mois: string | number;
 };
+
+/** Convert any scoring field to number (for display calculations & save) */
+function n(v: string | number): number {
+  if (typeof v === "number") return v;
+  if (v === "" || v === "-") return 0;
+  const parsed = Number(v);
+  return isNaN(parsed) ? 0 : parsed;
+}
 
 type LcbftConfig = {
   referent_lcb: string;
@@ -170,18 +178,19 @@ function validateCabinet(c: CabinetInfo): ValidationErrors {
 
 function validateScoring(s: ScoringConfig): ValidationErrors {
   const errors: ValidationErrors = {};
-  if (s.seuil_bas >= s.seuil_haut) errors.seuil_bas = "Le seuil bas doit etre inferieur au seuil haut";
-  if (s.seuil_bas < 0) errors.seuil_bas = "Le seuil bas doit etre positif";
-  if (s.seuil_bas > 99) errors.seuil_bas = "Le seuil bas ne peut pas depasser 99";
-  if (s.seuil_haut < 1) errors.seuil_haut = "Le seuil haut doit etre au moins 1";
-  if (s.seuil_haut > 100) errors.seuil_haut = "Le seuil haut ne peut pas depasser 100";
-  if (s.malus_cash < 0 || s.malus_cash > 100) errors.malus_cash = "Le malus doit etre entre 0 et 100";
-  if (s.malus_pression < 0 || s.malus_pression > 100) errors.malus_pression = "Le malus doit etre entre 0 et 100";
-  if (s.malus_distanciel < 0 || s.malus_distanciel > 100) errors.malus_distanciel = "Le malus doit etre entre 0 et 100";
-  if (s.malus_atypique < 0 || s.malus_atypique > 100) errors.malus_atypique = "Le malus doit etre entre 0 et 100";
-  if (s.revue_simplifiee_mois < 1 || s.revue_simplifiee_mois > 120) errors.revue_simplifiee_mois = "La frequence doit etre entre 1 et 120 mois";
-  if (s.revue_standard_mois < 1 || s.revue_standard_mois > 120) errors.revue_standard_mois = "La frequence doit etre entre 1 et 120 mois";
-  if (s.revue_renforcee_mois < 1 || s.revue_renforcee_mois > 120) errors.revue_renforcee_mois = "La frequence doit etre entre 1 et 120 mois";
+  const sb = n(s.seuil_bas), sh = n(s.seuil_haut);
+  if (sb >= sh) errors.seuil_bas = "Le seuil bas doit etre inferieur au seuil haut";
+  if (sb < 0) errors.seuil_bas = "Le seuil bas doit etre positif";
+  if (sb > 99) errors.seuil_bas = "Le seuil bas ne peut pas depasser 99";
+  if (sh < 1) errors.seuil_haut = "Le seuil haut doit etre au moins 1";
+  if (sh > 100) errors.seuil_haut = "Le seuil haut ne peut pas depasser 100";
+  if (n(s.malus_cash) < 0 || n(s.malus_cash) > 100) errors.malus_cash = "Le malus doit etre entre 0 et 100";
+  if (n(s.malus_pression) < 0 || n(s.malus_pression) > 100) errors.malus_pression = "Le malus doit etre entre 0 et 100";
+  if (n(s.malus_distanciel) < 0 || n(s.malus_distanciel) > 100) errors.malus_distanciel = "Le malus doit etre entre 0 et 100";
+  if (n(s.malus_atypique) < 0 || n(s.malus_atypique) > 100) errors.malus_atypique = "Le malus doit etre entre 0 et 100";
+  if (n(s.revue_simplifiee_mois) < 1 || n(s.revue_simplifiee_mois) > 120) errors.revue_simplifiee_mois = "La frequence doit etre entre 1 et 120 mois";
+  if (n(s.revue_standard_mois) < 1 || n(s.revue_standard_mois) > 120) errors.revue_standard_mois = "La frequence doit etre entre 1 et 120 mois";
+  if (n(s.revue_renforcee_mois) < 1 || n(s.revue_renforcee_mois) > 120) errors.revue_renforcee_mois = "La frequence doit etre entre 1 et 120 mois";
   return errors;
 }
 
@@ -658,15 +667,30 @@ export default function SettingsPage() {
     setSavingScoring(true);
     try {
       const now = new Date().toISOString();
+      // Convert all string values to numbers for persistence
+      const scoringToSave = {
+        seuil_bas: n(scoring.seuil_bas) || 25,
+        seuil_haut: n(scoring.seuil_haut) || 60,
+        malus_cash: n(scoring.malus_cash) || 0,
+        malus_pression: n(scoring.malus_pression) || 0,
+        malus_distanciel: n(scoring.malus_distanciel) || 0,
+        malus_ppe: n(scoring.malus_ppe) || 20,
+        malus_atypique: n(scoring.malus_atypique) || 0,
+        revue_standard_mois: n(scoring.revue_standard_mois) || 24,
+        revue_renforcee_mois: n(scoring.revue_renforcee_mois) || 12,
+        revue_simplifiee_mois: n(scoring.revue_simplifiee_mois) || 36,
+      };
       const { error } = await supabase.from("parametres").upsert(
-        { user_id: userId, cabinet_id: cabinetId, cle: "scoring_config", valeur: scoring as unknown as Record<string, unknown>, updated_at: now },
+        { user_id: userId, cabinet_id: cabinetId, cle: "scoring_config", valeur: scoringToSave as unknown as Record<string, unknown>, updated_at: now },
         { onConflict: "user_id,cle" }
       );
       if (error) {
         toast.error("Erreur lors de la sauvegarde");
         logger.error("Settings", "Erreur sauvegarde scoring", error);
       } else {
-        setSavedScoringSnapshot({ ...scoring });
+        // Normalize to numbers after save so state is clean
+        setScoring(scoringToSave);
+        setSavedScoringSnapshot({ ...scoringToSave });
         setLastSavedScoring(now);
         setSavedScoring(true);
         const t = setTimeout(() => { setSavedScoring(false); savedTimersRef.current = savedTimersRef.current.filter(x => x !== t); }, 1500);
@@ -742,17 +766,10 @@ export default function SettingsPage() {
     if (lcbftErrors[key]) setLcbftErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
   }
 
-  /** FIX 1: Proper number input handler — avoids leading zeros */
-  function handleScoringChange<K extends keyof ScoringConfig>(key: K, rawValue: string) {
-    // Allow empty field while typing
-    if (rawValue === "" || rawValue === "-") {
-      updateScoring(key, 0 as ScoringConfig[K]);
-      return;
-    }
-    const parsed = parseInt(rawValue, 10);
-    if (!isNaN(parsed)) {
-      updateScoring(key, parsed as ScoringConfig[K]);
-    }
+  /** FIX 1: Store raw string during editing — no conversion, no leading zero */
+  function handleScoringChange(key: keyof ScoringConfig, rawValue: string) {
+    setScoring(prev => ({ ...prev, [key]: rawValue }));
+    if (scoringErrors[key]) setScoringErrors(prev => { const ne = { ...prev }; delete ne[key]; return ne; });
   }
 
   /** OPTIM 9: Restore factory defaults */
@@ -1488,7 +1505,7 @@ export default function SettingsPage() {
                   </div>
                   <div className="text-center">
                     <div className="bg-muted rounded-full px-3 py-1.5 text-xs text-muted-foreground inline-block">
-                      {scoring.seuil_bas + 1 <= scoring.seuil_haut - 1 ? `${scoring.seuil_bas + 1} \u2013 ${scoring.seuil_haut - 1}` : "Plage invalide"}
+                      {n(scoring.seuil_bas) + 1 <= n(scoring.seuil_haut) - 1 ? `${n(scoring.seuil_bas) + 1} \u2013 ${n(scoring.seuil_haut) - 1}` : "Plage invalide"}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-1">Standard (auto)</p>
                   </div>
@@ -1504,14 +1521,14 @@ export default function SettingsPage() {
                 {/* OPTIM 8: Animated gradient bar */}
                 <div>
                   <div className="h-3 rounded-full overflow-hidden flex transition-all duration-500 shadow-inner">
-                    <div className="bg-gradient-to-r from-emerald-300 to-emerald-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, scoring.seuil_bas))}%` }} />
-                    <div className="bg-gradient-to-r from-amber-300 to-amber-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, scoring.seuil_haut - scoring.seuil_bas))}%` }} />
-                    <div className="bg-gradient-to-r from-red-400 to-red-600 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, 100 - scoring.seuil_haut))}%` }} />
+                    <div className="bg-gradient-to-r from-emerald-300 to-emerald-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, n(scoring.seuil_bas)))}%` }} />
+                    <div className="bg-gradient-to-r from-amber-300 to-amber-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, n(scoring.seuil_haut) - n(scoring.seuil_bas)))}%` }} />
+                    <div className="bg-gradient-to-r from-red-400 to-red-600 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, 100 - n(scoring.seuil_haut)))}%` }} />
                   </div>
                   <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
                     <span>0</span>
-                    <span>{scoring.seuil_bas}</span>
-                    <span>{scoring.seuil_haut}</span>
+                    <span>{n(scoring.seuil_bas)}</span>
+                    <span>{n(scoring.seuil_haut)}</span>
                     <span>100</span>
                   </div>
                 </div>
