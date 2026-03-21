@@ -46,7 +46,7 @@ import {
   ChevronLeft, ChevronRight, FileText, FolderOpen, Plus,
   Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
   FileDown, Search, Clock, AlertTriangle, Filter, Settings2,
-  FilePlus2, Send, Link, Check,
+  FilePlus2, Send, Link, Check, Trash2,
 } from "lucide-react";
 import ModeleListPage from "@/components/lettre-mission/ModeleListPage";
 import LMStatusBadge from "@/components/lettre-mission/LMStatusBadge";
@@ -92,6 +92,7 @@ const LetterHistory = React.memo(function LetterHistory({
   onEdit,
   onDuplicate,
   onArchive,
+  onDelete,
   onDownloadPdf,
   onCreateAvenant,
   avenantsByLetter,
@@ -102,6 +103,7 @@ const LetterHistory = React.memo(function LetterHistory({
   onEdit: (letter: SavedLetter) => void;
   onDuplicate: (letter: SavedLetter) => void;
   onArchive: (letter: SavedLetter) => void;
+  onDelete: (letter: SavedLetter) => void;
   onDownloadPdf: (letter: SavedLetter) => void;
   onCreateAvenant: (letter: SavedLetter) => void;
   avenantsByLetter: Record<string, LMAvenant[]>;
@@ -480,6 +482,16 @@ const LetterHistory = React.memo(function LetterHistory({
               >
                 <Archive className="w-3.5 h-3.5" />
               </button>
+              {(letter.status === "brouillon" || letter.status === "archivee") && (
+                <button
+                  onClick={() => onDelete(letter)}
+                  className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 dark:text-slate-500 hover:text-red-500 transition-colors"
+                  title="Supprimer definitivement"
+                  aria-label="Supprimer la lettre"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
             {/* Mobile actions */}
@@ -503,6 +515,9 @@ const LetterHistory = React.memo(function LetterHistory({
               <button onClick={() => onDuplicate(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Dupliquer la lettre"><Copy className="w-3.5 h-3.5" /></button>
               <button onClick={() => onDownloadPdf(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Telecharger en PDF"><FileDown className="w-3.5 h-3.5" /></button>
               <button onClick={() => onArchive(letter)} className="p-1.5 text-slate-400 dark:text-slate-500" aria-label="Archiver la lettre"><Archive className="w-3.5 h-3.5" /></button>
+              {(letter.status === "brouillon" || letter.status === "archivee") && (
+                <button onClick={() => onDelete(letter)} className="p-1.5 text-red-400 dark:text-red-500" aria-label="Supprimer la lettre"><Trash2 className="w-3.5 h-3.5" /></button>
+              )}
             </div>
 
             {/* Avenants list */}
@@ -1256,7 +1271,9 @@ export default function LettreMissionPage() {
     if (letter.wizard_data) {
       setData({ ...INITIAL_LM_WIZARD_DATA, ...letter.wizard_data });
       setLmId(letter.id);
-      setStep(letter.wizard_data?.wizard_step || 0);
+      const editStep = letter.wizard_data?.wizard_step || 0;
+      setStep(editStep);
+      setMaxStepReached(editStep);
       setActiveTab("wizard");
       warningShown.current = false;
     }
@@ -1279,6 +1296,7 @@ export default function LettreMissionPage() {
     setData(newData);
     setLmId(null);
     setStep(0);
+    setMaxStepReached(0);
     setActiveTab("wizard");
     setTimeout(() => saveToSupabase(newData, 0), 100);
     toast.success("Lettre dupliquee — modifiez et sauvegardez");
@@ -1295,6 +1313,29 @@ export default function LettreMissionPage() {
       await loadSavedLetters();
     } catch (e: unknown) {
       toast.error("Erreur lors de l'archivage : " + (e instanceof Error ? e.message : "Erreur inconnue"));
+    }
+  };
+
+  // G) Delete (brouillon + archivee only)
+  const handleDelete = async (letter: SavedLetter) => {
+    if (!["brouillon", "archivee"].includes(letter.status)) {
+      toast.error("Seuls les brouillons et lettres archivees peuvent etre supprimes");
+      return;
+    }
+    const confirmed = window.confirm(
+      `Etes-vous sur de vouloir supprimer definitivement la lettre ${letter.numero} ?\n\nCette action est irreversible.`
+    );
+    if (!confirmed) return;
+    try {
+      const { error } = await supabase.from("lettres_mission").delete().eq("id", letter.id);
+      if (error) throw error;
+      logAudit({ action: "LETTRE_MISSION_DELETE", table_name: "lettres_mission", record_id: letter.id, new_data: { deleted: true, numero: letter.numero } }).catch(() => {});
+      toast.success("Lettre supprimee definitivement");
+      setSavedLetters((prev) => prev.filter((l) => l.id !== letter.id));
+      sessionStorage.removeItem("lm_wizard_draft");
+    } catch (err) {
+      console.error("Delete error:", err);
+      toast.error("Erreur lors de la suppression");
     }
   };
 
@@ -1330,6 +1371,7 @@ export default function LettreMissionPage() {
     setExpressMode(!expressMode);
     if (!expressMode && data.client_id) {
       setStep(4); // Skip to Honoraires
+      setMaxStepReached((m) => Math.max(m, 4));
     }
   };
 
@@ -1436,7 +1478,8 @@ export default function LettreMissionPage() {
           {/* Progress bar */}
           <LMProgressBar
             currentStep={step}
-            onStepClick={(s) => { if (s <= step) goToStep(s); }}
+            onStepClick={(s) => { if (s <= maxStepReached) goToStep(s); }}
+            maxClickable={maxStepReached}
             missionCategory={getMissionCategory(data.mission_type_id || 'presentation')}
           />
 
@@ -1562,6 +1605,7 @@ export default function LettreMissionPage() {
               onEdit={handleEditLetter}
               onDuplicate={handleDuplicate}
               onArchive={handleArchive}
+              onDelete={handleDelete}
               onDownloadPdf={handleDownloadPdf}
               onCreateAvenant={handleCreateAvenant}
               avenantsByLetter={avenantsByLetter}

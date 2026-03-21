@@ -7,6 +7,7 @@ interface Props {
   currentStep: number;
   onStepClick?: (step: number) => void;
   missionCategory?: MissionCategory | null;
+  maxClickable?: number;
 }
 
 const STEP_DESCRIPTIONS = [
@@ -20,7 +21,8 @@ const STEP_DESCRIPTIONS = [
   'Generation et envoi',
 ];
 
-export default function LMProgressBar({ currentStep, onStepClick, missionCategory }: Props) {
+export default function LMProgressBar({ currentStep, onStepClick, missionCategory, maxClickable }: Props) {
+  const maxClick = maxClickable ?? currentStep;
   const remainingSec = LM_STEP_DURATIONS.slice(currentStep).reduce((a, b) => a + b, 0);
   const remainingMin = Math.ceil(remainingSec / 60);
   const catColors = missionCategory ? getCategoryColorClasses(missionCategory) : null;
@@ -49,7 +51,8 @@ export default function LMProgressBar({ currentStep, onStepClick, missionCategor
         {Array.from({ length: LM_TOTAL_STEPS }, (_, i) => {
           const isCompleted = i < currentStep;
           const isCurrent = i === currentStep;
-          const isClickable = i <= currentStep;
+          const isReachable = i > currentStep && i <= maxClick;
+          const isClickable = i <= maxClick;
 
           return (
             <div key={i} className="flex items-center flex-1 last:flex-none">
@@ -62,6 +65,7 @@ export default function LMProgressBar({ currentStep, onStepClick, missionCategor
                       flex items-center gap-1 sm:gap-1.5 px-1 sm:px-2 py-1 rounded-lg transition-all duration-300
                       ${isCurrent ? 'wizard-step-active bg-white dark:bg-white/[0.06]' : ''}
                       ${isCompleted ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.04]' : ''}
+                      ${isReachable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-white/[0.04]' : ''}
                       ${!isClickable ? 'cursor-not-allowed opacity-30' : ''}
                     `}
                     aria-label={`Etape ${i + 1}: ${STEP_DESCRIPTIONS[i]}`}
@@ -74,6 +78,9 @@ export default function LMProgressBar({ currentStep, onStepClick, missionCategor
                         : ''}
                       ${isCompleted
                         ? 'bg-blue-50 dark:bg-blue-500/15 text-blue-500 dark:text-blue-400'
+                        : ''}
+                      ${isReachable
+                        ? 'bg-transparent border border-blue-300 dark:border-blue-500/30 text-blue-400 dark:text-blue-500'
                         : ''}
                       ${!isClickable ? 'bg-gray-100 dark:bg-white/[0.04] text-gray-300 dark:text-slate-600' : ''}
                     `}>
@@ -88,6 +95,7 @@ export default function LMProgressBar({ currentStep, onStepClick, missionCategor
                     <span className={`hidden lg:inline text-[11px] ${
                       isCurrent ? 'text-slate-800 dark:text-white font-medium' :
                       isCompleted ? 'text-slate-500 dark:text-slate-400' :
+                      isReachable ? 'text-slate-400 dark:text-slate-500' :
                       'text-slate-300 dark:text-slate-600'
                     }`}>
                       {LM_STEP_LABELS[i]}
