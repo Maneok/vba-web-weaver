@@ -64,8 +64,8 @@ interface Beneficiaire {
   prenom: string;
   dateNaissance: string;
   nationalite: string;
-  pourcentage: number;
-  pourcentageVotes?: number;
+  pourcentage: number | string;
+  pourcentageVotes?: number | string;
   ppe?: boolean;
   lienFamilial?: string;
 }
@@ -114,9 +114,9 @@ function dedupBeneficiaires(list: Beneficiaire[]): Beneficiaire[] {
     const key = `${normNom}-${firstPrenom}`;
     const existing = seen.get(key);
     if (existing) {
-      const dominated = b.pourcentage > existing.pourcentage ||
-        (b.pourcentage === existing.pourcentage && b.prenom.length > existing.prenom.length) ||
-        (b.pourcentage === existing.pourcentage && !existing.dateNaissance && b.dateNaissance);
+      const dominated = (Number(b.pourcentage) || 0) > (Number(existing.pourcentage) || 0) ||
+        ((Number(b.pourcentage) || 0) === (Number(existing.pourcentage) || 0) && b.prenom.length > existing.prenom.length) ||
+        ((Number(b.pourcentage) || 0) === (Number(existing.pourcentage) || 0) && !existing.dateNaissance && b.dateNaissance);
       if (dominated) seen.set(key, { ...b, prenom: b.prenom.length > existing.prenom.length ? b.prenom : existing.prenom });
     } else {
       seen.set(key, b);
@@ -857,7 +857,7 @@ export default function NouveauClientPage() {
   // BE sum check
   const beSumOk = useMemo(() => {
     if (beneficiaires.length === 0) return true;
-    const sum = beneficiaires.reduce((s, b) => s + b.pourcentage, 0);
+    const sum = beneficiaires.reduce((s, b) => s + (Number(b.pourcentage) || 0), 0);
     return Math.abs(sum - 100) < 0.01;
   }, [beneficiaires]);
 
@@ -1159,7 +1159,7 @@ export default function NouveauClientPage() {
               if (!(be.nom || "").trim()) continue; // Skip empty entries
               const key = beKey(be.nom, be.prenom);
               const existing = deduped.get(key);
-              if (!existing || (!existing.dateNaissance && be.dateNaissance) || (be.pourcentage > existing.pourcentage)) {
+              if (!existing || (!existing.dateNaissance && be.dateNaissance) || ((Number(be.pourcentage) || 0) > (Number(existing.pourcentage) || 0))) {
                 deduped.set(key, { ...be, prenom: (existing && existing.prenom.length > be.prenom.length) ? existing.prenom : be.prenom });
               }
             }
@@ -1184,7 +1184,7 @@ export default function NouveauClientPage() {
         } else if (inpi.dirigeants && inpi.dirigeants.length > 0) {
           // No BE from INPI — pre-fill with dirigeants at 0% for manual entry
           setBeneficiaires(prev => {
-            if (prev.length > 0 && prev.some(b => b.pourcentage > 0)) return prev; // Don't overwrite if already filled
+            if (prev.length > 0 && prev.some(b => (Number(b.pourcentage) || 0) > 0)) return prev; // Don't overwrite if already filled
             const existing = new Set(prev.map(b => b.nom.toUpperCase()));
             const dirBE = inpi.dirigeants
               .filter((d: any) => (d.nom || "").trim().length >= 2 && !existing.has((d.nom || "").toUpperCase()))
@@ -1572,7 +1572,7 @@ export default function NouveauClientPage() {
       } else {
         // Plusieurs dirigeants possibles (SAS, SARL, etc.) → pre-remplir avec % a 0 pour saisie manuelle
         const dirigeantsList = entData?.dirigeants ?? [];
-        const hasRealBE = beneficiaires.some(b => b.pourcentage > 0);
+        const hasRealBE = beneficiaires.some(b => (Number(b.pourcentage) || 0) > 0);
         if (dirigeantsList.length > 0 && !hasRealBE) {
           setBeneficiaires(dedupBeneficiaires(dirigeantsList
             .filter((d: any) => (d.nom || "").trim().length >= 2)
@@ -3307,8 +3307,8 @@ export default function NouveauClientPage() {
 
         {/* STEP 2: BENEFICIAIRES */}
         {step === 2 && (() => {
-          const totalParts = beneficiaires.reduce((sum, b) => sum + (b.pourcentage || 0), 0);
-          const totalVotes = beneficiaires.reduce((sum, b) => sum + (b.pourcentageVotes || 0), 0);
+          const totalParts = beneficiaires.reduce((sum, b) => sum + (Number(b.pourcentage) || 0), 0);
+          const totalVotes = beneficiaires.reduce((sum, b) => sum + (Number(b.pourcentageVotes) || 0), 0);
           const hasPPE = beneficiaires.some(b => b.ppe);
           const LIEN_OPTIONS = ["Aucun", "Conjoint", "Enfant", "Parent", "Associe"];
           const sliderColor = (pct: number) =>
@@ -3344,9 +3344,9 @@ export default function NouveauClientPage() {
                   </Button>
                 )}
                 {/* OPTIM 15 — Aligner votes sur parts */}
-                {beneficiaires.length > 0 && beneficiaires.some(b => (b.pourcentageVotes ?? 0) !== b.pourcentage) && (
+                {beneficiaires.length > 0 && beneficiaires.some(b => (Number(b.pourcentageVotes) || 0) !== (Number(b.pourcentage) || 0)) && (
                   <Button onClick={() => {
-                    setBeneficiaires(prev => prev.map(b => ({ ...b, pourcentageVotes: b.pourcentage })));
+                    setBeneficiaires(prev => prev.map(b => ({ ...b, pourcentageVotes: Number(b.pourcentage) || 0 })));
                     toast.success("Votes alignes sur les parts pour tous les BE");
                   }} variant="outline" size="sm" className="text-xs gap-1.5">
                     <ArrowRightLeft className="w-3 h-3" />
@@ -3379,7 +3379,7 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {!beSumOk && totalParts <= 100 && beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && (
+            {!beSumOk && totalParts <= 100 && beneficiaires.length > 0 && beneficiaires.some(b => (Number(b.pourcentage) || 0) > 0) && (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                 <span className="text-sm text-amber-400">
@@ -3389,14 +3389,14 @@ export default function NouveauClientPage() {
             )}
 
             {/* OPTIM 4 — Aucun BE >= 25% */}
-            {beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && !beneficiaires.some(b => (b.pourcentage || 0) >= 25) && (
+            {beneficiaires.length > 0 && beneficiaires.some(b => (Number(b.pourcentage) || 0) > 0) && !beneficiaires.some(b => (Number(b.pourcentage) || 0) >= 25) && (
               <div className="flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-600 dark:text-amber-400">
                 <Info className="w-4 h-4 shrink-0" />
                 Aucun BE ne detient plus de 25% — verifier si un BE par controle doit etre declare
               </div>
             )}
 
-            {beneficiaires.length > 0 && beneficiaires.every(b => b.pourcentage === 0) && (
+            {beneficiaires.length > 0 && beneficiaires.every(b => (Number(b.pourcentage) || 0) === 0) && (
               <div className="p-3 rounded-lg bg-orange-500/10 border border-orange-500/20 flex items-start gap-2">
                 <AlertTriangle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
                 <div>
@@ -3441,10 +3441,10 @@ export default function NouveauClientPage() {
                 return overBudget ? "#ef4444" : DONUT_COLORS[index % DONUT_COLORS.length];
               };
               // Build pieData — always show something
-              const sorted = [...beneficiaires].filter(b => (b.pourcentage || 0) > 0).sort((a, c) => c.pourcentage - a.pourcentage);
+              const sorted = [...beneficiaires].filter(b => (Number(b.pourcentage) || 0) > 0).sort((a, c) => (Number(c.pourcentage) || 0) - (Number(a.pourcentage) || 0));
               const beData = sorted.map((b, i) => ({
                 name: `${b.prenom || ""} ${b.nom || ""}`.trim() || `BE ${i + 1}`,
-                value: b.pourcentage,
+                value: Number(b.pourcentage) || 0,
               }));
               if (totalParts < 100) beData.push({ name: "Non attribue", value: 100 - totalParts });
               const pieData = beData.length === 0 || (beData.length === 1 && beData[0].name === "Non attribue")
@@ -3511,8 +3511,8 @@ export default function NouveauClientPage() {
                 const key = `${b.nom}-${b.prenom}`;
                 const status = beScreening[key];
                 const isCollapsed = collapsedBE[i];
-                const maxPartsForThis = Math.min(100, 100 - totalParts + (b.pourcentage || 0));
-                const maxVotesForThis = Math.min(100, 100 - totalVotes + (b.pourcentageVotes || 0));
+                const maxPartsForThis = Math.min(100, 100 - totalParts + (Number(b.pourcentage) || 0));
+                const maxVotesForThis = Math.min(100, 100 - totalVotes + (Number(b.pourcentageVotes) || 0));
                 return (
                   <div key={key || `be-${i}`} className={`rounded-lg border transition-all duration-300 ease-out overflow-hidden ${
                     status === "match" ? "border-red-500/30 bg-red-500/[0.03]" :
@@ -3544,12 +3544,12 @@ export default function NouveauClientPage() {
                           <div className="w-20 h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all duration-300 ${
-                                b.pourcentage > 50 ? "bg-blue-600" : b.pourcentage > 25 ? "bg-blue-400" : b.pourcentage > 0 ? "bg-sky-300" : "bg-slate-600"
+                                Number(b.pourcentage) > 50 ? "bg-blue-600" : Number(b.pourcentage) > 25 ? "bg-blue-400" : Number(b.pourcentage) > 0 ? "bg-sky-300" : "bg-slate-600"
                               }`}
-                              style={{ width: `${Math.min(b.pourcentage, 100)}%` }}
+                              style={{ width: `${Math.min(Number(b.pourcentage) || 0, 100)}%` }}
                             />
                           </div>
-                          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{b.pourcentage}%</span>
+                          <span className="text-xs font-mono font-bold text-slate-700 dark:text-slate-300 w-10 text-right">{Number(b.pourcentage) || 0}%</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
@@ -3606,24 +3606,25 @@ export default function NouveauClientPage() {
                           <div>
                             <div className="flex items-center justify-between mb-1">
                               <Label className="text-[10px] text-slate-400 dark:text-slate-500">% parts</Label>
-                              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{b.pourcentage || 0}%</span>
+                              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{Number(b.pourcentage) || 0}%</span>
                             </div>
                             <div className="flex items-center gap-3">
                               {/* OPTIM 5 — Couleur slider selon pourcentage */}
                               <Slider
-                                value={[b.pourcentage]}
+                                value={[Number(b.pourcentage) || 0]}
                                 onValueChange={([v]) => updateBeneficiaire(i, "pourcentage", v)}
-                                min={0} max={Math.max(maxPartsForThis, b.pourcentage)} step={1}
-                                className={`flex-1 ${sliderColor(b.pourcentage)}`}
+                                min={0} max={Math.max(maxPartsForThis, Number(b.pourcentage) || 0)} step={1}
+                                className={`flex-1 ${sliderColor(Number(b.pourcentage) || 0)}`}
                               />
                               <Input
                                 type="number"
                                 min={0}
                                 max={100}
                                 value={b.pourcentage ?? ""}
-                                onChange={(e) => {
-                                  const val = e.target.value === "" ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
-                                  updateBeneficiaire(i, "pourcentage", val);
+                                onChange={(e) => updateBeneficiaire(i, "pourcentage", e.target.value)}
+                                onBlur={(e) => {
+                                  const num = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                                  updateBeneficiaire(i, "pourcentage", num);
                                 }}
                                 className="w-16 h-8 text-center text-sm bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"
                               />
@@ -3633,32 +3634,33 @@ export default function NouveauClientPage() {
                             <div className="flex items-center justify-between mb-1">
                               <Label className="text-[10px] text-slate-400 dark:text-slate-500">% votes</Label>
                               <div className="flex items-center gap-2">
-                                {(b.pourcentageVotes ?? 0) !== (b.pourcentage || 0) && (b.pourcentage || 0) > 0 && (
+                                {(Number(b.pourcentageVotes) || 0) !== (Number(b.pourcentage) || 0) && (Number(b.pourcentage) || 0) > 0 && (
                                   <button
-                                    onClick={() => updateBeneficiaire(i, "pourcentageVotes", b.pourcentage || 0)}
+                                    onClick={() => updateBeneficiaire(i, "pourcentageVotes", Number(b.pourcentage) || 0)}
                                     className="text-[11px] text-primary hover:underline underline-offset-2"
                                   >
-                                    = parts ({b.pourcentage}%)
+                                    = parts ({Number(b.pourcentage) || 0}%)
                                   </button>
                                 )}
-                                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{b.pourcentageVotes || 0}%</span>
+                                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{Number(b.pourcentageVotes) || 0}%</span>
                               </div>
                             </div>
                             <div className="flex items-center gap-3">
                               <Slider
-                                value={[b.pourcentageVotes ?? 0]}
+                                value={[Number(b.pourcentageVotes) || 0]}
                                 onValueChange={([v]) => updateBeneficiaire(i, "pourcentageVotes", v)}
-                                min={0} max={Math.max(maxVotesForThis, b.pourcentageVotes ?? 0)} step={1}
-                                className={`flex-1 ${sliderColor(b.pourcentageVotes ?? 0)}`}
+                                min={0} max={Math.max(maxVotesForThis, Number(b.pourcentageVotes) || 0)} step={1}
+                                className={`flex-1 ${sliderColor(Number(b.pourcentageVotes) || 0)}`}
                               />
                               <Input
                                 type="number"
                                 min={0}
                                 max={100}
                                 value={b.pourcentageVotes ?? ""}
-                                onChange={(e) => {
-                                  const val = e.target.value === "" ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
-                                  updateBeneficiaire(i, "pourcentageVotes", val);
+                                onChange={(e) => updateBeneficiaire(i, "pourcentageVotes", e.target.value)}
+                                onBlur={(e) => {
+                                  const num = Math.min(100, Math.max(0, Number(e.target.value) || 0));
+                                  updateBeneficiaire(i, "pourcentageVotes", num);
                                 }}
                                 className="w-16 h-8 text-center text-sm bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"
                               />
@@ -4366,9 +4368,9 @@ export default function NouveauClientPage() {
                           <div key={i} className="flex items-center gap-2 text-[10px]">
                             <span className="text-slate-700 dark:text-slate-300 w-32 truncate">{b.prenom} {b.nom}</span>
                             <div className="flex-1 h-1.5 bg-gray-100 dark:bg-white/[0.04] rounded-full overflow-hidden">
-                              <div className="h-full bg-blue-400 rounded-full transition-all" style={{ width: `${Math.min(b.pourcentage, 100)}%` }} />
+                              <div className="h-full bg-blue-400 rounded-full transition-all" style={{ width: `${Math.min(Number(b.pourcentage) || 0, 100)}%` }} />
                             </div>
-                            <span className="text-slate-500 tabular-nums w-8 text-right">{b.pourcentage}%</span>
+                            <span className="text-slate-500 tabular-nums w-8 text-right">{Number(b.pourcentage) || 0}%</span>
                           </div>
                         ))}
                       </div>
@@ -5819,7 +5821,7 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
       ...risk, dateCreationLigne: now, dateDerniereRevue: now, dateButoir,
       etatPilotage: getPilotageStatus(dateButoir) as EtatPilotage,
       dateExpCni: "", statut: "ACTIF",
-      be: beneficiaires.map(b => `${b.prenom} ${b.nom} (${b.pourcentage}%)`).join(", "),
+      be: beneficiaires.map(b => `${b.prenom} ${b.nom} (${Number(b.pourcentage) || 0}%)`).join(", "),
     };
   }
 
