@@ -167,7 +167,7 @@ export const SignatureBox: React.FC<{
       width: "44%",
       borderWidth: 0.8,
       borderColor: "#CCCCCC",
-      borderStyle: "dashed",
+      
       borderRadius: 4,
       padding: 10,
       alignItems: "center",
@@ -281,7 +281,7 @@ export const AnnexeSignatureBox: React.FC<{
         marginTop: 4,
         borderWidth: 0.8,
         borderColor: "#CCCCCC",
-        borderStyle: "dashed",
+        
         borderRadius: 4,
         padding: 14,
         paddingBottom: 40,
