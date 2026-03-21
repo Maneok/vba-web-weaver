@@ -3256,28 +3256,50 @@ export default function NouveauClientPage() {
         )}
 
         {/* STEP 2: BENEFICIAIRES */}
-        {step === 2 && (
+        {step === 2 && (() => {
+          const totalParts = beneficiaires.reduce((sum, b) => sum + (b.pourcentage || 0), 0);
+          const totalVotes = beneficiaires.reduce((sum, b) => sum + (b.pourcentageVotes || 0), 0);
+          const hasPPE = beneficiaires.some(b => b.ppe);
+          const LIEN_OPTIONS = ["Aucun", "Conjoint", "Enfant", "Parent", "Associe"];
+          const sliderColor = (pct: number) =>
+            pct >= 50 ? "[&_[role=slider]]:bg-blue-700 [&_[data-orientation=horizontal]>span]:bg-blue-600" :
+            pct >= 25 ? "[&_[role=slider]]:bg-blue-500 [&_[data-orientation=horizontal]>span]:bg-blue-400" :
+            pct > 0 ? "[&_[role=slider]]:bg-sky-400 [&_[data-orientation=horizontal]>span]:bg-sky-300" : "";
+          return (
           <div className="space-y-6" role="region" aria-label="Etape 3 : Beneficiaires effectifs">
-            {/* FIX 59: Improved BE header with count */}
-            <div className="flex items-center justify-between">
-              <div>
+            {/* OPTIM 2 — Header with total indicator + OPTIM 6 numbering */}
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-3 flex-wrap">
                 <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Beneficiaires effectifs</h2>
-                <p className="text-sm text-slate-400 dark:text-slate-500 mt-0.5">Personnes detenant plus de 25% du capital ou des droits de vote</p>
+                {beneficiaires.length > 0 && (
+                  <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium ${
+                    totalParts === 100 ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300" :
+                    totalParts > 100 ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300" :
+                    "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"
+                  }`}>
+                    {totalParts}% attribue{totalParts !== 100 ? ` — ${100 - totalParts}% restant` : ""}
+                  </span>
+                )}
               </div>
               <div className="flex items-center gap-2">
-                {beneficiaires.length > 0 && (
-                  <Badge className={`text-[9px] border-0 ${beSumOk ? "bg-emerald-500/20 text-emerald-400" : "bg-amber-500/20 text-amber-400"}`}>
-                    {beneficiaires.length} BE — {beneficiaires.reduce((s, b) => s + b.pourcentage, 0)}%
-                  </Badge>
-                )}
+                {/* OPTIM 11 — Repartition egale */}
                 {beneficiaires.length > 1 && (
                   <Button onClick={() => {
                     const eq = Math.floor(100 / beneficiaires.length);
                     const remainder = 100 - eq * beneficiaires.length;
-                    setBeneficiaires(prev => prev.map((b, i) => ({ ...b, pourcentage: eq + (i === 0 ? remainder : 0) })));
+                    setBeneficiaires(prev => prev.map((b, i) => ({ ...b, pourcentage: eq + (i === 0 ? remainder : 0), pourcentageVotes: eq + (i === 0 ? remainder : 0) })));
                     toast.success("Repartition equitable appliquee");
                   }} variant="ghost" size="sm" className="text-xs text-blue-400 hover:text-blue-300">
-                    Repartir equitablement
+                    Repartir egalement
+                  </Button>
+                )}
+                {/* OPTIM 15 — Aligner votes sur parts */}
+                {beneficiaires.length > 0 && beneficiaires.some(b => (b.pourcentageVotes ?? 0) !== b.pourcentage) && (
+                  <Button onClick={() => {
+                    setBeneficiaires(prev => prev.map(b => ({ ...b, pourcentageVotes: b.pourcentage })));
+                    toast.success("Votes alignes sur les parts");
+                  }} variant="ghost" size="sm" className="text-xs text-slate-400 hover:text-slate-300">
+                    Aligner votes sur parts
                   </Button>
                 )}
                 <Button onClick={addBeneficiaire} variant="outline" className="gap-1.5 border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400">
@@ -3286,12 +3308,40 @@ export default function NouveauClientPage() {
               </div>
             </div>
 
-            {!beSumOk && beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && (
+            <p className="text-sm text-slate-400 dark:text-slate-500 -mt-4">Personnes detenant plus de 25% du capital ou des droits de vote</p>
+
+            {/* OPTIM 19 — Resume compact */}
+            {beneficiaires.length > 0 && (
+              <div className="flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400 flex-wrap">
+                <span>{beneficiaires.length} BE declare{beneficiaires.length > 1 ? "s" : ""}</span>
+                <span>Parts : {totalParts}%</span>
+                <span>Votes : {totalVotes}%</span>
+                {hasPPE && <span className="text-red-500 font-medium">PPE detecte</span>}
+              </div>
+            )}
+
+            {/* OPTIM 3 — Avertissement total > 100% */}
+            {totalParts > 100 && (
+              <div className="flex items-center gap-2 p-2.5 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg text-sm text-red-600 dark:text-red-400">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                Le total des parts depasse 100% ({totalParts}%)
+              </div>
+            )}
+
+            {!beSumOk && totalParts <= 100 && beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && (
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
                 <span className="text-sm text-amber-400">
-                  La somme des pourcentages ({beneficiaires.reduce((s, b) => s + b.pourcentage, 0)}%) ne fait pas 100%
+                  La somme des pourcentages ({totalParts}%) ne fait pas 100%
                 </span>
+              </div>
+            )}
+
+            {/* OPTIM 4 — Aucun BE >= 25% */}
+            {beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && !beneficiaires.some(b => (b.pourcentage || 0) >= 25) && (
+              <div className="flex items-center gap-2 p-2.5 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg text-sm text-amber-600 dark:text-amber-400">
+                <Info className="w-4 h-4 shrink-0" />
+                Aucun BE ne detient plus de 25% — verifier si un BE par controle doit etre declare
               </div>
             )}
 
@@ -3331,34 +3381,44 @@ export default function NouveauClientPage() {
               </div>
             )}
 
-            {/* Idee 23: Mini pie chart for BE repartition */}
+            {/* OPTIM 13/14 — Donut with "Non attribue" slice + center label */}
             {beneficiaires.length > 0 && beneficiaires.some(b => b.pourcentage > 0) && (() => {
-              const beSum = beneficiaires.reduce((s, b) => s + b.pourcentage, 0);
-              const overBudget = beSum > 100;
-              const pieData = beneficiaires.filter(b => b.pourcentage > 0).map((b, i) => ({
+              const overBudget = totalParts > 100;
+              // OPTIM 16 — sorted by % desc for donut
+              const sorted = [...beneficiaires].filter(b => b.pourcentage > 0).sort((a, c) => c.pourcentage - a.pourcentage);
+              const pieData = sorted.map((b, i) => ({
                 name: `${b.prenom} ${b.nom}`.trim() || `BE ${i + 1}`,
                 value: b.pourcentage,
               }));
-              if (beSum < 100) pieData.push({ name: "Non attribue", value: 100 - beSum });
+              if (totalParts < 100) pieData.push({ name: "Non attribue", value: 100 - totalParts });
               const COLORS = ["#3b82f6", "#8b5cf6", "#06b6d4", "#f59e0b", "#ec4899", "#10b981"];
               return (
                 <div className={`p-4 rounded-lg border ${overBudget ? "border-red-500/30 bg-red-500/5" : "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"}`}>
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="text-xs font-semibold text-slate-700 dark:text-slate-300">Repartition du capital</h3>
-                    <span className={`text-sm font-bold font-mono ${overBudget ? "text-red-400" : beSum === 100 ? "text-emerald-400" : "text-amber-400"}`}>
-                      {beSum}%{overBudget && " — Depasse 100% !"}
+                    <span className={`text-sm font-bold font-mono ${overBudget ? "text-red-400" : totalParts === 100 ? "text-emerald-400" : "text-amber-400"}`}>
+                      {totalParts}%{overBudget && " — Depasse 100% !"}
                     </span>
                   </div>
-                  <ResponsiveContainer width="100%" height={160}>
-                    <PieChart>
-                      <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={30} paddingAngle={2} animationBegin={0} animationDuration={800}>
-                        {pieData.map((_, idx) => (
-                          <Cell key={idx} fill={idx === pieData.length - 1 && !overBudget && beSum < 100 ? "#334155" : overBudget ? "#ef4444" : COLORS[idx % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "11px", color: "#e2e8f0" }} formatter={(v: number) => `${v}%`} />
-                    </PieChart>
-                  </ResponsiveContainer>
+                  <div className="relative">
+                    <ResponsiveContainer width="100%" height={160}>
+                      <PieChart>
+                        <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60} innerRadius={30} paddingAngle={2} animationBegin={0} animationDuration={800}>
+                          {pieData.map((entry, idx) => (
+                            <Cell key={idx} fill={entry.name === "Non attribue" ? "#334155" : overBudget ? "#ef4444" : COLORS[idx % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip contentStyle={{ backgroundColor: "hsl(217, 33%, 17%)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "8px", fontSize: "11px", color: "#e2e8f0" }} formatter={(v: number) => `${v}%`} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    {/* OPTIM 14 — Center label */}
+                    <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                      <div className="text-center">
+                        <span className={`text-lg font-bold ${overBudget ? "text-red-400" : totalParts === 100 ? "text-emerald-400" : "text-amber-400"}`}>{totalParts}%</span>
+                        <p className="text-[9px] text-slate-400">attribue</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               );
             })()}
@@ -3368,20 +3428,29 @@ export default function NouveauClientPage() {
                 const key = `${b.nom}-${b.prenom}`;
                 const status = beScreening[key];
                 const isCollapsed = collapsedBE[i];
+                const maxPartsForThis = Math.min(100, 100 - totalParts + (b.pourcentage || 0));
+                const maxVotesForThis = Math.min(100, 100 - totalVotes + (b.pourcentageVotes || 0));
                 return (
-                  <div key={key || `be-${i}`} className={`rounded-lg border transition-all duration-200 overflow-hidden ${
+                  <div key={key || `be-${i}`} className={`rounded-lg border transition-all duration-300 ease-out overflow-hidden ${
                     status === "match" ? "border-red-500/30 bg-red-500/[0.03]" :
                     "border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02]"
                   }`}>
-                    {/* #37: Compact header + #40: Collapse toggle + #33: Percentage bar */}
-                    <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-white dark:bg-white/[0.02] transition-colors" onClick={() => setCollapsedBE(prev => ({ ...prev, [i]: !prev[i] }))}>
+                    {/* OPTIM 6 — Badge numerote + #37/#40/#33 */}
+                    <div className="p-3 flex items-center justify-between cursor-pointer hover:bg-white/50 dark:hover:bg-white/[0.03] transition-colors" onClick={() => setCollapsedBE(prev => ({ ...prev, [i]: !prev[i] }))}>
                       <div className="flex items-center gap-3 min-w-0">
-                        {/* #31: Drag handle placeholder */}
                         <GripVertical className="w-4 h-4 text-slate-300 dark:text-slate-600 shrink-0 cursor-grab" />
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 shrink-0">BE {i + 1}</span>
-                          <span className="text-sm text-slate-800 dark:text-slate-200 truncate">{b.prenom} {b.nom || "—"}</span>
-                          {/* #39: Sanctions check status */}
+                          <span className="w-7 h-7 rounded-full bg-primary/10 text-primary text-sm font-medium flex items-center justify-center shrink-0">
+                            {i + 1}
+                          </span>
+                          <span className="text-sm text-slate-800 dark:text-slate-200 truncate font-medium">{b.prenom} {b.nom || "—"}</span>
+                          {/* PPE badge */}
+                          {b.ppe && <Badge className="text-[8px] bg-red-500/20 text-red-400 border-0 shrink-0">PPE</Badge>}
+                          {/* Lien familial badge */}
+                          {b.lienFamilial && b.lienFamilial !== "Aucun" && (
+                            <Badge className="text-[8px] bg-violet-500/15 text-violet-400 border-0 shrink-0">{b.lienFamilial}</Badge>
+                          )}
+                          {/* Sanctions check status */}
                           {status === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-400 shrink-0" />}
                           {status === "clean" && <Shield className="w-3.5 h-3.5 text-emerald-400 shrink-0" />}
                           {status === "match" && <AlertTriangle className="w-3.5 h-3.5 text-red-400 shrink-0 animate-pulse" />}
@@ -3392,7 +3461,7 @@ export default function NouveauClientPage() {
                           <div className="w-20 h-2 rounded-full bg-gray-100 dark:bg-white/[0.06] overflow-hidden">
                             <div
                               className={`h-full rounded-full transition-all duration-300 ${
-                                b.pourcentage > 50 ? "bg-blue-500" : b.pourcentage > 25 ? "bg-cyan-500" : b.pourcentage > 0 ? "bg-amber-500" : "bg-slate-600"
+                                b.pourcentage > 50 ? "bg-blue-600" : b.pourcentage > 25 ? "bg-blue-400" : b.pourcentage > 0 ? "bg-sky-300" : "bg-slate-600"
                               }`}
                               style={{ width: `${Math.min(b.pourcentage, 100)}%` }}
                             />
@@ -3401,58 +3470,126 @@ export default function NouveauClientPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-1">
+                        {/* OPTIM 7 — Dupliquer */}
+                        <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); setBeneficiaires(prev => [...prev, { ...prev[i], nom: "", prenom: "" }]); }} className="text-slate-400 hover:text-blue-400 hover:bg-blue-500/10 h-7 w-7 p-0" title="Dupliquer">
+                          <Copy className="w-3.5 h-3.5" />
+                        </Button>
                         <Button variant="ghost" size="sm" onClick={e => { e.stopPropagation(); removeBeneficiaire(i); }} className="text-red-400 hover:text-red-300 hover:bg-red-500/10 h-7 w-7 p-0 transition-all hover:scale-110">
                           <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                         <ChevronDown className={`w-4 h-4 text-slate-400 dark:text-slate-500 transition-transform duration-200 ${isCollapsed ? "-rotate-90" : ""}`} />
                       </div>
                     </div>
-                    {/* #40: Collapsible details */}
+                    {/* OPTIM 12 — Collapsible details */}
                     {!isCollapsed && (
                       <div className="px-4 pb-4 pt-1 border-t border-gray-100 dark:border-white/[0.04]">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                          {/* OPTIM 9 — Validation visuelle par champ */}
                           <div>
-                            <Label htmlFor={`be-nom-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Nom</Label>
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <Label htmlFor={`be-nom-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Nom</Label>
+                              {b.nom ? <Check className="w-3 h-3 text-emerald-500" /> : <Circle className="w-3 h-3 text-amber-400" />}
+                            </div>
                             <Input id={`be-nom-${i}`} value={b.nom} onChange={e => updateBeneficiaire(i, "nom", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="NOM" />
                           </div>
                           <div>
-                            <Label htmlFor={`be-prenom-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Prenom</Label>
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <Label htmlFor={`be-prenom-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Prenom</Label>
+                              {b.prenom ? <Check className="w-3 h-3 text-emerald-500" /> : <Circle className="w-3 h-3 text-amber-400" />}
+                            </div>
                             <Input id={`be-prenom-${i}`} value={b.prenom} onChange={e => updateBeneficiaire(i, "prenom", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="Prenom" />
                           </div>
-                          {/* #35: Date picker for birth date */}
                           <div>
-                            <Label htmlFor={`be-datenaissance-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Date naissance</Label>
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <Label htmlFor={`be-datenaissance-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Date naissance</Label>
+                              {b.dateNaissance ? <Check className="w-3 h-3 text-emerald-500" /> : <Circle className="w-3 h-3 text-amber-400" />}
+                            </div>
                             <Input id={`be-datenaissance-${i}`} type="date" value={b.dateNaissance} onChange={e => updateBeneficiaire(i, "dateNaissance", e.target.value)} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" />
                             {b.dateNaissance && <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{formatDateFR(b.dateNaissance)}</p>}
                           </div>
-                          {/* #34: Nationality with common suggestions */}
+                          {/* OPTIM 8 — Nationalite avec datalist etendu */}
                           <div>
-                            <Label htmlFor={`be-nationalite-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Nationalite</Label>
-                            <Input id={`be-nationalite-${i}`} value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list={`nat-list-${i}`} />
-                            <datalist id={`nat-list-${i}`}>
-                              {["FRANCAISE", "ALGERIENNE", "MAROCAINE", "TUNISIENNE", "PORTUGAISE", "ITALIENNE", "ESPAGNOLE", "ALLEMANDE", "BELGE", "BRITANNIQUE", "AMERICAINE", "CHINOISE", "RUSSE", "TURQUE", "LIBANAISE"].map(n => <option key={n} value={n} />)}
-                            </datalist>
+                            <div className="flex items-center gap-1 mb-0.5">
+                              <Label htmlFor={`be-nationalite-${i}`} className="text-[10px] text-slate-400 dark:text-slate-500 uppercase">Nationalite</Label>
+                              {b.nationalite ? <Check className="w-3 h-3 text-emerald-500" /> : <Circle className="w-3 h-3 text-amber-400" />}
+                            </div>
+                            <Input id={`be-nationalite-${i}`} value={b.nationalite} onChange={e => updateBeneficiaire(i, "nationalite", sanitizeInput(e.target.value))} className="bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06] h-9 text-sm focus:ring-2 focus:ring-blue-500/30" placeholder="FRANCAISE" list="nationalites-be" />
                             <p className="text-[9px] text-slate-400 dark:text-slate-500 mt-0.5">{autoFields.has("siren") ? "Source: INPI / Annuaire" : "Source: Saisie manuelle"}</p>
                           </div>
                         </div>
+
+                        {/* FIX PRINCIPAL — Slider + Input number pour % parts et % votes */}
                         <div className="grid grid-cols-2 gap-4 mt-3">
                           <div>
-                            <Label className="text-[10px] text-slate-400 dark:text-slate-500">% parts — {b.pourcentage}%</Label>
-                            <Slider
-                              value={[b.pourcentage]}
-                              onValueChange={([v]) => updateBeneficiaire(i, "pourcentage", v)}
-                              min={0} max={Math.max(100 - beneficiaires.reduce((s, b, j) => j === i ? s : s + b.pourcentage, 0), b.pourcentage)} step={1}
-                              className="mt-2"
-                            />
+                            <div className="flex items-center justify-between mb-1">
+                              <Label className="text-[10px] text-slate-400 dark:text-slate-500">% parts</Label>
+                              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{b.pourcentage || 0}%</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              {/* OPTIM 5 — Couleur slider selon pourcentage */}
+                              <Slider
+                                value={[b.pourcentage]}
+                                onValueChange={([v]) => updateBeneficiaire(i, "pourcentage", v)}
+                                min={0} max={Math.max(maxPartsForThis, b.pourcentage)} step={1}
+                                className={`flex-1 ${sliderColor(b.pourcentage)}`}
+                              />
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={b.pourcentage ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
+                                  updateBeneficiaire(i, "pourcentage", val);
+                                }}
+                                className="w-16 h-8 text-center text-sm bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"
+                              />
+                            </div>
                           </div>
                           <div>
-                            <Label className="text-[10px] text-slate-400 dark:text-slate-500">% votes — {b.pourcentageVotes ?? 0}%</Label>
-                            <Slider
-                              value={[b.pourcentageVotes ?? 0]}
-                              onValueChange={([v]) => updateBeneficiaire(i, "pourcentageVotes", v)}
-                              min={0} max={Math.max(100 - beneficiaires.reduce((s, b, j) => j === i ? s : s + (b.pourcentageVotes ?? 0), 0), b.pourcentageVotes ?? 0)} step={1}
-                              className="mt-2"
-                            />
+                            <div className="flex items-center justify-between mb-1">
+                              <Label className="text-[10px] text-slate-400 dark:text-slate-500">% votes</Label>
+                              <span className="text-xs font-medium text-slate-600 dark:text-slate-300">{b.pourcentageVotes || 0}%</span>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <Slider
+                                value={[b.pourcentageVotes ?? 0]}
+                                onValueChange={([v]) => updateBeneficiaire(i, "pourcentageVotes", v)}
+                                min={0} max={Math.max(maxVotesForThis, b.pourcentageVotes ?? 0)} step={1}
+                                className={`flex-1 ${sliderColor(b.pourcentageVotes ?? 0)}`}
+                              />
+                              <Input
+                                type="number"
+                                min={0}
+                                max={100}
+                                value={b.pourcentageVotes ?? ""}
+                                onChange={(e) => {
+                                  const val = e.target.value === "" ? 0 : Math.min(100, Math.max(0, Number(e.target.value)));
+                                  updateBeneficiaire(i, "pourcentageVotes", val);
+                                }}
+                                className="w-16 h-8 text-center text-sm bg-gray-50 dark:bg-white/[0.03] border-gray-200 dark:border-white/[0.06]"
+                              />
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* OPTIM 17 — PPE checkbox + OPTIM 18 — Lien familial */}
+                        <div className="flex items-center gap-6 mt-3 pt-3 border-t border-gray-100 dark:border-white/[0.04]">
+                          <div className="flex items-center gap-2">
+                            <Checkbox checked={b.ppe ?? false} onCheckedChange={(v) => updateBeneficiaire(i, "ppe" as any, Boolean(v))} id={`be-ppe-${i}`} />
+                            <Label htmlFor={`be-ppe-${i}`} className="text-xs text-slate-500 dark:text-slate-400 cursor-pointer">Personne Politiquement Exposee</Label>
+                            {b.ppe && <Badge className="text-[8px] bg-red-500/20 text-red-400 border-0">PPE</Badge>}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Link2 className="w-3.5 h-3.5 text-slate-400" />
+                            <Label className="text-xs text-slate-500 dark:text-slate-400">Lien</Label>
+                            <select
+                              value={b.lienFamilial || "Aucun"}
+                              onChange={(e) => updateBeneficiaire(i, "lienFamilial" as any, e.target.value)}
+                              className="text-xs h-7 px-2 rounded-md border border-gray-200 dark:border-white/[0.06] bg-gray-50 dark:bg-white/[0.03] text-slate-700 dark:text-slate-300"
+                            >
+                              {LIEN_OPTIONS.map(l => <option key={l} value={l}>{l}</option>)}
+                            </select>
                           </div>
                         </div>
                       </div>
@@ -3461,6 +3598,11 @@ export default function NouveauClientPage() {
                 );
               })}
             </div>
+
+            {/* OPTIM 8 — Shared datalist for nationalities */}
+            <datalist id="nationalites-be">
+              {["FRANCAISE", "ALGERIENNE", "MAROCAINE", "TUNISIENNE", "PORTUGAISE", "ITALIENNE", "ESPAGNOLE", "TURQUE", "ALLEMANDE", "BELGE", "BRITANNIQUE", "AMERICAINE", "CHINOISE", "RUSSE", "LIBANAISE", "ROUMAINE", "POLONAISE", "SENEGALAISE", "IVOIRIENNE", "CAMEROUNAISE", "CONGOLAISE", "MALIENNE", "COMORIENNE", "MALGACHE", "CANADIENNE", "BRESILIENNE", "INDIENNE", "JAPONAISE", "SUISSE", "NEERLANDAISE", "LUXEMBOURGEOISE", "MONEGASQUE"].map(n => <option key={n} value={n} />)}
+            </datalist>
 
             {/* Chaîne de détention — BE indirects via holdings */}
             {Object.keys(chaineBE).length > 0 && (
@@ -3479,8 +3621,8 @@ export default function NouveauClientPage() {
                     </div>
                     {pm.beneficiaires.length > 0 ? (
                       <div className="ml-6 space-y-1">
-                        {pm.beneficiaires.map((b, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs">
+                        {pm.beneficiaires.map((b, bi) => (
+                          <div key={bi} className="flex items-center gap-2 text-xs">
                             <span className="text-violet-400">↳</span>
                             <User className="w-3 h-3 text-orange-400" />
                             <span className="text-slate-700 dark:text-slate-200">{b.prenom} {b.nom}</span>
@@ -3492,8 +3634,8 @@ export default function NouveauClientPage() {
                     ) : pm.dirigeants.length > 0 ? (
                       <div className="ml-6 space-y-1">
                         <p className="text-[9px] text-amber-400 mb-1">Aucun BE declare — dirigeants de la holding :</p>
-                        {pm.dirigeants.map((d, i) => (
-                          <div key={i} className="flex items-center gap-2 text-xs">
+                        {pm.dirigeants.map((d, di) => (
+                          <div key={di} className="flex items-center gap-2 text-xs">
                             <span className="text-violet-400">↳</span>
                             <User className="w-3 h-3 text-amber-400" />
                             <span className="text-slate-700 dark:text-slate-200">{d.prenom} {d.nom}</span>
@@ -3510,7 +3652,8 @@ export default function NouveauClientPage() {
               </div>
             )}
           </div>
-        )}
+          );
+        })()}
 
         {/* STEP 3: QUESTIONNAIRE LCB-FT */}
         {step === 3 && (
