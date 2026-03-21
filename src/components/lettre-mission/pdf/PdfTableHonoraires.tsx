@@ -98,12 +98,12 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
           <Text style={[styles.tableCell, { width: "30%", textAlign: "right", fontFamily: "Helvetica-Bold" }]}>
             {l.montant}
           </Text>
-          <Text style={[styles.tableCell, { width: "20%", textAlign: "center" }]}>{l.frequence}</Text>
+          <Text style={[styles.tableCell, { width: "20%", textAlign: "center", color: colors.gris }]}>{l.frequence}</Text>
         </View>
       ))}
 
       {/* Total */}
-      <View style={[styles.tableRow, { backgroundColor: colors.secondaire, minHeight: 28 }]}>
+      <View style={[styles.tableRow, { backgroundColor: colors.secondaire, minHeight: 28, borderBottomWidth: 0 }]}>
         <Text style={[styles.tableCellBold, { width: "50%", color: colors.blanc }]}>
           TOTAL ANNUEL ESTIMÉ
         </Text>
@@ -115,8 +115,8 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
         >
           {formatMontant(total)}
         </Text>
-        <Text style={[styles.tableCell, { width: "20%", textAlign: "center", color: colors.blanc }]}>
-          {freq}
+        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: colors.blanc, fontSize: 8 }]}>
+          Annuelle
         </Text>
       </View>
     </View>
