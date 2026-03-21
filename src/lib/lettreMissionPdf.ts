@@ -78,29 +78,38 @@ function cabinetConfigToInfo(cab: Partial<CabinetConfig> & { nom: string }): Cab
   };
 }
 
-function clientToLmData(client: Client): ClientLmData {
+function clientToLmData(client: any): ClientLmData {
+  // Helper to pick the first non-empty value from multiple possible field names
+  const pick = (...keys: string[]): string => {
+    for (const k of keys) {
+      const v = client[k];
+      if (v !== null && v !== undefined && v !== "") return String(v);
+    }
+    return "";
+  };
+
   return {
-    civilite: (client as any).genre === "F" ? "Mme" : "M.",
-    nom_dirigeant: s((client as any).dirigeant || (client as any).nomDirigeant || (client as any).nom_dirigeant || ""),
-    raison_sociale: s(client.raisonSociale || (client as any).raison_sociale || ""),
-    nom_commercial: s((client as any).nomCommercial || ""),
-    forme_juridique: s(client.formeJuridique || (client as any).forme_juridique || ""),
-    adresse: s(client.adresse || ""),
-    code_postal: s(client.codePostal || (client as any).code_postal || ""),
-    ville: s(client.ville || ""),
-    siren: s(client.siren || ""),
-    siret: s(client.siret || ""),
-    code_ape: s(client.codeAPE || (client as any).code_ape || ""),
-    activite_principale: s(client.activitePrincipale || (client as any).activite_principale || ""),
-    capital_social: s((client as any).capitalSocial || (client as any).capital_social || ""),
-    date_creation: s((client as any).dateCreation || (client as any).date_creation || ""),
-    regime_fiscal: s((client as any).regimeFiscal || (client as any).regime_fiscal || ""),
-    exercice_debut: s((client as any).exerciceDebut || (client as any).exercice_debut || `01/01/${new Date().getFullYear()}`),
-    exercice_fin: s((client as any).exerciceFin || (client as any).exercice_fin || `31/12/${new Date().getFullYear()}`),
-    tva: Boolean((client as any).tva),
-    cac: Boolean((client as any).cac),
-    effectif: (client as any).effectif != null ? safeNum((client as any).effectif) : undefined,
-    volume_comptable: s((client as any).volumeComptable || (client as any).volume_comptable || ""),
+    civilite: client.genre === "F" || client.civilite === "Mme" ? "Mme" : "M.",
+    nom_dirigeant: pick("dirigeant", "nom_dirigeant", "nomDirigeant", "dirigeant_nom", "representant_legal"),
+    raison_sociale: pick("raison_sociale", "raisonSociale", "nom", "denomination", "name"),
+    nom_commercial: pick("nom_commercial", "nomCommercial", "enseigne"),
+    forme_juridique: pick("forme_juridique", "formeJuridique", "forme_sociale", "forme"),
+    adresse: pick("adresse", "adresse_siege", "adresseSiege", "siege_social", "address"),
+    code_postal: pick("code_postal", "codePostal", "cp"),
+    ville: pick("ville", "city"),
+    siren: pick("siren", "numero_siren"),
+    siret: pick("siret", "numero_siret"),
+    code_ape: pick("code_ape", "codeAPE", "codeApe", "ape", "naf"),
+    activite_principale: pick("activite_principale", "activitePrincipale", "activite", "objet_social", "domaine"),
+    capital_social: pick("capital_social", "capitalSocial", "capital"),
+    date_creation: pick("date_creation", "dateCreation", "date_immatriculation"),
+    regime_fiscal: pick("regime_fiscal", "regimeFiscal", "regime"),
+    exercice_debut: pick("exercice_debut", "exerciceDebut") || `01/01/${new Date().getFullYear()}`,
+    exercice_fin: pick("exercice_fin", "exerciceFin", "date_cloture") || `31/12/${new Date().getFullYear()}`,
+    tva: Boolean(client.tva ?? client.assujetti_tva),
+    cac: Boolean(client.cac ?? client.commissaire_aux_comptes),
+    effectif: client.effectif != null ? safeNum(client.effectif) : undefined,
+    volume_comptable: pick("volume_comptable", "volumeComptable"),
   };
 }
 
@@ -212,7 +221,7 @@ export async function generatePdfFromInstance(
     variables_resolved?: Record<string, string>;
   },
   cabinet: { nom: string; adresse: string; cp: string; ville: string; siret: string; numeroOEC: string; email: string; telephone: string },
-  options?: { signatureExpert?: string; signatureClient?: string }
+  options?: { signatureExpert?: string; signatureClient?: string; client?: any; honoraires?: any }
 ): Promise<void> {
   try {
     const repartition: PdfRepartitionRow[] = instance.repartition_snapshot
@@ -224,37 +233,45 @@ export async function generatePdfFromInstance(
         }))
       : DEFAULT_REPARTITION;
 
+    // Resolve mission type label
+    const { getMissionTypeConfig } = await import("@/lib/lettreMissionTypes");
+    const mtConfig = getMissionTypeConfig(instance.mission_type || "presentation");
+
+    const clientData: ClientLmData = options?.client
+      ? clientToLmData(options.client)
+      : {
+          civilite: "M.",
+          nom_dirigeant: "",
+          raison_sociale: "",
+          forme_juridique: "",
+          adresse: "",
+          code_postal: "",
+          ville: "",
+          siren: "",
+          siret: "",
+          code_ape: "",
+          activite_principale: "",
+          regime_fiscal: "",
+          exercice_debut: `01/01/${new Date().getFullYear()}`,
+          exercice_fin: `31/12/${new Date().getFullYear()}`,
+          tva: false,
+          cac: false,
+        };
+
     const pdfData: LettreMissionPdfData = {
       numero_lm: instance.numero,
       date_generation: formatDateFr(new Date(), "short"),
       cabinet: cabinetConfigToInfo(cabinet as any),
-      client: {
-        civilite: "M.",
-        nom_dirigeant: "",
-        raison_sociale: "",
-        forme_juridique: "",
-        adresse: "",
-        code_postal: "",
-        ville: "",
-        siren: "",
-        siret: "",
-        code_ape: "",
-        activite_principale: "",
-        regime_fiscal: "",
-        exercice_debut: `01/01/${new Date().getFullYear()}`,
-        exercice_fin: `31/12/${new Date().getFullYear()}`,
-        tva: false,
-        cac: false,
-      },
+      client: clientData,
       mission: {
-        type_principal: instance.mission_type || "Présentation des comptes",
-        norme_applicable: "NP 2300",
+        type_principal: mtConfig.label || "Présentation des comptes",
+        norme_applicable: mtConfig.normeRef || "NP 2300",
         mission_sociale: false,
         mission_juridique: false,
         controle_fiscal: false,
       },
-      honoraires: buildDefaultHonoraires(),
-      lcbft: { score_risque: 0, niveau_vigilance: "STANDARD", statut_ppe: false },
+      honoraires: options?.honoraires ? buildDefaultHonoraires({ options: options.honoraires }) : buildDefaultHonoraires(),
+      lcbft: options?.client ? buildDefaultLcbft(options.client) : { score_risque: 0, niveau_vigilance: "STANDARD", statut_ppe: false },
       repartition,
       expert_responsable: cabinet.nom,
       periodicite_transmission: "Mensuelle",

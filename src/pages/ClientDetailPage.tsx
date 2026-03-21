@@ -378,6 +378,28 @@ function ClientDetailContent({ client }: { client: Client }) {
     }
   };
 
+  const handleRecalculateScore = () => {
+    try {
+      const risk = calculateRiskScore({
+        ape: client.ape, paysRisque: client.paysRisque === "OUI",
+        mission: client.mission, dateCreation: client.dateCreation,
+        dateReprise: client.dateReprise, effectif: client.effectif,
+        forme: client.forme, ppe: client.ppe === "OUI",
+        atypique: client.atypique === "OUI", distanciel: client.distanciel === "OUI",
+        cash: client.cash === "OUI", pression: client.pression === "OUI",
+      }, scoringData ?? undefined);
+      const dateButoir = calculateNextReviewDate(risk.nivVigilance, client.dateDerniereRevue || new Date().toISOString().split("T")[0]);
+      updateClient(client.ref, {
+        ...risk, dateButoir,
+        etatPilotage: getPilotageStatus(dateButoir) as EtatPilotage,
+      });
+      toast.success("Score recalcule");
+    } catch (err) {
+      logger.error("ClientDetail", "Recalculate failed:", err);
+      toast.error("Erreur lors du recalcul");
+    }
+  };
+
   const updateDiligence = (idx: number, field: keyof Diligence, val: string) => {
     setDiligences(prev => prev.map((d, i) => i === idx ? { ...d, [field]: val } : d));
   };
@@ -772,7 +794,7 @@ function ClientDetailContent({ client }: { client: Client }) {
             <div className="glass-card p-4 sm:p-6">
               <div className="flex items-center justify-between mb-2">
                 <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300">Radar de risque 6 axes</h3>
-                <Button variant="outline" size="sm" className="gap-1.5 text-xs border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={handleSave}>
+                <Button variant="outline" size="sm" className="gap-1.5 text-xs border-gray-200 dark:border-white/[0.06] hover:bg-blue-500/10 hover:text-blue-400" onClick={handleRecalculateScore}>
                   <RefreshCw className="w-3 h-3" /> Recalculer
                 </Button>
               </div>
