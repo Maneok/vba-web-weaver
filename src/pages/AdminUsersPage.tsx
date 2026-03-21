@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateFr } from "@/lib/dateUtils";
 import { toast } from "sonner";
-import { UserPlus, Shield, UserCheck, UserX, Users, Copy } from "lucide-react";
+import { UserPlus, Shield, UserCheck, UserX, Users, Copy, CheckCircle2 } from "lucide-react";
 
 const ROLE_COLORS: Record<UserRole, string> = {
   ADMIN: "bg-primary text-primary-foreground",
@@ -32,6 +32,7 @@ export default function AdminUsersPage() {
   const [inviteName, setInviteName] = useState("");
   const [inviteRole, setInviteRole] = useState<UserRole>("COLLABORATEUR");
   const [inviting, setInviting] = useState(false);
+  const [lastInviteUrl, setLastInviteUrl] = useState("");
   const [updating, setUpdating] = useState(false);
   const [toggleTarget, setToggleTarget] = useState<UserProfile | null>(null);
   const isAdmin = profile?.role === "ADMIN";
@@ -103,11 +104,17 @@ export default function AdminUsersPage() {
         new_data: { email: inviteEmail, role: inviteRole, full_name: inviteName },
       });
 
-      toast.success(data?.message || `Invitation envoyée à ${inviteEmail}`);
-      setInviteOpen(false);
-      setInviteEmail("");
-      setInviteName("");
-      setInviteRole("COLLABORATEUR");
+      const resData = data as { success?: boolean; error?: string; message?: string; invite_url?: string } | null;
+      if (resData?.invite_url) {
+        setLastInviteUrl(resData.invite_url);
+        toast.success(`Invitation creee pour ${inviteEmail}`);
+      } else {
+        toast.success(resData?.message || `Invitation envoyee a ${inviteEmail}`);
+        setInviteOpen(false);
+        setInviteEmail("");
+        setInviteName("");
+        setInviteRole("COLLABORATEUR");
+      }
 
       // Reload after trigger creates profile (with exponential backoff)
       const tryReload = (attempt: number) => {
@@ -223,7 +230,10 @@ export default function AdminUsersPage() {
           </p>
         </div>
 
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <Dialog open={inviteOpen} onOpenChange={(open) => {
+          setInviteOpen(open);
+          if (!open) { setLastInviteUrl(""); setInviteEmail(""); setInviteName(""); setInviteRole("COLLABORATEUR"); }
+        }}>
           <DialogTrigger asChild>
             <Button>
               <UserPlus className="w-4 h-4 mr-2" /> Inviter
@@ -233,6 +243,56 @@ export default function AdminUsersPage() {
             <DialogHeader>
               <DialogTitle>Inviter un utilisateur</DialogTitle>
             </DialogHeader>
+            {lastInviteUrl ? (
+              <div className="space-y-4 pt-2">
+                <div className="flex flex-col items-center gap-3 py-2">
+                  <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-500/15 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <p className="text-sm font-medium text-center">Invitation creee avec succes</p>
+                </div>
+                <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800/30 space-y-2">
+                  <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                    Partagez ce lien avec le collaborateur :
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      readOnly
+                      value={lastInviteUrl}
+                      className="flex-1 text-xs font-mono"
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(lastInviteUrl);
+                          toast.success("Lien copie !");
+                        } catch {
+                          toast.error("Impossible de copier");
+                        }
+                      }}
+                      className="gap-1.5 shrink-0"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> Copier
+                    </Button>
+                  </div>
+                  <p className="text-xs text-blue-600 dark:text-blue-300">
+                    Ce lien expire dans 7 jours. Un email a aussi ete envoye si le service est configure.
+                  </p>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => { setLastInviteUrl(""); setInviteEmail(""); setInviteName(""); }}>
+                    Nouvelle invitation
+                  </Button>
+                  <Button onClick={() => { setLastInviteUrl(""); setInviteOpen(false); }}>
+                    Fermer
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <form onSubmit={handleInvite} className="space-y-4 pt-2">
               <div className="space-y-2">
                 <Label>Nom complet</Label>
@@ -272,6 +332,7 @@ export default function AdminUsersPage() {
                 {inviting ? "Envoi..." : "Envoyer l'invitation"}
               </Button>
             </form>
+            )}
           </DialogContent>
         </Dialog>
       </div>

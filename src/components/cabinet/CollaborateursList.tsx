@@ -21,7 +21,7 @@ import { toast } from "sonner";
 import {
   UserPlus, Search, Download, ChevronUp, ChevronDown,
   UserX, UserCheck, MailPlus, Trash2, MoreHorizontal, ChevronLeft, ChevronRight,
-  Users, UserMinus, User, Mail, Info, Loader2, Shield,
+  Users, UserMinus, User, Mail, Info, Loader2, Shield, Copy, CheckCircle2,
 } from "lucide-react";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -152,6 +152,7 @@ export default function CollaborateursList() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: "", nom: "", role: "COLLABORATEUR" as CabinetRole, cabinet_id: "" });
   const [inviting, setInviting] = useState(false);
+  const [lastInviteUrl, setLastInviteUrl] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Membre | null>(null);
   const [bulkAction, setBulkAction] = useState<string>("");
   const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false);
@@ -383,22 +384,15 @@ export default function CollaborateursList() {
         }
       }
 
-      // RPC returns invite_url — copy to clipboard if available
+      // Store invite URL to display in the dialog
       if (resData?.invite_url) {
-        try {
-          await navigator.clipboard.writeText(resData.invite_url);
-          toast.success(`Invitation creee pour ${trimmedEmail}. Le lien d'invitation a ete copie dans le presse-papier.`, { duration: 8000 });
-        } catch {
-          toast.success(
-            `Invitation creee pour ${trimmedEmail}. Partagez ce lien : ${resData.invite_url}`,
-            { duration: 15000 }
-          );
-        }
+        setLastInviteUrl(resData.invite_url);
+        toast.success(`Invitation creee pour ${trimmedEmail}`);
       } else {
         toast.success(resData?.message || `Invitation envoyee a ${trimmedEmail}`);
+        setInviteOpen(false);
+        setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
       }
-      setInviteOpen(false);
-      setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
       // #1: Clear inviteTimerRef before setting a new one
       if (inviteTimerRef.current) {
         clearTimeout(inviteTimerRef.current);
@@ -636,6 +630,7 @@ export default function CollaborateursList() {
               setInviteOpen(open);
               if (!open) {
                 setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+                setLastInviteUrl("");
                 // #1: Clear inviteTimerRef on dialog close
                 if (inviteTimerRef.current) {
                   clearTimeout(inviteTimerRef.current);
@@ -663,6 +658,63 @@ export default function CollaborateursList() {
                   </div>
                 </div>
               </DialogHeader>
+              {lastInviteUrl ? (
+                <div className="space-y-4 pt-2">
+                  <div className="flex flex-col items-center gap-3 py-2">
+                    <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-500/15 flex items-center justify-center">
+                      <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
+                    </div>
+                    <p className="text-sm font-medium text-center">Invitation creee avec succes</p>
+                  </div>
+                  <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800/30 space-y-2">
+                    <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                      Partagez ce lien avec le collaborateur :
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        readOnly
+                        value={lastInviteUrl}
+                        className="flex-1 text-xs font-mono bg-white dark:bg-gray-800 border-gray-300 dark:border-white/[0.08]"
+                        onFocus={(e) => e.target.select()}
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(lastInviteUrl);
+                            toast.success("Lien copie !");
+                          } catch {
+                            toast.error("Impossible de copier");
+                          }
+                        }}
+                        className="gap-1.5 shrink-0"
+                      >
+                        <Copy className="w-3.5 h-3.5" /> Copier
+                      </Button>
+                    </div>
+                    <p className="text-xs text-blue-600 dark:text-blue-300">
+                      Ce lien expire dans 7 jours. Un email a aussi ete envoye si le service est configure.
+                    </p>
+                  </div>
+                  <div className="flex justify-end gap-2 pt-1">
+                    <Button type="button" variant="outline" onClick={() => {
+                      setLastInviteUrl("");
+                      setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+                    }}>
+                      Nouvelle invitation
+                    </Button>
+                    <Button type="button" onClick={() => {
+                      setLastInviteUrl("");
+                      setInviteOpen(false);
+                      setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+                    }}>
+                      Fermer
+                    </Button>
+                  </div>
+                </div>
+              ) : (
               <form onSubmit={handleInvite} className="space-y-4 pt-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="invite-nom" className="text-xs text-muted-foreground">Nom complet</Label>
@@ -726,6 +778,7 @@ export default function CollaborateursList() {
                   </Button>
                 </div>
               </form>
+              )}
             </DialogContent>
           </Dialog>
         </div>
