@@ -36,6 +36,7 @@ import { Slider } from "@/components/ui/slider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tooltip as TooltipRoot, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ScoreGauge, VigilanceBadge } from "@/components/RiskBadges";
 import {
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar,
@@ -49,7 +50,7 @@ import {
   GripVertical, Flag, Shield, Briefcase, MapPin, Save, Wifi, WifiOff, Printer, Scale, GitBranch,
   ChevronUp, HelpCircle, BarChart3, History, RefreshCw, BookOpen, Download, Users, FileSignature,
   ZoomIn, ZoomOut, Maximize, Mail, QrCode, Filter, SortAsc, SortDesc, CheckSquare, Square,
-  Pencil, ImageIcon, Inbox, FolderOpen,
+  Pencil, ImageIcon, Inbox, FolderOpen, Copy, Circle, Link2,
 } from "lucide-react";
 
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
@@ -65,6 +66,8 @@ interface Beneficiaire {
   nationalite: string;
   pourcentage: number;
   pourcentageVotes?: number;
+  ppe?: boolean;
+  lienFamilial?: string;
 }
 
 interface QuestionLCB {
@@ -1602,7 +1605,7 @@ export default function NouveauClientPage() {
 
   // Step 3: beneficiaires management
   const addBeneficiaire = () => {
-    setBeneficiaires(prev => [...prev, { nom: "", prenom: "", dateNaissance: "", nationalite: "Francaise", pourcentage: 0 }]);
+    setBeneficiaires(prev => [...prev, { nom: "", prenom: "", dateNaissance: "", nationalite: "Francaise", pourcentage: 0, pourcentageVotes: 0 }]);
   };
   const updateBeneficiaire = (idx: number, field: keyof Beneficiaire, val: string | number) => {
     setBeneficiaires(prev => prev.map((b, i) => i === idx ? { ...b, [field]: val } : b));

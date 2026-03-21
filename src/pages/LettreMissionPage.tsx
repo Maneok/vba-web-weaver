@@ -23,12 +23,7 @@ import { incrementCounter } from "@/lib/lettreMissionEngine";
 import type { Client } from "@/lib/types";
 
 import LMStep1Client from "@/components/lettre-mission/LMStep1Client";
-import LMStep2MissionType from "@/components/lettre-mission/LMStep2MissionType";
-import LMStep2Missions from "@/components/lettre-mission/LMStep2Missions";
-import LMStep4Modele from "@/components/lettre-mission/LMStep4Modele";
 import LMStep4Honoraires from "@/components/lettre-mission/LMStep4Honoraires";
-import LMStep6Clauses from "@/components/lettre-mission/LMStep6Clauses";
-import LMStep5Preview from "@/components/lettre-mission/LMStep5Preview";
 import LMStep6Export from "@/components/lettre-mission/LMStep6Export";
 import LMProgressBar from "@/components/lettre-mission/LMProgressBar";
 import LMSummaryPanel from "@/components/lettre-mission/LMSummaryPanel";
@@ -44,7 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import {
   ChevronLeft, ChevronRight, FileText, FolderOpen, Plus,
-  Loader2, ShieldAlert, Edit3, Save, Zap, Copy, Archive,
+  Loader2, ShieldAlert, Edit3, Save, Copy, Archive,
   FileDown, Search, Clock, AlertTriangle, Filter, Settings2,
   FilePlus2, Send, Link, Check, Trash2,
 } from "lucide-react";
@@ -55,7 +50,9 @@ import { runAllChecks } from "@/lib/lettreMissionWorkflow";
 import AvenantDialog from "@/components/lettre-mission/AvenantDialog";
 import type { LMInstance } from "@/lib/lettreMissionEngine";
 import { getAvenants, type LMAvenant } from "@/lib/lettreMissionAvenants";
-import { MISSION_TYPES, getMissionCategory, getCategoryColorClasses } from "@/lib/lettreMissionTypes";
+import { MISSION_TYPES, getMissionCategory, getCategoryColorClasses, recommendClientType, getClientTypeConfig } from "@/lib/lettreMissionTypes";
+import { generateSmartDefaults, getSmartMissionSelections, detectRegimeBenefices } from "@/lib/lmSmartDefaults";
+import { getMissionsForClientType } from "@/lib/lmClientMissions";
 import { sendForSignature, getSignatureTokens } from "@/lib/lettreMissionSignature";
 import { buildClientFromWizardData } from "@/lib/lmUtils";
 
@@ -218,14 +215,6 @@ const LetterHistory = React.memo(function LetterHistory({
     return entry ? entry.shortLabel : letter.type_mission;
   };
 
-  const getMissionNorme = (letter: SavedLetter) => {
-    const missionTypeId = letter.wizard_data?.mission_type_id || letter.type_mission || "";
-    const entry = Object.values(MISSION_TYPES).find(
-      (m) => m.id === missionTypeId || m.shortLabel === missionTypeId || m.label === missionTypeId
-    );
-    return entry?.normeRef || "";
-  };
-
   const getLetterCategoryColors = (letter: SavedLetter) => {
     const missionTypeId = letter.wizard_data?.mission_type_id || letter.type_mission || "";
     const entry = Object.values(MISSION_TYPES).find(
@@ -369,7 +358,6 @@ const LetterHistory = React.memo(function LetterHistory({
       <div className="space-y-1.5">
         {paged.map((letter) => {
           const avenantCount = avenantsByLetter[letter.id]?.length || 0;
-          const modeComptable = letter.wizard_data?.type_mission;
           const rowCatColors = getLetterCategoryColors(letter);
           return (
           <div
@@ -392,17 +380,11 @@ const LetterHistory = React.memo(function LetterHistory({
             {/* Numero */}
             <span className="hidden sm:block text-xs text-slate-400 dark:text-slate-400 font-mono truncate">{letter.numero}</span>
 
-            {/* Type de mission + mode comptable */}
+            {/* Type de mission */}
             <div className="hidden sm:block">
               <Badge className={`text-[9px] gap-1 ${rowCatColors ? rowCatColors.badge : 'bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-700 dark:text-slate-300'}`}>
                 {getMissionLabel(letter)}
               </Badge>
-              {modeComptable && ["TENUE", "SURVEILLANCE", "REVISION"].includes(modeComptable) && (
-                <span className="block text-[9px] text-emerald-500/70 mt-0.5">{modeComptable}</span>
-              )}
-              {getMissionNorme(letter) && !modeComptable && (
-                <span className="block text-[9px] text-slate-600 mt-0.5 truncate">{getMissionNorme(letter)}</span>
-              )}
             </div>
 
             {/* Responsable */}
@@ -788,7 +770,6 @@ export default function LettreMissionPage() {
   const prevStepRef = useRef(0);
   const [lmId, setLmId] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
-  const [expressMode, setExpressMode] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // Draft
@@ -1167,8 +1148,45 @@ export default function LettreMissionPage() {
 
   // ── Handlers ──
   const handleChange = useCallback((updates: Partial<LMWizardData>) => {
-    setData((prev) => ({ ...prev, ...updates }));
-  }, []);
+    setData((prev) => {
+      const merged = { ...prev, ...updates };
+
+      // Auto-detect client type + smart defaults when client_id changes
+      if (updates.client_id && updates.client_id !== prev.client_id && updates.forme_juridique) {
+        const { recommended } = recommendClientType(updates.forme_juridique);
+        if (recommended) {
+          const config = getClientTypeConfig(recommended);
+          if (config) {
+            merged.client_type_id = recommended;
+            merged.mission_type_id = config.defaultMissionType;
+            if (config.defaultModeComptable) {
+              merged.type_mission = config.defaultModeComptable;
+            } else if (!merged.type_mission || !["TENUE", "SURVEILLANCE", "REVISION"].includes(merged.type_mission)) {
+              merged.type_mission = "TENUE";
+            }
+
+            // Auto-detect regime_benefices from APE
+            if (merged.ape) {
+              merged.regime_benefices = detectRegimeBenefices(merged.ape) || undefined;
+            }
+
+            // Find the selected client for smart defaults
+            const selectedClient = clients.find((c) => c.ref === updates.client_id);
+            if (selectedClient) {
+              const smartDefaults = generateSmartDefaults(recommended, selectedClient, merged);
+              Object.assign(merged, smartDefaults);
+
+              // Smart mission pre-selection
+              const missions = getMissionsForClientType(recommended);
+              merged.missions_selected = getSmartMissionSelections(recommended, selectedClient, missions, merged);
+            }
+          }
+        }
+      }
+
+      return merged;
+    });
+  }, [clients]);
 
   const goToStep = useCallback((s: number) => {
     if (s >= 0 && s < LM_TOTAL_STEPS) setStep(s);
@@ -1278,7 +1296,6 @@ export default function LettreMissionPage() {
     setStep(0);
     setMaxStepReached(0);
     warningShown.current = false;
-    setExpressMode(false);
     sessionStorage.removeItem("lm_wizard_draft");
   };
 
@@ -1381,14 +1398,7 @@ export default function LettreMissionPage() {
     }
   };
 
-  // ── Express mode ──
-  const handleExpress = () => {
-    setExpressMode(!expressMode);
-    if (!expressMode && data.client_id) {
-      setStep(4); // Skip to Honoraires
-      setMaxStepReached((m) => Math.max(m, 4));
-    }
-  };
+  // Express mode removed (3-step wizard is already express)
 
   // Keyboard: Escape → prev
   useEffect(() => {
@@ -1401,17 +1411,12 @@ export default function LettreMissionPage() {
     return () => window.removeEventListener("keydown", h);
   }, [step, activeTab, handleNext]);
 
-  // Step render
+  // Step render (3 steps: Client & Modele, Honoraires, Apercu & Export)
   const renderStep = () => {
     switch (step) {
       case 0: return <LMStep1Client data={data} onChange={handleChange} />;
-      case 1: return <LMStep2MissionType data={data} onChange={handleChange} />;
-      case 2: return <LMStep2Missions data={data} onChange={handleChange} />;
-      case 3: return <LMStep4Modele data={data} onChange={handleChange} />;
-      case 4: return <LMStep4Honoraires data={data} onChange={handleChange} />;
-      case 5: return <LMStep6Clauses data={data} onChange={handleChange} />;
-      case 6: return <LMStep5Preview data={data} onGoToStep={goToStep} isMobile={isMobile} />;
-      case 7: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} saving={saving} />;
+      case 1: return <LMStep4Honoraires data={data} onChange={handleChange} />;
+      case 2: return <LMStep6Export data={data} onChange={handleChange} onSave={handleSave} onReset={handleReset} saving={saving} />;
       default: return null;
     }
   };
@@ -1438,14 +1443,6 @@ export default function LettreMissionPage() {
           <p className="text-xs sm:text-sm text-slate-400 dark:text-slate-500 mt-1">Creez et gerez vos lettres de mission{savedLetters.length > 0 ? ` · ${savedLetters.length} lettre${savedLetters.length > 1 ? "s" : ""}` : ""}</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleExpress}
-            className={`gap-1.5 border-gray-200 dark:border-white/[0.06] text-xs ${expressMode ? "bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-500/20" : "text-slate-400 dark:text-slate-400"}`}
-          >
-            <Zap className="w-3.5 h-3.5" /> Express
-          </Button>
           <Button onClick={handleReset} className="gap-1.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-sm shadow-blue-500/15" size={isMobile ? "sm" : "default"}>
             <Plus className="w-4 h-4" /> {!isMobile && "Nouvelle"}
           </Button>

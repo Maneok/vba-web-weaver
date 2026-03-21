@@ -1,5 +1,5 @@
 // ──────────────────────────────────────────────
-// Validation & sanitization pour le wizard LM (8 étapes)
+// Validation & sanitization pour le wizard LM (3 étapes)
 // ──────────────────────────────────────────────
 
 export interface ValidationError {
@@ -107,16 +107,11 @@ export function validateStep7(_data?: Record<string, unknown>): ValidationError[
   return [];
 }
 
-/** Map step index (0-based) → validator */
+/** Map step index (0-based) → validator (3-step wizard) */
 export const VALIDATORS: Record<number, (data: Record<string, unknown>) => ValidationError[]> = {
-  0: validateStep0,
-  1: validateStep1,
-  2: validateStep2,
-  3: validateStep3,
-  4: validateStep4,
-  5: validateStep5,
-  6: validateStep6,
-  7: validateStep7,
+  0: validateStep0,   // Client & Modele
+  1: validateStep4,   // Honoraires (reuses old step 4 validator)
+  2: validateStep7,   // Apercu & Export (always valid)
 };
 
 /** Sanitize HTML/XSS dans les champs texte */

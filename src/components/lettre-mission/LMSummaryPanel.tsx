@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
-import { getMissionTypeConfig, getCategoryColorClasses, getMissionCategory } from "@/lib/lettreMissionTypes";
+import { CLIENT_TYPES } from "@/lib/lettreMissionTypes";
 import { formatEur } from "@/lib/lmUtils";
 import { Badge } from "@/components/ui/badge";
-import { Building2, CheckCircle2, XCircle, BookOpen, UserCheck, Shield, Users } from "lucide-react";
+import { Building2, CheckCircle2 } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -35,12 +35,12 @@ function FullSummary({ data, cabinetLogo }: { data: LMWizardData; cabinetLogo?: 
   const ttc = data.honoraires_ht + tva;
   const missions = useMemo(() => data.missions_selected.filter((m) => m.selected), [data.missions_selected]);
 
-  // Conformity check
-  const hasClient = !!data.raison_sociale;
-  const hasMissions = missions.length > 0;
-  const hasHonoraires = data.honoraires_ht > 0;
-  const hasClauses = data.clause_lcbft;
-  const conformityOk = hasClient && hasMissions && hasHonoraires && hasClauses;
+  // Modele label
+  const modeleLabel = useMemo(() => {
+    if (!data.client_type_id) return null;
+    const config = CLIENT_TYPES[data.client_type_id];
+    return config?.label || data.client_type_id;
+  }, [data.client_type_id]);
 
   return (
     <div className="sticky top-20 space-y-5">
@@ -51,12 +51,7 @@ function FullSummary({ data, cabinetLogo }: { data: LMWizardData; cabinetLogo?: 
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Resume</h3>
-        <Badge className={`text-[9px] ${conformityOk ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-amber-500/10 text-amber-400 border border-amber-500/20"}`}>
-          {conformityOk ? "Conforme CNOEC" : "Incomplet"}
-        </Badge>
-      </div>
+      <h3 className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Resume</h3>
 
       {/* Client */}
       {data.raison_sociale ? (
@@ -71,40 +66,15 @@ function FullSummary({ data, cabinetLogo }: { data: LMWizardData; cabinetLogo?: 
               <p className="text-[10px] text-slate-400 dark:text-slate-500">{data.siren || "—"} · {data.forme_juridique || "—"}</p>
             </div>
           </div>
-          {(() => {
-            const mtConfig = getMissionTypeConfig(data.mission_type_id || "presentation");
-            const mtId = data.mission_type_id || "presentation";
-            const catKey = getMissionCategory(mtId);
-            const catColors = catKey ? getCategoryColorClasses(catKey) : null;
-            return (
-              <div className="space-y-1.5 mt-1">
-                <div className="flex flex-wrap gap-1.5">
-                  <Badge className={`text-[10px] ${catColors ? catColors.badge : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}`}>
-                    {mtConfig.shortLabel}
-                  </Badge>
-                  <Badge className={`text-[9px] ${catColors ? catColors.badge : 'border-slate-500/30 text-slate-400 dark:text-slate-500'}`}>
-                    {mtConfig.normeRef}
-                  </Badge>
-                  {data.type_mission && (mtId === 'presentation' || mtId === 'compilation') && ['TENUE', 'SURVEILLANCE', 'REVISION'].includes(data.type_mission) && (
-                    <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-400">
-                      Mode : {data.type_mission}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {mtConfig.honorairesSuccesAutorises ? (
-                    <Badge className="text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 gap-0.5">
-                      <CheckCircle2 className="w-2.5 h-2.5" /> Succes autorises
-                    </Badge>
-                  ) : (
-                    <Badge className="text-[9px] bg-red-500/10 text-red-400 border border-red-500/20 gap-0.5">
-                      <XCircle className="w-2.5 h-2.5" /> Succes interdits
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            );
-          })()}
+          {/* Modele */}
+          {modeleLabel && (
+            <div className="mt-1">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1">Modele</p>
+              <Badge className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                {modeleLabel}
+              </Badge>
+            </div>
+          )}
         </div>
       ) : (
         <div className="text-xs text-slate-300 dark:text-slate-600 italic">Aucun client selectionne</div>
@@ -123,44 +93,6 @@ function FullSummary({ data, cabinetLogo }: { data: LMWizardData; cabinetLogo?: 
                 <CheckCircle2 className="w-3 h-3 text-emerald-400" />
                 {m.label}
               </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Durée */}
-      {data.duree && (
-        <div className="space-y-1">
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Duree</p>
-          <p className="text-sm text-slate-700 dark:text-slate-300">{data.duree}{/^\d+$/.test(data.duree) ? ` an${data.duree !== "1" ? "s" : ""}` : ""} · {data.frequence_facturation || "—"}</p>
-        </div>
-      )}
-
-      {/* Équipe mission */}
-      {(data.collaborateur_principal_nom || data.superviseur_nom || (data.intervenants_liste || []).length > 0) && (
-        <div className="space-y-2">
-          <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider">Équipe mission</p>
-          <div className="space-y-1.5">
-            {data.collaborateur_principal_nom && (
-              <div className="flex items-center gap-2 text-xs">
-                <UserCheck className="w-3 h-3 text-blue-400 shrink-0" />
-                <span className="text-slate-700 dark:text-slate-300">{data.collaborateur_principal_nom}</span>
-                <span className="text-[9px] text-slate-400 dark:text-slate-500">Responsable</span>
-              </div>
-            )}
-            {data.superviseur_nom && (
-              <div className="flex items-center gap-2 text-xs">
-                <Shield className="w-3 h-3 text-amber-400 shrink-0" />
-                <span className="text-slate-700 dark:text-slate-300">{data.superviseur_nom}</span>
-                <span className="text-[9px] text-slate-400 dark:text-slate-500">Superviseur</span>
-              </div>
-            )}
-            {(data.intervenants_liste || []).filter((iv) => iv.nom).map((iv, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs">
-                <Users className="w-3 h-3 text-slate-400 shrink-0" />
-                <span className="text-slate-700 dark:text-slate-300">{iv.nom}</span>
-                {iv.role_mission && <span className="text-[9px] text-slate-400 dark:text-slate-500">{iv.role_mission}</span>}
-              </div>
             ))}
           </div>
         </div>
