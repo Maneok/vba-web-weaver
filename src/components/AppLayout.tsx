@@ -11,6 +11,7 @@ import { useAppState } from "@/lib/AppContext";
 import { ROLE_LABELS } from "@/lib/auth/types";
 import { getUserInitials } from "@/lib/utils";
 import { formatDateFr } from "@/lib/dateUtils";
+import { supabase } from "@/integrations/supabase/client";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -72,7 +73,22 @@ export default function AppLayout() {
   const { isOnline } = useAppState();
   const prevPathRef = useRef(location.pathname);
 
-  const userInitials = getUserInitials(profile?.full_name);
+  const [cabinetDisplayName, setCabinetDisplayName] = useState("");
+  useEffect(() => {
+    if (!profile?.cabinet_id) return;
+    supabase
+      .from("cabinets")
+      .select("nom")
+      .eq("id", profile.cabinet_id)
+      .single()
+      .then(({ data }) => {
+        if (data?.nom) setCabinetDisplayName(data.nom);
+      });
+  }, [profile?.cabinet_id]);
+
+  const headerInitials = cabinetDisplayName
+    ? getUserInitials(cabinetDisplayName)
+    : getUserInitials(profile?.full_name);
   const headerDate = useMemo(() => formatHeaderDate(new Date()), []);
 
   // Persist sidebar collapsed state + keep CSS variable in sync

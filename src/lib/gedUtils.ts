@@ -3,6 +3,7 @@
 // ============================================
 
 const CLASSIFICATION_RULES: { pattern: RegExp; category: string }[] = [
+  { pattern: /extrait.*kbis|extrait.*k-bis/i, category: 'extrait_kbis' },
   { pattern: /kbis|k-bis|extrait.*rcs|immatriculation/i, category: 'kbis' },
   { pattern: /cni|carte.*identit[ée]|passeport|passport|id.*card/i, category: 'cni_dirigeant' },
   { pattern: /rib|relev[ée].*identit[ée].*bancaire|iban|bic/i, category: 'rib' },
@@ -42,6 +43,7 @@ export function classifyDocument(filename: string): { category: string; confiden
 
 const EXPIRATION_DEFAULTS: Record<string, number> = {
   kbis: 90,                           // 3 mois
+  extrait_kbis: 90,                   // 3 mois
   cni_dirigeant: 3650,                // 10 ans
   justificatif_domicile: 90,          // 3 mois
   rib: 365,                           // 1 an
@@ -109,6 +111,7 @@ export function checkDuplicate(
 
 const CATEGORY_LABELS_SHORT: Record<string, string> = {
   kbis: 'KBIS',
+  extrait_kbis: 'EXTRAIT_KBIS',
   cni_dirigeant: 'CNI',
   justificatif_domicile: 'JUSTIF_DOMICILE',
   rib: 'RIB',
@@ -141,6 +144,7 @@ export function generateNormalizedName(
 
 export const GED_CATEGORIES = [
   { value: 'kbis', label: 'KBis' },
+  { value: 'extrait_kbis', label: 'Extrait KBis' },
   { value: 'cni_dirigeant', label: 'CNI Dirigeant' },
   { value: 'justificatif_domicile', label: 'Justificatif domicile' },
   { value: 'rib', label: 'RIB' },

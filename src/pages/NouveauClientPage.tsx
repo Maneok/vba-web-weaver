@@ -1945,7 +1945,20 @@ export default function NouveauClientPage() {
       }
     }
 
-    // FIX 14: Upload manual documents to Supabase storage + persist in documents_kyc
+    // Helper: map doc type to GED category
+    function mapDocTypeToCategory(type: string): string {
+      const t = (type || "").toUpperCase();
+      if (t.includes("EXTRAIT") && t.includes("KBIS")) return "extrait_kbis";
+      if (t.includes("KBIS")) return "kbis";
+      if (t.includes("CNI") || t.includes("IDENTITE") || t.includes("PASSEPORT")) return "cni_dirigeant";
+      if (t.includes("RIB") || t.includes("IBAN")) return "rib";
+      if (t.includes("STATUT")) return "statuts";
+      if (t.includes("ATTESTATION")) return "attestation_vigilance";
+      if (t.includes("BENEFICIAIRE")) return "liste_beneficiaires_effectifs";
+      return "autre";
+    }
+
+    // FIX 14: Upload manual documents to Supabase storage + persist in documents_kyc + documents (GED)
     const manualDocs = documents.filter(d => d.file);
     const docLinkUpdates: Record<string, string> = {};
     const cabinetId = session?.user?.user_metadata?.cabinet_id;
@@ -1982,7 +1995,7 @@ export default function NouveauClientPage() {
               else if (typeUp.includes("CNI") || typeUp.includes("IDENTITE") || typeUp.includes("PASSEPORT")) docLinkUpdates.lien_cni = signedUrl;
             }
 
-            // ★ Persist dans documents_kyc
+            // ★ Persist dans documents_kyc (rétro-compatibilité)
             if (cabinetId) {
               await supabase.from("documents_kyc").insert({
                 cabinet_id: cabinetId,
@@ -1997,6 +2010,20 @@ export default function NouveauClientPage() {
                 mime_type: doc.file.type || "application/octet-stream",
                 status: "manual",
               }).catch(err => logger.warn("[Submit] documents_kyc insert failed:", err));
+
+              // ★ Mirror dans documents (GED) pour que la GED voie les docs
+              await supabase.from("documents").insert({
+                user_id: session.user.id,
+                cabinet_id: cabinetId,
+                client_ref: ref,
+                siren: cleanSirenForStorage,
+                name: doc.name || doc.file?.name || doc.type,
+                file_path: storagePath,
+                file_size: doc.file.size,
+                mime_type: doc.file.type || "application/octet-stream",
+                category: mapDocTypeToCategory(doc.type),
+                current_version: 1,
+              }).catch(err => logger.warn("[Submit] documents mirror insert failed:", err));
             }
           }
         } catch (err: unknown) {
@@ -2005,7 +2032,7 @@ export default function NouveauClientPage() {
       }
     }
 
-    // Persist also auto-recovered docs (INPI, documents-fetch) in documents_kyc
+    // Persist also auto-recovered docs (INPI, documents-fetch) in documents_kyc + documents (GED)
     const autoDocsToPersist = [
       ...(screening.inpi.data?.documents ?? []),
       ...(screening.documents.data?.documents ?? []),
@@ -2017,6 +2044,7 @@ export default function NouveauClientPage() {
       for (const doc of autoDocsToPersist) {
         if (!doc.url || seenUrls.has(doc.url)) continue;
         seenUrls.add(doc.url);
+        // documents_kyc (rétro-compatibilité)
         await supabase.from("documents_kyc").insert({
           cabinet_id: cabinetId,
           client_ref: ref,
@@ -2030,6 +2058,20 @@ export default function NouveauClientPage() {
           mime_type: "application/pdf",
           status: "auto",
           date_document: (doc as any).dateDepot || (doc as any).dateCloture || null,
+        }).catch(() => {}); // Non-blocking
+
+        // ★ Mirror dans documents (GED)
+        await supabase.from("documents").insert({
+          user_id: session.user.id,
+          cabinet_id: cabinetId,
+          client_ref: ref,
+          siren: cleanSiren,
+          name: doc.label || doc.type || "Document auto",
+          file_path: doc.url,
+          file_size: 0,
+          mime_type: "application/pdf",
+          category: mapDocTypeToCategory(doc.type || "AUTRE"),
+          current_version: 1,
         }).catch(() => {}); // Non-blocking
       }
     }

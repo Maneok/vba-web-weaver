@@ -39,7 +39,7 @@ export interface SirenFolder {
   niv_vigilance?: string;
   documents: GEDDocument[];
   total_docs: number;
-  required_docs: number; // 9 docs KYC standard
+  required_docs: number; // 4 docs KYC obligatoires
   last_update: string;
   has_expired: boolean;
   completion_rate: number;
@@ -67,7 +67,7 @@ function isExpiringSoon(dateStr: string | null, days = 30): boolean {
   return d >= now && d <= limit;
 }
 
-const REQUIRED_DOCS = 9; // nombre de documents KYC standard
+const REQUIRED_DOCS = 4; // 4 docs KYC obligatoires (kbis, extrait_kbis, cni_dirigeant, rib)
 
 // ── Fetch folders groupés par client_ref ───────────────────────────
 
@@ -360,16 +360,9 @@ export async function rejectDocument(docId: string, userId: string, reason: stri
 // ── Checklist KYC ───────────────────────────────────────────────────
 
 const KYC_REQUIRED_DOCS: Record<string, string[]> = {
-  allegee: ['kbis', 'cni_dirigeant'],
-  normale: [
-    'kbis', 'cni_dirigeant', 'justificatif_domicile', 'rib',
-    'statuts', 'attestation_vigilance', 'liste_beneficiaires_effectifs',
-  ],
-  renforcee: [
-    'kbis', 'cni_dirigeant', 'justificatif_domicile', 'rib',
-    'statuts', 'attestation_vigilance', 'liste_beneficiaires_effectifs',
-    'declaration_source_fonds', 'justificatif_patrimoine',
-  ],
+  allegee: ['kbis', 'extrait_kbis', 'cni_dirigeant', 'rib'],
+  normale: ['kbis', 'extrait_kbis', 'cni_dirigeant', 'rib'],
+  renforcee: ['kbis', 'extrait_kbis', 'cni_dirigeant', 'rib'],
 };
 
 // Map DB vigilance values to checklist levels
@@ -526,6 +519,7 @@ export async function renameAllToNorm(
 
 const CATEGORY_LABELS_SHORT: Record<string, string> = {
   kbis: 'KBIS',
+  extrait_kbis: 'EXTRAIT_KBIS',
   cni_dirigeant: 'CNI',
   justificatif_domicile: 'JUSTIF_DOMICILE',
   rib: 'RIB',

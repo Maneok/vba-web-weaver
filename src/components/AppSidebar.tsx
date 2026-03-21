@@ -188,8 +188,21 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
     "/gouvernance": expiredTrainingCount,
   }), [clients.length, alertesEnCours, expiredDocsCount, expiredTrainingCount]);
 
+  // Fetch real cabinet name from DB
+  const [cabinetDisplayName, setCabinetDisplayName] = useState("GRIMY");
+  useEffect(() => {
+    if (!profile?.cabinet_id) return;
+    supabase
+      .from("cabinets")
+      .select("nom")
+      .eq("id", profile.cabinet_id)
+      .single()
+      .then(({ data }) => {
+        if (data?.nom) setCabinetDisplayName(data.nom);
+      });
+  }, [profile?.cabinet_id]);
+
   // OPT-SB2: Memoize derived values
-  const cabinetName = useMemo(() => profile?.full_name?.split(" ").pop() || "GRIMY", [profile?.full_name]);
   const userInitials = useMemo(() => getUserInitials(profile?.full_name), [profile?.full_name]);
   const hasAlerts = alertesEnCours > 0;
 
@@ -435,7 +448,7 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
                   aria-label="Deplier le menu"
                   className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-xs font-bold flex items-center justify-center shadow-md shadow-blue-500/20 dark:shadow-blue-500/10 hover:scale-105 hover:shadow-lg hover:shadow-blue-500/30 transition-all duration-200 cursor-pointer"
                 >
-                  {getCabinetInitials(cabinetName)}
+                  {getCabinetInitials(cabinetDisplayName)}
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
@@ -447,14 +460,14 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
             <div className="flex items-center gap-2.5 min-w-0 px-1 py-1 -mx-1 rounded-lg hover:bg-slate-100/60 dark:hover:bg-white/[0.03] transition-colors duration-150 cursor-default">
               {/* OPT-30: Mini gradient square before cabinet name */}
               <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 text-white text-[10px] font-bold flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/15">
-                {getCabinetInitials(cabinetName)}
+                {getCabinetInitials(cabinetDisplayName)}
               </div>
               <div className="flex flex-col min-w-0">
                 <span className="text-[9px] uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500 leading-tight">
                   Cabinet
                 </span>
                 <span className="text-[13px] font-semibold text-slate-800 dark:text-white truncate leading-tight">
-                  {cabinetName}
+                  {cabinetDisplayName}
                 </span>
               </div>
             </div>
