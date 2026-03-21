@@ -40,6 +40,8 @@ import type { GEDDocument } from "@/services/gedService";
 import { getSignedUrl } from "@/services/gedService";
 import { exportSirenDossier } from "@/services/gedExportService";
 import { compressImage } from "@/lib/gedUtils";
+import { useReglages } from "@/hooks/useReglages";
+import ReglagesInfoBanner from "@/components/ReglagesInfoBanner";
 
 /* ─────────── Constants ─────────── */
 
@@ -60,6 +62,7 @@ export default function GedPage() {
 
   const cabinetId = profile?.cabinet_id || "";
   const userName = profile?.full_name || profile?.email || "";
+  const { reglages } = useReglages();
 
   const {
     folders,
@@ -252,13 +255,18 @@ export default function GedPage() {
 
   const handleUploadConfirm = useCallback(
     async (configs: UploadConfig[]) => {
+      const maxBytes = (reglages.limite_taille_upload_mo || 10) * 1024 * 1024;
       for (const config of configs) {
+        if (config.file.size > maxBytes) {
+          toast.error(`"${config.file.name}" depasse la limite de ${reglages.limite_taille_upload_mo} Mo`);
+          continue;
+        }
         await handleUpload(config.file, config.category);
       }
       setUploadDialogOpen(false);
       setPendingFiles([]);
     },
-    [handleUpload],
+    [handleUpload, reglages.limite_taille_upload_mo],
   );
 
   const handleSelectSirenUI = useCallback(

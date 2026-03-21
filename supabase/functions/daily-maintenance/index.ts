@@ -214,6 +214,49 @@ Deno.serve(async (req) => {
     result.expired_trials = { error: (err as Error).message };
   }
 
+  // === NOUVELLES TÂCHES CÂBLÉES AUX RÉGLAGES ===
+
+  // Auto-génération des maintiens de mission
+  try {
+    const { data: maintiens } = await supabase.rpc('auto_generate_maintiens');
+    result.maintiens_generated = maintiens || 0;
+  } catch (err) {
+    result.maintiens_generated = { error: (err as Error).message };
+  }
+
+  // Auto-archivage des LM signées anciennes
+  try {
+    const { data: archived } = await supabase.rpc('auto_archive_lettres');
+    result.lettres_archived = archived || 0;
+  } catch (err) {
+    result.lettres_archived = { error: (err as Error).message };
+  }
+
+  // Purge des brouillons anciens
+  try {
+    const { data: purged } = await supabase.rpc('auto_purge_brouillons');
+    result.brouillons_purged = purged || 0;
+  } catch (err) {
+    result.brouillons_purged = { error: (err as Error).message };
+  }
+
+  // Notifications câblées aux réglages (par cabinet)
+  try {
+    const { data: cabinets } = await supabase
+      .from('cabinet_reglages')
+      .select('cabinet_id');
+    let totalNotifs = 0;
+    for (const cab of cabinets || []) {
+      try {
+        const { data: count } = await supabase.rpc('generate_notifications', { p_cabinet_id: cab.cabinet_id });
+        totalNotifs += (count || 0);
+      } catch { /* skip cabinet on error */ }
+    }
+    result.notifications_generated = totalNotifs;
+  } catch (err) {
+    result.notifications_generated = { error: (err as Error).message };
+  }
+
   return new Response(JSON.stringify({ success: !error, result, error: error?.message }), {
     headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
   });
