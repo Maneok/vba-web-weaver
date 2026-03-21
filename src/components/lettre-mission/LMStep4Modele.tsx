@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
-import type { LMModele } from "@/lib/lettreMissionModeles";
-import { getModeles, validateCnoecCompliance, getModelesForClientType } from "@/lib/lettreMissionModeles";
+import type { LMModele, LMSection } from "@/lib/lettreMissionModeles";
+import { getModeles, validateCnoecCompliance, getModelesForClientType, GRIMY_DEFAULT_SECTIONS } from "@/lib/lettreMissionModeles";
 import { CLIENT_TYPES } from "@/lib/lettreMissionTypes";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 import { QUALITES_DIRIGEANT, DUREES } from "@/lib/lmDefaults";
@@ -16,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { FileText, ShieldCheck, AlertTriangle, CheckCircle2, ChevronDown } from "lucide-react";
+import { FileText, ShieldCheck, AlertTriangle, CheckCircle2, ChevronDown, Layers, Eye, EyeOff } from "lucide-react";
 
 interface Props {
   data: LMWizardData;
@@ -29,6 +29,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
   const [modeles, setModeles] = useState<LMModele[]>([]);
   const [modelesLoading, setModelesLoading] = useState(false);
   const [showClientInfo, setShowClientInfo] = useState(false);
+  const [showSections, setShowSections] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const referentLcb = collaborateurs.find((c) => c.referentLcb);
@@ -46,7 +47,6 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         if (!cancelled) {
           setModeles(m);
           if (!data.modele_id) {
-            // Auto-select default modele filtered by client type
             const filtered = getModelesForClientType(m, data.client_type_id || 'sas_is');
             const defaultModele = filtered.find((mod) => mod.is_default) || filtered[0];
             if (defaultModele) onChange({ modele_id: defaultModele.id });
@@ -63,6 +63,45 @@ export default function LMStep4Modele({ data, onChange }: Props) {
     () => getModelesForClientType(modeles, data.client_type_id || 'sas_is'),
     [modeles, data.client_type_id]
   );
+
+  // Get selected modele sections
+  const selectedModele = useMemo(
+    () => filteredModeles.find((m) => m.id === data.modele_id),
+    [filteredModeles, data.modele_id]
+  );
+  const sections = useMemo(
+    () => (selectedModele?.sections ?? GRIMY_DEFAULT_SECTIONS) as LMSection[],
+    [selectedModele]
+  );
+
+  // CNOEC compliance for selected modele
+  const cnoecResult = useMemo(() => {
+    if (!selectedModele) return null;
+    return validateCnoecCompliance(selectedModele.sections, selectedModele.mission_type);
+  }, [selectedModele]);
+
+  // Validation warnings
+  const validationWarnings = useMemo(() => {
+    const warnings: { type: 'error' | 'warning'; message: string }[] = [];
+    if (!sections.find(s => s.id === 'honoraires')) {
+      warnings.push({ type: 'warning', message: "Le modèle ne contient pas de section Honoraires" });
+    }
+    if (!selectedModele?.cgv_content || selectedModele.cgv_content.trim().length < 50) {
+      warnings.push({ type: 'error', message: "Le modèle n'a pas de Conditions Générales d'Intervention (CGV)" });
+    }
+    if (cnoecResult && !cnoecResult.valid) {
+      for (const w of cnoecResult.warnings.slice(0, 3)) {
+        warnings.push({ type: 'warning', message: w.message });
+      }
+    }
+    return warnings;
+  }, [sections, selectedModele, cnoecResult]);
+
+  // Count active sections
+  const activeSections = sections.filter(s => !s.hidden);
+  const totalSections = sections.length;
+  const obligatoireSections = sections.filter(s => s.cnoec_obligatoire);
+  const activeObligatoire = activeSections.filter(s => s.cnoec_obligatoire);
 
   // Auto pre-fill associe and referent LCB on first render
   const autoFillDone = useRef(false);
@@ -96,7 +135,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
       <div className="space-y-3">
         <div className="flex items-center gap-2">
           <FileText className="w-4 h-4 text-blue-400 dark:text-blue-400" />
-          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Modele de lettre</p>
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Modèle de lettre</p>
         </div>
         {modelesLoading ? (
           <div className="space-y-2">
@@ -106,14 +145,14 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         ) : filteredModeles.length === 0 ? (
           <div className="p-3 rounded-xl bg-white dark:bg-white/[0.02] border border-dashed border-gray-200 dark:border-white/[0.06]">
             <p className="text-xs text-muted-foreground">
-              Aucun modele pour les clients {clientTypeConfig?.shortLabel || ''}.
-              Le modele GRIMY par defaut sera utilise.
+              Aucun modèle pour les clients {clientTypeConfig?.shortLabel || ''}.
+              Le modèle GRIMY par défaut sera utilisé.
             </p>
           </div>
         ) : (
           <Select value={data.modele_id || ""} onValueChange={(val) => onChange({ modele_id: val })}>
             <SelectTrigger className="h-11 bg-gray-50/80 dark:bg-white/[0.04] border-gray-300 dark:border-white/[0.08] text-slate-900 dark:text-white">
-              <SelectValue placeholder="Choisir un modele..." />
+              <SelectValue placeholder="Choisir un modèle..." />
             </SelectTrigger>
             <SelectContent>
               {filteredModeles.map((m) => {
@@ -123,7 +162,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
                     <div className="flex items-center gap-2">
                       <span>{m.nom}</span>
                       {m.is_default && (
-                        <Badge className="text-[8px] px-1 py-0 bg-amber-500/10 text-amber-400 border-amber-500/20">Defaut</Badge>
+                        <Badge className="text-[8px] px-1 py-0 bg-amber-500/10 text-amber-400 border-amber-500/20">Par défaut</Badge>
                       )}
                       {cnoec.valid ? (
                         <ShieldCheck className="w-3.5 h-3.5 text-green-400 shrink-0" />
@@ -137,28 +176,102 @@ export default function LMStep4Modele({ data, onChange }: Props) {
             </SelectContent>
           </Select>
         )}
-        {data.modele_id && filteredModeles.length > 0 && (() => {
-          const selected = filteredModeles.find((m) => m.id === data.modele_id);
-          if (!selected) return null;
-          const cnoec = validateCnoecCompliance(selected.sections);
-          return (
+
+        {/* Modele info + CNOEC badge */}
+        {data.modele_id && selectedModele && (
+          <div className="space-y-2">
             <div className="flex items-center gap-2 text-[10px]">
               <span className="text-slate-300 dark:text-slate-600">
-                {selected.sections.length} sections · Source: {selected.source === "grimy" ? "GRIMY" : selected.source === "import_docx" ? "Import DOCX" : "Copie"}
+                {activeSections.length}/{totalSections} sections · Source : {selectedModele.source === "grimy" ? "GRIMY" : selectedModele.source === "import_docx" ? "Import DOCX" : "Copie"}
               </span>
-              {cnoec.valid ? (
-                <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-400">Conforme CNOEC</Badge>
+              {cnoecResult?.valid ? (
+                <Badge variant="outline" className="text-[8px] border-green-500/30 text-green-400 gap-1">
+                  <ShieldCheck className="w-2.5 h-2.5" /> Conforme CNOEC
+                </Badge>
               ) : (
-                <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400">{cnoec.warnings.length} alerte{cnoec.warnings.length > 1 ? "s" : ""}</Badge>
+                <Badge variant="outline" className="text-[8px] border-orange-500/30 text-orange-400 gap-1">
+                  <AlertTriangle className="w-2.5 h-2.5" /> {cnoecResult?.warnings.length || 0} alerte{(cnoecResult?.warnings.length || 0) > 1 ? "s" : ""}
+                </Badge>
               )}
             </div>
-          );
-        })()}
+
+            {/* Validation warnings */}
+            {validationWarnings.length > 0 && (
+              <div className="space-y-1">
+                {validationWarnings.map((w, i) => (
+                  <div key={i} className={`flex items-start gap-2 p-2 rounded-lg text-[10px] ${
+                    w.type === 'error'
+                      ? 'bg-red-50/60 dark:bg-red-500/[0.06] border border-red-200/60 dark:border-red-500/10 text-red-600 dark:text-red-400'
+                      : 'bg-orange-50/60 dark:bg-orange-500/[0.06] border border-orange-200/60 dark:border-orange-500/10 text-orange-600 dark:text-orange-400'
+                  }`}>
+                    <AlertTriangle className="w-3 h-3 shrink-0 mt-0.5" />
+                    <span>{w.message}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Sections overview (collapsible) */}
+            <div className="wizard-card overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setShowSections(!showSections)}
+                className="w-full flex items-center justify-between p-3 text-left hover:bg-white dark:hover:bg-white/[0.02] transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Layers className="w-3.5 h-3.5 text-slate-400" />
+                  <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+                    Sections du modèle
+                  </span>
+                  <Badge variant="outline" className="text-[9px] border-slate-300 dark:border-white/10">
+                    {activeObligatoire.length}/{obligatoireSections.length} obligatoires
+                  </Badge>
+                </div>
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showSections ? "rotate-180" : ""}`} />
+              </button>
+              <div className={`overflow-hidden transition-all duration-200 ${showSections ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
+                <div className="px-3 pb-3 border-t border-gray-100 dark:border-white/[0.04] space-y-1 pt-2 max-h-[400px] overflow-y-auto">
+                  {sections.map((s) => {
+                    const isActive = !s.hidden;
+                    return (
+                      <div
+                        key={s.id}
+                        className={`flex items-center justify-between py-1.5 px-2 rounded-md transition-colors ${
+                          isActive ? '' : 'opacity-40'
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          {isActive ? (
+                            <Eye className="w-3 h-3 text-blue-400 shrink-0" />
+                          ) : (
+                            <EyeOff className="w-3 h-3 text-slate-300 dark:text-slate-600 shrink-0" />
+                          )}
+                          <span className="text-[11px] text-slate-700 dark:text-slate-300 truncate">{s.titre}</span>
+                          {s.cnoec_obligatoire && (
+                            <Badge className="text-[7px] px-1 py-0 bg-red-500/10 text-red-500 border-red-500/20 shrink-0">CNOEC</Badge>
+                          )}
+                          {s.group && (
+                            <span className="text-[8px] text-slate-300 dark:text-slate-600 shrink-0">{s.group}</span>
+                          )}
+                        </div>
+                        <Badge variant="outline" className={`text-[7px] px-1 shrink-0 ${
+                          isActive ? 'border-green-500/30 text-green-500' : 'border-slate-300/30 text-slate-400'
+                        }`}>
+                          {isActive ? 'ON' : 'OFF'}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Duree et renouvellement */}
       <div className="space-y-3">
-        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Duree et renouvellement</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Durée et renouvellement</p>
         <div className="grid grid-cols-3 gap-3">
           {DUREES.map((d) => {
             const active = data.duree === d.value;
@@ -182,14 +295,14 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06] shadow-sm shadow-gray-100/50 dark:shadow-none">
           <div>
             <p className="text-sm text-slate-700 dark:text-slate-300">Tacite reconduction</p>
-            <p className="text-[10px] text-slate-400 dark:text-slate-500">Renouvellement automatique a echeance</p>
+            <p className="text-[10px] text-slate-400 dark:text-slate-500">Renouvellement automatique à échéance</p>
           </div>
           <Switch checked={data.tacite_reconduction} onCheckedChange={(v) => onChange({ tacite_reconduction: v })} />
         </div>
 
         {data.tacite_reconduction && (
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 text-xs">Preavis (mois)</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Préavis (mois)</Label>
             <Select value={String(data.preavis_mois)} onValueChange={(v) => onChange({ preavis_mois: Number(v) })}>
               <SelectTrigger className={`${inputCls} w-32`}><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -203,7 +316,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         )}
 
         <div className="space-y-1.5">
-          <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de debut</Label>
+          <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de début</Label>
           <Input
             type="date"
             lang="fr"
@@ -215,7 +328,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de cloture exercice</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Date de clôture exercice</Label>
             <Input
               type="date"
               lang="fr"
@@ -232,9 +345,9 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         <p className="text-sm font-medium text-slate-800 dark:text-slate-200">Intervenants</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label className="text-slate-400 dark:text-slate-500 text-xs">Associe signataire *</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Associé signataire *</Label>
             <Select value={data.associe_signataire} onValueChange={(v) => onChange({ associe_signataire: v })}>
-              <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
+              <SelectTrigger className={inputCls}><SelectValue placeholder="Sélectionner" /></SelectTrigger>
               <SelectContent>
                 {collaborateurs.map((c) => <SelectItem key={c.nom} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
               </SelectContent>
@@ -243,14 +356,14 @@ export default function LMStep4Modele({ data, onChange }: Props) {
           <div className="space-y-1.5">
             <Label className="text-slate-400 dark:text-slate-500 text-xs">Chef de mission</Label>
             <Select value={data.chef_mission} onValueChange={(v) => onChange({ chef_mission: v })}>
-              <SelectTrigger className={inputCls}><SelectValue placeholder="Selectionner" /></SelectTrigger>
+              <SelectTrigger className={inputCls}><SelectValue placeholder="Sélectionner" /></SelectTrigger>
               <SelectContent>
                 {collaborateurs.map((c) => <SelectItem key={c.nom} value={c.nom}>{c.nom} — {c.fonction}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
           <div className="space-y-1.5 sm:col-span-2">
-            <Label className="text-slate-400 dark:text-slate-500 text-xs">Validateur (co-edition)</Label>
+            <Label className="text-slate-400 dark:text-slate-500 text-xs">Validateur (co-édition)</Label>
             <Select value={data.validateur} onValueChange={(v) => onChange({ validateur: v })}>
               <SelectTrigger className={inputCls}><SelectValue placeholder="Aucun validateur" /></SelectTrigger>
               <SelectContent>
@@ -263,7 +376,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
         {data.referent_lcb && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white dark:bg-white/[0.02] border border-gray-200 dark:border-white/[0.06]">
             <Badge className="bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20 text-[9px]">LCB</Badge>
-            <span className="text-xs text-slate-400 dark:text-slate-500">Referent : {data.referent_lcb}</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">Référent : {data.referent_lcb}</span>
           </div>
         )}
       </div>
@@ -299,7 +412,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
                 <Input value={data.dirigeant} onChange={(e) => onChange({ dirigeant: e.target.value })} className={inputCls} autoComplete="name" />
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 text-xs">Qualite</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Qualité</Label>
                 <Select value={data.qualite_dirigeant} onValueChange={(v) => onChange({ qualite_dirigeant: v })}>
                   <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -345,7 +458,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
                 {fieldErrors.email && <p className="text-xs text-red-400" role="alert">{fieldErrors.email}</p>}
               </div>
               <div className="space-y-1.5">
-                <Label className="text-slate-400 dark:text-slate-500 text-xs">Telephone</Label>
+                <Label className="text-slate-400 dark:text-slate-500 text-xs">Téléphone</Label>
                 <Input
                   inputMode="tel" autoComplete="tel"
                   value={data.telephone} onChange={(e) => onChange({ telephone: e.target.value })}
