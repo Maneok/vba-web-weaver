@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Layers } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Layers, Undo2, RotateCw } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDateTimeFr } from "@/lib/dateUtils";
 import { logger } from "@/lib/logger";
@@ -171,7 +172,16 @@ function validateScoring(s: ScoringConfig): ValidationErrors {
   const errors: ValidationErrors = {};
   if (s.seuil_bas >= s.seuil_haut) errors.seuil_bas = "Le seuil bas doit etre inferieur au seuil haut";
   if (s.seuil_bas < 0) errors.seuil_bas = "Le seuil bas doit etre positif";
-  if (s.seuil_haut < 0) errors.seuil_haut = "Le seuil haut doit etre positif";
+  if (s.seuil_bas > 99) errors.seuil_bas = "Le seuil bas ne peut pas depasser 99";
+  if (s.seuil_haut < 1) errors.seuil_haut = "Le seuil haut doit etre au moins 1";
+  if (s.seuil_haut > 100) errors.seuil_haut = "Le seuil haut ne peut pas depasser 100";
+  if (s.malus_cash < 0 || s.malus_cash > 100) errors.malus_cash = "Le malus doit etre entre 0 et 100";
+  if (s.malus_pression < 0 || s.malus_pression > 100) errors.malus_pression = "Le malus doit etre entre 0 et 100";
+  if (s.malus_distanciel < 0 || s.malus_distanciel > 100) errors.malus_distanciel = "Le malus doit etre entre 0 et 100";
+  if (s.malus_atypique < 0 || s.malus_atypique > 100) errors.malus_atypique = "Le malus doit etre entre 0 et 100";
+  if (s.revue_simplifiee_mois < 1 || s.revue_simplifiee_mois > 120) errors.revue_simplifiee_mois = "La frequence doit etre entre 1 et 120 mois";
+  if (s.revue_standard_mois < 1 || s.revue_standard_mois > 120) errors.revue_standard_mois = "La frequence doit etre entre 1 et 120 mois";
+  if (s.revue_renforcee_mois < 1 || s.revue_renforcee_mois > 120) errors.revue_renforcee_mois = "La frequence doit etre entre 1 et 120 mois";
   return errors;
 }
 
@@ -417,6 +427,10 @@ export default function SettingsPage() {
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
 
+  // Scoring: client count + last recalcul info
+  const [clientCount, setClientCount] = useState<number | null>(null);
+  const [lastRecalcInfo, setLastRecalcInfo] = useState<{ date: string; count: number } | null>(null);
+
   // Cabinet section collapse states
   const [identiteOpen, setIdentiteOpen] = useState(true);
   const [coordonneesOpen, setCoordonneesOpen] = useState(true);
@@ -532,6 +546,43 @@ export default function SettingsPage() {
     load();
     return () => { cancelled = true; };
   }, []);
+
+  /* --- OPTIM 6 + 10: load client count & last recalcul info --- */
+  useEffect(() => {
+    if (!cabinetId) return;
+    let cancelled = false;
+    async function loadScoringMeta() {
+      try {
+        // Client count
+        const { count } = await supabase
+          .from("clients")
+          .select("*", { count: "exact", head: true })
+          .eq("cabinet_id", cabinetId!);
+        if (!cancelled && count !== null) setClientCount(count);
+
+        // Last recalcul from audit_trail
+        const { data: auditRow } = await supabase
+          .from("audit_trail")
+          .select("created_at, details")
+          .eq("cabinet_id", cabinetId!)
+          .eq("action", "recalculate_scores")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!cancelled && auditRow) {
+          const details = auditRow.details as Record<string, unknown> | null;
+          setLastRecalcInfo({
+            date: auditRow.created_at,
+            count: (details?.updated_count as number) || 0,
+          });
+        }
+      } catch {
+        // non-critical — silently ignore
+      }
+    }
+    loadScoringMeta();
+    return () => { cancelled = true; };
+  }, [cabinetId]);
 
   /* --- save helpers --- */
   const saveCabinet = useCallback(async () => {
@@ -689,6 +740,26 @@ export default function SettingsPage() {
   function updateLcbft<K extends keyof LcbftConfig>(key: K, value: LcbftConfig[K]) {
     setLcbft((prev) => ({ ...prev, [key]: value }));
     if (lcbftErrors[key]) setLcbftErrors((prev) => { const n = { ...prev }; delete n[key]; return n; });
+  }
+
+  /** FIX 1: Proper number input handler — avoids leading zeros */
+  function handleScoringChange<K extends keyof ScoringConfig>(key: K, rawValue: string) {
+    // Allow empty field while typing
+    if (rawValue === "" || rawValue === "-") {
+      updateScoring(key, 0 as ScoringConfig[K]);
+      return;
+    }
+    const parsed = parseInt(rawValue, 10);
+    if (!isNaN(parsed)) {
+      updateScoring(key, parsed as ScoringConfig[K]);
+    }
+  }
+
+  /** OPTIM 9: Restore factory defaults */
+  function restoreDefaultScoring() {
+    setScoring({ ...DEFAULT_SCORING });
+    setScoringErrors({});
+    toast.info("Valeurs par defaut restaurees (non sauvegardees)");
   }
 
   /* --- reset to defaults --- */
@@ -1384,6 +1455,14 @@ export default function SettingsPage() {
         <TabsContent value="scoring">
           <div className="space-y-4">
 
+            {/* OPTIM 3: Warning banner when dirty */}
+            {dirtyScoring && (
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Modifications non enregistrees — les dossiers existants ne seront mis a jour qu'apres sauvegarde</span>
+              </div>
+            )}
+
             {/* CARTE 1 — Seuils de vigilance */}
             <Card>
               <CardHeader className="pb-4">
@@ -1393,18 +1472,19 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <CardTitle className="text-base">Seuils de vigilance</CardTitle>
-                    <CardDescription className="text-xs">Définissent le niveau de vigilance selon le score global</CardDescription>
+                    <CardDescription className="text-xs">Definissent le niveau de vigilance selon le score global{clientCount !== null && <span className="ml-1">— <strong>{clientCount}</strong> dossier{clientCount !== 1 ? "s" : ""} concerne{clientCount !== 1 ? "s" : ""}</span>}</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-3 gap-3 items-end">
                   <div>
-                    <Label className="text-xs text-muted-foreground">Simplifiée (max)</Label>
+                    <Label className="text-xs text-muted-foreground">Simplifiee (max)</Label>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="w-1.5 h-8 rounded-full bg-emerald-400" />
-                      <Input type="number" min={0} value={scoring.seuil_bas} onChange={(e) => updateScoring("seuil_bas", Number(e.target.value))} className="text-center font-medium" />
+                      <Input type="number" min={0} max={99} value={scoring.seuil_bas} onChange={(e) => handleScoringChange("seuil_bas", e.target.value)} className={`text-center font-medium ${scoringErrors.seuil_bas ? "border-red-500" : ""}`} />
                     </div>
+                    {scoringErrors.seuil_bas && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.seuil_bas}</p>}
                   </div>
                   <div className="text-center">
                     <div className="bg-muted rounded-full px-3 py-1.5 text-xs text-muted-foreground inline-block">
@@ -1413,18 +1493,20 @@ export default function SettingsPage() {
                     <p className="text-[11px] text-muted-foreground mt-1">Standard (auto)</p>
                   </div>
                   <div>
-                    <Label className="text-xs text-muted-foreground">Renforcée (min)</Label>
+                    <Label className="text-xs text-muted-foreground">Renforcee (min)</Label>
                     <div className="flex items-center gap-2 mt-1">
                       <div className="w-1.5 h-8 rounded-full bg-red-400" />
-                      <Input type="number" min={0} value={scoring.seuil_haut} onChange={(e) => updateScoring("seuil_haut", Number(e.target.value))} className="text-center font-medium" />
+                      <Input type="number" min={1} max={100} value={scoring.seuil_haut} onChange={(e) => handleScoringChange("seuil_haut", e.target.value)} className={`text-center font-medium ${scoringErrors.seuil_haut ? "border-red-500" : ""}`} />
                     </div>
+                    {scoringErrors.seuil_haut && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.seuil_haut}</p>}
                   </div>
                 </div>
+                {/* OPTIM 8: Animated gradient bar */}
                 <div>
-                  <div className="h-2 rounded-full overflow-hidden flex">
-                    <div className="bg-emerald-400" style={{ width: `${scoring.seuil_bas}%` }} />
-                    <div className="bg-amber-400" style={{ width: `${scoring.seuil_haut - scoring.seuil_bas}%` }} />
-                    <div className="bg-red-400" style={{ width: `${100 - scoring.seuil_haut}%` }} />
+                  <div className="h-3 rounded-full overflow-hidden flex transition-all duration-500 shadow-inner">
+                    <div className="bg-gradient-to-r from-emerald-300 to-emerald-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, scoring.seuil_bas))}%` }} />
+                    <div className="bg-gradient-to-r from-amber-300 to-amber-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, scoring.seuil_haut - scoring.seuil_bas))}%` }} />
+                    <div className="bg-gradient-to-r from-red-400 to-red-600 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, 100 - scoring.seuil_haut))}%` }} />
                   </div>
                   <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
                     <span>0</span>
@@ -1444,45 +1526,56 @@ export default function SettingsPage() {
                     <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
                   </div>
                   <div>
-                    <CardTitle className="text-base">Malus (points ajoutés au score)</CardTitle>
+                    <CardTitle className="text-base">Malus (points ajoutes au score)</CardTitle>
                     <CardDescription className="text-xs">Facteurs aggravants qui augmentent le risque</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Espèces (cash)", key: "malus_cash" as const },
-                    { label: "Pression / urgence", key: "malus_pression" as const },
-                    { label: "Distanciel", key: "malus_distanciel" as const },
-                  ].map(item => (
+                  {([
+                    { label: "Especes (cash)", key: "malus_cash" as const, tip: "Applique si le client effectue des paiements en especes" },
+                    { label: "Pression / urgence", key: "malus_pression" as const, tip: "Applique si le client exerce une pression anormale ou une urgence injustifiee" },
+                    { label: "Distanciel", key: "malus_distanciel" as const, tip: "Applique si la relation est exclusivement a distance, sans rencontre physique" },
+                  ] as const).map(item => (
                     <div key={item.key} className="bg-muted rounded-lg p-3">
-                      <p className="text-[11px] text-muted-foreground mb-1">{item.label}</p>
+                      <div className="flex items-center gap-1 mb-1">
+                        <p className="text-[11px] text-muted-foreground">{item.label}</p>
+                        <InfoTip text={item.tip} />
+                      </div>
                       <div className="flex items-center gap-1">
                         <span className="text-amber-600 dark:text-amber-400 font-medium">+</span>
-                        <Input type="number" min={0} value={scoring[item.key]} onChange={(e) => updateScoring(item.key, Number(e.target.value))} className="h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16" />
+                        <Input type="number" min={0} max={100} value={scoring[item.key]} onChange={(e) => handleScoringChange(item.key, e.target.value)} className={`h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16 ${scoringErrors[item.key] ? "text-red-500" : ""}`} />
                       </div>
+                      {scoringErrors[item.key] && <p className="text-[10px] text-red-500 mt-1">{scoringErrors[item.key]}</p>}
                     </div>
                   ))}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-muted rounded-lg p-3">
-                    <p className="text-[11px] text-muted-foreground mb-1">Montage atypique</p>
+                    <div className="flex items-center gap-1 mb-1">
+                      <p className="text-[11px] text-muted-foreground">Montage atypique</p>
+                      <InfoTip text="Applique aux structures complexes ou montages inhabituels (societes ecrans, trusts, etc.)" />
+                    </div>
                     <div className="flex items-center gap-1">
                       <span className="text-amber-600 dark:text-amber-400 font-medium">+</span>
-                      <Input type="number" min={0} value={scoring.malus_atypique} onChange={(e) => updateScoring("malus_atypique", Number(e.target.value))} className="h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16" />
+                      <Input type="number" min={0} max={100} value={scoring.malus_atypique} onChange={(e) => handleScoringChange("malus_atypique", e.target.value)} className={`h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16 ${scoringErrors.malus_atypique ? "text-red-500" : ""}`} />
                     </div>
+                    {scoringErrors.malus_atypique && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.malus_atypique}</p>}
                   </div>
                   <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 border-l-[3px] border-red-500 rounded-l-none">
-                    <p className="text-[11px] text-muted-foreground mb-1">PPE (forçage automatique)</p>
+                    <div className="flex items-center gap-1 mb-1">
+                      <p className="text-[11px] text-muted-foreground">PPE (forcage automatique)</p>
+                      <InfoTip text="Les Personnes Politiquement Exposees sont automatiquement classees en vigilance RENFORCEE — non configurable" />
+                    </div>
                     <p className="text-lg font-medium text-red-600 dark:text-red-400">= 100</p>
-                    <p className="text-[11px] text-red-600 dark:text-red-400 mt-0.5">Force automatiquement RENFORCÉE</p>
+                    <p className="text-[11px] text-red-600 dark:text-red-400 mt-0.5">Force automatiquement RENFORCEE</p>
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* CARTE 3 — Fréquences de revue */}
+            {/* CARTE 3 — Frequences de revue */}
             <Card>
               <CardHeader className="pb-4">
                 <div className="flex items-center gap-3">
@@ -1490,62 +1583,119 @@ export default function SettingsPage() {
                     <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <CardTitle className="text-base">Fréquences de revue</CardTitle>
-                    <CardDescription className="text-xs">Délai entre chaque revue selon le niveau de vigilance</CardDescription>
+                    <CardTitle className="text-base">Frequences de revue</CardTitle>
+                    <CardDescription className="text-xs">Delai entre chaque revue selon le niveau de vigilance</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: "Simplifiée", key: "revue_simplifiee_mois" as const, badgeClass: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" },
+                    { label: "Simplifiee", key: "revue_simplifiee_mois" as const, badgeClass: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" },
                     { label: "Standard", key: "revue_standard_mois" as const, badgeClass: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" },
-                    { label: "Renforcée", key: "revue_renforcee_mois" as const, badgeClass: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300" },
+                    { label: "Renforcee", key: "revue_renforcee_mois" as const, badgeClass: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300" },
                   ].map(item => (
                     <div key={item.key} className="bg-muted rounded-lg p-3 text-center">
                       <span className={`inline-block text-[11px] px-2.5 py-0.5 rounded-full mb-2 ${item.badgeClass}`}>
                         {item.label}
                       </span>
-                      <Input type="number" min={1} value={scoring[item.key]} onChange={(e) => updateScoring(item.key, Number(e.target.value))} className="h-auto text-xl font-medium text-center bg-transparent border-0 p-0" />
+                      <Input type="number" min={1} max={120} value={scoring[item.key]} onChange={(e) => handleScoringChange(item.key, e.target.value)} className={`h-auto text-xl font-medium text-center bg-transparent border-0 p-0 ${scoringErrors[item.key] ? "text-red-500" : ""}`} />
                       <p className="text-[11px] text-muted-foreground mt-0.5">mois</p>
+                      {scoringErrors[item.key] && <p className="text-[10px] text-red-500 mt-1">{scoringErrors[item.key]}</p>}
                     </div>
                   ))}
                 </div>
               </CardContent>
             </Card>
 
-            {/* Warning: unsaved changes */}
-            {dirtyScoring && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-                <span className="text-xs text-amber-400">Les modifications ne seront appliquées aux dossiers existants qu'après sauvegarde</span>
+            {/* OPTIM 10: Last recalcul info */}
+            {lastRecalcInfo && (
+              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                <RefreshCw className="w-3 h-3" />
+                Dernier recalcul : {relativeTime(lastRecalcInfo.date)} ({lastRecalcInfo.count} dossier{lastRecalcInfo.count !== 1 ? "s" : ""})
               </div>
             )}
 
+            {/* Action buttons */}
             <div className="flex items-center justify-between pt-2">
-              <Button
-                variant="outline"
-                onClick={async () => {
-                  if (!cabinetId) { toast.error("Cabinet non identifié"); return; }
-                  setRecalculating(true);
-                  const result = await recalculateAllCabinetScores(cabinetId);
-                  setRecalculating(false);
-                  if (result.success) {
-                    toast.success(`${result.updated_count} dossier(s) recalculé(s) avec les paramètres actuels`);
-                  } else {
-                    toast.error("Erreur lors du recalcul des scores. La fonction RPC n'est peut-être pas encore déployée.");
-                  }
-                }}
-                disabled={recalculating || !cabinetId}
-                className="gap-2"
-              >
-                {recalculating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                Recalculer tous les scores
-              </Button>
-              <Button onClick={saveScoring} disabled={savingScoring} aria-label="Enregistrer la configuration du scoring" className="gap-2">
-                {savingScoring ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                Enregistrer
-              </Button>
+              <div className="flex items-center gap-2">
+                {/* OPTIM 7: Confirmation dialog before recalcul */}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      disabled={recalculating || !cabinetId}
+                      className="gap-2"
+                    >
+                      {recalculating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                      Recalculer tous les scores
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Recalculer tous les scores ?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Cette action va recalculer le score de risque de {clientCount !== null ? <strong>{clientCount}</strong> : "tous les"} dossier{clientCount !== 1 ? "s" : ""} avec les parametres actuellement <strong>enregistres</strong>.
+                        {dirtyScoring && (
+                          <span className="block mt-2 text-amber-600 font-medium">
+                            Attention : vous avez des modifications non sauvegardees. Enregistrez d'abord pour que les nouveaux parametres soient pris en compte.
+                          </span>
+                        )}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Annuler</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={async () => {
+                          if (!cabinetId) { toast.error("Cabinet non identifie"); return; }
+                          setRecalculating(true);
+                          const result = await recalculateAllCabinetScores(cabinetId);
+                          setRecalculating(false);
+                          if (result.success) {
+                            toast.success(`${result.updated_count} dossier(s) recalcule(s) avec les parametres actuels`);
+                            setLastRecalcInfo({ date: new Date().toISOString(), count: result.updated_count || 0 });
+                          } else {
+                            toast.error("Erreur lors du recalcul des scores. La fonction RPC n'est peut-etre pas encore deployee.");
+                          }
+                        }}
+                      >
+                        Recalculer
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+
+                {/* OPTIM 9: Restore defaults */}
+                <Button variant="ghost" size="sm" onClick={restoreDefaultScoring} className="gap-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 h-8">
+                  <RotateCw className="w-3.5 h-3.5" />
+                  <span className="text-xs">Valeurs par defaut</span>
+                </Button>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* FIX 2: Cancel button */}
+                {dirtyScoring && (
+                  <Button variant="ghost" onClick={resetScoring} className="gap-2 text-slate-500 hover:text-slate-700">
+                    <Undo2 className="w-4 h-4" />
+                    Annuler
+                  </Button>
+                )}
+                {lastSavedScoring && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+                    {relativeTime(lastSavedScoring)}
+                  </span>
+                )}
+                <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">Ctrl+S</span>
+                <Button
+                  onClick={saveScoring}
+                  disabled={savingScoring}
+                  aria-label="Enregistrer la configuration du scoring"
+                  className={`gap-2 transition-all duration-300 ${savedScoring ? "bg-green-600 hover:bg-green-600" : ""}`}
+                >
+                  {savingScoring ? <Loader2 className="w-4 h-4 animate-spin" /> : savedScoring ? <Check className="w-4 h-4 animate-in zoom-in duration-200" /> : <Save className="w-4 h-4" />}
+                  {savedScoring ? "Enregistre !" : "Enregistrer"}
+                </Button>
+              </div>
             </div>
           </div>
         </TabsContent>
