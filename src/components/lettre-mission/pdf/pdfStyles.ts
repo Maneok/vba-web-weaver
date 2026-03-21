@@ -20,10 +20,10 @@ export const styles = StyleSheet.create({
   page: {
     fontFamily: "Helvetica",
     fontSize: 10,
-    lineHeight: 1.5,
+    lineHeight: 1.4, // opt 17
     color: colors.texte,
-    paddingTop: 60,
-    paddingBottom: 50,
+    paddingTop: 50, // opt 12
+    paddingBottom: 40, // opt 13
     paddingLeft: 56,
     paddingRight: 56,
   },
@@ -39,7 +39,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   headerText: {
-    fontSize: 8,
+    fontSize: 7.5, // opt 50
     color: colors.gris,
   },
   footerFixed: {
@@ -54,15 +54,15 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   footerText: {
-    fontSize: 7,
+    fontSize: 7.5, // opt 50
     color: colors.gris_clair,
   },
   sectionBandeau: {
     backgroundColor: colors.secondaire,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    marginTop: 14,
-    marginBottom: 6,
+    marginTop: 12, // opt 14
+    marginBottom: 4, // opt 15
   },
   sectionBandeauText: {
     color: colors.blanc,
@@ -79,9 +79,9 @@ export const styles = StyleSheet.create({
   },
   bodyText: {
     fontSize: 9.5,
-    lineHeight: 1.5,
+    lineHeight: 1.4, // opt 17
     textAlign: "justify",
-    marginBottom: 4,
+    marginBottom: 3, // opt 16
   },
   tableRow: {
     flexDirection: "row",
@@ -100,7 +100,7 @@ export const styles = StyleSheet.create({
   },
   tableHeaderRow: {
     flexDirection: "row",
-    backgroundColor: colors.fond_header_tableau,
+    backgroundColor: colors.fond_header_tableau, // opt 20, 27, 33
     borderBottomWidth: 1,
     borderBottomColor: colors.secondaire,
     minHeight: 26,
@@ -130,7 +130,7 @@ export const styles = StyleSheet.create({
   signatureContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 40,
+    marginTop: 24, // opt 18/46
     paddingHorizontal: 20,
   },
   signatureBlock: {
@@ -153,41 +153,44 @@ export const styles = StyleSheet.create({
   },
   // Cover page
   coverTitle: {
-    fontSize: 22,
-    fontFamily: "Helvetica-Bold",
+    fontSize: 24, // opt 4
+    fontFamily: "Helvetica-Bold", // opt 4
     color: colors.secondaire,
     textAlign: "center",
-    marginTop: 30,
+    textTransform: "uppercase", // opt 4
+    marginTop: 20, // opt 3
     marginBottom: 6,
   },
   coverSubtitle: {
     fontSize: 14,
+    fontFamily: "Helvetica-Bold",
     color: colors.primaire,
     textAlign: "center",
+    textTransform: "uppercase", // opt 5
     marginBottom: 4,
   },
   coverNorme: {
     fontSize: 11,
     color: colors.gris,
     textAlign: "center",
-    marginBottom: 12,
+    marginBottom: 8, // reduced
   },
   coverInfoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 4,
+    marginBottom: 3, // opt 7 — tighter spacing
   },
   coverInfoLabel: {
     fontSize: 9,
-    color: colors.gris,
+    color: colors.gris, // opt 7
   },
   coverInfoValue: {
-    fontSize: 9,
-    fontFamily: "Helvetica-Bold",
+    fontSize: 10, // opt 7
+    fontFamily: "Helvetica-Bold", // opt 7
   },
   // Destinataire
   destBlock: {
-    marginTop: 10,
+    marginTop: 8, // opt 9
     padding: 8,
     borderWidth: 0.5,
     borderColor: colors.primaire,
@@ -201,7 +204,7 @@ export const styles = StyleSheet.create({
   separator: {
     borderBottomWidth: 1,
     borderBottomColor: colors.primaire,
-    marginVertical: 12,
+    marginVertical: 8, // opt 8 — tighter
   },
 });
 
@@ -219,15 +222,30 @@ export function safeNumber(val: unknown, fallback: number = 0): number {
   return n;
 }
 
+// opt 25 — bulletproof formatMontant that never produces "/" or NaN
 export function formatMontant(val: unknown): string {
   const n = safeNumber(val, 0);
   if (n === 0) return "\u2014";
-  const formatted = n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202F");
+  const abs = Math.round(Math.abs(n));
+  const str = abs.toString();
+  const parts: string[] = [];
+  for (let i = str.length - 1, count = 0; i >= 0; i--, count++) {
+    if (count > 0 && count % 3 === 0) parts.push("\u202F");
+    parts.push(str[i]);
+  }
+  const formatted = (n < 0 ? "-" : "") + parts.reverse().join("");
   return `${formatted} \u20AC HT`;
 }
 
 export function formatMontantUnit(val: unknown, unit: string): string {
   const n = safeNumber(val, 0);
-  const formatted = n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202F");
+  const abs = Math.round(Math.abs(n));
+  const str = abs.toString();
+  const parts: string[] = [];
+  for (let i = str.length - 1, count = 0; i >= 0; i--, count++) {
+    if (count > 0 && count % 3 === 0) parts.push("\u202F");
+    parts.push(str[i]);
+  }
+  const formatted = (n < 0 ? "-" : "") + parts.reverse().join("");
   return `${formatted} \u20AC HT / ${unit}`;
 }

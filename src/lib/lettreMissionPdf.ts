@@ -156,7 +156,8 @@ export async function renderLettreMissionPdf(
 
     const pdfData: LettreMissionPdfData = {
       numero_lm: lm.numero || `LM-${new Date().getFullYear()}-001`,
-      date_generation: lm.date || formatDateFr(new Date(), "short"),
+      // opt 47: generate long French date for PDF display
+      date_generation: lm.date || formatDateFr(new Date(), "long"),
       cabinet: cabinetConfigToInfo(cab),
       client: client ? clientToLmData(client) : {
         civilite: "M.",
@@ -189,7 +190,8 @@ export async function renderLettreMissionPdf(
       honoraires: buildDefaultHonoraires(lm),
       lcbft: buildDefaultLcbft(client),
       repartition: DEFAULT_REPARTITION,
-      expert_responsable: s(cab.nom || ""),
+      // opt 45: expert_responsable = associé signataire name, not cabinet name
+      expert_responsable: s(opts.associeSignataire || opts.expert_responsable || cab.responsable || cab.nom || ""),
       periodicite_transmission: s(opts.periodicite || "Mensuelle"),
       outil_transmission: "GRIMY",
       is_brouillon: Boolean(options?.watermark) || (lm.metadata?.statut === "brouillon"),
@@ -264,7 +266,7 @@ export async function generatePdfFromInstance(
 
     const pdfData: LettreMissionPdfData = {
       numero_lm: instance.numero,
-      date_generation: formatDateFr(new Date(), "short"),
+      date_generation: formatDateFr(new Date(), "long"),
       cabinet: cabinetConfigToInfo(cabinet as any),
       client: clientData,
       mission: {
@@ -277,7 +279,8 @@ export async function generatePdfFromInstance(
       honoraires: options?.honoraires ? buildDefaultHonoraires({ options: options.honoraires }) : buildDefaultHonoraires(),
       lcbft: options?.client ? buildDefaultLcbft(options.client) : { score_risque: 0, niveau_vigilance: "STANDARD", statut_ppe: false },
       repartition,
-      expert_responsable: cabinet.nom,
+      // opt 45: prefer actual person name over cabinet name
+      expert_responsable: (options as any)?.associeSignataire || (options as any)?.expert_responsable || cabinet.nom,
       periodicite_transmission: "Mensuelle",
       outil_transmission: "GRIMY",
       is_brouillon: instance.status === "brouillon" || instance.status === "en_validation",

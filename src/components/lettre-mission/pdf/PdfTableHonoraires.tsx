@@ -20,7 +20,7 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
     {
       designation: "Mission comptable — Présentation des comptes",
       montant: formatMontant(honoraires.forfait_annuel_ht),
-      frequence: freq,
+      frequence: freq, // opt 29: correct frequency per line
     },
   ];
 
@@ -82,12 +82,12 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
   const total = safeNumber(honoraires.forfait_annuel_ht) + safeNumber(honoraires.constitution_dossier_ht) + safeNumber(honoraires.juridique_annuel_ht);
 
   return (
-    <View>
-      {/* Header */}
-      <View style={styles.tableHeaderRow}>
-        <Text style={[styles.tableCellBold, { width: "50%" }]}>Désignation</Text>
-        <Text style={[styles.tableCellBold, { width: "30%", textAlign: "right" }]}>Montant</Text>
-        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center" }]}>Fréquence</Text>
+    <View style={{ borderWidth: 0.5, borderColor: "#E0E0E0" }}>
+      {/* Header — opt 27: fond #D6E4F0 coherent */}
+      <View style={[styles.tableHeaderRow, { borderBottomWidth: 1, borderBottomColor: colors.secondaire }]}>
+        <Text style={[styles.tableCellBold, { width: "50%", color: colors.secondaire }]}>Désignation</Text>
+        <Text style={[styles.tableCellBold, { width: "30%", textAlign: "right", color: colors.secondaire }]}>Montant</Text>
+        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: colors.secondaire }]}>Fréquence</Text>
       </View>
       {lignes.map((l, i) => (
         <View
@@ -95,6 +95,7 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
           style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: colors.fond_alternance } : {}]}
         >
           <Text style={[styles.tableCell, { width: "50%" }]}>{l.designation}</Text>
+          {/* opt 26: montant aligné à droite, bold */}
           <Text style={[styles.tableCell, { width: "30%", textAlign: "right", fontFamily: "Helvetica-Bold" }]}>
             {l.montant}
           </Text>
@@ -102,9 +103,9 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
         </View>
       ))}
 
-      {/* Total */}
+      {/* Total — opt 28: fond #1B3A5C, texte blanc, fontSize 10 */}
       <View style={[styles.tableRow, { backgroundColor: colors.secondaire, minHeight: 28, borderBottomWidth: 0 }]}>
-        <Text style={[styles.tableCellBold, { width: "50%", color: colors.blanc }]}>
+        <Text style={[styles.tableCellBold, { width: "50%", color: colors.blanc, fontSize: 10 }]}>
           TOTAL ANNUEL ESTIMÉ
         </Text>
         <Text

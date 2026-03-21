@@ -8,6 +8,13 @@ interface Props {
   cabinet_nom: string;
 }
 
+// opt 43: thin separator between articles
+const articleSeparator = {
+  borderBottomWidth: 0.3,
+  borderBottomColor: "#E0E0E0",
+  marginBottom: 4, // opt 42
+};
+
 const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom }) => {
   // If there's a CGV override string (from modele), render it as plain text paragraphs
   if (cgv_override) {
@@ -17,7 +24,7 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom }) 
         <View style={styles.sectionBandeau}>
           <Text style={styles.sectionBandeauText}>Conditions Générales d'Intervention</Text>
         </View>
-        <Text style={{ fontSize: 8, color: colors.gris, marginBottom: 8 }}>
+        <Text style={{ fontSize: 7.5, color: colors.gris, marginBottom: 6 }}>
           {cabinet_nom} — Conditions en vigueur
         </Text>
         {paragraphs.map((p, i) => {
@@ -28,14 +35,16 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom }) 
             const title = lines[0];
             const body = lines.slice(1).join("\n").trim();
             return (
-              <View key={i} style={{ marginBottom: 6 }}>
-                <Text style={[styles.sectionSubtitle, { fontSize: 9 }]}>{title}</Text>
-                {body && <Text style={[styles.bodyText, { fontSize: 8.5 }]}>{body}</Text>}
+              <View key={i} style={{ marginBottom: 4 }}>
+                {/* opt 44: article numbers bold #1B3A5C */}
+                <Text style={[styles.sectionSubtitle, { fontSize: 8.5, color: colors.secondaire, marginTop: 4, marginBottom: 2 }]}>{title}</Text>
+                {body && <Text style={[styles.bodyText, { fontSize: 7.5 }]}>{body}</Text>}
+                <View style={articleSeparator} />
               </View>
             );
           }
           return (
-            <Text key={i} style={[styles.bodyText, { fontSize: 8.5 }]}>
+            <Text key={i} style={[styles.bodyText, { fontSize: 7.5 }]}>
               {p}
             </Text>
           );
@@ -50,15 +59,19 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom }) 
       <View style={styles.sectionBandeau}>
         <Text style={styles.sectionBandeauText}>Conditions Générales d'Intervention</Text>
       </View>
-      <Text style={{ fontSize: 8, color: colors.gris, marginBottom: 8 }}>
+      <Text style={{ fontSize: 7.5, color: colors.gris, marginBottom: 6 }}>
         {cabinet_nom} — Conditions en vigueur
       </Text>
-      {TEXTES_CGV.map((article) => (
-        <View key={article.numero} style={{ marginBottom: 8 }} wrap={false}>
-          <Text style={[styles.sectionSubtitle, { fontSize: 9 }]}>
+      {TEXTES_CGV.map((article, idx) => (
+        <View key={article.numero} style={{ marginBottom: 4 }} wrap={false}>
+          {/* opt 44: numéros d'article en bold #1B3A5C */}
+          <Text style={[styles.sectionSubtitle, { fontSize: 8.5, color: colors.secondaire, marginTop: 4, marginBottom: 2 }]}>
             {article.numero}. {article.titre}
           </Text>
-          <Text style={[styles.bodyText, { fontSize: 8.5 }]}>{article.contenu}</Text>
+          {/* opt 41: fontSize 7.5 */}
+          <Text style={[styles.bodyText, { fontSize: 7.5 }]}>{article.contenu}</Text>
+          {/* opt 43: thin separator */}
+          {idx < TEXTES_CGV.length - 1 && <View style={articleSeparator} />}
         </View>
       ))}
     </View>

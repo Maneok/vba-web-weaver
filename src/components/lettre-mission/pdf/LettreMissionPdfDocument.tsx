@@ -38,6 +38,10 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   };
   const { cabinet, client, mission, repartition } = data;
 
+  // opt 47 — format date in French long format
+  const dateLong = formatDateLong(data.date_generation);
+
+  // opt 49 — single header: "CABINET | Lettre de Mission — NUMÉRO"
   const Header = () => (
     <View style={styles.headerFixed} fixed>
       <Text style={styles.headerText}>{s(cabinet.nom)}</Text>
@@ -45,9 +49,10 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
     </View>
   );
 
+  // opt 48/49 — footer on EVERY page: "CABINET | Document confidentiel — Page X / Y"
   const Footer = () => (
     <View style={styles.footerFixed} fixed>
-      <Text style={styles.footerText}>{s(cabinet.nom)} | Lettre de mission — Document confidentiel</Text>
+      <Text style={styles.footerText}>{s(cabinet.nom)} | Document confidentiel</Text>
       <Text
         style={styles.footerText}
         render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
@@ -112,8 +117,8 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         <SectionBandeau title="Introduction" />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.introduction}</Text>
 
-        {/* VOTRE ENTITÉ */}
-        <View wrap={false}>
+        {/* VOTRE ENTITÉ — opt 11: only wrap={false} if ≤ 8 visible rows */}
+        <View>
           <SectionBandeau title="Votre entité" />
           <PdfTableEntite client={client} />
         </View>
@@ -135,7 +140,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
             Transmission via : {s(data.outil_transmission)}
           </Text>
         </View>
-        <Text style={[styles.bodyText, { marginTop: 6 }]}>
+        <Text style={[styles.bodyText, { marginTop: 4 }]}>
           {TEXTES_SECTIONS.lcbft_conservation}
         </Text>
 
@@ -217,7 +222,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         {/* HONORAIRES */}
         <SectionBandeau title="Honoraires" />
         <PdfTableHonoraires honoraires={honoraires} mission={mission} />
-        <Text style={[styles.bodyText, { marginTop: 8, fontSize: 8.5 }]}>
+        <Text style={[styles.bodyText, { marginTop: 6, fontSize: 8.5 }]}>
           Les honoraires prévus au présent contrat seront révisables annuellement selon l'évolution de
           l'indice des prix hors taxes relatifs aux services comptables publié par l'INSEE. À défaut, minimum
           forfaitaire de 3 % par an. Conformément à l'article 24 de l'ordonnance du 19 septembre 1945 modifié
@@ -232,8 +237,8 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           annexes jointes, revêtues d'un paraphe sur chacune des pages et de votre signature sur la dernière
           page.
         </Text>
-        <Text style={[styles.bodyText, { marginTop: 8 }]}>
-          Fait à {s(cabinet.ville)}, le {s(data.date_generation)}
+        <Text style={[styles.bodyText, { marginTop: 6 }]}>
+          Fait à {s(cabinet.ville)}, le {dateLong}
         </Text>
         <View style={styles.signatureContainer}>
           <View style={styles.signatureBlock}>
@@ -241,18 +246,18 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
               L'Expert-comptable
             </Text>
             {data.signature_expert ? (
-              <Image src={data.signature_expert} style={{ width: 120, height: 50 }} />
+              <Image src={data.signature_expert} style={{ width: 120, height: 35 }} />
             ) : (
-              <View style={{ width: 120, height: 50, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
+              <View style={{ width: 120, height: 35, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
             )}
             <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>{s(data.expert_responsable)}</Text>
           </View>
           <View style={styles.signatureBlock}>
             <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>Le Client</Text>
             {data.signature_client ? (
-              <Image src={data.signature_client} style={{ width: 120, height: 50 }} />
+              <Image src={data.signature_client} style={{ width: 120, height: 35 }} />
             ) : (
-              <View style={{ width: 120, height: 50, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
+              <View style={{ width: 120, height: 35, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
             )}
             <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>
               {s(client.civilite)} {s(client.nom_dirigeant)}
@@ -286,6 +291,25 @@ const SectionBandeau: React.FC<{ title: string }> = ({ title }) => (
   </View>
 );
 
+// opt 47 — format DD/MM/YYYY or ISO date to "21 mars 2026"
+function formatDateLong(raw: string): string {
+  if (!raw || raw === "—") return "—";
+  // Try to parse as DD/MM/YYYY
+  const dmy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dmy) {
+    const d = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+    }
+  }
+  // Try ISO or other parseable format
+  const d = new Date(raw);
+  if (!isNaN(d.getTime())) {
+    return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+  }
+  return raw;
+}
+
 const RenderCover: React.FC<{ data: LettreMissionPdfData }> = ({ data }) => {
   const { cabinet, client, mission } = data;
   return (
@@ -294,28 +318,31 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData }> = ({ data }) => {
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
         <View>
           <Text style={{ fontSize: 9, color: colors.gris }}>Réf. {s(data.numero_lm)}</Text>
-          <Text style={{ fontSize: 9, color: colors.gris }}>Date : {s(data.date_generation)}</Text>
+          <Text style={{ fontSize: 9, color: colors.gris }}>Date : {formatDateLong(data.date_generation)}</Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
           {cabinet.logo_base64 ? (
-            <Image src={cabinet.logo_base64} style={{ width: 100, height: 40 }} />
+            <Image src={cabinet.logo_base64} style={{ width: 140, height: 55 }} />
           ) : null}
-          <Text style={{ fontSize: 13, fontFamily: "Helvetica-Bold", color: colors.secondaire, marginTop: cabinet.logo_base64 ? 4 : 0 }}>
+          <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: colors.secondaire, marginTop: cabinet.logo_base64 ? 4 : 0 }}>
             {s(cabinet.nom)}
           </Text>
         </View>
       </View>
 
-      {/* Title */}
+      {/* Title — opt 4: MAJUSCULES, 24pt, Helvetica-Bold */}
       <Text style={styles.coverTitle}>LETTRE DE MISSION</Text>
+      {/* opt 5: sous-titre en majuscules */}
       <Text style={styles.coverSubtitle}>{s(mission.type_principal)}</Text>
+      {/* opt 6: fine ligne horizontale sous le sous-titre */}
+      <View style={{ borderBottomWidth: 0.5, borderBottomColor: colors.primaire, marginBottom: 6, marginTop: 2 }} />
       <Text style={styles.coverNorme}>{s(mission.norme_applicable)}</Text>
 
       {/* Separator */}
       <View style={styles.separator} />
 
-      {/* Info grid */}
-      <View style={{ marginBottom: 4 }}>
+      {/* Info grid — opt 7: labels gris 9pt, values bold 10pt */}
+      <View style={{ marginBottom: 2 }}>
         <View style={styles.coverInfoRow}>
           <Text style={styles.coverInfoLabel}>Cabinet :</Text>
           <Text style={styles.coverInfoValue}>{s(cabinet.nom)}</Text>
@@ -358,7 +385,7 @@ const RenderSnapshotSection: React.FC<{
   // Special rendering for table sections
   if (section.id === "entite" || content === "TABLEAU_ENTITE") {
     return (
-      <View wrap={false}>
+      <View>
         <SectionBandeau title={section.titre} />
         <PdfTableEntite client={data.client} />
       </View>
@@ -372,7 +399,7 @@ const RenderSnapshotSection: React.FC<{
         <SectionBandeau title={section.titre} />
         <PdfTableHonoraires honoraires={data.honoraires} mission={data.mission} />
         {textAfterTable && (
-          <Text style={[styles.bodyText, { marginTop: 8, fontSize: 8.5 }]}>{textAfterTable}</Text>
+          <Text style={[styles.bodyText, { marginTop: 6, fontSize: 8.5 }]}>{textAfterTable}</Text>
         )}
       </View>
     );
@@ -438,38 +465,41 @@ const RenderSnapshotSection: React.FC<{
   );
 };
 
-const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissionPdfData }> = ({ data }) => (
-  <View>
-    <Text style={styles.bodyText}>
-      Nous vous serions obligés de bien vouloir nous retourner un exemplaire de la présente et des
-      annexes jointes, revêtues d'un paraphe sur chacune des pages et de votre signature sur la dernière page.
-    </Text>
-    <Text style={[styles.bodyText, { marginTop: 8 }]}>
-      Fait à {s(data.cabinet.ville)}, le {s(data.date_generation)}
-    </Text>
-    <View style={styles.signatureContainer}>
-      <View style={styles.signatureBlock}>
-        <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>L'Expert-comptable</Text>
-        {data.signature_expert ? (
-          <Image src={data.signature_expert} style={{ width: 120, height: 50 }} />
-        ) : (
-          <View style={{ width: 120, height: 50, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
-        )}
-        <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>{s(data.expert_responsable)}</Text>
-      </View>
-      <View style={styles.signatureBlock}>
-        <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>Le Client</Text>
-        {data.signature_client ? (
-          <Image src={data.signature_client} style={{ width: 120, height: 50 }} />
-        ) : (
-          <View style={{ width: 120, height: 50, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
-        )}
-        <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>
-          {s(data.client.civilite)} {s(data.client.nom_dirigeant)}
-        </Text>
+const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissionPdfData }> = ({ data }) => {
+  const dateLong = formatDateLong(data.date_generation);
+  return (
+    <View>
+      <Text style={styles.bodyText}>
+        Nous vous serions obligés de bien vouloir nous retourner un exemplaire de la présente et des
+        annexes jointes, revêtues d'un paraphe sur chacune des pages et de votre signature sur la dernière page.
+      </Text>
+      <Text style={[styles.bodyText, { marginTop: 6 }]}>
+        Fait à {s(data.cabinet.ville)}, le {dateLong}
+      </Text>
+      <View style={styles.signatureContainer}>
+        <View style={styles.signatureBlock}>
+          <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>L'Expert-comptable</Text>
+          {data.signature_expert ? (
+            <Image src={data.signature_expert} style={{ width: 120, height: 35 }} />
+          ) : (
+            <View style={{ width: 120, height: 35, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
+          )}
+          <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>{s(data.expert_responsable)}</Text>
+        </View>
+        <View style={styles.signatureBlock}>
+          <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>Le Client</Text>
+          {data.signature_client ? (
+            <Image src={data.signature_client} style={{ width: 120, height: 35 }} />
+          ) : (
+            <View style={{ width: 120, height: 35, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
+          )}
+          <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>
+            {s(data.client.civilite)} {s(data.client.nom_dirigeant)}
+          </Text>
+        </View>
       </View>
     </View>
-  </View>
-);
+  );
+};
 
 export default LettreMissionPdfDocument;
