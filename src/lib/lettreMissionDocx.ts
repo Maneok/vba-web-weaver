@@ -778,14 +778,46 @@ export async function renderNewLettreMissionDocx(params: NewDocxParams): Promise
 // ──────────────────────────────────────────────
 // Generate DOCX from LM Instance (modele-based)
 // ──────────────────────────────────────────────
-export async function generateDocxFromInstance(instance: {
-  sections_snapshot: { id: string; titre: string; contenu: string; type: string; ordre: number }[];
-  cgv_snapshot: string;
-  repartition_snapshot?: { label: string; cabinet: boolean; client: boolean; periodicite?: string }[];
-  numero: string;
-  status?: string;
-  mission_type?: string;
-}, cabinet: { nom: string; adresse: string; cp: string; ville: string; siret: string; numeroOEC: string; email: string; telephone: string }): Promise<void> {
+export async function generateDocxFromInstance(
+  instance: {
+    sections_snapshot: { id: string; titre: string; contenu: string; type: string; ordre: number }[];
+    cgv_snapshot: string;
+    repartition_snapshot?: { label: string; cabinet: boolean; client: boolean; periodicite?: string }[];
+    numero: string;
+    status?: string;
+    mission_type?: string;
+    variables_resolved?: Record<string, string>;
+  },
+  cabinet: { nom: string; adresse: string; cp: string; ville: string; siret: string; numeroOEC: string; email: string; telephone: string },
+  clientData?: {
+    civilite?: string;
+    nom_dirigeant?: string;
+    raison_sociale?: string;
+    forme_juridique?: string;
+    adresse?: string;
+    code_postal?: string;
+    ville?: string;
+    siren?: string;
+    siret?: string;
+    code_ape?: string;
+    activite_principale?: string;
+    regime_fiscal?: string;
+    exercice_debut?: string;
+    exercice_fin?: string;
+    tva?: boolean;
+    cac?: boolean;
+    effectif?: number;
+    capital_social?: string;
+  },
+  honorairesData?: {
+    forfait_annuel_ht?: number;
+    constitution_dossier_ht?: number;
+    honoraires_ec_heure?: number;
+    honoraires_collab_heure?: number;
+    juridique_annuel_ht?: number;
+    frequence_facturation?: string;
+  },
+): Promise<void> {
   try {
     const children: (Paragraph | Table)[] = [];
 
@@ -838,18 +870,144 @@ export async function generateDocxFromInstance(instance: {
       // Section heading
       children.push(heading(section.titre));
 
-      // Section content
-      const content = section.contenu || "";
-      if (content === "TABLEAU_ENTITE" || content === "TABLEAU_HONORAIRES" || content === "TABLEAU_REPARTITION") {
-        children.push(bodyText(`[${content}]`));
-      } else {
-        const paragraphs = content.split("\n\n");
-        for (const para of paragraphs) {
-          if (para.startsWith("▪") || para.startsWith("—") || para.startsWith("-") || para.startsWith("•")) {
-            children.push(bulletItem(para.replace(/^[▪—\-•]\s*/, "")));
-          } else {
-            children.push(bodyText(para));
-          }
+      // Resolve variables in content
+      let content = section.contenu || "";
+
+      // 1. Resolve known {{...}} variables
+      if (instance.variables_resolved) {
+        for (const [key, val] of Object.entries(instance.variables_resolved)) {
+          content = content.replace(new RegExp(`\\{\\{${key}\\}\\}`, 'g'), val || "—");
+        }
+      }
+
+      // 2. Resolve {{bloc_vigilance_lab}}
+      content = content.replace(/\{\{bloc_vigilance_lab\}\}/g,
+        "Conformément aux articles L.561-1 et suivants du Code monétaire et financier, " +
+        "le cabinet est soumis aux obligations de lutte contre le blanchiment de capitaux " +
+        "et le financement du terrorisme (LCB-FT). Le client s'engage à fournir l'ensemble " +
+        "des documents d'identification requis et à signaler toute modification de sa situation.");
+
+      // 3. Resolve any remaining {{...}} variables
+      content = content.replace(/\{\{[^}]+\}\}/g, "—");
+
+      // 4. TABLEAU_ENTITE → real table with client data
+      if (content === "TABLEAU_ENTITE" || content.includes("[TABLEAU_ENTITE]")) {
+        if (clientData) {
+          const rows = [
+            ["Raison sociale", clientData.raison_sociale || "—"],
+            ["Forme juridique", clientData.forme_juridique || "—"],
+            ["Dirigeant", `${clientData.civilite || ""} ${clientData.nom_dirigeant || ""}`.trim() || "—"],
+            ["Adresse", `${clientData.adresse || ""}, ${clientData.code_postal || ""} ${clientData.ville || ""}`.trim().replace(/^,\s*/, "") || "—"],
+            ["SIREN", clientData.siren || "—"],
+            ["SIRET", clientData.siret || "—"],
+            ["Code APE", clientData.code_ape || "—"],
+            ["Activité principale", clientData.activite_principale || "—"],
+            ["Régime fiscal", clientData.regime_fiscal || "—"],
+            ["Capital social", clientData.capital_social || "—"],
+            ["Exercice", `${clientData.exercice_debut || "01/01/YYYY"} — ${clientData.exercice_fin || "31/12/YYYY"}`],
+            ["Assujetti TVA", clientData.tva ? "Oui" : "Non"],
+            ["CAC désigné", clientData.cac ? "Oui" : "Non"],
+          ];
+          const table = new Table({
+            rows: rows.map((r, idx) => tableRow2Col(r[0], r[1], idx % 2 === 0)),
+            width: { size: 100, type: WidthType.PERCENTAGE },
+          });
+          children.push(table);
+        } else {
+          children.push(bodyText("[Données client non disponibles]"));
+        }
+        continue;
+      }
+
+      // 5. TABLEAU_HONORAIRES → real table with fees
+      if (content === "TABLEAU_HONORAIRES" || content.includes("[TABLEAU_HONORAIRES]")) {
+        if (honorairesData) {
+          const hRows = [
+            ["Forfait comptable annuel", formatMontant(honorairesData.forfait_annuel_ht)],
+            ["Constitution de dossier", formatMontant(honorairesData.constitution_dossier_ht)],
+            ["Juridique annuel", formatMontant(honorairesData.juridique_annuel_ht)],
+            ["Expert-comptable (taux horaire)", `${honorairesData.honoraires_ec_heure || 200} € HT / heure`],
+            ["Collaborateur (taux horaire)", `${honorairesData.honoraires_collab_heure || 100} € HT / heure`],
+          ];
+          const table = new Table({
+            rows: [
+              new TableRow({
+                children: [
+                  new TableCell({
+                    shading: { type: ShadingType.CLEAR, color: NAVY, fill: NAVY },
+                    width: { size: 5000, type: WidthType.DXA },
+                    children: [new Paragraph({ children: [new TextRun({ text: "Désignation", bold: true, size: 18, color: "FFFFFF" })] })],
+                  }),
+                  new TableCell({
+                    shading: { type: ShadingType.CLEAR, color: NAVY, fill: NAVY },
+                    width: { size: 4500, type: WidthType.DXA },
+                    children: [new Paragraph({ alignment: AlignmentType.RIGHT, children: [new TextRun({ text: "Montant", bold: true, size: 18, color: "FFFFFF" })] })],
+                  }),
+                ],
+              }),
+              ...hRows.map((r, idx) => tableRow2Col(r[0], r[1], idx % 2 === 0)),
+            ],
+            width: { size: 100, type: WidthType.PERCENTAGE },
+          });
+          children.push(table);
+        } else {
+          children.push(bodyText("[Honoraires non renseignés]"));
+        }
+        continue;
+      }
+
+      // 6. TABLEAU_REPARTITION → real table with task allocation
+      if (content === "TABLEAU_REPARTITION" || content.includes("[TABLEAU_REPARTITION]")) {
+        if (instance.repartition_snapshot && instance.repartition_snapshot.length > 0) {
+          const repTable = new Table({
+            rows: [
+              new TableRow({
+                children: ["Tâche", "Cabinet", "Client", "Périodicité"].map(h =>
+                  new TableCell({
+                    shading: { type: ShadingType.CLEAR, color: NAVY, fill: NAVY },
+                    children: [new Paragraph({ children: [new TextRun({ text: h, bold: true, size: 16, color: "FFFFFF" })] })],
+                  })
+                ),
+              }),
+              ...instance.repartition_snapshot.map((r, idx) =>
+                new TableRow({
+                  children: [
+                    new TableCell({
+                      shading: idx % 2 === 0 ? { type: ShadingType.CLEAR, color: GREY, fill: GREY } : undefined,
+                      children: [new Paragraph({ children: [new TextRun({ text: r.label, size: 16 })] })],
+                    }),
+                    new TableCell({
+                      shading: idx % 2 === 0 ? { type: ShadingType.CLEAR, color: GREY, fill: GREY } : undefined,
+                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: r.cabinet ? "✓" : "—", size: 16 })] })],
+                    }),
+                    new TableCell({
+                      shading: idx % 2 === 0 ? { type: ShadingType.CLEAR, color: GREY, fill: GREY } : undefined,
+                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: r.client ? "✓" : "—", size: 16 })] })],
+                    }),
+                    new TableCell({
+                      shading: idx % 2 === 0 ? { type: ShadingType.CLEAR, color: GREY, fill: GREY } : undefined,
+                      children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun({ text: r.periodicite || "—", size: 16 })] })],
+                    }),
+                  ],
+                })
+              ),
+            ],
+            width: { size: 100, type: WidthType.PERCENTAGE },
+          });
+          children.push(repTable);
+        } else {
+          children.push(bodyText("[Répartition des tâches non définie]"));
+        }
+        continue;
+      }
+
+      // Normal text content
+      const paragraphs = content.split("\n\n");
+      for (const para of paragraphs) {
+        if (para.startsWith("▪") || para.startsWith("—") || para.startsWith("-") || para.startsWith("•")) {
+          children.push(bulletItem(para.replace(/^[▪—\-•]\s*/, "")));
+        } else {
+          children.push(bodyText(para));
         }
       }
     }
