@@ -70,13 +70,13 @@ const PdfAnnexes: React.FC<Props> = ({ data, theme: themeIn }) => {
           </View>
           <View style={{ flexDirection: "row", marginBottom: 8 }}>
             <Text style={[styles.tableCellBold, { width: "30%", color: theme.secondaire }]}>IBAN</Text>
-            <Text style={[styles.tableCell, { width: "70%", borderBottomWidth: 0.5, borderBottomColor: "#ccc", fontFamily: "Courier" }]}>
+            <Text style={[styles.tableCell, { width: "70%", borderBottomWidth: 0.5, borderBottomColor: "#ccc", backgroundColor: "#F8F9FA", fontFamily: "Courier" }]}>
               __ ____ ____ ____ ____ ____ ___
             </Text>
           </View>
           <View style={{ flexDirection: "row", marginBottom: 8 }}>
             <Text style={[styles.tableCellBold, { width: "30%", color: theme.secondaire }]}>BIC</Text>
-            <Text style={[styles.tableCell, { width: "70%", borderBottomWidth: 0.5, borderBottomColor: "#ccc", fontFamily: "Courier" }]}>
+            <Text style={[styles.tableCell, { width: "70%", borderBottomWidth: 0.5, borderBottomColor: "#ccc", backgroundColor: "#F8F9FA", fontFamily: "Courier" }]}>
               ___________
             </Text>
           </View>

@@ -190,8 +190,8 @@ export async function renderLettreMissionPdf(
       honoraires: buildDefaultHonoraires(lm),
       lcbft: buildDefaultLcbft(client),
       repartition: DEFAULT_REPARTITION,
-      // opt 45: expert_responsable = associé signataire name, not cabinet name
-      expert_responsable: s(opts.associeSignataire || opts.expert_responsable || cab.responsable || cab.nom || ""),
+      // BUG 8 fix: prefer actual person name, never fall back to cabinet name
+      expert_responsable: s(opts.associeSignataire || opts.expert_responsable || (cab as any).responsable || (cab as any).expert_nom || ""),
       periodicite_transmission: s(opts.periodicite || "Mensuelle"),
       outil_transmission: "GRIMY",
       is_brouillon: Boolean(options?.watermark) || (lm.metadata?.statut === "brouillon"),
@@ -279,8 +279,8 @@ export async function generatePdfFromInstance(
       honoraires: options?.honoraires ? buildDefaultHonoraires({ options: options.honoraires }) : buildDefaultHonoraires(),
       lcbft: options?.client ? buildDefaultLcbft(options.client) : { score_risque: 0, niveau_vigilance: "STANDARD", statut_ppe: false },
       repartition,
-      // opt 45: prefer actual person name over cabinet name
-      expert_responsable: (options as any)?.associeSignataire || (options as any)?.expert_responsable || cabinet.nom,
+      // BUG 8 fix: prefer actual person name, never fall back to cabinet name
+      expert_responsable: (options as any)?.associeSignataire || (options as any)?.expert_responsable || "",
       periodicite_transmission: "Mensuelle",
       outil_transmission: "GRIMY",
       is_brouillon: instance.status === "brouillon" || instance.status === "en_validation",

@@ -45,6 +45,10 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   // Format date in French long format
   const dateLong = formatDateLong(data.date_generation);
 
+  // BUG 8 — expert name must not show cabinet name; fall back to default
+  const expertName = data.expert_responsable && data.expert_responsable !== cabinet.nom
+    ? data.expert_responsable : "—";
+
   // Header: "CABINET | Lettre de Mission — NUMÉRO"
   const Header = () => (
     <View style={styles.headerFixed} fixed>
@@ -127,8 +131,8 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         <SectionBanner title="Introduction" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.introduction}</Text>
 
-        {/* 2. VOTRE ENTITÉ */}
-        <View>
+        {/* 2. VOTRE ENTITÉ — break to avoid orphaned blue header at page bottom */}
+        <View break>
           <SectionBanner title="Votre entité" theme={theme} />
           <PdfTableEntite client={client} theme={theme} />
         </View>
@@ -174,8 +178,8 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         <SectionBanner title="Durée de la mission" theme={theme} />
         <Text style={styles.bodyText}>
           Notre mission prendra effet à la date de signature de la présente lettre de mission. Elle portera
-          sur les comptes de l'exercice comptable commençant le {s(client.exercice_debut) !== "—" ? s(client.exercice_debut) : `01/01/${new Date().getFullYear()}`} et se terminant
-          le {s(client.exercice_fin) !== "—" ? s(client.exercice_fin) : `31/12/${new Date().getFullYear()}`}.
+          sur les comptes de l'exercice comptable commençant le {client.exercice_debut && s(client.exercice_debut) !== "—" ? s(client.exercice_debut) : `01/01/${new Date().getFullYear()}`} et se terminant
+          le {client.exercice_fin && s(client.exercice_fin) !== "—" ? s(client.exercice_fin) : `31/12/${new Date().getFullYear()}`}.
         </Text>
         <Text style={styles.bodyText}>
           Cette lettre de mission restera en vigueur pour les exercices futurs, sauf en cas de résiliation,
@@ -252,13 +256,14 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
             .replace("{{formule_civilite}}", s(client.civilite) === "Mme" ? "Chère Madame" : "Cher Monsieur")
             .replace("{{nom_dirigeant}}", s(client.nom_dirigeant))}
         </Text>
-        <Text style={[styles.bodyText, { marginTop: 6 }]}>
+        <Text style={[styles.bodyText, { marginTop: 6, fontFamily: "Helvetica-Oblique" }]}>
           Fait à {s(cabinet.ville)}, le {dateLong}
         </Text>
         <View style={styles.signatureContainer}>
           <SignatureBox
             label="L'Expert-comptable"
-            name={s(data.expert_responsable)}
+            boldName
+            name={expertName}
             signatureImage={data.signature_expert}
           />
           <SignatureBox
@@ -310,15 +315,27 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
       {/* Logo + cabinet name */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
         <View>
-          <Text style={{ fontSize: 9, color: theme.muted }}>Réf. {s(data.numero_lm)}</Text>
-          <Text style={{ fontSize: 9, color: theme.muted }}>Date : {formatDateLong(data.date_generation)}</Text>
+          <Text style={{ fontSize: 8.5, color: theme.muted }}>Réf. {s(data.numero_lm)}</Text>
+          <Text style={{ fontSize: 8.5, color: theme.muted }}>Date : {formatDateLong(data.date_generation)}</Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
           {cabinet.logo_base64 ? (
-            <Image src={cabinet.logo_base64} style={{ width: 140, height: 55 }} />
-          ) : null}
-          <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: theme.secondaire, marginTop: cabinet.logo_base64 ? 4 : 0 }}>
-            {s(cabinet.nom)}
+            <Image src={cabinet.logo_base64} style={{ width: 80, height: 80, objectFit: "contain" }} />
+          ) : (
+            <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>
+              {s(cabinet.nom)}
+            </Text>
+          )}
+          {cabinet.logo_base64 && (
+            <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: theme.secondaire, marginTop: 4 }}>
+              {s(cabinet.nom)}
+            </Text>
+          )}
+          <Text style={{ fontSize: 8, color: theme.muted }}>
+            {s(cabinet.adresse)}, {s(cabinet.cp)} {s(cabinet.ville)}
+          </Text>
+          <Text style={{ fontSize: 7.5, color: "#BBBBBB" }}>
+            SIRET {s(cabinet.siret)}{cabinet.oec_numero ? ` — OEC ${s(cabinet.oec_numero)}` : ""}
           </Text>
         </View>
       </View>
@@ -443,19 +460,21 @@ const RenderSnapshotSection: React.FC<{
 
 const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissionPdfData; theme: PdfTheme }> = ({ data, theme }) => {
   const dateLong = formatDateLong(data.date_generation);
+  const expName = data.expert_responsable && data.expert_responsable !== data.cabinet.nom
+    ? data.expert_responsable : "—";
   return (
     <View>
       <Text style={styles.bodyText}>
         Nous vous serions obligés de bien vouloir nous retourner un exemplaire de la présente et des
         annexes jointes, revêtues d'un paraphe sur chacune des pages et de votre signature sur la dernière page.
       </Text>
-      <Text style={[styles.bodyText, { marginTop: 6 }]}>
+      <Text style={[styles.bodyText, { marginTop: 6, fontFamily: "Helvetica-Oblique" }]}>
         Fait à {s(data.cabinet.ville)}, le {dateLong}
       </Text>
       <View style={styles.signatureContainer}>
         <SignatureBox
           label="L'Expert-comptable"
-          name={s(data.expert_responsable)}
+          name={expName}
           signatureImage={data.signature_expert}
         />
         <SignatureBox

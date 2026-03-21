@@ -86,8 +86,8 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission, theme: theme
 
   return (
     <RoundedTableWrapper borderColor={theme.border}>
-      {/* Premium header with primaire background */}
-      <View style={{ flexDirection: "row", backgroundColor: theme.primaire, minHeight: 26, alignItems: "center" }}>
+      {/* Header — fond secondaire, texte blanc */}
+      <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 26, alignItems: "center" }}>
         <Text style={[styles.tableCellBold, { width: "50%", color: "#FFFFFF" }]}>Désignation</Text>
         <Text style={[styles.tableCellBold, { width: "30%", textAlign: "right", color: "#FFFFFF" }]}>Montant</Text>
         <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: "#FFFFFF" }]}>Fréquence</Text>

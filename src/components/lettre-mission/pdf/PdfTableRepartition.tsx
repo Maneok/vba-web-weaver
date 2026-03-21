@@ -21,8 +21,8 @@ const PdfTableRepartition: React.FC<Props> = ({ rows, theme: themeIn }) => {
   return (
     <View>
       <RoundedTableWrapper borderColor={theme.border}>
-        {/* Premium header */}
-        <View style={{ flexDirection: "row", backgroundColor: theme.primaire, minHeight: 26, alignItems: "center" }}>
+        {/* Header — fond secondaire, texte blanc */}
+        <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 26, alignItems: "center" }}>
           <Text style={[styles.tableCellBold, { width: "50%", color: "#FFFFFF" }]}>Tâche</Text>
           <Text style={[styles.tableCellBold, { width: "15%", textAlign: "center", color: "#FFFFFF" }]}>Cabinet</Text>
           <Text style={[styles.tableCellBold, { width: "15%", textAlign: "center", color: "#FFFFFF" }]}>Client</Text>

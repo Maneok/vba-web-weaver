@@ -52,8 +52,8 @@ const PdfTableEntite: React.FC<Props> = ({ client, theme: themeIn }) => {
 
   return (
     <RoundedTableWrapper borderColor={theme.border}>
-      {/* Premium header with primaire background */}
-      <View style={{ flexDirection: "row", backgroundColor: theme.primaire, minHeight: 26, alignItems: "center" }}>
+      {/* Header — fond secondaire, texte blanc */}
+      <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 26, alignItems: "center" }}>
         <Text style={[styles.tableCellBold, { width: "40%", color: "#FFFFFF" }]}>Information</Text>
         <Text style={[styles.tableCellBold, { width: "60%", color: "#FFFFFF" }]}>Détail</Text>
       </View>
@@ -65,7 +65,9 @@ const PdfTableEntite: React.FC<Props> = ({ client, theme: themeIn }) => {
             style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: theme.light } : {}]}
           >
             <Text style={[styles.tableCellBold, { width: "40%", color: theme.secondaire }]}>{row.label}</Text>
-            <Text style={[styles.tableCell, { width: "60%", color: isEmpty ? theme.muted : theme.text }]}>{row.value}</Text>
+            <Text style={[styles.tableCell, { width: "60%", color: isEmpty ? "#BBBBBB" : theme.text, fontFamily: isEmpty ? "Helvetica-Oblique" : "Helvetica" }]}>
+              {isEmpty ? "Non renseigné" : row.value}
+            </Text>
           </View>
         );
       })}

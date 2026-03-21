@@ -125,23 +125,25 @@ export const styles = StyleSheet.create({
   tableCell: {
     fontSize: 9,
     paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
   tableCellBold: {
     fontSize: 9,
     fontFamily: "Helvetica-Bold",
     paddingHorizontal: 6,
-    paddingVertical: 4,
+    paddingVertical: 5,
   },
   watermark: {
     position: "absolute",
-    top: "40%",
-    left: "20%",
+    top: "38%",
+    left: 0,
+    right: 0,
+    textAlign: "center",
     fontSize: 64,
     color: "#D0D0D0",
-    opacity: 0.12,
+    opacity: 0.1,
     fontFamily: "Helvetica-Bold",
-    letterSpacing: 8,
+    letterSpacing: 12,
   },
   signatureContainer: {
     flexDirection: "row",
@@ -238,18 +240,18 @@ export function safeNumber(val: unknown, fallback: number = 0): number {
   return n;
 }
 
-// opt 25 — bulletproof formatMontant that never produces "/" or NaN
+// BUG FIX 1 — use regular space instead of \u202F (Helvetica renders \u202F as "/")
 export function formatMontant(val: unknown): string {
   const n = safeNumber(val, 0);
   if (n === 0) return "\u2014";
   const abs = Math.round(Math.abs(n));
   const str = abs.toString();
-  const parts: string[] = [];
-  for (let i = str.length - 1, count = 0; i >= 0; i--, count++) {
-    if (count > 0 && count % 3 === 0) parts.push("\u202F");
-    parts.push(str[i]);
+  let formatted = "";
+  for (let i = 0; i < str.length; i++) {
+    if (i > 0 && (str.length - i) % 3 === 0) formatted += " ";
+    formatted += str[i];
   }
-  const formatted = (n < 0 ? "-" : "") + parts.reverse().join("");
+  if (n < 0) formatted = "-" + formatted;
   return `${formatted} \u20AC HT`;
 }
 
@@ -257,11 +259,11 @@ export function formatMontantUnit(val: unknown, unit: string): string {
   const n = safeNumber(val, 0);
   const abs = Math.round(Math.abs(n));
   const str = abs.toString();
-  const parts: string[] = [];
-  for (let i = str.length - 1, count = 0; i >= 0; i--, count++) {
-    if (count > 0 && count % 3 === 0) parts.push("\u202F");
-    parts.push(str[i]);
+  let formatted = "";
+  for (let i = 0; i < str.length; i++) {
+    if (i > 0 && (str.length - i) % 3 === 0) formatted += " ";
+    formatted += str[i];
   }
-  const formatted = (n < 0 ? "-" : "") + parts.reverse().join("");
+  if (n < 0) formatted = "-" + formatted;
   return `${formatted} \u20AC HT / ${unit}`;
 }

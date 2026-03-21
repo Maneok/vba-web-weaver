@@ -40,7 +40,7 @@ export const SideStripe: React.FC<{ color: string }> = ({ color }) => (
   />
 );
 
-/** Bandeau de section premium avec accent gauche (opt 13-16) */
+/** Bandeau de section premium avec accent gauche */
 export const SectionBanner: React.FC<{ title: string; theme: PdfTheme }> = ({ title, theme }) => (
   <View
     style={{
@@ -52,8 +52,10 @@ export const SectionBanner: React.FC<{ title: string; theme: PdfTheme }> = ({ ti
   >
     <View
       style={{
-        width: 3,
+        width: 4,
         backgroundColor: theme.primaire,
+        borderTopLeftRadius: 6,
+        borderBottomLeftRadius: 6,
       }}
     />
     <View
@@ -62,17 +64,17 @@ export const SectionBanner: React.FC<{ title: string; theme: PdfTheme }> = ({ ti
         backgroundColor: theme.secondaire,
         paddingVertical: 5,
         paddingHorizontal: 14,
-        borderTopRightRadius: 3,
-        borderBottomRightRadius: 3,
+        borderTopRightRadius: 6,
+        borderBottomRightRadius: 6,
       }}
     >
       <Text
         style={{
           color: "#FFFFFF",
-          fontSize: 10.5,
+          fontSize: 10,
           fontFamily: "Helvetica-Bold",
           textTransform: "uppercase",
-          letterSpacing: 0.5,
+          letterSpacing: 0.3,
         }}
       >
         {title}
@@ -145,12 +147,13 @@ export const Separator: React.FC<{ color: string }> = ({ color }) => (
   </View>
 );
 
-/** Encadré signature premium avec pointillés et "Lu et approuvé" (opt 34-37) */
+/** Encadré signature premium avec pointillés et "Lu et approuvé" */
 export const SignatureBox: React.FC<{
   label: string;
   name?: string;
   signatureImage?: string;
-}> = ({ label, name, signatureImage }) => (
+  boldName?: boolean;
+}> = ({ label, name, signatureImage, boldName }) => (
   <View
     style={{
       width: "42%",
@@ -160,7 +163,7 @@ export const SignatureBox: React.FC<{
       borderRadius: 4,
       padding: 10,
       alignItems: "center",
-      minHeight: 80,
+      minHeight: 100,
     }}
   >
     <Text
@@ -176,10 +179,10 @@ export const SignatureBox: React.FC<{
     {signatureImage ? (
       <Image src={signatureImage} style={{ width: 100, height: 30 }} />
     ) : (
-      <View style={{ flex: 1, minHeight: 24 }} />
+      <View style={{ flex: 1, minHeight: 40 }} />
     )}
     {name && (
-      <Text style={{ fontSize: 8, color: "#666666", marginTop: 4 }}>{name}</Text>
+      <Text style={{ fontSize: 8, color: "#666666", marginTop: 4, fontFamily: boldName ? "Helvetica-Bold" : "Helvetica" }}>{name}</Text>
     )}
     <View
       style={{
@@ -189,7 +192,7 @@ export const SignatureBox: React.FC<{
         marginTop: 2,
       }}
     />
-    <Text style={{ fontSize: 6.5, color: "#999999", marginTop: 3 }}>Lu et approuvé</Text>
+    <Text style={{ fontSize: 7, color: "#999999", marginTop: 3 }}>Lu et approuvé</Text>
   </View>
 );
 

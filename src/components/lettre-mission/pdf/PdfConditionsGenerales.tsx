@@ -54,7 +54,7 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom, th
                   <CircleNumber num={num} theme={theme} />
                   <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>{titleText}</Text>
                 </View>
-                {body && <Text style={[styles.bodyText, { fontSize: 7.5, paddingLeft: 24 }]}>{body}</Text>}
+                {body && <Text style={[styles.bodyText, { fontSize: 7.5, lineHeight: 1.3, paddingLeft: 24 }]}>{body}</Text>}
                 <View style={articleSeparator} />
               </View>
             );
@@ -84,7 +84,7 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom, th
               {article.titre}
             </Text>
           </View>
-          <Text style={[styles.bodyText, { fontSize: 7.5, paddingLeft: 24 }]}>{article.contenu}</Text>
+          <Text style={[styles.bodyText, { fontSize: 7.5, lineHeight: 1.3, paddingLeft: 24 }]}>{article.contenu}</Text>
           {idx < TEXTES_CGV.length - 1 && <View style={articleSeparator} />}
         </View>
       ))}
