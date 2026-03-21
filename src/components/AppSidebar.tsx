@@ -93,7 +93,7 @@ function getCabinetInitials(name: string): string {
 /* ─── Component ─── */
 
 export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
-  const { alertes, clients } = useAppState();
+  const { alertes, clients, collaborateurs } = useAppState();
   const { profile, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -170,12 +170,23 @@ export default function AppSidebar({ collapsed, onToggle }: AppSidebarProps) {
       });
   }, [profile?.cabinet_id]);
 
+  // Count collaborateurs with expired training (> 12 months or never trained)
+  const expiredTrainingCount = useMemo(() => {
+    return collaborateurs.filter(c => {
+      if (!c.derniereFormation) return true;
+      const ts = new Date(c.derniereFormation).getTime();
+      if (isNaN(ts)) return true;
+      return (Date.now() - ts) / (1000 * 60 * 60 * 24) > 365;
+    }).length;
+  }, [collaborateurs]);
+
   // OPT-SB1: Memoize badge counts to avoid object recreation on every render
   const badges = useMemo<Record<string, number>>(() => ({
     "/bdd": clients.length,
     "/registre": alertesEnCours,
     "/ged": expiredDocsCount,
-  }), [clients.length, alertesEnCours, expiredDocsCount]);
+    "/gouvernance": expiredTrainingCount,
+  }), [clients.length, alertesEnCours, expiredDocsCount, expiredTrainingCount]);
 
   // OPT-SB2: Memoize derived values
   const cabinetName = useMemo(() => profile?.full_name?.split(" ").pop() || "GRIMY", [profile?.full_name]);

@@ -219,7 +219,7 @@ export const collaborateursService = {
     return withRetry("collab.getAll", async () => {
       const { data, error } = await supabase
         .from("collaborateurs")
-        .select("*")
+        .select("*, profiles:profile_id(id, email, role, is_active, last_login_at, avatar_url)")
         .eq("cabinet_id", cabinetId)
         .order("nom");
       if (error) {

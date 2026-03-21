@@ -99,6 +99,15 @@ export interface Client {
   typePersonne?: "morale" | "physique" | "exploitation" | "unknown";
 }
 
+export interface CollaborateurProfile {
+  id: string;
+  email: string;
+  role: string;
+  is_active: boolean;
+  last_login_at: string | null;
+  avatar_url: string | null;
+}
+
 export interface Collaborateur {
   id?: string;
   nom: string;
@@ -112,6 +121,9 @@ export interface Collaborateur {
   email: string;
   telephone?: string;
   dateRecrutement?: string;
+  profileId?: string | null;
+  isActive?: boolean;
+  profile?: CollaborateurProfile | null;
 }
 
 export interface AlerteRegistre {

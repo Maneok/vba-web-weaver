@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useDebounce } from "@/hooks/useDebounce";
 import { logger } from "@/lib/logger";
@@ -6,6 +6,7 @@ import { useAppState } from "@/lib/AppContext";
 import { collaborateursService } from "@/lib/supabaseService";
 import { formatDateFR } from "@/lib/dateUtils";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
@@ -19,7 +20,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import {
   Search, Users, Shield, Mail, UserPlus, Pencil, Trash2,
   ArrowUpDown, GraduationCap, Building2, AlertTriangle,
-  FileText, ClipboardCheck, AlertCircle, X,
+  FileText, ClipboardCheck, AlertCircle, X, Link2, Clock,
 } from "lucide-react";
 import { toast } from "sonner";
 import { FONCTION_OPTIONS, COMPETENCE_LEVELS } from "@/lib/constants";
@@ -33,6 +34,39 @@ import ControleInterne from "@/components/gouvernance/ControleInterne";
 import DeclarationsSoupcon from "@/components/gouvernance/DeclarationsSoupcon";
 
 // ─── Helpers ────────────────────────────────────────────────
+
+const ROLE_BADGE_COLORS: Record<string, string> = {
+  ADMIN: "bg-blue-500/15 text-blue-400",
+  SUPERVISEUR: "bg-purple-500/15 text-purple-400",
+  COLLABORATEUR: "bg-emerald-500/15 text-emerald-400",
+  STAGIAIRE: "bg-amber-500/15 text-amber-400",
+};
+
+function getInitials(nom: string) {
+  if (!nom) return "??";
+  return nom
+    .split(/\s+/)
+    .filter(w => w.length > 0)
+    .map(w => w[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2) || "??";
+}
+
+function formatRelativeTime(dateStr: string | null): string {
+  if (!dateStr) return "Jamais";
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return "Jamais";
+  const diffMs = Date.now() - d.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return "A l'instant";
+  if (diffMin < 60) return `Il y a ${diffMin} min`;
+  const diffH = Math.floor(diffMin / 60);
+  if (diffH < 24) return `Il y a ${diffH}h`;
+  const diffD = Math.floor(diffH / 24);
+  if (diffD < 30) return `Il y a ${diffD}j`;
+  return formatDateFR(dateStr);
+}
 
 function getFormationBadge(dateStr: string) {
   if (!dateStr) return { label: "Non renseigne", color: "bg-slate-500/15 text-slate-400 dark:text-slate-400" };
@@ -61,6 +95,7 @@ const EMPTY_FORM = {
 
 export default function GouvernancePage() {
   const { collaborateurs, isLoading, isOnline, refreshAll } = useAppState();
+  const { profile } = useAuth();
   const [activeTab, setActiveTab] = useState("organisation");
 
   useDocumentTitle("Gouvernance");
@@ -70,6 +105,9 @@ export default function GouvernancePage() {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showLinkDialog, setShowLinkDialog] = useState(false);
+  const [linkingCollab, setLinkingCollab] = useState<typeof collaborateurs[0] | null>(null);
+  const [selectedProfileId, setSelectedProfileId] = useState<string>("");
   const [editingCollab, setEditingCollab] = useState<typeof collaborateurs[0] | null>(null);
   const [deletingCollab, setDeletingCollab] = useState<typeof collaborateurs[0] | null>(null);
   const [newCollab, setNewCollab] = useState({ ...EMPTY_FORM });
@@ -77,6 +115,50 @@ export default function GouvernancePage() {
   const [saving, setSaving] = useState(false);
   const [sortField, setSortField] = useState<SortField>("nom");
   const [sortDir, setSortDir] = useState<SortDirection>("asc");
+
+  // Fetch unlinked profiles for the link dialog
+  const [unlinkedProfiles, setUnlinkedProfiles] = useState<Array<{ id: string; full_name: string; email: string; role: string }>>([]);
+  const linkedProfileIds = useMemo(() => collaborateurs.filter(c => c.profileId).map(c => c.profileId!), [collaborateurs]);
+
+  const fetchUnlinkedProfiles = useCallback(async () => {
+    if (!profile?.cabinet_id) return;
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, full_name, email, role")
+      .eq("cabinet_id", profile.cabinet_id);
+    if (data) {
+      setUnlinkedProfiles(data.filter(p => !linkedProfileIds.includes(p.id)));
+    }
+  }, [profile?.cabinet_id, linkedProfileIds]);
+
+  const handleLink = useCallback(async () => {
+    if (!linkingCollab?.id || !selectedProfileId) return;
+    setSaving(true);
+    try {
+      const result = await collaborateursService.update(linkingCollab.id, { profile_id: selectedProfileId });
+      if (!result) {
+        toast.error("Erreur lors de la liaison");
+        return;
+      }
+      await refreshAll();
+      setShowLinkDialog(false);
+      setLinkingCollab(null);
+      setSelectedProfileId("");
+      toast.success("Collaborateur lie au compte");
+    } catch (err) {
+      logger.error("Erreur liaison collaborateur", err);
+      toast.error("Erreur lors de la liaison");
+    } finally {
+      setSaving(false);
+    }
+  }, [linkingCollab, selectedProfileId, refreshAll]);
+
+  const openLink = (collab: typeof collaborateurs[0]) => {
+    setLinkingCollab(collab);
+    setSelectedProfileId("");
+    fetchUnlinkedProfiles();
+    setShowLinkDialog(true);
+  };
 
   // Debounced search for collaborateurs filtering
   const debouncedSearch = useDebounce(search, 300);
@@ -123,9 +205,18 @@ export default function GouvernancePage() {
       toast.error("Le nom est requis");
       return;
     }
-    if (newCollab.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newCollab.email)) {
+    const trimmedEmail = newCollab.email.trim();
+    if (trimmedEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
       toast.error("Email invalide");
       return;
+    }
+    // Check for duplicate email among existing collaborateurs
+    if (trimmedEmail) {
+      const existing = collaborateurs.find(c => c.email?.toLowerCase() === trimmedEmail.toLowerCase());
+      if (existing) {
+        toast.error("Un collaborateur avec cet email existe deja");
+        return;
+      }
     }
     setSaving(true);
     try {
@@ -134,10 +225,23 @@ export default function GouvernancePage() {
         setSaving(false);
         return;
       }
+      // Check if a profile exists with this email → auto-link
+      let autoProfileId: string | null = null;
+      if (trimmedEmail && profile?.cabinet_id) {
+        const { data: matchingProfile } = await supabase
+          .from("profiles")
+          .select("id")
+          .eq("cabinet_id", profile.cabinet_id)
+          .eq("email", trimmedEmail)
+          .maybeSingle();
+        if (matchingProfile) {
+          autoProfileId = matchingProfile.id;
+        }
+      }
       const result = await collaborateursService.create({
         nom: newCollab.nom.trim(),
         fonction: newCollab.fonction,
-        email: newCollab.email.trim(),
+        email: trimmedEmail,
         niveau_competence: newCollab.niveau_competence,
         suppleant: newCollab.suppleant,
         telephone: newCollab.telephone,
@@ -145,6 +249,7 @@ export default function GouvernancePage() {
         date_signature_manuel: newCollab.dateSignatureManuel || null,
         referent_lcb: newCollab.referentLcb,
         statut_formation: newCollab.derniereFormation ? getFormationBadge(newCollab.derniereFormation).label.toUpperCase() : "JAMAIS FORME",
+        ...(autoProfileId ? { profile_id: autoProfileId } : {}),
       });
       if (!result) {
         toast.error("Erreur lors de l'ajout du collaborateur");
@@ -153,14 +258,18 @@ export default function GouvernancePage() {
       await refreshAll();
       setNewCollab({ ...EMPTY_FORM });
       setShowAddDialog(false);
-      toast.success("Collaborateur ajoute avec succes");
+      if (autoProfileId) {
+        toast.success("Collaborateur ajoute et automatiquement lie au compte existant");
+      } else {
+        toast.success("Collaborateur ajoute avec succes");
+      }
     } catch (err: unknown) {
       logger.error("Erreur ajout collaborateur", err);
       toast.error("Erreur lors de l'ajout du collaborateur");
     } finally {
       setSaving(false);
     }
-  }, [newCollab, isOnline, refreshAll]);
+  }, [newCollab, isOnline, refreshAll, collaborateurs, profile?.cabinet_id]);
 
   const handleEdit = useCallback(async () => {
     if (!editingCollab?.id || !editForm.nom.trim()) {
@@ -384,25 +493,26 @@ export default function GouvernancePage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <SortableHeader field="nom">Nom</SortableHeader>
-                        <TableHead scope="col">Email</TableHead>
-                        <SortableHeader field="fonction">Role GRIMY</SortableHeader>
-                        <TableHead scope="col">Role LCB</TableHead>
-                        <SortableHeader field="niveauCompetence">Statut</SortableHeader>
-                        <SortableHeader field="derniereFormation">Derniere formation</SortableHeader>
+                        <SortableHeader field="nom">Collaborateur</SortableHeader>
+                        <SortableHeader field="fonction">Fonction</SortableHeader>
+                        <TableHead scope="col">Role systeme</TableHead>
+                        <TableHead scope="col">Compte</TableHead>
+                        <SortableHeader field="niveauCompetence">Competence</SortableHeader>
+                        <SortableHeader field="derniereFormation">Formation</SortableHeader>
+                        <TableHead scope="col">Derniere connexion</TableHead>
                         <TableHead scope="col">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {isLoading ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500" role="status" aria-live="polite">
+                          <TableCell colSpan={8} className="text-center py-8 text-slate-400 dark:text-slate-500" role="status" aria-live="polite">
                             Chargement...
                           </TableCell>
                         </TableRow>
                       ) : filtered.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-slate-400 dark:text-slate-500">
+                          <TableCell colSpan={8} className="text-center py-8 text-slate-400 dark:text-slate-500">
                             <Users className="w-6 h-6 mx-auto mb-2 opacity-40" />
                             Aucun collaborateur trouve
                           </TableCell>
@@ -412,39 +522,69 @@ export default function GouvernancePage() {
                           const badge = getFormationBadge(c.derniereFormation);
                           const compLevel = COMPETENCE_LEVELS.find(l => l.value === c.niveauCompetence);
                           const isExpired = badge.label === "Expiree" || badge.label === "A renouveler";
+                          const hasProfile = !!c.profileId;
+                          const profileRole = c.profile?.role;
                           return (
-                            <TableRow key={c.id || c.nom}>
-                              <TableCell className="font-medium">
-                                <div className="flex items-center gap-2">
-                                  {c.nom}
-                                  {c.referentLcb && (
-                                    <Tooltip>
-                                      <TooltipTrigger>
-                                        <Shield className="w-3.5 h-3.5 text-blue-400" />
-                                      </TooltipTrigger>
-                                      <TooltipContent>Referent LCB-FT</TooltipContent>
-                                    </Tooltip>
-                                  )}
+                            <TableRow key={c.id || c.nom} className={c.isActive === false ? "opacity-50" : ""}>
+                              {/* Collaborateur: avatar + nom + email + badges */}
+                              <TableCell>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-8 h-8 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center text-xs font-bold shrink-0">
+                                    {getInitials(c.nom)}
+                                  </div>
+                                  <div className="min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <span className="text-sm font-medium truncate">{c.nom}</span>
+                                      {c.referentLcb && (
+                                        <Tooltip>
+                                          <TooltipTrigger>
+                                            <Shield className="w-3.5 h-3.5 text-blue-400" />
+                                          </TooltipTrigger>
+                                          <TooltipContent>Referent LCB-FT</TooltipContent>
+                                        </Tooltip>
+                                      )}
+                                      {c.isActive === false && (
+                                        <Badge className="bg-red-500/15 text-red-400 text-[9px]">Inactif</Badge>
+                                      )}
+                                    </div>
+                                    <p className="text-xs text-slate-400 dark:text-slate-500 truncate">{c.email || "---"}</p>
+                                  </div>
                                 </div>
                               </TableCell>
-                              <TableCell className="text-sm text-slate-400 dark:text-slate-400">{c.email || "---"}</TableCell>
+                              {/* Fonction */}
                               <TableCell>
                                 <Badge variant="outline" className="text-xs">{c.fonction}</Badge>
-                              </TableCell>
-                              <TableCell>
-                                {c.referentLcb ? (
-                                  <Badge className="bg-blue-500/15 text-blue-400 text-xs">Referent LCB</Badge>
-                                ) : c.suppleant ? (
-                                  <Badge className="bg-purple-500/15 text-purple-400 text-xs">Suppleant</Badge>
-                                ) : (
-                                  <span className="text-xs text-slate-600">---</span>
+                                {c.referentLcb && (
+                                  <Badge className="bg-blue-500/15 text-blue-400 text-[10px] ml-1">LCB</Badge>
                                 )}
                               </TableCell>
+                              {/* Role systeme */}
+                              <TableCell>
+                                {hasProfile && profileRole ? (
+                                  <Badge className={`text-xs ${ROLE_BADGE_COLORS[profileRole] || "bg-slate-500/15 text-slate-400"}`}>
+                                    {profileRole}
+                                  </Badge>
+                                ) : (
+                                  <span className="text-xs text-slate-500">---</span>
+                                )}
+                              </TableCell>
+                              {/* Compte lie */}
+                              <TableCell>
+                                {hasProfile ? (
+                                  <Badge className="bg-emerald-500/15 text-emerald-400 text-[10px] gap-1">
+                                    <Link2 className="w-2.5 h-2.5" /> Lie
+                                  </Badge>
+                                ) : (
+                                  <Badge className="bg-slate-500/15 text-slate-400 text-[10px]">Manuel</Badge>
+                                )}
+                              </TableCell>
+                              {/* Competence */}
                               <TableCell>
                                 {compLevel && (
                                   <Badge className={`text-xs ${compLevel.color}`}>{compLevel.label}</Badge>
                                 )}
                               </TableCell>
+                              {/* Formation */}
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   <span className="text-sm">{formatDate(c.derniereFormation)}</span>
@@ -459,8 +599,30 @@ export default function GouvernancePage() {
                                   )}
                                 </div>
                               </TableCell>
+                              {/* Derniere connexion */}
+                              <TableCell>
+                                {hasProfile && c.profile?.last_login_at ? (
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                    <Clock className="w-3 h-3" />
+                                    {formatRelativeTime(c.profile.last_login_at)}
+                                  </div>
+                                ) : (
+                                  <span className="text-xs text-slate-500">---</span>
+                                )}
+                              </TableCell>
+                              {/* Actions */}
                               <TableCell>
                                 <div className="flex gap-1">
+                                  {!hasProfile && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-blue-400 hover:text-blue-300" onClick={() => openLink(c)} aria-label={`Lier ${c.nom} a un compte`}>
+                                          <Link2 className="w-3.5 h-3.5" />
+                                        </Button>
+                                      </TooltipTrigger>
+                                      <TooltipContent>Lier a un compte</TooltipContent>
+                                    </Tooltip>
+                                  )}
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => openEdit(c)} aria-label={`Modifier ${c.nom}`}>
@@ -626,6 +788,48 @@ export default function GouvernancePage() {
               <Button variant="destructive" onClick={handleDelete} disabled={deleting} className="gap-1.5">
                 <Trash2 className="w-3.5 h-3.5" /> {deleting ? "Suppression..." : "Supprimer"}
               </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+
+        {/* Link to profile dialog */}
+        <Dialog open={showLinkDialog} onOpenChange={setShowLinkDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Link2 className="w-5 h-5 text-blue-400" />
+                Lier a un compte
+              </DialogTitle>
+              <DialogDescription>
+                Associer <strong>{linkingCollab?.nom}</strong> a un compte utilisateur existant
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              {unlinkedProfiles.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">
+                  Aucun profil non lie disponible dans ce cabinet
+                </p>
+              ) : (
+                <div className="space-y-1.5">
+                  <Label className="text-xs text-slate-400">Selectionner un profil</Label>
+                  <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
+                    <SelectTrigger><SelectValue placeholder="Choisir un profil..." /></SelectTrigger>
+                    <SelectContent>
+                      {unlinkedProfiles.map(p => (
+                        <SelectItem key={p.id} value={p.id}>
+                          {p.full_name || p.email} ({p.role})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              <div className="flex gap-2 justify-end">
+                <Button variant="outline" onClick={() => setShowLinkDialog(false)} disabled={saving}>Annuler</Button>
+                <Button onClick={handleLink} disabled={saving || !selectedProfileId} className="gap-1.5">
+                  <Link2 className="w-3.5 h-3.5" /> {saving ? "Liaison..." : "Lier"}
+                </Button>
+              </div>
             </div>
           </DialogContent>
         </Dialog>

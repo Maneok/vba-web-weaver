@@ -159,6 +159,7 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
 }
 
 export function mapDbCollaborateur(row: Record<string, unknown>): Collaborateur {
+  const profileData = row.profiles as Record<string, unknown> | null | undefined;
   return {
     id: row.id != null ? String(row.id) : undefined,
     nom: str(row.nom),
@@ -172,6 +173,16 @@ export function mapDbCollaborateur(row: Record<string, unknown>): Collaborateur 
     email: str(row.email),
     telephone: row.telephone != null ? str(row.telephone) : undefined,
     dateRecrutement: row.date_recrutement != null ? str(row.date_recrutement) : undefined,
+    profileId: row.profile_id != null ? String(row.profile_id) : null,
+    isActive: row.is_active !== false,
+    profile: profileData && profileData.id ? {
+      id: String(profileData.id),
+      email: str(profileData.email),
+      role: str(profileData.role),
+      is_active: profileData.is_active !== false,
+      last_login_at: profileData.last_login_at != null ? String(profileData.last_login_at) : null,
+      avatar_url: profileData.avatar_url != null ? String(profileData.avatar_url) : null,
+    } : null,
   };
 }
 
