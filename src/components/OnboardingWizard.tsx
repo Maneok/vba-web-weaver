@@ -116,7 +116,7 @@ export default function OnboardingWizard() {
             "Authorization": `Bearer ${session.access_token}`,
             "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           },
-          body: JSON.stringify({ email: inviteEmail.trim(), role: inviteRole }),
+          body: JSON.stringify({ email: inviteEmail.trim(), fullName: inviteEmail.trim().split("@")[0], role: inviteRole }),
         }
       );
 

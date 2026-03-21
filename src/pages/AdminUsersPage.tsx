@@ -82,21 +82,48 @@ export default function AdminUsersPage() {
     setInviting(true);
 
     try {
-      // Invite user — signUp with email confirmation so they set their own password
-      const { error } = await supabase.auth.signUp({
-        email: inviteEmail,
-        password: crypto.randomUUID() + "Aa1!",
-        options: {
-          data: {
-            full_name: inviteName,
-            cabinet_id: profile.cabinet_id,
-            role: inviteRole,
-          },
-          emailRedirectTo: `${window.location.origin}/auth?invited=true`,
-        },
-      });
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        toast.error("Session expirée, veuillez vous reconnecter");
+        setInviting(false);
+        return;
+      }
 
-      if (error) throw error;
+      console.log('[INVITE] Calling invite-user with token:', session?.access_token ? 'present' : 'MISSING');
+
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/invite-user`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${session.access_token}`,
+            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            email: inviteEmail.trim().toLowerCase(),
+            fullName: inviteName.trim(),
+            role: inviteRole,
+          }),
+        }
+      );
+
+      if (response.status === 403) {
+        throw new Error("Seuls les administrateurs peuvent inviter");
+      }
+      if (response.status === 409) {
+        throw new Error("Ce collaborateur existe déjà dans le cabinet");
+      }
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Erreur ${response.status} lors de l'invitation`);
+      }
+
+      const resData = await response.json() as { error?: string; message?: string };
+      if (resData?.error) {
+        throw new Error(resData.error);
+      }
 
       await logAudit({
         action: "INVITATION_UTILISATEUR",
@@ -104,7 +131,7 @@ export default function AdminUsersPage() {
         new_data: { email: inviteEmail, role: inviteRole, full_name: inviteName },
       });
 
-      toast.success(`Invitation envoyee a ${inviteEmail}`);
+      toast.success(resData?.message || `Invitation envoyée à ${inviteEmail}`);
       setInviteOpen(false);
       setInviteEmail("");
       setInviteName("");
@@ -114,7 +141,6 @@ export default function AdminUsersPage() {
       const tryReload = (attempt: number) => {
         inviteTimerRef.current = setTimeout(async () => {
           await loadUsers();
-          // If user not found yet and we haven't exceeded retries, try again
           if (attempt < 3) tryReload(attempt + 1);
         }, 2000 * Math.pow(2, attempt));
       };
