@@ -61,8 +61,8 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.secondaire,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: 14,
+    marginBottom: 6,
   },
   sectionBandeauText: {
     color: colors.blanc,
@@ -81,7 +81,7 @@ export const styles = StyleSheet.create({
     fontSize: 9.5,
     lineHeight: 1.5,
     textAlign: "justify",
-    marginBottom: 6,
+    marginBottom: 4,
   },
   tableRow: {
     flexDirection: "row",
@@ -89,6 +89,14 @@ export const styles = StyleSheet.create({
     borderBottomColor: "#E0E0E0",
     minHeight: 22,
     alignItems: "center",
+  },
+  tableRowAlt: {
+    flexDirection: "row",
+    borderBottomWidth: 0.5,
+    borderBottomColor: "#E0E0E0",
+    minHeight: 22,
+    alignItems: "center",
+    backgroundColor: "#F2F5F8",
   },
   tableHeaderRow: {
     flexDirection: "row",
@@ -111,12 +119,13 @@ export const styles = StyleSheet.create({
   },
   watermark: {
     position: "absolute",
-    top: "35%",
-    left: "15%",
-    fontSize: 72,
-    color: colors.fond_watermark,
-    opacity: 0.15,
+    top: "40%",
+    left: "20%",
+    fontSize: 64,
+    color: "#D0D0D0",
+    opacity: 0.12,
     fontFamily: "Helvetica-Bold",
+    letterSpacing: 8,
   },
   signatureContainer: {
     flexDirection: "row",
@@ -130,8 +139,8 @@ export const styles = StyleSheet.create({
   },
   bulletPoint: {
     flexDirection: "row",
-    marginBottom: 3,
-    paddingLeft: 10,
+    marginBottom: 2,
+    paddingLeft: 12,
   },
   bulletSymbol: {
     width: 15,
@@ -148,8 +157,8 @@ export const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     color: colors.secondaire,
     textAlign: "center",
-    marginTop: 80,
-    marginBottom: 8,
+    marginTop: 30,
+    marginBottom: 6,
   },
   coverSubtitle: {
     fontSize: 14,
@@ -161,7 +170,7 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.gris,
     textAlign: "center",
-    marginBottom: 40,
+    marginBottom: 12,
   },
   coverInfoRow: {
     flexDirection: "row",
@@ -178,8 +187,8 @@ export const styles = StyleSheet.create({
   },
   // Destinataire
   destBlock: {
-    marginTop: 20,
-    padding: 12,
+    marginTop: 10,
+    padding: 8,
     borderWidth: 0.5,
     borderColor: colors.primaire,
     borderRadius: 2,
@@ -198,7 +207,7 @@ export const styles = StyleSheet.create({
 
 /** Safe string: never show undefined/null */
 export function s(v: unknown): string {
-  if (v === null || v === undefined || v === "") return "—";
+  if (v === null || v === undefined || v === "") return "\u2014";
   return String(v);
 }
 
@@ -212,11 +221,13 @@ export function safeNumber(val: unknown, fallback: number = 0): number {
 
 export function formatMontant(val: unknown): string {
   const n = safeNumber(val, 0);
-  if (n === 0) return "—";
-  return `${n.toLocaleString("fr-FR")} € HT`;
+  if (n === 0) return "\u2014";
+  const formatted = n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202F");
+  return `${formatted} \u20AC HT`;
 }
 
 export function formatMontantUnit(val: unknown, unit: string): string {
   const n = safeNumber(val, 0);
-  return `${n.toLocaleString("fr-FR")} € HT / ${unit}`;
+  const formatted = n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, "\u202F");
+  return `${formatted} \u20AC HT / ${unit}`;
 }

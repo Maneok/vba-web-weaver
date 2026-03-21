@@ -155,8 +155,8 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         <SectionBandeau title="Durée de la mission" />
         <Text style={styles.bodyText}>
           Notre mission prendra effet à la date de signature de la présente lettre de mission. Elle portera
-          sur les comptes de l'exercice comptable commençant le {s(client.exercice_debut)} et se terminant
-          le {s(client.exercice_fin)}.
+          sur les comptes de l'exercice comptable commençant le {s(client.exercice_debut) !== "—" ? s(client.exercice_debut) : `01/01/${new Date().getFullYear()}`} et se terminant
+          le {s(client.exercice_fin) !== "—" ? s(client.exercice_fin) : `31/12/${new Date().getFullYear()}`}.
         </Text>
         <Text style={styles.bodyText}>
           Cette lettre de mission restera en vigueur pour les exercices futurs, sauf en cas de résiliation,
@@ -290,19 +290,20 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData }> = ({ data }) => {
   const { cabinet, client, mission } = data;
   return (
     <View>
-      {/* Logo or cabinet name */}
+      {/* Logo + cabinet name */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
         <View>
           <Text style={{ fontSize: 9, color: colors.gris }}>Réf. {s(data.numero_lm)}</Text>
           <Text style={{ fontSize: 9, color: colors.gris }}>Date : {s(data.date_generation)}</Text>
         </View>
-        {cabinet.logo_base64 ? (
-          <Image src={cabinet.logo_base64} style={{ width: 100, height: 40 }} />
-        ) : (
-          <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: colors.secondaire }}>
+        <View style={{ alignItems: "flex-end" }}>
+          {cabinet.logo_base64 ? (
+            <Image src={cabinet.logo_base64} style={{ width: 100, height: 40 }} />
+          ) : null}
+          <Text style={{ fontSize: 13, fontFamily: "Helvetica-Bold", color: colors.secondaire, marginTop: cabinet.logo_base64 ? 4 : 0 }}>
             {s(cabinet.nom)}
           </Text>
-        )}
+        </View>
       </View>
 
       {/* Title */}
@@ -314,7 +315,7 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData }> = ({ data }) => {
       <View style={styles.separator} />
 
       {/* Info grid */}
-      <View style={{ marginBottom: 8 }}>
+      <View style={{ marginBottom: 4 }}>
         <View style={styles.coverInfoRow}>
           <Text style={styles.coverInfoLabel}>Cabinet :</Text>
           <Text style={styles.coverInfoValue}>{s(cabinet.nom)}</Text>
