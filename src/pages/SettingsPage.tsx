@@ -449,6 +449,10 @@ export default function SettingsPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [wasAutoPopulated, setWasAutoPopulated] = useState(false);
 
+  // Rename confirmation modal
+  const [showRenameConfirm, setShowRenameConfirm] = useState(false);
+  const [renameConfirmInput, setRenameConfirmInput] = useState("");
+
   // Dirty state helpers
   const dirtyCabinet = useMemo(() => JSON.stringify(cabinet) !== JSON.stringify(savedCabinetSnapshot), [cabinet, savedCabinetSnapshot]);
   const dirtyScoring = useMemo(() => JSON.stringify(scoring) !== JSON.stringify(savedScoringSnapshot), [scoring, savedScoringSnapshot]);
@@ -656,6 +660,17 @@ export default function SettingsPage() {
     }
   }, [userId, cabinetId, cabinet]);
 
+  // Gate: if nom changed, show confirmation modal first
+  const handleSaveCabinetClick = useCallback(() => {
+    const nomChanged = cabinet.nom.trim() !== savedCabinetSnapshot.nom.trim();
+    if (nomChanged && cabinet.nom.trim()) {
+      setRenameConfirmInput("");
+      setShowRenameConfirm(true);
+    } else {
+      saveCabinet();
+    }
+  }, [cabinet, savedCabinetSnapshot, saveCabinet]);
+
   const saveScoring = useCallback(async () => {
     if (!userId) return;
     const errors = validateScoring(scoring);
@@ -811,13 +826,13 @@ export default function SettingsPage() {
       if ((e.ctrlKey || e.metaKey) && e.key === "s") {
         e.preventDefault();
         const tab = activeTabRef.current;
-        if (tab === "cabinet") saveCabinet();
+        if (tab === "cabinet") handleSaveCabinetClick();
         else if (tab === "scoring") saveScoring();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [saveCabinet, saveScoring]);
+  }, [handleSaveCabinetClick, saveScoring]);
 
   /* --- tab change with unsaved changes warning --- */
   function handleTabChange(newTab: string) {
@@ -1447,7 +1462,7 @@ export default function SettingsPage() {
                   )}
                   <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">Ctrl+S</span>
                   <Button
-                    onClick={saveCabinet}
+                    onClick={handleSaveCabinetClick}
                     disabled={savingCabinet}
                     aria-label="Enregistrer les informations du cabinet"
                     className={`gap-2 transition-all duration-300 ${savedCabinet ? "bg-green-600 hover:bg-green-600" : ""}`}
@@ -1459,6 +1474,45 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+
+          {/* Rename confirmation modal */}
+          <AlertDialog open={showRenameConfirm} onOpenChange={setShowRenameConfirm}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Modifier le nom du cabinet ?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-3">
+                  <span className="block">Ce changement sera visible partout : sidebar, lettres de mission, documents. Cette action est irreversible.</span>
+                  <span className="block text-sm font-medium text-slate-700 dark:text-slate-300">
+                    Nouveau nom : <span className="font-bold">{cabinet.nom}</span>
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="space-y-2 py-2">
+                <Label htmlFor="rename-confirm" className="text-sm text-slate-500 dark:text-slate-400">Retapez le nouveau nom pour confirmer</Label>
+                <Input
+                  id="rename-confirm"
+                  value={renameConfirmInput}
+                  onChange={(e) => setRenameConfirmInput(e.target.value)}
+                  placeholder={cabinet.nom}
+                  autoFocus
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setRenameConfirmInput("")}>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  disabled={renameConfirmInput.trim() !== cabinet.nom.trim()}
+                  onClick={() => {
+                    setShowRenameConfirm(false);
+                    setRenameConfirmInput("");
+                    saveCabinet();
+                  }}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40"
+                >
+                  Confirmer
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </TabsContent>
 
         {/* ===== SCORING TAB ===== */}

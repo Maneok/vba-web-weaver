@@ -256,7 +256,7 @@ export default function AppLayout() {
                   aria-label="Ouvrir le menu utilisateur"
                   className="relative w-8 h-8 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 text-xs font-semibold flex items-center justify-center hover:bg-blue-500/20 transition-colors duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-400"
                 >
-                  {userInitials}
+                  {headerInitials}
                   <span
                     className={`absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full border-[1.5px] border-white dark:border-slate-900 ${
                       isOnline && session ? "bg-emerald-400 status-dot-live" : "bg-red-400"
