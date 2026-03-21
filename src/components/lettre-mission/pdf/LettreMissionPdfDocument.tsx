@@ -62,7 +62,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         <Page size="A4" style={styles.page} wrap>
           <Header />
           <Footer />
-          {data.is_brouillon && <Text style={styles.watermark}>PROJET</Text>}
+          {data.is_brouillon && <Text style={styles.watermark} fixed>PROJET</Text>}
 
           {/* Cover */}
           <RenderCover data={data} />
@@ -87,7 +87,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
       <Page size="A4" style={styles.page} wrap>
         <Header />
         <Footer />
-        {data.is_brouillon && <Text style={styles.watermark}>PROJET</Text>}
+        {data.is_brouillon && <Text style={styles.watermark} fixed>PROJET</Text>}
 
         {/* PAGE DE GARDE */}
         <RenderCover data={data} />
@@ -113,8 +113,10 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.introduction}</Text>
 
         {/* VOTRE ENTITÉ */}
-        <SectionBandeau title="Votre entité" />
-        <PdfTableEntite client={client} />
+        <View wrap={false}>
+          <SectionBandeau title="Votre entité" />
+          <PdfTableEntite client={client} />
+        </View>
 
         {/* ORGANISATION ET TRANSMISSION */}
         <SectionBandeau title="Organisation et transmission" />
@@ -355,7 +357,7 @@ const RenderSnapshotSection: React.FC<{
   // Special rendering for table sections
   if (section.id === "entite" || content === "TABLEAU_ENTITE") {
     return (
-      <View>
+      <View wrap={false}>
         <SectionBandeau title={section.titre} />
         <PdfTableEntite client={data.client} />
       </View>

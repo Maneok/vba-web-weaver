@@ -12,6 +12,7 @@ import type {
   PdfRepartitionRow,
 } from "@/types/lettreMissionPdf";
 import { DEFAULT_REPARTITION, DEFAULT_CABINET } from "@/lib/lettreMissionDefaults";
+import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
 
 // ══════════════════════════════════════════════
 // IMPORTANT: @react-pdf/renderer and PDF components are loaded via dynamic
@@ -175,13 +176,16 @@ export async function renderLettreMissionPdf(
         tva: false,
         cac: false,
       },
-      mission: {
-        type_principal: "Présentation des comptes",
-        norme_applicable: "NP 2300",
-        mission_sociale: Boolean(opts.missionSociale),
-        mission_juridique: Boolean(opts.missionJuridique),
-        controle_fiscal: Boolean(opts.missionControleFiscal),
-      },
+      mission: (() => {
+        const mtConf = getMissionTypeConfig(opts.missionTypeId || "presentation");
+        return {
+          type_principal: mtConf.label || "Présentation des comptes",
+          norme_applicable: mtConf.normeRef || "NP 2300",
+          mission_sociale: Boolean(opts.missionSociale),
+          mission_juridique: Boolean(opts.missionJuridique),
+          controle_fiscal: Boolean(opts.missionControleFiscal),
+        };
+      })(),
       honoraires: buildDefaultHonoraires(lm),
       lcbft: buildDefaultLcbft(client),
       repartition: DEFAULT_REPARTITION,

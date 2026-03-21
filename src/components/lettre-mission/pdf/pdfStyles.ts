@@ -61,7 +61,7 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.secondaire,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    marginTop: 16,
+    marginTop: 24,
     marginBottom: 8,
   },
   sectionBandeauText: {

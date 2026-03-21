@@ -226,6 +226,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
         const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
         const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
+        const clientForPdf = buildClientFromWizardData(sanitized);
         await generatePdfFromInstance({
           sections_snapshot: resolved,
           cgv_snapshot: modele.cgv_content,
@@ -233,7 +234,15 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
           numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
           status: data.statut,
           mission_type: data.mission_type_id || modele.mission_type || "presentation",
-        }, cabinetInfo, { signatureExpert: data.signature_expert, signatureClient: data.signature_client });
+        }, cabinetInfo, {
+          signatureExpert: data.signature_expert,
+          signatureClient: data.signature_client,
+          client: clientForPdf,
+          honoraires: {
+            honorairesComptable: data.honoraires_ht,
+            periodicite: data.frequence_facturation,
+          },
+        });
         toast.success("PDF genere depuis le modele");
         return;
       } catch (err) {
@@ -277,6 +286,7 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         const varsMap = buildVariablesMap(sanitized as unknown as Record<string, unknown>);
         const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
         const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
+        const clientForDocx = buildClientFromWizardData(sanitized);
         await generateDocxFromInstance({
           sections_snapshot: resolved,
           cgv_snapshot: modele.cgv_content,
@@ -284,7 +294,20 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
           numero: data.numero_lettre || `LM-${new Date().getFullYear()}-001`,
           status: data.statut,
           mission_type: data.mission_type_id || modele.mission_type || "presentation",
-        }, cabinetInfo);
+        }, cabinetInfo, {
+          raison_sociale: clientForDocx.raisonSociale,
+          forme_juridique: clientForDocx.forme,
+          nom_dirigeant: clientForDocx.dirigeant,
+          adresse: clientForDocx.adresse,
+          code_postal: clientForDocx.cp,
+          ville: clientForDocx.ville,
+          siren: clientForDocx.siren,
+          code_ape: clientForDocx.ape,
+          capital_social: clientForDocx.capital ? String(clientForDocx.capital) : "",
+        }, {
+          forfait_annuel_ht: data.honoraires_ht,
+          frequence_facturation: data.frequence_facturation || "MENSUEL",
+        });
         toast.success("DOCX genere depuis le modele");
         return;
       } catch (err) {

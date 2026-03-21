@@ -7,7 +7,7 @@ interface Props {
   rows: PdfRepartitionRow[];
 }
 
-const checkmark = "\u00A7"; // §
+const checkmark = "\u2713"; // ✓
 
 const PdfTableRepartition: React.FC<Props> = ({ rows }) => {
   let lastCategorie = "";
