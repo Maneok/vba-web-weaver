@@ -7,6 +7,15 @@ interface Props {
   data: LettreMissionPdfData;
 }
 
+const signatureBoxStyle = {
+  marginTop: 24,
+  borderWidth: 0.5,
+  borderColor: colors.gris,
+  borderStyle: "dashed" as const,
+  padding: 14,
+  paddingBottom: 50,
+};
+
 const PdfAnnexes: React.FC<Props> = ({ data }) => {
   const { client, cabinet } = data;
 
@@ -41,11 +50,13 @@ const PdfAnnexes: React.FC<Props> = ({ data }) => {
           </Text>
         </View>
 
-        <View style={[styles.signatureContainer, { marginTop: 30 }]}>
-          <View style={styles.signatureBlock}>
-            <Text style={{ fontSize: 9, marginBottom: 30 }}>Fait à {s(client.ville)}, le _______________</Text>
-            <Text style={{ fontSize: 8, color: colors.gris }}>Signature du dirigeant</Text>
-          </View>
+        <View style={signatureBoxStyle}>
+          <Text style={{ fontSize: 9, color: colors.texte }}>
+            Fait à {s(client.ville)}, le ___/___/______
+          </Text>
+          <Text style={{ fontSize: 8, color: colors.gris, marginTop: 14 }}>
+            Signature du dirigeant :
+          </Text>
         </View>
       </View>
 
@@ -90,11 +101,13 @@ const PdfAnnexes: React.FC<Props> = ({ data }) => {
           </View>
         </View>
 
-        <View style={[styles.signatureContainer, { marginTop: 30 }]}>
-          <View style={styles.signatureBlock}>
-            <Text style={{ fontSize: 9, marginBottom: 30 }}>Date : _______________</Text>
-            <Text style={{ fontSize: 8, color: colors.gris }}>Signature du débiteur</Text>
-          </View>
+        <View style={signatureBoxStyle}>
+          <Text style={{ fontSize: 9, color: colors.texte }}>
+            Date : ___/___/______
+          </Text>
+          <Text style={{ fontSize: 8, color: colors.gris, marginTop: 14 }}>
+            Signature du débiteur :
+          </Text>
         </View>
       </View>
 
@@ -113,11 +126,13 @@ const PdfAnnexes: React.FC<Props> = ({ data }) => {
           lettre recommandée avec accusé de réception.
         </Text>
 
-        <View style={[styles.signatureContainer, { marginTop: 30 }]}>
-          <View style={styles.signatureBlock}>
-            <Text style={{ fontSize: 9, marginBottom: 30 }}>Fait à {s(client.ville)}, le _______________</Text>
-            <Text style={{ fontSize: 8, color: colors.gris }}>Signature et cachet</Text>
-          </View>
+        <View style={signatureBoxStyle}>
+          <Text style={{ fontSize: 9, color: colors.texte }}>
+            Fait à {s(client.ville)}, le ___/___/______
+          </Text>
+          <Text style={{ fontSize: 8, color: colors.gris, marginTop: 14 }}>
+            Signature et cachet :
+          </Text>
         </View>
       </View>
     </>
