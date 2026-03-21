@@ -30,7 +30,7 @@ const vigilanceBg = (n: string, _theme: PdfTheme) => {
 
 const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
   const theme = themeIn || DEFAULT_THEME;
-  const score = Math.max(0, Math.min(120, safeNumber(lcbft.score_risque, 0)));
+  const score = Math.max(0, Math.min(100, safeNumber(lcbft.score_risque, 0)));
   const vColor = vigilanceColor(lcbft.niveau_vigilance, theme);
 
   // Split vigilance text into the two logical parts
@@ -57,7 +57,7 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
       <View style={{ flexDirection: "row", marginBottom: 8 }} wrap={false}>
         {/* Score Gauge on the left */}
         <View style={{ width: 76, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
-          <ScoreGauge score={score} max={120} color={vColor} />
+          <ScoreGauge score={score} max={100} color={vColor} />
         </View>
 
         {/* Table 1 on the right */}
@@ -116,7 +116,7 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
                   paddingVertical: 5,
                 }}
               >
-                {score} / 120
+                {score} / 100
               </Text>
               <View style={{ flex: 1, paddingHorizontal: 8, paddingVertical: 4 }}>
                 <Badge
@@ -232,17 +232,17 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
         }}
         wrap={false}
       >
-        {/* Encadre header */}
+        {/* Encadre header — opt 12: harmonized with section banners */}
         <View
           style={{
             backgroundColor: theme.secondaire,
             paddingVertical: 5,
-            paddingHorizontal: 10,
+            paddingHorizontal: 14,
           }}
         >
           <Text
             style={{
-              fontSize: 8.5,
+              fontSize: 10,
               color: "#FFFFFF",
               fontFamily: "Helvetica-Bold",
               textTransform: "uppercase",

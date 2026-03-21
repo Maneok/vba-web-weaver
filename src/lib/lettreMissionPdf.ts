@@ -302,7 +302,8 @@ export async function generatePdfFromInstance(
   options?: { signatureExpert?: string; signatureClient?: string; client?: any; honoraires?: any }
 ): Promise<void> {
   try {
-    const repartition: PdfRepartitionRow[] = instance.repartition_snapshot
+    // BUG G — if old snapshot has < 15 rows, use new complete DEFAULT_REPARTITION
+    const repartition: PdfRepartitionRow[] = instance.repartition_snapshot && instance.repartition_snapshot.length > 15
       ? instance.repartition_snapshot.map((r) => ({
           tache: r.label,
           cabinet: r.cabinet,
@@ -351,8 +352,8 @@ export async function generatePdfFromInstance(
       honoraires: options?.honoraires ? buildDefaultHonoraires({ options: options.honoraires }) : buildDefaultHonoraires(),
       lcbft: options?.client ? buildDefaultLcbft(options.client) : { score_risque: 0, niveau_vigilance: "STANDARD", statut_ppe: false },
       repartition,
-      // BUG 6 fix: prefer actual person name, never fall back to cabinet name
-      expert_responsable: (options as any)?.associeSignataire || (options as any)?.expert_responsable || (cabinet as any)?.responsable_nom || (cabinet as any)?.responsable || "",
+      // BUG 6/E fix: prefer actual person name, never fall back to cabinet name
+      expert_responsable: (options as any)?.associeSignataire || (options as any)?.expert_responsable || (cabinet as any)?.responsable_nom || (cabinet as any)?.responsable || (cabinet as any)?.expert_nom || "",
       periodicite_transmission: "Mensuelle",
       outil_transmission: "GRIMY",
       is_brouillon: instance.status === "brouillon" || instance.status === "en_validation",

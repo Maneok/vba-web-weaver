@@ -48,9 +48,10 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   // C1/C2 — consistency constants
   const cabinetNom = s(cabinet.nom);
 
-  // BUG 6 / C5 — expert name: prefer data, never show cabinet name, never show "—"
-  const expertName = data.expert_responsable && data.expert_responsable !== cabinet.nom && data.expert_responsable !== "\u2014"
-    ? data.expert_responsable : "";
+  // BUG 6 / C5 / BUG E — expert name: prefer data, never show cabinet name, never show "—"
+  const expertName = data.expert_responsable && data.expert_responsable !== cabinet.nom && data.expert_responsable !== "\u2014" && data.expert_responsable !== ""
+    ? data.expert_responsable
+    : (data as any).responsable_mission || "";
 
   // C3 — normalized SIREN for consistent display
   const clientSiren = normalizeSiren(client.siren || "");
@@ -109,7 +110,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
             ))}
 
           {/* CGV */}
-          <PdfConditionsGenerales cgv_override={data.cgv_snapshot} cabinet_nom={s(cabinet.nom)} theme={theme} />
+          <PdfConditionsGenerales cgv_override={data.cgv_snapshot} cabinet_nom={s(cabinet.nom)} theme={theme} date_generation={data.date_generation} />
         </Page>
       </Document>
     );
@@ -303,7 +304,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
             <SignatureBox
               label="L'Expert-comptable"
               boldName
-              name={expertName || s(cabinet.nom)}
+              name={expertName || undefined}
               signatureImage={data.signature_expert}
             />
             <SignatureBox
@@ -366,7 +367,7 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
         </View>
         <View style={{ alignItems: "flex-end" }}>
           {hasValidLogo ? (
-            <Image src={cabinet.logo_base64!} style={{ width: 90 }} />
+            <Image src={cabinet.logo_base64!} style={{ width: 80 }} />
           ) : (
             <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>
               {s(cabinet.nom)}
@@ -417,11 +418,26 @@ const RenderSnapshotSection: React.FC<{
   theme: PdfTheme;
 }> = ({ section, data, theme }) => {
   // B13 — sanitize text content for PDF + BUG 3/4: replace ª and resolve variables
+  // BUG B — auto-fix legacy "par sondages" text from old snapshots
+  // BUG D — resolve unresolved template variables
+  // BUG F — resolve {{nom_cabinet}} / {{cabinet_nom}}
+  const rawDateDebut = (data.client.exercice_debut || "").trim();
+  const dateDebut = rawDateDebut && rawDateDebut !== "\u2014" && rawDateDebut.length > 2
+    ? rawDateDebut : `01/01/${new Date().getFullYear()}`;
+  const rawDateFin = (data.client.exercice_fin || "").trim();
+  const dateFin = rawDateFin && rawDateFin !== "\u2014" && rawDateFin.length > 2
+    ? rawDateFin : `31/12/${new Date().getFullYear()}`;
   const content = sanitizeForPdf(section.contenu || "")
     .replace(/ª/g, "▪")
-    .replace(/\{\{nom_cabinet\}\}/g, data.cabinet.nom || "")
-    .replace(/\{\{cabinet_nom\}\}/g, data.cabinet.nom || "")
-    .replace(/\{\{adresse_cabinet\}\}/g, `${data.cabinet.adresse || ""}, ${data.cabinet.cp || ""} ${data.cabinet.ville || ""}`);
+    .replace(/\{\{nom_cabinet\}\}/g, data.cabinet.nom || "CABINET")
+    .replace(/\{\{cabinet_nom\}\}/g, data.cabinet.nom || "CABINET")
+    .replace(/\{\{adresse_cabinet\}\}/g, `${data.cabinet.adresse || ""}, ${data.cabinet.cp || ""} ${data.cabinet.ville || ""}`)
+    .replace(/\{\{date_cloture\}\}/g, dateFin)
+    .replace(/\{\{date_du_jour\}\}/g, data.date_generation || new Date().toLocaleDateString("fr-FR"))
+    .replace(/\{\{exercice_debut\}\}/g, dateDebut)
+    .replace(/\{\{exercice_fin\}\}/g, dateFin)
+    .replace(/effectués par sondages\b[^.]*/g, "effectués par notre cabinet uniquement par épreuves, et ne portent donc pas sur l'appréciation de la légalité et de la fiabilité des documents présentés")
+    .replace(/par sondages\./g, "par notre cabinet uniquement par épreuves, et ne portent donc pas sur l'appréciation de la légalité et de la fiabilité des documents présentés.");
 
   // Skip empty sections (B15)
   if (!content.trim() && section.id !== "entite" && section.id !== "honoraires" && section.id !== "annexe_repartition" && section.id !== "lcbft") {
@@ -429,9 +445,10 @@ const RenderSnapshotSection: React.FC<{
   }
 
   // Special rendering for table sections
+  // BUG C — break before entity table to prevent orphaned blue header at page bottom
   if (section.id === "entite" || content === "TABLEAU_ENTITE") {
     return (
-      <View>
+      <View break>
         <SectionBanner title={section.titre} theme={theme} />
         <PdfTableEntite client={data.client} theme={theme} />
       </View>
@@ -478,10 +495,13 @@ const RenderSnapshotSection: React.FC<{
     );
   }
 
+  // BUG H — annexes on separate pages in snapshot mode
+  const isAnnexe = section.id.startsWith("annexe_") || section.id.startsWith("Annexe") || /^annexe/i.test(section.id);
+
   // Generic text section — C9: wrap={false} on bandeau + first paragraph
   const paragraphs = content.split("\n\n").filter(Boolean);
   return (
-    <View>
+    <View break={isAnnexe}>
       {paragraphs.map((p, i) => {
         // Handle bullet points
         if (p.includes("\n▪") || p.includes("\n\u2014") || p.includes("\n☐")) {
@@ -519,8 +539,9 @@ const RenderSnapshotSection: React.FC<{
 
 const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissionPdfData; theme: PdfTheme }> = ({ data, theme }) => {
   const dateLong = formatDateLong(data.date_generation);
-  const expName = data.expert_responsable && data.expert_responsable !== data.cabinet.nom && data.expert_responsable !== "\u2014"
-    ? data.expert_responsable : "";
+  const expName = data.expert_responsable && data.expert_responsable !== data.cabinet.nom && data.expert_responsable !== "\u2014" && data.expert_responsable !== ""
+    ? data.expert_responsable
+    : (data as any).responsable_mission || "";
   return (
     <View>
       <Text style={styles.bodyText}>
@@ -533,7 +554,8 @@ const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissio
       <View style={styles.signatureContainer}>
         <SignatureBox
           label="L'Expert-comptable"
-          name={expName || s(data.cabinet.nom)}
+          boldName
+          name={expName || undefined}
           signatureImage={data.signature_expert}
         />
         <SignatureBox

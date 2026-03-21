@@ -77,14 +77,15 @@ export const styles = StyleSheet.create({
     backgroundColor: colors.secondaire,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    marginTop: 12, // opt 14
-    marginBottom: 4, // opt 15
+    marginTop: 14, // opt 11 — uniform
+    marginBottom: 6, // opt 11 — uniform
   },
   sectionBandeauText: {
     color: colors.blanc,
-    fontSize: 11,
+    fontSize: 10, // opt 9 — harmonized
     fontFamily: "Helvetica-Bold",
     textTransform: "uppercase",
+    letterSpacing: 0.3, // opt 9
   },
   sectionSubtitle: {
     fontSize: 10,
@@ -177,15 +178,15 @@ export const styles = StyleSheet.create({
     textAlign: "center",
     textTransform: "uppercase", // opt 4
     marginTop: 20, // opt 3
-    marginBottom: 2,
+    marginBottom: 8, // opt 1 — sufficient spacing to avoid subtitle overlap
   },
   coverSubtitle: {
-    fontSize: 12,
+    fontSize: 11, // opt 2 — reduced from 12
     fontFamily: "Helvetica-Bold",
     color: colors.primaire,
     textAlign: "center",
     textTransform: "uppercase", // opt 5
-    marginTop: 6,
+    marginTop: 4, // opt 2 — visible gap
     marginBottom: 4,
   },
   coverNorme: {
@@ -207,21 +208,23 @@ export const styles = StyleSheet.create({
     fontSize: 10, // opt 7
     fontFamily: "Helvetica-Bold", // opt 7
   },
-  // Destinataire
+  // Destinataire — opt 8: accent left border
   destBlock: {
     marginTop: 8, // opt 9
     padding: 8,
-    borderWidth: 0.5,
-    borderColor: colors.primaire,
-    borderRadius: 2,
+    paddingLeft: 12, // opt 8
+    borderWidth: 0,
+    borderLeftWidth: 3, // opt 8
+    borderLeftColor: colors.primaire,
+    borderRadius: 0,
   },
   destText: {
     fontSize: 10,
     lineHeight: 1.5,
   },
-  // Separator line
+  // Separator line — opt 6 fine 1pt line
   separator: {
-    borderBottomWidth: 1,
+    borderBottomWidth: 0.5,
     borderBottomColor: colors.primaire,
     marginVertical: 8, // opt 8 — tighter
   },

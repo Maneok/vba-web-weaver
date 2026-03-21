@@ -8,6 +8,7 @@ interface Props {
   cgv_override?: string;
   cabinet_nom: string;
   theme?: PdfTheme;
+  date_generation?: string;
 }
 
 // Circle-numbered article heading
@@ -29,8 +30,10 @@ const articleSeparator = {
   marginBottom: 4,
 };
 
-const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom, theme: themeIn }) => {
+const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom, theme: themeIn, date_generation }) => {
   const theme = themeIn || DEFAULT_THEME;
+  // opt 46 — dynamic date
+  const dateVigueur = date_generation || new Date().toLocaleDateString("fr-FR");
 
   // If there's a CGV override string (from modele), render it as plain text paragraphs
   if (cgv_override) {
@@ -39,7 +42,7 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom, th
       <View break>
         <SectionBanner title="Conditions Générales d'Intervention" theme={theme} />
         <Text style={{ fontSize: 7.5, color: theme.muted, marginBottom: 6 }}>
-          {cabinet_nom} — Conditions en vigueur
+          {cabinet_nom} — Conditions en vigueur au {dateVigueur}
         </Text>
         {paragraphs.map((p, i) => {
           const match = p.match(/^(\d+)\.\s*(.+)/);
@@ -74,7 +77,7 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom, th
     <View break>
       <SectionBanner title="Conditions Générales d'Intervention" theme={theme} />
       <Text style={{ fontSize: 7.5, color: theme.muted, marginBottom: 6 }}>
-        {cabinet_nom} — Conditions en vigueur
+        {cabinet_nom} — Conditions en vigueur au {dateVigueur}
       </Text>
       {TEXTES_CGV.map((article, idx) => (
         <View key={article.numero} style={{ marginBottom: 4 }}>
