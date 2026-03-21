@@ -488,15 +488,17 @@ export function calculateRiskScore(params: {
 }
 
 // ====== REVIEW DATE CALCULATION ======
-export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview: string): string {
+export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview: string, config?: ScoringConfig): string {
   let d = new Date(lastReview);
   // P5-11: Guard against invalid date — fallback to today (iterative, no recursion)
   if (isNaN(d.getTime())) d = new Date();
-  // Use UTC methods to avoid timezone-dependent date shifts
+  const moisSimp = config?.revue_simplifiee_mois ?? 36;
+  const moisStd = config?.revue_standard_mois ?? 24;
+  const moisRenf = config?.revue_renforcee_mois ?? 12;
   switch (nivVigilance) {
-    case "SIMPLIFIEE": d.setUTCFullYear(d.getUTCFullYear() + 2); break;
-    case "STANDARD": d.setUTCFullYear(d.getUTCFullYear() + 1); break;
-    case "RENFORCEE": d.setUTCMonth(d.getUTCMonth() + 6); break;
+    case "SIMPLIFIEE": d.setUTCMonth(d.getUTCMonth() + moisSimp); break;
+    case "STANDARD": d.setUTCMonth(d.getUTCMonth() + moisStd); break;
+    case "RENFORCEE": d.setUTCMonth(d.getUTCMonth() + moisRenf); break;
   }
   return d.toISOString().split("T")[0];
 }
@@ -509,7 +511,8 @@ export function calculateNextReviewDate(nivVigilance: VigilanceLevel, lastReview
 export function calculateReviewDueDate(
   nivVigilance: VigilanceLevel,
   dateDerniereRevue: string,
-  dateCreationLigne: string
+  dateCreationLigne: string,
+  config?: ScoringConfig
 ): string {
   const revue = dateDerniereRevue ? new Date(dateDerniereRevue) : null;
   const creation = dateCreationLigne ? new Date(dateCreationLigne) : null;
@@ -525,10 +528,13 @@ export function calculateReviewDueDate(
     baseDate = new Date();
   }
 
+  const moisSimp = config?.revue_simplifiee_mois ?? 36;
+  const moisStd = config?.revue_standard_mois ?? 24;
+  const moisRenf = config?.revue_renforcee_mois ?? 12;
   switch (nivVigilance) {
-    case "SIMPLIFIEE": baseDate.setFullYear(baseDate.getFullYear() + 2); break;
-    case "STANDARD": baseDate.setFullYear(baseDate.getFullYear() + 1); break;
-    case "RENFORCEE": baseDate.setMonth(baseDate.getMonth() + 6); break;
+    case "SIMPLIFIEE": baseDate.setMonth(baseDate.getMonth() + moisSimp); break;
+    case "STANDARD": baseDate.setMonth(baseDate.getMonth() + moisStd); break;
+    case "RENFORCEE": baseDate.setMonth(baseDate.getMonth() + moisRenf); break;
   }
   return baseDate.toISOString().split("T")[0];
 }
@@ -607,7 +613,7 @@ export function recalculateClientRisk(client: {
 }, scoringData?: ScoringData) {
   const risk = calculateRiskScore(client, scoringData);
   const now = new Date().toISOString().split("T")[0];
-  const dateButoir = calculateNextReviewDate(risk.nivVigilance, now);
+  const dateButoir = calculateNextReviewDate(risk.nivVigilance, now, scoringData?.config);
   return {
     ...risk,
     dateDerniereRevue: now,

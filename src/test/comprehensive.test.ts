@@ -87,10 +87,12 @@ describe("riskEngine — calculateRiskScore", () => {
     expect(r.nivVigilance).toBe("RENFORCEE");
   });
 
-  it("3. atypique forces score 100", () => {
+  it("3. atypique adds configurable malus (default 15)", () => {
     const r = calculateRiskScore({ ...baseRiskParams, atypique: true });
-    expect(r.scoreGlobal).toBe(100);
-    expect(r.nivVigilance).toBe("RENFORCEE");
+    expect(r.malus).toBe(15);
+    // avg=(25+0+25+0+20)/5=14, +15 malus=29 → STANDARD
+    expect(r.scoreGlobal).toBe(29);
+    expect(r.nivVigilance).toBe("STANDARD");
   });
 
   it("4. paysRisque=true gives scorePays=100", () => {
@@ -194,16 +196,16 @@ describe("riskEngine — vigilance levels", () => {
 // 21-25: REVIEW DATES & PILOTAGE STATUS
 // ============================================================
 describe("riskEngine — review dates & pilotage", () => {
-  it("21. SIMPLIFIEE adds 3 years", () => {
-    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2026-01-15");
+  it("21. SIMPLIFIEE adds 36 months (default)", () => {
+    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2027-01-15");
   });
 
-  it("22. STANDARD adds 1 year", () => {
-    expect(calculateNextReviewDate("STANDARD", "2024-06-01")).toBe("2025-06-01");
+  it("22. STANDARD adds 24 months (default)", () => {
+    expect(calculateNextReviewDate("STANDARD", "2024-06-01")).toBe("2026-06-01");
   });
 
-  it("23. RENFORCEE adds 6 months", () => {
-    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2024-07-01");
+  it("23. RENFORCEE adds 12 months (default)", () => {
+    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2025-01-01");
   });
 
   it("24. invalid date falls back to today", () => {
@@ -255,21 +257,21 @@ describe("riskEngine — normalizeAddress", () => {
 // 33-35: calculateDateButoir
 // ============================================================
 describe("riskEngine — calculateDateButoir", () => {
-  it("33. SIMPLIFIEE => +2 years", () => {
+  it("33. SIMPLIFIEE => +36 months (default)", () => {
     const result = calculateDateButoir("SIMPLIFIEE");
-    const expected = new Date(); expected.setFullYear(expected.getFullYear() + 2);
+    const expected = new Date(); expected.setMonth(expected.getMonth() + 36);
     expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 
-  it("34. STANDARD => +1 year", () => {
+  it("34. STANDARD => +24 months (default)", () => {
     const result = calculateDateButoir("STANDARD");
-    const expected = new Date(); expected.setFullYear(expected.getFullYear() + 1);
+    const expected = new Date(); expected.setMonth(expected.getMonth() + 24);
     expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 
-  it("35. RENFORCEE => +6 months", () => {
+  it("35. RENFORCEE => +12 months (default)", () => {
     const result = calculateDateButoir("RENFORCEE");
-    const expected = new Date(); expected.setMonth(expected.getMonth() + 6);
+    const expected = new Date(); expected.setMonth(expected.getMonth() + 12);
     expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 });

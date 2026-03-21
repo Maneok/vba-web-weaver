@@ -125,20 +125,20 @@ describe("#1: riskEngine — future dateCreation guard", () => {
 // #2: riskEngine — UTC-based review date calculation
 // ============================================================
 describe("#2: riskEngine — timezone-safe review dates", () => {
-  it("should add 2 years for SIMPLIFIEE", () => {
-    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2026-01-15");
+  it("should add 36 months for SIMPLIFIEE (default)", () => {
+    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2027-01-15");
   });
 
-  it("should add 1 year for STANDARD", () => {
-    expect(calculateNextReviewDate("STANDARD", "2024-06-01")).toBe("2025-06-01");
+  it("should add 24 months for STANDARD (default)", () => {
+    expect(calculateNextReviewDate("STANDARD", "2024-06-01")).toBe("2026-06-01");
   });
 
-  it("should add 6 months for RENFORCEE consistently (UTC-safe)", () => {
-    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2024-07-01");
+  it("should add 12 months for RENFORCEE (default)", () => {
+    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2025-01-01");
   });
 
   it("should handle year boundary for RENFORCEE", () => {
-    expect(calculateNextReviewDate("RENFORCEE", "2024-09-15")).toBe("2025-03-15");
+    expect(calculateNextReviewDate("RENFORCEE", "2024-09-15")).toBe("2025-09-15");
   });
 
   it("should fallback to today for invalid date", () => {

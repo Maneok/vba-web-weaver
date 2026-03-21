@@ -176,21 +176,21 @@ describe("normalizeAddress", () => {
 // 3. calculateDateButoir — 3 tests
 // ─────────────────────────────────────────────
 describe("calculateDateButoir", () => {
-  it("returns a date 2 years ahead for SIMPLIFIEE", () => {
+  it("returns a date 36 months ahead for SIMPLIFIEE (default)", () => {
     const result = calculateDateButoir("SIMPLIFIEE");
-    const year = parseInt(result.slice(0, 4), 10);
-    expect(year).toBe(new Date().getFullYear() + 2);
+    const expected = new Date(); expected.setMonth(expected.getMonth() + 36);
+    expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 
-  it("returns a date 1 year ahead for STANDARD", () => {
+  it("returns a date 24 months ahead for STANDARD (default)", () => {
     const result = calculateDateButoir("STANDARD");
-    const year = parseInt(result.slice(0, 4), 10);
-    expect(year).toBe(new Date().getFullYear() + 1);
+    const expected = new Date(); expected.setMonth(expected.getMonth() + 24);
+    expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 
-  it("returns a date 6 months ahead for RENFORCEE", () => {
+  it("returns a date 12 months ahead for RENFORCEE (default)", () => {
     const result = calculateDateButoir("RENFORCEE");
-    const expected = new Date(); expected.setMonth(expected.getMonth() + 6);
+    const expected = new Date(); expected.setMonth(expected.getMonth() + 12);
     expect(result).toBe(expected.toISOString().split("T")[0]);
   });
 });

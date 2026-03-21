@@ -32,10 +32,12 @@ describe("riskEngine - calculateRiskScore", () => {
     expect(result.nivVigilance).toBe("RENFORCEE");
   });
 
-  it("should force score 100 when atypique is true", () => {
+  it("should add atypique malus (default 15) instead of forcing 100", () => {
     const result = calculateRiskScore({ ...baseParams, atypique: true });
-    expect(result.scoreGlobal).toBe(100);
-    expect(result.nivVigilance).toBe("RENFORCEE");
+    expect(result.malus).toBe(15);
+    // avg=(30+0+25+0+20)/5=15, +15 malus=30 → STANDARD
+    expect(result.scoreGlobal).toBe(30);
+    expect(result.nivVigilance).toBe("STANDARD");
   });
 
   it("should calculate correct malus for cash + distanciel + pression", () => {
@@ -94,16 +96,16 @@ describe("riskEngine - calculateRiskScore", () => {
 });
 
 describe("riskEngine - calculateNextReviewDate", () => {
-  it("should add 24 months for SIMPLIFIEE", () => {
-    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2026-01-15");
+  it("should add 36 months for SIMPLIFIEE (default)", () => {
+    expect(calculateNextReviewDate("SIMPLIFIEE", "2024-01-15")).toBe("2027-01-15");
   });
 
-  it("should add 12 months for STANDARD", () => {
-    expect(calculateNextReviewDate("STANDARD", "2024-06-01")).toBe("2025-06-01");
+  it("should add 24 months for STANDARD (default)", () => {
+    expect(calculateNextReviewDate("STANDARD", "2024-06-01")).toBe("2026-06-01");
   });
 
-  it("should add 6 months for RENFORCEE", () => {
-    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2024-07-01");
+  it("should add 12 months for RENFORCEE (default)", () => {
+    expect(calculateNextReviewDate("RENFORCEE", "2024-01-01")).toBe("2025-01-01");
   });
 });
 

@@ -1426,8 +1426,9 @@ export default function SettingsPage() {
                   <Input id="sc-dist" type="number" min={0} value={scoring.malus_distanciel} onChange={(e) => updateScoring("malus_distanciel", Number(e.target.value))} />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="sc-ppe">PPE</Label>
-                  <Input id="sc-ppe" type="number" min={0} value={scoring.malus_ppe} onChange={(e) => updateScoring("malus_ppe", Number(e.target.value))} />
+                  <Label htmlFor="sc-ppe" className="text-slate-400">PPE (forcage auto)</Label>
+                  <Input id="sc-ppe" type="number" value={100} disabled className="opacity-50 cursor-not-allowed" />
+                  <p className="text-[11px] text-slate-400">PPE force automatiquement le score a 100 (RENFORCEE)</p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="sc-atyp">Atypique</Label>
