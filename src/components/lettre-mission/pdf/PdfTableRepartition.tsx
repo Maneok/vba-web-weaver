@@ -11,6 +11,7 @@ const checkmark = "\u2713"; // ✓
 
 const PdfTableRepartition: React.FC<Props> = ({ rows }) => {
   let lastCategorie = "";
+  let visibleIdx = 0;
 
   return (
     <View>
@@ -24,6 +25,13 @@ const PdfTableRepartition: React.FC<Props> = ({ rows }) => {
       {rows.map((row, i) => {
         const showCat = row.categorie && row.categorie !== lastCategorie;
         if (row.categorie) lastCategorie = row.categorie;
+
+        // Coerce booleans — data may arrive as strings from JSON storage
+        const isCabinet = row.cabinet === true || row.cabinet === ("true" as any);
+        const isClient = row.client === true || row.client === ("true" as any);
+
+        const rowIdx = visibleIdx++;
+
         return (
           <React.Fragment key={i}>
             {showCat && (
@@ -34,16 +42,16 @@ const PdfTableRepartition: React.FC<Props> = ({ rows }) => {
               </View>
             )}
             <View
-              style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: colors.fond_alternance } : {}]}
+              style={[styles.tableRow, rowIdx % 2 === 0 ? { backgroundColor: colors.fond_alternance } : {}]}
             >
               <Text style={[styles.tableCell, { width: "50%" }]}>{row.tache}</Text>
-              <Text style={[styles.tableCell, { width: "15%", textAlign: "center", color: row.cabinet ? colors.primaire : colors.gris_clair }]}>
-                {row.cabinet ? checkmark : "—"}
+              <Text style={[styles.tableCell, { width: "15%", textAlign: "center", fontFamily: "Helvetica-Bold", fontSize: 11, color: isCabinet ? colors.vert : colors.gris_clair }]}>
+                {isCabinet ? checkmark : "—"}
               </Text>
-              <Text style={[styles.tableCell, { width: "15%", textAlign: "center", color: row.client ? colors.primaire : colors.gris_clair }]}>
-                {row.client ? checkmark : "—"}
+              <Text style={[styles.tableCell, { width: "15%", textAlign: "center", fontFamily: "Helvetica-Bold", fontSize: 11, color: isClient ? colors.vert : colors.gris_clair }]}>
+                {isClient ? checkmark : "—"}
               </Text>
-              <Text style={[styles.tableCell, { width: "20%", textAlign: "center" }]}>
+              <Text style={[styles.tableCell, { width: "20%", textAlign: "center", color: colors.gris }]}>
                 {row.periodicite}
               </Text>
             </View>
