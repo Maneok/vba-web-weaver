@@ -761,6 +761,7 @@ export default function LettreMissionPage() {
 
   // ── Wizard state (all hooks must be declared before any early return) ──
   const [step, setStep] = useState(0);
+  const [maxStepReached, setMaxStepReached] = useState(0);
   const [data, setData] = useState<LMWizardData>({ ...INITIAL_LM_WIZARD_DATA });
   const [fieldsVisible, setFieldsVisible] = useState(true);
   const prevStepRef = useRef(0);
@@ -908,7 +909,10 @@ export default function LettreMissionPage() {
         const parsed = JSON.parse(raw);
         if (parsed.client_id) {
           setData(parsed);
-          if (parsed.wizard_step > 0) setStep(parsed.wizard_step);
+          if (parsed.wizard_step > 0) {
+            setStep(parsed.wizard_step);
+            setMaxStepReached(parsed.wizard_step);
+          }
         }
       }
     } catch (e) {
@@ -945,7 +949,9 @@ export default function LettreMissionPage() {
     if (draftInfo) {
       setData({ ...INITIAL_LM_WIZARD_DATA, ...draftInfo.wizard_data });
       setLmId(draftInfo.id);
-      setStep(draftInfo.wizard_step || 0);
+      const resumeStep = draftInfo.wizard_step || 0;
+      setStep(resumeStep);
+      setMaxStepReached(resumeStep);
       setShowDraftBanner(false);
       setActiveTab("wizard");
       warningShown.current = false;
@@ -1156,7 +1162,11 @@ export default function LettreMissionPage() {
         return;
       }
     }
-    setStep((prev) => Math.min(prev + 1, LM_TOTAL_STEPS - 1));
+    setStep((prev) => {
+      const next = Math.min(prev + 1, LM_TOTAL_STEPS - 1);
+      setMaxStepReached((m) => Math.max(m, next));
+      return next;
+    });
   }, [step, data]);
 
   const handlePrevious = useCallback(() => {
@@ -1236,6 +1246,7 @@ export default function LettreMissionPage() {
     setData({ ...INITIAL_LM_WIZARD_DATA, started_at: new Date().toISOString() });
     setLmId(null);
     setStep(0);
+    setMaxStepReached(0);
     warningShown.current = false;
     setExpressMode(false);
     sessionStorage.removeItem("lm_wizard_draft");
