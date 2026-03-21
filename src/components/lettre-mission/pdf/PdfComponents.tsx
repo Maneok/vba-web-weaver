@@ -25,7 +25,7 @@ export const DEFAULT_THEME: PdfTheme = {
   danger: "#C62828",
 };
 
-/** Bande colorée verticale gauche — signature visuelle du cabinet (opt 1) */
+/** Bande colorée verticale gauche — signature visuelle du cabinet */
 export const SideStripe: React.FC<{ color: string }> = ({ color }) => (
   <View
     fixed
@@ -40,7 +40,7 @@ export const SideStripe: React.FC<{ color: string }> = ({ color }) => (
   />
 );
 
-/** Bandeau de section premium avec accent gauche */
+/** V2-8/9: Bandeau de section — accent strip 3px, paddingVertical 6 */
 export const SectionBanner: React.FC<{ title: string; theme: PdfTheme }> = ({ title, theme }) => (
   <View
     style={{
@@ -52,7 +52,7 @@ export const SectionBanner: React.FC<{ title: string; theme: PdfTheme }> = ({ ti
   >
     <View
       style={{
-        width: 4,
+        width: 3,
         backgroundColor: theme.primaire,
         borderTopLeftRadius: 6,
         borderBottomLeftRadius: 6,
@@ -62,7 +62,7 @@ export const SectionBanner: React.FC<{ title: string; theme: PdfTheme }> = ({ ti
       style={{
         flex: 1,
         backgroundColor: theme.secondaire,
-        paddingVertical: 5,
+        paddingVertical: 6,
         paddingHorizontal: 14,
         borderTopRightRadius: 6,
         borderBottomRightRadius: 6,
@@ -83,7 +83,7 @@ export const SectionBanner: React.FC<{ title: string; theme: PdfTheme }> = ({ ti
   </View>
 );
 
-/** Score gauge — simplified circle with centered score text (opt 29) */
+/** V2-35/36/37: Score gauge — 72x72 (was 66), score fontSize 18, label fontSize 8 */
 export const ScoreGauge: React.FC<{ score: number; max: number; color: string }> = ({
   score,
   max,
@@ -91,14 +91,14 @@ export const ScoreGauge: React.FC<{ score: number; max: number; color: string }>
 }) => {
   const clamped = Math.max(0, Math.min(max, score));
   return (
-    <View style={{ width: 66, height: 66, alignItems: "center", justifyContent: "center" }}>
-      <Svg viewBox="0 0 66 66" style={{ width: 66, height: 66 }}>
+    <View style={{ width: 72, height: 72, alignItems: "center", justifyContent: "center" }}>
+      <Svg viewBox="0 0 72 72" style={{ width: 72, height: 72 }}>
         {/* Background circle */}
-        <Circle cx="33" cy="33" r="28" fill="none" stroke="#E8E8E8" strokeWidth={4} />
+        <Circle cx="36" cy="36" r="30" fill="none" stroke="#E8E8E8" strokeWidth={4} />
         {/* Colored ring */}
-        <Circle cx="33" cy="33" r="28" fill="none" stroke={color} strokeWidth={4} opacity={0.25} />
+        <Circle cx="36" cy="36" r="30" fill="none" stroke={color} strokeWidth={4} opacity={0.25} />
         {/* Inner fill */}
-        <Circle cx="33" cy="33" r="20" fill={color} opacity={0.08} />
+        <Circle cx="36" cy="36" r="22" fill={color} opacity={0.08} />
       </Svg>
       {/* Score text overlaid with absolute positioning */}
       <View
@@ -112,18 +112,19 @@ export const ScoreGauge: React.FC<{ score: number; max: number; color: string }>
           justifyContent: "center",
         }}
       >
-        <Text style={{ fontSize: 16, fontFamily: "Helvetica-Bold", color }}>{clamped}</Text>
-        <Text style={{ fontSize: 7, color: "#999999", marginTop: -1 }}>/ {max}</Text>
+        <Text style={{ fontSize: 18, fontFamily: "Helvetica-Bold", color }}>{clamped}</Text>
+        <Text style={{ fontSize: 8, color: "#999999", marginTop: -1 }}>/ {max}</Text>
       </View>
     </View>
   );
 };
 
-/** Badge arrondi coloré (opt 30-31) */
-export const Badge: React.FC<{ text: string; bgColor: string; textColor: string }> = ({
+/** Badge arrondi coloré — V2-32: borderWidth for definition */
+export const Badge: React.FC<{ text: string; bgColor: string; textColor: string; bordered?: boolean }> = ({
   text,
   bgColor,
   textColor,
+  bordered,
 }) => (
   <View
     style={{
@@ -132,13 +133,15 @@ export const Badge: React.FC<{ text: string; bgColor: string; textColor: string 
       paddingHorizontal: 8,
       paddingVertical: 2,
       alignSelf: "flex-start",
+      borderWidth: bordered ? 0.5 : 0,
+      borderColor: bordered ? textColor : "transparent",
     }}
   >
     <Text style={{ fontSize: 7.5, color: textColor, fontFamily: "Helvetica-Bold" }}>{text}</Text>
   </View>
 );
 
-/** Séparateur premium (opt 4) */
+/** Séparateur premium */
 export const Separator: React.FC<{ color: string }> = ({ color }) => (
   <View style={{ flexDirection: "row", alignItems: "center", marginVertical: 8 }}>
     <View style={{ flex: 1, height: 1.5, backgroundColor: color }} />
@@ -147,7 +150,12 @@ export const Separator: React.FC<{ color: string }> = ({ color }) => (
   </View>
 );
 
-/** Encadré signature premium avec pointillés et "Lu et approuvé" */
+/** V2-7: Decorative dot for cover info section */
+export const CoverDot: React.FC<{ color: string }> = ({ color }) => (
+  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: color, marginRight: 6, marginTop: 2 }} />
+);
+
+/** V2-40/41/42/43/44: Encadré signature — width 44%, minHeight 110, "Lu et approuvé" 7.5pt, date line */
 export const SignatureBox: React.FC<{
   label: string;
   name?: string;
@@ -156,14 +164,14 @@ export const SignatureBox: React.FC<{
 }> = ({ label, name, signatureImage, boldName }) => (
   <View
     style={{
-      width: "42%",
+      width: "44%",
       borderWidth: 0.8,
       borderColor: "#CCCCCC",
       borderStyle: "dashed",
       borderRadius: 4,
       padding: 10,
       alignItems: "center",
-      minHeight: 100,
+      minHeight: 110,
     }}
   >
     <Text
@@ -179,7 +187,7 @@ export const SignatureBox: React.FC<{
     {signatureImage ? (
       <Image src={signatureImage} style={{ width: 100, height: 30 }} />
     ) : (
-      <View style={{ flex: 1, minHeight: 40 }} />
+      <View style={{ flex: 1, minHeight: 36 }} />
     )}
     {name && (
       <Text style={{ fontSize: 8, color: "#666666", marginTop: 4, fontFamily: boldName ? "Helvetica-Bold" : "Helvetica" }}>{name}</Text>
@@ -192,11 +200,14 @@ export const SignatureBox: React.FC<{
         marginTop: 2,
       }}
     />
-    <Text style={{ fontSize: 7, color: "#999999", marginTop: 3 }}>Lu et approuvé</Text>
+    {/* V2-43: date line */}
+    <Text style={{ fontSize: 7, color: "#BBBBBB", marginTop: 3 }}>Date : ___/___/______</Text>
+    {/* V2-42: fontSize 7.5 (was 7) */}
+    <Text style={{ fontSize: 7.5, color: "#999999", marginTop: 2 }}>Lu et approuvé</Text>
   </View>
 );
 
-/** SVG Checkmark icon for tables (opt 26) */
+/** SVG Checkmark icon for tables */
 export const CheckIcon: React.FC<{ color?: string; size?: number }> = ({
   color = "#2E7D32",
   size = 10,
@@ -209,7 +220,7 @@ export const CheckIcon: React.FC<{ color?: string; size?: number }> = ({
   </Svg>
 );
 
-/** Ligne d'information clé-valeur premium pour la page de garde (opt 5) */
+/** V2-7/6: Ligne d'information premium avec dot décoratif */
 export const InfoRow: React.FC<{
   label: string;
   value: string;
@@ -219,18 +230,20 @@ export const InfoRow: React.FC<{
   <View
     style={{
       flexDirection: "row",
-      justifyContent: "space-between",
-      paddingVertical: 3,
+      alignItems: "center",
+      paddingVertical: 4,
       borderBottomWidth: 0.3,
       borderBottomColor: "#E8E8E8",
     }}
   >
-    <Text style={{ fontSize: 8.5, color: theme.muted }}>{label}</Text>
+    <CoverDot color={theme.primaire} />
+    <Text style={{ fontSize: 8.5, color: theme.muted, width: 60 }}>{label}</Text>
     <Text
       style={{
         fontSize: 9,
         fontFamily: bold !== false ? "Helvetica-Bold" : "Helvetica",
         color: theme.text,
+        flex: 1,
       }}
     >
       {value}
@@ -238,7 +251,7 @@ export const InfoRow: React.FC<{
   </View>
 );
 
-/** Wrapper for rounded tables (opt 17, 22, 25) */
+/** Wrapper for rounded tables */
 export const RoundedTableWrapper: React.FC<{
   children: React.ReactNode;
   borderColor?: string;
@@ -255,25 +268,31 @@ export const RoundedTableWrapper: React.FC<{
   </View>
 );
 
-/** Annexe signature box (simplified for annexes) (opt 39, 43) */
+/** V2-48/49: Annexe signature box — paddingBottom 40, marginTop 20, separator above */
 export const AnnexeSignatureBox: React.FC<{
   text: string;
   sublabel: string;
 }> = ({ text, sublabel }) => (
-  <View
-    style={{
-      marginTop: 24,
-      borderWidth: 0.8,
-      borderColor: "#CCCCCC",
-      borderStyle: "dashed",
-      borderRadius: 4,
-      padding: 14,
-      paddingBottom: 44,
-    }}
-  >
-    <Text style={{ fontSize: 9, color: "#333333", fontFamily: "Helvetica-Oblique" }}>
-      {text}
-    </Text>
-    <Text style={{ fontSize: 8, color: "#666666", marginTop: 14 }}>{sublabel}</Text>
+  <View>
+    {/* V2-49: separator above signature */}
+    <View style={{ borderBottomWidth: 0.3, borderBottomColor: "#E0E0E0", marginTop: 16, marginBottom: 4 }} />
+    <View
+      style={{
+        marginTop: 4,
+        borderWidth: 0.8,
+        borderColor: "#CCCCCC",
+        borderStyle: "dashed",
+        borderRadius: 4,
+        padding: 14,
+        paddingBottom: 40,
+      }}
+    >
+      <Text style={{ fontSize: 9, color: "#333333", fontFamily: "Helvetica-Oblique" }}>
+        {text}
+      </Text>
+      <Text style={{ fontSize: 8, color: "#666666", marginTop: 14 }}>{sublabel}</Text>
+      {/* V2-43: date line in annexe signature too */}
+      <Text style={{ fontSize: 7, color: "#BBBBBB", marginTop: 6 }}>Date : ___/___/______</Text>
+    </View>
   </View>
 );

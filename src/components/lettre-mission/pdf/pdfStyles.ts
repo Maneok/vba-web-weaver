@@ -36,10 +36,10 @@ export const styles = StyleSheet.create({
   page: {
     fontFamily: "Helvetica",
     fontSize: 10,
-    lineHeight: 1.4, // opt 17
+    lineHeight: 1.4,
     color: colors.texte,
-    paddingTop: 50, // opt 12
-    paddingBottom: 40, // opt 13
+    paddingTop: 50,
+    paddingBottom: 40,
     paddingLeft: 56,
     paddingRight: 56,
   },
@@ -55,7 +55,7 @@ export const styles = StyleSheet.create({
     paddingBottom: 6,
   },
   headerText: {
-    fontSize: 7.5, // opt 50
+    fontSize: 7.5,
     color: colors.gris,
   },
   footerFixed: {
@@ -70,22 +70,24 @@ export const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   footerText: {
-    fontSize: 7.5, // opt 50
+    fontSize: 7.5,
     color: colors.gris_clair,
   },
+  // V2-8: Section bandeau — unused directly but kept for compat
   sectionBandeau: {
     backgroundColor: colors.secondaire,
     paddingVertical: 6,
     paddingHorizontal: 12,
-    marginTop: 14, // opt 11 — uniform
-    marginBottom: 6, // opt 11 — uniform
+    marginTop: 14,
+    marginBottom: 6,
   },
+  // V2-8: harmonized text
   sectionBandeauText: {
     color: colors.blanc,
-    fontSize: 10, // opt 9 — harmonized
+    fontSize: 10,
     fontFamily: "Helvetica-Bold",
     textTransform: "uppercase",
-    letterSpacing: 0.3, // opt 9
+    letterSpacing: 0.3,
   },
   sectionSubtitle: {
     fontSize: 10,
@@ -94,11 +96,12 @@ export const styles = StyleSheet.create({
     marginTop: 10,
     marginBottom: 4,
   },
+  // V2-13: marginBottom 4 (was 3) for paragraph breathing
   bodyText: {
     fontSize: 9.5,
-    lineHeight: 1.4, // opt 17
+    lineHeight: 1.4,
     textAlign: "justify",
-    marginBottom: 3, // opt 16
+    marginBottom: 4,
   },
   tableRow: {
     flexDirection: "row",
@@ -115,23 +118,26 @@ export const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F2F5F8",
   },
+  // V2-18: header minHeight 24 (was 26) — more compact
   tableHeaderRow: {
     flexDirection: "row",
-    backgroundColor: colors.fond_header_tableau, // opt 20, 27, 33
+    backgroundColor: colors.fond_header_tableau,
     borderBottomWidth: 1,
     borderBottomColor: colors.secondaire,
-    minHeight: 26,
+    minHeight: 24,
     alignItems: "center",
   },
+  // V2-20: paddingHorizontal 8 (was 6)
   tableCell: {
     fontSize: 9,
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 5,
   },
+  // V2-20: paddingHorizontal 8 (was 6)
   tableCellBold: {
     fontSize: 9,
     fontFamily: "Helvetica-Bold",
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 5,
   },
   watermark: {
@@ -146,87 +152,94 @@ export const styles = StyleSheet.create({
     fontFamily: "Helvetica-Bold",
     letterSpacing: 12,
   },
+  // V2-44: marginTop 16 (was 12)
   signatureContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 12,
-    paddingHorizontal: 20,
+    marginTop: 16,
+    paddingHorizontal: 16,
   },
   signatureBlock: {
     width: "40%",
     alignItems: "center",
   },
+  // V2-15: paddingLeft 16 (was 12)
   bulletPoint: {
     flexDirection: "row",
     marginBottom: 2,
-    paddingLeft: 12,
+    paddingLeft: 16,
   },
+  // V2-16: width 12 (was 15) — tighter bullet symbol
   bulletSymbol: {
-    width: 15,
+    width: 12,
     fontSize: 9,
   },
+  // V2-17: fontSize 9 (was 9, already good) lineHeight 1.4
   bulletText: {
     fontSize: 9,
     flex: 1,
     lineHeight: 1.4,
   },
-  // Cover page
+  // Cover page — V2-1: marginTop 26 (was 20), marginBottom 10 (was 8)
   coverTitle: {
-    fontSize: 24, // opt 4
-    fontFamily: "Helvetica-Bold", // opt 4
+    fontSize: 24,
+    fontFamily: "Helvetica-Bold",
     color: colors.secondaire,
     textAlign: "center",
-    textTransform: "uppercase", // opt 4
-    marginTop: 20, // opt 3
-    marginBottom: 8, // opt 1 — sufficient spacing to avoid subtitle overlap
+    textTransform: "uppercase",
+    marginTop: 26,
+    marginBottom: 10,
   },
   coverSubtitle: {
-    fontSize: 11, // opt 2 — reduced from 12
+    fontSize: 11,
     fontFamily: "Helvetica-Bold",
     color: colors.primaire,
     textAlign: "center",
-    textTransform: "uppercase", // opt 5
-    marginTop: 4, // opt 2 — visible gap
+    textTransform: "uppercase",
+    marginTop: 4,
     marginBottom: 4,
   },
+  // V2-5: fontSize 9.5 (was 11) — visually distinct from subtitle
   coverNorme: {
-    fontSize: 11,
+    fontSize: 9.5,
     color: colors.gris,
     textAlign: "center",
-    marginBottom: 8, // reduced
+    marginBottom: 8,
+    fontFamily: "Helvetica-Oblique",
   },
   coverInfoRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 3, // opt 7 — tighter spacing
+    marginBottom: 3,
   },
   coverInfoLabel: {
     fontSize: 9,
-    color: colors.gris, // opt 7
+    color: colors.gris,
   },
   coverInfoValue: {
-    fontSize: 10, // opt 7
-    fontFamily: "Helvetica-Bold", // opt 7
+    fontSize: 10,
+    fontFamily: "Helvetica-Bold",
   },
-  // Destinataire — opt 8: accent left border
+  // Destinataire — V2-10: marginBottom 10, V2-11: lineHeight 1.4
   destBlock: {
-    marginTop: 8, // opt 9
+    marginTop: 8,
+    marginBottom: 10,
     padding: 8,
-    paddingLeft: 12, // opt 8
+    paddingLeft: 12,
     borderWidth: 0,
-    borderLeftWidth: 3, // opt 8
+    borderLeftWidth: 3,
     borderLeftColor: colors.primaire,
     borderRadius: 0,
   },
   destText: {
     fontSize: 10,
-    lineHeight: 1.5,
+    lineHeight: 1.4,
   },
-  // Separator line — opt 6 fine 1pt line
+  // Separator — fine line
   separator: {
     borderBottomWidth: 0.5,
     borderBottomColor: colors.primaire,
-    marginVertical: 8, // opt 8 — tighter
+    marginVertical: 8,
   },
 });
 

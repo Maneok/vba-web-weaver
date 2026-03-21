@@ -21,8 +21,8 @@ const PdfTableRepartition: React.FC<Props> = ({ rows, theme: themeIn }) => {
   return (
     <View>
       <RoundedTableWrapper borderColor={theme.border}>
-        {/* Header — fond secondaire, texte blanc */}
-        <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 26, alignItems: "center" }}>
+        {/* V2-18: Header minHeight 24 */}
+        <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 24, alignItems: "center" }}>
           <Text style={[styles.tableCellBold, { width: "50%", color: "#FFFFFF" }]}>Tâche</Text>
           <Text style={[styles.tableCellBold, { width: "15%", textAlign: "center", color: "#FFFFFF" }]}>Cabinet</Text>
           <Text style={[styles.tableCellBold, { width: "15%", textAlign: "center", color: "#FFFFFF" }]}>Client</Text>
@@ -39,9 +39,10 @@ const PdfTableRepartition: React.FC<Props> = ({ rows, theme: themeIn }) => {
 
           return (
             <React.Fragment key={i}>
+              {/* V2-28/29: Category row — paddingVertical 4, fontSize 8.5 */}
               {showCat && (
-                <View style={{ backgroundColor: theme.secondaire, paddingVertical: 3, paddingHorizontal: 6, marginTop: i > 0 ? 2 : 0 }}>
-                  <Text style={{ color: "#FFFFFF", fontSize: 8, fontFamily: "Helvetica-Bold", textTransform: "uppercase" }}>
+                <View style={{ backgroundColor: theme.secondaire, paddingVertical: 4, paddingHorizontal: 8, marginTop: i > 0 ? 2 : 0 }}>
+                  <Text style={{ color: "#FFFFFF", fontSize: 8.5, fontFamily: "Helvetica-Bold", textTransform: "uppercase", letterSpacing: 0.2 }}>
                     {row.categorie}
                   </Text>
                 </View>
@@ -54,18 +55,20 @@ const PdfTableRepartition: React.FC<Props> = ({ rows, theme: themeIn }) => {
                   {isCabinet ? (
                     <CheckIcon color={theme.success} size={12} />
                   ) : (
-                    <Text style={{ fontSize: 11, color: theme.border }}>—</Text>
+                    /* V2-30: dash fontSize 9 (was 11) */
+                    <Text style={{ fontSize: 9, color: "#CCCCCC" }}>{"\u2014"}</Text>
                   )}
                 </View>
                 <View style={{ width: "15%", alignItems: "center", justifyContent: "center" }}>
                   {isClient ? (
                     <CheckIcon color={theme.success} size={12} />
                   ) : (
-                    <Text style={{ fontSize: 11, color: theme.border }}>—</Text>
+                    <Text style={{ fontSize: 9, color: "#CCCCCC" }}>{"\u2014"}</Text>
                   )}
                 </View>
+                {/* V2-31: periodicite fontSize 8.5 (was 8) */}
                 <View style={{ width: "20%", alignItems: "center", justifyContent: "center" }}>
-                  <Text style={{ fontSize: 8, color: theme.muted }}>{row.periodicite}</Text>
+                  <Text style={{ fontSize: 8.5, color: theme.muted }}>{row.periodicite}</Text>
                 </View>
               </View>
             </React.Fragment>
@@ -73,10 +76,10 @@ const PdfTableRepartition: React.FC<Props> = ({ rows, theme: themeIn }) => {
         })}
       </RoundedTableWrapper>
 
-      {/* Summary count */}
-      <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 6, gap: 8 }}>
-        <Badge text={`Cabinet : ${cabinetCount} tâches`} bgColor="#E8F5E9" textColor={theme.success} />
-        <Badge text={`Client : ${clientCount} tâches`} bgColor="#E3F2FD" textColor={theme.primaire} />
+      {/* V2-32/33: Summary badges with border for definition + wrap protection */}
+      <View style={{ flexDirection: "row", justifyContent: "flex-end", marginTop: 6, gap: 8 }} wrap={false}>
+        <Badge text={`Cabinet : ${cabinetCount} tâches`} bgColor="#E8F5E9" textColor={theme.success} bordered />
+        <Badge text={`Client : ${clientCount} tâches`} bgColor="#E3F2FD" textColor={theme.primaire} bordered />
       </View>
     </View>
   );

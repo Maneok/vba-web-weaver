@@ -131,9 +131,11 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         <RenderCover data={data} theme={theme} />
 
         {/* DESTINATAIRE — formule de politesse */}
+        {/* V2-12: Bold name for emphasis */}
         <View style={styles.destBlock}>
           <Text style={styles.destText}>
-            À l'attention de {s(client.civilite)} {s(client.nom_dirigeant)},
+            À l'attention de{" "}
+            <Text style={{ fontFamily: "Helvetica-Bold" }}>{s(client.civilite)} {s(client.nom_dirigeant)}</Text>,
           </Text>
           <Text style={styles.destText}>
             Mandataire social de la société
@@ -361,7 +363,8 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
     <View>
       {/* Logo + cabinet name */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <View>
+        {/* V2-2: ref block with subtle left accent */}
+        <View style={{ borderLeftWidth: 2, borderLeftColor: theme.primaire, paddingLeft: 6 }}>
           <Text style={{ fontSize: 8.5, color: theme.muted }}>Réf. {s(data.numero_lm)}</Text>
           <Text style={{ fontSize: 8.5, color: theme.muted }}>Date : {formatDateLong(data.date_generation)}</Text>
         </View>
@@ -369,7 +372,8 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
           {hasValidLogo ? (
             <Image src={cabinet.logo_base64!} style={{ width: 80 }} />
           ) : (
-            <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>
+            /* V2-3: fallback text fontSize 16 (was 14) */
+            <Text style={{ fontSize: 16, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>
               {s(cabinet.nom)}
             </Text>
           )}
@@ -381,7 +385,8 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
           <Text style={{ fontSize: 8, color: theme.muted }}>
             {s(cabinet.adresse)}, {s(cabinet.cp)} {s(cabinet.ville)}
           </Text>
-          <Text style={{ fontSize: 7.5, color: "#BBBBBB" }}>
+          {/* V2-4: SIRET uses theme.border instead of hardcoded #BBBBBB */}
+          <Text style={{ fontSize: 7.5, color: theme.border }}>
             SIRET {s(cabinet.siret)}{cabinet.oec_numero ? ` \u2014 OEC ${s(cabinet.oec_numero)}` : ""}
           </Text>
         </View>
@@ -399,8 +404,8 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
       {/* Premium separator */}
       <Separator color={theme.primaire} />
 
-      {/* Info grid with premium InfoRow */}
-      <View style={{ marginBottom: 2 }}>
+      {/* V2-6: Info grid with premium InfoRow — marginBottom 6 */}
+      <View style={{ marginBottom: 6 }}>
         <InfoRow label="Client" value={`${s(client.forme_juridique)} ${s(client.raison_sociale)}`} theme={theme} />
         <InfoRow label="SIREN" value={displaySiren || "\u2014"} theme={theme} />
         <InfoRow label="Exercice" value={`${s(client.exercice_debut)} \u2014 ${s(client.exercice_fin)}`} theme={theme} />

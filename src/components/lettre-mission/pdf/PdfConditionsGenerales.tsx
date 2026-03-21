@@ -11,14 +11,14 @@ interface Props {
   date_generation?: string;
 }
 
-// Circle-numbered article heading
+// V2-50: Circle-numbered article heading — 16x16 (was 18x18) for compact look
 const CircleNumber: React.FC<{ num: number; theme: PdfTheme }> = ({ num, theme }) => (
-  <View style={{ width: 18, height: 18, marginRight: 6 }}>
-    <Svg viewBox="0 0 18 18" style={{ width: 18, height: 18 }}>
-      <SvgCircle cx="9" cy="9" r="8" fill={theme.secondaire} />
+  <View style={{ width: 16, height: 16, marginRight: 6 }}>
+    <Svg viewBox="0 0 16 16" style={{ width: 16, height: 16 }}>
+      <SvgCircle cx="8" cy="8" r="7" fill={theme.secondaire} />
     </Svg>
     <View style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, alignItems: "center", justifyContent: "center" }}>
-      <Text style={{ fontSize: 8, fontFamily: "Helvetica-Bold", color: "#FFFFFF" }}>{num}</Text>
+      <Text style={{ fontSize: 7.5, fontFamily: "Helvetica-Bold", color: "#FFFFFF" }}>{num}</Text>
     </View>
   </View>
 );

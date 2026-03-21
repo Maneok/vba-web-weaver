@@ -40,13 +40,13 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
 
   return (
     <View>
-      {/* Subtitle under the banner */}
+      {/* V2-34: Subtitle — marginBottom 6 (was 10) */}
       <Text
         style={{
           fontSize: 8,
           color: theme.muted,
           textAlign: "center",
-          marginBottom: 10,
+          marginBottom: 6,
           fontFamily: "Helvetica-Oblique",
         }}
       >
@@ -55,8 +55,8 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
 
       {/* ── Table 1: Score + Vigilance with ScoreGauge ── */}
       <View style={{ flexDirection: "row", marginBottom: 8 }} wrap={false}>
-        {/* Score Gauge on the left */}
-        <View style={{ width: 76, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
+        {/* V2-35: gauge container width 80 (was 76) for bigger gauge */}
+        <View style={{ width: 80, alignItems: "center", justifyContent: "center", marginRight: 8 }}>
           <ScoreGauge score={score} max={100} color={vColor} />
         </View>
 
@@ -106,10 +106,11 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
                 alignItems: "center",
               }}
             >
+              {/* V2-36: score text larger, bold */}
               <Text
                 style={{
                   flex: 1,
-                  fontSize: 9,
+                  fontSize: 10,
                   fontFamily: "Helvetica-Bold",
                   color: vColor,
                   paddingHorizontal: 8,
@@ -232,11 +233,11 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
         }}
         wrap={false}
       >
-        {/* Encadre header — opt 12: harmonized with section banners */}
+        {/* V2-12: harmonized header with banners — fontSize 10, paddingHorizontal 14 */}
         <View
           style={{
             backgroundColor: theme.secondaire,
-            paddingVertical: 5,
+            paddingVertical: 6,
             paddingHorizontal: 14,
           }}
         >
@@ -253,22 +254,25 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
           </Text>
         </View>
         {/* Encadre body */}
-        <View style={{ backgroundColor: theme.light, paddingHorizontal: 10, paddingVertical: 8 }}>
+        <View style={{ backgroundColor: theme.light, paddingHorizontal: 12, paddingVertical: 10 }}>
           <Text style={{ fontSize: 9, lineHeight: 1.45, textAlign: "justify", color: theme.text }}>
             {engagementsText}
           </Text>
         </View>
       </View>
 
-      {/* ── Conservation mention ── */}
+      {/* V2-38/39: Conservation mention — blue-tinted bg + wrap protection */}
       <View
         style={{
-          backgroundColor: "#F5F5F5",
+          backgroundColor: "#F0F4F8",
           borderRadius: 4,
           paddingHorizontal: 10,
           paddingVertical: 6,
           marginBottom: 8,
+          borderLeftWidth: 2,
+          borderLeftColor: theme.primaire,
         }}
+        wrap={false}
       >
         <Text
           style={{

@@ -56,6 +56,7 @@ const SepaRow: React.FC<{
         paddingHorizontal: 8,
         paddingVertical: 5,
         backgroundColor: grayBg ? "#F0F0F0" : undefined,
+        letterSpacing: courier ? 1 : 0,
       }}
     >
       {value}
@@ -135,16 +136,19 @@ const PdfAnnexes: React.FC<Props> = ({ data, theme: themeIn }) => {
             marginBottom: 10,
           }}
         >
-          <Text
-            style={{
-              fontSize: 9.5,
-              fontFamily: "Helvetica-Bold",
-              color: "#E65100",
-              marginBottom: 4,
-            }}
-          >
-            TRAVAIL DISSIMULÉ — Pénalités très lourdes et récemment aggravées
-          </Text>
+          {/* V2-45: Warning title with triangle icon */}
+          <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 4 }}>
+            <Text style={{ fontSize: 11, color: "#E65100", marginRight: 6 }}>{"\u25B2"}</Text>
+            <Text
+              style={{
+                fontSize: 9.5,
+                fontFamily: "Helvetica-Bold",
+                color: "#E65100",
+              }}
+            >
+              TRAVAIL DISSIMULÉ — Pénalités très lourdes et récemment aggravées
+            </Text>
+          </View>
           <Text style={{ fontSize: 9, lineHeight: 1.4, color: "#333333", marginBottom: 2 }}>
             Entraîne : sanctions civiles et pénales (prison avec sursis), contrôle fiscal.
           </Text>
@@ -295,7 +299,7 @@ const PdfAnnexes: React.FC<Props> = ({ data, theme: themeIn }) => {
           effet, déclare autoriser :
         </Text>
 
-        {/* Cabinet block */}
+        {/* V2-47: Cabinet block with background tint + increased padding */}
         <View
           style={{
             marginTop: 8,
@@ -303,7 +307,8 @@ const PdfAnnexes: React.FC<Props> = ({ data, theme: themeIn }) => {
             borderWidth: 0.5,
             borderColor: theme.primaire,
             borderRadius: 4,
-            padding: 10,
+            padding: 12,
+            backgroundColor: "#F8FAFC",
           }}
         >
           <Text style={{ fontSize: 9.5, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>

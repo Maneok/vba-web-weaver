@@ -21,17 +21,17 @@ const rowDefs: { label: string; key: keyof ClientLmData | ((c: ClientLmData) => 
   { label: "Activité principale", key: "activite_principale" },
   { label: "Capital social", key: (c) => {
     const v = s(c.capital_social);
-    if (v === "—" || !v) return "—";
-    if (v.includes("€")) return v;
-    return `${v} €`;
+    if (v === "\u2014" || !v) return "\u2014";
+    if (v.includes("\u20AC")) return v;
+    return `${v} \u20AC`;
   }},
   { label: "Date de création", key: "date_creation" },
   { label: "Régime fiscal", key: "regime_fiscal" },
-  { label: "Exercice", key: (c) => `${s(c.exercice_debut)} — ${s(c.exercice_fin)}` },
+  { label: "Exercice", key: (c) => `${s(c.exercice_debut)} \u2014 ${s(c.exercice_fin)}` },
   { label: "Assujetti TVA", key: (c) => (c.tva ? "Oui" : "Non") },
   { label: "CAC désigné", key: (c) => (c.cac ? "Oui" : "Non") },
   { label: "Effectif", key: (c) => {
-    if (c.effectif === undefined || c.effectif === null || c.effectif === 0) return "—";
+    if (c.effectif === undefined || c.effectif === null || c.effectif === 0) return "\u2014";
     return String(c.effectif);
   }},
   { label: "Volume comptable", key: "volume_comptable" },
@@ -46,25 +46,26 @@ const PdfTableEntite: React.FC<Props> = ({ client, theme: themeIn }) => {
   for (const row of rowDefs) {
     const val = typeof row.key === "function" ? row.key(client) : client[row.key];
     const valStr = typeof val === "string" ? val : s(val);
-    if ((valStr === "—" || !valStr) && OPTIONAL_LABELS.has(row.label)) continue;
-    visibleRows.push({ label: row.label, value: valStr || "—" });
+    if ((valStr === "\u2014" || !valStr) && OPTIONAL_LABELS.has(row.label)) continue;
+    visibleRows.push({ label: row.label, value: valStr || "\u2014" });
   }
 
   return (
     <RoundedTableWrapper borderColor={theme.border}>
-      {/* Header — fond secondaire, texte blanc */}
-      <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 26, alignItems: "center" }}>
-        <Text style={[styles.tableCellBold, { width: "40%", color: "#FFFFFF" }]}>Information</Text>
-        <Text style={[styles.tableCellBold, { width: "60%", color: "#FFFFFF" }]}>Détail</Text>
+      {/* V2-21: Header — "Caractéristique" / "Valeur" */}
+      <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 24, alignItems: "center" }}>
+        <Text style={[styles.tableCellBold, { width: "40%", color: "#FFFFFF" }]}>Caractéristique</Text>
+        <Text style={[styles.tableCellBold, { width: "60%", color: "#FFFFFF" }]}>Valeur</Text>
       </View>
       {visibleRows.map((row, i) => {
-        const isEmpty = row.value === "—";
+        const isEmpty = row.value === "\u2014";
         return (
           <View
             key={row.label}
             style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: theme.light } : {}]}
           >
-            <Text style={[styles.tableCellBold, { width: "40%", color: theme.secondaire }]}>{row.label}</Text>
+            {/* V2-22: label with subtle tinted background */}
+            <Text style={[styles.tableCellBold, { width: "40%", color: theme.secondaire, backgroundColor: i % 2 === 0 ? "#EDF2F7" : "#F7FAFC" }]}>{row.label}</Text>
             <Text style={[styles.tableCell, { width: "60%", color: isEmpty ? "#BBBBBB" : theme.text, fontFamily: isEmpty ? "Helvetica-Oblique" : "Helvetica" }]}>
               {isEmpty ? "Non renseigné" : row.value}
             </Text>
