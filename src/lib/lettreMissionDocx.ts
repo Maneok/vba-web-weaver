@@ -816,6 +816,9 @@ export async function generateDocxFromInstance(
     honoraires_collab_heure?: number;
     juridique_annuel_ht?: number;
     frequence_facturation?: string;
+    iban?: string;
+    bic?: string;
+    mode_paiement?: string;
   },
 ): Promise<void> {
   try {
@@ -997,6 +1000,31 @@ export async function generateDocxFromInstance(
           children.push(repTable);
         } else {
           children.push(bodyText("[Répartition des tâches non définie]"));
+        }
+        continue;
+      }
+
+      // 7. SEPA section → structured SEPA table with IBAN/BIC
+      if (section.id.includes("sepa") || section.titre.toLowerCase().includes("sepa")) {
+        const ibanRaw = (honorairesData?.iban || "").replace(/\s/g, "");
+        const ibanFmt = ibanRaw ? ibanRaw.replace(/(.{4})/g, "$1 ").trim() : "________________________";
+        const bicFmt = (honorairesData?.bic || "").trim() || "___________";
+        const sepaRows: [string, string][] = [
+          ["Votre nom", clientData?.raison_sociale || "—"],
+          ["Votre adresse", `${clientData?.adresse || ""}, ${clientData?.code_postal || ""} ${clientData?.ville || ""}`.trim().replace(/^,\s*/, "") || "—"],
+          ["Pays", "France"],
+          ["Coordonnées bancaires (IBAN)", ibanFmt],
+          ["BIC", bicFmt],
+          ["Nom du créancier", cabinet.nom],
+          ["Adresse du créancier", `${cabinet.adresse}, ${cabinet.cp} ${cabinet.ville}`],
+          ["Type de paiement", "Paiement récurrent/répétitif"],
+        ];
+        children.push(new Table({
+          width: { size: 100, type: WidthType.PERCENTAGE },
+          rows: sepaRows.map(([l, v], idx) => tableRow2Col(l, v, idx % 2 === 0)),
+        }));
+        if (content.trim() && !content.includes("TABLEAU")) {
+          children.push(bodyText(content));
         }
         continue;
       }

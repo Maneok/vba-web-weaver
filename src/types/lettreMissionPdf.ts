@@ -65,6 +65,9 @@ export interface HonorairesData {
   social_contrat_simple: number;
   social_entree_sans_contrat: number;
   social_attestation_maladie: number;
+  /** Per-mission breakdown from wizard step 4 */
+  detail?: Record<string, number>;
+  mode_paiement?: string;
 }
 
 export interface LcbftData {
@@ -102,4 +105,7 @@ export interface LettreMissionPdfData {
   cgv_snapshot?: string;
   signature_expert?: string;
   signature_client?: string;
+  // SEPA data from wizard
+  iban?: string;
+  bic?: string;
 }

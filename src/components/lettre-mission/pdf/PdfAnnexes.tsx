@@ -108,6 +108,13 @@ const PdfAnnexes: React.FC<Props> = ({ data, theme: themeIn }) => {
   const theme = themeIn || DEFAULT_THEME;
   const { client, cabinet } = data;
 
+  // Format IBAN with spaces every 4 chars, or show blank form line
+  const ibanRaw = (data.iban || "").replace(/\s/g, "");
+  const ibanDisplay = ibanRaw
+    ? ibanRaw.replace(/(.{4})/g, "$1 ").trim()
+    : "__ ____ ____ ____ ____ ____ ___";
+  const bicDisplay = (data.bic || "").trim() || "___________";
+
   return (
     <>
       {/* ═══════════════════════════════════════════════════════════ */}
@@ -222,12 +229,12 @@ const PdfAnnexes: React.FC<Props> = ({ data, theme: themeIn }) => {
             <SepaRow label="Votre pays" value="France" theme={theme} />
             <SepaRow
               label="Coordonnées bancaires (IBAN)"
-              value="__ ____ ____ ____ ____ ____ ___"
+              value={ibanDisplay}
               courier
               grayBg
               theme={theme}
             />
-            <SepaRow label="BIC" value="___________" courier grayBg theme={theme} />
+            <SepaRow label="BIC" value={bicDisplay} courier grayBg theme={theme} />
             <SepaRow label="Nom du créancier" value={s(cabinet.nom)} theme={theme} />
             <SepaRow
               label="Identification du créancier (ICS)"

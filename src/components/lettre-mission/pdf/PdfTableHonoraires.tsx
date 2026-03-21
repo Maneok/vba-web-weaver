@@ -15,8 +15,9 @@ interface Props {
 const COL_DESIGNATION = "60%";
 const COL_MONTANT = "40%";
 
+/* V2-18: header minHeight 24 (was 26) */
 const TableHeader: React.FC<{ cols: [string, string]; theme: PdfTheme }> = ({ cols, theme }) => (
-  <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 26, alignItems: "center" }}>
+  <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 24, alignItems: "center" }}>
     <Text style={[styles.tableCellBold, { width: COL_DESIGNATION, color: "#FFFFFF" }]}>{cols[0]}</Text>
     <Text style={[styles.tableCellBold, { width: COL_MONTANT, textAlign: "right", color: "#FFFFFF" }]}>{cols[1]}</Text>
   </View>
@@ -36,8 +37,9 @@ const TableRow: React.FC<{ label: string; value: string; index: number; theme: P
   </View>
 );
 
+/* V2-24: TotalRow minHeight 30 (was 28) */
 const TotalRow: React.FC<{ label: string; value: string; theme: PdfTheme }> = ({ label, value, theme }) => (
-  <View style={[styles.tableRow, { backgroundColor: theme.secondaire, minHeight: 28, borderBottomWidth: 0 }]}>
+  <View style={[styles.tableRow, { backgroundColor: theme.secondaire, minHeight: 30, borderBottomWidth: 0 }]}>
     <Text style={[styles.tableCellBold, { width: COL_DESIGNATION, color: "#FFFFFF", fontSize: 10 }]}>{label}</Text>
     <Text style={[styles.tableCellBold, { width: COL_MONTANT, textAlign: "right", color: "#FFFFFF", fontSize: 10 }]}>
       {value}
@@ -45,13 +47,14 @@ const TotalRow: React.FC<{ label: string; value: string; theme: PdfTheme }> = ({
   </View>
 );
 
+/* V2-25: SubHeading marginTop 12 (was 10) */
 const SubHeading: React.FC<{ title: string; theme: PdfTheme }> = ({ title, theme }) => (
   <Text
     style={{
       fontSize: 10,
       fontFamily: "Helvetica-Bold",
       color: theme.secondaire,
-      marginTop: 10,
+      marginTop: 12,
       marginBottom: 4,
     }}
   >
@@ -79,11 +82,11 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission, theme: theme
 
   lignesCompta.push({
     label: "Honoraires exceptionnels — Expert-Comptable",
-    value: "200 \u20AC HT / heure",
+    value: `${safeNumber(honoraires.honoraires_ec_heure, 200).toLocaleString("fr-FR")} \u20AC HT / heure`,
   });
   lignesCompta.push({
     label: "Honoraires exceptionnels — Collaborateur",
-    value: "100 \u20AC HT / heure",
+    value: `${safeNumber(honoraires.honoraires_collab_heure, 100).toLocaleString("fr-FR")} \u20AC HT / heure`,
   });
 
   const totalCompta =
@@ -110,8 +113,39 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission, theme: theme
         ? "Option B — Couverture partielle : 10 € HT / mois (120 € HT / an)"
         : "Aucune option souscrite";
 
+  // Detail labels for wizard breakdown
+  const detailLabels: Record<string, string> = {
+    comptabilite: "Comptabilité — Tenue, révision, bilan",
+    fiscal: "Fiscal — TVA, IS, liasse",
+    social: "Social — Paie, DSN, charges",
+    juridique: "Juridique — AG, approbation comptes",
+    conseil: "Conseil de gestion",
+  };
+
+  // Has meaningful detail breakdown?
+  const detail = honoraires.detail;
+  const detailEntries = detail ? Object.entries(detail).filter(([, v]) => v > 0) : [];
+  const hasDetail = detailEntries.length > 1;
+
   return (
     <View>
+      {/* ═══ DETAIL BREAKDOWN (if wizard provided per-mission breakdown) ═══ */}
+      {hasDetail && (
+        <View style={{ marginBottom: 10 }}>
+          <RoundedTableWrapper borderColor={theme.border}>
+            <TableHeader cols={["Prestation", "Montant HT"]} theme={theme} />
+            {detailEntries.map(([key, val], i) => (
+              <TableRow key={key} label={detailLabels[key] || key} value={formatMontant(val)} index={i} theme={theme} />
+            ))}
+            <TotalRow
+              label="TOTAL ANNUEL"
+              value={formatMontant(detailEntries.reduce((sum, [, v]) => sum + v, 0))}
+              theme={theme}
+            />
+          </RoundedTableWrapper>
+        </View>
+      )}
+
       {/* ═══ TABLEAU 1 — MISSION COMPTABLE ═══ */}
       <RoundedTableWrapper borderColor={theme.border}>
         <TableHeader cols={["Désignation", "Montant HT"]} theme={theme} />
@@ -131,17 +165,26 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission, theme: theme
               <TableRow key={i} label={l.label} value={l.value} index={i} theme={theme} />
             ))}
           </RoundedTableWrapper>
-          <Text
+          {/* V2-27: "Sur devis" note with left accent */}
+          <View
             style={{
-              fontSize: 8,
-              color: theme.muted,
-              fontFamily: "Helvetica-Oblique",
-              marginTop: 3,
-              paddingHorizontal: 4,
+              marginTop: 4,
+              paddingLeft: 8,
+              borderLeftWidth: 2,
+              borderLeftColor: theme.primaire,
             }}
           >
-            Sur devis : Contrat de travail complexe, procédures de licenciement, rupture conventionnelle...
-          </Text>
+            <Text
+              style={{
+                fontSize: 8,
+                color: theme.muted,
+                fontFamily: "Helvetica-Oblique",
+                paddingHorizontal: 4,
+              }}
+            >
+              Sur devis : Contrat de travail complexe, procédures de licenciement, rupture conventionnelle...
+            </Text>
+          </View>
         </View>
       )}
 

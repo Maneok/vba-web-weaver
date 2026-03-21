@@ -440,11 +440,21 @@ export function resolveModeleSections(
       }
       return true;
     })
-    .map((s, i) => ({
-      ...s,
-      contenu: resolveVariablesInText(s.contenu, variablesMap),
-      ordre: i + 1,
-    }));
+    .map((s, i) => {
+      let contenu = resolveVariablesInText(s.contenu, variablesMap);
+      // Override mission/nature_limite text based on mission type (FIX 5)
+      const mtId = variablesMap.mission_type_id;
+      if (mtId && mtId !== "presentation") {
+        const mtConf = getMissionTypeConfig(mtId);
+        if (s.id === "mission" && mtConf.missionText) {
+          contenu = resolveVariablesInText(mtConf.missionText, variablesMap);
+        }
+        if (s.id === "nature_limite" && mtConf.natureLimiteText) {
+          contenu = resolveVariablesInText(mtConf.natureLimiteText, variablesMap);
+        }
+      }
+      return { ...s, contenu, ordre: i + 1 };
+    });
 }
 
 function resolveVariablesInText(text: string, vars: Record<string, string>): string {
@@ -480,6 +490,19 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
   const missionTypeId = String(d.mission_type_id ?? d.type_mission ?? "presentation");
   const mtConfig = getMissionTypeConfig(missionTypeId);
 
+  // Mode de paiement label
+  const modePaiementRaw = String(d.mode_paiement ?? "prelevement");
+  const modePaiementLabel = modePaiementRaw === "virement" ? "virement bancaire"
+    : modePaiementRaw === "cheque" ? "chèque"
+    : "prélèvement automatique";
+
+  // Frequence label
+  const freqRaw = String(d.frequence_facturation ?? "MENSUEL");
+  const freqLabel = freqRaw === "TRIMESTRIEL" ? "trimestriellement"
+    : freqRaw === "SEMESTRIEL" ? "semestriellement"
+    : freqRaw === "ANNUEL" ? "annuellement"
+    : "mensuellement";
+
   const vars: Record<string, string> = {
     // Lettre
     numero_lettre: String(d.numero_lettre ?? ""),
@@ -508,7 +531,10 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     referent_lcb: String(d.referent_lcb ?? ""),
     type_mission: String(d.type_mission ?? ""),
     mission: String(d.type_mission ?? ""),
-    frequence: String(d.frequence_facturation ?? ""),
+    mission_type_id: missionTypeId,
+    frequence: freqRaw,
+    mode_paiement: modePaiementLabel,
+    frequence_facturation_label: freqLabel,
     honoraires: safeNumVar(d.honoraires_ht).toLocaleString("fr-FR"),
     hono: `${safeNumVar(d.honoraires_ht).toLocaleString("fr-FR")} € HT`,
     honoraires_ttc: (safeNumVar(d.honoraires_ht) * (1 + safeNumVar(d.taux_tva, 20) / 100)).toLocaleString("fr-FR"),
@@ -525,7 +551,7 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
     // Options
     formule_politesse: d.genre === "F" ? "Madame" : "Monsieur",
     genre: d.genre === "F" ? "Mme" : "M.",
-    periodicite: String(d.frequence_facturation ?? "MENSUEL"),
+    periodicite: freqRaw,
     // Dynamic from mission type config
     referentiel_comptable: mtConfig.referentielApplicable,
     forme_rapport: mtConfig.formeRapport,
@@ -546,6 +572,19 @@ export function buildVariablesMap(wizardData: Record<string, unknown>): Record<s
   // Inject mission-type specific variables from wizard data
   for (const sv of mtConfig.specificVariables) {
     vars[sv.key] = String(d[sv.key] ?? "");
+  }
+
+  // Inject sous_options per mission for conditional section content
+  const missionsSelected = d.missions_selected as { section_id: string; selected: boolean; sous_options?: { id: string; label: string; selected: boolean }[] }[] | undefined;
+  if (missionsSelected) {
+    for (const mission of missionsSelected) {
+      if (mission.selected && mission.sous_options) {
+        const selectedSubs = mission.sous_options.filter(sub => sub.selected);
+        if (selectedSubs.length > 0) {
+          vars[`sous_options_${mission.section_id}`] = selectedSubs.map(sub => `▪ ${sub.label}`).join("\n");
+        }
+      }
+    }
   }
 
   return vars;

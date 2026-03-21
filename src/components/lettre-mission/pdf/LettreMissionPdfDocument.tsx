@@ -436,6 +436,9 @@ const RenderSnapshotSection: React.FC<{
     .replace(/\{\{date_du_jour\}\}/g, data.date_generation || new Date().toLocaleDateString("fr-FR"))
     .replace(/\{\{exercice_debut\}\}/g, dateDebut)
     .replace(/\{\{exercice_fin\}\}/g, dateFin)
+    .replace(/\{\{iban\}\}/g, data.iban || "________________________")
+    .replace(/\{\{bic\}\}/g, data.bic || "___________")
+    .replace(/\{\{sous_options_(\w+)\}\}/g, (_match, _missionId) => "")
     .replace(/effectués par sondages\b[^.]*/g, "effectués par notre cabinet uniquement par épreuves, et ne portent donc pas sur l'appréciation de la légalité et de la fiabilité des documents présentés")
     .replace(/par sondages\./g, "par notre cabinet uniquement par épreuves, et ne portent donc pas sur l'appréciation de la légalité et de la fiabilité des documents présentés.");
 

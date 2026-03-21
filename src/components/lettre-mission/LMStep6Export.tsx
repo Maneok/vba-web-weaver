@@ -227,6 +227,14 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         const missionsSelected = sanitized.missions_selected?.map((m) => ({ section_id: m.section_id, selected: m.selected })) ?? [];
         const resolved = resolveModeleSections(modele.sections, varsMap, missionsSelected);
         const clientForPdf = buildClientFromWizardData(sanitized);
+        // Parse honoraires_detail from wizard (string values → numbers)
+        const honDetail: Record<string, number> = {};
+        if (data.honoraires_detail) {
+          for (const [k, v] of Object.entries(data.honoraires_detail)) {
+            const n = parseFloat(String(v));
+            if (Number.isFinite(n) && n > 0) honDetail[k] = n;
+          }
+        }
         await generatePdfFromInstance({
           sections_snapshot: resolved,
           cgv_snapshot: modele.cgv_content,
@@ -242,6 +250,10 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
             honorairesComptable: data.honoraires_ht,
             periodicite: data.frequence_facturation,
           },
+          iban: data.iban || "",
+          bic: data.bic || "",
+          mode_paiement: data.mode_paiement || "prelevement",
+          honoraires_detail: Object.keys(honDetail).length > 0 ? honDetail : undefined,
         });
         toast.success("PDF genere depuis le modele");
         return;
@@ -307,6 +319,9 @@ export default function LMStep6Export({ data, onChange, onSave, onReset, saving 
         }, {
           forfait_annuel_ht: data.honoraires_ht,
           frequence_facturation: data.frequence_facturation || "MENSUEL",
+          iban: data.iban || "",
+          bic: data.bic || "",
+          mode_paiement: data.mode_paiement || "prelevement",
         });
         toast.success("DOCX genere depuis le modele");
         return;

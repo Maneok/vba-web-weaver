@@ -299,7 +299,7 @@ export async function generatePdfFromInstance(
     variables_resolved?: Record<string, string>;
   },
   cabinet: { nom: string; adresse: string; cp: string; ville: string; siret: string; numeroOEC: string; email: string; telephone: string },
-  options?: { signatureExpert?: string; signatureClient?: string; client?: any; honoraires?: any }
+  options?: { signatureExpert?: string; signatureClient?: string; client?: any; honoraires?: any; iban?: string; bic?: string; mode_paiement?: string; honoraires_detail?: Record<string, number> }
 ): Promise<void> {
   try {
     // BUG G — if old snapshot has < 15 rows, use new complete DEFAULT_REPARTITION
@@ -349,7 +349,12 @@ export async function generatePdfFromInstance(
         mission_juridique: false,
         controle_fiscal: false,
       },
-      honoraires: options?.honoraires ? buildDefaultHonoraires({ options: options.honoraires }) : buildDefaultHonoraires(),
+      honoraires: (() => {
+        const h = options?.honoraires ? buildDefaultHonoraires({ options: options.honoraires }) : buildDefaultHonoraires();
+        if (options?.honoraires_detail) h.detail = options.honoraires_detail;
+        if (options?.mode_paiement) h.mode_paiement = options.mode_paiement;
+        return h;
+      })(),
       lcbft: options?.client ? buildDefaultLcbft(options.client) : { score_risque: 0, niveau_vigilance: "STANDARD", statut_ppe: false },
       repartition,
       // BUG 6/E fix: prefer actual person name, never fall back to cabinet name
@@ -362,6 +367,8 @@ export async function generatePdfFromInstance(
       cgv_snapshot: instance.cgv_snapshot,
       signature_expert: options?.signatureExpert,
       signature_client: options?.signatureClient,
+      iban: options?.iban || "",
+      bic: options?.bic || "",
     };
 
     await generateLettreMissionPdf(pdfData);
