@@ -21,6 +21,7 @@ import ScreeningPanel from "@/components/ScreeningPanel";
 import NetworkGraph from "@/components/NetworkGraph";
 import type { Client, OuiNon, EtatPilotage } from "@/lib/types";
 import { toast } from "sonner";
+import { getUserInitials } from "@/lib/utils";
 import { EditableText } from "@/components/ged/EditableCell";
 import { updateDocumentField } from "@/services/gedService";
 
@@ -161,12 +162,29 @@ function ClientDetailContent({ client }: { client: Client }) {
   const [tab, setTab] = useState("informations");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [cabinetCollaborateurs, setCabinetCollaborateurs] = useState<Array<{ id: string; full_name: string; email: string; role: string }>>([]);
   // Sync editForm when client data changes (e.g. from external updates)
   useEffect(() => {
     if (!editing) {
       setEditForm({ ...client });
     }
   }, [client, editing]);
+
+  // Load cabinet collaborateurs for assigned_to selector
+  useEffect(() => {
+    const cabinetId = (profile as any)?.cabinet_id;
+    if (!cabinetId) return;
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, role")
+      .eq("cabinet_id", cabinetId)
+      .eq("is_active", true)
+      .in("role", ["ADMIN", "SUPERVISEUR", "COLLABORATEUR"])
+      .order("full_name")
+      .then(({ data }) => {
+        if (data) setCabinetCollaborateurs(data);
+      });
+  }, [(profile as any)?.cabinet_id]);
 
   // Screening state
   const [screening, setScreening] = useState<ScreeningState>(INITIAL_SCREENING);
@@ -536,6 +554,63 @@ function ClientDetailContent({ client }: { client: Client }) {
                   <InfoRow label="Comptable" value={client.comptable} />
                   <InfoRow label="Associe" value={client.associe} />
                   <InfoRow label="Superviseur" value={client.superviseur} />
+                  {/* Responsable (assigned_to) */}
+                  <div className="flex items-center justify-between py-1.5 border-b border-gray-100 dark:border-white/[0.04]">
+                    <span className="text-xs text-slate-400 dark:text-slate-500 w-28 shrink-0">Responsable</span>
+                    <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                      {client.assignedTo ? (
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-5 h-5 rounded-full bg-blue-500/15 flex items-center justify-center text-[9px] font-semibold text-blue-500">
+                            {getUserInitials(client.assignedToName || cabinetCollaborateurs.find(c => c.id === client.assignedTo)?.full_name || "?")}
+                          </div>
+                          <span className="text-xs text-slate-700 dark:text-slate-300 truncate">
+                            {client.assignedToName || cabinetCollaborateurs.find(c => c.id === client.assignedTo)?.full_name || client.assignedTo}
+                          </span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-slate-300 dark:text-slate-600">Non assigne</span>
+                      )}
+                      <Select
+                        value={client.assignedTo || "__none__"}
+                        onValueChange={(v) => {
+                          const newVal = v === "__none__" ? null : v;
+                          updateClient(client.ref, { assignedTo: newVal } as any);
+                          toast.success(newVal ? "Responsable mis a jour" : "Responsable retire");
+                        }}
+                      >
+                        <SelectTrigger className="w-7 h-7 p-0 border-0 bg-transparent [&>svg]:w-3 [&>svg]:h-3">
+                          <Edit3 className="w-3 h-3 text-slate-400" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="__none__">Non assigne</SelectItem>
+                          {cabinetCollaborateurs.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <div className="flex items-center gap-2">
+                                <div className="w-5 h-5 rounded-full bg-blue-500/15 flex items-center justify-center text-[8px] font-semibold text-blue-500">
+                                  {getUserInitials(c.full_name || c.email)}
+                                </div>
+                                <span>{c.full_name || c.email}</span>
+                                <Badge variant="outline" className="text-[8px] px-1 py-0">{c.role}</Badge>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {client.assignedTo !== profile?.id && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 px-2 text-[10px] text-blue-500 hover:text-blue-400"
+                          onClick={() => {
+                            updateClient(client.ref, { assignedTo: profile?.id } as any);
+                            toast.success("Dossier assigne a vous");
+                          }}
+                        >
+                          Me l'assigner
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                   <InfoRow label="Honoraires" value={client.honoraires ? `${client.honoraires.toLocaleString("fr-FR")} € HT` : ""}
                     badge={client.honoraires === 0 || !client.honoraires ? { text: "A definir", color: "bg-amber-500/15 text-amber-400" } : undefined} />
                   <InfoRow label="Frequence" value={client.frequence} />

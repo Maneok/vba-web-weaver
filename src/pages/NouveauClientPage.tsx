@@ -1884,6 +1884,7 @@ export default function NouveauClientPage() {
       nonDiffusible: screening.inpi.data?.companyData?.nonDiffusible ?? false,
       // CORRECTION 1: Person type
       typePersonne: screening.inpi.data?.companyData?.typePersonne,
+      assignedTo: session?.user?.id ?? null,
     };
 
     // Force RENFORCEE if gel des avoirs matched

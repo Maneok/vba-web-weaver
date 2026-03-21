@@ -92,7 +92,7 @@ export const clientsService = {
     return dedupe(`clients.getAll.${cabinetId}`, () => withRetry("clients.getAll", async () => {
       const { data, error } = await supabase
         .from("clients")
-        .select("*")
+        .select("*, responsable:assigned_to(id, full_name, email, role)")
         .eq("cabinet_id", cabinetId)
         .order("created_at", { ascending: false });
       if (error) {
@@ -188,7 +188,7 @@ export const clientsService = {
     if (!cabinetId) return null;
     const { data, error } = await supabase
       .from("clients")
-      .select("*")
+      .select("*, responsable:assigned_to(id, full_name, email, role)")
       .eq("cabinet_id", cabinetId)
       .eq("ref", ref)
       .single();

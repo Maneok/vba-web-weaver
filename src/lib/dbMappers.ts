@@ -91,6 +91,8 @@ export function mapDbClient(row: Record<string, unknown>): Client {
     dataProvenance: Array.isArray(row.data_provenance) ? row.data_provenance as Client["dataProvenance"] : undefined,
     nonDiffusible: row.non_diffusible === true ? true : row.non_diffusible === false ? false : undefined,
     typePersonne: (["morale", "physique", "exploitation", "unknown"].includes(str(row.type_personne))) ? str(row.type_personne) as Client["typePersonne"] : undefined,
+    assignedTo: row.assigned_to != null ? str(row.assigned_to) : null,
+    assignedToName: row.responsable && typeof row.responsable === "object" && (row.responsable as any).full_name ? (row.responsable as any).full_name : null,
   };
 }
 
@@ -154,6 +156,7 @@ export function mapClientToDb(client: Partial<Client>): Record<string, unknown> 
   if (client.dataProvenance !== undefined) row.data_provenance = client.dataProvenance;
   if (client.nonDiffusible !== undefined) row.non_diffusible = client.nonDiffusible;
   if (client.typePersonne !== undefined) row.type_personne = client.typePersonne;
+  if (client.assignedTo !== undefined) row.assigned_to = client.assignedTo;
 
   return row;
 }

@@ -5,6 +5,8 @@ import { useAppState } from "@/lib/AppContext";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { downloadCSV } from "@/lib/csvUtils";
 import { useDebounce } from "@/hooks/useDebounce";
+import { useReglages } from "@/hooks/useReglages";
+import ReglagesInfoBanner from "@/components/ReglagesInfoBanner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -61,6 +63,7 @@ type SortDir = "asc" | "desc";
 export default function BddPage() {
   const { clients, updateClient, deleteClient, isLoading, refreshClients } = useAppState();
   const { profile } = useAuth();
+  const { reglages } = useReglages();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -68,6 +71,7 @@ export default function BddPage() {
   const [filterVigilance, setFilterVigilance] = useState<string>(searchParams.get("vigilance") || "all");
   const [filterPilotage, setFilterPilotage] = useState<string>(searchParams.get("pilotage") || "all");
   const [filterEtat, setFilterEtat] = useState<string>(searchParams.get("etat") || "all");
+  const [filterResponsable, setFilterResponsable] = useState<string>(searchParams.get("responsable") || "all");
   const [sortKey, setSortKey] = useState<SortKey>("raisonSociale");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(0);
@@ -88,16 +92,18 @@ export default function BddPage() {
     if (filterVigilance !== "all") params.vigilance = filterVigilance;
     if (filterPilotage !== "all") params.pilotage = filterPilotage;
     if (filterEtat !== "all") params.etat = filterEtat;
+    if (filterResponsable !== "all") params.responsable = filterResponsable;
     setSearchParams(params, { replace: true });
-  }, [search, filterVigilance, filterPilotage, filterEtat, setSearchParams]);
+  }, [search, filterVigilance, filterPilotage, filterEtat, filterResponsable, setSearchParams]);
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
     if (filterVigilance !== "all") count++;
     if (filterPilotage !== "all") count++;
     if (filterEtat !== "all") count++;
+    if (filterResponsable !== "all") count++;
     return count;
-  }, [filterVigilance, filterPilotage, filterEtat]);
+  }, [filterVigilance, filterPilotage, filterEtat, filterResponsable]);
 
   const hasAnyFilter = activeFilterCount > 0 || !!debouncedSearch;
 
@@ -106,6 +112,7 @@ export default function BddPage() {
     setFilterVigilance("all");
     setFilterPilotage("all");
     setFilterEtat("all");
+    setFilterResponsable("all");
     setSearchParams({}, { replace: true });
   }, [setSearchParams]);
 
@@ -179,7 +186,7 @@ export default function BddPage() {
   };
 
   // Reset page when filters change
-  useEffect(() => { setPage(0); setSelectAllPages(false); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat]);
+  useEffect(() => { setPage(0); setSelectAllPages(false); }, [debouncedSearch, filterVigilance, filterPilotage, filterEtat, filterResponsable]);
 
   const filtered = useMemo(() => {
     const q = debouncedSearch.toLowerCase();
@@ -196,7 +203,11 @@ export default function BddPage() {
         (filterEtat === "ACTIF" && c.etat === "VALIDE") ||
         (filterEtat === "PROSPECT" && c.etat === "PROSPECT") ||
         (filterEtat === "ARCHIVE" && c.etat === "ARCHIVE");
-      return matchSearch && matchVig && matchPil && matchEtat;
+      const matchResp = filterResponsable === "all" ||
+        (filterResponsable === "__me__" && c.assignedTo === profile?.id) ||
+        (filterResponsable === "__none__" && !c.assignedTo) ||
+        c.assignedTo === filterResponsable;
+      return matchSearch && matchVig && matchPil && matchEtat && matchResp;
     });
 
     result.sort((a, b) => {
@@ -212,7 +223,7 @@ export default function BddPage() {
     });
 
     return result;
-  }, [clients, debouncedSearch, filterVigilance, filterPilotage, filterEtat, sortKey, sortDir]);
+  }, [clients, debouncedSearch, filterVigilance, filterPilotage, filterEtat, filterResponsable, profile?.id, sortKey, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const paginated = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -288,6 +299,12 @@ export default function BddPage() {
 
   return (
     <div className="px-6 py-6 animate-fade-in-up">
+      {/* Restriction banner */}
+      <ReglagesInfoBanner
+        show={reglages.restreindre_visibilite_affectations && profile?.role !== 'ADMIN' && profile?.role !== 'SUPERVISEUR'}
+        message="Mode restreint : vous ne voyez que les dossiers qui vous sont affectes."
+      />
+
       {/* Breadcrumb */}
       <p className="text-xs text-slate-400 dark:text-slate-500 mb-1">Accueil / Clients</p>
 
@@ -376,6 +393,19 @@ export default function BddPage() {
             <SelectItem value="ACTIF">Actif</SelectItem>
             <SelectItem value="PROSPECT">Prospect</SelectItem>
             <SelectItem value="ARCHIVE">Archive</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={filterResponsable} onValueChange={setFilterResponsable}>
+          <SelectTrigger className="w-full lg:w-[150px] h-9 rounded-lg border-slate-200 dark:border-white/[0.08] bg-white dark:bg-white/[0.04] text-sm text-slate-600 dark:text-slate-300 px-3">
+            <div className="flex items-center gap-1.5">
+              {filterResponsable !== "all" && <span className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />}
+              <SelectValue placeholder="Responsable" />
+            </div>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Tous responsables</SelectItem>
+            <SelectItem value="__me__">Mes clients</SelectItem>
+            <SelectItem value="__none__">Non assignes</SelectItem>
           </SelectContent>
         </Select>
 
@@ -675,6 +705,8 @@ export default function BddPage() {
                   >
                     <div className="flex items-center">Comptable <SortIcon column="comptable" /></div>
                   </TableHead>
+                  {/* #4b — Responsable (hidden below xl) */}
+                  <TableHead scope="col" className="w-24 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden xl:table-cell">Responsable</TableHead>
                   {/* #5 — Mission (hidden below xl) */}
                   <TableHead scope="col" className="w-28 px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 hidden xl:table-cell">Mission</TableHead>
                   {/* #6 — Risque */}
@@ -781,6 +813,21 @@ export default function BddPage() {
                       {/* #4 — Comptable (hidden below xl) */}
                       <TableCell className="px-3 py-3 text-xs text-slate-500 dark:text-slate-400 hidden xl:table-cell" title={client.comptable}>
                         {client.comptable}
+                      </TableCell>
+                      {/* #4b — Responsable (hidden below xl) */}
+                      <TableCell className="px-3 py-3 hidden xl:table-cell">
+                        {client.assignedTo ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-5 h-5 rounded-full bg-blue-500/15 flex items-center justify-center text-[8px] font-semibold text-blue-500">
+                              {getUserInitials(client.assignedToName || "?")}
+                            </div>
+                            <span className="text-xs text-slate-500 dark:text-slate-400 truncate max-w-[80px]" title={client.assignedToName || ""}>
+                              {client.assignedToName || "—"}
+                            </span>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-slate-300 dark:text-slate-600">—</span>
+                        )}
                       </TableCell>
                       {/* #5 — Mission (hidden below xl) */}
                       <TableCell className="px-3 py-3 text-xs text-slate-500 dark:text-slate-400 hidden xl:table-cell">
