@@ -107,7 +107,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         {/* PAGE DE GARDE */}
         <RenderCover data={data} theme={theme} />
 
-        {/* DESTINATAIRE */}
+        {/* DESTINATAIRE — formule de politesse */}
         <View style={styles.destBlock}>
           <Text style={styles.destText}>
             À l'attention de {s(client.civilite)} {s(client.nom_dirigeant)},
@@ -123,17 +123,17 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           </Text>
         </View>
 
-        {/* INTRODUCTION */}
+        {/* 1. INTRODUCTION */}
         <SectionBanner title="Introduction" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.introduction}</Text>
 
-        {/* VOTRE ENTITÉ */}
+        {/* 2. VOTRE ENTITÉ */}
         <View>
           <SectionBanner title="Votre entité" theme={theme} />
           <PdfTableEntite client={client} theme={theme} />
         </View>
 
-        {/* ORGANISATION ET TRANSMISSION */}
+        {/* 3. ORGANISATION ET TRANSMISSION */}
         <SectionBanner title="Organisation et transmission" theme={theme} />
         <Text style={styles.bodyText}>
           Organisation et transmission des documents comptables :
@@ -154,11 +154,15 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           {TEXTES_SECTIONS.lcbft_conservation}
         </Text>
 
-        {/* NOTRE MISSION */}
+        {/* 4. OBLIGATIONS DE VIGILANCE LCB-FT — AVANT "Notre mission" (ordre modèle) */}
+        <SectionBanner title="Obligations de vigilance LCB-FT" theme={theme} />
+        <PdfSectionLcbft lcbft={lcbft} theme={theme} />
+
+        {/* 5. NOTRE MISSION */}
         <SectionBanner title="Notre mission" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.notre_mission}</Text>
 
-        {/* RESPONSABLE DE LA MISSION */}
+        {/* 6. RESPONSABLE DE LA MISSION */}
         <SectionBanner title="Responsable de la mission" theme={theme} />
         <Text style={styles.bodyText}>
           Le responsable de la mission est {s(data.expert_responsable)}, expert-comptable inscrit au
@@ -166,7 +170,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           bonne réalisation au nom de notre structure d'exercice.
         </Text>
 
-        {/* DURÉE DE LA MISSION */}
+        {/* 7. DURÉE DE LA MISSION */}
         <SectionBanner title="Durée de la mission" theme={theme} />
         <Text style={styles.bodyText}>
           Notre mission prendra effet à la date de signature de la présente lettre de mission. Elle portera
@@ -179,15 +183,11 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           Générales d'Intervention.
         </Text>
 
-        {/* NATURE ET LIMITE */}
+        {/* 8. NATURE ET LIMITE */}
         <SectionBanner title="Nature et limite de la mission" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.nature_limite}</Text>
 
-        {/* OBLIGATIONS LCB-FT */}
-        <SectionBanner title="Obligations LCB-FT" theme={theme} />
-        <PdfSectionLcbft lcbft={lcbft} theme={theme} />
-
-        {/* MISSIONS COMPLÉMENTAIRES */}
+        {/* 9. MISSIONS COMPLÉMENTAIRES */}
         {(mission.mission_sociale || mission.mission_juridique || mission.controle_fiscal) && (
           <>
             <SectionBanner title="Missions complémentaires" theme={theme} />
@@ -221,31 +221,36 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           </>
         )}
 
-        {/* CLAUSE RÉSOLUTOIRE */}
+        {/* 10. MODALITÉS RELATIONNELLES */}
+        <SectionBanner title="Modalités relationnelles" theme={theme} />
+        <Text style={styles.bodyText}>{TEXTES_SECTIONS.modalites}</Text>
+
+        {/* 11. CLAUSE RÉSOLUTOIRE */}
         <SectionBanner title="Clause résolutoire" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.clause_resolutoire}</Text>
 
-        {/* MANDAT ADMINISTRATIONS */}
+        {/* 12. MANDAT ADMINISTRATIONS */}
         <SectionBanner title="Mandat pour agir auprès des administrations" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.mandat_administrations}</Text>
 
-        {/* HONORAIRES */}
+        {/* 13. HONORAIRES */}
         <SectionBanner title="Honoraires" theme={theme} />
+        <Text style={styles.bodyText}>{TEXTES_SECTIONS.honoraires_intro}</Text>
         <PdfTableHonoraires honoraires={honoraires} mission={mission} theme={theme} />
         <Text style={[styles.bodyText, { marginTop: 6, fontSize: 8.5 }]}>
-          Les honoraires prévus au présent contrat seront révisables annuellement selon l'évolution de
-          l'indice des prix hors taxes relatifs aux services comptables publié par l'INSEE. À défaut, minimum
-          forfaitaire de 3 % par an. Conformément à l'article 24 de l'ordonnance du 19 septembre 1945 modifié
-          par la loi PACTE, les missions relevant de la prérogative d'exercice exclusive ne peuvent donner
-          lieu à des honoraires complémentaires de succès.
+          {TEXTES_SECTIONS.honoraires_frais}
+        </Text>
+        <Text style={[styles.bodyText, { fontSize: 8.5 }]}>
+          {TEXTES_SECTIONS.honoraires_facturation
+            .replace("{{frequence_facturation}}", honoraires.frequence_facturation === "MENSUEL" ? "mensuellement" : honoraires.frequence_facturation === "TRIMESTRIEL" ? "trimestriellement" : "annuellement")}
         </Text>
 
-        {/* SIGNATURE */}
-        <SectionBanner title="Signature" theme={theme} />
+        {/* 14. FORMULE DE CLÔTURE + SIGNATURE */}
+        <SectionBanner title="Acceptation et signature" theme={theme} />
         <Text style={styles.bodyText}>
-          Nous vous serions obligés de bien vouloir nous retourner un exemplaire de la présente et des
-          annexes jointes, revêtues d'un paraphe sur chacune des pages et de votre signature sur la dernière
-          page.
+          {TEXTES_SECTIONS.formule_cloture
+            .replace("{{formule_civilite}}", s(client.civilite) === "Mme" ? "Chère Madame" : "Cher Monsieur")
+            .replace("{{nom_dirigeant}}", s(client.nom_dirigeant))}
         </Text>
         <Text style={[styles.bodyText, { marginTop: 6 }]}>
           Fait à {s(cabinet.ville)}, le {dateLong}

@@ -1,6 +1,7 @@
 import React from "react";
 import { View, Text } from "@react-pdf/renderer";
 import type { LcbftData } from "@/types/lettreMissionPdf";
+import { TEXTES_SECTIONS } from "@/lib/lettreMissionDefaults";
 import { styles, s, safeNumber } from "./pdfStyles";
 import { ScoreGauge, Badge, type PdfTheme, DEFAULT_THEME } from "./PdfComponents";
 
@@ -32,11 +33,14 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
   const score = Math.max(0, Math.min(120, safeNumber(lcbft.score_risque, 0)));
   const vColor = vigilanceColor(lcbft.niveau_vigilance, theme);
 
+  // Split lcbft_vigilance text into paragraphs for proper rendering
+  const vigilanceTexts = (TEXTES_SECTIONS.lcbft_vigilance || "").split("\n\n").filter(Boolean);
+
   return (
     <View>
-      <Text style={styles.bodyText}>
-        Conformément aux articles L.561-1 et suivants du Code monétaire et financier, le cabinet est soumis aux obligations de lutte contre le blanchiment de capitaux et le financement du terrorisme (LCB-FT).
-      </Text>
+      {vigilanceTexts.map((p, i) => (
+        <Text key={i} style={styles.bodyText}>{p}</Text>
+      ))}
 
       {/* Premium layout: gauge left + info right */}
       <View style={{ flexDirection: "row", marginTop: 8, marginBottom: 8, borderWidth: 0.5, borderColor: theme.border, borderRadius: 6, padding: 10, overflow: "hidden" }}>
@@ -75,7 +79,7 @@ const PdfSectionLcbft: React.FC<Props> = ({ lcbft, theme: themeIn }) => {
       </View>
 
       <Text style={styles.bodyText}>
-        Le client s'engage à fournir l'ensemble des documents d'identification requis (CNI, Kbis, registre des bénéficiaires effectifs) et à signaler toute modification de sa situation.
+        Le client s'engage à fournir l'ensemble des documents d'identification requis (pièce d'identité officielle, extrait Kbis, registre des bénéficiaires effectifs) et à signaler sans délai toute modification de sa situation.
       </Text>
     </View>
   );
