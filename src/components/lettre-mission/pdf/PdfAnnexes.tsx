@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text } from "@react-pdf/renderer";
 import type { LettreMissionPdfData } from "@/types/lettreMissionPdf";
-import { styles, s } from "./pdfStyles";
+import { styles, s, sanitizeForPdf } from "./pdfStyles";
 import { SectionBanner, AnnexeSignatureBox, CheckIcon, type PdfTheme, DEFAULT_THEME } from "./PdfComponents";
 
 interface Props {

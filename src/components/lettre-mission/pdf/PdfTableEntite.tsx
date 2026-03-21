@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text } from "@react-pdf/renderer";
 import type { ClientLmData } from "@/types/lettreMissionPdf";
-import { styles, colors, s } from "./pdfStyles";
+import { styles, colors, s, normalizeSiren } from "./pdfStyles";
 import { RoundedTableWrapper, type PdfTheme, DEFAULT_THEME } from "./PdfComponents";
 
 interface Props {
@@ -15,8 +15,8 @@ const rowDefs: { label: string; key: keyof ClientLmData | ((c: ClientLmData) => 
   { label: "Forme juridique", key: "forme_juridique" },
   { label: "Dirigeant", key: (c) => `${c.civilite} ${c.nom_dirigeant}` },
   { label: "Adresse", key: (c) => `${c.adresse}, ${c.code_postal} ${c.ville}` },
-  { label: "SIREN", key: "siren" },
-  { label: "SIRET", key: "siret" },
+  { label: "SIREN", key: (c) => normalizeSiren(c.siren || "") },
+  { label: "SIRET", key: (c) => normalizeSiren(c.siret || "") },
   { label: "Code APE", key: "code_ape" },
   { label: "Activité principale", key: "activite_principale" },
   { label: "Capital social", key: (c) => {

@@ -13,6 +13,7 @@ import type {
 } from "@/types/lettreMissionPdf";
 import { DEFAULT_REPARTITION, DEFAULT_CABINET } from "@/lib/lettreMissionDefaults";
 import { getMissionTypeConfig } from "@/lib/lettreMissionTypes";
+import { normalizeSiren } from "@/components/lettre-mission/pdf/pdfStyles";
 
 // ══════════════════════════════════════════════
 // IMPORTANT: @react-pdf/renderer and PDF components are loaded via dynamic
@@ -31,15 +32,86 @@ async function renderToBlob(data: LettreMissionPdfData): Promise<Blob> {
 }
 
 export async function generateLettreMissionPdf(data: LettreMissionPdfData): Promise<void> {
-  const { saveAs } = await import("file-saver");
-  const blob = await renderToBlob(data);
-  const filename = `LDM_${data.numero_lm}_${data.date_generation}.pdf`;
-  saveAs(blob, filename);
+  console.time("[PDF] generateLettreMissionPdf");
+  try {
+    // A15 — validate & sanitize data before rendering
+    const validatedData = validatePdfData(data);
+    const { saveAs } = await import("file-saver");
+    const blob = await renderToBlob(validatedData);
+    // E3 — sanitize filename: strip special chars, limit length
+    const safeNumero = (validatedData.numero_lm || "LM").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 30);
+    const safeDate = (validatedData.date_generation || "").replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 20);
+    const filename = `LDM_${safeNumero}_${safeDate}.pdf`;
+    saveAs(blob, filename);
+  } finally {
+    console.timeEnd("[PDF] generateLettreMissionPdf");
+  }
 }
 
 export async function getLettreMissionPdfBlobUrl(data: LettreMissionPdfData): Promise<string> {
-  const blob = await renderToBlob(data);
+  const validatedData = validatePdfData(data);
+  const blob = await renderToBlob(validatedData);
   return URL.createObjectURL(blob);
+}
+
+/**
+ * A15 / B — Validate and provide safe defaults for all PDF data fields.
+ * Ensures no undefined/null/NaN reaches the PDF renderer.
+ */
+function validatePdfData(data: LettreMissionPdfData): LettreMissionPdfData {
+  const safeStr = (v: unknown, fallback = ""): string => {
+    if (v === null || v === undefined) return fallback;
+    return String(v);
+  };
+
+  return {
+    ...data,
+    numero_lm: safeStr(data.numero_lm, `LM-${new Date().getFullYear()}-001`),
+    date_generation: safeStr(data.date_generation, new Date().toISOString().slice(0, 10)),
+    cabinet: {
+      ...data.cabinet,
+      nom: safeStr(data.cabinet?.nom, "Cabinet"),
+      adresse: safeStr(data.cabinet?.adresse),
+      cp: safeStr(data.cabinet?.cp),
+      ville: safeStr(data.cabinet?.ville),
+      telephone: safeStr(data.cabinet?.telephone),
+      email: safeStr(data.cabinet?.email),
+      siret: safeStr(data.cabinet?.siret),
+      oec_numero: safeStr(data.cabinet?.oec_numero),
+      assurance_nom: safeStr(data.cabinet?.assurance_nom),
+      assurance_contrat: safeStr(data.cabinet?.assurance_contrat),
+      assurance_adresse: safeStr(data.cabinet?.assurance_adresse),
+      couleur_primaire: safeStr(data.cabinet?.couleur_primaire, "#2E75B6"),
+      couleur_secondaire: safeStr(data.cabinet?.couleur_secondaire, "#1B3A5C"),
+    },
+    client: {
+      ...data.client,
+      civilite: (data.client?.civilite === "Mme" ? "Mme" : "M.") as "M." | "Mme",
+      nom_dirigeant: safeStr(data.client?.nom_dirigeant),
+      raison_sociale: safeStr(data.client?.raison_sociale),
+      forme_juridique: safeStr(data.client?.forme_juridique),
+      adresse: safeStr(data.client?.adresse),
+      code_postal: safeStr(data.client?.code_postal),
+      ville: safeStr(data.client?.ville),
+      siren: safeStr(data.client?.siren),
+      siret: safeStr(data.client?.siret),
+      code_ape: safeStr(data.client?.code_ape),
+      activite_principale: safeStr(data.client?.activite_principale),
+      regime_fiscal: safeStr(data.client?.regime_fiscal),
+      exercice_debut: safeStr(data.client?.exercice_debut, `01/01/${new Date().getFullYear()}`),
+      exercice_fin: safeStr(data.client?.exercice_fin, `31/12/${new Date().getFullYear()}`),
+      tva: Boolean(data.client?.tva),
+      cac: Boolean(data.client?.cac),
+    },
+    expert_responsable: safeStr(data.expert_responsable),
+    periodicite_transmission: safeStr(data.periodicite_transmission, "Mensuelle"),
+    outil_transmission: safeStr(data.outil_transmission, "GRIMY"),
+    is_brouillon: Boolean(data.is_brouillon),
+    sections_visibles: data.sections_visibles || [],
+    repartition: Array.isArray(data.repartition) && data.repartition.length > 0 ? data.repartition : DEFAULT_REPARTITION,
+    // B15 — filter out empty snapshot sections
+    sections_snapshot: data.sections_snapshot?.filter(sec => sec && sec.id),
+  };
 }
 
 // ══════════════════════════════════════════════
@@ -98,8 +170,8 @@ function clientToLmData(client: any): ClientLmData {
     adresse: pick("adresse", "adresse_siege", "adresseSiege", "siege_social", "address"),
     code_postal: pick("code_postal", "codePostal", "cp"),
     ville: pick("ville", "city"),
-    siren: pick("siren", "numero_siren"),
-    siret: pick("siret", "numero_siret"),
+    siren: normalizeSiren(pick("siren", "numero_siren")),
+    siret: normalizeSiren(pick("siret", "numero_siret")),
     code_ape: pick("code_ape", "codeAPE", "codeApe", "ape", "naf"),
     activite_principale: pick("activite_principale", "activitePrincipale", "activite", "objet_social", "domaine"),
     capital_social: pick("capital_social", "capitalSocial", "capital"),

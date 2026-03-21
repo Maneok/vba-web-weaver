@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Svg, Circle as SvgCircle } from "@react-pdf/renderer";
 import { TEXTES_CGV } from "@/lib/lettreMissionDefaults";
-import { styles } from "./pdfStyles";
+import { styles, sanitizeForPdf } from "./pdfStyles";
 import { SectionBanner, type PdfTheme, DEFAULT_THEME } from "./PdfComponents";
 
 interface Props {
@@ -34,7 +34,7 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom, th
 
   // If there's a CGV override string (from modele), render it as plain text paragraphs
   if (cgv_override) {
-    const paragraphs = cgv_override.split("\n\n").filter(Boolean);
+    const paragraphs = sanitizeForPdf(cgv_override).split("\n\n").filter(Boolean);
     return (
       <View break>
         <SectionBanner title="Conditions Générales d'Intervention" theme={theme} />
@@ -77,14 +77,17 @@ const PdfConditionsGenerales: React.FC<Props> = ({ cgv_override, cabinet_nom, th
         {cabinet_nom} — Conditions en vigueur
       </Text>
       {TEXTES_CGV.map((article, idx) => (
-        <View key={article.numero} style={{ marginBottom: 4 }} wrap={false}>
-          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginBottom: 2 }}>
-            <CircleNumber num={article.numero} theme={theme} />
-            <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>
-              {article.titre}
-            </Text>
+        <View key={article.numero} style={{ marginBottom: 4 }}>
+          {/* A7 — wrap={false} only on heading+first line to prevent orphaned title */}
+          <View wrap={false}>
+            <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4, marginBottom: 2 }}>
+              <CircleNumber num={article.numero} theme={theme} />
+              <Text style={{ fontSize: 8.5, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>
+                {article.titre}
+              </Text>
+            </View>
           </View>
-          <Text style={[styles.bodyText, { fontSize: 7.5, lineHeight: 1.3, paddingLeft: 24 }]}>{article.contenu}</Text>
+          <Text style={[styles.bodyText, { fontSize: 7.5, lineHeight: 1.3, paddingLeft: 24 }]}>{sanitizeForPdf(article.contenu)}</Text>
           {idx < TEXTES_CGV.length - 1 && <View style={articleSeparator} />}
         </View>
       ))}

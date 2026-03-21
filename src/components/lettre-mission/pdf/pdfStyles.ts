@@ -267,3 +267,48 @@ export function formatMontantUnit(val: unknown, unit: string): string {
   if (n < 0) formatted = "-" + formatted;
   return `${formatted} \u20AC HT / ${unit}`;
 }
+
+/**
+ * B13 — Sanitize text for PDF: strip non-Latin-1 chars that Helvetica can't render.
+ * Replaces common Unicode with ASCII equivalents, strips the rest.
+ */
+export function sanitizeForPdf(text: string): string {
+  if (!text) return "";
+  return text
+    // Typographic quotes → straight
+    .replace(/[\u2018\u2019\u201A]/g, "'")
+    .replace(/[\u201C\u201D\u201E]/g, '"')
+    // Dashes
+    .replace(/\u2013/g, "\u2013") // en-dash OK in Helvetica
+    .replace(/\u2014/g, "\u2014") // em-dash OK
+    // Ellipsis
+    .replace(/\u2026/g, "...")
+    // Narrow no-break space → regular space (BUG 1 root cause)
+    .replace(/\u202F/g, " ")
+    // Non-breaking space → regular space
+    .replace(/\u00A0/g, " ")
+    // OE ligatures (French: oeuvre, coeur)
+    .replace(/\u0153/g, "oe")
+    .replace(/\u0152/g, "OE")
+    // Strip any remaining non-Latin-1 (keep \u0000-\u00FF + common punctuation)
+    .replace(/[^\x00-\xFF\u2013\u2014\u20AC]/g, "");
+}
+
+/**
+ * B3 — Normalize SIREN/SIRET: strip spaces and non-digits for consistent display.
+ */
+export function normalizeSiren(val: string): string {
+  if (!val) return "";
+  const digits = val.replace(/\D/g, "");
+  if (digits.length === 9) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)}`;
+  if (digits.length === 14) return `${digits.slice(0, 3)} ${digits.slice(3, 6)} ${digits.slice(6, 9)} ${digits.slice(9, 14)}`;
+  return val; // return as-is if unexpected length
+}
+
+/**
+ * B14 — Validate logo base64 string: must start with "data:image/" to be renderable.
+ */
+export function isValidLogoBase64(logo?: string): boolean {
+  if (!logo) return false;
+  return logo.startsWith("data:image/") && logo.length > 100;
+}

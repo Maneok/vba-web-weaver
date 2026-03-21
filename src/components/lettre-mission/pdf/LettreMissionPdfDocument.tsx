@@ -2,7 +2,7 @@ import React from "react";
 import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import type { LettreMissionPdfData, HonorairesData, LcbftData } from "@/types/lettreMissionPdf";
 import { TEXTES_SECTIONS } from "@/lib/lettreMissionDefaults";
-import { styles, colors, s, safeNumber, buildTheme } from "./pdfStyles";
+import { styles, colors, s, safeNumber, buildTheme, sanitizeForPdf, normalizeSiren, isValidLogoBase64 } from "./pdfStyles";
 import { SideStripe, SectionBanner, Separator, SignatureBox, InfoRow, type PdfTheme } from "./PdfComponents";
 import PdfTableEntite from "./PdfTableEntite";
 import PdfTableHonoraires from "./PdfTableHonoraires";
@@ -45,14 +45,24 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   // Format date in French long format
   const dateLong = formatDateLong(data.date_generation);
 
-  // BUG 8 — expert name must not show cabinet name; fall back to default
+  // C1/C2 — consistency constants
+  const cabinetNom = s(cabinet.nom);
+
+  // BUG 8 / C5 — expert name must not show cabinet name; fall back to default
   const expertName = data.expert_responsable && data.expert_responsable !== cabinet.nom
-    ? data.expert_responsable : "—";
+    ? data.expert_responsable : "\u2014";
+
+  // C3 — normalized SIREN for consistent display
+  const clientSiren = normalizeSiren(client.siren || "");
+
+  // E1 — Document metadata
+  const pdfTitle = `Lettre de Mission ${s(data.numero_lm)} - ${s(client.raison_sociale)}`;
+  const pdfAuthor = cabinetNom;
 
   // Header: "CABINET | Lettre de Mission — NUMÉRO"
   const Header = () => (
     <View style={styles.headerFixed} fixed>
-      <Text style={styles.headerText}>{s(cabinet.nom)}</Text>
+      <Text style={styles.headerText}>{cabinetNom}</Text>
       <Text style={styles.headerText}>Lettre de Mission — {s(data.numero_lm)}</Text>
     </View>
   );
@@ -60,7 +70,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   // Footer: "CABINET | Document confidentiel — Page X sur Y"
   const Footer = () => (
     <View style={styles.footerFixed} fixed>
-      <Text style={styles.footerText}>{s(cabinet.nom)} | Document confidentiel</Text>
+      <Text style={styles.footerText}>{cabinetNom} | Document confidentiel</Text>
       <Text
         style={styles.footerText}
         render={({ pageNumber, totalPages }) => `Page ${pageNumber} sur ${totalPages}`}
@@ -71,7 +81,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   // If we have sections_snapshot (modele-based), render from that
   if (data.sections_snapshot && data.sections_snapshot.length > 0) {
     return (
-      <Document>
+      <Document title={pdfTitle} author={pdfAuthor} subject="Lettre de Mission" creator="GRIMY">
         <Page size="A4" style={styles.page} wrap>
           <SideStripe color={theme.primaire} />
           <Header />
@@ -99,7 +109,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
 
   // Standard structured generation
   return (
-    <Document>
+    <Document title={pdfTitle} author={pdfAuthor} subject="Lettre de Mission" creator="GRIMY">
       <Page size="A4" style={styles.page} wrap>
         <SideStripe color={theme.primaire} />
         <Header />
@@ -127,9 +137,11 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           </Text>
         </View>
 
-        {/* 1. INTRODUCTION */}
-        <SectionBanner title="Introduction" theme={theme} />
-        <Text style={styles.bodyText}>{TEXTES_SECTIONS.introduction}</Text>
+        {/* 1. INTRODUCTION — C9: wrap={false} keeps banner+first para together */}
+        <View wrap={false}>
+          <SectionBanner title="Introduction" theme={theme} />
+          <Text style={styles.bodyText}>{TEXTES_SECTIONS.introduction}</Text>
+        </View>
 
         {/* 2. VOTRE ENTITÉ — break to avoid orphaned blue header at page bottom */}
         <View break>
@@ -137,59 +149,71 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           <PdfTableEntite client={client} theme={theme} />
         </View>
 
-        {/* 3. ORGANISATION ET TRANSMISSION */}
-        <SectionBanner title="Organisation et transmission" theme={theme} />
-        <Text style={styles.bodyText}>
-          Organisation et transmission des documents comptables :
-        </Text>
-        <View style={styles.bulletPoint}>
-          <Text style={styles.bulletSymbol}>▪</Text>
-          <Text style={styles.bulletText}>
-            Périodicité : {s(data.periodicite_transmission)} — Avant le J+10
+        {/* 3. ORGANISATION ET TRANSMISSION — C9: wrap={false} */}
+        <View wrap={false}>
+          <SectionBanner title="Organisation et transmission" theme={theme} />
+          <Text style={styles.bodyText}>
+            Organisation et transmission des documents comptables :
+          </Text>
+          <View style={styles.bulletPoint}>
+            <Text style={styles.bulletSymbol}>▪</Text>
+            <Text style={styles.bulletText}>
+              Périodicité : {s(data.periodicite_transmission)} — Avant le J+10
+            </Text>
+          </View>
+          <View style={styles.bulletPoint}>
+            <Text style={styles.bulletSymbol}>▪</Text>
+            <Text style={styles.bulletText}>
+              Transmission via : {s(data.outil_transmission)}
+            </Text>
+          </View>
+          <Text style={[styles.bodyText, { marginTop: 4 }]}>
+            {TEXTES_SECTIONS.lcbft_conservation}
           </Text>
         </View>
-        <View style={styles.bulletPoint}>
-          <Text style={styles.bulletSymbol}>▪</Text>
-          <Text style={styles.bulletText}>
-            Transmission via : {s(data.outil_transmission)}
+
+        {/* 4. OBLIGATIONS DE VIGILANCE LCB-FT */}
+        <View wrap={false}>
+          <SectionBanner title="Obligations de vigilance LCB-FT" theme={theme} />
+          <PdfSectionLcbft lcbft={lcbft} theme={theme} />
+        </View>
+
+        {/* 5. NOTRE MISSION — C9 */}
+        <View wrap={false}>
+          <SectionBanner title="Notre mission" theme={theme} />
+          <Text style={styles.bodyText}>{TEXTES_SECTIONS.notre_mission}</Text>
+        </View>
+
+        {/* 6. RESPONSABLE DE LA MISSION — C9 */}
+        <View wrap={false}>
+          <SectionBanner title="Responsable de la mission" theme={theme} />
+          <Text style={styles.bodyText}>
+            Le responsable de la mission est {expertName}, expert-comptable inscrit au
+            tableau de l'Ordre, qui apportera personnellement son concours à la mission et en garantira la
+            bonne réalisation au nom de notre structure d'exercice.
           </Text>
         </View>
-        <Text style={[styles.bodyText, { marginTop: 4 }]}>
-          {TEXTES_SECTIONS.lcbft_conservation}
-        </Text>
 
-        {/* 4. OBLIGATIONS DE VIGILANCE LCB-FT — AVANT "Notre mission" (ordre modèle) */}
-        <SectionBanner title="Obligations de vigilance LCB-FT" theme={theme} />
-        <PdfSectionLcbft lcbft={lcbft} theme={theme} />
+        {/* 7. DURÉE DE LA MISSION — C9 */}
+        <View wrap={false}>
+          <SectionBanner title="Durée de la mission" theme={theme} />
+          <Text style={styles.bodyText}>
+            Notre mission prendra effet à la date de signature de la présente lettre de mission. Elle portera
+            sur les comptes de l'exercice comptable commençant le {client.exercice_debut && s(client.exercice_debut) !== "\u2014" ? s(client.exercice_debut) : `01/01/${new Date().getFullYear()}`} et se terminant
+            le {client.exercice_fin && s(client.exercice_fin) !== "\u2014" ? s(client.exercice_fin) : `31/12/${new Date().getFullYear()}`}.
+          </Text>
+          <Text style={styles.bodyText}>
+            Cette lettre de mission restera en vigueur pour les exercices futurs, sauf en cas de résiliation,
+            de modification ou de suspension de notre mission selon les modalités décrites dans les Conditions
+            Générales d'Intervention.
+          </Text>
+        </View>
 
-        {/* 5. NOTRE MISSION */}
-        <SectionBanner title="Notre mission" theme={theme} />
-        <Text style={styles.bodyText}>{TEXTES_SECTIONS.notre_mission}</Text>
-
-        {/* 6. RESPONSABLE DE LA MISSION */}
-        <SectionBanner title="Responsable de la mission" theme={theme} />
-        <Text style={styles.bodyText}>
-          Le responsable de la mission est {s(data.expert_responsable)}, expert-comptable inscrit au
-          tableau de l'Ordre, qui apportera personnellement son concours à la mission et en garantira la
-          bonne réalisation au nom de notre structure d'exercice.
-        </Text>
-
-        {/* 7. DURÉE DE LA MISSION */}
-        <SectionBanner title="Durée de la mission" theme={theme} />
-        <Text style={styles.bodyText}>
-          Notre mission prendra effet à la date de signature de la présente lettre de mission. Elle portera
-          sur les comptes de l'exercice comptable commençant le {client.exercice_debut && s(client.exercice_debut) !== "—" ? s(client.exercice_debut) : `01/01/${new Date().getFullYear()}`} et se terminant
-          le {client.exercice_fin && s(client.exercice_fin) !== "—" ? s(client.exercice_fin) : `31/12/${new Date().getFullYear()}`}.
-        </Text>
-        <Text style={styles.bodyText}>
-          Cette lettre de mission restera en vigueur pour les exercices futurs, sauf en cas de résiliation,
-          de modification ou de suspension de notre mission selon les modalités décrites dans les Conditions
-          Générales d'Intervention.
-        </Text>
-
-        {/* 8. NATURE ET LIMITE */}
-        <SectionBanner title="Nature et limite de la mission" theme={theme} />
-        <Text style={styles.bodyText}>{TEXTES_SECTIONS.nature_limite}</Text>
+        {/* 8. NATURE ET LIMITE — C9 */}
+        <View wrap={false}>
+          <SectionBanner title="Nature et limite de la mission" theme={theme} />
+          <Text style={styles.bodyText}>{TEXTES_SECTIONS.nature_limite}</Text>
+        </View>
 
         {/* 9. MISSIONS COMPLÉMENTAIRES */}
         {(mission.mission_sociale || mission.mission_juridique || mission.controle_fiscal) && (
@@ -225,21 +249,29 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           </>
         )}
 
-        {/* 10. MODALITÉS RELATIONNELLES */}
-        <SectionBanner title="Modalités relationnelles" theme={theme} />
-        <Text style={styles.bodyText}>{TEXTES_SECTIONS.modalites}</Text>
+        {/* 10. MODALITÉS RELATIONNELLES — C9 */}
+        <View wrap={false}>
+          <SectionBanner title="Modalités relationnelles" theme={theme} />
+          <Text style={styles.bodyText}>{TEXTES_SECTIONS.modalites}</Text>
+        </View>
 
-        {/* 11. CLAUSE RÉSOLUTOIRE */}
-        <SectionBanner title="Clause résolutoire" theme={theme} />
-        <Text style={styles.bodyText}>{TEXTES_SECTIONS.clause_resolutoire}</Text>
+        {/* 11. CLAUSE RÉSOLUTOIRE — C9 */}
+        <View wrap={false}>
+          <SectionBanner title="Clause résolutoire" theme={theme} />
+          <Text style={styles.bodyText}>{TEXTES_SECTIONS.clause_resolutoire}</Text>
+        </View>
 
-        {/* 12. MANDAT ADMINISTRATIONS */}
-        <SectionBanner title="Mandat pour agir auprès des administrations" theme={theme} />
-        <Text style={styles.bodyText}>{TEXTES_SECTIONS.mandat_administrations}</Text>
+        {/* 12. MANDAT ADMINISTRATIONS — C9 */}
+        <View wrap={false}>
+          <SectionBanner title="Mandat pour agir auprès des administrations" theme={theme} />
+          <Text style={styles.bodyText}>{TEXTES_SECTIONS.mandat_administrations}</Text>
+        </View>
 
-        {/* 13. HONORAIRES */}
-        <SectionBanner title="Honoraires" theme={theme} />
-        <Text style={styles.bodyText}>{TEXTES_SECTIONS.honoraires_intro}</Text>
+        {/* 13. HONORAIRES — C9 */}
+        <View wrap={false}>
+          <SectionBanner title="Honoraires" theme={theme} />
+          <Text style={styles.bodyText}>{TEXTES_SECTIONS.honoraires_intro}</Text>
+        </View>
         <PdfTableHonoraires honoraires={honoraires} mission={mission} theme={theme} />
         <Text style={[styles.bodyText, { marginTop: 6, fontSize: 8.5 }]}>
           {TEXTES_SECTIONS.honoraires_frais}
@@ -250,27 +282,29 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         </Text>
 
         {/* 14. FORMULE DE CLÔTURE + SIGNATURE */}
-        <SectionBanner title="Acceptation et signature" theme={theme} />
-        <Text style={styles.bodyText}>
-          {TEXTES_SECTIONS.formule_cloture
-            .replace("{{formule_civilite}}", s(client.civilite) === "Mme" ? "Chère Madame" : "Cher Monsieur")
-            .replace("{{nom_dirigeant}}", s(client.nom_dirigeant))}
-        </Text>
-        <Text style={[styles.bodyText, { marginTop: 6, fontFamily: "Helvetica-Oblique" }]}>
-          Fait à {s(cabinet.ville)}, le {dateLong}
-        </Text>
-        <View style={styles.signatureContainer}>
-          <SignatureBox
-            label="L'Expert-comptable"
-            boldName
-            name={expertName}
-            signatureImage={data.signature_expert}
-          />
-          <SignatureBox
-            label="Le Client"
-            name={`${s(client.civilite)} ${s(client.nom_dirigeant)}`}
-            signatureImage={data.signature_client}
-          />
+        <View wrap={false}>
+          <SectionBanner title="Acceptation et signature" theme={theme} />
+          <Text style={styles.bodyText}>
+            {TEXTES_SECTIONS.formule_cloture
+              .replace("{{formule_civilite}}", s(client.civilite) === "Mme" ? "Chère Madame" : "Cher Monsieur")
+              .replace("{{nom_dirigeant}}", s(client.nom_dirigeant))}
+          </Text>
+          <Text style={[styles.bodyText, { marginTop: 6, fontFamily: "Helvetica-Oblique" }]}>
+            Fait à {s(cabinet.ville)}, le {dateLong}
+          </Text>
+          <View style={styles.signatureContainer}>
+            <SignatureBox
+              label="L'Expert-comptable"
+              boldName
+              name={expertName}
+              signatureImage={data.signature_expert}
+            />
+            <SignatureBox
+              label="Le Client"
+              name={`${s(client.civilite)} ${s(client.nom_dirigeant)}`}
+              signatureImage={data.signature_client}
+            />
+          </View>
         </View>
 
         {/* ANNEXE — RÉPARTITION DES TRAVAUX */}
@@ -310,6 +344,11 @@ function formatDateLong(raw: string): string {
 
 const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = ({ data, theme }) => {
   const { cabinet, client, mission } = data;
+  // B14 — validate logo before rendering
+  const hasValidLogo = isValidLogoBase64(cabinet.logo_base64);
+  // C3 — normalized SIREN
+  const displaySiren = normalizeSiren(client.siren || "");
+
   return (
     <View>
       {/* Logo + cabinet name */}
@@ -319,14 +358,14 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
           <Text style={{ fontSize: 8.5, color: theme.muted }}>Date : {formatDateLong(data.date_generation)}</Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
-          {cabinet.logo_base64 ? (
-            <Image src={cabinet.logo_base64} style={{ width: 80, height: 80, objectFit: "contain" }} />
+          {hasValidLogo ? (
+            <Image src={cabinet.logo_base64!} style={{ width: 80, height: 80, objectFit: "contain" }} />
           ) : (
             <Text style={{ fontSize: 14, fontFamily: "Helvetica-Bold", color: theme.secondaire }}>
               {s(cabinet.nom)}
             </Text>
           )}
-          {cabinet.logo_base64 && (
+          {hasValidLogo && (
             <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: theme.secondaire, marginTop: 4 }}>
               {s(cabinet.nom)}
             </Text>
@@ -335,7 +374,7 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
             {s(cabinet.adresse)}, {s(cabinet.cp)} {s(cabinet.ville)}
           </Text>
           <Text style={{ fontSize: 7.5, color: "#BBBBBB" }}>
-            SIRET {s(cabinet.siret)}{cabinet.oec_numero ? ` — OEC ${s(cabinet.oec_numero)}` : ""}
+            SIRET {s(cabinet.siret)}{cabinet.oec_numero ? ` \u2014 OEC ${s(cabinet.oec_numero)}` : ""}
           </Text>
         </View>
       </View>
@@ -354,8 +393,8 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
       <View style={{ marginBottom: 2 }}>
         <InfoRow label="Cabinet" value={s(cabinet.nom)} theme={theme} />
         <InfoRow label="Client" value={`${s(client.forme_juridique)} ${s(client.raison_sociale)}`} theme={theme} />
-        <InfoRow label="SIREN" value={s(client.siren)} theme={theme} />
-        <InfoRow label="Exercice" value={`${s(client.exercice_debut)} — ${s(client.exercice_fin)}`} theme={theme} />
+        <InfoRow label="SIREN" value={displaySiren || "\u2014"} theme={theme} />
+        <InfoRow label="Exercice" value={`${s(client.exercice_debut)} \u2014 ${s(client.exercice_fin)}`} theme={theme} />
       </View>
 
       <Separator color={theme.primaire} />
@@ -369,10 +408,11 @@ const RenderSnapshotSection: React.FC<{
   data: LettreMissionPdfData;
   theme: PdfTheme;
 }> = ({ section, data, theme }) => {
-  const content = section.contenu || "";
+  // B13 — sanitize text content for PDF
+  const content = sanitizeForPdf(section.contenu || "");
 
-  // Skip empty sections
-  if (!content.trim() && section.id !== "entite" && section.id !== "honoraires" && section.id !== "annexe_repartition") {
+  // Skip empty sections (B15)
+  if (!content.trim() && section.id !== "entite" && section.id !== "honoraires" && section.id !== "annexe_repartition" && section.id !== "lcbft") {
     return null;
   }
 
@@ -426,20 +466,19 @@ const RenderSnapshotSection: React.FC<{
     );
   }
 
-  // Generic text section
+  // Generic text section — C9: wrap={false} on bandeau + first paragraph
   const paragraphs = content.split("\n\n").filter(Boolean);
   return (
     <View>
-      <SectionBanner title={section.titre} theme={theme} />
       {paragraphs.map((p, i) => {
         // Handle bullet points
-        if (p.includes("\n▪") || p.includes("\n—") || p.includes("\n☐")) {
+        if (p.includes("\n▪") || p.includes("\n\u2014") || p.includes("\n☐")) {
           const lines = p.split("\n");
-          return (
+          const block = (
             <View key={i}>
               {lines.map((line, j) => {
                 const trimmed = line.trim();
-                if (trimmed.startsWith("▪") || trimmed.startsWith("—") || trimmed.startsWith("☐")) {
+                if (trimmed.startsWith("▪") || trimmed.startsWith("\u2014") || trimmed.startsWith("☐")) {
                   return (
                     <View key={j} style={styles.bulletPoint}>
                       <Text style={styles.bulletSymbol}>{trimmed.charAt(0)}</Text>
@@ -451,9 +490,17 @@ const RenderSnapshotSection: React.FC<{
               })}
             </View>
           );
+          if (i === 0) {
+            return <View key={i} wrap={false}><SectionBanner title={section.titre} theme={theme} />{block}</View>;
+          }
+          return block;
+        }
+        if (i === 0) {
+          return <View key={i} wrap={false}><SectionBanner title={section.titre} theme={theme} /><Text style={styles.bodyText}>{p}</Text></View>;
         }
         return <Text key={i} style={styles.bodyText}>{p}</Text>;
       })}
+      {paragraphs.length === 0 && <SectionBanner title={section.titre} theme={theme} />}
     </View>
   );
 };
