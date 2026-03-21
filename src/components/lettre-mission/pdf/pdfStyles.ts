@@ -1,4 +1,20 @@
 import { StyleSheet } from "@react-pdf/renderer";
+import type { PdfTheme } from "./PdfComponents";
+
+/** Build a PdfTheme from cabinet colors (falls back to defaults) */
+export function buildTheme(primaire?: string, secondaire?: string): PdfTheme {
+  return {
+    primaire: primaire || "#2E75B6",
+    secondaire: secondaire || "#1B3A5C",
+    text: "#333333",
+    muted: "#888888",
+    light: "#F8F9FA",
+    border: "#E0E0E0",
+    success: "#2E7D32",
+    warning: "#E65100",
+    danger: "#C62828",
+  };
+}
 
 export const colors = {
   primaire: "#2E75B6",

@@ -2,9 +2,11 @@ import React from "react";
 import { View, Text } from "@react-pdf/renderer";
 import type { ClientLmData } from "@/types/lettreMissionPdf";
 import { styles, colors, s } from "./pdfStyles";
+import { RoundedTableWrapper, type PdfTheme, DEFAULT_THEME } from "./PdfComponents";
 
 interface Props {
   client: ClientLmData;
+  theme?: PdfTheme;
 }
 
 const rowDefs: { label: string; key: keyof ClientLmData | ((c: ClientLmData) => string) }[] = [
@@ -17,11 +19,9 @@ const rowDefs: { label: string; key: keyof ClientLmData | ((c: ClientLmData) => 
   { label: "SIRET", key: "siret" },
   { label: "Code APE", key: "code_ape" },
   { label: "Activité principale", key: "activite_principale" },
-  // opt 21: capital with € symbol
   { label: "Capital social", key: (c) => {
     const v = s(c.capital_social);
     if (v === "—" || !v) return "—";
-    // Already contains € → return as-is
     if (v.includes("€")) return v;
     return `${v} €`;
   }},
@@ -30,7 +30,6 @@ const rowDefs: { label: string; key: keyof ClientLmData | ((c: ClientLmData) => 
   { label: "Exercice", key: (c) => `${s(c.exercice_debut)} — ${s(c.exercice_fin)}` },
   { label: "Assujetti TVA", key: (c) => (c.tva ? "Oui" : "Non") },
   { label: "CAC désigné", key: (c) => (c.cac ? "Oui" : "Non") },
-  // opt 22: effectif 0 → "—"
   { label: "Effectif", key: (c) => {
     if (c.effectif === undefined || c.effectif === null || c.effectif === 0) return "—";
     return String(c.effectif);
@@ -40,8 +39,9 @@ const rowDefs: { label: string; key: keyof ClientLmData | ((c: ClientLmData) => 
 
 const OPTIONAL_LABELS = new Set(["Nom commercial", "Capital social", "Date de création", "Effectif", "Volume comptable"]);
 
-const PdfTableEntite: React.FC<Props> = ({ client }) => {
-  // Build visible rows first so alternance index is correct
+const PdfTableEntite: React.FC<Props> = ({ client, theme: themeIn }) => {
+  const theme = themeIn || DEFAULT_THEME;
+
   const visibleRows: { label: string; value: string }[] = [];
   for (const row of rowDefs) {
     const val = typeof row.key === "function" ? row.key(client) : client[row.key];
@@ -51,28 +51,25 @@ const PdfTableEntite: React.FC<Props> = ({ client }) => {
   }
 
   return (
-    // opt 24: outer border around the whole table
-    <View style={{ borderWidth: 0.5, borderColor: "#E0E0E0" }}>
-      {/* Header row — opt 20: fond #D6E4F0, texte bold #1B3A5C */}
-      <View style={[styles.tableHeaderRow, { borderBottomWidth: 1, borderBottomColor: colors.secondaire }]}>
-        <Text style={[styles.tableCellBold, { width: "40%", color: colors.secondaire }]}>Information</Text>
-        <Text style={[styles.tableCellBold, { width: "60%", color: colors.secondaire }]}>Détail</Text>
+    <RoundedTableWrapper borderColor={theme.border}>
+      {/* Premium header with primaire background */}
+      <View style={{ flexDirection: "row", backgroundColor: theme.primaire, minHeight: 26, alignItems: "center" }}>
+        <Text style={[styles.tableCellBold, { width: "40%", color: "#FFFFFF" }]}>Information</Text>
+        <Text style={[styles.tableCellBold, { width: "60%", color: "#FFFFFF" }]}>Détail</Text>
       </View>
       {visibleRows.map((row, i) => {
         const isEmpty = row.value === "—";
         return (
           <View
             key={row.label}
-            // opt 19: alternance visible
-            style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: colors.fond_alternance } : {}]}
+            style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: theme.light } : {}]}
           >
-            <Text style={[styles.tableCellBold, { width: "40%", color: colors.secondaire }]}>{row.label}</Text>
-            {/* opt 23: empty values in gris_clair */}
-            <Text style={[styles.tableCell, { width: "60%", color: isEmpty ? colors.gris_clair : colors.texte }]}>{row.value}</Text>
+            <Text style={[styles.tableCellBold, { width: "40%", color: theme.secondaire }]}>{row.label}</Text>
+            <Text style={[styles.tableCell, { width: "60%", color: isEmpty ? theme.muted : theme.text }]}>{row.value}</Text>
           </View>
         );
       })}
-    </View>
+    </RoundedTableWrapper>
   );
 };
 

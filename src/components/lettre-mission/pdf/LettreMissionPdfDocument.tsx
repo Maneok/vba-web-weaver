@@ -2,7 +2,8 @@ import React from "react";
 import { Document, Page, View, Text, Image } from "@react-pdf/renderer";
 import type { LettreMissionPdfData, HonorairesData, LcbftData } from "@/types/lettreMissionPdf";
 import { TEXTES_SECTIONS } from "@/lib/lettreMissionDefaults";
-import { styles, colors, s, safeNumber } from "./pdfStyles";
+import { styles, colors, s, safeNumber, buildTheme } from "./pdfStyles";
+import { SideStripe, SectionBanner, Separator, SignatureBox, InfoRow, type PdfTheme } from "./PdfComponents";
 import PdfTableEntite from "./PdfTableEntite";
 import PdfTableHonoraires from "./PdfTableHonoraires";
 import PdfTableRepartition from "./PdfTableRepartition";
@@ -38,10 +39,13 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   };
   const { cabinet, client, mission, repartition } = data;
 
-  // opt 47 — format date in French long format
+  // Build theme from cabinet colors
+  const theme = buildTheme(cabinet.couleur_primaire, cabinet.couleur_secondaire);
+
+  // Format date in French long format
   const dateLong = formatDateLong(data.date_generation);
 
-  // opt 49 — single header: "CABINET | Lettre de Mission — NUMÉRO"
+  // Header: "CABINET | Lettre de Mission — NUMÉRO"
   const Header = () => (
     <View style={styles.headerFixed} fixed>
       <Text style={styles.headerText}>{s(cabinet.nom)}</Text>
@@ -49,13 +53,13 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
     </View>
   );
 
-  // opt 48/49 — footer on EVERY page: "CABINET | Document confidentiel — Page X / Y"
+  // Footer: "CABINET | Document confidentiel — Page X sur Y"
   const Footer = () => (
     <View style={styles.footerFixed} fixed>
       <Text style={styles.footerText}>{s(cabinet.nom)} | Document confidentiel</Text>
       <Text
         style={styles.footerText}
-        render={({ pageNumber, totalPages }) => `Page ${pageNumber} / ${totalPages}`}
+        render={({ pageNumber, totalPages }) => `Page ${pageNumber} sur ${totalPages}`}
       />
     </View>
   );
@@ -65,22 +69,25 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
     return (
       <Document>
         <Page size="A4" style={styles.page} wrap>
+          <SideStripe color={theme.primaire} />
           <Header />
           <Footer />
-          {data.is_brouillon && <Text style={styles.watermark} fixed>PROJET</Text>}
+          {data.is_brouillon && (
+            <Text style={styles.watermark} fixed>PROJET</Text>
+          )}
 
           {/* Cover */}
-          <RenderCover data={data} />
+          <RenderCover data={data} theme={theme} />
 
           {/* Render each section from snapshot */}
           {data.sections_snapshot
             .sort((a, b) => a.ordre - b.ordre)
             .map((section) => (
-              <RenderSnapshotSection key={section.id} section={section} data={data} />
+              <RenderSnapshotSection key={section.id} section={section} data={data} theme={theme} />
             ))}
 
           {/* CGV */}
-          <PdfConditionsGenerales cgv_override={data.cgv_snapshot} cabinet_nom={s(cabinet.nom)} />
+          <PdfConditionsGenerales cgv_override={data.cgv_snapshot} cabinet_nom={s(cabinet.nom)} theme={theme} />
         </Page>
       </Document>
     );
@@ -90,12 +97,15 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   return (
     <Document>
       <Page size="A4" style={styles.page} wrap>
+        <SideStripe color={theme.primaire} />
         <Header />
         <Footer />
-        {data.is_brouillon && <Text style={styles.watermark} fixed>PROJET</Text>}
+        {data.is_brouillon && (
+          <Text style={styles.watermark} fixed>PROJET</Text>
+        )}
 
         {/* PAGE DE GARDE */}
-        <RenderCover data={data} />
+        <RenderCover data={data} theme={theme} />
 
         {/* DESTINATAIRE */}
         <View style={styles.destBlock}>
@@ -114,17 +124,17 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         </View>
 
         {/* INTRODUCTION */}
-        <SectionBandeau title="Introduction" />
+        <SectionBanner title="Introduction" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.introduction}</Text>
 
-        {/* VOTRE ENTITÉ — opt 11: only wrap={false} if ≤ 8 visible rows */}
+        {/* VOTRE ENTITÉ */}
         <View>
-          <SectionBandeau title="Votre entité" />
-          <PdfTableEntite client={client} />
+          <SectionBanner title="Votre entité" theme={theme} />
+          <PdfTableEntite client={client} theme={theme} />
         </View>
 
         {/* ORGANISATION ET TRANSMISSION */}
-        <SectionBandeau title="Organisation et transmission" />
+        <SectionBanner title="Organisation et transmission" theme={theme} />
         <Text style={styles.bodyText}>
           Organisation et transmission des documents comptables :
         </Text>
@@ -145,11 +155,11 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         </Text>
 
         {/* NOTRE MISSION */}
-        <SectionBandeau title="Notre mission" />
+        <SectionBanner title="Notre mission" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.notre_mission}</Text>
 
         {/* RESPONSABLE DE LA MISSION */}
-        <SectionBandeau title="Responsable de la mission" />
+        <SectionBanner title="Responsable de la mission" theme={theme} />
         <Text style={styles.bodyText}>
           Le responsable de la mission est {s(data.expert_responsable)}, expert-comptable inscrit au
           tableau de l'Ordre, qui apportera personnellement son concours à la mission et en garantira la
@@ -157,7 +167,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         </Text>
 
         {/* DURÉE DE LA MISSION */}
-        <SectionBandeau title="Durée de la mission" />
+        <SectionBanner title="Durée de la mission" theme={theme} />
         <Text style={styles.bodyText}>
           Notre mission prendra effet à la date de signature de la présente lettre de mission. Elle portera
           sur les comptes de l'exercice comptable commençant le {s(client.exercice_debut) !== "—" ? s(client.exercice_debut) : `01/01/${new Date().getFullYear()}`} et se terminant
@@ -170,17 +180,17 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         </Text>
 
         {/* NATURE ET LIMITE */}
-        <SectionBandeau title="Nature et limite de la mission" />
+        <SectionBanner title="Nature et limite de la mission" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.nature_limite}</Text>
 
         {/* OBLIGATIONS LCB-FT */}
-        <SectionBandeau title="Obligations LCB-FT" />
-        <PdfSectionLcbft lcbft={lcbft} />
+        <SectionBanner title="Obligations LCB-FT" theme={theme} />
+        <PdfSectionLcbft lcbft={lcbft} theme={theme} />
 
         {/* MISSIONS COMPLÉMENTAIRES */}
         {(mission.mission_sociale || mission.mission_juridique || mission.controle_fiscal) && (
           <>
-            <SectionBandeau title="Missions complémentaires" />
+            <SectionBanner title="Missions complémentaires" theme={theme} />
             <Text style={styles.bodyText}>
               Vous avez souhaité également qu'en complément de cette mission nous assurions les prestations
               suivantes :
@@ -212,16 +222,16 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         )}
 
         {/* CLAUSE RÉSOLUTOIRE */}
-        <SectionBandeau title="Clause résolutoire" />
+        <SectionBanner title="Clause résolutoire" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.clause_resolutoire}</Text>
 
         {/* MANDAT ADMINISTRATIONS */}
-        <SectionBandeau title="Mandat pour agir auprès des administrations" />
+        <SectionBanner title="Mandat pour agir auprès des administrations" theme={theme} />
         <Text style={styles.bodyText}>{TEXTES_SECTIONS.mandat_administrations}</Text>
 
         {/* HONORAIRES */}
-        <SectionBandeau title="Honoraires" />
-        <PdfTableHonoraires honoraires={honoraires} mission={mission} />
+        <SectionBanner title="Honoraires" theme={theme} />
+        <PdfTableHonoraires honoraires={honoraires} mission={mission} theme={theme} />
         <Text style={[styles.bodyText, { marginTop: 6, fontSize: 8.5 }]}>
           Les honoraires prévus au présent contrat seront révisables annuellement selon l'évolution de
           l'indice des prix hors taxes relatifs aux services comptables publié par l'INSEE. À défaut, minimum
@@ -231,7 +241,7 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
         </Text>
 
         {/* SIGNATURE */}
-        <SectionBandeau title="Signature" />
+        <SectionBanner title="Signature" theme={theme} />
         <Text style={styles.bodyText}>
           Nous vous serions obligés de bien vouloir nous retourner un exemplaire de la présente et des
           annexes jointes, revêtues d'un paraphe sur chacune des pages et de votre signature sur la dernière
@@ -241,43 +251,29 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           Fait à {s(cabinet.ville)}, le {dateLong}
         </Text>
         <View style={styles.signatureContainer}>
-          <View style={styles.signatureBlock}>
-            <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>
-              L'Expert-comptable
-            </Text>
-            {data.signature_expert ? (
-              <Image src={data.signature_expert} style={{ width: 120, height: 35 }} />
-            ) : (
-              <View style={{ width: 120, height: 35, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
-            )}
-            <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>{s(data.expert_responsable)}</Text>
-          </View>
-          <View style={styles.signatureBlock}>
-            <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>Le Client</Text>
-            {data.signature_client ? (
-              <Image src={data.signature_client} style={{ width: 120, height: 35 }} />
-            ) : (
-              <View style={{ width: 120, height: 35, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
-            )}
-            <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>
-              {s(client.civilite)} {s(client.nom_dirigeant)}
-            </Text>
-          </View>
+          <SignatureBox
+            label="L'Expert-comptable"
+            name={s(data.expert_responsable)}
+            signatureImage={data.signature_expert}
+          />
+          <SignatureBox
+            label="Le Client"
+            name={`${s(client.civilite)} ${s(client.nom_dirigeant)}`}
+            signatureImage={data.signature_client}
+          />
         </View>
 
         {/* ANNEXE — RÉPARTITION DES TRAVAUX */}
         <View break>
-          <View style={styles.sectionBandeau}>
-            <Text style={styles.sectionBandeauText}>Annexe — Répartition des travaux</Text>
-          </View>
-          <PdfTableRepartition rows={repartition} />
+          <SectionBanner title="Annexe 1 — Répartition des travaux" theme={theme} />
+          <PdfTableRepartition rows={repartition} theme={theme} />
         </View>
 
         {/* ANNEXES */}
-        <PdfAnnexes data={data} />
+        <PdfAnnexes data={data} theme={theme} />
 
         {/* CGV */}
-        <PdfConditionsGenerales cgv_override={data.cgv_snapshot} cabinet_nom={s(cabinet.nom)} />
+        <PdfConditionsGenerales cgv_override={data.cgv_snapshot} cabinet_nom={s(cabinet.nom)} theme={theme} />
       </Page>
     </Document>
   );
@@ -285,16 +281,9 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
 
 // ── Helper sub-components ────────────────────
 
-const SectionBandeau: React.FC<{ title: string }> = ({ title }) => (
-  <View style={styles.sectionBandeau} wrap={false}>
-    <Text style={styles.sectionBandeauText}>{title}</Text>
-  </View>
-);
-
-// opt 47 — format DD/MM/YYYY or ISO date to "21 mars 2026"
+// Format DD/MM/YYYY or ISO date to "21 mars 2026"
 function formatDateLong(raw: string): string {
   if (!raw || raw === "—") return "—";
-  // Try to parse as DD/MM/YYYY
   const dmy = raw.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
   if (dmy) {
     const d = new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
@@ -302,7 +291,6 @@ function formatDateLong(raw: string): string {
       return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
     }
   }
-  // Try ISO or other parseable format
   const d = new Date(raw);
   if (!isNaN(d.getTime())) {
     return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
@@ -310,62 +298,45 @@ function formatDateLong(raw: string): string {
   return raw;
 }
 
-const RenderCover: React.FC<{ data: LettreMissionPdfData }> = ({ data }) => {
+const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = ({ data, theme }) => {
   const { cabinet, client, mission } = data;
   return (
     <View>
       {/* Logo + cabinet name */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
         <View>
-          <Text style={{ fontSize: 9, color: colors.gris }}>Réf. {s(data.numero_lm)}</Text>
-          <Text style={{ fontSize: 9, color: colors.gris }}>Date : {formatDateLong(data.date_generation)}</Text>
+          <Text style={{ fontSize: 9, color: theme.muted }}>Réf. {s(data.numero_lm)}</Text>
+          <Text style={{ fontSize: 9, color: theme.muted }}>Date : {formatDateLong(data.date_generation)}</Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
           {cabinet.logo_base64 ? (
             <Image src={cabinet.logo_base64} style={{ width: 140, height: 55 }} />
           ) : null}
-          <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: colors.secondaire, marginTop: cabinet.logo_base64 ? 4 : 0 }}>
+          <Text style={{ fontSize: 10, fontFamily: "Helvetica-Bold", color: theme.secondaire, marginTop: cabinet.logo_base64 ? 4 : 0 }}>
             {s(cabinet.nom)}
           </Text>
         </View>
       </View>
 
-      {/* Title — opt 4: MAJUSCULES, 24pt, Helvetica-Bold */}
-      <Text style={styles.coverTitle}>LETTRE DE MISSION</Text>
-      {/* opt 5: sous-titre en majuscules */}
-      <Text style={styles.coverSubtitle}>{s(mission.type_principal)}</Text>
-      {/* opt 6: fine ligne horizontale sous le sous-titre */}
-      <View style={{ borderBottomWidth: 0.5, borderBottomColor: colors.primaire, marginBottom: 6, marginTop: 2 }} />
-      <Text style={styles.coverNorme}>{s(mission.norme_applicable)}</Text>
+      {/* Title */}
+      <Text style={[styles.coverTitle, { color: theme.secondaire }]}>LETTRE DE MISSION</Text>
+      <Text style={[styles.coverSubtitle, { color: theme.primaire }]}>{s(mission.type_principal)}</Text>
+      {/* Fine line under subtitle */}
+      <View style={{ borderBottomWidth: 0.5, borderBottomColor: theme.primaire, marginBottom: 6, marginTop: 2 }} />
+      <Text style={[styles.coverNorme, { color: theme.muted }]}>{s(mission.norme_applicable)}</Text>
 
-      {/* Separator */}
-      <View style={styles.separator} />
+      {/* Premium separator */}
+      <Separator color={theme.primaire} />
 
-      {/* Info grid — opt 7: labels gris 9pt, values bold 10pt */}
+      {/* Info grid with premium InfoRow */}
       <View style={{ marginBottom: 2 }}>
-        <View style={styles.coverInfoRow}>
-          <Text style={styles.coverInfoLabel}>Cabinet :</Text>
-          <Text style={styles.coverInfoValue}>{s(cabinet.nom)}</Text>
-        </View>
-        <View style={styles.coverInfoRow}>
-          <Text style={styles.coverInfoLabel}>Client :</Text>
-          <Text style={styles.coverInfoValue}>
-            {s(client.forme_juridique)} {s(client.raison_sociale)}
-          </Text>
-        </View>
-        <View style={styles.coverInfoRow}>
-          <Text style={styles.coverInfoLabel}>SIREN :</Text>
-          <Text style={styles.coverInfoValue}>{s(client.siren)}</Text>
-        </View>
-        <View style={styles.coverInfoRow}>
-          <Text style={styles.coverInfoLabel}>Exercice :</Text>
-          <Text style={styles.coverInfoValue}>
-            {s(client.exercice_debut)} — {s(client.exercice_fin)}
-          </Text>
-        </View>
+        <InfoRow label="Cabinet" value={s(cabinet.nom)} theme={theme} />
+        <InfoRow label="Client" value={`${s(client.forme_juridique)} ${s(client.raison_sociale)}`} theme={theme} />
+        <InfoRow label="SIREN" value={s(client.siren)} theme={theme} />
+        <InfoRow label="Exercice" value={`${s(client.exercice_debut)} — ${s(client.exercice_fin)}`} theme={theme} />
       </View>
 
-      <View style={styles.separator} />
+      <Separator color={theme.primaire} />
     </View>
   );
 };
@@ -374,7 +345,8 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData }> = ({ data }) => {
 const RenderSnapshotSection: React.FC<{
   section: { id: string; titre: string; contenu: string; type: string };
   data: LettreMissionPdfData;
-}> = ({ section, data }) => {
+  theme: PdfTheme;
+}> = ({ section, data, theme }) => {
   const content = section.contenu || "";
 
   // Skip empty sections
@@ -386,8 +358,8 @@ const RenderSnapshotSection: React.FC<{
   if (section.id === "entite" || content === "TABLEAU_ENTITE") {
     return (
       <View>
-        <SectionBandeau title={section.titre} />
-        <PdfTableEntite client={data.client} />
+        <SectionBanner title={section.titre} theme={theme} />
+        <PdfTableEntite client={data.client} theme={theme} />
       </View>
     );
   }
@@ -396,8 +368,8 @@ const RenderSnapshotSection: React.FC<{
     const textAfterTable = content.replace("TABLEAU_HONORAIRES", "").trim();
     return (
       <View>
-        <SectionBandeau title={section.titre} />
-        <PdfTableHonoraires honoraires={data.honoraires} mission={data.mission} />
+        <SectionBanner title={section.titre} theme={theme} />
+        <PdfTableHonoraires honoraires={data.honoraires} mission={data.mission} theme={theme} />
         {textAfterTable && (
           <Text style={[styles.bodyText, { marginTop: 6, fontSize: 8.5 }]}>{textAfterTable}</Text>
         )}
@@ -408,8 +380,8 @@ const RenderSnapshotSection: React.FC<{
   if (section.id === "annexe_repartition" || content === "TABLEAU_REPARTITION") {
     return (
       <View break>
-        <SectionBandeau title={section.titre} />
-        <PdfTableRepartition rows={data.repartition} />
+        <SectionBanner title={section.titre} theme={theme} />
+        <PdfTableRepartition rows={data.repartition} theme={theme} />
       </View>
     );
   }
@@ -417,8 +389,8 @@ const RenderSnapshotSection: React.FC<{
   if (section.id === "lcbft") {
     return (
       <View>
-        <SectionBandeau title={section.titre} />
-        <PdfSectionLcbft lcbft={data.lcbft} />
+        <SectionBanner title={section.titre} theme={theme} />
+        <PdfSectionLcbft lcbft={data.lcbft} theme={theme} />
       </View>
     );
   }
@@ -426,8 +398,8 @@ const RenderSnapshotSection: React.FC<{
   if (section.id === "signature") {
     return (
       <View>
-        <SectionBandeau title={section.titre} />
-        <RenderSignatureFromContent content={content} data={data} />
+        <SectionBanner title={section.titre} theme={theme} />
+        <RenderSignatureFromContent content={content} data={data} theme={theme} />
       </View>
     );
   }
@@ -436,7 +408,7 @@ const RenderSnapshotSection: React.FC<{
   const paragraphs = content.split("\n\n").filter(Boolean);
   return (
     <View>
-      <SectionBandeau title={section.titre} />
+      <SectionBanner title={section.titre} theme={theme} />
       {paragraphs.map((p, i) => {
         // Handle bullet points
         if (p.includes("\n▪") || p.includes("\n—") || p.includes("\n☐")) {
@@ -458,14 +430,13 @@ const RenderSnapshotSection: React.FC<{
             </View>
           );
         }
-        // Handle lines with \n as soft breaks
         return <Text key={i} style={styles.bodyText}>{p}</Text>;
       })}
     </View>
   );
 };
 
-const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissionPdfData }> = ({ data }) => {
+const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissionPdfData; theme: PdfTheme }> = ({ data, theme }) => {
   const dateLong = formatDateLong(data.date_generation);
   return (
     <View>
@@ -477,26 +448,16 @@ const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissio
         Fait à {s(data.cabinet.ville)}, le {dateLong}
       </Text>
       <View style={styles.signatureContainer}>
-        <View style={styles.signatureBlock}>
-          <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>L'Expert-comptable</Text>
-          {data.signature_expert ? (
-            <Image src={data.signature_expert} style={{ width: 120, height: 35 }} />
-          ) : (
-            <View style={{ width: 120, height: 35, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
-          )}
-          <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>{s(data.expert_responsable)}</Text>
-        </View>
-        <View style={styles.signatureBlock}>
-          <Text style={{ fontSize: 9, fontFamily: "Helvetica-Bold", marginBottom: 4 }}>Le Client</Text>
-          {data.signature_client ? (
-            <Image src={data.signature_client} style={{ width: 120, height: 35 }} />
-          ) : (
-            <View style={{ width: 120, height: 35, borderBottomWidth: 0.5, borderBottomColor: colors.gris_clair }} />
-          )}
-          <Text style={{ fontSize: 8, color: colors.gris, marginTop: 4 }}>
-            {s(data.client.civilite)} {s(data.client.nom_dirigeant)}
-          </Text>
-        </View>
+        <SignatureBox
+          label="L'Expert-comptable"
+          name={s(data.expert_responsable)}
+          signatureImage={data.signature_expert}
+        />
+        <SignatureBox
+          label="Le Client"
+          name={`${s(data.client.civilite)} ${s(data.client.nom_dirigeant)}`}
+          signatureImage={data.signature_client}
+        />
       </View>
     </View>
   );

@@ -1,14 +1,18 @@
 import React from "react";
 import { View, Text } from "@react-pdf/renderer";
 import type { HonorairesData, MissionConfig } from "@/types/lettreMissionPdf";
-import { styles, colors, formatMontant, formatMontantUnit, safeNumber } from "./pdfStyles";
+import { styles, formatMontant, formatMontantUnit, safeNumber } from "./pdfStyles";
+import { RoundedTableWrapper, type PdfTheme, DEFAULT_THEME } from "./PdfComponents";
 
 interface Props {
   honoraires: HonorairesData;
   mission: MissionConfig;
+  theme?: PdfTheme;
 }
 
-const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
+const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission, theme: themeIn }) => {
+  const theme = themeIn || DEFAULT_THEME;
+
   const freq =
     honoraires.frequence_facturation === "MENSUEL"
       ? "Mensuelle"
@@ -20,7 +24,7 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
     {
       designation: "Mission comptable — Présentation des comptes",
       montant: formatMontant(honoraires.forfait_annuel_ht),
-      frequence: freq, // opt 29: correct frequency per line
+      frequence: freq,
     },
   ];
 
@@ -67,7 +71,6 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
     });
   }
 
-  // Taux horaires
   lignes.push({
     designation: "Travaux complémentaires — Expert-comptable",
     montant: formatMontantUnit(honoraires.honoraires_ec_heure, "heure"),
@@ -82,45 +85,44 @@ const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission }) => {
   const total = safeNumber(honoraires.forfait_annuel_ht) + safeNumber(honoraires.constitution_dossier_ht) + safeNumber(honoraires.juridique_annuel_ht);
 
   return (
-    <View style={{ borderWidth: 0.5, borderColor: "#E0E0E0" }}>
-      {/* Header — opt 27: fond #D6E4F0 coherent */}
-      <View style={[styles.tableHeaderRow, { borderBottomWidth: 1, borderBottomColor: colors.secondaire }]}>
-        <Text style={[styles.tableCellBold, { width: "50%", color: colors.secondaire }]}>Désignation</Text>
-        <Text style={[styles.tableCellBold, { width: "30%", textAlign: "right", color: colors.secondaire }]}>Montant</Text>
-        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: colors.secondaire }]}>Fréquence</Text>
+    <RoundedTableWrapper borderColor={theme.border}>
+      {/* Premium header with primaire background */}
+      <View style={{ flexDirection: "row", backgroundColor: theme.primaire, minHeight: 26, alignItems: "center" }}>
+        <Text style={[styles.tableCellBold, { width: "50%", color: "#FFFFFF" }]}>Désignation</Text>
+        <Text style={[styles.tableCellBold, { width: "30%", textAlign: "right", color: "#FFFFFF" }]}>Montant</Text>
+        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: "#FFFFFF" }]}>Fréquence</Text>
       </View>
       {lignes.map((l, i) => (
         <View
           key={i}
-          style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: colors.fond_alternance } : {}]}
+          style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: theme.light } : {}]}
         >
           <Text style={[styles.tableCell, { width: "50%" }]}>{l.designation}</Text>
-          {/* opt 26: montant aligné à droite, bold */}
           <Text style={[styles.tableCell, { width: "30%", textAlign: "right", fontFamily: "Helvetica-Bold" }]}>
             {l.montant}
           </Text>
-          <Text style={[styles.tableCell, { width: "20%", textAlign: "center", color: colors.gris }]}>{l.frequence}</Text>
+          <Text style={[styles.tableCell, { width: "20%", textAlign: "center", color: theme.muted }]}>{l.frequence}</Text>
         </View>
       ))}
 
-      {/* Total — opt 28: fond #1B3A5C, texte blanc, fontSize 10 */}
-      <View style={[styles.tableRow, { backgroundColor: colors.secondaire, minHeight: 28, borderBottomWidth: 0 }]}>
-        <Text style={[styles.tableCellBold, { width: "50%", color: colors.blanc, fontSize: 10 }]}>
+      {/* Total row */}
+      <View style={[styles.tableRow, { backgroundColor: theme.secondaire, minHeight: 28, borderBottomWidth: 0 }]}>
+        <Text style={[styles.tableCellBold, { width: "50%", color: "#FFFFFF", fontSize: 10 }]}>
           TOTAL ANNUEL ESTIMÉ
         </Text>
         <Text
           style={[
             styles.tableCellBold,
-            { width: "30%", textAlign: "right", color: colors.blanc, fontSize: 10 },
+            { width: "30%", textAlign: "right", color: "#FFFFFF", fontSize: 10 },
           ]}
         >
           {formatMontant(total)}
         </Text>
-        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: colors.blanc, fontSize: 8 }]}>
+        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: "#FFFFFF", fontSize: 8 }]}>
           Annuelle
         </Text>
       </View>
-    </View>
+    </RoundedTableWrapper>
   );
 };
 
