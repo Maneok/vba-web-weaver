@@ -48,12 +48,18 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
   // C1/C2 — consistency constants
   const cabinetNom = s(cabinet.nom);
 
-  // BUG 8 / C5 — expert name must not show cabinet name; fall back to default
-  const expertName = data.expert_responsable && data.expert_responsable !== cabinet.nom
-    ? data.expert_responsable : "\u2014";
+  // BUG 6 / C5 — expert name: prefer data, never show cabinet name, never show "—"
+  const expertName = data.expert_responsable && data.expert_responsable !== cabinet.nom && data.expert_responsable !== "\u2014"
+    ? data.expert_responsable : "L'Expert-comptable";
 
   // C3 — normalized SIREN for consistent display
   const clientSiren = normalizeSiren(client.siren || "");
+
+  // BUG 5 — safe exercice dates with fallback
+  const dateDebut = client.exercice_debut && client.exercice_debut !== "" && client.exercice_debut !== "\u2014"
+    ? client.exercice_debut : `01/01/${new Date().getFullYear()}`;
+  const dateFin = client.exercice_fin && client.exercice_fin !== "" && client.exercice_fin !== "\u2014"
+    ? client.exercice_fin : `31/12/${new Date().getFullYear()}`;
 
   // E1 — Document metadata
   const pdfTitle = `Lettre de Mission ${s(data.numero_lm)} - ${s(client.raison_sociale)}`;
@@ -194,13 +200,12 @@ const LettreMissionPdfDocument: React.FC<Props> = ({ data }) => {
           </Text>
         </View>
 
-        {/* 7. DURÉE DE LA MISSION — C9 */}
+        {/* 7. DURÉE DE LA MISSION — C9 + BUG 5 fix */}
         <View wrap={false}>
           <SectionBanner title="Durée de la mission" theme={theme} />
           <Text style={styles.bodyText}>
             Notre mission prendra effet à la date de signature de la présente lettre de mission. Elle portera
-            sur les comptes de l'exercice comptable commençant le {client.exercice_debut && s(client.exercice_debut) !== "\u2014" ? s(client.exercice_debut) : `01/01/${new Date().getFullYear()}`} et se terminant
-            le {client.exercice_fin && s(client.exercice_fin) !== "\u2014" ? s(client.exercice_fin) : `31/12/${new Date().getFullYear()}`}.
+            sur les comptes de l'exercice comptable commençant le {dateDebut} et se terminant le {dateFin}.
           </Text>
           <Text style={styles.bodyText}>
             Cette lettre de mission restera en vigueur pour les exercices futurs, sauf en cas de résiliation,
@@ -379,12 +384,14 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
         </View>
       </View>
 
-      {/* Title */}
-      <Text style={[styles.coverTitle, { color: theme.secondaire }]}>LETTRE DE MISSION</Text>
-      <Text style={[styles.coverSubtitle, { color: theme.primaire }]}>{s(mission.type_principal)}</Text>
-      {/* Fine line under subtitle */}
-      <View style={{ borderBottomWidth: 0.5, borderBottomColor: theme.primaire, marginBottom: 6, marginTop: 2 }} />
-      <Text style={[styles.coverNorme, { color: theme.muted }]}>{s(mission.norme_applicable)}</Text>
+      {/* Title — BUG 1 fix: grouped in View to prevent overlap */}
+      <View style={{ alignItems: "center" }}>
+        <Text style={[styles.coverTitle, { color: theme.secondaire }]}>LETTRE DE MISSION</Text>
+        <Text style={[styles.coverSubtitle, { color: theme.primaire }]}>{s(mission.type_principal)}</Text>
+        {/* Fine line under subtitle */}
+        <View style={{ width: "100%", borderBottomWidth: 0.5, borderBottomColor: theme.primaire, marginBottom: 6, marginTop: 2 }} />
+        <Text style={[styles.coverNorme, { color: theme.muted }]}>{s(mission.norme_applicable)}</Text>
+      </View>
 
       {/* Premium separator */}
       <Separator color={theme.primaire} />
@@ -408,8 +415,12 @@ const RenderSnapshotSection: React.FC<{
   data: LettreMissionPdfData;
   theme: PdfTheme;
 }> = ({ section, data, theme }) => {
-  // B13 — sanitize text content for PDF
-  const content = sanitizeForPdf(section.contenu || "");
+  // B13 — sanitize text content for PDF + BUG 3/4: replace ª and resolve variables
+  const content = sanitizeForPdf(section.contenu || "")
+    .replace(/ª/g, "▪")
+    .replace(/\{\{nom_cabinet\}\}/g, data.cabinet.nom || "")
+    .replace(/\{\{cabinet_nom\}\}/g, data.cabinet.nom || "")
+    .replace(/\{\{adresse_cabinet\}\}/g, `${data.cabinet.adresse || ""}, ${data.cabinet.cp || ""} ${data.cabinet.ville || ""}`);
 
   // Skip empty sections (B15)
   if (!content.trim() && section.id !== "entite" && section.id !== "honoraires" && section.id !== "annexe_repartition" && section.id !== "lcbft") {
@@ -507,8 +518,8 @@ const RenderSnapshotSection: React.FC<{
 
 const RenderSignatureFromContent: React.FC<{ content: string; data: LettreMissionPdfData; theme: PdfTheme }> = ({ data, theme }) => {
   const dateLong = formatDateLong(data.date_generation);
-  const expName = data.expert_responsable && data.expert_responsable !== data.cabinet.nom
-    ? data.expert_responsable : "—";
+  const expName = data.expert_responsable && data.expert_responsable !== data.cabinet.nom && data.expert_responsable !== "\u2014"
+    ? data.expert_responsable : "L'Expert-comptable";
   return (
     <View>
       <Text style={styles.bodyText}>

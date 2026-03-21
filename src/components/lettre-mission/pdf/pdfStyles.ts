@@ -148,7 +148,7 @@ export const styles = StyleSheet.create({
   signatureContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 24, // opt 18/46
+    marginTop: 12,
     paddingHorizontal: 20,
   },
   signatureBlock: {

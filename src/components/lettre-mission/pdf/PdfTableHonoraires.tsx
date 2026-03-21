@@ -10,119 +10,175 @@ interface Props {
   theme?: PdfTheme;
 }
 
+/* ─── Helpers ─── */
+
+const COL_DESIGNATION = "60%";
+const COL_MONTANT = "40%";
+
+const TableHeader: React.FC<{ cols: [string, string]; theme: PdfTheme }> = ({ cols, theme }) => (
+  <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 26, alignItems: "center" }}>
+    <Text style={[styles.tableCellBold, { width: COL_DESIGNATION, color: "#FFFFFF" }]}>{cols[0]}</Text>
+    <Text style={[styles.tableCellBold, { width: COL_MONTANT, textAlign: "right", color: "#FFFFFF" }]}>{cols[1]}</Text>
+  </View>
+);
+
+const TableRow: React.FC<{ label: string; value: string; index: number; theme: PdfTheme }> = ({
+  label,
+  value,
+  index,
+  theme,
+}) => (
+  <View style={[styles.tableRow, index % 2 === 0 ? { backgroundColor: theme.light } : {}]}>
+    <Text style={[styles.tableCell, { width: COL_DESIGNATION }]}>{label}</Text>
+    <Text style={[styles.tableCell, { width: COL_MONTANT, textAlign: "right", fontFamily: "Helvetica-Bold" }]}>
+      {value}
+    </Text>
+  </View>
+);
+
+const TotalRow: React.FC<{ label: string; value: string; theme: PdfTheme }> = ({ label, value, theme }) => (
+  <View style={[styles.tableRow, { backgroundColor: theme.secondaire, minHeight: 28, borderBottomWidth: 0 }]}>
+    <Text style={[styles.tableCellBold, { width: COL_DESIGNATION, color: "#FFFFFF", fontSize: 10 }]}>{label}</Text>
+    <Text style={[styles.tableCellBold, { width: COL_MONTANT, textAlign: "right", color: "#FFFFFF", fontSize: 10 }]}>
+      {value}
+    </Text>
+  </View>
+);
+
+const SubHeading: React.FC<{ title: string; theme: PdfTheme }> = ({ title, theme }) => (
+  <Text
+    style={{
+      fontSize: 10,
+      fontFamily: "Helvetica-Bold",
+      color: theme.secondaire,
+      marginTop: 10,
+      marginBottom: 4,
+    }}
+  >
+    {title}
+  </Text>
+);
+
+/* ─── Main component ─── */
+
 const PdfTableHonoraires: React.FC<Props> = ({ honoraires, mission, theme: themeIn }) => {
   const theme = themeIn || DEFAULT_THEME;
 
-  const freq =
-    honoraires.frequence_facturation === "MENSUEL"
-      ? "Mensuelle"
-      : honoraires.frequence_facturation === "TRIMESTRIEL"
-        ? "Trimestrielle"
-        : "Annuelle";
+  /* ── TABLEAU 1 — Mission comptable (always shown) ── */
 
-  const lignes: { designation: string; montant: string; frequence: string }[] = [
-    {
-      designation: "Mission comptable — Présentation des comptes",
-      montant: formatMontant(honoraires.forfait_annuel_ht),
-      frequence: freq,
-    },
+  const lignesCompta: { label: string; value: string }[] = [
+    { label: "Forfait annuel (12 mois)", value: formatMontant(honoraires.forfait_annuel_ht) },
   ];
 
   if (safeNumber(honoraires.constitution_dossier_ht) > 0) {
-    lignes.push({
-      designation: "Constitution de dossier (1re année)",
-      montant: formatMontant(honoraires.constitution_dossier_ht),
-      frequence: "Unique",
+    lignesCompta.push({
+      label: "Constitution de dossier",
+      value: formatMontant(honoraires.constitution_dossier_ht),
     });
   }
 
-  if (mission.mission_sociale) {
-    lignes.push({
-      designation: "Mission sociale — Bulletins de paie",
-      montant: formatMontantUnit(honoraires.social_bulletin_unite, "bulletin"),
-      frequence: "Mensuelle",
-    });
-    lignes.push({
-      designation: "Mission sociale — Fin de contrat",
-      montant: formatMontant(honoraires.social_fin_contrat),
-      frequence: "Par évènement",
-    });
-  }
-
-  if (mission.mission_juridique) {
-    lignes.push({
-      designation: "Secrétariat juridique annuel",
-      montant: formatMontant(honoraires.juridique_annuel_ht),
-      frequence: "Annuelle",
-    });
-  }
-
-  if (mission.controle_fiscal) {
-    const optLabel =
-      mission.controle_fiscal_option === "A"
-        ? "Option A — 25 € HT/mois"
-        : mission.controle_fiscal_option === "B"
-          ? "Option B — 10 € HT/mois"
-          : "Aucune option souscrite";
-    lignes.push({
-      designation: `Assistance contrôle fiscal (${optLabel})`,
-      montant: mission.controle_fiscal_option === "A" ? "300 € HT" : mission.controle_fiscal_option === "B" ? "120 € HT" : "—",
-      frequence: "Annuelle",
-    });
-  }
-
-  lignes.push({
-    designation: "Travaux complémentaires — Expert-comptable",
-    montant: formatMontantUnit(honoraires.honoraires_ec_heure, "heure"),
-    frequence: "Sur demande",
+  lignesCompta.push({
+    label: "Honoraires exceptionnels — Expert-Comptable",
+    value: "200 \u20AC HT / heure",
   });
-  lignes.push({
-    designation: "Travaux complémentaires — Collaborateur",
-    montant: formatMontantUnit(honoraires.honoraires_collab_heure, "heure"),
-    frequence: "Sur demande",
+  lignesCompta.push({
+    label: "Honoraires exceptionnels — Collaborateur",
+    value: "100 \u20AC HT / heure",
   });
 
-  const total = safeNumber(honoraires.forfait_annuel_ht) + safeNumber(honoraires.constitution_dossier_ht) + safeNumber(honoraires.juridique_annuel_ht);
+  const totalCompta =
+    safeNumber(honoraires.forfait_annuel_ht) + safeNumber(honoraires.constitution_dossier_ht);
+
+  /* ── TABLEAU 2 — Mission sociale ── */
+
+  const lignesSociale: { label: string; value: string }[] = [
+    { label: "Bulletins de paie à l'unité", value: formatMontantUnit(honoraires.social_bulletin_unite, "bulletin") },
+    { label: "Gestion des fins de contrats", value: formatMontantUnit(honoraires.social_fin_contrat, "fin de contrat") },
+    { label: "Rédaction de contrat de travail simple", value: formatMontant(honoraires.social_contrat_simple) },
+    { label: "Entrée d'un salarié sans rédaction de contrat", value: formatMontant(honoraires.social_entree_sans_contrat) },
+    { label: "Attestations maladie", value: formatMontant(honoraires.social_attestation_maladie) },
+  ];
+
+  /* ── TABLEAU 3 — Mission juridique ── */
+
+  /* ── TABLEAU 4 — Contrôle fiscal ── */
+
+  const controleFiscalLabel =
+    mission.controle_fiscal_option === "A"
+      ? "Option A — Couverture intégrale : 25 € HT / mois (300 € HT / an)"
+      : mission.controle_fiscal_option === "B"
+        ? "Option B — Couverture partielle : 10 € HT / mois (120 € HT / an)"
+        : "Aucune option souscrite";
 
   return (
-    <RoundedTableWrapper borderColor={theme.border}>
-      {/* Header — fond secondaire, texte blanc */}
-      <View style={{ flexDirection: "row", backgroundColor: theme.secondaire, minHeight: 26, alignItems: "center" }}>
-        <Text style={[styles.tableCellBold, { width: "50%", color: "#FFFFFF" }]}>Désignation</Text>
-        <Text style={[styles.tableCellBold, { width: "30%", textAlign: "right", color: "#FFFFFF" }]}>Montant</Text>
-        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: "#FFFFFF" }]}>Fréquence</Text>
-      </View>
-      {lignes.map((l, i) => (
-        <View
-          key={i}
-          style={[styles.tableRow, i % 2 === 0 ? { backgroundColor: theme.light } : {}]}
-        >
-          <Text style={[styles.tableCell, { width: "50%" }]}>{l.designation}</Text>
-          <Text style={[styles.tableCell, { width: "30%", textAlign: "right", fontFamily: "Helvetica-Bold" }]}>
-            {l.montant}
-          </Text>
-          <Text style={[styles.tableCell, { width: "20%", textAlign: "center", color: theme.muted }]}>{l.frequence}</Text>
-        </View>
-      ))}
+    <View>
+      {/* ═══ TABLEAU 1 — MISSION COMPTABLE ═══ */}
+      <RoundedTableWrapper borderColor={theme.border}>
+        <TableHeader cols={["Désignation", "Montant HT"]} theme={theme} />
+        {lignesCompta.map((l, i) => (
+          <TableRow key={i} label={l.label} value={l.value} index={i} theme={theme} />
+        ))}
+        <TotalRow label="TOTAL MISSION COMPTABLE" value={formatMontant(totalCompta)} theme={theme} />
+      </RoundedTableWrapper>
 
-      {/* Total row */}
-      <View style={[styles.tableRow, { backgroundColor: theme.secondaire, minHeight: 28, borderBottomWidth: 0 }]}>
-        <Text style={[styles.tableCellBold, { width: "50%", color: "#FFFFFF", fontSize: 10 }]}>
-          TOTAL ANNUEL ESTIMÉ
-        </Text>
-        <Text
-          style={[
-            styles.tableCellBold,
-            { width: "30%", textAlign: "right", color: "#FFFFFF", fontSize: 10 },
-          ]}
-        >
-          {formatMontant(total)}
-        </Text>
-        <Text style={[styles.tableCellBold, { width: "20%", textAlign: "center", color: "#FFFFFF", fontSize: 8 }]}>
-          Annuelle
-        </Text>
-      </View>
-    </RoundedTableWrapper>
+      {/* ═══ TABLEAU 2 — MISSION SOCIALE ═══ */}
+      {mission.mission_sociale && (
+        <View style={{ marginTop: 10 }}>
+          <SubHeading title="Mission sociale" theme={theme} />
+          <RoundedTableWrapper borderColor={theme.border}>
+            <TableHeader cols={["Prestation", "Montant HT"]} theme={theme} />
+            {lignesSociale.map((l, i) => (
+              <TableRow key={i} label={l.label} value={l.value} index={i} theme={theme} />
+            ))}
+          </RoundedTableWrapper>
+          <Text
+            style={{
+              fontSize: 8,
+              color: theme.muted,
+              fontFamily: "Helvetica-Oblique",
+              marginTop: 3,
+              paddingHorizontal: 4,
+            }}
+          >
+            Sur devis : Contrat de travail complexe, procédures de licenciement, rupture conventionnelle...
+          </Text>
+        </View>
+      )}
+
+      {/* ═══ TABLEAU 3 — MISSION JURIDIQUE ═══ */}
+      {mission.mission_juridique && (
+        <View style={{ marginTop: 10 }}>
+          <SubHeading title="Mission juridique" theme={theme} />
+          <RoundedTableWrapper borderColor={theme.border}>
+            <View style={[styles.tableRow, { backgroundColor: theme.light, borderBottomWidth: 0 }]}>
+              <Text style={[styles.tableCell, { width: COL_DESIGNATION }]}>
+                Secrétariat juridique annuel
+              </Text>
+              <Text
+                style={[
+                  styles.tableCell,
+                  { width: COL_MONTANT, textAlign: "right", fontFamily: "Helvetica-Bold" },
+                ]}
+              >
+                {formatMontant(honoraires.juridique_annuel_ht)}
+              </Text>
+            </View>
+          </RoundedTableWrapper>
+        </View>
+      )}
+
+      {/* ═══ TABLEAU 4 — CONTRÔLE FISCAL ═══ */}
+      {mission.controle_fiscal && (
+        <View style={{ marginTop: 10 }}>
+          <SubHeading title="Assistance au contrôle fiscal" theme={theme} />
+          <RoundedTableWrapper borderColor={theme.border}>
+            <View style={[styles.tableRow, { backgroundColor: theme.light, borderBottomWidth: 0 }]}>
+              <Text style={[styles.tableCell, { flex: 1 }]}>{controleFiscalLabel}</Text>
+            </View>
+          </RoundedTableWrapper>
+        </View>
+      )}
+    </View>
   );
 };
 
