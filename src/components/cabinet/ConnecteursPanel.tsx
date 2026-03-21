@@ -148,8 +148,11 @@ const API_TEST_MAP: Record<string, {
     fn: "ocr-document",
     payload: { test: true },
     validate: (d) => ({
-      ok: !d.error || d.error === "imageBase64 requis",
-      detail: d.error === "imageBase64 requis" ? "Service disponible" : (d.error as string) || "OK",
+      ok: !d.error || d.error === "imageBase64 requis" || d.error === "Non autorise",
+      degraded: d.error === "Non autorise",
+      detail: d.error === "imageBase64 requis" ? "Service disponible"
+        : d.error === "Non autorise" ? "Auth requise (normal en test)"
+        : (d.error as string) || "OK",
     }),
   },
   "Annuaire Entreprises": {
@@ -269,9 +272,15 @@ export default function ConnecteursPanel() {
     const start = performance.now();
 
     try {
-      const { data, error } = await supabase.functions.invoke(mapping.fn, {
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new DOMException("Timeout après 15s", "AbortError")), 15000);
+      });
+
+      const invokePromise = supabase.functions.invoke(mapping.fn, {
         body: mapping.payload,
       });
+
+      const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
 
       const latencyMs = Math.round(performance.now() - start);
 
@@ -317,7 +326,24 @@ export default function ConnecteursPanel() {
       await loadConnecteurs();
     } catch (err: unknown) {
       const latencyMs = Math.round(performance.now() - start);
-      const errorObj = err as { name?: string; message?: string };
+      const errorObj = err instanceof Error ? err : new Error(String(err));
+
+      // Cas spécial : 401 sur OCR = service dispo mais auth requise
+      const is401 = errorObj.message?.includes("401") || errorObj.message?.includes("Non autorise");
+      if (is401) {
+        const newStatut: ConnecteurStatut = "degrade";
+        await supabase.from("cabinet_connecteurs").update({
+          statut: newStatut,
+          derniere_connexion: new Date().toISOString(),
+          derniere_activite: new Date().toISOString(),
+          config: { ...connecteur.config, last_latency_ms: latencyMs, last_test_at: new Date().toISOString(), last_test_result: "Auth requise (normal en test)", last_error: null },
+        }).eq("id", connecteur.id);
+        if (!silent) toast.warning(`${connecteur.nom} — Auth requise (normal en test)`);
+        await loadConnecteurs();
+        setBusy(connecteur.id, false);
+        return;
+      }
+
       const errorMsg = errorObj?.name === "AbortError" ? "Timeout après 15s" : (errorObj?.message || "Erreur réseau");
 
       await supabase
