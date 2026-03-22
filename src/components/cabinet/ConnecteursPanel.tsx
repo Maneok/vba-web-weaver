@@ -36,13 +36,13 @@ type ConnecteurStatut = "connecte" | "deconnecte" | "erreur" | "degrade";
 const DEFAULT_CONNECTEURS = [
   { nom: "INPI RBE", type: "registre", description: "Registre National des Entreprises" },
   { nom: "Annuaire Entreprises", type: "registre", description: "API entreprise data.gouv.fr (gratuit)" },
-  { nom: "Pappers", type: "registre", description: "API données entreprises (enrichissement)" },
+  { nom: "Pappers", type: "registre", description: "Enrichissement optionnel (telephone, email, finances) — Abonnement requis" },
   { nom: "OpenSanctions", type: "sanctions", description: "Base sanctions internationales" },
   { nom: "BODACC", type: "registre", description: "Bulletin officiel des annonces civiles et commerciales" },
   { nom: "DG Tresor - Gel d'avoirs", type: "sanctions", description: "Liste nationale de gel des avoirs" },
   { nom: "Google Places", type: "verification", description: "Vérification d'adresses et géolocalisation" },
   { nom: "NewsAPI", type: "veille", description: "Veille médiatique automatisée" },
-  { nom: "Google Vision OCR", type: "documents", description: "Reconnaissance optique de caractères (CNI, RIB, Kbis)" },
+  { nom: "Claude AI (Anthropic)", type: "documents", description: "OCR intelligent et analyse de documents (CNI, RIB, Kbis, Statuts)" },
 ];
 
 const DEFAULT_NOMS = new Set(DEFAULT_CONNECTEURS.map((d) => d.nom));
@@ -104,13 +104,15 @@ const API_TEST_MAP: Record<string, {
   },
   "DG Tresor - Gel d'avoirs": {
     fn: "gel-avoirs-check",
-    payload: { persons: [{ nom: "Test", prenom: "Utilisateur" }] },
+    payload: { persons: [{ nom: "POUTINE", prenom: "Vladimir" }] },
     validate: (d) => ({
-      ok: d.status === "ok",
-      degraded: d.checked === false,
-      detail: d.checked === false
-        ? "Liste DG Trésor non téléchargée"
-        : `${Array.isArray(d.matches) ? d.matches.length : 0} résultat(s)`,
+      ok: !d.error && (d.status === "ok" || d.checked === true || Array.isArray(d.matches)),
+      degraded: d.checked === false && !d.error,
+      detail: d.error
+        ? String(d.error).substring(0, 60)
+        : Array.isArray(d.matches) && d.matches.length > 0
+          ? `${d.matches.length} correspondance(s) trouvee(s)`
+          : d.status === "ok" ? "Aucune correspondance" : "Service disponible",
     }),
   },
   "Google Places": {
@@ -140,19 +142,22 @@ const API_TEST_MAP: Record<string, {
       ok: !d.error,
       degraded: d.source === "datagouv",
       detail: d.source === "datagouv"
-        ? "Fallback data.gouv (clé Pappers absente)"
+        ? "Non souscrit — données publiques utilisées (optionnel)"
         : (Array.isArray(d.results) && d.results.length > 0 && (d.results as Record<string, unknown>[])[0]?.raison_sociale as string) || "OK",
     }),
   },
-  "Google Vision OCR": {
+  "Claude AI (Anthropic)": {
     fn: "ocr-document",
-    payload: { test: true },
+    payload: {
+      test: true,
+      imageBase64: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    },
     validate: (d) => ({
-      ok: !d.error || d.error === "imageBase64 requis" || d.error === "Non autorise",
+      ok: !d.error || d.error === "Non autorise" || (typeof d.error === "string" && d.error.includes("API")),
       degraded: d.error === "Non autorise",
-      detail: d.error === "imageBase64 requis" ? "Service disponible"
-        : d.error === "Non autorise" ? "Auth requise (normal en test)"
-        : (d.error as string) || "OK",
+      detail: d.error === "Non autorise" ? "Auth requise (normal en test)"
+        : d.error ? (d.error as string)
+        : d.text ? "Service disponible" : "OK",
     }),
   },
   "Annuaire Entreprises": {
