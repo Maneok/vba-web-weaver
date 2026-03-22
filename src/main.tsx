@@ -3,10 +3,12 @@ import App from "./App.tsx";
 import AppErrorBoundary from "@/components/AppErrorBoundary";
 import { initMonitoring } from "@/lib/vitals";
 import { initTheme } from "@/lib/theme";
+import { initErrorTracking } from "@/lib/errorTracking";
 import "./index.css";
 
 initTheme();
 initMonitoring();
+initErrorTracking();
 
 // Handle stale chunk errors after new deployments
 // Vite emits this event when a dynamic import fails (old chunks deleted by new build)
