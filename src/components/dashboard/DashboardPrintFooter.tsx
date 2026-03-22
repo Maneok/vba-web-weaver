@@ -24,10 +24,10 @@ export default function DashboardPrintFooter({
         <p className="text-xs font-medium tracking-wide text-gray-700">
           CONFIDENTIEL — {cabinetName}
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-600 dark:text-gray-500">
           Imprimé le {formattedDate} à {formattedTime}
         </p>
-        <p className="text-xs text-gray-500">
+        <p className="text-xs text-gray-600 dark:text-gray-500">
           Page générée automatiquement par GRIMY
         </p>
       </div>

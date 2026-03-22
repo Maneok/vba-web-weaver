@@ -392,14 +392,14 @@ export default function DocxImportDialog({
                   className={`flex items-center justify-center w-6 h-6 rounded-full text-[10px] font-bold transition-colors ${
                     stepIndex >= i
                       ? "bg-blue-500 text-white"
-                      : "bg-gray-200 dark:bg-white/[0.1] text-gray-400"
+                      : "bg-gray-200 dark:bg-white/[0.1] text-gray-600 dark:text-gray-400"
                   }`}
                   aria-current={step === s ? "step" : undefined}
                 >
                   {i + 1}
                 </div>
                 <span className={`text-[10px] hidden sm:inline ${
-                  stepIndex >= i ? "text-blue-500 font-medium" : "text-gray-400"
+                  stepIndex >= i ? "text-blue-500 font-medium" : "text-gray-600 dark:text-gray-400"
                 }`}>
                   {STEP_LABELS[s]}
                 </span>
@@ -609,7 +609,7 @@ export default function DocxImportDialog({
                           >
                             <div className="flex items-center justify-between gap-2">
                               <div className="flex items-center gap-2 min-w-0">
-                                <FileText className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                <FileText className="h-3.5 w-3.5 shrink-0 text-slate-600 dark:text-slate-400" />
                                 <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
                                   {section.titre || "(Sans titre)"}
                                 </span>
@@ -625,7 +625,7 @@ export default function DocxImportDialog({
                               )}
                             </div>
                             <div className="flex items-center gap-2">
-                              <Label className="text-[10px] text-slate-400 shrink-0">
+                              <Label className="text-[10px] text-slate-600 dark:text-slate-400 shrink-0">
                                 Mapper vers :
                               </Label>
                               <Select
@@ -648,7 +648,7 @@ export default function DocxImportDialog({
                               </Select>
                             </div>
                             {section.contenu && (
-                              <p className="text-[10px] text-slate-400 line-clamp-2 whitespace-pre-line pl-5">
+                              <p className="text-[10px] text-slate-600 dark:text-slate-400 line-clamp-2 whitespace-pre-line pl-5">
                                 {section.contenu.slice(0, 200)}
                                 {section.contenu.length > 200 ? "…" : ""}
                               </p>

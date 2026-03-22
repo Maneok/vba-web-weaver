@@ -2852,7 +2852,7 @@ export default function NouveauClientPage() {
                         return (
                           <div key={`dir-${i}`} className="flex items-center gap-2.5 p-2 rounded-lg bg-gray-50/80 dark:bg-white/[0.03] border border-gray-100 dark:border-white/[0.04]">
                             <div className="w-7 h-7 rounded-full bg-slate-100 dark:bg-white/[0.06] flex items-center justify-center shrink-0">
-                              <User className="w-3.5 h-3.5 text-slate-400" />
+                              <User className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
@@ -3096,7 +3096,7 @@ export default function NouveauClientPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-[9px] text-slate-500 mt-0.5">{regimeFiscal.impotDetail}</p>
+                    <p className="text-[9px] text-slate-600 dark:text-slate-500 mt-0.5">{regimeFiscal.impotDetail}</p>
                   </div>
                   <div>
                     <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 block">Categorie</Label>
@@ -3123,7 +3123,7 @@ export default function NouveauClientPage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    {regimeFiscal.tvaDetail && <p className="text-[9px] text-slate-500 mt-0.5">{regimeFiscal.tvaDetail}</p>}
+                    {regimeFiscal.tvaDetail && <p className="text-[9px] text-slate-600 dark:text-slate-500 mt-0.5">{regimeFiscal.tvaDetail}</p>}
                   </div>
                   <div>
                     <Label className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider mb-1.5 block">TVA Intracom</Label>
@@ -3145,7 +3145,7 @@ export default function NouveauClientPage() {
                     ))}
                   </div>
                 )}
-                <p className="text-[8px] text-slate-500 mt-2 italic">Regime deduit de la forme juridique et du code APE — a confirmer avec le client</p>
+                <p className="text-[8px] text-slate-600 dark:text-slate-500 mt-2 italic">Regime deduit de la forme juridique et du code APE — a confirmer avec le client</p>
               </div>
             )}
 

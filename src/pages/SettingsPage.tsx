@@ -591,7 +591,7 @@ function RefSubTabs({ scoring, handleScoringChange, saveScoring, savingScoring, 
 
                     <div className="flex items-center gap-3">
                       {dirtyScoring && (
-                        <Button variant="ghost" onClick={resetScoring} className="gap-2 text-slate-500 hover:text-slate-700">
+                        <Button variant="ghost" onClick={resetScoring} className="gap-2 text-slate-600 dark:text-slate-500 hover:text-slate-700">
                           <Undo2 className="w-4 h-4" />
                           Annuler
                         </Button>
@@ -1642,8 +1642,8 @@ export default function SettingsPage() {
                                   </div>
                                   <div>
                                     <p className="text-sm font-bold text-gray-900">{cabinet.nom || "Nom du cabinet"}</p>
-                                    {cabinet.adresse && <p className="text-[10px] text-gray-500">{cabinet.adresse}</p>}
-                                    <p className="text-[10px] text-gray-500">{[cabinet.cp, cabinet.ville].filter(Boolean).join(" ") || "Ville"}</p>
+                                    {cabinet.adresse && <p className="text-[10px] text-gray-600 dark:text-gray-500">{cabinet.adresse}</p>}
+                                    <p className="text-[10px] text-gray-600 dark:text-gray-500">{[cabinet.cp, cabinet.ville].filter(Boolean).join(" ") || "Ville"}</p>
                                   </div>
                                 </div>
                                 <div className="border-t border-gray-100 pt-2 space-y-0.5">

@@ -330,7 +330,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert, ben
               Screening {anyLoading ? "en cours" : "complete"} — <span className="font-mono tabular-nums">{completedChecks}/{totalChecks}</span> verifications
               {!anyLoading && completedChecks === totalChecks && (() => {
                 const maxTime = Math.max(...rows.map(r => r.timeMs ?? 0));
-                return maxTime > 0 ? <span className="text-slate-500 ml-1">en {(maxTime / 1000).toFixed(1)}s</span> : null;
+                return maxTime > 0 ? <span className="text-slate-600 dark:text-slate-500 ml-1">en {(maxTime / 1000).toFixed(1)}s</span> : null;
               })()}
             </span>
             {alertCount > 0 ? (
@@ -392,7 +392,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert, ben
                   <StatusIcon status={row.status} loading={row.loading} />
                   {row.icon}
                   <span className="text-xs text-slate-700 dark:text-slate-300">{row.label}</span>
-                  {row.timeMs != null && !row.loading && <span className="text-[9px] text-slate-500 font-mono tabular-nums">{(row.timeMs / 1000).toFixed(1)}s</span>}
+                  {row.timeMs != null && !row.loading && <span className="text-[9px] text-slate-600 dark:text-slate-500 font-mono tabular-nums">{(row.timeMs / 1000).toFixed(1)}s</span>}
                 </div>
                 <StatusBadge status={row.status} loading={row.loading} tooltip={TOOLTIPS[row.key]} rowKey={row.key} />
               </div>
@@ -412,7 +412,7 @@ export default function ScreeningPanel({ screening, compact, gelAvoirsAlert, ben
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
-                    {row.timeMs != null && !row.loading && <span className="text-[9px] text-slate-500 font-mono tabular-nums">{(row.timeMs / 1000).toFixed(1)}s</span>}
+                    {row.timeMs != null && !row.loading && <span className="text-[9px] text-slate-600 dark:text-slate-500 font-mono tabular-nums">{(row.timeMs / 1000).toFixed(1)}s</span>}
                     {row.detail && !row.loading && (
                       <span className="text-[10px] text-slate-400 dark:text-slate-500">{row.detail}</span>
                     )}

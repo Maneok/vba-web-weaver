@@ -561,11 +561,11 @@ export default function GouvernancePage() {
                               {/* Role systeme */}
                               <TableCell>
                                 {hasProfile && profileRole ? (
-                                  <Badge className={`text-xs ${ROLE_BADGE_COLORS[profileRole] || "bg-slate-500/15 text-slate-400"}`}>
+                                  <Badge className={`text-xs ${ROLE_BADGE_COLORS[profileRole] || "bg-slate-500/15 text-slate-600 dark:text-slate-400"}`}>
                                     {profileRole}
                                   </Badge>
                                 ) : (
-                                  <span className="text-xs text-slate-500">---</span>
+                                  <span className="text-xs text-slate-600 dark:text-slate-500">---</span>
                                 )}
                               </TableCell>
                               {/* Compte lie */}
@@ -575,7 +575,7 @@ export default function GouvernancePage() {
                                     <Link2 className="w-2.5 h-2.5" /> Lie
                                   </Badge>
                                 ) : (
-                                  <Badge className="bg-slate-500/15 text-slate-400 text-[10px]">Manuel</Badge>
+                                  <Badge className="bg-slate-500/15 text-slate-600 dark:text-slate-400 text-[10px]">Manuel</Badge>
                                 )}
                               </TableCell>
                               {/* Competence */}
@@ -602,12 +602,12 @@ export default function GouvernancePage() {
                               {/* Derniere connexion */}
                               <TableCell>
                                 {hasProfile && c.profile?.last_login_at ? (
-                                  <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                                  <div className="flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-400">
                                     <Clock className="w-3 h-3" />
                                     {formatRelativeTime(c.profile.last_login_at)}
                                   </div>
                                 ) : (
-                                  <span className="text-xs text-slate-500">---</span>
+                                  <span className="text-xs text-slate-600 dark:text-slate-500">---</span>
                                 )}
                               </TableCell>
                               {/* Actions */}
@@ -806,12 +806,12 @@ export default function GouvernancePage() {
             </DialogHeader>
             <div className="space-y-4">
               {unlinkedProfiles.length === 0 ? (
-                <p className="text-sm text-slate-400 text-center py-4">
+                <p className="text-sm text-slate-600 dark:text-slate-400 text-center py-4">
                   Aucun profil non lie disponible dans ce cabinet
                 </p>
               ) : (
                 <div className="space-y-1.5">
-                  <Label className="text-xs text-slate-400">Selectionner un profil</Label>
+                  <Label className="text-xs text-slate-600 dark:text-slate-400">Selectionner un profil</Label>
                   <Select value={selectedProfileId} onValueChange={setSelectedProfileId}>
                     <SelectTrigger><SelectValue placeholder="Choisir un profil..." /></SelectTrigger>
                     <SelectContent>

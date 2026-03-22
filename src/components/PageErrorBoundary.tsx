@@ -60,7 +60,7 @@ export default class PageErrorBoundary extends React.Component<
                 {this.state.errorMessage}
               </pre>
               {/* OPT-PEB1: Show error timestamp for debugging */}
-              <p className="mt-1 text-[10px] text-slate-500 font-mono">{new Date().toISOString()}</p>
+              <p className="mt-1 text-[10px] text-slate-600 dark:text-slate-500 font-mono">{new Date().toISOString()}</p>
             </details>
           )}
           <div className="flex items-center gap-3">

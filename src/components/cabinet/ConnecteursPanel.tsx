@@ -51,7 +51,7 @@ const STATUT_CONFIG: Record<ConnecteurStatut, { icon: typeof Wifi; color: string
   connecte:   { icon: Wifi,          color: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30", label: "Connecté" },
   degrade:    { icon: AlertTriangle,  color: "bg-amber-500/20 text-amber-400 border-amber-500/30",     label: "Dégradé" },
   erreur:     { icon: XCircle,        color: "bg-red-500/20 text-red-400 border-red-500/30",           label: "Erreur" },
-  deconnecte: { icon: WifiOff,        color: "bg-slate-500/20 text-slate-400 border-slate-500/30",     label: "Déconnecté" },
+  deconnecte: { icon: WifiOff,        color: "bg-slate-500/20 text-slate-600 dark:text-slate-400 border-slate-500/30",     label: "Déconnecté" },
 };
 
 const TYPE_LABELS: Record<string, string> = {
@@ -672,7 +672,7 @@ export default function ConnecteursPanel() {
                     <span className="text-red-400 ml-2">· {health.countErreur} erreur{health.countErreur > 1 ? "s" : ""}</span>
                   )}
                   {health.countDeconnecte > 0 && (
-                    <span className="text-slate-400 ml-2">· {health.countDeconnecte} déconnecté{health.countDeconnecte > 1 ? "s" : ""}</span>
+                    <span className="text-slate-600 dark:text-slate-400 ml-2">· {health.countDeconnecte} déconnecté{health.countDeconnecte > 1 ? "s" : ""}</span>
                   )}
                 </div>
               </div>

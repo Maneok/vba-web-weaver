@@ -579,7 +579,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                         }}
                       >
                         <SelectTrigger className="w-7 h-7 p-0 border-0 bg-transparent [&>svg]:w-3 [&>svg]:h-3">
-                          <Edit3 className="w-3 h-3 text-slate-400" />
+                          <Edit3 className="w-3 h-3 text-slate-600 dark:text-slate-400" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="__none__">Non assigne</SelectItem>
@@ -696,7 +696,7 @@ function ClientDetailContent({ client }: { client: Client }) {
                     const qualiteBadge = qualite.toLowerCase().includes("gerant") ? "bg-blue-500/15 text-blue-400"
                       : qualite.toLowerCase().includes("president") ? "bg-violet-500/15 text-violet-400"
                       : qualite.toLowerCase().includes("associ") ? "bg-emerald-500/15 text-emerald-400"
-                      : "bg-slate-500/15 text-slate-400";
+                      : "bg-slate-500/15 text-slate-600 dark:text-slate-400";
                     return (
                       <div key={`dir-${dir.nom}-${i}`} className="p-4 rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white dark:bg-white/[0.02] hover:shadow-md transition-all">
                         <div className="flex items-center gap-3">
@@ -751,10 +751,10 @@ function ClientDetailContent({ client }: { client: Client }) {
                                 <div className="w-16 h-1.5 rounded-full bg-gray-100 dark:bg-white/[0.04] overflow-hidden">
                                   <div className="h-full rounded-full bg-blue-500 transition-all" style={{ width: `${Math.min((b as any).pourcentage, 100)}%` }} />
                                 </div>
-                                <span className="text-[10px] font-mono text-slate-400">{(b as any).pourcentage}%</span>
+                                <span className="text-[10px] font-mono text-slate-600 dark:text-slate-400">{(b as any).pourcentage}%</span>
                               </div>
                             )}
-                            {b.nationalite && <span className="text-[10px] text-slate-400">{b.nationalite === "Francaise" || b.nationalite === "FR" ? "🇫🇷" : b.nationalite}</span>}
+                            {b.nationalite && <span className="text-[10px] text-slate-600 dark:text-slate-400">{b.nationalite === "Francaise" || b.nationalite === "FR" ? "🇫🇷" : b.nationalite}</span>}
                           </div>
                         </div>
                         {(client.ppe === "OUI" || ppeMatch) && (
@@ -957,13 +957,13 @@ function ClientDetailContent({ client }: { client: Client }) {
                           <div className="w-6 h-6 rounded-full bg-red-500/10 flex items-center justify-center">
                             <span className="text-xs font-bold text-red-400">{ouiCount}</span>
                           </div>
-                          <span className="text-xs text-slate-400">OUI</span>
+                          <span className="text-xs text-slate-600 dark:text-slate-400">OUI</span>
                         </div>
                         <div className="flex items-center gap-1.5">
                           <div className="w-6 h-6 rounded-full bg-emerald-500/10 flex items-center justify-center">
                             <span className="text-xs font-bold text-emerald-400">{nonCount}</span>
                           </div>
-                          <span className="text-xs text-slate-400">NON</span>
+                          <span className="text-xs text-slate-600 dark:text-slate-400">NON</span>
                         </div>
                         <div className="flex gap-1.5 flex-wrap ml-auto">
                           {factors.map(f => (
@@ -2668,7 +2668,7 @@ function InfoRow({ label, value, icon: Icon, href, badge }: { label: string; val
       <div className="flex-1 min-w-0">
         <p className="text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-widest">{label}</p>
         {isEmpty ? (
-          <p className="text-sm italic text-slate-400 mt-0.5">Non renseigne</p>
+          <p className="text-sm italic text-slate-600 dark:text-slate-400 mt-0.5">Non renseigne</p>
         ) : href ? (
           <a href={href} target={href.startsWith("http") ? "_blank" : undefined} rel={href.startsWith("http") ? "noopener noreferrer" : undefined} className="text-sm font-medium text-blue-400 hover:text-blue-300 hover:underline mt-0.5 inline-flex items-center gap-1">
             {displayValue}

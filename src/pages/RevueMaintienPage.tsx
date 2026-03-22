@@ -1444,7 +1444,7 @@ export default function RevueMaintienPage() {
             )}
           </div>
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-600 dark:text-slate-400" />
             <Input
               placeholder="Nom ou reference..."
               value={search}
@@ -1516,7 +1516,7 @@ export default function RevueMaintienPage() {
                           <ClientAvatar name={revue.client_nom || ""} />
                           <div>
                             <span className="font-medium text-sm text-slate-900 dark:text-white">{revue.client_nom || "—"}</span>
-                            <span className="block text-[11px] text-slate-400">{revue.client_ref}</span>
+                            <span className="block text-[11px] text-slate-600 dark:text-slate-400">{revue.client_ref}</span>
                           </div>
                         </div>
                       </TableCell>

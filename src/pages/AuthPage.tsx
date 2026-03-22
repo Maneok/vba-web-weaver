@@ -71,7 +71,7 @@ const IconInput = forwardRef<HTMLInputElement, {
   function IconInput({ icon: Icon, id, type = "text", error: fieldError, valid, ...props }, ref) {
     return (
       <div className="relative">
-        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        <Icon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 dark:text-slate-400 pointer-events-none" />
         <input
           ref={ref}
           id={id}
@@ -110,7 +110,7 @@ function PasswordInput({
   const [show, setShow] = useState(false);
   return (
     <div className="relative">
-      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 dark:text-slate-400 pointer-events-none" />
       <Input
         id={id}
         type={show ? "text" : "password"}
@@ -619,7 +619,7 @@ export default function AuthPage() {
                     </div>
                     <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
                       {pwStrength.rules.map(r => (
-                        <span key={r.id} className={`text-[11px] flex items-center gap-1 transition-colors ${r.ok ? "text-emerald-500" : "text-slate-400"}`}>
+                        <span key={r.id} className={`text-[11px] flex items-center gap-1 transition-colors ${r.ok ? "text-emerald-500" : "text-slate-600 dark:text-slate-400"}`}>
                           {r.ok ? <Check className="w-3 h-3" /> : <span className="w-3 h-3 inline-block rounded-full border border-slate-300 dark:border-white/[0.15]" />}
                           {r.label}
                         </span>

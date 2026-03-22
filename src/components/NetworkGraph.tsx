@@ -567,16 +567,16 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
             {tooltip.node && (
               <>
                 <p className="font-bold text-white truncate text-[13px]">{tooltip.node.label}</p>
-                {tooltip.node.siren && <p className="text-slate-400 font-mono text-[10px] mt-0.5">SIREN {tooltip.node.siren}</p>}
-                {(tooltip.node as any).formeJuridique && <p className="text-slate-400 text-[10px]">{(tooltip.node as any).formeJuridique}</p>}
-                {(tooltip.node as any).ville && <p className="text-slate-400 text-[10px]">{(tooltip.node as any).ville}</p>}
+                {tooltip.node.siren && <p className="text-slate-600 dark:text-slate-400 font-mono text-[10px] mt-0.5">SIREN {tooltip.node.siren}</p>}
+                {(tooltip.node as any).formeJuridique && <p className="text-slate-600 dark:text-slate-400 text-[10px]">{(tooltip.node as any).formeJuridique}</p>}
+                {(tooltip.node as any).ville && <p className="text-slate-600 dark:text-slate-400 text-[10px]">{(tooltip.node as any).ville}</p>}
                 {/* #42: Show etatAdministratif */}
                 {(tooltip.node as any).etatAdministratif && (
                   <p className={`text-[10px] mt-0.5 ${(tooltip.node as any).etatAdministratif === "A" ? "text-emerald-400" : "text-red-400"}`}>
                     {(tooltip.node as any).etatAdministratif === "A" ? "Active" : "Fermee"}
                   </p>
                 )}
-                <p className="text-slate-500 text-[10px] mt-1 pt-1 border-t border-white/[0.06]">
+                <p className="text-slate-600 dark:text-slate-500 text-[10px] mt-1 pt-1 border-t border-white/[0.06]">
                   {tooltip.node.isSource ? "Client analyse" : tooltip.node.type === "person" ? "Personne physique" : "Societe"}
                 </p>
               </>
@@ -589,7 +589,7 @@ export default function NetworkGraph({ nodes, edges, width = 700, height = 450, 
       )}
 
       {/* #38-41: Legend bottom-left with pill backgrounds and counts */}
-      <div className="flex items-center gap-2 mt-2.5 px-2 text-[10px] text-slate-400 print:hidden flex-wrap">
+      <div className="flex items-center gap-2 mt-2.5 px-2 text-[10px] text-slate-600 dark:text-slate-400 print:hidden flex-wrap">
         <div className="flex items-center gap-1.5 bg-slate-800/40 rounded-full px-2.5 py-1">
           <Target className="w-3 h-3 text-blue-500" />
           <span>Client</span>

@@ -17,7 +17,7 @@ export const ThemeToggle = memo(function ThemeToggle() {
       aria-label={isDark ? "Passer en mode clair" : "Passer en mode sombre"}
     >
       {isDark ? (
-        <Moon className="w-4 h-4 text-slate-400 transition-transform duration-300 rotate-0" />
+        <Moon className="w-4 h-4 text-slate-600 dark:text-slate-400 transition-transform duration-300 rotate-0" />
       ) : (
         <Sun className="w-4 h-4 text-amber-500 transition-transform duration-300 rotate-0" />
       )}

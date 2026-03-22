@@ -344,7 +344,7 @@ export default function BddPage() {
       {/* Search and filters bar */}
       <div className="flex items-center gap-3 mt-4 mb-4 flex-wrap lg:flex-nowrap transition-all duration-200">
         <div className="relative flex-1 min-w-[200px] max-w-sm w-full lg:w-auto">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-600 dark:text-slate-400" />
           <Input
             placeholder="Rechercher un client, un SIREN..."
             value={search}
@@ -624,7 +624,7 @@ export default function BddPage() {
                       <p className="text-[11px] text-slate-400 dark:text-slate-500 font-mono">{client.ref}</p>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                         <span className="text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded bg-slate-100 dark:bg-white/[0.06] text-slate-500 dark:text-slate-400">{client.forme}</span>
-                        <span className="text-xs text-slate-400">{client.mission}</span>
+                        <span className="text-xs text-slate-600 dark:text-slate-400">{client.mission}</span>
                       </div>
                     </div>
                   </div>
@@ -639,7 +639,7 @@ export default function BddPage() {
                     }`}>
                       {client.scoreGlobal}
                     </div>
-                    <ChevronRightIcon className="w-4 h-4 text-slate-300" />
+                    <ChevronRightIcon className="w-4 h-4 text-slate-700 dark:text-slate-300" />
                   </div>
                 </div>
               );
