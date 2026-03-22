@@ -91,7 +91,7 @@ export default function ScoreResume({ client }: ScoreResumeProps) {
           const score = client[axis.key];
           return (
             <div key={axis.key} className="flex items-center gap-2 text-sm">
-              <span className="text-gray-500 flex-shrink-0">{axis.icon}</span>
+              <span className="text-gray-600 dark:text-gray-500 flex-shrink-0">{axis.icon}</span>
               <span className="w-20 text-gray-700">{axis.label}</span>
               <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div

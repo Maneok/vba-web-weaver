@@ -371,7 +371,7 @@ export default function CabinetConfigForm() {
                   background: `linear-gradient(to right, ${config.couleurPrimaire}, ${config.couleurSecondaire})`,
                 }}
               />
-              <div className="mt-4 text-sm text-gray-500 space-y-0.5">
+              <div className="mt-4 text-sm text-gray-600 dark:text-gray-500 space-y-0.5">
                 <p>SIRET : {config.siret || "---"} | N° OEC : {config.numeroOec || "---"}</p>
                 {config.croec && <p className="text-xs">CROEC : {config.croec}</p>}
                 {config.tvaIntracommunautaire && <p className="text-xs">TVA : {config.tvaIntracommunautaire}</p>}
@@ -382,13 +382,13 @@ export default function CabinetConfigForm() {
               {/* Signature preview */}
               {config.signature && (
                 <div className="mt-4 pt-3 border-t border-gray-100">
-                  <p className="text-xs text-gray-400 mb-1">Signature :</p>
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mb-1">Signature :</p>
                   <img src={config.signature} alt="Signature" className="h-12 object-contain" />
                 </div>
               )}
 
               <div className="mt-4 border-t pt-3">
-                <p className="text-xs text-gray-400 text-center" style={{ color: config.couleurSecondaire }}>
+                <p className="text-xs text-gray-600 dark:text-gray-400 text-center" style={{ color: config.couleurSecondaire }}>
                   {config.piedDePage || "Pied de page"}
                 </p>
               </div>

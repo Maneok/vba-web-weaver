@@ -261,7 +261,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
                 className="w-full flex items-center justify-between p-3 text-left hover:bg-white dark:hover:bg-white/[0.02] transition-colors"
               >
                 <div className="flex items-center gap-2">
-                  <Layers className="w-3.5 h-3.5 text-slate-400" />
+                  <Layers className="w-3.5 h-3.5 text-slate-600 dark:text-slate-400" />
                   <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
                     Sections du modèle
                   </span>
@@ -269,7 +269,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
                     {activeObligatoire.length}/{obligatoireSections.length} obligatoires
                   </Badge>
                 </div>
-                <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showSections ? "rotate-180" : ""}`} />
+                <ChevronDown className={`w-3.5 h-3.5 text-slate-600 dark:text-slate-400 transition-transform ${showSections ? "rotate-180" : ""}`} />
               </button>
               <div className={`overflow-hidden transition-all duration-200 ${showSections ? "max-h-[600px] opacity-100" : "max-h-0 opacity-0"}`}>
                 <div className="px-3 pb-3 border-t border-gray-100 dark:border-white/[0.04] space-y-1 pt-2 max-h-[400px] overflow-y-auto">
@@ -297,7 +297,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
                           )}
                         </div>
                         <Badge variant="outline" className={`text-[7px] px-1 shrink-0 ${
-                          isActive ? 'border-green-500/30 text-green-500' : 'border-slate-300/30 text-slate-400'
+                          isActive ? 'border-green-500/30 text-green-500' : 'border-slate-300/30 text-slate-600 dark:text-slate-400'
                         }`}>
                           {isActive ? 'ON' : 'OFF'}
                         </Badge>
@@ -499,7 +499,7 @@ export default function LMStep4Modele({ data, onChange }: Props) {
               <button
                 type="button"
                 onClick={() => removeIntervenant(idx)}
-                className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-400 hover:text-red-500 transition-colors mt-0.5"
+                className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-500/10 text-slate-600 dark:text-slate-400 hover:text-red-500 transition-colors mt-0.5"
                 aria-label="Supprimer cet intervenant"
               >
                 <X className="w-3.5 h-3.5" />
