@@ -18,22 +18,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatDateTimeFr } from "@/lib/dateUtils";
 import { logger } from "@/lib/logger";
 import { recalculateAllCabinetScores, clearScoringCache } from "@/lib/riskEngine";
-import { lazyRetry } from "@/lib/lazyWithRetry";
 
-const SubscriptionSettings = lazy(() => lazyRetry(() => import("@/components/settings/SubscriptionSettings")));
-const RefMissionsTab = lazy(() => lazyRetry(() => import("@/components/settings/RefMissionsTab")));
-const RefPaysTab = lazy(() => lazyRetry(() => import("@/components/settings/RefPaysTab")));
-const RefTypesJuridiquesTab = lazy(() => lazyRetry(() => import("@/components/settings/RefTypesJuridiquesTab")));
-const RefActivitesTab = lazy(() => lazyRetry(() => import("@/components/settings/RefActivitesTab")));
-const RefQuestionsTab = lazy(() => lazyRetry(() => import("@/components/settings/RefQuestionsTab")));
+const SubscriptionSettings = lazy(() => import("@/components/settings/SubscriptionSettings"));
+const RefMissionsTab = lazy(() => import("@/components/settings/RefMissionsTab"));
+const RefPaysTab = lazy(() => import("@/components/settings/RefPaysTab"));
+const RefTypesJuridiquesTab = lazy(() => import("@/components/settings/RefTypesJuridiquesTab"));
+const RefActivitesTab = lazy(() => import("@/components/settings/RefActivitesTab"));
+const RefQuestionsTab = lazy(() => import("@/components/settings/RefQuestionsTab"));
 
 // Cabinet management sub-components
-const CabinetsList = lazy(() => lazyRetry(() => import("@/components/cabinet/CabinetsList")));
-const CollaborateursList = lazy(() => lazyRetry(() => import("@/components/cabinet/CollaborateursList")));
-const RolesMatrix = lazy(() => lazyRetry(() => import("@/components/cabinet/RolesMatrix")));
-const ReglagesPanel = lazy(() => lazyRetry(() => import("@/components/cabinet/ReglagesPanel")));
-const ConnecteursPanel = lazy(() => lazyRetry(() => import("@/components/cabinet/ConnecteursPanel")));
-const ApiKeysPanel = lazy(() => lazyRetry(() => import("@/components/cabinet/ApiKeysPanel")));
+const CabinetsList = lazy(() => import("@/components/cabinet/CabinetsList"));
+const CollaborateursList = lazy(() => import("@/components/cabinet/CollaborateursList"));
+const RolesMatrix = lazy(() => import("@/components/cabinet/RolesMatrix"));
+const ReglagesPanel = lazy(() => import("@/components/cabinet/ReglagesPanel"));
+const ConnecteursPanel = lazy(() => import("@/components/cabinet/ConnecteursPanel"));
+const ApiKeysPanel = lazy(() => import("@/components/cabinet/ApiKeysPanel"));
 
 /* ---------- types ---------- */
 

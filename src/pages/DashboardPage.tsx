@@ -36,18 +36,16 @@ import DashboardNotificationCenter from "@/components/dashboard/DashboardNotific
 import { useReducedMotion, useAutoRefreshInterval } from "@/components/dashboard/DashboardReducedMotion";
 import { isActive, scoreColor as vigilanceColor, statusColor, formatEuros, pct, monthsSince, COLOR } from "@/components/dashboard/dashboardUtils";
 
-import { lazyRetry } from "@/lib/lazyWithRetry";
-
-// ── Lazy-loaded chart widgets (with retry for stale deployments) ──
-const LazyRiskRadar = React.lazy(() => lazyRetry(() => import("@/components/dashboard/RiskRadarWidget")));
-const LazyExpositionDonut = React.lazy(() => lazyRetry(() => import("@/components/dashboard/ExpositionDonut")));
-const LazyRiskValues = React.lazy(() => lazyRetry(() => import("@/components/dashboard/RiskValuesChart")));
-const LazyRevenue = React.lazy(() => lazyRetry(() => import("@/components/dashboard/RevenueChart")));
-const LazyTopTypes = React.lazy(() => lazyRetry(() => import("@/components/dashboard/TopClientTypes")));
-const LazyCollabCases = React.lazy(() => lazyRetry(() => import("@/components/dashboard/CollaboratorCasesChart")));
-const LazyTraining = React.lazy(() => lazyRetry(() => import("@/components/dashboard/TrainingStatusWidget")));
-const LazyFileUpdate = React.lazy(() => lazyRetry(() => import("@/components/dashboard/FileUpdateStatusWidget")));
-const LazyControlStatus = React.lazy(() => lazyRetry(() => import("@/components/dashboard/ControlStatusWidget")));
+// ── Lazy-loaded chart widgets ──
+const LazyRiskRadar = React.lazy(() => import("@/components/dashboard/RiskRadarWidget"));
+const LazyExpositionDonut = React.lazy(() => import("@/components/dashboard/ExpositionDonut"));
+const LazyRiskValues = React.lazy(() => import("@/components/dashboard/RiskValuesChart"));
+const LazyRevenue = React.lazy(() => import("@/components/dashboard/RevenueChart"));
+const LazyTopTypes = React.lazy(() => import("@/components/dashboard/TopClientTypes"));
+const LazyCollabCases = React.lazy(() => import("@/components/dashboard/CollaboratorCasesChart"));
+const LazyTraining = React.lazy(() => import("@/components/dashboard/TrainingStatusWidget"));
+const LazyFileUpdate = React.lazy(() => import("@/components/dashboard/FileUpdateStatusWidget"));
+const LazyControlStatus = React.lazy(() => import("@/components/dashboard/ControlStatusWidget"));
 
 // ── Skeleton fallback ────────────────────────────────────────
 function ChartSkeleton() {
