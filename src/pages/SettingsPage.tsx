@@ -1,4 +1,5 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
 import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Layers, Undo2, RotateCw, BarChart3 } from "lucide-react";
@@ -670,10 +671,28 @@ export default function SettingsPage() {
   const [lastSavedScoring, setLastSavedScoring] = useState<string | null>(null);
   const [lastSavedLcbft, setLastSavedLcbft] = useState<string | null>(null);
 
+  // URL params: ?tab= and ?session_id= (Stripe return)
+  const [searchParams, setSearchParams] = useSearchParams();
+
   // Active tab for keyboard shortcut + unsaved warning
-  const [activeTab, setActiveTab] = useState("cabinet");
+  const [activeTab, setActiveTab] = useState(() => {
+    const tab = searchParams.get("tab");
+    return tab && ["cabinet", "referentiels", "gestion-cabinet", "abonnement"].includes(tab) ? tab : "cabinet";
+  });
   const activeTabRef = useRef(activeTab);
   activeTabRef.current = activeTab;
+
+  // Detect Stripe checkout return
+  useEffect(() => {
+    const sessionId = searchParams.get("session_id");
+    if (sessionId) {
+      toast.success("Paiement reussi ! Votre abonnement est actif.", { duration: 6000 });
+      // Clean URL params
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete("session_id");
+      setSearchParams(newParams, { replace: true });
+    }
+  }, []);
 
   // Scoring: client count + last recalcul info
   const [clientCount, setClientCount] = useState<number | null>(null);

@@ -33,6 +33,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/lib/auth/AuthContext";
 import { logger } from "@/lib/logger";
 
@@ -125,11 +126,13 @@ function formatCurrency(amount: number): string {
 
 export default function SubscriptionSettings() {
   const { profile } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [usage, setUsage] = useState<CabinetUsage | null>(null);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [addingSeat, setAddingSeat] = useState(false);
   const [changePlanOpen, setChangePlanOpen] = useState(false);
+  const [loadingPortal, setLoadingPortal] = useState(false);
 
   useEffect(() => {
     if (!profile?.cabinet_id) return;
@@ -209,6 +212,53 @@ export default function SubscriptionSettings() {
       logger.error("Subscription", "Erreur inattendue:", err);
     }
     setAddingSeat(false);
+  }
+
+  async function handleChangePlan(planId: string) {
+    setChangePlanOpen(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) { navigate("/auth"); return; }
+
+      const { data, error } = await supabase.functions.invoke("stripe-checkout", {
+        body: {
+          plan: planId,
+          email: session.user.email,
+          returnUrl: window.location.origin + "/parametres?tab=abonnement",
+        },
+      });
+
+      if (error) throw error;
+      if (data?.url && typeof data.url === "string") {
+        window.location.href = data.url;
+      } else {
+        throw new Error("Pas d'URL de paiement recue");
+      }
+    } catch {
+      toast.error("Erreur lors de la redirection vers le paiement");
+    }
+  }
+
+  async function handleManageBilling() {
+    setLoadingPortal(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("stripe-checkout", {
+        body: {
+          portal: true,
+          returnUrl: window.location.origin + "/parametres?tab=abonnement",
+        },
+      });
+
+      if (error) throw error;
+      if (data?.url && typeof data.url === "string") {
+        window.location.href = data.url;
+      } else {
+        toast.info("Le portail de facturation n'est pas encore configure.");
+      }
+    } catch {
+      toast.error("Erreur lors de l'acces au portail de facturation");
+    }
+    setLoadingPortal(false);
   }
 
   /* --- loading skeleton --- */
@@ -370,6 +420,21 @@ export default function SubscriptionSettings() {
             Ajouter un siege (+15€/mois)
           </Button>
 
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleManageBilling}
+            disabled={loadingPortal}
+            className="gap-2 border-white/10 hover:bg-white/5"
+          >
+            {loadingPortal ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <CreditCard className="w-4 h-4" />
+            )}
+            Gerer la facturation
+          </Button>
+
           <Dialog open={changePlanOpen} onOpenChange={setChangePlanOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm" className="gap-2 border-white/10 hover:bg-white/5">
@@ -424,10 +489,7 @@ export default function SubscriptionSettings() {
                         size="sm"
                         className="w-full"
                         disabled={isCurrent}
-                        onClick={() => {
-                          toast.info(`Migration vers le plan ${plan.name} en cours...`);
-                          setChangePlanOpen(false);
-                        }}
+                        onClick={() => handleChangePlan(plan.id)}
                       >
                         {isCurrent ? "Plan actuel" : "Selectionner"}
                       </Button>

@@ -1,8 +1,8 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Check, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -61,37 +61,36 @@ const getErrorMessage = (err: unknown, fallback: string) => {
 };
 
 export default function PricingPage() {
-  const [email, setEmail] = useState("");
+  const navigate = useNavigate();
   const [loading, setLoading] = useState<string | null>(null);
 
   useDocumentTitle("Tarifs");
 
-  const handleCheckout = async (planId: string) => {
-    if (!email || !email.includes("@")) {
-      toast.error("Veuillez entrer une adresse email valide");
-      return;
-    }
-
+  const handleSubscribe = async (planId: string) => {
     setLoading(planId);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        navigate("/auth");
+        return;
+      }
+
       const { data, error } = await supabase.functions.invoke("stripe-checkout", {
         body: {
           plan: planId,
-          email,
-          returnUrl: window.location.origin,
+          email: session.user.email,
+          returnUrl: window.location.origin + "/parametres?tab=abonnement",
         },
       });
 
       if (error) throw error;
-      if (data?.url && typeof data.url === "string" && data.url.startsWith("https://checkout.stripe.com")) {
+      if (data?.url && typeof data.url === "string" && data.url.startsWith("https://")) {
         window.location.href = data.url;
-      } else if (data?.url) {
-        throw new Error("URL de paiement invalide");
       } else {
         throw new Error("Pas d'URL de paiement recue");
       }
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, "Erreur lors de la creation de la session de paiement"));
+      toast.error(getErrorMessage(err, "Erreur lors de la redirection vers le paiement"));
     } finally {
       setLoading(null);
     }
@@ -119,18 +118,6 @@ export default function PricingPage() {
           <p className="text-muted-foreground max-w-lg mx-auto">
             Simplifiez votre conformite LCB-FT. Sans engagement, resiliable a tout moment.
           </p>
-        </div>
-
-        {/* Email input */}
-        <div className="max-w-sm mx-auto mb-10">
-          <label className="text-sm font-medium mb-2 block text-center">Votre adresse email professionnelle</label>
-          <Input
-            type="email"
-            placeholder="nom@cabinet.fr"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="text-center"
-          />
         </div>
 
         {/* Plans */}
@@ -174,7 +161,7 @@ export default function PricingPage() {
                   variant={plan.popular ? "default" : "outline"}
                   size="lg"
                   disabled={loading !== null}
-                  onClick={() => handleCheckout(plan.id)}
+                  onClick={() => handleSubscribe(plan.id)}
                 >
                   {loading === plan.id ? (
                     <>

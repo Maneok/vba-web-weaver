@@ -40,13 +40,13 @@ serve(async (req) => {
 
     // Validate returnUrl against allowed origins to prevent open redirect
     const siteUrl = Deno.env.get("SITE_URL") || "http://localhost:5173";
-    let safeOrigin = siteUrl;
+    let safeReturnUrl = siteUrl;
     if (returnUrl) {
       try {
         const parsed = new URL(returnUrl);
         const allowed = (Deno.env.get("ALLOWED_ORIGINS") || siteUrl).split(",");
         if (allowed.includes(parsed.origin)) {
-          safeOrigin = parsed.origin;
+          safeReturnUrl = returnUrl;
         }
       } catch {
         // Invalid URL, use default
@@ -90,8 +90,8 @@ serve(async (req) => {
         plan,
         email,
       },
-      success_url: `${safeOrigin}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${safeOrigin}/pricing?canceled=true`,
+      success_url: `${safeReturnUrl}${safeReturnUrl.includes("?") ? "&" : "?"}session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${new URL(safeReturnUrl).origin}/pricing?canceled=true`,
     });
 
     return new Response(
