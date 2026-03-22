@@ -32,7 +32,7 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
 
   // ── Filtres ─────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('Tous');
+  const [activeCategory, setActiveCategory] = useState('accueil');
   const [sortColumn, setSortColumn] = useState<string>('created_at');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   const [statusFilter, setStatusFilter] = useState<'all' | 'complete' | 'incomplete' | 'alert'>('all');
@@ -142,13 +142,13 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
   const filteredDocuments = useMemo(() => {
     let result = documents;
 
-    // Category filter (fuzzy match between display labels and DB values)
-    if (activeCategory !== 'Tous') {
-      result = result.filter(d => {
-        const cat = (d.category || '').toLowerCase().replace(/[_\s-]+/g, '');
-        const filter = activeCategory.toLowerCase().replace(/[_\s-]+/g, '');
-        return cat.includes(filter) || filter.includes(cat);
-      });
+    // Category filter — exact match on DB category keys
+    if (activeCategory === 'accueil') {
+      // Accueil = only uncategorized or "autre" docs
+      result = result.filter(d => !d.category || d.category === 'autre');
+    } else {
+      // Specific category tab — exact match
+      result = result.filter(d => d.category === activeCategory);
     }
 
     // Sort
@@ -171,6 +171,17 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
 
     return result;
   }, [documents, activeCategory, sortColumn, sortDirection]);
+
+  // ── Category counts (from ALL documents, not filtered) ─────────
+  const categoryCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const doc of documents) {
+      const cat = doc.category || 'autre';
+      counts[cat] = (counts[cat] || 0) + 1;
+    }
+    counts['accueil'] = counts['autre'] || 0;
+    return counts;
+  }, [documents]);
 
   // ── Audit helper ───────────────────────────────────────────────
   const fireAudit = useCallback(
@@ -507,6 +518,9 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
     loading,
     uploading,
     error,
+
+    // Counts per category
+    categoryCounts,
 
     // Filters
     searchQuery,

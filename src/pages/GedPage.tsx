@@ -13,6 +13,7 @@ import {
   Search, FolderOpen, Plus, ChevronUp, ChevronDown,
   ExternalLink, Package, Users, Bell, X, AlertTriangle,
   ArrowUpDown, Wand2, LayoutGrid, LayoutList, HardDrive, Sparkles,
+  Home, CheckCircle2,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -47,8 +48,17 @@ import DocumentAnalysis from "@/components/client/DocumentAnalysis";
 /* ─────────── Constants ─────────── */
 
 const CATEGORY_TABS = [
-  "Tous", "Extrait KBis", "KBis", "CNI", "RIB",
-  "Statuts", "PV Assemblée", "Bilan", "Attestation", "Autre",
+  { key: "accueil", label: "Accueil" },
+  { key: "extrait_kbis", label: "Extrait KBis" },
+  { key: "kbis", label: "KBIS" },
+  { key: "cni_dirigeant", label: "CNI" },
+  { key: "rib", label: "RIB" },
+  { key: "statuts", label: "Statuts" },
+  { key: "pv_assemblee", label: "PV Assemblee" },
+  { key: "bilan", label: "Bilan" },
+  { key: "liste_beneficiaires_effectifs", label: "Liste BE" },
+  { key: "attestation_vigilance", label: "Attestation" },
+  { key: "autre", label: "Autres" },
 ];
 
 const TAG_SUGGESTIONS = ["urgent", "à vérifier", "validé EC", "en attente client"];
@@ -100,6 +110,7 @@ export default function GedPage() {
     handleUpdateField,
     handleBulkCategoryChange,
     handleRenameAllToNorm,
+    categoryCounts,
     favorites,
     toggleFavorite,
     auditEntries,
@@ -657,9 +668,21 @@ export default function GedPage() {
                 <h2 className="text-lg font-semibold text-foreground truncate">
                   {selectedFolder.client_name}
                 </h2>
-                <Badge variant={completion >= 100 ? "default" : "secondary"} className="shrink-0">
-                  {completion}% complet
-                </Badge>
+                {(() => {
+                  const kycDone = ["kbis", "extrait_kbis", "cni_dirigeant", "rib"].filter(
+                    k => (categoryCounts[k] || 0) > 0
+                  ).length;
+                  return kycDone >= 4 ? (
+                    <Badge className="shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-0">
+                      <CheckCircle2 className="w-3 h-3 mr-1" />
+                      Dossier KYC complet
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="shrink-0">
+                      KYC {kycDone}/4
+                    </Badge>
+                  );
+                })()}
               </div>
               <p className="text-sm text-muted-foreground font-mono mt-0.5">
                 {selectedFolder.siren}
@@ -830,7 +853,10 @@ export default function GedPage() {
         <div className="px-4 pt-3 pb-2 flex items-center gap-2 flex-wrap">
           <div className="flex-1">
             <CategoryFilter
-              categories={CATEGORY_TABS}
+              tabs={CATEGORY_TABS.map(t => ({
+                ...t,
+                count: categoryCounts[t.key] || 0,
+              }))}
               active={activeCategory}
               onChange={setActiveCategory}
             />
@@ -872,14 +898,128 @@ export default function GedPage() {
           </div>
         </div>
 
-        {/* Documents table or grid */}
+        {/* Documents content — Accueil or category view */}
         <div className="px-4 py-3">
-          {filteredDocuments.length === 0 ? (
+          {activeCategory === "accueil" ? (
+            /* ── Accueil: Upload zone + summary + unclassified docs ── */
+            <div className="space-y-6">
+              {/* Large drop zone */}
+              <div
+                className="border-2 border-dashed border-border/60 rounded-xl p-8 text-center hover:border-primary/40 transition-colors cursor-pointer"
+                onClick={handleImportClick}
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const files = Array.from(e.dataTransfer.files);
+                  if (files.length > 0) handleDropFiles(files);
+                }}
+              >
+                <Upload className="w-10 h-10 mx-auto mb-3 text-muted-foreground/40" />
+                <p className="text-sm font-medium text-foreground">
+                  Glisser vos documents ici pour les ajouter a {selectedFolder.client_name}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  PDF, images, Word, Excel — max {reglages?.limite_taille_upload_mo || 10} Mo par fichier
+                </p>
+              </div>
+
+              {/* Unclassified docs section */}
+              {filteredDocuments.length > 0 ? (
+                <div>
+                  <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-500" />
+                    Documents a classer ({filteredDocuments.length})
+                  </h3>
+                  <div className="space-y-2">
+                    {filteredDocuments.map((doc) => (
+                      <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border border-border/50 bg-card hover:bg-accent/30 transition-colors">
+                        <FileText className="w-4 h-4 text-muted-foreground shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm truncate">{doc.name}</p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {doc.file_size >= 1_000_000 ? `${(doc.file_size / 1_000_000).toFixed(1)} Mo` : `${Math.round(doc.file_size / 1_000)} Ko`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <Select onValueChange={(val) => handleUpdateField(doc.id, "category", val)}>
+                            <SelectTrigger className="h-7 w-[140px] text-xs">
+                              <SelectValue placeholder="Classer..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {CATEGORY_TABS.filter(t => t.key !== "accueil" && t.key !== "autre").map(t => (
+                                <SelectItem key={t.key} value={t.key} className="text-xs">{t.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handlePreview(doc)}>
+                            <Search className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 p-4 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <CheckCircle2 className="w-5 h-5 shrink-0" />
+                  <p className="text-sm font-medium">Tous les documents sont classes</p>
+                </div>
+              )}
+
+              {/* Folder summary by category */}
+              <div>
+                <h3 className="text-sm font-semibold text-foreground mb-3">Resume du dossier</h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {CATEGORY_TABS.filter(t => t.key !== "accueil" && t.key !== "autre").map(t => {
+                    const count = categoryCounts[t.key] || 0;
+                    const isRequired = ["kbis", "extrait_kbis", "cni_dirigeant", "rib"].includes(t.key);
+                    const isMissing = isRequired && count === 0;
+                    return (
+                      <button
+                        key={t.key}
+                        onClick={() => setActiveCategory(t.key)}
+                        className={`flex items-center justify-between p-2.5 rounded-lg border transition-colors text-left ${
+                          isMissing
+                            ? "border-red-500/30 bg-red-500/5 hover:bg-red-500/10"
+                            : "border-border/50 bg-card hover:bg-accent/30"
+                        }`}
+                      >
+                        <span className={`text-xs font-medium ${isMissing ? "text-red-500" : "text-foreground"}`}>
+                          {t.label}
+                        </span>
+                        <span className={`text-xs font-bold ${
+                          isMissing ? "text-red-500" : count > 0 ? "text-foreground" : "text-muted-foreground"
+                        }`}>
+                          {count} doc{count !== 1 ? "s" : ""}
+                          {isMissing && " ⚠"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Total */}
+              <div className="text-xs text-muted-foreground text-center pt-2 border-t border-border/30">
+                Total : {documents.length} document{documents.length !== 1 ? "s" : ""}
+                {documents.length > 0 && (() => {
+                  const totalSize = documents.reduce((sum, d) => sum + (d.file_size || 0), 0);
+                  if (totalSize >= 1_000_000) return ` — ${(totalSize / 1_000_000).toFixed(1)} Mo`;
+                  if (totalSize >= 1_000) return ` — ${Math.round(totalSize / 1_000)} Ko`;
+                  return '';
+                })()}
+              </div>
+            </div>
+          ) : filteredDocuments.length === 0 ? (
+            /* ── Empty state per category ── */
             <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Upload className="w-12 h-12 mb-3 opacity-30" />
-              <p className="text-sm font-medium">Aucun document</p>
+              <p className="text-sm font-medium">
+                Aucun document {CATEGORY_TABS.find(t => t.key === activeCategory)?.label || ""}
+              </p>
               <p className="text-xs mt-1">
-                Importez les pièces KYC pour {selectedFolder.client_name}
+                Importez un document dans cette categorie pour {selectedFolder.client_name}
               </p>
               <Button variant="outline" size="sm" className="mt-4" onClick={handleImportClick}>
                 <Plus className="w-3.5 h-3.5 mr-1.5" />
@@ -899,10 +1039,10 @@ export default function GedPage() {
                       onCheckedChange={toggleSelectAll}
                     />
                   </th>
-                  {/* #122 — Sortable column headers */}
+                  {/* Sortable column headers */}
                   {[
                     { key: "name", label: "Document" },
-                    { key: "category", label: "Catégorie" },
+                    { key: "category", label: "Categorie" },
                     { key: "file_size", label: "Taille" },
                     { key: "current_version", label: "Version" },
                     { key: "expiration_date", label: "Expiration" },
@@ -936,7 +1076,7 @@ export default function GedPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredDocuments.map((doc) => (
+                {filteredDocuments.map((doc, idx) => (
                   <DocumentRow
                     key={doc.id}
                     doc={toComponentDoc(doc)}
@@ -951,7 +1091,7 @@ export default function GedPage() {
               </tbody>
             </table>
             ) : (
-              /* #121 — Grid view */
+              /* Grid view */
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                 {filteredDocuments.map((doc) => {
                   const isImage = /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.name);
@@ -981,7 +1121,9 @@ export default function GedPage() {
                         <span className="bg-primary/10 text-primary rounded-full text-[10px] px-1.5 py-0.5">
                           {doc.category}
                         </span>
-                        <span className="text-[10px] text-muted-foreground">v{doc.current_version}</span>
+                        {doc.current_version > 1 && (
+                          <span className="text-[10px] text-muted-foreground">V{doc.current_version}</span>
+                        )}
                       </div>
                     </div>
                   );
@@ -1247,8 +1389,8 @@ export default function GedPage() {
               <SelectValue placeholder="Catégorie..." />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORY_TABS.filter(c => c !== "Tous").map(cat => (
-                <SelectItem key={cat} value={cat.toLowerCase()} className="text-xs">{cat}</SelectItem>
+              {CATEGORY_TABS.filter(t => t.key !== "accueil").map(t => (
+                <SelectItem key={t.key} value={t.key} className="text-xs">{t.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>

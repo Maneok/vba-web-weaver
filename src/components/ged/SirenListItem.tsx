@@ -146,7 +146,7 @@ export default function SirenListItem({
       <div className="flex items-center gap-2 mt-1.5 ml-8">
         <Progress value={completion} className={`h-1.5 flex-1 ${progressColor}`} />
         <span className="text-xs text-muted-foreground whitespace-nowrap">
-          {docCount}/{requiredDocs} docs
+          {docCount} doc{docCount !== 1 ? "s" : ""}
         </span>
       </div>
     </button>
