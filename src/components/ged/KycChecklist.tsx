@@ -38,14 +38,27 @@ const OPTIONAL_DOCS: Record<VigilanceLevel, string[]> = {
 const DOC_LABELS: Record<string, string> = {
   kbis: "KBis",
   extrait_kbis: "Extrait KBis",
-  cni_dirigeant: "Pièce d'identité dirigeant",
+  cni_dirigeant: "Piece d'identite dirigeant",
   rib: "RIB",
-  statuts: "Statuts à jour",
+  statuts: "Statuts a jour",
   justificatif_domicile: "Justificatif de domicile",
   attestation_vigilance: "Attestation de vigilance",
-  liste_beneficiaires_effectifs: "Liste des bénéficiaires effectifs",
-  declaration_source_fonds: "Déclaration source des fonds",
+  liste_beneficiaires_effectifs: "Liste des beneficiaires effectifs",
+  declaration_source_fonds: "Declaration source des fonds",
   justificatif_patrimoine: "Justificatif de patrimoine",
+};
+
+const DOC_EMOJIS: Record<string, string> = {
+  kbis: "\u{1F4CB}",
+  extrait_kbis: "\u{1F4C4}",
+  cni_dirigeant: "\u{1FAAA}",
+  rib: "\u{1F3E6}",
+  statuts: "\u{1F4D1}",
+  attestation_vigilance: "\u{1F6E1}\uFE0F",
+  liste_beneficiaires_effectifs: "\u{1F465}",
+  declaration_source_fonds: "\u{1F4B0}",
+  justificatif_patrimoine: "\u{1F3E0}",
+  justificatif_domicile: "\u{1F4EE}",
 };
 
 const VIGILANCE_BADGE: Record<VigilanceLevel, { label: string; className: string }> = {
@@ -70,6 +83,9 @@ function DocLine({
           <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
         ) : (
           <XCircle className="w-4 h-4 text-red-400 shrink-0" />
+        )}
+        {DOC_EMOJIS[cat] && (
+          <span className="text-base shrink-0" role="img">{DOC_EMOJIS[cat]}</span>
         )}
         <span
           className={`text-sm truncate ${

@@ -382,6 +382,11 @@ export default function NouveauClientPage() {
   const [fileUploadProgress, setFileUploadProgress] = useState<Record<string, number>>({});
   // R2: Image previews for uploaded files
   const [imagePreviews, setImagePreviews] = useState<Record<string, string>>({});
+
+  // P2: Background IA analysis — launched as soon as docs arrive
+  const [docAnalysis, setDocAnalysis] = useState<any>(null);
+  const [docAnalysisLoading, setDocAnalysisLoading] = useState(false);
+  const docAnalysisLaunched = useRef(false);
   // R2: Last generation timestamp
   const [lastGeneration, setLastGeneration] = useState<{ type: string; date: Date } | null>(null);
 
@@ -503,17 +508,20 @@ export default function NouveauClientPage() {
   // NOTE: Score animation useEffect moved after adjustedScore declaration (see below)
   // to prevent TDZ "Cannot access 'ne' before initialization" after Vite minification.
 
-  // FIX 9: Save draft to localStorage on step change (silent)
+  // FIX 9 + P5: Save draft to both sessionStorage AND localStorage on step change
   useEffect(() => {
     if (step > 0 || form.siren) {
       const draftData = { form, step, beneficiaires, questions, decision, motifRefus, motifReserve, savedAt: Date.now() };
       try {
-        sessionStorage.setItem("draft_nouveau_client", JSON.stringify(draftData));
+        const draftJson = JSON.stringify(draftData);
+        sessionStorage.setItem("draft_nouveau_client", draftJson);
+        // P5: Also save to localStorage for persistence across browser sessions
+        localStorage.setItem("draft_nouveau_client", draftJson);
         // Also save per-SIREN draft for multi-draft support
         if (form.siren) {
           const cleanSiren = form.siren.replace(/\s/g, "");
           if (cleanSiren.length === 9) {
-            sessionStorage.setItem(`draft_nc_${cleanSiren}`, JSON.stringify(draftData));
+            sessionStorage.setItem(`draft_nc_${cleanSiren}`, draftJson);
           }
         }
       } catch { /* storage full */ }
@@ -560,12 +568,19 @@ export default function NouveauClientPage() {
     }
   }, []);
 
-  // On mount: silently restore draft if exists
+  // On mount: silently restore draft if exists (check sessionStorage then localStorage)
   useEffect(() => {
-    const draft = sessionStorage.getItem("draft_nouveau_client");
+    const draft = sessionStorage.getItem("draft_nouveau_client") || localStorage.getItem("draft_nouveau_client");
     if (draft) {
       try {
         const data = JSON.parse(draft);
+        // P5: Expire drafts older than 24h
+        if (data.savedAt && Date.now() - data.savedAt > 24 * 60 * 60 * 1000) {
+          sessionStorage.removeItem("draft_nouveau_client");
+    localStorage.removeItem("draft_nouveau_client");
+          localStorage.removeItem("draft_nouveau_client");
+          return;
+        }
         if (data.form?.siren) {
           restoreDraft(draft);
         }
@@ -574,6 +589,59 @@ export default function NouveauClientPage() {
       }
     }
   }, [restoreDraft]);
+
+  // P2: Launch IA analysis in background as soon as documents arrive
+  useEffect(() => {
+    const allDocs = [
+      ...(screening.documents.data?.documents ?? []),
+      ...(screening.inpi.data?.documents ?? []),
+    ];
+    const storedDocs = allDocs.filter((d: any) => d.storedInSupabase);
+    if (storedDocs.length === 0 || docAnalysis || docAnalysisLoading || docAnalysisLaunched.current) return;
+    docAnalysisLaunched.current = true;
+    setDocAnalysisLoading(true);
+
+    const extractPath = (url: string) => {
+      const match = url?.match(/kyc-documents\/(.+?)(?:\?|$)/);
+      return match ? match[1] : url;
+    };
+
+    (async () => {
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        const token = sessionData?.session?.access_token;
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/analyse-docs`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+              apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+            },
+            body: JSON.stringify({
+              siren: form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.siren || "",
+              raison_sociale: form.raisonSociale || screening?.enterprise?.data?.denomination || "",
+              documents: storedDocs.map((d: any) => ({
+                type: d.type,
+                label: d.label,
+                source: d.source,
+                storagePath: extractPath(d.storageUrl || d.url || ""),
+              })),
+            }),
+          }
+        );
+        if (res.ok) {
+          const json = await res.json();
+          setDocAnalysis(json);
+        }
+      } catch {
+        // Non-blocking — analysis will be available via manual trigger at step 6
+      } finally {
+        setDocAnalysisLoading(false);
+      }
+    })();
+  }, [screening.documents.data?.documents, screening.inpi.data?.documents]);
 
   // Auto-flag PPE if sanctions screening detects it
   const sanctionsPPE = screening.sanctions.data?.hasPPE ?? false;
@@ -1928,6 +1996,7 @@ export default function NouveauClientPage() {
 
     // P5-3: Clear draft AFTER successful addClient (was before, losing data on failure)
     sessionStorage.removeItem("draft_nouveau_client");
+    localStorage.removeItem("draft_nouveau_client");
     const cleanSirenDraft = form.siren?.replace(/\s/g, "");
     if (cleanSirenDraft && cleanSirenDraft.length === 9) sessionStorage.removeItem(`draft_nc_${cleanSirenDraft}`);
 
@@ -2430,6 +2499,7 @@ export default function NouveauClientPage() {
             onClick={() => {
               const cleanSiren = form.siren?.replace(/\s/g, "");
               sessionStorage.removeItem("draft_nouveau_client");
+    localStorage.removeItem("draft_nouveau_client");
               if (cleanSiren && cleanSiren.length === 9) {
                 sessionStorage.removeItem(`draft_nc_${cleanSiren}`);
               }
@@ -4839,6 +4909,22 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
                               className="text-xs font-medium bg-blue-500/15 text-blue-400 hover:bg-blue-500/25 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors">
                               <Eye className="w-3.5 h-3.5" /> {isHtml ? "Ouvrir" : "Voir"}
                             </button>
+                            {isHtml && (
+                              <button
+                                onClick={() => {
+                                  // P3: Open HTML in new window and trigger print (save as PDF)
+                                  const w = window.open(doc.url!, "_blank");
+                                  if (w) {
+                                    w.addEventListener("load", () => {
+                                      setTimeout(() => w.print(), 500);
+                                    });
+                                  }
+                                }}
+                                className="text-xs text-slate-600 dark:text-slate-400 hover:text-emerald-400 p-1.5 rounded-lg hover:bg-emerald-500/10 transition-colors"
+                                title="Enregistrer en PDF">
+                                <Printer className="w-3.5 h-3.5" />
+                              </button>
+                            )}
                             <a href={doc.url} target="_blank" rel="noopener noreferrer"
                               className="text-xs text-slate-600 dark:text-slate-400 hover:text-blue-400 p-1.5 rounded-lg hover:bg-blue-500/10 transition-colors"
                               title="Ouvrir dans un nouvel onglet">
@@ -5495,11 +5581,13 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Analyse documentaire IA (#6 auto-analyze) */}
+            {/* Analyse documentaire IA — results from background fetch (P2) */}
             <DocumentAnalysis
               siren={form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.siren || ""}
               raisonSociale={form.raisonSociale || screening?.enterprise?.data?.denomination || ""}
               autoAnalyze
+              analysis={docAnalysis}
+              analysisLoading={docAnalysisLoading}
               documents={[
                 ...(screening.documents.data?.documents ?? []),
                 ...(screening.inpi.data?.documents ?? []),

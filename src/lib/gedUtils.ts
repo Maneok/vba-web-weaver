@@ -191,6 +191,14 @@ export function formatFileSize(bytes: number): string {
 }
 
 // ============================================
+// HTML document detection (P3)
+// ============================================
+
+export function isHtmlDocument(url: string | undefined): boolean {
+  return !!url && (url.includes('.html') || url.includes('.htm'));
+}
+
+// ============================================
 // Compression image côté client
 // ============================================
 

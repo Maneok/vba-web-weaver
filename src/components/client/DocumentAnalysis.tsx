@@ -126,6 +126,8 @@ export default function DocumentAnalysis({
   autoAnalyze = false,
   mode = "screening",
   onReclassify,
+  analysis,
+  analysisLoading,
 }: {
   siren: string;
   raisonSociale: string;
@@ -136,10 +138,22 @@ export default function DocumentAnalysis({
   mode?: "screening" | "ged";
   /** Callback when user clicks "Appliquer le reclassement" (#2) */
   onReclassify?: (docId: string, newCategory: string) => void;
+  /** Pre-computed analysis result (from background fetch) */
+  analysis?: AnalysisResult | null;
+  /** Whether the background analysis is still loading */
+  analysisLoading?: boolean;
 }) {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AnalysisResult | null>(() => getCachedResult(siren));
+  const [result, setResult] = useState<AnalysisResult | null>(() => analysis || getCachedResult(siren));
   const autoLaunched = useRef(false);
+
+  // Sync with externally-provided analysis prop
+  useEffect(() => {
+    if (analysis && !result) {
+      setResult(analysis);
+      setCachedResult(siren, analysis);
+    }
+  }, [analysis]);
   const [expandedCards, setExpandedCards] = useState<Set<number>>(new Set());
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
 
@@ -148,9 +162,9 @@ export default function DocumentAnalysis({
       ? documents.filter((d) => d.file_path)
       : documents.filter((d) => d.storedInSupabase);
 
-  // Auto-analyze on mount (#6)
+  // Auto-analyze on mount (#6) — skip if external analysis provided or loading
   useEffect(() => {
-    if (autoAnalyze && !autoLaunched.current && eligibleDocs.length > 0 && !result) {
+    if (autoAnalyze && !autoLaunched.current && eligibleDocs.length > 0 && !result && !analysis && !analysisLoading) {
       autoLaunched.current = true;
       handleAnalyse();
     }
@@ -276,7 +290,7 @@ export default function DocumentAnalysis({
 
   // ── Loading skeleton (#31) ──
 
-  if (loading) {
+  if (loading || analysisLoading) {
     return (
       <div className="space-y-3 mt-4">
         <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
