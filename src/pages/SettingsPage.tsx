@@ -1,7 +1,7 @@
 import React, { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { toast } from "sonner";
-import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Layers, Undo2, RotateCw } from "lucide-react";
+import { Building2, Target, ShieldCheck, CreditCard, Save, Loader2, RotateCcw, Info, Check, Globe, Scale, HelpCircle, BookOpen, Users, Key, Plug, Settings2, MapPin, Palette, Hash, Building, Fingerprint, Award, Mail, Phone, User, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Layers, Undo2, RotateCw, BarChart3 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -320,6 +320,7 @@ function CabinetSubTabs() {
 /* ---------- Referentiels sub-tabs ---------- */
 
 const REF_SUB_TABS = [
+  { value: "scoring", label: "Scoring", icon: BarChart3 },
   { value: "missions", label: "Missions", icon: Target },
   { value: "pays", label: "Pays", icon: Globe },
   { value: "types-juridiques", label: "Types Juridiques", icon: Scale },
@@ -327,16 +328,35 @@ const REF_SUB_TABS = [
   { value: "questions", label: "Questions", icon: HelpCircle },
 ] as const;
 
-function RefSubTabs() {
-  const [subTab, setSubTab] = useState("missions");
+type RefSubTabsProps = {
+  scoring: ScoringConfig;
+  handleScoringChange: (key: keyof ScoringConfig, value: string) => void;
+  saveScoring: () => void;
+  savingScoring: boolean;
+  savedScoring: boolean;
+  dirtyScoring: boolean;
+  scoringErrors: ValidationErrors;
+  cabinetId: string | null;
+  clientCount: number | null;
+  recalculating: boolean;
+  setRecalculating: React.Dispatch<React.SetStateAction<boolean>>;
+  lastRecalcInfo: { date: string; count: number } | null;
+  setLastRecalcInfo: React.Dispatch<React.SetStateAction<{ date: string; count: number } | null>>;
+  lastSavedScoring: string | null;
+  restoreDefaultScoring: () => void;
+  resetScoring: () => void;
+};
+
+function RefSubTabs({ scoring, handleScoringChange, saveScoring, savingScoring, savedScoring, dirtyScoring, scoringErrors, cabinetId, clientCount, recalculating, setRecalculating, lastRecalcInfo, setLastRecalcInfo, lastSavedScoring, restoreDefaultScoring, resetScoring }: RefSubTabsProps) {
+  const [subTab, setSubTab] = useState("scoring");
   return (
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
           <BookOpen className="w-5 h-5" />
-          Referentiels
+          Referentiels & Scoring
         </h2>
-        <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Tables de reference pour le calcul de risque et la conformite LCB-FT.</p>
+        <p className="text-sm text-slate-400 dark:text-slate-400 mt-1">Configuration du scoring de risque et tables de reference pour la conformite LCB-FT.</p>
       </div>
       <Tabs value={subTab} onValueChange={setSubTab}>
         <TabsList className="bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10">
@@ -358,6 +378,243 @@ function RefSubTabs() {
                 </div>
               }
             >
+              {value === "scoring" && (
+                <div className="space-y-4">
+
+                  {dirtyScoring && (
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Modifications non enregistrees — les dossiers existants ne seront mis a jour qu'apres sauvegarde</span>
+                    </div>
+                  )}
+
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
+                          <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">Seuils de vigilance</CardTitle>
+                          <CardDescription className="text-xs">Definissent le niveau de vigilance selon le score global{clientCount !== null && <span className="ml-1">— <strong>{clientCount}</strong> dossier{clientCount !== 1 ? "s" : ""} concerne{clientCount !== 1 ? "s" : ""}</span>}</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-3 gap-3 items-end">
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Simplifiee (max)</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="w-1.5 h-8 rounded-full bg-emerald-400" />
+                            <Input type="number" min={0} max={99} value={scoring.seuil_bas} onChange={(e) => handleScoringChange("seuil_bas", e.target.value)} className={`text-center font-medium ${scoringErrors.seuil_bas ? "border-red-500" : ""}`} />
+                          </div>
+                          {scoringErrors.seuil_bas && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.seuil_bas}</p>}
+                        </div>
+                        <div className="text-center">
+                          <div className="bg-muted rounded-full px-3 py-1.5 text-xs text-muted-foreground inline-block">
+                            {n(scoring.seuil_bas) + 1 <= n(scoring.seuil_haut) - 1 ? `${n(scoring.seuil_bas) + 1} \u2013 ${n(scoring.seuil_haut) - 1}` : "Plage invalide"}
+                          </div>
+                          <p className="text-[11px] text-muted-foreground mt-1">Standard (auto)</p>
+                        </div>
+                        <div>
+                          <Label className="text-xs text-muted-foreground">Renforcee (min)</Label>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="w-1.5 h-8 rounded-full bg-red-400" />
+                            <Input type="number" min={1} max={100} value={scoring.seuil_haut} onChange={(e) => handleScoringChange("seuil_haut", e.target.value)} className={`text-center font-medium ${scoringErrors.seuil_haut ? "border-red-500" : ""}`} />
+                          </div>
+                          {scoringErrors.seuil_haut && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.seuil_haut}</p>}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="h-3 rounded-full overflow-hidden flex transition-all duration-500 shadow-inner">
+                          <div className="bg-gradient-to-r from-emerald-300 to-emerald-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, n(scoring.seuil_bas)))}%` }} />
+                          <div className="bg-gradient-to-r from-amber-300 to-amber-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, n(scoring.seuil_haut) - n(scoring.seuil_bas)))}%` }} />
+                          <div className="bg-gradient-to-r from-red-400 to-red-600 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, 100 - n(scoring.seuil_haut)))}%` }} />
+                        </div>
+                        <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
+                          <span>0</span>
+                          <span>{n(scoring.seuil_bas)}</span>
+                          <span>{n(scoring.seuil_haut)}</span>
+                          <span>100</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950 flex items-center justify-center">
+                          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">Malus (points ajoutes au score)</CardTitle>
+                          <CardDescription className="text-xs">Facteurs aggravants qui augmentent le risque</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-3 gap-3">
+                        {([
+                          { label: "Especes (cash)", key: "malus_cash" as const, tip: "Applique si le client effectue des paiements en especes" },
+                          { label: "Pression / urgence", key: "malus_pression" as const, tip: "Applique si le client exerce une pression anormale ou une urgence injustifiee" },
+                          { label: "Distanciel", key: "malus_distanciel" as const, tip: "Applique si la relation est exclusivement a distance, sans rencontre physique" },
+                        ] as const).map(item => (
+                          <div key={item.key} className="bg-muted rounded-lg p-3">
+                            <div className="flex items-center gap-1 mb-1">
+                              <p className="text-[11px] text-muted-foreground">{item.label}</p>
+                              <InfoTip text={item.tip} />
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-amber-600 dark:text-amber-400 font-medium">+</span>
+                              <Input type="number" min={0} max={100} value={scoring[item.key]} onChange={(e) => handleScoringChange(item.key, e.target.value)} className={`h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16 ${scoringErrors[item.key] ? "text-red-500" : ""}`} />
+                            </div>
+                            {scoringErrors[item.key] && <p className="text-[10px] text-red-500 mt-1">{scoringErrors[item.key]}</p>}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="bg-muted rounded-lg p-3">
+                          <div className="flex items-center gap-1 mb-1">
+                            <p className="text-[11px] text-muted-foreground">Montage atypique</p>
+                            <InfoTip text="Applique aux structures complexes ou montages inhabituels (societes ecrans, trusts, etc.)" />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-amber-600 dark:text-amber-400 font-medium">+</span>
+                            <Input type="number" min={0} max={100} value={scoring.malus_atypique} onChange={(e) => handleScoringChange("malus_atypique", e.target.value)} className={`h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16 ${scoringErrors.malus_atypique ? "text-red-500" : ""}`} />
+                          </div>
+                          {scoringErrors.malus_atypique && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.malus_atypique}</p>}
+                        </div>
+                        <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 border-l-[3px] border-red-500 rounded-l-none">
+                          <div className="flex items-center gap-1 mb-1">
+                            <p className="text-[11px] text-muted-foreground">PPE (forcage automatique)</p>
+                            <InfoTip text="Les Personnes Politiquement Exposees sont automatiquement classees en vigilance RENFORCEE — non configurable" />
+                          </div>
+                          <p className="text-lg font-medium text-red-600 dark:text-red-400">= 100</p>
+                          <p className="text-[11px] text-red-600 dark:text-red-400 mt-0.5">Force automatiquement RENFORCEE</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
+                          <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-base">Frequences de revue</CardTitle>
+                          <CardDescription className="text-xs">Delai entre chaque revue selon le niveau de vigilance</CardDescription>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-3 gap-3">
+                        {[
+                          { label: "Simplifiee", key: "revue_simplifiee_mois" as const, badgeClass: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" },
+                          { label: "Standard", key: "revue_standard_mois" as const, badgeClass: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" },
+                          { label: "Renforcee", key: "revue_renforcee_mois" as const, badgeClass: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300" },
+                        ].map(item => (
+                          <div key={item.key} className="bg-muted rounded-lg p-3 text-center">
+                            <span className={`inline-block text-[11px] px-2.5 py-0.5 rounded-full mb-2 ${item.badgeClass}`}>
+                              {item.label}
+                            </span>
+                            <Input type="number" min={1} max={120} value={scoring[item.key]} onChange={(e) => handleScoringChange(item.key, e.target.value)} className={`h-auto text-xl font-medium text-center bg-transparent border-0 p-0 ${scoringErrors[item.key] ? "text-red-500" : ""}`} />
+                            <p className="text-[11px] text-muted-foreground mt-0.5">mois</p>
+                            {scoringErrors[item.key] && <p className="text-[10px] text-red-500 mt-1">{scoringErrors[item.key]}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {lastRecalcInfo && (
+                    <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
+                      <RefreshCw className="w-3 h-3" />
+                      Dernier recalcul : {relativeTime(lastRecalcInfo.date)} ({lastRecalcInfo.count} dossier{lastRecalcInfo.count !== 1 ? "s" : ""})
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between pt-2">
+                    <div className="flex items-center gap-2">
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="outline"
+                            disabled={recalculating || !cabinetId}
+                            className="gap-2"
+                          >
+                            {recalculating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            Recalculer tous les scores
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Recalculer tous les scores ?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Cette action va recalculer le score de risque de {clientCount !== null ? <strong>{clientCount}</strong> : "tous les"} dossier{clientCount !== 1 ? "s" : ""} avec les parametres actuellement <strong>enregistres</strong>.
+                              {dirtyScoring && (
+                                <span className="block mt-2 text-amber-600 font-medium">
+                                  Attention : vous avez des modifications non sauvegardees. Enregistrez d'abord pour que les nouveaux parametres soient pris en compte.
+                                </span>
+                              )}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Annuler</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={async () => {
+                                if (!cabinetId) { toast.error("Cabinet non identifie"); return; }
+                                setRecalculating(true);
+                                const result = await recalculateAllCabinetScores(cabinetId);
+                                setRecalculating(false);
+                                if (result.success) {
+                                  toast.success(`${result.updated_count} dossier(s) recalcule(s) avec les parametres actuels`);
+                                  setLastRecalcInfo({ date: new Date().toISOString(), count: result.updated_count || 0 });
+                                } else {
+                                  toast.error("Erreur lors du recalcul des scores. La fonction RPC n'est peut-etre pas encore deployee.");
+                                }
+                              }}
+                            >
+                              Recalculer
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <Button variant="ghost" size="sm" onClick={restoreDefaultScoring} className="gap-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 h-8">
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span className="text-xs">Valeurs par defaut</span>
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      {dirtyScoring && (
+                        <Button variant="ghost" onClick={resetScoring} className="gap-2 text-slate-500 hover:text-slate-700">
+                          <Undo2 className="w-4 h-4" />
+                          Annuler
+                        </Button>
+                      )}
+                      {lastSavedScoring && (
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+                          {relativeTime(lastSavedScoring)}
+                        </span>
+                      )}
+                      <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">Ctrl+S</span>
+                      <Button
+                        onClick={saveScoring}
+                        disabled={savingScoring}
+                        aria-label="Enregistrer la configuration du scoring"
+                        className={`gap-2 transition-all duration-300 ${savedScoring ? "bg-green-600 hover:bg-green-600" : ""}`}
+                      >
+                        {savingScoring ? <Loader2 className="w-4 h-4 animate-spin" /> : savedScoring ? <Check className="w-4 h-4 animate-in zoom-in duration-200" /> : <Save className="w-4 h-4" />}
+                        {savedScoring ? "Enregistre !" : "Enregistrer"}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
               {value === "missions" && <RefMissionsTab />}
               {value === "pays" && <RefPaysTab />}
               {value === "types-juridiques" && <RefTypesJuridiquesTab />}
@@ -809,7 +1066,7 @@ export default function SettingsPage() {
         e.preventDefault();
         const tab = activeTabRef.current;
         if (tab === "cabinet") handleSaveCabinetClick();
-        else if (tab === "scoring") saveScoring();
+        else if (tab === "referentiels") saveScoring();
       }
     }
     window.addEventListener("keydown", handleKeyDown);
@@ -820,7 +1077,7 @@ export default function SettingsPage() {
   function handleTabChange(newTab: string) {
     const currentDirty =
       (activeTab === "cabinet" && dirtyCabinet) ||
-      (activeTab === "scoring" && dirtyScoring);
+      (activeTab === "referentiels" && dirtyScoring);
     if (currentDirty) {
       toast.warning("Modifications non enregistrees. Sauvegardez avant de changer d'onglet.");
       return;
@@ -873,11 +1130,6 @@ export default function SettingsPage() {
             <Building2 className="w-4 h-4" />
             <span className="hidden sm:inline">Cabinet</span>
             {dirtyCabinet && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
-          </TabsTrigger>
-          <TabsTrigger value="scoring" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2 relative">
-            <Target className="w-4 h-4" />
-            <span className="hidden sm:inline">Scoring</span>
-            {dirtyScoring && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-400 rounded-full" />}
           </TabsTrigger>
           <TabsTrigger value="referentiels" className="data-[state=active]:bg-white data-[state=active]:text-blue-700 data-[state=active]:shadow-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-white dark:data-[state=active]:shadow-none gap-2">
             <BookOpen className="w-4 h-4" />
@@ -1497,258 +1749,26 @@ export default function SettingsPage() {
           </AlertDialog>
         </TabsContent>
 
-        {/* ===== SCORING TAB ===== */}
-        <TabsContent value="scoring">
-          <div className="space-y-4">
-
-            {/* OPTIM 3: Warning banner when dirty */}
-            {dirtyScoring && (
-              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center gap-2 animate-in slide-in-from-top-2 duration-300">
-                <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
-                <span className="text-xs text-amber-600 dark:text-amber-400 font-medium">Modifications non enregistrees — les dossiers existants ne seront mis a jour qu'apres sauvegarde</span>
-              </div>
-            )}
-
-            {/* CARTE 1 — Seuils de vigilance */}
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
-                    <Layers className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">Seuils de vigilance</CardTitle>
-                    <CardDescription className="text-xs">Definissent le niveau de vigilance selon le score global{clientCount !== null && <span className="ml-1">— <strong>{clientCount}</strong> dossier{clientCount !== 1 ? "s" : ""} concerne{clientCount !== 1 ? "s" : ""}</span>}</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-3 gap-3 items-end">
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Simplifiee (max)</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="w-1.5 h-8 rounded-full bg-emerald-400" />
-                      <Input type="number" min={0} max={99} value={scoring.seuil_bas} onChange={(e) => handleScoringChange("seuil_bas", e.target.value)} className={`text-center font-medium ${scoringErrors.seuil_bas ? "border-red-500" : ""}`} />
-                    </div>
-                    {scoringErrors.seuil_bas && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.seuil_bas}</p>}
-                  </div>
-                  <div className="text-center">
-                    <div className="bg-muted rounded-full px-3 py-1.5 text-xs text-muted-foreground inline-block">
-                      {n(scoring.seuil_bas) + 1 <= n(scoring.seuil_haut) - 1 ? `${n(scoring.seuil_bas) + 1} \u2013 ${n(scoring.seuil_haut) - 1}` : "Plage invalide"}
-                    </div>
-                    <p className="text-[11px] text-muted-foreground mt-1">Standard (auto)</p>
-                  </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">Renforcee (min)</Label>
-                    <div className="flex items-center gap-2 mt-1">
-                      <div className="w-1.5 h-8 rounded-full bg-red-400" />
-                      <Input type="number" min={1} max={100} value={scoring.seuil_haut} onChange={(e) => handleScoringChange("seuil_haut", e.target.value)} className={`text-center font-medium ${scoringErrors.seuil_haut ? "border-red-500" : ""}`} />
-                    </div>
-                    {scoringErrors.seuil_haut && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.seuil_haut}</p>}
-                  </div>
-                </div>
-                {/* OPTIM 8: Animated gradient bar */}
-                <div>
-                  <div className="h-3 rounded-full overflow-hidden flex transition-all duration-500 shadow-inner">
-                    <div className="bg-gradient-to-r from-emerald-300 to-emerald-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, n(scoring.seuil_bas)))}%` }} />
-                    <div className="bg-gradient-to-r from-amber-300 to-amber-500 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, n(scoring.seuil_haut) - n(scoring.seuil_bas)))}%` }} />
-                    <div className="bg-gradient-to-r from-red-400 to-red-600 transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, 100 - n(scoring.seuil_haut)))}%` }} />
-                  </div>
-                  <div className="flex justify-between text-[11px] text-muted-foreground mt-1">
-                    <span>0</span>
-                    <span>{n(scoring.seuil_bas)}</span>
-                    <span>{n(scoring.seuil_haut)}</span>
-                    <span>100</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* CARTE 2 — Malus */}
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950 flex items-center justify-center">
-                    <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">Malus (points ajoutes au score)</CardTitle>
-                    <CardDescription className="text-xs">Facteurs aggravants qui augmentent le risque</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-3 gap-3">
-                  {([
-                    { label: "Especes (cash)", key: "malus_cash" as const, tip: "Applique si le client effectue des paiements en especes" },
-                    { label: "Pression / urgence", key: "malus_pression" as const, tip: "Applique si le client exerce une pression anormale ou une urgence injustifiee" },
-                    { label: "Distanciel", key: "malus_distanciel" as const, tip: "Applique si la relation est exclusivement a distance, sans rencontre physique" },
-                  ] as const).map(item => (
-                    <div key={item.key} className="bg-muted rounded-lg p-3">
-                      <div className="flex items-center gap-1 mb-1">
-                        <p className="text-[11px] text-muted-foreground">{item.label}</p>
-                        <InfoTip text={item.tip} />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-amber-600 dark:text-amber-400 font-medium">+</span>
-                        <Input type="number" min={0} max={100} value={scoring[item.key]} onChange={(e) => handleScoringChange(item.key, e.target.value)} className={`h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16 ${scoringErrors[item.key] ? "text-red-500" : ""}`} />
-                      </div>
-                      {scoringErrors[item.key] && <p className="text-[10px] text-red-500 mt-1">{scoringErrors[item.key]}</p>}
-                    </div>
-                  ))}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-muted rounded-lg p-3">
-                    <div className="flex items-center gap-1 mb-1">
-                      <p className="text-[11px] text-muted-foreground">Montage atypique</p>
-                      <InfoTip text="Applique aux structures complexes ou montages inhabituels (societes ecrans, trusts, etc.)" />
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-amber-600 dark:text-amber-400 font-medium">+</span>
-                      <Input type="number" min={0} max={100} value={scoring.malus_atypique} onChange={(e) => handleScoringChange("malus_atypique", e.target.value)} className={`h-8 text-lg font-medium text-amber-600 dark:text-amber-400 bg-transparent border-0 p-0 w-16 ${scoringErrors.malus_atypique ? "text-red-500" : ""}`} />
-                    </div>
-                    {scoringErrors.malus_atypique && <p className="text-[10px] text-red-500 mt-1">{scoringErrors.malus_atypique}</p>}
-                  </div>
-                  <div className="bg-red-50 dark:bg-red-950/30 rounded-lg p-3 border-l-[3px] border-red-500 rounded-l-none">
-                    <div className="flex items-center gap-1 mb-1">
-                      <p className="text-[11px] text-muted-foreground">PPE (forcage automatique)</p>
-                      <InfoTip text="Les Personnes Politiquement Exposees sont automatiquement classees en vigilance RENFORCEE — non configurable" />
-                    </div>
-                    <p className="text-lg font-medium text-red-600 dark:text-red-400">= 100</p>
-                    <p className="text-[11px] text-red-600 dark:text-red-400 mt-0.5">Force automatiquement RENFORCEE</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* CARTE 3 — Frequences de revue */}
-            <Card>
-              <CardHeader className="pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950 flex items-center justify-center">
-                    <Clock className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-base">Frequences de revue</CardTitle>
-                    <CardDescription className="text-xs">Delai entre chaque revue selon le niveau de vigilance</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-3 gap-3">
-                  {[
-                    { label: "Simplifiee", key: "revue_simplifiee_mois" as const, badgeClass: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300" },
-                    { label: "Standard", key: "revue_standard_mois" as const, badgeClass: "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300" },
-                    { label: "Renforcee", key: "revue_renforcee_mois" as const, badgeClass: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300" },
-                  ].map(item => (
-                    <div key={item.key} className="bg-muted rounded-lg p-3 text-center">
-                      <span className={`inline-block text-[11px] px-2.5 py-0.5 rounded-full mb-2 ${item.badgeClass}`}>
-                        {item.label}
-                      </span>
-                      <Input type="number" min={1} max={120} value={scoring[item.key]} onChange={(e) => handleScoringChange(item.key, e.target.value)} className={`h-auto text-xl font-medium text-center bg-transparent border-0 p-0 ${scoringErrors[item.key] ? "text-red-500" : ""}`} />
-                      <p className="text-[11px] text-muted-foreground mt-0.5">mois</p>
-                      {scoringErrors[item.key] && <p className="text-[10px] text-red-500 mt-1">{scoringErrors[item.key]}</p>}
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* OPTIM 10: Last recalcul info */}
-            {lastRecalcInfo && (
-              <div className="text-[11px] text-muted-foreground flex items-center gap-1.5">
-                <RefreshCw className="w-3 h-3" />
-                Dernier recalcul : {relativeTime(lastRecalcInfo.date)} ({lastRecalcInfo.count} dossier{lastRecalcInfo.count !== 1 ? "s" : ""})
-              </div>
-            )}
-
-            {/* Action buttons */}
-            <div className="flex items-center justify-between pt-2">
-              <div className="flex items-center gap-2">
-                {/* OPTIM 7: Confirmation dialog before recalcul */}
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      disabled={recalculating || !cabinetId}
-                      className="gap-2"
-                    >
-                      {recalculating ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                      Recalculer tous les scores
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Recalculer tous les scores ?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Cette action va recalculer le score de risque de {clientCount !== null ? <strong>{clientCount}</strong> : "tous les"} dossier{clientCount !== 1 ? "s" : ""} avec les parametres actuellement <strong>enregistres</strong>.
-                        {dirtyScoring && (
-                          <span className="block mt-2 text-amber-600 font-medium">
-                            Attention : vous avez des modifications non sauvegardees. Enregistrez d'abord pour que les nouveaux parametres soient pris en compte.
-                          </span>
-                        )}
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Annuler</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={async () => {
-                          if (!cabinetId) { toast.error("Cabinet non identifie"); return; }
-                          setRecalculating(true);
-                          const result = await recalculateAllCabinetScores(cabinetId);
-                          setRecalculating(false);
-                          if (result.success) {
-                            toast.success(`${result.updated_count} dossier(s) recalcule(s) avec les parametres actuels`);
-                            setLastRecalcInfo({ date: new Date().toISOString(), count: result.updated_count || 0 });
-                          } else {
-                            toast.error("Erreur lors du recalcul des scores. La fonction RPC n'est peut-etre pas encore deployee.");
-                          }
-                        }}
-                      >
-                        Recalculer
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-
-                {/* OPTIM 9: Restore defaults */}
-                <Button variant="ghost" size="sm" onClick={restoreDefaultScoring} className="gap-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 h-8">
-                  <RotateCw className="w-3.5 h-3.5" />
-                  <span className="text-xs">Valeurs par defaut</span>
-                </Button>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {/* FIX 2: Cancel button */}
-                {dirtyScoring && (
-                  <Button variant="ghost" onClick={resetScoring} className="gap-2 text-slate-500 hover:text-slate-700">
-                    <Undo2 className="w-4 h-4" />
-                    Annuler
-                  </Button>
-                )}
-                {lastSavedScoring && (
-                  <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
-                    {relativeTime(lastSavedScoring)}
-                  </span>
-                )}
-                <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">Ctrl+S</span>
-                <Button
-                  onClick={saveScoring}
-                  disabled={savingScoring}
-                  aria-label="Enregistrer la configuration du scoring"
-                  className={`gap-2 transition-all duration-300 ${savedScoring ? "bg-green-600 hover:bg-green-600" : ""}`}
-                >
-                  {savingScoring ? <Loader2 className="w-4 h-4 animate-spin" /> : savedScoring ? <Check className="w-4 h-4 animate-in zoom-in duration-200" /> : <Save className="w-4 h-4" />}
-                  {savedScoring ? "Enregistre !" : "Enregistrer"}
-                </Button>
-              </div>
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ===== REFERENTIELS TAB (nested sub-tabs) ===== */}
+        {/* ===== REFERENTIELS & SCORING TAB (nested sub-tabs) ===== */}
         <TabsContent value="referentiels">
-          <RefSubTabs />
+          <RefSubTabs
+            scoring={scoring}
+            handleScoringChange={handleScoringChange}
+            saveScoring={saveScoring}
+            savingScoring={savingScoring}
+            savedScoring={savedScoring}
+            dirtyScoring={dirtyScoring}
+            scoringErrors={scoringErrors}
+            cabinetId={cabinetId}
+            clientCount={clientCount}
+            recalculating={recalculating}
+            setRecalculating={setRecalculating}
+            lastRecalcInfo={lastRecalcInfo}
+            setLastRecalcInfo={setLastRecalcInfo}
+            lastSavedScoring={lastSavedScoring}
+            restoreDefaultScoring={restoreDefaultScoring}
+            resetScoring={resetScoring}
+          />
         </TabsContent>
 
         {/* ===== GESTION CABINET TAB (nested sub-tabs) ===== */}
