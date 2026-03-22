@@ -354,6 +354,7 @@ function formatDateLong(raw: string): string {
 
 const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = ({ data, theme }) => {
   const { cabinet, client, mission } = data;
+  const safePrimaire = theme?.primaire || "#2E75B6";
   // B14 — validate logo before rendering
   const hasValidLogo = isValidLogoBase64(cabinet.logo_base64);
   // C3 — normalized SIREN
@@ -364,7 +365,7 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
       {/* Logo + cabinet name */}
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }}>
         {/* V2-2: ref block with subtle left accent */}
-        <View style={{ borderLeftWidth: 2, borderLeftColor: theme.primaire, paddingLeft: 6 }}>
+        <View style={{ borderLeftWidth: 2, borderLeftColor: safePrimaire, paddingLeft: 6 }}>
           <Text style={{ fontSize: 8.5, color: theme.muted }}>Réf. {s(data.numero_lm)}</Text>
           <Text style={{ fontSize: 8.5, color: theme.muted }}>Date : {formatDateLong(data.date_generation)}</Text>
         </View>
@@ -400,14 +401,14 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
       {/* Title — BUG 1 fix: grouped in View to prevent overlap */}
       <View style={{ alignItems: "center" }}>
         <Text style={[styles.coverTitle, { color: theme.secondaire }]}>LETTRE DE MISSION</Text>
-        <Text style={[styles.coverSubtitle, { color: theme.primaire }]}>{s(mission.type_principal)}</Text>
+        <Text style={[styles.coverSubtitle, { color: safePrimaire }]}>{s(mission.type_principal)}</Text>
         {/* Fine line under subtitle */}
-        <View style={{ width: "100%", borderBottomWidth: 0.5, borderBottomColor: theme.primaire, marginBottom: 6, marginTop: 2 }} />
+        <View style={{ width: "100%", borderBottomWidth: 0.5, borderBottomColor: safePrimaire, marginBottom: 6, marginTop: 2 }} />
         <Text style={[styles.coverNorme, { color: theme.muted }]}>{s(mission.norme_applicable)}</Text>
       </View>
 
       {/* Premium separator */}
-      <Separator color={theme.primaire} />
+      <Separator color={safePrimaire} />
 
       {/* V2-6: Info grid with premium InfoRow — marginBottom 6 */}
       <View style={{ marginBottom: 6 }}>
@@ -416,7 +417,7 @@ const RenderCover: React.FC<{ data: LettreMissionPdfData; theme: PdfTheme }> = (
         <InfoRow label="Exercice" value={`${s(client.exercice_debut)} \u2014 ${s(client.exercice_fin)}`} theme={theme} />
       </View>
 
-      <Separator color={theme.primaire} />
+      <Separator color={safePrimaire} />
     </View>
   );
 };
@@ -451,7 +452,8 @@ const RenderSnapshotSection: React.FC<{
     .replace(/\{\{mode_paiement\}\}/g, data.honoraires?.mode_paiement || "prélèvement automatique")
     .replace(/\{\{sous_options_(\w+)\}\}/g, (_match, _missionId) => "")
     .replace(/effectués par sondages\b[^.]*/g, "effectués par notre cabinet uniquement par épreuves, et ne portent donc pas sur l'appréciation de la légalité et de la fiabilité des documents présentés")
-    .replace(/par sondages\./g, "par notre cabinet uniquement par épreuves, et ne portent donc pas sur l'appréciation de la légalité et de la fiabilité des documents présentés.");
+    .replace(/par sondages\./g, "par notre cabinet uniquement par épreuves, et ne portent donc pas sur l'appréciation de la légalité et de la fiabilité des documents présentés.")
+    .replace(/\{\{[a-z_]+\}\}/g, "");
 
   // Skip empty sections (B15)
   if (!content.trim() && section.id !== "entite" && section.id !== "honoraires" && section.id !== "annexe_repartition" && section.id !== "lcbft") {

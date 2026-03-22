@@ -131,6 +131,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
       telephone: c.tel,
       iban: c.iban,
       bic: c.bic,
+      honoraires_ht: c.honoraires || 0,
+      associe_signataire: c.associe || "",
       type_mission: ctConfig?.defaultModeComptable ||
         (c.mission?.includes("REVISION") || c.mission?.includes("SURVEILLANCE") ? "SURVEILLANCE" : "TENUE"),
       regime_benefices: detectRegimeBenefices(c.ape) || undefined,
