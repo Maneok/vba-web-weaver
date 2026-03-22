@@ -1,4 +1,4 @@
-import { FileText, Image, File, Eye, Download, Trash2 } from "lucide-react";
+import { FileText, Image, File, Eye, Download, Trash2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -72,6 +72,17 @@ export default function DocumentRow({
   const description = doc.description;
   const validationStatus = doc.validation_status || "pending";
 
+  // #4/#5 — IA analysis badge: description starts with "{" = JSON from IA
+  const hasIaAnalysis = description && description.trim().startsWith("{");
+  let iaTooltipText = "";
+  if (hasIaAnalysis) {
+    try {
+      const parsed = JSON.parse(description);
+      const fields = Object.entries(parsed.donnees || {}).slice(0, 4);
+      iaTooltipText = fields.map(([k, v]) => `${k}: ${v}`).join("\n");
+    } catch { /* not valid JSON */ }
+  }
+
   return (
     <tr className="group border-b border-border/50 hover:bg-accent/30 transition-colors">
       {/* Checkbox */}
@@ -102,6 +113,20 @@ export default function DocumentRow({
                 <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-blue-500 text-[9px] text-white font-bold leading-none">
                   NEW
                 </span>
+              )}
+              {/* #4/#5 — IA badge with tooltip */}
+              {hasIaAnalysis && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="shrink-0 px-1.5 py-0.5 rounded-full bg-violet-500/15 text-[9px] text-violet-500 font-bold leading-none flex items-center gap-0.5 cursor-default">
+                      <Sparkles className="w-2.5 h-2.5" />
+                      IA
+                    </span>
+                  </TooltipTrigger>
+                  {iaTooltipText && (
+                    <TooltipContent className="whitespace-pre-line text-xs max-w-xs">{iaTooltipText}</TooltipContent>
+                  )}
+                </Tooltip>
               )}
               {/* Label edit icon */}
               {editable && (

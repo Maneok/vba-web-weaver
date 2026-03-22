@@ -272,6 +272,24 @@ export async function uploadDocument(
       throw new Error(insertError.message);
     }
 
+    // Auto-rename to normalized format: DATE_SOCIETE_TYPE.ext
+    try {
+      const { data: clientData } = await supabase.from('clients')
+        .select('raison_sociale').eq('ref', clientRef).single();
+      const societe = sanitizeSociete(clientData?.raison_sociale || siren || clientRef);
+      const type = CATEGORY_LABELS_SHORT[category] || 'AUTRE';
+      const date = new Date().toISOString().split('T')[0];
+      const ext = file.name.split('.').pop() || 'pdf';
+      const normalizedName = `${date}_${societe}_${type}.${ext}`;
+      if (normalizedName !== doc.name) {
+        await supabase.from('documents').update({ name: normalizedName }).eq('id', doc.id);
+        doc.name = normalizedName;
+      }
+    } catch (renameErr) {
+      // Non-blocking — keep the original name if rename fails
+      logger.error('GED', 'uploadDocument — autoRename', renameErr);
+    }
+
     return doc as GEDDocument;
   } catch (err) {
     logger.error('GED', 'uploadDocument exception', err);
@@ -497,18 +515,78 @@ export async function bulkUpdateCategory(
 
 // ── Rename all docs to norm (#104) ──────────────────────────────────
 
+export const CATEGORY_LABELS_SHORT: Record<string, string> = {
+  kbis: 'KBIS',
+  extrait_kbis: 'EXTRAIT_KBIS',
+  cni_dirigeant: 'CNI_DIRIGEANT',
+  justificatif_domicile: 'JUSTIF_DOMICILE',
+  rib: 'RIB',
+  statuts: 'STATUTS',
+  attestation_vigilance: 'ATTESTATION_VIGILANCE',
+  liste_beneficiaires_effectifs: 'LISTE_BE',
+  declaration_source_fonds: 'SOURCE_FONDS',
+  justificatif_patrimoine: 'PATRIMOINE',
+  contrat: 'CONTRAT',
+  pv_assemblee: 'PV_ASSEMBLEE',
+  bilan: 'BILAN',
+  facture: 'FACTURE',
+  autre: 'AUTRE',
+};
+
+/** Sanitize a company name into an uppercase slug for filenames */
+function sanitizeSociete(name: string): string {
+  return name
+    .toUpperCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^A-Z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '')
+    .slice(0, 30);
+}
+
+/**
+ * Build a normalized filename: DATE_SOCIETE_TYPE.ext
+ * If a doc with the same base name already exists, append _V2, _V3, etc.
+ */
+export function buildNormalizedName(
+  date: string,
+  societe: string,
+  category: string,
+  ext: string,
+  existingNames?: string[],
+): string {
+  const type = CATEGORY_LABELS_SHORT[category] || 'AUTRE';
+  const base = `${date}_${societe}_${type}`;
+  const extension = ext.startsWith('.') ? ext : `.${ext}`;
+  let candidate = `${base}${extension}`;
+  if (existingNames && existingNames.length > 0) {
+    let v = 1;
+    while (existingNames.includes(candidate)) {
+      v++;
+      candidate = `${base}_V${v}${extension}`;
+    }
+  }
+  return candidate;
+}
+
 export async function renameAllToNorm(
   clientRef: string,
   cabinetId: string,
   siren: string,
 ): Promise<number> {
+  // Fetch client name for the normalized format
+  const { data: client } = await supabase.from('clients')
+    .select('raison_sociale').eq('ref', clientRef).single();
+  const societe = sanitizeSociete(client?.raison_sociale || siren);
+
   const docs = await fetchDocumentsByClientRef(clientRef, cabinetId);
+  const usedNames: string[] = [];
   let count = 0;
   for (const doc of docs) {
     const ext = doc.name.split('.').pop() || 'pdf';
-    const label = CATEGORY_LABELS_SHORT[doc.category] || 'DOC';
-    const date = doc.created_at.split('T')[0];
-    const normalized = `${siren}_${label}_${date}_v${doc.current_version}.${ext}`;
+    const date = (doc.created_at || '').split('T')[0] || 'SANS_DATE';
+    const normalized = buildNormalizedName(date, societe, doc.category, ext, usedNames);
+    usedNames.push(normalized);
     if (normalized !== doc.name) {
       await renameDocument(doc.id, normalized, doc.name);
       count++;
@@ -516,23 +594,6 @@ export async function renameAllToNorm(
   }
   return count;
 }
-
-const CATEGORY_LABELS_SHORT: Record<string, string> = {
-  kbis: 'KBIS',
-  extrait_kbis: 'EXTRAIT_KBIS',
-  cni_dirigeant: 'CNI',
-  justificatif_domicile: 'JUSTIF_DOMICILE',
-  rib: 'RIB',
-  statuts: 'STATUTS',
-  attestation_vigilance: 'ATTESTATION',
-  liste_beneficiaires_effectifs: 'BE',
-  declaration_source_fonds: 'SOURCE_FONDS',
-  justificatif_patrimoine: 'PATRIMOINE',
-  contrat: 'CONTRAT',
-  pv_assemblee: 'PV',
-  bilan: 'BILAN',
-  autre: 'DOC',
-};
 
 // ── URL signée ─────────────────────────────────────────────────────
 

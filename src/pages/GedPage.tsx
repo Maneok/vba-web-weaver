@@ -12,7 +12,7 @@ import {
   Upload, FileText, Trash2, Download, Loader2,
   Search, FolderOpen, Plus, ChevronUp, ChevronDown,
   ExternalLink, Package, Users, Bell, X, AlertTriangle,
-  ArrowUpDown, Wand2, LayoutGrid, LayoutList, HardDrive,
+  ArrowUpDown, Wand2, LayoutGrid, LayoutList, HardDrive, Sparkles,
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { supabase } from "@/integrations/supabase/client";
@@ -42,6 +42,7 @@ import { exportSirenDossier } from "@/services/gedExportService";
 import { compressImage } from "@/lib/gedUtils";
 import { useReglages } from "@/hooks/useReglages";
 import ReglagesInfoBanner from "@/components/ReglagesInfoBanner";
+import DocumentAnalysis from "@/components/client/DocumentAnalysis";
 
 /* ─────────── Constants ─────────── */
 
@@ -139,6 +140,9 @@ export default function GedPage() {
 
   // #106 — Bulk category change
   const [bulkCategoryOpen, setBulkCategoryOpen] = useState(false);
+
+  // IA analysis dialog
+  const [analysisDialogOpen, setAnalysisDialogOpen] = useState(false);
 
   // All documents across all folders for command palette search
   const allDocuments = useMemo(() => folders.flatMap((f) => f.documents), [folders]);
@@ -663,6 +667,22 @@ export default function GedPage() {
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
+              {/* IA Analysis button (#1) */}
+              {selectedFolder.total_docs > 0 && (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAnalysisDialogOpen(true)}
+                    >
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5" />
+                      Analyser
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Analyser les documents avec l'IA</TooltipContent>
+                </Tooltip>
+              )}
               {/* #104 — Rename all to norm */}
               {selectedFolder.total_docs > 0 && (
                 <Tooltip>
@@ -671,7 +691,7 @@ export default function GedPage() {
                       variant="outline"
                       size="sm"
                       onClick={() => {
-                        if (window.confirm(`Renommer les ${selectedFolder.total_docs} documents au format SIREN_CAT_DATE_vN ?`)) {
+                        if (window.confirm(`Renommer les ${selectedFolder.total_docs} documents au format DATE_SOCIETE_TYPE ?`)) {
                           handleRenameAllToNorm();
                         }
                       }}
@@ -1283,6 +1303,40 @@ export default function GedPage() {
               Supprimer
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* IA Analysis Dialog (#1) */}
+      <Dialog open={analysisDialogOpen} onOpenChange={setAnalysisDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-violet-400" />
+              Analyse documentaire IA
+            </DialogTitle>
+            <DialogDescription>
+              {selectedFolder?.client_name} — {selectedFolder?.siren}
+            </DialogDescription>
+          </DialogHeader>
+          {selectedFolder && (
+            <DocumentAnalysis
+              siren={selectedFolder.siren}
+              raisonSociale={selectedFolder.client_name}
+              mode="ged"
+              autoAnalyze
+              onReclassify={(docId, newCategory) => {
+                handleUpdateField(docId, "category", newCategory);
+                toast.success("Categorie mise a jour");
+              }}
+              documents={documents.map((d) => ({
+                id: d.id,
+                file_path: d.file_path,
+                category: d.category,
+                label: d.name,
+                type: d.category,
+              }))}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>

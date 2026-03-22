@@ -5495,10 +5495,11 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
               </CollapsibleContent>
             </Collapsible>
 
-            {/* Analyse documentaire IA */}
+            {/* Analyse documentaire IA (#6 auto-analyze) */}
             <DocumentAnalysis
               siren={form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.siren || ""}
               raisonSociale={form.raisonSociale || screening?.enterprise?.data?.denomination || ""}
+              autoAnalyze
               documents={[
                 ...(screening.documents.data?.documents ?? []),
                 ...(screening.inpi.data?.documents ?? []),

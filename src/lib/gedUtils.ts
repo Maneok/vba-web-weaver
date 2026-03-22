@@ -3,20 +3,39 @@
 // ============================================
 
 const CLASSIFICATION_RULES: { pattern: RegExp; category: string }[] = [
-  { pattern: /extrait.*kbis|extrait.*k-bis/i, category: 'extrait_kbis' },
+  { pattern: /extrait.*kbis|extrait.*k-bis|extrait.*rne/i, category: 'extrait_kbis' },
   { pattern: /kbis|k-bis|extrait.*rcs|immatriculation/i, category: 'kbis' },
-  { pattern: /cni|carte.*identit[ée]|passeport|passport|id.*card/i, category: 'cni_dirigeant' },
+  { pattern: /cni|carte.*identit[ée]|passeport|passport|id.*card|pi[eè]ce.*identit/i, category: 'cni_dirigeant' },
   { pattern: /rib|relev[ée].*identit[ée].*bancaire|iban|bic/i, category: 'rib' },
   { pattern: /justificatif.*domicile|facture.*(?:edf|engie|eau|gaz|electri)|taxe.*habitation|avis.*imposition/i, category: 'justificatif_domicile' },
   { pattern: /statut|status|constitution/i, category: 'statuts' },
-  { pattern: /b[ée]n[ée]ficiaire.*effectif|beneficial.*owner|dbe|registre.*be/i, category: 'liste_beneficiaires_effectifs' },
+  { pattern: /b[ée]n[ée]ficiaire.*effectif|beneficial.*owner|dbe|registre.*be|rbe|liste.*be/i, category: 'liste_beneficiaires_effectifs' },
   { pattern: /attestation.*vigilance|urssaf|attestation.*fiscal/i, category: 'attestation_vigilance' },
-  { pattern: /source.*fonds|origin.*fonds|provenance/i, category: 'declaration_source_fonds' },
-  { pattern: /patrimoine|heritage|wealth/i, category: 'justificatif_patrimoine' },
+  { pattern: /source.*fonds|origin.*fonds|provenance|d[ée]claration.*fonds/i, category: 'declaration_source_fonds' },
+  { pattern: /patrimoine|heritage|wealth|justif.*patrimoine/i, category: 'justificatif_patrimoine' },
   { pattern: /contrat|convention|accord|lettre.*mission/i, category: 'contrat' },
-  { pattern: /pv|proc[èe]s.*verbal|assembl[ée]e/i, category: 'pv_assemblee' },
-  { pattern: /bilan|compte.*r[ée]sultat|liasse.*fiscal/i, category: 'bilan' },
+  { pattern: /pv|proc[èe]s.*verbal|assembl[ée]e|ag[eo]?\b/i, category: 'pv_assemblee' },
+  { pattern: /bilan|compte.*r[ée]sultat|liasse.*fiscal|comptes.*annuel/i, category: 'bilan' },
+  { pattern: /facture/i, category: 'facture' },
 ];
+
+// ============================================
+// Couleurs par catégorie (#34)
+// ============================================
+
+export const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  kbis: { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20' },
+  extrait_kbis: { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20' },
+  cni_dirigeant: { bg: 'bg-purple-500/10', text: 'text-purple-500', border: 'border-purple-500/20' },
+  rib: { bg: 'bg-green-500/10', text: 'text-green-500', border: 'border-green-500/20' },
+  statuts: { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/20' },
+  pv_assemblee: { bg: 'bg-slate-500/10', text: 'text-slate-500', border: 'border-slate-500/20' },
+  bilan: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/20' },
+  attestation_vigilance: { bg: 'bg-cyan-500/10', text: 'text-cyan-500', border: 'border-cyan-500/20' },
+  liste_beneficiaires_effectifs: { bg: 'bg-indigo-500/10', text: 'text-indigo-500', border: 'border-indigo-500/20' },
+  contrat: { bg: 'bg-violet-500/10', text: 'text-violet-500', border: 'border-violet-500/20' },
+  autre: { bg: 'bg-gray-500/10', text: 'text-gray-500', border: 'border-gray-500/20' },
+};
 
 export function classifyDocument(filename: string): { category: string; confidence: 'high' | 'medium' | 'low' } {
   const nameWithoutExt = filename.replace(/\.[^.]+$/, '').replace(/[_-]/g, ' ');
@@ -112,18 +131,19 @@ export function checkDuplicate(
 const CATEGORY_LABELS_SHORT: Record<string, string> = {
   kbis: 'KBIS',
   extrait_kbis: 'EXTRAIT_KBIS',
-  cni_dirigeant: 'CNI',
+  cni_dirigeant: 'CNI_DIRIGEANT',
   justificatif_domicile: 'JUSTIF_DOMICILE',
   rib: 'RIB',
   statuts: 'STATUTS',
-  attestation_vigilance: 'ATTESTATION',
-  liste_beneficiaires_effectifs: 'BE',
+  attestation_vigilance: 'ATTESTATION_VIGILANCE',
+  liste_beneficiaires_effectifs: 'LISTE_BE',
   declaration_source_fonds: 'SOURCE_FONDS',
   justificatif_patrimoine: 'PATRIMOINE',
   contrat: 'CONTRAT',
-  pv_assemblee: 'PV',
+  pv_assemblee: 'PV_ASSEMBLEE',
   bilan: 'BILAN',
-  autre: 'DOC',
+  facture: 'FACTURE',
+  autre: 'AUTRE',
 };
 
 export function generateNormalizedName(
