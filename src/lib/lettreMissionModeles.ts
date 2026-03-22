@@ -100,7 +100,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     id: "destinataire",
     titre: "Destinataire",
     contenu:
-      "À l'attention de {{formule_politesse}} {{dirigeant}},\nMandataire social de la société\n{{forme_juridique}} {{raison_sociale}},\n{{adresse}} {{code_postal}} {{ville}}",
+      "À l'attention de {{formule_politesse}} {{dirigeant}},\nMandataire social de la société\n{{forme_juridique}} {{raison_sociale}}\n\n{{adresse}}\n{{code_postal}} {{ville}}",
     type: "fixed",
     editable: false,
     cnoec_obligatoire: false,
@@ -138,7 +138,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     id: "organisation",
     titre: "Organisation et transmission",
     contenu:
-      "Organisation et transmission des documents comptables :\n▪ Périodicité : {{frequence}} – Avant le J+10\n▪ Transmission via notre outil : GRIMY\n\nDurée de conservation LCB-FT : Conformément à l'art. L.561-12 CMF, l'ensemble des pièces d'identification est conservé pendant cinq (5) ans à compter de la fin de la relation d'affaires, indépendamment de la durée de conservation des documents comptables.",
+      "Organisation et transmission des documents comptables :\n▪ Périodicité : {{frequence}} – Avant le J+10\n▪ Transmission via notre outil : {{outil_transmission}}",
     type: "fixed",
     editable: true,
     cnoec_obligatoire: false,
@@ -204,9 +204,9 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
   {
     id: "lcbft",
     titre: "Obligations LCB-FT",
-    contenu: "{{bloc_vigilance_lab}}",
+    contenu: "Conformément aux articles L.561-1 et suivants du Code monétaire et financier, notre cabinet est assujetti aux obligations de lutte contre le blanchiment de capitaux et le financement du terrorisme (LCB-FT).\n\nDans le cadre de ces obligations, nous procédons notamment à :\n▪ L'identification et la vérification de l'identité du client et, le cas échéant, du bénéficiaire effectif ;\n▪ Le recueil d'informations sur l'objet et la nature de la relation d'affaires ;\n▪ L'exercice d'une vigilance constante sur la relation d'affaires.\n\nNiveau de vigilance appliqué à votre dossier : {{niv_vigilance}}\nScore de risque : {{score_global}} / 120\nStatut PPE : {{ppe}}\nDate de dernière revue KYC : {{date_derniere_revue}}\nDate de prochaine revue KYC : {{date_butoir}}\n\nConformément à l'art. L.561-12 CMF, l'ensemble des pièces d'identification est conservé pendant cinq (5) ans à compter de la fin de la relation d'affaires.\n\nEn cas de soupçon, le cabinet est tenu de procéder à une déclaration de soupçon auprès de Tracfin (art. L.561-15 CMF).",
     type: "fixed",
-    editable: false,
+    editable: true,
     cnoec_obligatoire: true,
     cnoec_reference: "Art. L.561-1 et suivants CMF",
     cnoec_warning:
@@ -300,7 +300,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     id: "honoraires",
     titre: "Honoraires",
     contenu:
-      "TABLEAU_HONORAIRES\n\nLes honoraires prévus au présent contrat seront révisables annuellement à la date anniversaire de la lettre de mission, selon l'évolution de l'indice des prix hors taxes relatifs aux services comptables publié par l'INSEE (référence : Indice des prix de production des services aux entreprises — Services comptables). La formule de révision est : Honoraires révisés = Honoraires d'origine × (dernier indice publié / indice de référence à la date de signature). À défaut de publication de cet indice, les honoraires seront révisés avec un minimum forfaitaire de 3 % par an.\n\nConformément à l'article 24 de l'ordonnance du 19 septembre 1945 modifié par la loi PACTE, les missions relevant de la prérogative d'exercice exclusive (tenue de comptabilité, révision comptable, présentation des comptes) ou participant à l'établissement de l'assiette fiscale ou sociale du client ne peuvent donner lieu à des honoraires complémentaires de succès.",
+      "TABLEAU_HONORAIRES\n\nLes honoraires annuels de la mission comptable s'élèvent à {{honoraires}} € HT.\n\n{{bloc_honoraires_sociale}}{{bloc_honoraires_juridique}}{{bloc_honoraires_controle_fiscal}}Les frais de constitution du dossier s'élèvent à {{setup}}.\n\nLa facturation est effectuée selon une périodicité {{frequence_facturation}}. Le règlement s'effectue par {{mode_paiement}}.\n\nLes honoraires prévus au présent contrat seront révisables annuellement à la date anniversaire de la lettre de mission, selon l'évolution de l'indice des prix hors taxes relatifs aux services comptables publié par l'INSEE (référence : Indice des prix de production des services aux entreprises — Services comptables). La formule de révision est : Honoraires révisés = Honoraires d'origine × (dernier indice publié / indice de référence à la date de signature). À défaut de publication de cet indice, les honoraires seront révisés avec un minimum forfaitaire de 3 % par an.\n\nConformément à l'article 24 de l'ordonnance du 19 septembre 1945 modifié par la loi PACTE, les missions relevant de la prérogative d'exercice exclusive (tenue de comptabilité, révision comptable, présentation des comptes) ou participant à l'établissement de l'assiette fiscale ou sociale du client ne peuvent donner lieu à des honoraires complémentaires de succès.",
     type: "fixed",
     editable: true,
     cnoec_obligatoire: true,
@@ -314,7 +314,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     id: "signature",
     titre: "Signature",
     contenu:
-      "Nous vous serions obligés de bien vouloir nous retourner un exemplaire de la présente et des annexes jointes, revêtues d'un paraphe sur chacune des pages et de votre signature sur la dernière page.\n\nNous vous prions de croire, {{formule_politesse}} {{dirigeant}}, à nos sentiments dévoués.\n\nFait à {{ville_cabinet}}, le {{date_du_jour}}\n\nL'Expert-comptable                    Le client\n{{associe}}                            {{dirigeant}}",
+      "Nous vous serions obligés de bien vouloir nous retourner un exemplaire de la présente et des annexes jointes, revêtues d'un paraphe sur chacune des pages et de votre signature sur la dernière page.\n\nNous vous prions de croire, {{formule_politesse}} {{dirigeant}}, à nos sentiments dévoués.\n\nFait à {{ville_cabinet}}, le {{date_du_jour}}\n\nL'Expert-comptable                    Le Client\n{{associe}}                            {{dirigeant}}",
     type: "fixed",
     editable: true,
     cnoec_obligatoire: false,
@@ -335,7 +335,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     id: "annexe_travail_dissimule",
     titre: "Annexe — Attestation travail dissimulé",
     contenu:
-      "Je soussigné(e) {{dirigeant}} agissant en qualité de mandataire de la société {{raison_sociale}} immatriculée au RCS sous le n° {{siren}} et dont le siège social est situé {{adresse}} {{code_postal}} {{ville}} :\n\nAtteste sur l'honneur, en application des articles L.8222-1, L.8222-2, D.8222-5 et R.8222-1 du Code du Travail :\n▪ Avoir immatriculé mon entreprise au RCS\n▪ Employer régulièrement tous mes salariés\n▪ Ne pas employer de salariés étrangers démunis du titre les autorisant à travailler en France",
+      "⚠ TRAVAIL DISSIMULÉ — Pénalités très lourdes et récemment aggravées\nEntraîne : sanctions civiles et pénales (prison avec sursis), contrôle fiscal.\nSi vous devez employer une personne, ne serait-ce qu'une minute, il faut préalablement la déclarer.\n\nJe soussigné(e) {{genre}} {{dirigeant}}, agissant en qualité de mandataire de la société {{raison_sociale}}, immatriculée au Registre du Commerce des Sociétés sous le n° {{siren}} et dont le siège social est situé {{adresse}}, {{code_postal}} {{ville}} :\n\nAtteste sur l'honneur, en application des articles L.8222-1, L.8222-2, D.8222-5 et R.8222-1 du Code du Travail et de l'article 46 du Code des Marchés Publics :\n▪ Avoir immatriculé mon entreprise au Registre du Commerce des Sociétés.\n▪ Employer régulièrement tous mes salariés au regard des articles L.1221-10, L.3243-2 et R.3243-1.\n▪ Ne pas employer de salariés étrangers démunis du titre les autorisant à exercer une activité salariée.\n\nM'engage à ce que ma société respecte ces obligations pendant toute la durée de nos relations contractuelles et à en justifier tous les 6 mois ou à tout moment sur demande.\n\nCommunique en annexe les documents suivants :\n▪ Extrait K-bis de moins de 3 mois\n▪ Attestation de versement de cotisations de moins de 6 mois (si marchés publics)",
     type: "fixed",
     editable: true,
     cnoec_obligatoire: false,
@@ -346,7 +346,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     id: "annexe_sepa",
     titre: "Annexe — Mandat de prélèvement SEPA",
     contenu:
-      "En signant ce formulaire de mandat, vous autorisez {{nom_cabinet}} à envoyer des instructions à votre banque pour débiter votre compte conformément aux instructions de {{nom_cabinet}}. Vous bénéficiez du droit d'être remboursé par votre banque selon les conditions de la convention que vous avez passée avec elle. Une demande de remboursement doit être présentée dans les 8 semaines suivant la date de débit.\n\nIBAN : {{iban}}\nBIC : {{bic}}",
+      "En signant ce formulaire de mandat, vous autorisez {{nom_cabinet}} à envoyer des instructions à votre banque pour débiter votre compte conformément aux instructions de {{nom_cabinet}}. Vous bénéficiez du droit d'être remboursé par votre banque selon les conditions de la convention que vous avez passée avec elle. Une demande de remboursement doit être présentée dans les 8 semaines suivant la date de débit.\n\nVotre nom : {{raison_sociale}}\nVotre adresse : {{adresse}}, {{code_postal}} {{ville}}\nVotre pays : France\nCoordonnées bancaires (IBAN) : {{iban}}\nBIC : {{bic}}\nNom du créancier : {{nom_cabinet}}\nIdentification du créancier (ICS) : {{cabinet_ics}}\nAdresse du créancier : {{cabinet_adresse}}\nType de paiement : Paiement récurrent/répétitif\n\nVos droits concernant le mandat ci-dessus sont expliqués dans un document que vous pouvez obtenir auprès de votre banque.",
     type: "fixed",
     editable: true,
     cnoec_obligatoire: false,
@@ -357,7 +357,7 @@ export const GRIMY_DEFAULT_SECTIONS: LMSection[] = [
     id: "annexe_liasse",
     titre: "Annexe — Autorisation de transmission de Liasse Fiscale",
     contenu:
-      "{{raison_sociale}}, représentée par {{dirigeant}}, mandataire social ayant tous pouvoirs à cet effet, déclare autoriser {{nom_cabinet}} à télétransmettre chaque année sur le portail jedéclare.com la liasse fiscale qui la concerne.",
+      "Dénomination de l'Entreprise : {{raison_sociale}}\nAdresse : {{adresse}}, {{code_postal}} {{ville}}\nSiren : {{siren}}\nForme Sociale : {{forme_juridique}}\n\nReprésentée par {{genre}} {{dirigeant}}, mandataire social ayant tous pouvoirs à cet effet, déclare autoriser :\n\n{{nom_cabinet}} — {{cabinet_adresse}}\n\nà télétransmettre chaque année sur le portail jedéclare.com, à destination de la Banque, la liasse fiscale qui la concerne (ensemble des formulaires fiscaux dûment renseignés répondant à l'obligation de déclaration annuelle d'activité de l'entreprise).\n\nCette autorisation est donnée pour la durée de la mission et peut être révoquée à tout moment par lettre recommandée avec accusé de réception.",
     type: "fixed",
     editable: true,
     cnoec_obligatoire: false,
@@ -452,7 +452,7 @@ Conformément aux dispositions de l'article 1225 du Code civil, en cas d'inexéc
 export const GRIMY_DEFAULT_REPARTITION: RepartitionRow[] = [
   { id: "tenue", label: "Tenue des comptes", cabinet: true, client: false, periodicite: "M" },
   { id: "depenses_recettes", label: "Tenue de vos dépenses et recettes", cabinet: true, client: false, periodicite: "M" },
-  { id: "editions", label: "Éditions des journaux, grand livre\u2026", cabinet: true, client: false, periodicite: "A" },
+  { id: "editions", label: "Éditions des journaux, grand livre...", cabinet: true, client: false, periodicite: "A" },
   { id: "justification", label: "Justification des comptes", cabinet: true, client: false, periodicite: "M" },
   { id: "decl_periodiques", label: "Établissement des déclarations fiscales périodiques", cabinet: true, client: false, periodicite: "A" },
   { id: "decl_annuelles", label: "Établissement des déclarations fiscales annuelles", cabinet: true, client: false, periodicite: "A" },
@@ -471,6 +471,9 @@ export const GRIMY_DEFAULT_REPARTITION: RepartitionRow[] = [
   { id: "caisse", label: "Caisse enregistreuse certifiée", cabinet: false, client: true, periodicite: "A" },
   { id: "previsionnels", label: "Établissement de documents prévisionnels \u2013 Si Option", cabinet: true, client: false, periodicite: "A" },
   { id: "situations", label: "Établissement de situations intermédiaires \u2013 Si Option", cabinet: true, client: false, periodicite: "A" },
+  { id: "assistance_aga", label: "Assistance aux contrôles AGA/OMGA", cabinet: true, client: false, periodicite: "A" },
+  { id: "comptabilite_mandants", label: "Comptabilité des mandants (SCI, LMNP...)", cabinet: true, client: false, periodicite: "A" },
+  { id: "procedures_assurances", label: "Procédures assurances et sinistres", cabinet: false, client: true, periodicite: "A" },
 ];
 
 // ══════════════════════════════════════════════

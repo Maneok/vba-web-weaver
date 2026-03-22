@@ -127,6 +127,7 @@ const CABINET_VARIABLE_MAP: Record<string, (cab: CabinetConfig) => string> = {
   cabinet_tel: (cab) => cab.telephone,
   cabinet_logo: (cab) => cab.logo ?? "",
   ville_cabinet: (cab) => cab.ville ?? "",
+  cabinet_ics: (cab) => (cab as any).ics ?? "FR67ZZZ4906200",
 };
 
 function getDateVariables(): Record<string, string> {
@@ -162,6 +163,19 @@ function getOptionsVariables(options?: LettreMissionOptions): Record<string, str
     outil_comptable: options.outilComptable ?? "",
     honoraires_social: `${options.honorairesSocial?.toLocaleString("fr-FR") ?? "0"} € HT`,
     honoraires_controle_fiscal: `${options.honorairesControleFiscal?.toLocaleString("fr-FR") ?? "0"} € HT`,
+    outil_transmission: (options as any).outilTransmission ?? "GRIMY",
+    frequence_facturation: (options as any).frequenceFacturation ?? options.periodicite ?? "mensuelle",
+    mode_paiement: (options as any).modePaiement ?? "prélèvement automatique",
+    forfait_constitution: `${options.fraisConstitution?.toLocaleString("fr-FR") ?? "0"} € HT`,
+    bloc_honoraires_sociale: options.honorairesSocial && options.honorairesSocial > 0
+      ? `Les honoraires de la mission sociale s'élèvent à ${options.honorairesSocial.toLocaleString("fr-FR")} € HT.\n\n`
+      : "",
+    bloc_honoraires_juridique: (options as any).honorairesJuridique && (options as any).honorairesJuridique > 0
+      ? `Les honoraires de la mission juridique s'élèvent à ${(options as any).honorairesJuridique.toLocaleString("fr-FR")} € HT.\n\n`
+      : "",
+    bloc_honoraires_controle_fiscal: options.honorairesControleFiscal && options.honorairesControleFiscal > 0
+      ? `Les honoraires de l'assistance au contrôle fiscal s'élèvent à ${options.honorairesControleFiscal.toLocaleString("fr-FR")} € HT.\n\n`
+      : "",
   };
 }
 
@@ -325,6 +339,7 @@ export function getAvailableVariables(): Array<{
     cabinet_email: "Email du cabinet",
     cabinet_tel: "Téléphone du cabinet",
     cabinet_logo: "Logo du cabinet (base64)",
+    cabinet_ics: "Identifiant Créancier SEPA (ICS) du cabinet",
   };
 
   for (const key of Object.keys(CABINET_VARIABLE_MAP)) {
@@ -359,6 +374,13 @@ export function getAvailableVariables(): Array<{
     outil_comptable: "Outil comptable utilisé",
     honoraires_social: "Honoraires mission sociale",
     honoraires_controle_fiscal: "Honoraires contrôle fiscal",
+    outil_transmission: "Outil de transmission des documents (défaut: GRIMY)",
+    frequence_facturation: "Fréquence de facturation (mensuelle, trimestrielle...)",
+    mode_paiement: "Mode de paiement (défaut: prélèvement automatique)",
+    forfait_constitution: "Frais de constitution du dossier",
+    bloc_honoraires_sociale: "Bloc conditionnel honoraires mission sociale",
+    bloc_honoraires_juridique: "Bloc conditionnel honoraires mission juridique",
+    bloc_honoraires_controle_fiscal: "Bloc conditionnel honoraires contrôle fiscal",
     bloc_vigilance_lab: "Texte LCB-FT complet selon niv_vigilance",
   };
   for (const [key, desc] of Object.entries(optionsDescriptions)) {
