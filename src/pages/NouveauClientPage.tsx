@@ -53,6 +53,7 @@ import {
   Pencil, ImageIcon, Inbox, FolderOpen, Copy, Circle, Link2, ArrowRightLeft,
 } from "lucide-react";
 
+import DocumentAnalysis from "@/components/client/DocumentAnalysis";
 import { FORMES_JURIDIQUES as FORMES, MISSIONS, FREQUENCES, DEFAULT_COMPTABLES as COMPTABLES, DEFAULT_ASSOCIES as ASSOCIES, DEFAULT_SUPERVISEURS as SUPERVISEURS, AUTOSAVE_DELAY_MS } from "@/lib/constants";
 // OPT-36: Import IBAN validator for proper modulo-97 validation
 import { validateIBAN } from "@/lib/ibanValidator";
@@ -5493,6 +5494,16 @@ ${beHtml || '<div class="field"><span class="value" style="color:#999;">Aucun be
             </label>
               </CollapsibleContent>
             </Collapsible>
+
+            {/* Analyse documentaire IA */}
+            <DocumentAnalysis
+              siren={form.siren?.replace(/\s/g, "") || screening?.enterprise?.data?.siren || ""}
+              raisonSociale={form.raisonSociale || screening?.enterprise?.data?.denomination || ""}
+              documents={[
+                ...(screening.documents.data?.documents ?? []),
+                ...(screening.inpi.data?.documents ?? []),
+              ]}
+            />
 
           </div>
         )}
