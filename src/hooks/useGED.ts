@@ -10,6 +10,7 @@ import {
   updateDocumentField,
   bulkUpdateCategory,
   renameAllToNorm,
+  ocrClassifyDocument,
   type GEDDocument,
   type SirenFolder,
   type GEDStats,
@@ -17,6 +18,7 @@ import {
 import type { GEDDocument as ComponentGEDDocument } from '@/components/ged/types';
 import { logAudit, fetchAuditLog, type AuditEntry } from '@/services/gedAuditService';
 import { supabase } from '@/integrations/supabase/client';
+import { logger } from '@/lib/logger';
 
 export function useGED(cabinetId: string, preselectedClientRef?: string) {
   // ── Core state ──────────────────────────────────────────────────
@@ -233,6 +235,28 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
           folder?.client_id,
           folder?.siren,
         );
+
+        // ★ OCR auto-classification for images
+        if (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+          try {
+            const ocrResult = await ocrClassifyDocument(doc.file_path);
+            if (ocrResult && ocrResult.category !== 'autre' && ocrResult.category !== category) {
+              await supabase.from('documents').update({
+                category: ocrResult.category,
+                label: ocrResult.name || null,
+                description: JSON.stringify(ocrResult.ocrData),
+              }).eq('id', doc.id);
+              toast.info(`OCR : document reclassé en "${ocrResult.category}"`);
+            } else if (ocrResult?.ocrData && Object.keys(ocrResult.ocrData).length > 0) {
+              await supabase.from('documents').update({
+                description: JSON.stringify(ocrResult.ocrData),
+              }).eq('id', doc.id);
+            }
+          } catch (ocrErr) {
+            logger.warn('GED', 'OCR auto-classification failed (non-bloquant)', ocrErr);
+          }
+        }
+
         toast.success(`"${file.name}" importé avec succès`);
         fireAudit('upload', doc.id, { document_name: file.name, category });
         // Refresh the current folder's documents + global folders

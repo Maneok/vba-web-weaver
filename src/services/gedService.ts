@@ -548,3 +548,56 @@ export async function getSignedUrl(filePath: string): Promise<string> {
   logger.error('GED', 'getSignedUrl failed both buckets', { filePath, error, e2 });
   throw new Error(error?.message || e2?.message || 'URL signée impossible');
 }
+
+// ── OCR auto-classification ──────────────────────────────────────────
+
+const OCR_SUPPORTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+async function processOcr(
+  blob: Blob,
+): Promise<{ category: string; name: string; ocrData: Record<string, unknown> } | null> {
+  if (!OCR_SUPPORTED_TYPES.includes(blob.type)) return null;
+
+  const arrayBuffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(arrayBuffer);
+  let binary = '';
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+  const base64 = btoa(binary);
+
+  const { data: { session } } = await supabase.auth.getSession();
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://szjcmepjuxlvnkqbxqqr.supabase.co';
+  const res = await fetch(`${supabaseUrl}/functions/v1/ocr-document`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session?.access_token || ''}`,
+    },
+    body: JSON.stringify({ imageBase64: base64, mimeType: blob.type, mode: 'auto' }),
+  });
+  if (!res.ok) return null;
+  const result = await res.json();
+  if (!result.category_ged) return null;
+  return {
+    category: result.category_ged,
+    name: result.suggested_name || '',
+    ocrData: result.extracted || {},
+  };
+}
+
+export async function ocrClassifyDocument(
+  filePath: string,
+  bucket: string = 'documents',
+): Promise<{ category: string; name: string; ocrData: Record<string, unknown> } | null> {
+  try {
+    const { data: blob, error } = await supabase.storage.from(bucket).download(filePath);
+    if (!error && blob) return await processOcr(blob);
+    // Fallback to the other bucket
+    const otherBucket = bucket === 'documents' ? 'kyc-documents' : 'documents';
+    const { data: blob2, error: e2 } = await supabase.storage.from(otherBucket).download(filePath);
+    if (!e2 && blob2) return await processOcr(blob2);
+    return null;
+  } catch (err) {
+    logger.error('GED', 'ocrClassifyDocument', err);
+    return null;
+  }
+}
