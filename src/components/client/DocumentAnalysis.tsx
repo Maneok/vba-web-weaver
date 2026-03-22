@@ -221,13 +221,31 @@ export default function DocumentAnalysis({
         throw new Error(errText || `Erreur ${res.status}`);
       }
 
-      const json: AnalysisResult = await res.json();
-      setResult(json);
-      setCachedResult(siren, json);
+      const raw = await res.json();
+      // Map API response shape → internal AnalysisResult
+      const apiAnalysis = raw.analysis || raw;
+      const mapped: AnalysisResult = {
+        documents: (apiAnalysis.documents_analyses || apiAnalysis.documents || []).map((d: any) => ({
+          ...d,
+          label: d.label_suggere || d.label || "",
+          type_detecte: d.type_detecte || d.type || "",
+          qualite: d.qualite || "partiel",
+          donnees: d.donnees_extraites || d.donnees || {},
+        })),
+        incoherences: (apiAnalysis.incoherences || []).map((inc: any) => ({
+          niveau: inc.niveau || inc.type || "attention",
+          message: inc.message || inc.description || "",
+        })),
+        informations_manquantes: apiAnalysis.informations_manquantes || [],
+        resume: apiAnalysis.resume || "",
+        resume_documentaire: apiAnalysis.resume_documentaire || "",
+      };
+      setResult(mapped);
+      setCachedResult(siren, mapped);
 
       // Store analysis summary in document description (#3, #9)
       if (mode === "ged") {
-        for (const analyzed of json.documents) {
+        for (const analyzed of mapped.documents) {
           const docId = analyzed.doc_id;
           if (docId) {
             const summary = JSON.stringify({
@@ -243,9 +261,9 @@ export default function DocumentAnalysis({
         }
       }
 
-      const incCount = json.incoherences?.length || 0;
+      const incCount = mapped.incoherences?.length || 0;
       toast.success(
-        `${json.documents?.length || 0} documents analyses${incCount > 0 ? ` — ${incCount} incoherence${incCount > 1 ? "s" : ""} detectee${incCount > 1 ? "s" : ""}` : ""}`
+        `${mapped.documents?.length || 0} documents analyses${incCount > 0 ? ` — ${incCount} incoherence${incCount > 1 ? "s" : ""} detectee${incCount > 1 ? "s" : ""}` : ""}`
       );
     } catch (err: any) {
       console.error("analyse-docs error:", err);
@@ -265,7 +283,7 @@ export default function DocumentAnalysis({
   function handleExportCsv() {
     if (!result) return;
     const headers = ["Type", "Label", "Qualite", "Dirigeant", "Capital", "SIREN", "Date"];
-    const rows = result.documents.map((d) => {
+    const rows = (result.documents || []).map((d) => {
       const data = d.donnees || d.donnees_extraites || {};
       return [
         d.type_detecte,
@@ -356,17 +374,17 @@ export default function DocumentAnalysis({
 
   // ── Result display ──
 
-  const completeness = computeCompletenessScore(result.documents);
+  const completeness = computeCompletenessScore(result.documents || []);
   const resumeText = result.resume_documentaire || result.resume;
 
   // #42 — alert if no dirigeant found
-  const hasDirigeant = result.documents.some((d) => {
+  const hasDirigeant = (result.documents || []).some((d) => {
     const data = d.donnees || d.donnees_extraites || {};
     return Object.keys(data).some((k) => k.toLowerCase().includes("dirigeant"));
   });
 
   // #43 — alert if SIREN mismatch
-  const sirenMismatch = result.documents.some((d) => {
+  const sirenMismatch = (result.documents || []).some((d) => {
     const data = d.donnees || d.donnees_extraites || {};
     const docSiren = (data["SIREN"] || data["siren"] || "").replace(/\s/g, "");
     return docSiren && docSiren !== siren.replace(/\s/g, "");
@@ -414,7 +432,7 @@ export default function DocumentAnalysis({
       </div>
 
       {/* #42 #43 Critical alerts */}
-      {!hasDirigeant && result.documents.length > 0 && (
+      {!hasDirigeant && (result.documents || []).length > 0 && (
         <div className="flex items-start gap-2 text-[11px] rounded-lg border border-red-500/20 bg-red-500/5 px-3 py-2 text-red-400">
           <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
           <span>Dirigeant non identifie dans les documents fournis</span>
@@ -428,7 +446,7 @@ export default function DocumentAnalysis({
       )}
 
       {/* Per-document cards (#32 stagger-in, #33 collapsible, #35 responsive, #38 copy) */}
-      {result.documents.map((doc, i) => {
+      {(result.documents || []).map((doc, i) => {
         const q = QUALITE_CONFIG[doc.qualite] || QUALITE_CONFIG.partiel;
         const data = doc.donnees || doc.donnees_extraites || {};
         const entries = Object.entries(data).filter(([, v]) => v != null && v !== "");
@@ -543,16 +561,16 @@ export default function DocumentAnalysis({
       })}
 
       {/* Incoherences */}
-      {result.incoherences.length > 0 && (
+      {(result.incoherences || []).length > 0 && (
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 text-amber-400" />
             <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-              Incoherences detectees ({result.incoherences.length})
+              Incoherences detectees ({(result.incoherences || []).length})
             </span>
           </div>
           <div className="space-y-1.5">
-            {result.incoherences.map((inc, i) => {
+            {(result.incoherences || []).map((inc, i) => {
               const cfg = NIVEAU_CONFIG[inc.niveau] || NIVEAU_CONFIG.attention;
               return (
                 <div
@@ -569,7 +587,7 @@ export default function DocumentAnalysis({
       )}
 
       {/* Missing information */}
-      {result.informations_manquantes.length > 0 && (
+      {(result.informations_manquantes || []).length > 0 && (
         <div className="rounded-xl border border-gray-200 dark:border-white/[0.06] bg-white/80 dark:bg-white/[0.02] p-4 space-y-2">
           <div className="flex items-center gap-2">
             <ClipboardList className="w-4 h-4 text-slate-400" />
@@ -578,7 +596,7 @@ export default function DocumentAnalysis({
             </span>
           </div>
           <ul className="space-y-1">
-            {result.informations_manquantes.map((item, i) => (
+            {(result.informations_manquantes || []).map((item, i) => (
               <li key={i} className="flex items-start gap-2 text-[11px] text-slate-500 dark:text-slate-400">
                 <span className="text-slate-300 dark:text-slate-600 mt-0.5">•</span>
                 {item}
