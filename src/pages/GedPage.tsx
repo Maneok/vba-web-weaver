@@ -46,7 +46,10 @@ import DocumentAnalysis from "@/components/client/DocumentAnalysis";
 
 /* ─────────── Constants ─────────── */
 
-const CATEGORY_TABS = ["Tous", "KBis", "CNI", "Justificatif", "RIB", "Contrat", "Autre"];
+const CATEGORY_TABS = [
+  "Tous", "Extrait KBis", "KBis", "CNI", "RIB",
+  "Statuts", "PV Assemblée", "Bilan", "Attestation", "Autre",
+];
 
 const TAG_SUGGESTIONS = ["urgent", "à vérifier", "validé EC", "en attente client"];
 

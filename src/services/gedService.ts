@@ -272,22 +272,31 @@ export async function uploadDocument(
       throw new Error(insertError.message);
     }
 
-    // Auto-rename to normalized format: DATE_SOCIETE_TYPE.ext
+    // ★ AUTO-RENAME : DATE_SOCIETE_TYPE.ext
     try {
       const { data: clientData } = await supabase.from('clients')
         .select('raison_sociale').eq('ref', clientRef).single();
       const societe = sanitizeSociete(clientData?.raison_sociale || siren || clientRef);
-      const type = CATEGORY_LABELS_SHORT[category] || 'AUTRE';
-      const date = new Date().toISOString().split('T')[0];
+      const typeLabel = CATEGORY_LABELS_SHORT[category] || 'DOCUMENT';
+      const dateStr = new Date().toISOString().split('T')[0];
       const ext = file.name.split('.').pop() || 'pdf';
-      const normalizedName = `${date}_${societe}_${type}.${ext}`;
-      if (normalizedName !== doc.name) {
-        await supabase.from('documents').update({ name: normalizedName }).eq('id', doc.id);
-        doc.name = normalizedName;
-      }
+
+      // Vérifier les doublons de même jour/société/type
+      const { data: existing } = await supabase.from('documents')
+        .select('name')
+        .eq('client_ref', clientRef)
+        .eq('cabinet_id', cabinetId)
+        .eq('category', category)
+        .like('name', `${dateStr}_${societe}_${typeLabel}%`);
+      const versionSuffix = existing && existing.length > 0
+        ? `_V${existing.length + 1}` : '';
+
+      const normalizedName = `${dateStr}_${societe}_${typeLabel}${versionSuffix}.${ext}`;
+      await supabase.from('documents').update({ name: normalizedName }).eq('id', doc.id);
+      doc.name = normalizedName;
     } catch (renameErr) {
       // Non-blocking — keep the original name if rename fails
-      logger.error('GED', 'uploadDocument — autoRename', renameErr);
+      logger.warn('GED', 'Auto-rename failed (non-bloquant)', renameErr);
     }
 
     return doc as GEDDocument;
@@ -519,10 +528,12 @@ export const CATEGORY_LABELS_SHORT: Record<string, string> = {
   kbis: 'KBIS',
   extrait_kbis: 'EXTRAIT_KBIS',
   cni_dirigeant: 'CNI_DIRIGEANT',
+  cni: 'CNI',
   justificatif_domicile: 'JUSTIF_DOMICILE',
   rib: 'RIB',
   statuts: 'STATUTS',
-  attestation_vigilance: 'ATTESTATION_VIGILANCE',
+  attestation_vigilance: 'ATTESTATION',
+  attestation: 'ATTESTATION',
   liste_beneficiaires_effectifs: 'LISTE_BE',
   declaration_source_fonds: 'SOURCE_FONDS',
   justificatif_patrimoine: 'PATRIMOINE',
@@ -530,7 +541,7 @@ export const CATEGORY_LABELS_SHORT: Record<string, string> = {
   pv_assemblee: 'PV_ASSEMBLEE',
   bilan: 'BILAN',
   facture: 'FACTURE',
-  autre: 'AUTRE',
+  autre: 'DOCUMENT',
 };
 
 /** Sanitize a company name into an uppercase slug for filenames */
@@ -580,15 +591,28 @@ export async function renameAllToNorm(
   const societe = sanitizeSociete(client?.raison_sociale || siren);
 
   const docs = await fetchDocumentsByClientRef(clientRef, cabinetId);
-  const usedNames: string[] = [];
+  // Group by date+type to detect duplicates for versioning
+  const groups = new Map<string, number>();
   let count = 0;
+
   for (const doc of docs) {
     const ext = doc.name.split('.').pop() || 'pdf';
-    const date = (doc.created_at || '').split('T')[0] || 'SANS_DATE';
-    const normalized = buildNormalizedName(date, societe, doc.category, ext, usedNames);
-    usedNames.push(normalized);
+    const typeLabel = CATEGORY_LABELS_SHORT[doc.category] || 'DOCUMENT';
+    // Extraire la date du nom existant ou utiliser created_at
+    const dateMatch = doc.name.match(/(\d{4}-\d{2}-\d{2})/);
+    const dateStr = dateMatch ? dateMatch[1] : (doc.created_at || '').split('T')[0];
+
+    const groupKey = `${dateStr}_${societe}_${typeLabel}.${ext}`;
+    const groupCount = (groups.get(groupKey) || 0) + 1;
+    groups.set(groupKey, groupCount);
+
+    const versionSuffix = groupCount > 1 ? `_V${groupCount}` : '';
+    const normalized = `${dateStr}_${societe}_${typeLabel}${versionSuffix}.${ext}`;
+
     if (normalized !== doc.name) {
-      await renameDocument(doc.id, normalized, doc.name);
+      // Ne PAS renommer dans Storage (file_path reste le même)
+      // Seul le champ name (affiché dans l'UI) change
+      await supabase.from('documents').update({ name: normalized }).eq('id', doc.id);
       count++;
     }
   }

@@ -2083,17 +2083,32 @@ export default function NouveauClientPage() {
                 status: "manual",
               }).catch(err => logger.warn("[Submit] documents_kyc insert failed:", err));
 
-              // ★ Mirror dans documents (GED) pour que la GED voie les docs
+              // ★ Mirror dans documents (GED) — auto-renommage DATE_SOCIETE_TYPE.ext
+              const gedCategory = mapDocTypeToCategory(doc.type);
+              const mirrorDateStr = new Date().toISOString().split('T')[0];
+              const mirrorSociete = (form.raison_sociale || screening?.enterprise?.data?.denomination || '')
+                .toUpperCase().replace(/\s*\([^)]*\)/g, '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_')
+                .replace(/^_|_$/g, '').slice(0, 30);
+              const mirrorTypeLabel: Record<string, string> = {
+                extrait_kbis: 'EXTRAIT_KBIS', kbis: 'KBIS', cni_dirigeant: 'CNI_DIRIGEANT',
+                rib: 'RIB', statuts: 'STATUTS', pv_assemblee: 'PV_ASSEMBLEE',
+                bilan: 'BILAN', liste_beneficiaires_effectifs: 'LISTE_BE',
+                attestation_vigilance: 'ATTESTATION', autre: 'DOCUMENT',
+              };
+              const mirrorExt = (doc.file?.name || doc.name || '').split('.').pop() || 'pdf';
+              const normalizedName = `${mirrorDateStr}_${mirrorSociete}_${mirrorTypeLabel[gedCategory] || 'DOCUMENT'}.${mirrorExt}`;
               await supabase.from("documents").insert({
                 user_id: session.user.id,
                 cabinet_id: cabinetId,
                 client_ref: ref,
                 siren: cleanSirenForStorage,
-                name: doc.name || doc.file?.name || doc.type,
+                name: normalizedName,
                 file_path: storagePath,
                 file_size: doc.file.size,
                 mime_type: doc.file.type || "application/octet-stream",
-                category: mapDocTypeToCategory(doc.type),
+                category: gedCategory,
                 current_version: 1,
               }).catch(err => logger.warn("[Submit] documents mirror insert failed:", err));
             }
@@ -2132,17 +2147,31 @@ export default function NouveauClientPage() {
           date_document: (doc as any).dateDepot || (doc as any).dateCloture || null,
         }).catch(() => {}); // Non-blocking
 
-        // ★ Mirror dans documents (GED)
+        // ★ Mirror dans documents (GED) — auto-renommage DATE_SOCIETE_TYPE.ext
+        const autoGedCat = mapDocTypeToCategory(doc.type || "AUTRE");
+        const autoDateStr = ((doc as any).dateDepot || (doc as any).dateCloture || new Date().toISOString()).split('T')[0];
+        const autoSociete = (form.raison_sociale || screening?.enterprise?.data?.denomination || '')
+          .toUpperCase().replace(/\s*\([^)]*\)/g, '')
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+          .replace(/[^A-Z0-9]/g, '_').replace(/_+/g, '_')
+          .replace(/^_|_$/g, '').slice(0, 30);
+        const autoTypeMap: Record<string, string> = {
+          extrait_kbis: 'EXTRAIT_KBIS', kbis: 'KBIS', cni_dirigeant: 'CNI_DIRIGEANT',
+          rib: 'RIB', statuts: 'STATUTS', pv_assemblee: 'PV_ASSEMBLEE',
+          bilan: 'BILAN', liste_beneficiaires_effectifs: 'LISTE_BE',
+          attestation_vigilance: 'ATTESTATION', autre: 'DOCUMENT',
+        };
+        const autoNormName = `${autoDateStr}_${autoSociete}_${autoTypeMap[autoGedCat] || 'DOCUMENT'}.pdf`;
         await supabase.from("documents").insert({
           user_id: session.user.id,
           cabinet_id: cabinetId,
           client_ref: ref,
           siren: cleanSiren,
-          name: doc.label || doc.type || "Document auto",
+          name: autoNormName,
           file_path: doc.url,
           file_size: 0,
           mime_type: "application/pdf",
-          category: mapDocTypeToCategory(doc.type || "AUTRE"),
+          category: autoGedCat,
           current_version: 1,
         }).catch(() => {}); // Non-blocking
       }

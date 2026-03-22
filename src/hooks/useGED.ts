@@ -142,9 +142,13 @@ export function useGED(cabinetId: string, preselectedClientRef?: string) {
   const filteredDocuments = useMemo(() => {
     let result = documents;
 
-    // Category filter
+    // Category filter (fuzzy match between display labels and DB values)
     if (activeCategory !== 'Tous') {
-      result = result.filter(d => d.category === activeCategory);
+      result = result.filter(d => {
+        const cat = (d.category || '').toLowerCase().replace(/[_\s-]+/g, '');
+        const filter = activeCategory.toLowerCase().replace(/[_\s-]+/g, '');
+        return cat.includes(filter) || filter.includes(cat);
+      });
     }
 
     // Sort
