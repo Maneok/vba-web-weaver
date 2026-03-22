@@ -96,7 +96,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
     return () => { cancelled = true; };
   }, [data.client_id, selectedClient]);
 
-  const selectClient = (c: Client) => {
+  const selectClient = async (c: Client) => {
     const { recommended } = recommendClientType(c.forme);
     const ctConfig = getClientTypeConfig(recommended);
     onChange({
@@ -108,6 +108,7 @@ export default function LMStep1Client({ data, onChange }: Props) {
       client_type_id: recommended,
       mission_type_id: ctConfig?.defaultMissionType || "presentation",
       dirigeant: c.dirigeant,
+      genre: "M" as const,
       qualite_dirigeant: (() => {
         const qualiteMap: Record<string, string> = { "SARL": "Gérant", "EURL": "Gérant", "SCI": "Gérant", "SAS": "Président", "SASU": "Président", "SA": "Directeur général", "SNC": "Gérant", "ASSOCIATION": "Président", "ASSO": "Président" };
         return qualiteMap[c.forme] || "Dirigeant";
@@ -141,6 +142,38 @@ export default function LMStep1Client({ data, onChange }: Props) {
         (c.mission?.includes("REVISION") || c.mission?.includes("SURVEILLANCE") ? "SURVEILLANCE" : "TENUE"),
       regime_benefices: detectRegimeBenefices(c.ape) || undefined,
     });
+
+    // FIX 4 — Auto-sélection du modèle adapté au type client
+    if (profile?.cabinet_id) {
+      try {
+        const allModeles = await getModeles(profile.cabinet_id);
+        const matching = getModelesForClientType(allModeles, recommended);
+        if (matching.length > 0) {
+          const bestModele = matching.find(m => m.is_default) || matching[0];
+          onChange({ modele_id: bestModele.id });
+        }
+      } catch (e) {
+        console.warn("Auto-select modele failed:", e);
+      }
+    }
+
+    // FIX 5 — Auto-sélection des missions complémentaires
+    try {
+      const missions = getMissionsForClientType(recommended);
+      const smartMissions = getSmartMissionSelections(recommended, c, missions);
+      onChange({ missions_selected: smartMissions });
+    } catch (e) {
+      console.warn("Auto-select missions failed:", e);
+    }
+
+    // Smart defaults (clauses, durée, paiement)
+    try {
+      const smartDefaults = generateSmartDefaults(recommended, c);
+      const { honoraires_ht: _ignore, ...safeDefaults } = smartDefaults;
+      onChange(safeDefaults);
+    } catch (e) {
+      console.warn("Smart defaults failed:", e);
+    }
   };
 
   // OPT-50: clear also missions_selected and honoraires_detail
@@ -358,6 +391,31 @@ export default function LMStep1Client({ data, onChange }: Props) {
                 Détails pour la lettre de mission
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-2 p-4 rounded-xl border border-gray-200/60 dark:border-white/[0.06] bg-slate-50/50 dark:bg-white/[0.01] space-y-4">
+                <div className="flex items-center gap-4 mb-3">
+                  <Label className="text-slate-500 dark:text-slate-400 text-xs w-20">Civilite</Label>
+                  <div className="flex gap-3">
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="genre_lm"
+                        checked={data.genre === "M"}
+                        onChange={() => onChange({ genre: "M" as const })}
+                        className="h-3.5 w-3.5 text-blue-600"
+                      />
+                      <span className="text-sm text-slate-600 dark:text-slate-300">Monsieur</span>
+                    </label>
+                    <label className="flex items-center gap-1.5 cursor-pointer">
+                      <input
+                        type="radio"
+                        name="genre_lm"
+                        checked={data.genre === "Mme"}
+                        onChange={() => onChange({ genre: "Mme" as const })}
+                        className="h-3.5 w-3.5 text-blue-600"
+                      />
+                      <span className="text-sm text-slate-600 dark:text-slate-300">Madame</span>
+                    </label>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   {/* Régime fiscal */}
                   <div className="space-y-1.5">
