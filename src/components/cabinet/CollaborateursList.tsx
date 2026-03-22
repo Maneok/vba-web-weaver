@@ -150,7 +150,7 @@ export default function CollaborateursList() {
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteForm, setInviteForm] = useState({ email: "", nom: "", role: "COLLABORATEUR" as CabinetRole, cabinet_id: "" });
+  const [inviteForm, setInviteForm] = useState({ email: "", prenom: "", nom: "", role: "COLLABORATEUR" as CabinetRole, cabinet_id: "" });
   const [inviting, setInviting] = useState(false);
   const [lastInviteUrl, setLastInviteUrl] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Membre | null>(null);
@@ -303,18 +303,22 @@ export default function CollaborateursList() {
     if (!profile) return;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const trimmedEmail = inviteForm.email.trim().toLowerCase();
-    const trimmedName = inviteForm.nom.trim();
+    const trimmedPrenom = inviteForm.prenom.trim();
+    const trimmedNom = inviteForm.nom.trim();
     if (!emailRegex.test(trimmedEmail)) {
       toast.error("Adresse email invalide");
       return;
     }
-    // #6: Name validation - min 2 chars, max 100 chars
-    if (trimmedName.length < 2) {
-      toast.error("Le nom doit contenir au moins 2 caracteres");
+    if (trimmedPrenom.length < 2) {
+      toast.error("Le prénom doit contenir au moins 2 caractères");
       return;
     }
-    if (trimmedName.length > 100) {
-      toast.error("Le nom ne doit pas depasser 100 caracteres");
+    if (trimmedNom.length < 2) {
+      toast.error("Le nom doit contenir au moins 2 caractères");
+      return;
+    }
+    if (trimmedPrenom.length + trimmedNom.length > 100) {
+      toast.error("Le nom complet ne doit pas dépasser 100 caractères");
       return;
     }
     // #7: Prevent inviting yourself
@@ -340,7 +344,8 @@ export default function CollaborateursList() {
 
       const { data: rpcData, error: rpcError } = await supabase.rpc('invite_collaborator', {
         p_email: trimmedEmail,
-        p_full_name: trimmedName,
+        p_prenom: trimmedPrenom,
+        p_nom: trimmedNom,
         p_role: authRole,
       });
 
@@ -370,7 +375,7 @@ export default function CollaborateursList() {
         const { error: collabError } = await supabase
           .from("collaborateurs")
           .insert({
-            nom: trimmedName,
+            nom: `${trimmedPrenom} ${trimmedNom}`,
             email: trimmedEmail,
             fonction,
             niveau_competence: "JUNIOR",
@@ -391,7 +396,7 @@ export default function CollaborateursList() {
       } else {
         toast.success(resData?.message || `Invitation envoyee a ${trimmedEmail}`);
         setInviteOpen(false);
-        setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+        setInviteForm({ email: "", prenom: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
       }
       // #1: Clear inviteTimerRef before setting a new one
       if (inviteTimerRef.current) {
@@ -629,7 +634,7 @@ export default function CollaborateursList() {
             onOpenChange={(open) => {
               setInviteOpen(open);
               if (!open) {
-                setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+                setInviteForm({ email: "", prenom: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
                 setLastInviteUrl("");
                 // #1: Clear inviteTimerRef on dialog close
                 if (inviteTimerRef.current) {
@@ -701,14 +706,14 @@ export default function CollaborateursList() {
                   <div className="flex justify-end gap-2 pt-1">
                     <Button type="button" variant="outline" onClick={() => {
                       setLastInviteUrl("");
-                      setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+                      setInviteForm({ email: "", prenom: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
                     }}>
                       Nouvelle invitation
                     </Button>
                     <Button type="button" onClick={() => {
                       setLastInviteUrl("");
                       setInviteOpen(false);
-                      setInviteForm({ email: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
+                      setInviteForm({ email: "", prenom: "", nom: "", role: "COLLABORATEUR", cabinet_id: "" });
                     }}>
                       Fermer
                     </Button>
@@ -716,11 +721,20 @@ export default function CollaborateursList() {
                 </div>
               ) : (
               <form onSubmit={handleInvite} className="space-y-4 pt-2">
-                <div className="space-y-1.5">
-                  <Label htmlFor="invite-nom" className="text-xs text-muted-foreground">Nom complet</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input id="invite-nom" value={inviteForm.nom} onChange={(e) => setInviteForm({ ...inviteForm, nom: e.target.value })} placeholder="Jean Dupont" required minLength={2} maxLength={100} className="pl-9" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invite-prenom" className="text-xs text-muted-foreground">Prénom</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input id="invite-prenom" value={inviteForm.prenom} onChange={(e) => setInviteForm({ ...inviteForm, prenom: e.target.value })} placeholder="Jean" required minLength={2} className="pl-9" autoComplete="given-name" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="invite-nom" className="text-xs text-muted-foreground">Nom</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input id="invite-nom" value={inviteForm.nom} onChange={(e) => setInviteForm({ ...inviteForm, nom: e.target.value })} placeholder="DUPONT" required minLength={2} className="pl-9 uppercase" autoComplete="family-name" />
+                    </div>
                   </div>
                 </div>
                 <div className="space-y-1.5">
@@ -772,7 +786,7 @@ export default function CollaborateursList() {
                   <Button type="button" variant="ghost" onClick={() => setInviteOpen(false)} disabled={inviting}>
                     Annuler
                   </Button>
-                  <Button type="submit" disabled={inviting} className="gap-2">
+                  <Button type="submit" disabled={inviting || inviteForm.prenom.trim().length < 2 || inviteForm.nom.trim().length < 2} className="gap-2">
                     {inviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
                     {inviting ? "Envoi en cours..." : "Envoyer l'invitation"}
                   </Button>
