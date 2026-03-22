@@ -1948,13 +1948,15 @@ export default function NouveauClientPage() {
     // Helper: map doc type to GED category
     function mapDocTypeToCategory(type: string): string {
       const t = (type || "").toUpperCase();
-      if (t.includes("EXTRAIT") && t.includes("KBIS")) return "extrait_kbis";
-      if (t.includes("KBIS")) return "kbis";
+      if (t.includes("EXTRAIT") && (t.includes("KBIS") || t.includes("RNE"))) return "extrait_kbis";
+      if (t.includes("KBIS") || t.includes("RNE")) return "kbis";
       if (t.includes("CNI") || t.includes("IDENTITE") || t.includes("PASSEPORT")) return "cni_dirigeant";
-      if (t.includes("RIB") || t.includes("IBAN")) return "rib";
+      if (t.includes("RIB") || t.includes("IBAN") || t.includes("BANCAIRE")) return "rib";
       if (t.includes("STATUT")) return "statuts";
       if (t.includes("ATTESTATION")) return "attestation_vigilance";
       if (t.includes("BENEFICIAIRE")) return "liste_beneficiaires_effectifs";
+      if (t.includes("COMPTE") || t.includes("BILAN")) return "bilan";
+      if (t.includes("ACTE") || t.includes("PV")) return "pv_assemblee";
       return "autre";
     }
 

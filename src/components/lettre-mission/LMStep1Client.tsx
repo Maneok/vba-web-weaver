@@ -6,7 +6,10 @@ import { logger } from "@/lib/logger";
 import type { LMWizardData } from "@/lib/lmWizardTypes";
 import type { Client } from "@/lib/types";
 import { recommendClientType, getClientTypeConfig } from "@/lib/lettreMissionTypes";
-import { detectRegimeBenefices } from "@/lib/lmSmartDefaults";
+import { detectRegimeBenefices, generateSmartDefaults, getSmartMissionSelections } from "@/lib/lmSmartDefaults";
+import { getModeles, getModelesForClientType } from "@/lib/lettreMissionModeles";
+import { getMissionsForClientType } from "@/lib/lmClientMissions";
+import { useAuth } from "@/lib/auth/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -28,6 +31,7 @@ interface Props {
 
 export default function LMStep1Client({ data, onChange }: Props) {
   const { clients } = useAppState();
+  const { profile } = useAuth();
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [previousLM, setPreviousLM] = useState<{ id: string; wizard_data: Record<string, unknown>; numero: string; status: string } | null>(null);

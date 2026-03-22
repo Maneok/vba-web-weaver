@@ -537,19 +537,14 @@ const CATEGORY_LABELS_SHORT: Record<string, string> = {
 // ── URL signée ─────────────────────────────────────────────────────
 
 export async function getSignedUrl(filePath: string): Promise<string> {
-  try {
-    const { data, error } = await supabase.storage
-      .from('documents')
-      .createSignedUrl(filePath, 3600); // 1h
-
-    if (error) {
-      logger.error('GED', 'getSignedUrl', error);
-      throw new Error(error.message);
-    }
-
-    return data.signedUrl;
-  } catch (err) {
-    logger.error('GED', 'getSignedUrl exception', err);
-    throw err;
-  }
+  // Try bucket "documents" first
+  const { data, error } = await supabase.storage
+    .from('documents').createSignedUrl(filePath, 3600);
+  if (!error && data?.signedUrl) return data.signedUrl;
+  // Fallback bucket "kyc-documents"
+  const { data: d2, error: e2 } = await supabase.storage
+    .from('kyc-documents').createSignedUrl(filePath, 3600);
+  if (!e2 && d2?.signedUrl) return d2.signedUrl;
+  logger.error('GED', 'getSignedUrl failed both buckets', { filePath, error, e2 });
+  throw new Error(error?.message || e2?.message || 'URL signée impossible');
 }

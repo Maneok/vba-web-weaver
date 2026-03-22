@@ -47,6 +47,7 @@ export interface LMWizardData {
 
   // Client info (pre-filled)
   dirigeant: string;
+  genre: "M" | "Mme";
   qualite_dirigeant: string;
   adresse: string;
   cp: string;
@@ -188,6 +189,7 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   mission_type_id: "presentation",
   client_type_id: "",
   dirigeant: "",
+  genre: "M" as const,
   qualite_dirigeant: "Gerant",
   adresse: "",
   cp: "",
