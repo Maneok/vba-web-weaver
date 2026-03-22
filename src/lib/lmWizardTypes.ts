@@ -52,6 +52,13 @@ export interface LMWizardData {
   cp: string;
   ville: string;
   capital: string;
+  date_creation: string;
+  effectif: string;
+  cac: boolean;
+  volume_comptable: string;
+  regime_fiscal: string;        // "IS Réel Simplifié" | "IS Réel Normal" | "IR BIC Réel" | etc.
+  tva_assujetti: boolean;
+  exercice_debut: string;       // "01/01/2026"
   ape: string;
   rcs: string;
   email: string;
@@ -186,6 +193,13 @@ export const INITIAL_LM_WIZARD_DATA: LMWizardData = {
   cp: "",
   ville: "",
   capital: "",
+  date_creation: "",
+  effectif: "",
+  cac: false,
+  volume_comptable: "",
+  regime_fiscal: "",
+  tva_assujetti: true,
+  exercice_debut: "",
   ape: "",
   rcs: "",
   email: "",

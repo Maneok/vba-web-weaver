@@ -10,9 +10,13 @@ import { detectRegimeBenefices } from "@/lib/lmSmartDefaults";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Label } from "@/components/ui/label";
 import {
   Search, Plus, Building2, User, CheckCircle2, X,
-  AlertTriangle, ShieldAlert, History, FileText,
+  AlertTriangle, ShieldAlert, History, FileText, ChevronDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import { vigilanceColor } from "@/lib/lmUtils";
@@ -108,6 +112,20 @@ export default function LMStep1Client({ data, onChange }: Props) {
       cp: c.cp,
       ville: c.ville,
       capital: String(c.capital || ""),
+      date_creation: c.dateCreation || "",
+      effectif: c.effectif || "",
+      regime_fiscal: (() => {
+        const formeUpper = c.forme?.toUpperCase() || "";
+        if (formeUpper.includes("SAS") || formeUpper.includes("SA ") || formeUpper === "SA") return "IS Réel Normal";
+        if (formeUpper.includes("SARL") || formeUpper.includes("EURL")) return "IS Réel Simplifié";
+        if (formeUpper.includes("SCI")) return "IR";
+        if (formeUpper.includes("EI") || formeUpper.includes("MICRO")) return "IR Micro-BIC";
+        return "";
+      })(),
+      tva_assujetti: true,
+      cac: false,
+      volume_comptable: "",
+      exercice_debut: `01/01/${new Date().getFullYear()}`,
       ape: c.ape,
       email: c.mail,
       telephone: c.tel,
@@ -126,6 +144,8 @@ export default function LMStep1Client({ data, onChange }: Props) {
       forme_juridique: "", dirigeant: "", adresse: "", cp: "", ville: "",
       capital: "", ape: "", email: "", telephone: "", iban: "", bic: "",
       qualite_dirigeant: "", type_mission: "", mission_type_id: "", client_type_id: "",
+      date_creation: "", effectif: "", regime_fiscal: "", tva_assujetti: true, cac: false,
+      volume_comptable: "", exercice_debut: "",
       missions_selected: [], honoraires_detail: {},
     });
     riskToastShown.current = false;
@@ -323,6 +343,105 @@ export default function LMStep1Client({ data, onChange }: Props) {
               </div>
             )}
           </div>
+
+          {/* Détails entité — collapsible */}
+          {selectedClient && (
+            <Collapsible>
+              <CollapsibleTrigger className="flex items-center gap-2 w-full p-3 rounded-xl border border-gray-200/60 dark:border-white/[0.06] hover:bg-slate-50 dark:hover:bg-white/[0.02] transition-colors text-sm font-medium text-slate-600 dark:text-slate-300">
+                <ChevronDown className="w-4 h-4 text-slate-400 transition-transform [[data-state=open]>&]:rotate-180" />
+                Détails pour la lettre de mission
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 p-4 rounded-xl border border-gray-200/60 dark:border-white/[0.06] bg-slate-50/50 dark:bg-white/[0.01] space-y-4">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Régime fiscal */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Régime fiscal</Label>
+                    <Select
+                      value={data.regime_fiscal}
+                      onValueChange={(v) => onChange({ regime_fiscal: v })}
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Sélectionner..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IS Réel Simplifié">IS Réel Simplifié</SelectItem>
+                        <SelectItem value="IS Réel Normal">IS Réel Normal</SelectItem>
+                        <SelectItem value="IR BIC Réel">IR BIC Réel</SelectItem>
+                        <SelectItem value="IR BNC">IR BNC</SelectItem>
+                        <SelectItem value="IR Micro-BIC">IR Micro-BIC</SelectItem>
+                        <SelectItem value="IR Micro-BNC">IR Micro-BNC</SelectItem>
+                        <SelectItem value="IR">IR</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Effectif */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Effectif</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      value={data.effectif}
+                      onChange={(e) => onChange({ effectif: e.target.value })}
+                      placeholder="0"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+
+                  {/* TVA */}
+                  <div className="flex items-center justify-between col-span-1">
+                    <Label className="text-xs text-slate-500">Assujetti TVA</Label>
+                    <Switch
+                      checked={data.tva_assujetti}
+                      onCheckedChange={(v) => onChange({ tva_assujetti: v })}
+                    />
+                  </div>
+
+                  {/* CAC */}
+                  <div className="flex items-center justify-between col-span-1">
+                    <Label className="text-xs text-slate-500">CAC désigné</Label>
+                    <Switch
+                      checked={data.cac}
+                      onCheckedChange={(v) => onChange({ cac: v })}
+                    />
+                  </div>
+
+                  {/* Volume comptable */}
+                  <div className="space-y-1.5 col-span-2">
+                    <Label className="text-xs text-slate-500">Volume comptable</Label>
+                    <Input
+                      value={data.volume_comptable}
+                      onChange={(e) => onChange({ volume_comptable: e.target.value })}
+                      placeholder="Ex: 50 factures d'achats et de ventes par mois"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+
+                  {/* Date de création */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Date de création</Label>
+                    <Input
+                      type="date"
+                      value={data.date_creation}
+                      onChange={(e) => onChange({ date_creation: e.target.value })}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+
+                  {/* Exercice début */}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-slate-500">Début exercice</Label>
+                    <Input
+                      value={data.exercice_debut}
+                      onChange={(e) => onChange({ exercice_debut: e.target.value })}
+                      placeholder="01/01/2026"
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
 
           {/* Active LM warning + import */}
           {previousLM && (

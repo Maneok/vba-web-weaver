@@ -40,8 +40,8 @@ export function buildClientFromWizardData(data: LMWizardData): Client {
     comptable: "",
     mission: (data.type_mission || "TENUE COMPTABLE") as MissionType,
     domaine: "",
-    effectif: "",
-    dateCreation: "",
+    effectif: data.effectif || "",
+    dateCreation: data.date_creation || "",
     dateReprise: "",
     honoraires: data.honoraires_ht,
     reprise: 0,
@@ -70,5 +70,12 @@ export function buildClientFromWizardData(data: LMWizardData): Client {
     dateExpCni: "",
     statut: "ACTIF" as StatutClient,
     be: "",
-  };
+    // Extra fields for PDF (clientToLmData picks them via dynamic keys)
+    cac: data.cac,
+    volume_comptable: data.volume_comptable || "",
+    regime_fiscal: data.regime_fiscal || "",
+    tva: data.tva_assujetti,
+    exercice_debut: data.exercice_debut || `01/01/${new Date().getFullYear()}`,
+    date_cloture: data.date_cloture || `31/12/${new Date().getFullYear()}`,
+  } as Client & { cac: boolean; volume_comptable: string; regime_fiscal: string; tva: boolean; exercice_debut: string };
 }
